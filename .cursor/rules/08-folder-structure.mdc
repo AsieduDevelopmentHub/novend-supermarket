@@ -1,0 +1,37 @@
+---
+description: Where code belongs — repository organization, ownership, and import boundaries
+alwaysApply: true
+---
+
+# Folder Structure
+
+Reference: `docs/FOLDER_STRUCTURE.md`
+
+## Ownership
+
+| Location | Owns |
+|----------|------|
+| `app/` | Routes, layouts, metadata, page assembly |
+| `features/` | Feature UI, hooks, types, validators, views |
+| `components/` | Shared, business-agnostic UI |
+| `convex/` | Schema, queries, mutations, actions, auth |
+| `lib/` | Shared non-React utilities |
+| `hooks/` | Shared generic React hooks |
+| `types/` | Shared TypeScript types |
+| `services/` | External integrations (print, email, export) |
+| `providers/` | App-wide providers only |
+| `constants/` | Immutable shared constants |
+| `styles/` | Global styles / tokens |
+| `docs/` | Project documentation |
+| `.cursor/` | AI rules — reference docs, do not duplicate them wholesale |
+
+## Placement
+
+- Feature-specific code stays in `features/<feature>/`.
+- Shared UI stays in `components/`. Shared utils stay in `lib/`.
+- Business rules stay in `convex/`.
+- Do not create `misc`, `temp`, `new`, `old`, or similarly vague folders.
+
+## When adding a top-level folder
+
+Document purpose, allowed contents, and prohibited contents in `docs/FOLDER_STRUCTURE.md` in the same change.

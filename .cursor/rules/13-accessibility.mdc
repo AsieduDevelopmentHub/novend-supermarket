@@ -1,0 +1,15 @@
+---
+description: Accessibility requirements — WCAG AA, keyboard, focus, ARIA, contrast, semantics
+globs: **/*.{tsx,jsx}
+alwaysApply: false
+---
+
+# Accessibility
+
+Accessibility is a quality requirement, not a polish pass.
+
+- Target WCAG AA contrast.
+- Full keyboard navigation for sales, forms, and dialogs.
+- Visible focus states. Semantic HTML before ARIA.
+- Meaningful labels on inputs, buttons, and icon-only controls.
+- Accessible dialogs: focus trap, Escape to close, restore focus.

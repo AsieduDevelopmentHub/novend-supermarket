@@ -1,0 +1,35 @@
+---
+description: Convex backend standards — schema, queries, mutations, auth, org isolation, validation
+globs: convex/**
+alwaysApply: false
+---
+
+# Convex
+
+Reference: `docs/development/06-CONVEX_GUIDE.md`, `docs/architecture/CONVEX_ARCHITECTURE.md`, `docs/architecture/MULTI_TENANT.md`
+
+Backend only. No React patterns here.
+
+## Ownership
+
+Convex owns authentication, authorization, queries, mutations, actions, database,
+realtime, and file storage.
+
+## Tenancy
+
+- Resolve `organizationId` from the authenticated profile — never from client args.
+- After every `db.get` of a business document, assert it belongs to the session org.
+- Indexes for business tables start with `organizationId`.
+- SKU, invoice, and slug uniqueness is per organization.
+
+## Function rules
+
+- Every public function authenticates, authorizes, validates, and applies business rules.
+- Mutations that change inventory write history and prevent negative stock.
+- Queries request only needed fields and use indexes.
+
+## Schema
+
+- Tables model business entities, not UI screens.
+- Invalid states should be impossible.
+- Preserve history; avoid destructive deletes for business records.

@@ -1,0 +1,5 @@
+# pnpm 11+ build-script allowlist (package.json "pnpm" field is ignored)
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true

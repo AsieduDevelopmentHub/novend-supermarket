@@ -1,0 +1,29 @@
+---
+description: State ownership — local, URL, server/Convex, derived state, and context usage
+globs: **/*.{tsx,ts}
+alwaysApply: false
+---
+
+# State Management
+
+## Priority order
+
+```text
+Local State → URL State → Context → Convex Reactive Data
+```
+
+Keep state as close as possible to where it is used.
+
+## Rules
+
+- Convex is the source of truth for committed business data.
+- Dexie is a cache/outbox for local-first UX, not a second business database.
+- Do not mirror server data into unnecessary `useState` copies.
+- Prefer derived values over duplicated stored state.
+- Use Context only for truly cross-tree concerns (theme, auth session, offline, toasts).
+
+## Anti-patterns
+
+- Fetching business data into local state instead of using Convex queries (while online).
+- Treating IndexedDB as canonical across devices.
+- Storing the same inventory/sale/product values in multiple places.

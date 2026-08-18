@@ -1,0 +1,39 @@
+---
+description: UX principles for POS workflows — hierarchy, navigation, interaction, and cognitive load
+globs: **/*.{tsx,jsx}
+alwaysApply: false
+---
+
+# UI / UX
+
+Reference: `docs/PROJECT_CONSTITUTION.md`, `docs/design/UI_GUIDELINES.md`
+
+Pure UX. Do not prescribe colors, fonts, or visual tokens here.
+
+## User first
+
+Users must always know: where they are, what they are doing, what happens next, and whether the action succeeded.
+
+## Cognitive load
+
+- Present only what the current task needs.
+- Hide advanced options until required.
+- Cashiers work under time pressure — optimize for speed and low error rate.
+
+## Page structure
+
+```text
+Header → Primary Actions → Summary → Main Content → Secondary Information
+```
+
+## Interaction
+
+Every action needs immediate feedback: loading, success, failure, validation, disabled, empty.
+
+## Consistency
+
+Reuse existing interaction patterns. Do not invent a new pattern when one already exists.
+
+## Design gate
+
+A screen is ready only when the workflow is intuitive, hierarchy is obvious, and a first-time user can understand the page.

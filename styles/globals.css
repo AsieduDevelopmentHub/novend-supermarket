@@ -1,0 +1,299 @@
+@import "tailwindcss";
+
+/* Novend POS tokens — Onyx + Candy Blue brand */
+:root {
+  --background: #f8fafc;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --primary: #38bdf8;
+  --primary-foreground: #111827;
+  --secondary: #111827;
+  --secondary-foreground: #ffffff;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #e0f2fe;
+  --accent-foreground: #0c4a6e;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #16a34a;
+  --success-foreground: #ffffff;
+  --warning: #ea580c;
+  --warning-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #38bdf8;
+  --radius: 0.75rem;
+
+  --sidebar: #111827;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-muted: #cbd5e1;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #1e293b;
+  --sidebar-primary: #38bdf8;
+  --sidebar-primary-foreground: #111827;
+
+  --chart-1: #38bdf8;
+  --chart-2: #0ea5e9;
+  --chart-3: #111827;
+  --chart-4: #16a34a;
+  --chart-5: #ea580c;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.12);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+.dark {
+  --background: #020617;
+  --foreground: #f8fafc;
+  --card: #0f172a;
+  --card-foreground: #f8fafc;
+  --popover: #0f172a;
+  --popover-foreground: #f8fafc;
+  --primary: #38bdf8;
+  --primary-foreground: #111827;
+  --secondary: #1e293b;
+  --secondary-foreground: #f8fafc;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #082f49;
+  --accent-foreground: #7dd3fc;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --success: #22c55e;
+  --success-foreground: #ffffff;
+  --warning: #fb923c;
+  --warning-foreground: #111827;
+  --border: #1e293b;
+  --input: #1e293b;
+  --ring: #38bdf8;
+  --sidebar: #020617;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-muted: #cbd5e1;
+  --sidebar-accent: #111827;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #1e293b;
+  --sidebar-primary: #38bdf8;
+  --sidebar-primary-foreground: #111827;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply h-full overflow-hidden;
+  }
+
+  body {
+    @apply bg-background text-foreground h-full overflow-hidden font-sans antialiased;
+  }
+
+  html[data-font-size="sm"] {
+    font-size: 14px;
+  }
+
+  html[data-font-size="md"] {
+    font-size: 16px;
+  }
+
+  html[data-font-size="lg"] {
+    font-size: 18px;
+  }
+}
+
+@keyframes splash-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes splash-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Logo drops from above, lands with a weighted bounce. */
+@keyframes splash-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -42vh, 0) scale(0.96);
+  }
+  55% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  68% {
+    transform: translate3d(0, -14px, 0) scale(1.02);
+  }
+  80% {
+    transform: translate3d(0, 4px, 0) scale(0.99);
+  }
+  90% {
+    transform: translate3d(0, -3px, 0) scale(1.005);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* Soft radial flash at the moment of impact. */
+@keyframes splash-impact {
+  0%,
+  48% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  55% {
+    opacity: 0.22;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+}
+
+/* Minimal brand particles disperse then fade. */
+@keyframes splash-particle {
+  0%,
+  48% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.4);
+  }
+  58% {
+    opacity: 0.9;
+    transform: translate3d(calc(var(--px) * 0.45), calc(var(--py) * 0.45), 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--px), var(--py), 0) scale(0.35);
+  }
+}
+
+@keyframes splash-caption {
+  0%,
+  62% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-splash-out {
+  animation: splash-out 0.4s ease-in both;
+}
+
+.animate-splash-fall {
+  animation: splash-fall 1.35s cubic-bezier(0.22, 0.9, 0.28, 1) both;
+}
+
+.animate-splash-impact {
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--primary) 55%, transparent) 0%,
+    transparent 70%
+  );
+  animation: splash-impact 1.35s ease-out both;
+}
+
+.animate-splash-particle {
+  animation: splash-particle 1.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.animate-splash-caption {
+  animation: splash-caption 1.55s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-splash-fall,
+  .animate-splash-impact,
+  .animate-splash-particle,
+  .animate-splash-caption,
+  .animate-splash-out {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .animate-splash-fall {
+    opacity: 1;
+    transform: none;
+  }
+
+  .animate-splash-impact,
+  .animate-splash-particle {
+    opacity: 0 !important;
+  }
+
+  .animate-splash-caption {
+    opacity: 1;
+    transform: none;
+  }
+}

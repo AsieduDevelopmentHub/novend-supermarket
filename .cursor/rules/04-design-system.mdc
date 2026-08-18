@@ -1,0 +1,29 @@
+---
+description: Visual design tokens — color, typography, spacing, radius, shadow, icons, motion
+globs: **/*.{tsx,css}
+alwaysApply: false
+---
+
+# Design System
+
+Reference: `docs/design/DESIGN_SYSTEM.md`, `docs/design/COLOR_SYSTEM.md`, `docs/design/TYPOGRAPHY.md`, `docs/design/SPACING_SYSTEM.md`
+
+Visual design only. No workflow or business rules.
+
+## Design language
+
+Professional SaaS quality. Navy sidebar, light canvas, Novend teal primary
+(`#0d9488`). Not Princellen orange. Not industry-specific palettes.
+
+Target feel: large whitespace, simple hierarchy, rounded components, minimal
+borders, subtle shadows, predictable interactions.
+
+## Tokens
+
+Use design tokens / CSS variables. Never invent one-off colors, font sizes, or
+spacing values on a screen.
+
+## Consistency
+
+New screens must strengthen the existing design system. If a visual choice
+cannot be expressed with current tokens, update the design system first.

@@ -1,0 +1,759 @@
+import { v } from "convex/values";
+import { mutation, query, MutationCtx, QueryCtx } from "./_generated/server";
+import {
+  requireRole,
+  requireBranchId,
+  resolveBranchFilter,
+  isAdmin,
+  assertBranchAccess,
+} from "./shared/permissions";
+import { assertPositiveMoney, roundMoney } from "./shared/validation";
+import { writeAuditLog } from "./shared/audit";
+import { Id } from "./_generated/dataModel";
+import {
+  DEFAULT_BUSINESS,
+  DEFAULT_RECEIPT_TEMPLATE,
+  type BusinessProfile,
+  type ReceiptTemplate,
+} from "./settings";
+import { applyBranchStockChange, getBranchQuantity, stockMapForBranch } from "./shared/branchStock";
+import {
+  decreaseLots,
+  deriveExpiryListFields,
+  getSellableQuantity,
+  lotSummaries,
+  productTracksExpiry,
+} from "./shared/lots";
+import { loadReturnableLines } from "./shared/returns";
+
+type CartLine = {
+  productId: Id<"products">;
+  quantity: number;
+  discount: number;
+};
+
+type DbCtx = QueryCtx | MutationCtx;
+
+async function nextInvoiceNumber(
+  ctx: MutationCtx,
+  organizationId: import("./_generated/dataModel").Id<"organizations">,
+) {
+  const sales = await ctx.db
+    .query("sales")
+    .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+    .collect();
+  const n = sales.length + 1001;
+  return `INV-${n}`;
+}
+
+async function loadSettingJson(ctx: DbCtx, key: string) {
+  const row = await ctx.db
+    .query("settings")
+    .withIndex("by_key", (q) => q.eq("key", key))
+    .unique();
+  return row?.value;
+}
+
+async function loadPrintSnapshot(
+  ctx: DbCtx,
+  branchId?: Id<"branches"> | null,
+): Promise<{
+  business: BusinessProfile;
+  template: ReceiptTemplate;
+}> {
+  let business = DEFAULT_BUSINESS;
+  let template = DEFAULT_RECEIPT_TEMPLATE;
+  try {
+    const raw = await loadSettingJson(ctx, "business.profile");
+    if (raw) business = { ...DEFAULT_BUSINESS, ...JSON.parse(raw) };
+  } catch {
+    /* default */
+  }
+  try {
+    const raw = await loadSettingJson(ctx, "receipt.template");
+    if (raw) template = { ...DEFAULT_RECEIPT_TEMPLATE, ...JSON.parse(raw) };
+  } catch {
+    /* default */
+  }
+
+  if (branchId) {
+    const branch = await ctx.db.get(branchId);
+    if (branch) {
+      const showName = branch.receiptShowName ?? true;
+      const showAddress = branch.receiptShowAddress ?? true;
+      const showPhone = branch.receiptShowPhone ?? true;
+      const showEmail = branch.receiptShowEmail ?? true;
+      // Keep org tradeName; branch is a separate line on the receipt.
+      business = {
+        ...business,
+        branchName: showName ? branch.name : undefined,
+        address: showAddress ? (branch.address ?? "") : "",
+        phone: showPhone ? (branch.phone ?? "") : "",
+        email: showEmail ? (branch.email ?? "") : "",
+      };
+      if (branch.receiptPaperWidthMm === 58 || branch.receiptPaperWidthMm === 80) {
+        template = { ...template, paperWidthMm: branch.receiptPaperWidthMm };
+      }
+    }
+  }
+
+  return { business, template };
+}
+
+export const catalog = query({
+  args: {
+    search: v.optional(v.string()),
+    branchId: v.optional(v.id("branches")),
+  },
+  handler: async (ctx, args) => {
+    const { branchId } = await requireBranchId(ctx, args.branchId);
+    const stockByProduct = await stockMapForBranch(ctx, branchId);
+    const summaries = await lotSummaries(ctx, branchId);
+    let products = (await ctx.db.query("products").collect()).filter((p) => {
+      if (p.status !== "active") return false;
+      const onHand = stockByProduct.get(p._id) ?? 0;
+      const expiry = deriveExpiryListFields(p, onHand, summaries.get(p._id));
+      return expiry.sellableQuantity > 0;
+    });
+    if (args.search?.trim()) {
+      const q = args.search.trim().toLowerCase();
+      products = products.filter(
+        (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q),
+      );
+    }
+    return await Promise.all(
+      products.slice(0, 48).map(async (product) => {
+        const onHand = stockByProduct.get(product._id) ?? 0;
+        const expiry = deriveExpiryListFields(product, onHand, summaries.get(product._id));
+        return {
+          id: product._id,
+          name: product.name,
+          sku: product.sku,
+          sellingPrice: product.sellingPrice,
+          stockQuantity: expiry.sellableQuantity,
+          unit: product.unit,
+          imageUrl: product.imageStorageId ? await ctx.storage.getUrl(product.imageStorageId) : null,
+          branchId,
+          tracksExpiry: expiry.tracksExpiry,
+          isExpiring: expiry.isExpiring,
+          nearestSellableExpiry: expiry.nearestSellableExpiry,
+        };
+      }),
+    );
+  },
+});
+
+export const listHeld = query({
+  args: {},
+  handler: async (ctx) => {
+    const { userId, profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    if (isAdmin(profile)) {
+      const all = await ctx.db.query("heldSales").collect();
+      return all.sort((a, b) => b.heldAt - a.heldAt);
+    }
+    if (profile.role === "manager" && profile.branchId) {
+      const all = await ctx.db
+        .query("heldSales")
+        .withIndex("by_branch", (q) => q.eq("branchId", profile.branchId!))
+        .collect();
+      return all.sort((a, b) => b.heldAt - a.heldAt);
+    }
+    const held = await ctx.db
+      .query("heldSales")
+      .withIndex("by_cashier", (q) => q.eq("cashierId", userId))
+      .collect();
+    return held.sort((a, b) => b.heldAt - a.heldAt);
+  },
+});
+
+export const holdSale = mutation({
+  args: {
+    label: v.optional(v.string()),
+    customerId: v.optional(v.id("customers")),
+    customerName: v.optional(v.string()),
+    items: v.array(
+      v.object({
+        productId: v.id("products"),
+        quantity: v.number(),
+        discount: v.number(),
+      }),
+    ),
+    discount: v.number(),
+    branchId: v.optional(v.id("branches")),
+  },
+  handler: async (ctx, args) => {
+    const { userId, profile, branchId } = await requireBranchId(ctx, args.branchId);
+    await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    if (!profile.branchId) {
+      const branch = await ctx.db.get(branchId);
+      await ctx.db.patch(profile._id, {
+        branchId,
+        branch: branch?.name ?? "Main Branch",
+      });
+    }
+    if (args.items.length === 0) throw new Error("Cart is empty");
+
+    const customerId = args.customerId;
+    let customerName = args.customerName?.trim() || "Walk-in Customer";
+    if (customerId) {
+      const customer = await ctx.db.get(customerId);
+      if (!customer || customer.status !== "active") {
+        throw new Error("Customer not found");
+      }
+      customerName = customer.name;
+    }
+
+    const lines = [];
+    let subtotal = 0;
+    for (const item of args.items) {
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+        throw new Error("Invalid quantity");
+      }
+      assertPositiveMoney(item.discount, "line discount");
+      const product = await ctx.db.get(item.productId);
+      if (!product || product.status !== "active") {
+        throw new Error("Product unavailable");
+      }
+      const gross = roundMoney(product.sellingPrice * item.quantity);
+      if (item.discount > gross) {
+        throw new Error(`Discount exceeds line total for ${product.name}`);
+      }
+      const lineSub = roundMoney(gross - item.discount);
+      subtotal += lineSub;
+      lines.push({
+        productId: product._id,
+        productName: product.name,
+        quantity: item.quantity,
+        unitPrice: product.sellingPrice,
+        discount: item.discount,
+      });
+    }
+
+    assertPositiveMoney(args.discount, "cart discount");
+    if (roundMoney(args.discount) - roundMoney(subtotal) > 0.001) {
+      throw new Error("Discount cannot exceed the sale subtotal");
+    }
+    const cartDiscount = roundMoney(args.discount);
+    const total = Math.max(0, roundMoney(subtotal - cartDiscount));
+
+    return await ctx.db.insert("heldSales", {
+      organizationId: profile.organizationId,
+      cashierId: userId,
+      branchId,
+      label: args.label?.trim(),
+      customerId,
+      customerName,
+      items: lines,
+      subtotal: roundMoney(subtotal),
+      discount: roundMoney(cartDiscount),
+      total,
+      heldAt: Date.now(),
+    });
+  },
+});
+
+export const resumeHeld = mutation({
+  args: { id: v.id("heldSales") },
+  handler: async (ctx, args) => {
+    const { userId, profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const held = await ctx.db.get(args.id);
+    if (!held) throw new Error("Held sale not found");
+    if (isAdmin(profile)) {
+      /* ok */
+    } else if (profile.role === "manager") {
+      if (held.branchId && held.branchId !== profile.branchId) throw new Error("Forbidden");
+    } else if (held.cashierId !== userId) {
+      throw new Error("Forbidden");
+    }
+    await ctx.db.delete(args.id);
+    return held;
+  },
+});
+
+export const getReceipt = query({
+  args: { saleId: v.id("sales") },
+  handler: async (ctx, args) => {
+    const { userId, profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const sale = await ctx.db.get(args.saleId);
+    if (!sale) return null;
+    if (sale.branchId) assertBranchAccess(profile, sale.branchId);
+    if (profile.role === "cashier" && sale.cashierId !== userId) {
+      throw new Error("Forbidden");
+    }
+
+    const receipt = await ctx.db
+      .query("receipts")
+      .withIndex("by_sale", (q) => q.eq("saleId", args.saleId))
+      .unique();
+    if (!receipt) return null;
+    try {
+      return {
+        id: receipt._id,
+        saleId: receipt.saleId,
+        invoiceNumber: receipt.invoiceNumber,
+        createdAt: receipt.createdAt,
+        payload: JSON.parse(receipt.payload) as Record<string, unknown>,
+      };
+    } catch {
+      return {
+        id: receipt._id,
+        saleId: receipt.saleId,
+        invoiceNumber: receipt.invoiceNumber,
+        createdAt: receipt.createdAt,
+        payload: null,
+      };
+    }
+  },
+});
+
+export const completeSale = mutation({
+  args: {
+    customerId: v.optional(v.id("customers")),
+    customerName: v.optional(v.string()),
+    items: v.array(
+      v.object({
+        productId: v.id("products"),
+        quantity: v.number(),
+        discount: v.number(),
+      }),
+    ),
+    discount: v.number(),
+    paymentMethod: v.union(v.literal("cash"), v.literal("card"), v.literal("mobile_money")),
+    /** Working branch for this sale (admin may choose; others use assigned). */
+    branchId: v.optional(v.id("branches")),
+    heldSaleId: v.optional(v.id("heldSales")),
+    /** Client-generated idempotency key for offline / retry-safe checkout. */
+    clientOperationId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { userId, profile, branchId } = await requireBranchId(ctx, args.branchId);
+    if (!["administrator", "manager", "cashier"].includes(profile.role)) {
+      throw new Error("Forbidden");
+    }
+    if (!profile.branchId) {
+      const branch = await ctx.db.get(branchId);
+      await ctx.db.patch(profile._id, {
+        branchId,
+        branch: branch?.name ?? "Main Branch",
+      });
+    }
+
+    if (args.clientOperationId?.trim()) {
+      const existing = await ctx.db
+        .query("saleClientOps")
+        .withIndex("by_clientOperationId", (q) =>
+          q.eq("clientOperationId", args.clientOperationId!.trim()),
+        )
+        .unique();
+      if (existing) {
+        const sale = await ctx.db.get(existing.saleId);
+        const receipt = await ctx.db
+          .query("receipts")
+          .withIndex("by_sale", (q) => q.eq("saleId", existing.saleId))
+          .unique();
+        if (sale && receipt) {
+          return {
+            saleId: sale._id,
+            invoiceNumber: sale.invoiceNumber,
+            total: sale.total,
+            receiptPayload: JSON.parse(receipt.payload) as unknown,
+          };
+        }
+      }
+    }
+
+    if (args.items.length === 0) throw new Error("Cart is empty");
+
+    const customerId = args.customerId;
+    let customerName = args.customerName?.trim() || "Walk-in Customer";
+    let customerPhone: string | null = null;
+    if (customerId) {
+      const customer = await ctx.db.get(customerId);
+      if (!customer || customer.status !== "active") {
+        throw new Error("Customer not found");
+      }
+      customerName = customer.name;
+      customerPhone = customer.phone ?? null;
+    }
+
+    const lines: Array<{
+      productId: Id<"products">;
+      productName: string;
+      sku: string;
+      quantity: number;
+      unitPrice: number;
+      unitCost: number;
+      discount: number;
+      lineTotal: number;
+    }> = [];
+
+    let subtotal = 0;
+    let itemCount = 0;
+
+    for (const item of args.items as CartLine[]) {
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+        throw new Error("Invalid quantity");
+      }
+      assertPositiveMoney(item.discount, "line discount");
+      const product = await ctx.db.get(item.productId);
+      if (!product || product.status !== "active") {
+        throw new Error(`Product unavailable`);
+      }
+      const available = productTracksExpiry(product)
+        ? await getSellableQuantity(ctx, branchId, product._id)
+        : await getBranchQuantity(ctx, branchId, product._id);
+      if (available < item.quantity) {
+        throw new Error(
+          productTracksExpiry(product)
+            ? `Insufficient sellable stock for ${product.name}`
+            : `Insufficient stock for ${product.name}`,
+        );
+      }
+      const gross = roundMoney(product.sellingPrice * item.quantity);
+      if (item.discount > gross) {
+        throw new Error(`Discount exceeds line total for ${product.name}`);
+      }
+      const lineTotal = roundMoney(gross - item.discount);
+      if (lineTotal < 0) throw new Error("Invalid line discount");
+      subtotal += lineTotal;
+      itemCount += item.quantity;
+      lines.push({
+        productId: product._id,
+        productName: product.name,
+        sku: product.sku,
+        quantity: item.quantity,
+        unitPrice: product.sellingPrice,
+        unitCost: product.costPrice,
+        discount: item.discount,
+        lineTotal,
+      });
+    }
+
+    assertPositiveMoney(args.discount, "cart discount");
+    if (roundMoney(args.discount) - roundMoney(subtotal) > 0.001) {
+      throw new Error("Discount cannot exceed the sale subtotal");
+    }
+    const cartDiscount = roundMoney(args.discount);
+    const total = Math.max(0, roundMoney(subtotal - cartDiscount));
+    const invoiceNumber = await nextInvoiceNumber(ctx, profile.organizationId);
+    const completedAt = Date.now();
+    const snapshot = await loadPrintSnapshot(ctx, branchId);
+
+    const saleId = await ctx.db.insert("sales", {
+      organizationId: profile.organizationId,
+      invoiceNumber,
+      cashierId: userId,
+      branchId,
+      customerId,
+      customerName,
+      subtotal: roundMoney(subtotal),
+      discount: cartDiscount,
+      total,
+      paymentMethod: args.paymentMethod,
+      itemCount,
+      status: "completed",
+      completedAt,
+    });
+
+    for (const line of lines) {
+      const { sku: _sku, ...saleItem } = line;
+      void _sku;
+      const saleItemId = await ctx.db.insert("saleItems", {
+        organizationId: profile.organizationId,
+        saleId,
+        productId: saleItem.productId,
+        productName: saleItem.productName,
+        quantity: saleItem.quantity,
+        unitPrice: saleItem.unitPrice,
+        unitCost: saleItem.unitCost,
+        discount: saleItem.discount,
+        lineTotal: saleItem.lineTotal,
+      });
+      const product = await ctx.db.get(line.productId);
+      if (!product || product.status !== "active") {
+        throw new Error("Product unavailable");
+      }
+      if (productTracksExpiry(product)) {
+        const allocations = await decreaseLots(ctx, {
+          branchId,
+          productId: line.productId,
+          quantity: line.quantity,
+          reason: "sale",
+          sellableOnly: true,
+          productName: line.productName,
+          performedBy: userId,
+          relatedSaleId: saleId,
+        });
+        for (const allocation of allocations) {
+          await ctx.db.insert("saleItemLots", {
+            organizationId: profile.organizationId,
+            saleItemId,
+            lotId: allocation.lotId,
+            quantity: allocation.quantity,
+            expiryDate: allocation.expiryDate,
+          });
+        }
+      } else {
+        await applyBranchStockChange(ctx, {
+          branchId,
+          productId: line.productId,
+          quantityChange: -line.quantity,
+          reason: "sale",
+          performedBy: userId,
+          relatedSaleId: saleId,
+        });
+      }
+    }
+
+    const payload = {
+      invoiceNumber,
+      saleId,
+      branchId,
+      subtotal: roundMoney(subtotal),
+      discount: cartDiscount,
+      total,
+      itemCount,
+      lines,
+      paymentMethod: args.paymentMethod,
+      completedAt,
+      customerName,
+      customerPhone,
+      customerId: customerId ?? null,
+      cashierName: profile.name,
+      cashierId: userId,
+      business: snapshot.business,
+      template: snapshot.template,
+    };
+
+    await ctx.db.insert("receipts", {
+      organizationId: profile.organizationId,
+      saleId,
+      invoiceNumber,
+      payload: JSON.stringify(payload),
+      createdAt: completedAt,
+    });
+
+    if (args.clientOperationId?.trim()) {
+      await ctx.db.insert("saleClientOps", {
+        organizationId: profile.organizationId,
+        clientOperationId: args.clientOperationId.trim(),
+        saleId,
+        cashierId: userId,
+        createdAt: completedAt,
+      });
+    }
+
+    if (args.heldSaleId) {
+      const held = await ctx.db.get(args.heldSaleId);
+      if (held) await ctx.db.delete(args.heldSaleId);
+    }
+
+    await writeAuditLog(ctx, {
+      actorId: userId,
+      action: "complete_sale",
+      entityType: "sales",
+      entityId: saleId,
+      metadata: { invoiceNumber, total, branchId },
+    });
+
+    return { saleId, invoiceNumber, total, receiptPayload: payload };
+  },
+});
+
+export const listOrders = query({
+  args: {
+    search: v.optional(v.string()),
+    limit: v.optional(v.number()),
+    branchId: v.optional(v.id("branches")),
+  },
+  handler: async (ctx, args) => {
+    const { userId, profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
+    const limit = Math.min(args.limit ?? 100, 200);
+    let sales = await ctx.db.query("sales").withIndex("by_completedAt").collect();
+
+    if (branchFilter) {
+      sales = sales.filter((s) => s.branchId === branchFilter);
+    }
+    if (profile.role === "cashier") {
+      sales = sales.filter((s) => s.cashierId === userId);
+    }
+
+    if (args.search?.trim()) {
+      const q = args.search.trim().toLowerCase();
+      sales = sales.filter(
+        (s) =>
+          s.invoiceNumber.toLowerCase().includes(q) || s.customerName.toLowerCase().includes(q),
+      );
+    }
+
+    const profiles = await ctx.db.query("profiles").collect();
+    const nameByUser = new Map(profiles.map((p) => [p.userId, p.name]));
+    const branches = await ctx.db.query("branches").collect();
+    const branchName = new Map(branches.map((b) => [b._id, b.name]));
+    const returnRows = await ctx.db.query("saleReturns").collect();
+    const refundedBySale = new Map<Id<"sales">, number>();
+    for (const row of returnRows) {
+      if (row.status !== "completed") continue;
+      refundedBySale.set(row.saleId, (refundedBySale.get(row.saleId) ?? 0) + row.refundAmount);
+    }
+
+    return sales
+      .sort((a, b) => b.completedAt - a.completedAt)
+      .slice(0, limit)
+      .map((sale) => ({
+        id: sale._id,
+        invoiceNumber: sale.invoiceNumber,
+        customerId: sale.customerId ?? null,
+        customerName: sale.customerName,
+        itemCount: sale.itemCount,
+        subtotal: sale.subtotal,
+        discount: sale.discount,
+        total: sale.total,
+        refundedAmount: roundMoney(refundedBySale.get(sale._id) ?? 0),
+        paymentMethod: sale.paymentMethod,
+        status: sale.status,
+        completedAt: sale.completedAt,
+        cashierId: sale.cashierId,
+        cashierName: nameByUser.get(sale.cashierId) ?? "Cashier",
+        branchId: sale.branchId ?? null,
+        branchName: sale.branchId ? (branchName.get(sale.branchId) ?? null) : null,
+      }));
+  },
+});
+
+export const getOrder = query({
+  args: { id: v.id("sales") },
+  handler: async (ctx, args) => {
+    const { userId, profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const sale = await ctx.db.get(args.id);
+    if (!sale) return null;
+    if (sale.branchId) assertBranchAccess(profile, sale.branchId);
+    if (profile.role === "cashier" && sale.cashierId !== userId) {
+      throw new Error("Forbidden");
+    }
+
+    const items = await ctx.db
+      .query("saleItems")
+      .withIndex("by_sale", (q) => q.eq("saleId", sale._id))
+      .collect();
+
+    const cashierProfile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", sale.cashierId))
+      .unique();
+
+    const receipt = await ctx.db
+      .query("receipts")
+      .withIndex("by_sale", (q) => q.eq("saleId", sale._id))
+      .unique();
+
+    let parsed: Record<string, unknown> | null = null;
+    if (receipt) {
+      try {
+        parsed = JSON.parse(receipt.payload) as Record<string, unknown>;
+      } catch {
+        parsed = null;
+      }
+    }
+
+    const returnable = await loadReturnableLines(ctx, sale._id);
+    const returnedByItem = new Map(
+      returnable.items.map((item) => [item.saleItemId, item] as const),
+    );
+
+    const mappedItems = items.map((item) => {
+      const returned = returnedByItem.get(item._id);
+      return {
+        id: item._id,
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount,
+        lineTotal: item.lineTotal,
+        returnedQuantity: returned?.returnedQuantity ?? 0,
+        remainingQuantity: returned?.remainingQuantity ?? item.quantity,
+      };
+    });
+
+    const snapshot = await loadPrintSnapshot(ctx, sale.branchId);
+    const parsedBusiness =
+      parsed?.business && typeof parsed.business === "object"
+        ? (parsed.business as Record<string, unknown>)
+        : null;
+    const parsedTemplate =
+      parsed?.template && typeof parsed.template === "object"
+        ? (parsed.template as Record<string, unknown>)
+        : null;
+
+    // Always synthesize a complete printable payload (covers legacy receipts).
+    const receiptPayload = {
+      ...(parsed ?? {}),
+      invoiceNumber: sale.invoiceNumber,
+      saleId: sale._id,
+      subtotal: sale.subtotal,
+      discount: sale.discount,
+      total: sale.total,
+      itemCount: sale.itemCount,
+      paymentMethod: sale.paymentMethod,
+      completedAt: sale.completedAt,
+      customerName: sale.customerName,
+      customerId: sale.customerId ?? null,
+      cashierName: cashierProfile?.name ?? "Cashier",
+      lines:
+        Array.isArray(parsed?.lines) && (parsed.lines as unknown[]).length > 0
+          ? parsed.lines
+          : mappedItems.map((item) => ({
+              productName: item.productName,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              discount: item.discount,
+              lineTotal: item.lineTotal,
+            })),
+      business: {
+        ...(parsedBusiness ?? {}),
+        ...snapshot.business,
+        // Org title always from settings; branch is a separate line.
+        tradeName: snapshot.business.tradeName,
+        legalName: snapshot.business.legalName,
+        taxId: snapshot.business.taxId,
+      },
+      template: { ...(parsedTemplate ?? {}), ...snapshot.template },
+    };
+
+    return {
+      id: sale._id,
+      invoiceNumber: sale.invoiceNumber,
+      customerId: sale.customerId ?? null,
+      customerName: sale.customerName,
+      itemCount: sale.itemCount,
+      subtotal: sale.subtotal,
+      discount: sale.discount,
+      total: sale.total,
+      paymentMethod: sale.paymentMethod,
+      status: sale.status,
+      completedAt: sale.completedAt,
+      cashierId: sale.cashierId,
+      cashierName: cashierProfile?.name ?? "Cashier",
+      refundedAmount: returnable.refundedAmount,
+      remainingRefundable: roundMoney(Math.max(0, sale.total - returnable.refundedAmount)),
+      canReturn: mappedItems.some((item) => item.remainingQuantity > 0),
+      returns: returnable.returns.map((row) => ({
+        id: row._id,
+        returnNumber: row.returnNumber,
+        refundAmount: row.refundAmount,
+        reason: row.reason,
+        notes: row.notes ?? null,
+        itemCount: row.itemCount,
+        completedAt: row.completedAt,
+        processedBy: row.processedBy,
+      })),
+      items: mappedItems,
+      receiptPayload,
+    };
+  },
+});
+
+export const hold = holdSale;
+

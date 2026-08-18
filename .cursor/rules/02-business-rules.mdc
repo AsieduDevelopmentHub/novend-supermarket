@@ -1,0 +1,42 @@
+---
+description: Core POS business rules for sales, inventory, products, receipts, roles, and tenancy
+alwaysApply: true
+---
+
+# Business Rules
+
+Reference: `docs/BUSINESS_GLOSSARY.md`, `docs/business/`, `docs/PROJECT_CONSTITUTION.md`
+
+## Non-negotiable
+
+- Inventory cannot become negative.
+- Inventory never changes without a recorded business reason.
+- Completed sales are immutable. Corrections use return workflows, not edits.
+- Every completed sale produces exactly one immutable receipt.
+- Sale items snapshot prices and quantities at checkout.
+- Prefer archive/deactivate over permanent deletion of business records.
+- Important actions remain attributable to user, time, and operation.
+- Organization isolation is absolute.
+
+## Sales
+
+- Cart → adjust → discount → payment → receipt → inventory → reports.
+- Held sales preserve cart state; inventory is not reduced until checkout.
+
+## Products & inventory
+
+- Products are real sellable stock. Categories are admin-managed.
+- SKUs are unique per organization.
+- Stock is per branch. Every inventory transition creates history.
+
+## Roles
+
+- **Cashier**: sales, hold/resume, receipts, personal history. Cannot edit products, inventory, pricing, users, or settings.
+- **Manager**: branch operations, catalog, inventory, cashiers in branch.
+- **Administrator**: organization-wide, including users and settings.
+- **Owner**: administrator who created the org; cannot be deactivated in this slice.
+- Permissions come from roles, always scoped to the session organization.
+
+## Enforcement
+
+All business rules are enforced in Convex. Never rely on frontend validation alone.

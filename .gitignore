@@ -1,0 +1,15 @@
+node_modules
+.next
+.convex
+.turbo
+.env
+.env.local
+*.tsbuildinfo
+.DS_Store
+dist
+coverage
+scripts/.auth-keys.*
+.convex-auth-keys.tmp.json
+gpt.md
+*.log
+*.logs

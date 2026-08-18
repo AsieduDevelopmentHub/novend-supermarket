@@ -1,0 +1,32 @@
+---
+description: Final quality gate — silent checklist before presenting any implementation
+alwaysApply: true
+---
+
+# Final Check
+
+Before presenting work, silently verify:
+
+```text
+✓ Satisfies business rules?
+✓ Organization isolation held?
+✓ Follows architecture and folder boundaries?
+✓ Matches the design system (Novend teal, navy sidebar)?
+✓ UI consistent with the rest of the app?
+✓ Components reused / reusable where appropriate?
+✓ TypeScript strong (no lazy any)?
+✓ Convex correct (auth, org, validation, integrity)?
+✓ Security handled (authz + least privilege)?
+✓ Accessibility handled?
+✓ Performance acceptable for POS workflows?
+✓ Documentation updated when required?
+✓ Would I approve this PR as Lead Engineer?
+```
+
+If any answer is **No**, refine before presenting.
+
+## Definition of Done
+
+Business requirement met, architecture intact, tenant isolation intact, no
+unnecessary duplication, errors handled, design language respected, and the
+codebase left better than before.

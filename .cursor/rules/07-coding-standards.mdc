@@ -1,0 +1,41 @@
+---
+description: TypeScript, React, naming, imports, and code style standards
+alwaysApply: true
+---
+
+# Coding Standards
+
+Reference: `docs/DEVELOPMENT_GUIDE.md`
+
+Language and style only.
+
+## TypeScript
+
+- Strong typing everywhere. Avoid `any`. Prefer explicit domain types.
+- Prefer readable, explicit code over clever abstractions.
+- Meaningful names over comments. Comments explain why, not what.
+
+## React
+
+- Functional components only.
+- Extract reusable logic into hooks.
+- Keep components small; one responsibility per file.
+- Do not add `useMemo` / `useCallback` by default.
+
+## Naming
+
+- Components: `PascalCase.tsx`
+- Hooks / utils: `camelCase.ts`
+- Folders: `kebab-case`
+- Prefer purpose names: `CreateSale`, `InventoryAdjustment`, `ReceiptPreview`
+- Never ship `Temp`, `Data2`, `HelperNew`, `Final`
+
+## Imports
+
+- Respect folder ownership and dependency direction.
+- No circular imports.
+- Colocate feature code inside the feature.
+
+## Quality bar
+
+Simple > clever. Explicit > implicit. Reuse > duplicate. Small modules > large files.

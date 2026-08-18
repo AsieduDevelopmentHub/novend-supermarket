@@ -1,0 +1,49 @@
+---
+description: Feature-first architecture, layer boundaries, tenancy, and dependency rules for Novend POS
+alwaysApply: true
+---
+
+# Architecture
+
+Reference: `docs/PROJECT_CONSTITUTION.md`, `docs/FOLDER_STRUCTURE.md`, `docs/architecture/`
+
+## Feature-first
+
+- Features own business UI under `features/`.
+- Shared UI lives in `components/`. Backend ownership lives in `convex/`.
+- Prefer extending existing modules over parallel implementations.
+
+## Layers
+
+```text
+UI → Application logic → Business logic → Convex → Database
+```
+
+- UI renders, interacts, and shows feedback.
+- Business rules, permissions, validation, and integrity live in Convex.
+- The frontend is never the source of truth.
+- UI components must never decide business outcomes.
+
+## Dependency flow
+
+```text
+app → features → components → hooks → lib → convex
+```
+
+- Dependencies point downward only.
+- `components/` never call Convex or contain business rules.
+- `app/` is routing and page assembly only.
+
+## Tenancy
+
+Every business record belongs to an organization. Resolve org from the session
+profile. After `db.get`, assert organization. See `docs/architecture/MULTI_TENANT.md`.
+
+## Offline
+
+Local-first UX, Convex authority. See `docs/architecture/OFFLINE_SYNC.md`.
+
+## Separation of concerns
+
+One file, one responsibility. Do not combine fetching, business validation,
+complex state, and rendering in the same file.

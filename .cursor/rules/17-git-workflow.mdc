@@ -1,0 +1,11 @@
+---
+description: Git workflow — branches, commits, PRs, and merge expectations
+alwaysApply: false
+---
+
+# Git Workflow
+
+- Purpose-based branch names. Keep branches focused.
+- Commit only when asked. Messages explain why.
+- Never commit secrets.
+- Small, reviewable diffs. Include summary, test plan, and docs when architecture or business rules change.

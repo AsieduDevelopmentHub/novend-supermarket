@@ -1,0 +1,33 @@
+---
+description: Security standards — auth, authorization, org isolation, validation, secrets
+alwaysApply: true
+---
+
+# Security
+
+Reference: `docs/development/14-SECURITY_GUIDE.md`, `docs/architecture/MULTI_TENANT.md`
+
+Security is designed in, not added later.
+
+## Every request
+
+Assume hostile input. Every Convex mutation/action/query that touches business data must:
+
+1. Authenticate
+2. Authorize (role / permission / organization / branch)
+3. Validate input
+4. Enforce business rules
+
+Never trust the client. Never trust `args.organizationId`.
+
+## Least privilege
+
+Cashiers must not reach admin capabilities through UI or API gaps.
+
+## Secrets
+
+No secrets in source, commits, or client bundles.
+
+## Data exposure
+
+Return only fields the caller is allowed to see. Do not leak cost prices or other organizations’ data.

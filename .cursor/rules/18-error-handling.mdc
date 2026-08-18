@@ -1,0 +1,14 @@
+---
+description: Error handling — boundaries, logging, retries, toasts, empty and network failure states
+globs: **/*.{tsx,ts}
+alwaysApply: false
+---
+
+# Error Handling
+
+- Expect failure. Fail safely. Prefer recoverable paths.
+- Users get helpful messages. Developers get diagnostics.
+- Never expose stack traces to end users.
+- Data views handle loading, empty, success, error, and permission denied.
+- Retry only when safe and idempotent; do not blindly retry inventory/sale mutations.
+- Operations should complete or fail cleanly — no partial business updates.

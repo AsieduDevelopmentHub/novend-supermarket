@@ -1,0 +1,127 @@
+import { getOfflineDb, type PrincellenOfflineDb } from "./db";
+import type { CompleteSaleOutboxPayload, ProcessReturnOutboxPayload, OutboxRow } from "./types";
+import { newClientId } from "./db";
+
+export async function enqueueCompleteSale(
+  db: PrincellenOfflineDb,
+  clientOperationId: string,
+  payload: CompleteSaleOutboxPayload,
+): Promise<OutboxRow> {
+  const now = Date.now();
+  const row: OutboxRow = {
+    id: newClientId("outbox"),
+    type: "complete_sale",
+    clientOperationId,
+    payloadJson: JSON.stringify(payload),
+    status: "pending",
+    attempts: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.outbox.put(row);
+  return row;
+}
+
+export async function enqueueProcessReturn(
+  db: PrincellenOfflineDb,
+  clientOperationId: string,
+  payload: ProcessReturnOutboxPayload,
+): Promise<OutboxRow> {
+  const now = Date.now();
+  const row: OutboxRow = {
+    id: newClientId("outbox"),
+    type: "process_return",
+    clientOperationId,
+    payloadJson: JSON.stringify(payload),
+    status: "pending",
+    attempts: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.outbox.put(row);
+  return row;
+}
+
+export async function listPendingOutbox(db: PrincellenOfflineDb): Promise<OutboxRow[]> {
+  try {
+    return await db.outbox
+      .where("[status+createdAt]")
+      .between(["pending", 0], ["pending", Infinity])
+      .toArray();
+  } catch {
+    const rows = await db.outbox.where("status").equals("pending").toArray();
+    return rows.sort((a, b) => a.createdAt - b.createdAt);
+  }
+}
+
+export async function claimOutboxRow(
+  db: PrincellenOfflineDb,
+  id: string,
+): Promise<OutboxRow | null> {
+  const row = await db.outbox.get(id);
+  if (!row || (row.status !== "pending" && row.status !== "failed")) return null;
+  const next: OutboxRow = {
+    ...row,
+    status: "syncing",
+    attempts: row.attempts + 1,
+    updatedAt: Date.now(),
+  };
+  await db.outbox.put(next);
+  return next;
+}
+
+export async function markOutboxSynced(db: PrincellenOfflineDb, id: string) {
+  const row = await db.outbox.get(id);
+  if (!row) return;
+  await db.outbox.put({
+    ...row,
+    status: "synced",
+    lastError: undefined,
+    updatedAt: Date.now(),
+  });
+}
+
+export async function markOutboxFailed(db: PrincellenOfflineDb, id: string, error: string) {
+  const row = await db.outbox.get(id);
+  if (!row) return;
+  await db.outbox.put({
+    ...row,
+    status: "failed",
+    lastError: error,
+    updatedAt: Date.now(),
+  });
+}
+
+export async function markOutboxPending(db: PrincellenOfflineDb, id: string, error?: string) {
+  const row = await db.outbox.get(id);
+  if (!row) return;
+  await db.outbox.put({
+    ...row,
+    status: "pending",
+    lastError: error,
+    updatedAt: Date.now(),
+  });
+}
+
+export async function countOutboxByStatus() {
+  const db = await getOfflineDb();
+  if (!db) return { pending: 0, failed: 0, syncing: 0 };
+  const [pending, failed, syncing] = await Promise.all([
+    db.outbox.where("status").equals("pending").count(),
+    db.outbox.where("status").equals("failed").count(),
+    db.outbox.where("status").equals("syncing").count(),
+  ]);
+  return { pending, failed, syncing };
+}
+
+export async function retryFailedOutbox(db: PrincellenOfflineDb, id: string) {
+  await markOutboxPending(db, id);
+}
+
+export function parseCompleteSalePayload(row: OutboxRow): CompleteSaleOutboxPayload {
+  return JSON.parse(row.payloadJson) as CompleteSaleOutboxPayload;
+}
+
+export function parseProcessReturnPayload(row: OutboxRow): ProcessReturnOutboxPayload {
+  return JSON.parse(row.payloadJson) as ProcessReturnOutboxPayload;
+}

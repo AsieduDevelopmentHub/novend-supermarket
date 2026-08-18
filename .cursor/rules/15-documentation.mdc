@@ -1,0 +1,17 @@
+---
+description: Documentation discipline — update docs when architecture, APIs, or business rules change
+globs: docs/**
+alwaysApply: false
+---
+
+# Documentation
+
+Documentation is part of the implementation.
+
+Update the relevant doc in the same change when you alter architecture, folder
+structure, business rules, public Convex contracts, design tokens, or engineering
+standards.
+
+Authority: Constitution → Context → domain docs.
+
+`.cursor/rules/` should reference documentation rather than duplicating long docs.

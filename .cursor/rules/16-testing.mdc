@@ -1,0 +1,13 @@
+---
+description: Testing standards — unit, integration, component, and business-rule coverage
+globs: **/*.{test,spec}.{ts,tsx},tests/**
+alwaysApply: false
+---
+
+# Testing
+
+Priorities: business rules (inventory, sales, money, permissions, tenant isolation),
+Convex mutations, shared utilities, critical UI, failure paths.
+
+Cover invalid states that must be impossible: negative stock, editing completed
+sales, unauthorized actions, cross-organization reads.

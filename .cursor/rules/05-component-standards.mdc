@@ -1,0 +1,30 @@
+---
+description: Component structure, composition, props, naming, and reuse standards
+globs: **/components/**/*.{tsx,ts},**/features/**/*.{tsx,ts}
+alwaysApply: false
+---
+
+# Component Standards
+
+Reference: `docs/design/COMPONENT_LIBRARY.md`, `docs/PROJECT_CONSTITUTION.md`
+
+## Categories
+
+- **UI / Foundation** (`components/ui`): business-agnostic primitives.
+- **Feature** (`features/*/components/`): domain-aware presentation.
+
+UI components must never depend on feature components.
+
+## Rules
+
+- One component, one purpose.
+- Prefer composition over duplication.
+- Strong TypeScript props. Explicit variants over boolean prop soup.
+- Accessible by default.
+- Presentational components stay free of Convex calls and business rules.
+
+## Before creating a new component
+
+1. Can an existing component solve this?
+2. Can it be extended?
+3. Should a reusable shared component be extracted?

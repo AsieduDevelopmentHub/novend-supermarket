@@ -1,0 +1,14 @@
+---
+description: Performance standards for React rendering, data loading, Convex queries, and bundles
+globs: **/*.{tsx,ts}
+alwaysApply: false
+---
+
+# Performance
+
+Performance is a product feature for POS — cashiers cannot wait.
+
+- Design for speed; do not bolt it on later.
+- Avoid unnecessary re-renders. Memoize only when there is a measurable benefit.
+- Fetch only required data. Prefer pagination. Use Convex indexes starting with `organizationId`.
+- Keep bundles lean. Sales search, cart updates, and checkout must feel immediate.

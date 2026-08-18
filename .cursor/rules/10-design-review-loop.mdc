@@ -1,0 +1,18 @@
+---
+description: Design review loop — hierarchy, spacing, reuse, consistency before shipping UI
+globs: **/*.{tsx,jsx}
+alwaysApply: false
+---
+
+# Design Review Loop
+
+Run this loop for UI work before treating the implementation as done.
+
+1. **Understand** — Who is the user? What task? How often?
+2. **Research** — Inspect similar existing pages and components.
+3. **Hierarchy** — Primary / secondary / supporting / hidden is clear.
+4. **Layout** — Spacing, alignment, grouping, whitespace, responsiveness.
+5. **Components** — Prefer existing; extend before inventing.
+6. **Interaction** — Hover, focus, loading, disabled, validation, success, failure, empty.
+7. **Consistency** — Matches typography, buttons, tables, dialogs, navigation, spacing.
+8. **Refine** — Remove anything that does not help the task.

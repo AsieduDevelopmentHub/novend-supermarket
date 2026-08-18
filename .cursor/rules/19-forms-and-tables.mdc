@@ -1,0 +1,19 @@
+---
+description: Forms and tables patterns for POS — validation, submit flow, pagination, filter, sort
+globs: **/*.{tsx,ts}
+alwaysApply: false
+---
+
+# Forms & Tables
+
+## Forms
+
+Logical grouping, clear labels, keyboard-friendly, inline validation, disable
+submit while in-flight. Client validation improves UX; Convex still enforces rules.
+
+## Tables
+
+Search, filter, sort, pagination, empty states as needed. Keep tables visually
+lightweight. Reuse shared primitives.
+
+Empty tables explain what to do next.

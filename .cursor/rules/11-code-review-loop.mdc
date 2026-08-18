@@ -1,0 +1,25 @@
+---
+description: Engineering self-review — correctness, reuse, simplicity, security, maintainability
+alwaysApply: true
+---
+
+# Code Review Loop
+
+Never assume the first implementation is final. Self-review before presenting.
+
+## Review questions
+
+- **Correctness** — Does it satisfy the business requirement and rules?
+- **Readability** — Can another engineer understand it quickly?
+- **Simplicity** — Can it be simpler without losing clarity?
+- **Reuse** — Was existing code reused? Should something be extracted?
+- **Architecture** — Folder structure, boundaries, and naming respected?
+- **Tenancy** — Is every business read/write org-scoped?
+- **Performance** — Unnecessary renders, queries, or state?
+- **Security** — Auth, authorization, validation, least privilege?
+- **Errors** — Failure paths handled with clear user feedback?
+- **Docs** — Architecture / public API / business rule changes documented?
+
+## Final gate
+
+Ask: “If another senior engineer reviewed this, what would they change?” Apply those improvements before completion.

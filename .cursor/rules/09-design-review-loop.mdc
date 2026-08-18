@@ -1,0 +1,46 @@
+---
+description: UI and UX review workflow before implementation
+alwaysApply: true
+---
+
+# Design Review Loop
+
+Before creating or modifying any user interface, perform a structured design review.
+
+Never generate UI immediately.
+
+## Step 1 — Understand
+
+User role, business objective, primary workflow, frequency of use.
+
+## Step 2 — Inspect existing design
+
+Layout, components, typography, spacing, navigation, colors, icons.
+
+Prefer extending existing patterns.
+
+## Step 3 — Information hierarchy
+
+Primary → Secondary → Supporting → Rarely used.
+
+## Step 4 — Component review
+
+Does it exist? Can it be extended? Can it become reusable? Never duplicate UI.
+
+## Step 5 — Layout review
+
+Hierarchy, spacing, alignment, responsive behavior, whitespace, readability.
+
+## Step 6 — Interaction review
+
+Hover, focus, active, loading, success, error, disabled, empty.
+
+## Step 7 — Accessibility
+
+Keyboard, focus, semantic HTML, contrast, ARIA where required.
+
+## Step 8 — Final questions
+
+Is it simple? Is the workflow obvious? Is the hierarchy clear? Does it match the design system? Would a first-time user understand it?
+
+Every new screen should strengthen the design system.
