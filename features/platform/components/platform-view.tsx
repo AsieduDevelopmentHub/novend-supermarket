@@ -1,9 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,14 +22,13 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { formatDateTime } from "@/lib/date";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
-import { Building2, Plus } from "lucide-react";
+import { ClickableTableRow } from "@/components/ui/clickable-table-row";
+import { Building2, Eye, Plus } from "lucide-react";
 
 export function PlatformView() {
   const orgs = useQuery(api.platform.listOrganizations, {});
-  const setStatus = useMutation(api.platform.setOrganizationStatus);
   const setPlan = useMutation(api.platform.setOrganizationPlan);
   const createOrg = useAction(api.platform.createOrganization);
-  const resetPassword = useAction(api.platform.resetOrganizationAdminPassword);
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [name, setName] = useState("");
@@ -59,17 +58,6 @@ export function PlatformView() {
       showError(error, "Could not create organization");
     } finally {
       setPending(false);
-    }
-  }
-
-  async function onReset(id: Id<"organizations">) {
-    const password = window.prompt("New password for the organization owner (min 8 characters)");
-    if (!password) return;
-    try {
-      await resetPassword({ organizationId: id, newPassword: password });
-      toast.success("Owner password reset");
-    } catch (error) {
-      showError(error, "Reset failed");
     }
   }
 
@@ -110,7 +98,7 @@ export function PlatformView() {
               </thead>
               <tbody>
                 {orgs.map((org) => (
-                  <tr key={org.id} className="border-border border-t">
+                  <ClickableTableRow key={org.id} href={`/platform/${org.id}`}>
                     <td className="px-4 py-3">
                       <p className="font-medium">{org.name}</p>
                       <p className="text-muted-foreground text-xs">{org.slug}</p>
@@ -140,40 +128,14 @@ export function PlatformView() {
                     <td className="px-4 py-3">{org.saleCount}</td>
                     <td className="px-4 py-3">{formatDateTime(org.createdAt)}</td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {org.status === "active" ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              void setStatus({ organizationId: org.id, status: "suspended" })
-                            }
-                          >
-                            Suspend
-                          </Button>
-                        ) : (
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() =>
-                              void setStatus({ organizationId: org.id, status: "active" })
-                            }
-                          >
-                            Enable
-                          </Button>
-                        )}
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => void onReset(org.id)}
-                        >
-                          Reset admin
-                        </Button>
-                      </div>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/platform/${org.id}`}>
+                          <Eye className="h-4 w-4" />
+                          Open
+                        </Link>
+                      </Button>
                     </td>
-                  </tr>
+                  </ClickableTableRow>
                 ))}
               </tbody>
             </table>

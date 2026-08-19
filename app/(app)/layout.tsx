@@ -7,7 +7,6 @@ import { api } from "@/convex/_generated/api";
 import { AppSidebar, MobileSidebar } from "@/components/layout/app-sidebar";
 import { ErrorState } from "@/components/feedback/error-state";
 import { AppSplash } from "@/features/auth/components/app-splash";
-import { PlatformView } from "@/features/platform/components/platform-view";
 import type { AppRole } from "@/config/navigation";
 import { APP_BRAND } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
@@ -246,8 +245,22 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
   if (user?.isPlatformAdmin && !user.role) {
     return (
-      <div className="bg-background min-h-dvh p-4 lg:p-8">
-        <PlatformView />
+      <div className="bg-background flex h-dvh max-h-dvh flex-col overflow-hidden">
+        <header className="border-border flex h-14 shrink-0 items-center gap-3 border-b px-4">
+          <Image
+            src={BRANDING.brandmark}
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8 object-contain"
+          />
+          <Link href="/platform" className="font-semibold tracking-tight">
+            Novend platform
+          </Link>
+        </header>
+        <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-6 lg:px-8">
+          {children}
+        </main>
       </div>
     );
   }

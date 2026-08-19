@@ -62,6 +62,156 @@ export const listOrganizations = query({
   },
 });
 
+export const getOrganization = query({
+  args: { organizationId: v.id("organizations") },
+  handler: async (ctx, args) => {
+    await requirePlatformAdmin(ctx);
+    const org = await ctx.db.get(args.organizationId);
+    if (!org) return null;
+
+    const owner = await ctx.db.get(org.ownerUserId);
+    const businessRow = await ctx.db
+      .query("settings")
+      .withIndex("by_organization_key", (q) =>
+        q.eq("organizationId", org._id).eq("key", "business.profile"),
+      )
+      .unique();
+    let business: {
+      tradeName?: string;
+      legalName?: string;
+      address?: string;
+      phone?: string;
+      email?: string;
+      taxId?: string;
+    } = {};
+    if (businessRow?.value) {
+      try {
+        business = JSON.parse(businessRow.value) as typeof business;
+      } catch {
+        business = {};
+      }
+    }
+
+    const [profiles, branches, products, sales, wholesale, suppliers] = await Promise.all([
+      ctx.db
+        .query("profiles")
+        .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+        .collect(),
+      ctx.db
+        .query("branches")
+        .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+        .collect(),
+      ctx.db
+        .query("products")
+        .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+        .collect(),
+      ctx.db
+        .query("sales")
+        .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+        .collect(),
+      ctx.db
+        .query("wholesaleStock")
+        .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+        .collect(),
+      ctx.db
+        .query("suppliers")
+        .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+        .collect(),
+    ]);
+
+    const now = Date.now();
+    const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
+    const recentSales = sales.filter((s) => s.completedAt >= monthAgo);
+    const revenueAll = sales.reduce((sum, s) => sum + s.total, 0);
+    const revenue30d = recentSales.reduce((sum, s) => sum + s.total, 0);
+    const lastSaleAt = sales.reduce((latest, s) => Math.max(latest, s.completedAt), 0);
+    const costByProduct = new Map(products.map((p) => [p._id, p.costPrice]));
+    const wholesaleValue = wholesale.reduce(
+      (sum, row) => sum + row.quantity * (costByProduct.get(row.productId) ?? 0),
+      0,
+    );
+    const wholesaleUnits = wholesale.reduce((sum, row) => sum + row.quantity, 0);
+
+    const users = await Promise.all(
+      profiles.map(async (profile) => {
+        const account = await ctx.db.get(profile.userId);
+        const lastSeenAt = profile.lastSeenAt ?? null;
+        return {
+          id: profile._id,
+          name: profile.name,
+          role: profile.role,
+          status: profile.status,
+          email: account?.email ?? null,
+          branchId: profile.branchId ?? null,
+          lastSeenAt,
+          lastLoginAt: profile.lastLoginAt ?? null,
+          lastDevice: profile.lastDevice ?? null,
+          online: lastSeenAt !== null && now - lastSeenAt <= 2 * 60 * 1000,
+        };
+      }),
+    );
+
+    const branchName = new Map(branches.map((b) => [b._id, b.name]));
+
+    return {
+      id: org._id,
+      name: org.name,
+      slug: org.slug,
+      status: org.status,
+      plan: org.plan ?? "standard",
+      currency: org.currency,
+      timezone: org.timezone ?? null,
+      taxId: org.taxId ?? business.taxId ?? null,
+      createdAt: org.createdAt,
+      owner: {
+        userId: org.ownerUserId,
+        name: owner?.name ?? null,
+        email: owner?.email ?? null,
+      },
+      business: {
+        tradeName: business.tradeName ?? org.name,
+        legalName: business.legalName ?? org.name,
+        address: business.address ?? "",
+        phone: business.phone ?? "",
+        email: business.email ?? owner?.email ?? "",
+        taxId: business.taxId ?? org.taxId ?? "",
+      },
+      kpis: {
+        userCount: profiles.length,
+        adminCount: profiles.filter((p) => p.role === "administrator").length,
+        managerCount: profiles.filter((p) => p.role === "manager").length,
+        cashierCount: profiles.filter((p) => p.role === "cashier").length,
+        branchCount: branches.length,
+        productCount: products.filter((p) => p.status !== "archived").length,
+        supplierCount: suppliers.length,
+        saleCount: sales.length,
+        saleCount30d: recentSales.length,
+        revenueAll,
+        revenue30d,
+        lastSaleAt: lastSaleAt || null,
+        wholesaleUnits,
+        wholesaleValue,
+      },
+      branches: branches
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((b) => ({
+          id: b._id,
+          name: b.name,
+          code: b.code,
+          status: b.status,
+          phone: b.phone ?? null,
+          address: b.address ?? null,
+        })),
+      users: users
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((u) => ({
+          ...u,
+          branchName: u.branchId ? (branchName.get(u.branchId) ?? null) : null,
+        })),
+    };
+  },
+});
+
 export const setOrganizationStatus = mutation({
   args: {
     organizationId: v.id("organizations"),
