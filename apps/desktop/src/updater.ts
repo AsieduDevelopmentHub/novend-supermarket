@@ -27,21 +27,23 @@ export function startAutoUpdater(getWindow: () => BrowserWindow | null) {
 
   autoUpdater.on("update-downloaded", (info) => {
     const win = getWindow();
-    void dialog
-      .showMessageBox(win ?? undefined, {
-        type: "info",
-        title: "Novend POS update",
-        message: `Version ${info.version} is ready.`,
-        detail: "Restart after you finish the current sale to install the update.",
-        buttons: ["Restart now", "Later"],
-        defaultId: 1,
-        cancelId: 1,
-      })
-      .then((result) => {
-        if (result.response === 0) {
-          autoUpdater.quitAndInstall();
-        }
-      });
+    const options = {
+      type: "info" as const,
+      title: "Novend POS update",
+      message: `Version ${info.version} is ready.`,
+      detail: "Restart after you finish the current sale to install the update.",
+      buttons: ["Restart now", "Later"],
+      defaultId: 1,
+      cancelId: 1,
+    };
+    const prompt = win
+      ? dialog.showMessageBox(win, options)
+      : dialog.showMessageBox(options);
+    void prompt.then((result) => {
+      if (result.response === 0) {
+        autoUpdater.quitAndInstall();
+      }
+    });
   });
 
   void autoUpdater.checkForUpdates().catch((error) => {

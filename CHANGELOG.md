@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 — 2026-08-19
+
+### Fixed
+- Desktop CI: TypeScript 5 rejects `ignoreDeprecations: "6.0"`, which failed every installer job
+- Desktop updater dialog typing so `tsc` succeeds without a focused window
+
 ## 0.1.0 — 2026-08-19
 
 First tagged desktop release of Novend POS.
