@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation } from "convex/react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { ChevronRight, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Shield } from "lucide-react";
 import { navForRole, type AppRole } from "@/config/navigation";
 import { APP_BRAND } from "@/constants/app";
@@ -45,32 +45,41 @@ type ShellUser = {
   isPlatformAdmin?: boolean;
 };
 
+function subscribeSidebarCollapsed(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("novend-sidebar-collapsed", onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("novend-sidebar-collapsed", onStoreChange);
+  };
+}
+
+function readSidebarCollapsed() {
+  try {
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function useCollapsedSidebar() {
-  const [collapsed, setCollapsed] = useState(false);
-  const [ready, setReady] = useState(false);
+  const collapsed = useSyncExternalStore(
+    subscribeSidebarCollapsed,
+    readSidebarCollapsed,
+    () => false,
+  );
 
-  useEffect(() => {
+  function toggle() {
+    const next = !readSidebarCollapsed();
     try {
-      setCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1");
-    } catch {
-      // localStorage may be blocked; stay expanded.
-    }
-    setReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!ready) return;
-    try {
-      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
     } catch {
       // Ignore quota / privacy errors.
     }
-  }, [collapsed, ready]);
+    window.dispatchEvent(new Event("novend-sidebar-collapsed"));
+  }
 
-  return {
-    collapsed,
-    toggle: () => setCollapsed((value) => !value),
-  };
+  return { collapsed, toggle };
 }
 
 function NavTooltip({

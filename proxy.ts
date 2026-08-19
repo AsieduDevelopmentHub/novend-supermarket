@@ -86,7 +86,11 @@ export default convexAuthNextjsMiddleware(
       return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/login"), nonce);
     }
 
-    if (authenticated && (isAdminOnly(request) || isAdminOrManager(request))) {
+    if (
+      authenticated &&
+      !isPlatformRoute(request) &&
+      (isAdminOnly(request) || isAdminOrManager(request))
+    ) {
       const role = await roleForToken(await convexAuth.getToken());
       if (isAdminOnly(request) && role !== "administrator") {
         return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);

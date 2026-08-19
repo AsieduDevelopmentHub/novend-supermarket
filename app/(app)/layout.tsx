@@ -1,10 +1,11 @@
 "use client";
 
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { AppSidebar, MobileSidebar } from "@/components/layout/app-sidebar";
+import { PlatformShell } from "@/components/layout/platform-shell";
 import { ErrorState } from "@/components/feedback/error-state";
 import { AppSplash } from "@/features/auth/components/app-splash";
 import type { AppRole } from "@/config/navigation";
@@ -46,6 +47,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
 function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAuthenticated, isLoading } = useConvexAuth();
   const online = useConnectivity();
   const user = useQuery(api.users.me, isAuthenticated && online ? {} : "skip");
@@ -243,25 +245,9 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (user?.isPlatformAdmin && !user.role) {
+  if (user?.isPlatformAdmin && (!user.role || pathname.startsWith("/platform"))) {
     return (
-      <div className="bg-background flex h-dvh max-h-dvh flex-col overflow-hidden">
-        <header className="border-border flex h-14 shrink-0 items-center gap-3 border-b px-4">
-          <Image
-            src={BRANDING.brandmark}
-            alt=""
-            width={32}
-            height={32}
-            className="h-8 w-8 object-contain"
-          />
-          <Link href="/platform" className="font-semibold tracking-tight">
-            Novend platform
-          </Link>
-        </header>
-        <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-6 lg:px-8">
-          {children}
-        </main>
-      </div>
+      <PlatformShell hasTenantRole={Boolean(user.role)}>{children}</PlatformShell>
     );
   }
 
@@ -307,7 +293,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         <div className="bg-background flex h-dvh max-h-dvh overflow-hidden overscroll-none">
           <AppSidebar user={shellUser} />
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <header className="border-border bg-card/80 z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 backdrop-blur lg:hidden">
+            <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 lg:hidden">
               <MobileSidebar user={shellUser} />
               <Image
                 src={BRANDING.brandmark}

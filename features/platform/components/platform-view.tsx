@@ -64,8 +64,8 @@ export function PlatformView() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Novend platform"
-        description="Create and control tenant organizations. This area is only for the platform owner."
+        title="Organizations"
+        description="Create tenants, change plans, and open a business for support."
         actions={
           <Button type="button" onClick={() => setOpen(true)}>
             <Plus className="h-4 w-4" />

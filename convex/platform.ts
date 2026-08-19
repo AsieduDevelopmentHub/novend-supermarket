@@ -25,9 +25,54 @@ export const me = query({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) return { isPlatformAdmin: false };
+    if (!userId) return { isPlatformAdmin: false as const, name: null, email: null };
     const admin = await getPlatformAdmin(ctx, userId);
-    return { isPlatformAdmin: Boolean(admin) };
+    if (!admin) return { isPlatformAdmin: false as const, name: null, email: null };
+    const user = await ctx.db.get(userId);
+    return {
+      isPlatformAdmin: true as const,
+      name: user?.name ?? user?.email ?? "Platform admin",
+      email: user?.email ?? null,
+    };
+  },
+});
+
+export const overview = query({
+  args: {},
+  handler: async (ctx) => {
+    await requirePlatformAdmin(ctx);
+    const [organizations, profiles, branches, sales] = await Promise.all([
+      ctx.db.query("organizations").collect(),
+      ctx.db.query("profiles").collect(),
+      ctx.db.query("branches").collect(),
+      ctx.db.query("sales").collect(),
+    ]);
+
+    const now = Date.now();
+    const dayAgo = now - 24 * 60 * 60 * 1000;
+    const recentSales = sales.filter((sale) => sale.completedAt >= dayAgo);
+
+    return {
+      organizationCount: organizations.length,
+      activeOrganizations: organizations.filter((org) => org.status === "active").length,
+      suspendedOrganizations: organizations.filter((org) => org.status === "suspended").length,
+      inactiveOrganizations: organizations.filter((org) => org.status === "inactive").length,
+      userCount: profiles.length,
+      branchCount: branches.length,
+      saleCount: sales.length,
+      salesLast24h: recentSales.length,
+      recentOrganizations: organizations
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 8)
+        .map((org) => ({
+          id: org._id,
+          name: org.name,
+          slug: org.slug,
+          status: org.status,
+          plan: org.plan ?? "standard",
+          createdAt: org.createdAt,
+        })),
+    };
   },
 });
 
@@ -463,6 +508,90 @@ export const resetOrganizationAdminPassword = action({
       account: { id: email, secret: args.newPassword },
     });
     return { ok: true as const };
+  },
+});
+
+type GithubReleaseAsset = {
+  name: string;
+  size: number;
+  content_type: string;
+  browser_download_url: string;
+  download_count: number;
+};
+
+type GithubRelease = {
+  id: number;
+  tag_name: string;
+  name: string | null;
+  draft: boolean;
+  prerelease: boolean;
+  html_url: string;
+  published_at: string | null;
+  created_at: string;
+  body: string | null;
+  assets: GithubReleaseAsset[];
+};
+
+export const listDesktopReleases = action({
+  args: {},
+  handler: async (ctx) => {
+    const gate = await ctx.runQuery(api.platform.me, {});
+    if (!gate.isPlatformAdmin) throw new Error("Forbidden");
+
+    const repo =
+      process.env.GITHUB_REPOSITORY ??
+      process.env.NOVEND_GITHUB_REPO ??
+      "AsieduDevelopmentHub/novend-pos";
+    const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? process.env.GITHUB_RELEASES_TOKEN;
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github+json",
+      "User-Agent": "novend-pos-platform",
+      "X-GitHub-Api-Version": "2022-11-28",
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const response = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=20`, {
+      headers,
+    });
+
+    if (!response.ok) {
+      const detail = await response.text();
+      return {
+        ok: false as const,
+        repo,
+        status: response.status,
+        message:
+          response.status === 404
+            ? "GitHub returned 404. For a private repo, set GITHUB_TOKEN on the Convex deployment."
+            : `GitHub releases request failed (${response.status}). ${detail.slice(0, 180)}`,
+        releases: [],
+      };
+    }
+
+    const payload = (await response.json()) as GithubRelease[];
+    return {
+      ok: true as const,
+      repo,
+      message: null,
+      releases: payload
+        .filter((release) => !release.draft)
+        .map((release) => ({
+          id: release.id,
+          tag: release.tag_name,
+          title: release.name || release.tag_name,
+          prerelease: release.prerelease,
+          htmlUrl: release.html_url,
+          publishedAt: release.published_at ?? release.created_at,
+          notes: release.body,
+          assets: release.assets.map((asset) => ({
+            name: asset.name,
+            size: asset.size,
+            contentType: asset.content_type,
+            url: asset.browser_download_url,
+            downloadCount: asset.download_count,
+          })),
+        })),
+    };
   },
 });
 

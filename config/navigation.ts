@@ -13,7 +13,6 @@ import {
   Undo2,
   Warehouse,
   Truck,
-  Shield,
   type LucideIcon,
 } from "lucide-react";
 

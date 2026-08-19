@@ -384,7 +384,7 @@ function ReceiptTemplateForm({
   );
   const posPrefs = useQuery(api.settings.getPosPreferences, readOnly ? "skip" : {});
   const updatePos = useMutation(api.settings.updatePosPreferences);
-  const [autoPrintReceipt, setAutoPrintReceipt] = useState(false);
+  const autoPrintReceipt = posPrefs?.autoPrintReceipt ?? false;
   const [headerText, setHeaderText] = useState(initialTemplate.headerText);
   const [footerText, setFooterText] = useState(initialTemplate.footerText);
   const [thankYouLine, setThankYouLine] = useState(initialTemplate.thankYouLine);
@@ -393,10 +393,6 @@ function ReceiptTemplateForm({
   const [showPaymentMethod, setShowPaymentMethod] = useState(initialTemplate.showPaymentMethod);
   const [showSku, setShowSku] = useState(initialTemplate.showSku);
   const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    if (posPrefs) setAutoPrintReceipt(posPrefs.autoPrintReceipt);
-  }, [posPrefs]);
 
   const previewTemplate = useMemo<Partial<ReceiptTemplateConfig>>(
     () => ({
@@ -512,7 +508,6 @@ function ReceiptTemplateForm({
                 label="Auto-print receipt after sale"
                 checked={autoPrintReceipt}
                 onChange={(next) => {
-                  setAutoPrintReceipt(next);
                   if (!readOnly) {
                     void updatePos({ autoPrintReceipt: next }).catch((error) =>
                       showError(error, "Could not save print setting"),

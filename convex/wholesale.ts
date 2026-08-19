@@ -9,7 +9,6 @@ import {
   assertPositiveMoney,
   roundMoney,
   sanitizeOptionalText,
-  sanitizeText,
   TEXT_LIMITS,
 } from "./shared/validation";
 
