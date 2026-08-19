@@ -2,7 +2,12 @@
   "name": "@novend/desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Novend POS Electron desktop shell",
+  "description": "Novend POS desktop shell",
+  "homepage": "https://github.com/AsieduDevelopmentHub/novend-pos",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AsieduDevelopmentHub/novend-pos.git"
+  },
   "author": {
     "name": "Asiedu Development Hub",
     "email": "asiedudev.hub@gmail.com"
@@ -37,7 +42,7 @@
     "files": ["dist/**/*", "package.json"],
     "extraResources": [
       {
-        "from": "../../public/icons/icon-512.png",
+        "from": "build/icon.png",
         "to": "icon.png"
       },
       {
@@ -46,17 +51,17 @@
       }
     ],
     "win": {
-      "icon": "../../public/icons/icon-512.png",
+      "icon": "build/icon.png",
       "executableName": "NovendPOS",
       "target": [{ "target": "nsis", "arch": ["x64"] }]
     },
     "mac": {
-      "icon": "../../public/icons/icon-512.png",
+      "icon": "build/icon.png",
       "target": ["dmg", "zip"],
       "category": "public.app-category.business"
     },
     "linux": {
-      "icon": "../../public/icons/icon-512.png",
+      "icon": "build/icon.png",
       "target": ["AppImage", "deb"],
       "category": "Office"
     },
@@ -75,6 +80,8 @@
     "publish": [
       {
         "provider": "github",
+        "owner": "AsieduDevelopmentHub",
+        "repo": "novend-pos",
         "releaseType": "release"
       }
     ]

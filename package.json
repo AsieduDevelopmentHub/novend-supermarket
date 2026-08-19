@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.18.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AsieduDevelopmentHub/novend-pos.git"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "dev:all": "npm-run-all --parallel dev dev:convex",
