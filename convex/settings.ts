@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, MutationCtx, QueryCtx } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 import { requireRole } from "./shared/permissions";
 import { writeAuditLog } from "./shared/audit";
 import {
@@ -44,7 +45,7 @@ export const DEFAULT_BUSINESS: BusinessProfile = {
 export const DEFAULT_RECEIPT_TEMPLATE: ReceiptTemplate = {
   paperWidthMm: 80,
   showLogo: false,
-  headerText: "Wholesale & Retail Distribution",
+  headerText: "Smart POS. Strong business.",
   footerText: "Thank you for your business",
   thankYouLine: "Goods sold are not returnable without receipt",
   showCashier: true,
@@ -52,6 +53,21 @@ export const DEFAULT_RECEIPT_TEMPLATE: ReceiptTemplate = {
   showPaymentMethod: true,
   showSku: false,
 };
+
+/** Chrome often autofills this field with the current page URL (localhost in dev). */
+function cleanReceiptCopy(value: unknown, fallback: string) {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  if (/localhost|127\.0\.0\.1|0\.0\.0\.0/i.test(trimmed)) return fallback;
+  try {
+    const parsed = new URL(trimmed.includes("://") ? trimmed : `http://${trimmed}`);
+    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") return fallback;
+  } catch {
+    /* not a URL */
+  }
+  return trimmed;
+}
 
 const BUSINESS_KEY = "business.profile";
 const RECEIPT_KEY = "receipt.template";
@@ -137,13 +153,52 @@ function parseBusiness(raw: string | undefined): BusinessProfile {
 function parseTemplate(raw: string | undefined): ReceiptTemplate {
   if (!raw) return DEFAULT_RECEIPT_TEMPLATE;
   try {
+    const parsed = JSON.parse(raw) as Partial<ReceiptTemplate>;
     return {
       ...DEFAULT_RECEIPT_TEMPLATE,
-      ...(JSON.parse(raw) as Partial<ReceiptTemplate>),
+      ...parsed,
+      headerText: cleanReceiptCopy(parsed.headerText, DEFAULT_RECEIPT_TEMPLATE.headerText),
+      footerText: cleanReceiptCopy(parsed.footerText, DEFAULT_RECEIPT_TEMPLATE.footerText),
+      thankYouLine: cleanReceiptCopy(parsed.thankYouLine, DEFAULT_RECEIPT_TEMPLATE.thankYouLine),
     };
   } catch {
     return DEFAULT_RECEIPT_TEMPLATE;
   }
+}
+
+/** Org-scoped business + receipt template used by sales, returns, and offline sync. */
+export async function loadPrintSnapshot(
+  ctx: DbCtx,
+  organizationId: Id<"organizations">,
+  branchId?: Id<"branches"> | null,
+): Promise<{ business: BusinessProfile; template: ReceiptTemplate }> {
+  const business = parseBusiness(await getSettingValue(ctx, organizationId, BUSINESS_KEY));
+  const template = parseTemplate(await getSettingValue(ctx, organizationId, RECEIPT_KEY));
+
+  if (branchId) {
+    const branch = await ctx.db.get(branchId);
+    if (branch) {
+      const showName = branch.receiptShowName ?? true;
+      const showAddress = branch.receiptShowAddress ?? true;
+      const showPhone = branch.receiptShowPhone ?? true;
+      const showEmail = branch.receiptShowEmail ?? true;
+      return {
+        business: {
+          ...business,
+          branchName: showName ? branch.name : undefined,
+          address: showAddress ? (branch.address ?? "") : "",
+          phone: showPhone ? (branch.phone ?? "") : "",
+          email: showEmail ? (branch.email ?? "") : "",
+        },
+        template:
+          branch.receiptPaperWidthMm === 58 || branch.receiptPaperWidthMm === 80
+            ? { ...template, paperWidthMm: branch.receiptPaperWidthMm }
+            : template,
+      };
+    }
+  }
+
+  return { business, template };
 }
 
 export const getBusiness = query({
@@ -269,7 +324,10 @@ export const updateReceiptTemplate = mutation({
     const template: ReceiptTemplate = {
       paperWidthMm: args.paperWidthMm,
       showLogo: false,
-      headerText: sanitizeOptionalText(args.headerText, "Header text", TEXT_LIMITS.note) ?? "",
+      headerText: cleanReceiptCopy(
+        sanitizeOptionalText(args.headerText, "Header text", TEXT_LIMITS.note),
+        "",
+      ),
       footerText: sanitizeOptionalText(args.footerText, "Footer text", TEXT_LIMITS.note) ?? "",
       thankYouLine:
         sanitizeOptionalText(args.thankYouLine, "Thank-you line", TEXT_LIMITS.short) ?? "",

@@ -470,6 +470,45 @@ export default defineSchema({
     lockedUntil: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_email", ["email"]),
+
+  /**
+   * Desktop release metadata for auto-update and in-app downloads.
+   * Binaries stay on GitHub Releases; Convex is the public discovery + redirect layer
+   * so terminals never call the private GitHub API.
+   */
+  desktopReleases: defineTable({
+    version: v.string(),
+    tag: v.string(),
+    channel: v.union(v.literal("stable"), v.literal("beta")),
+    notes: v.string(),
+    releasedAt: v.number(),
+    mandatory: v.boolean(),
+    githubReleaseId: v.number(),
+    githubReleaseUrl: v.string(),
+    githubOwner: v.string(),
+    githubRepo: v.string(),
+    assets: v.array(
+      v.object({
+        platform: v.union(v.literal("win32"), v.literal("darwin"), v.literal("linux")),
+        arch: v.string(),
+        fileName: v.string(),
+        contentType: v.optional(v.string()),
+        size: v.optional(v.number()),
+        sha512: v.optional(v.string()),
+        sha256: v.optional(v.string()),
+        githubAssetId: v.number(),
+      }),
+    ),
+    updaterManifests: v.object({
+      latestYml: v.optional(v.string()),
+      latestMacYml: v.optional(v.string()),
+      latestLinuxYml: v.optional(v.string()),
+    }),
+    publishedAt: v.number(),
+  })
+    .index("by_version", ["version"])
+    .index("by_tag", ["tag"])
+    .index("by_channel_releasedAt", ["channel", "releasedAt"]),
 });
 
 

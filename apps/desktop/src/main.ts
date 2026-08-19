@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from "electron";
 import { createMainWindow } from "./window";
+import { startAutoUpdater } from "./updater";
 
 const APP_USER_MODEL_ID = "com.novend.pos";
 const APP_DISPLAY_NAME = "Novend POS";
@@ -42,6 +43,7 @@ if (!gotLock) {
   void app.whenReady().then(() => {
     app.setName(APP_DISPLAY_NAME);
     showWindow();
+    startAutoUpdater(() => mainWindow);
     app.on("activate", () => {
       showWindow();
     });

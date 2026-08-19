@@ -39,8 +39,8 @@ async function loadPrintSnapshot(db: PrincellenOfflineDb): Promise<PrintSnapshot
   }
   return {
     business: {
-      tradeName: "Princellen Peeva Water & Wine",
-      legalName: "Princellen Peeva Water & Wine",
+      tradeName: "Novend",
+      legalName: "Novend",
       address: "Accra, Ghana",
       phone: "",
       email: "",

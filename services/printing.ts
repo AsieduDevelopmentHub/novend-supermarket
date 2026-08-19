@@ -6,6 +6,7 @@ import {
   type ReceiptTemplateConfig,
 } from "@/features/receipts/types";
 import { formatCurrency } from "@/lib/currency";
+import { sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 import { formatDateTime } from "@/lib/date";
 import { probePrintBridge, sendToPrintBridge } from "./print/bridge";
 import { buildEscPosReceipt, escPosToBase64 } from "./print/escpos";
@@ -23,18 +24,28 @@ function escapeHtml(value: string) {
     .replaceAll('"', "&quot;");
 }
 
+function filled(value: string | undefined, fallback: string) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : fallback;
+}
+
 /** Ensure older/partial receipt payloads always print safely. */
 export function normalizeReceiptPayload(
   raw: Partial<ReceiptPayload> | Record<string, unknown> | null | undefined,
 ): ReceiptPayload {
   const source = (raw ?? {}) as Partial<ReceiptPayload>;
+  const incomingBusiness = (source.business as Partial<ReceiptBusiness> | undefined) ?? {};
+  const incomingTemplate = (source.template as Partial<ReceiptTemplateConfig> | undefined) ?? {};
+  const sample = SAMPLE_RECEIPT_PAYLOAD.business;
   const business = {
-    ...SAMPLE_RECEIPT_PAYLOAD.business,
-    ...((source.business as Partial<ReceiptBusiness> | undefined) ?? {}),
+    ...sample,
+    ...incomingBusiness,
+    tradeName: filled(incomingBusiness.tradeName, sample.tradeName),
+    legalName: filled(incomingBusiness.legalName, sample.legalName),
   };
   const template = {
     ...SAMPLE_RECEIPT_PAYLOAD.template,
-    ...((source.template as Partial<ReceiptTemplateConfig> | undefined) ?? {}),
+    ...incomingTemplate,
   };
   const lines = (Array.isArray(source.lines) ? source.lines : []) as ReceiptLine[];
 
@@ -94,15 +105,16 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
   const logo = t.showLogo
     ? `<img class="logo" src="${origin}/branding/brandmark.png" alt="" />`
     : "";
+  const printTitle = [b.tradeName, payload.invoiceNumber].filter(Boolean).join(" · ");
 
   // Avoid @page size: Nmm — Chromium often opens a blank preview with custom page sizes.
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Receipt ${escapeHtml(payload.invoiceNumber)}</title>
+  <title>${escapeHtml(printTitle || "Receipt")}</title>
   <style>
-    @page { margin: 8mm; }
+    @page { margin: 0; }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
@@ -129,7 +141,7 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
     <div class="center">
       ${logo}
       <div class="title">${escapeHtml(b.tradeName || "Receipt")}</div>
-      ${t.headerText ? `<div>${escapeHtml(t.headerText)}</div>` : ""}
+      ${sanitizeReceiptCopy(t.headerText, "") ? `<div>${escapeHtml(sanitizeReceiptCopy(t.headerText, ""))}</div>` : ""}
       ${b.branchName ? `<div>${escapeHtml(b.branchName)}</div>` : ""}
       ${b.address ? `<div>${escapeHtml(b.address)}</div>` : ""}
       ${b.phone ? `<div>Tel: ${escapeHtml(b.phone)}</div>` : ""}
@@ -217,6 +229,9 @@ export async function printReceiptBrowser(input: ReceiptPayload | Record<string,
     }, 2000);
   };
 
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const blobUrl = URL.createObjectURL(blob);
+
   try {
     await new Promise<void>((resolve, reject) => {
       const timer = window.setTimeout(() => {
@@ -230,20 +245,13 @@ export async function printReceiptBrowser(input: ReceiptPayload | Record<string,
         window.clearTimeout(timer);
         reject(new Error("Print iframe failed to load"));
       };
-      iframe.src = "about:blank";
+      // Blob URL so Chromium does not stamp the POS route (e.g. /dashboard) into print headers.
+      iframe.src = blobUrl;
       document.body.appendChild(iframe);
     });
 
     const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
-    if (!doc) {
-      throw new Error("Print iframe document unavailable");
-    }
-
-    doc.open();
-    doc.write(html);
-    doc.close();
-
-    if (!doc.body || doc.body.childElementCount === 0) {
+    if (!doc?.body || doc.body.childElementCount === 0) {
       throw new Error("Print iframe document empty");
     }
 
@@ -254,10 +262,12 @@ export async function printReceiptBrowser(input: ReceiptPayload | Record<string,
     iframe.contentWindow?.focus();
     iframe.contentWindow?.print();
     cleanup();
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
     return { printed: true as const, reason: "iframe" as const };
   } catch (error) {
     console.error("[print:failed]", error);
     cleanup();
+    URL.revokeObjectURL(blobUrl);
     return { printed: false as const, reason: "iframe_failed" as const };
   }
 }

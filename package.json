@@ -1,6 +1,6 @@
 {
   "name": "novend-pos",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "packageManager": "pnpm@11.18.0",
   "repository": {
@@ -21,6 +21,8 @@
     "desktop:dist:mac": "pnpm --filter @novend/desktop dist:mac",
     "desktop:dist:linux": "pnpm --filter @novend/desktop dist:linux",
     "desktop:release": "pnpm --filter @novend/desktop release",
+    "desktop:publish-convex": "node scripts/publish-desktop-release-to-convex.mjs",
+    "desktop:secret": "node scripts/generate-desktop-publish-secret.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

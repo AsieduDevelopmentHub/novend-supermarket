@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query, MutationCtx, QueryCtx } from "./_generated/server";
+import { mutation, query, MutationCtx } from "./_generated/server";
 import {
   requireRole,
   requireBranchId,
@@ -10,12 +10,7 @@ import {
 import { assertPositiveMoney, roundMoney } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
 import { Id } from "./_generated/dataModel";
-import {
-  DEFAULT_BUSINESS,
-  DEFAULT_RECEIPT_TEMPLATE,
-  type BusinessProfile,
-  type ReceiptTemplate,
-} from "./settings";
+import { loadPrintSnapshot } from "./settings";
 import { applyBranchStockChange, getBranchQuantity, stockMapForBranch } from "./shared/branchStock";
 import {
   decreaseLots,
@@ -32,8 +27,6 @@ type CartLine = {
   discount: number;
 };
 
-type DbCtx = QueryCtx | MutationCtx;
-
 async function nextInvoiceNumber(
   ctx: MutationCtx,
   organizationId: import("./_generated/dataModel").Id<"organizations">,
@@ -46,59 +39,6 @@ async function nextInvoiceNumber(
   return `INV-${n}`;
 }
 
-async function loadSettingJson(ctx: DbCtx, key: string) {
-  const row = await ctx.db
-    .query("settings")
-    .withIndex("by_key", (q) => q.eq("key", key))
-    .unique();
-  return row?.value;
-}
-
-async function loadPrintSnapshot(
-  ctx: DbCtx,
-  branchId?: Id<"branches"> | null,
-): Promise<{
-  business: BusinessProfile;
-  template: ReceiptTemplate;
-}> {
-  let business = DEFAULT_BUSINESS;
-  let template = DEFAULT_RECEIPT_TEMPLATE;
-  try {
-    const raw = await loadSettingJson(ctx, "business.profile");
-    if (raw) business = { ...DEFAULT_BUSINESS, ...JSON.parse(raw) };
-  } catch {
-    /* default */
-  }
-  try {
-    const raw = await loadSettingJson(ctx, "receipt.template");
-    if (raw) template = { ...DEFAULT_RECEIPT_TEMPLATE, ...JSON.parse(raw) };
-  } catch {
-    /* default */
-  }
-
-  if (branchId) {
-    const branch = await ctx.db.get(branchId);
-    if (branch) {
-      const showName = branch.receiptShowName ?? true;
-      const showAddress = branch.receiptShowAddress ?? true;
-      const showPhone = branch.receiptShowPhone ?? true;
-      const showEmail = branch.receiptShowEmail ?? true;
-      // Keep org tradeName; branch is a separate line on the receipt.
-      business = {
-        ...business,
-        branchName: showName ? branch.name : undefined,
-        address: showAddress ? (branch.address ?? "") : "",
-        phone: showPhone ? (branch.phone ?? "") : "",
-        email: showEmail ? (branch.email ?? "") : "",
-      };
-      if (branch.receiptPaperWidthMm === 58 || branch.receiptPaperWidthMm === 80) {
-        template = { ...template, paperWidthMm: branch.receiptPaperWidthMm };
-      }
-    }
-  }
-
-  return { business, template };
-}
 
 export const catalog = query({
   args: {
@@ -437,7 +377,7 @@ export const completeSale = mutation({
     const total = Math.max(0, roundMoney(subtotal - cartDiscount));
     const invoiceNumber = await nextInvoiceNumber(ctx, profile.organizationId);
     const completedAt = Date.now();
-    const snapshot = await loadPrintSnapshot(ctx, branchId);
+    const snapshot = await loadPrintSnapshot(ctx, profile.organizationId, branchId);
 
     const saleId = await ctx.db.insert("sales", {
       organizationId: profile.organizationId,
@@ -677,7 +617,7 @@ export const getOrder = query({
       };
     });
 
-    const snapshot = await loadPrintSnapshot(ctx, sale.branchId);
+    const snapshot = await loadPrintSnapshot(ctx, sale.organizationId, sale.branchId);
     const parsedBusiness =
       parsed?.business && typeof parsed.business === "object"
         ? (parsed.business as Record<string, unknown>)

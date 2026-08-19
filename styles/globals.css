@@ -302,6 +302,404 @@
   }
 }
 
+.login-atmosphere {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Match the form canvas: Cloud White / muted / accent */
+  background-color: #f8fafc;
+}
+
+.login-atmosphere-mesh {
+  position: absolute;
+  inset: -20%;
+  background-image:
+    radial-gradient(ellipse 48% 40% at 20% 24%, rgba(224, 242, 254, 0.9), transparent 62%),
+    radial-gradient(ellipse 44% 38% at 82% 20%, rgba(241, 245, 249, 0.95), transparent 60%),
+    radial-gradient(ellipse 46% 42% at 76% 78%, rgba(56, 189, 248, 0.15), transparent 58%),
+    radial-gradient(ellipse 40% 36% at 18% 80%, rgba(226, 232, 240, 0.7), transparent 62%),
+    linear-gradient(125deg, #ffffff 0%, #f8fafc 38%, #f1f5f9 62%, #e0f2fe 100%);
+  background-size:
+    160% 160%,
+    170% 170%,
+    150% 150%,
+    140% 140%,
+    220% 220%;
+  animation: login-mesh-drift 26s ease-in-out infinite;
+}
+
+.login-atmosphere-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(226, 232, 240, 0.9) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(226, 232, 240, 0.9) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 50%, black, transparent);
+  animation: login-grid-shift 28s linear infinite;
+}
+
+.login-atmosphere-grid::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(224, 242, 254, 0.65) 50%,
+    transparent 100%
+  );
+  background-size: 180% 100%;
+  animation: login-grid-pulse 16s ease-in-out infinite;
+}
+
+.login-atmosphere-wave {
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(
+    115deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.7) 50%,
+    transparent 62%
+  );
+  animation: login-wave 18s ease-in-out infinite;
+}
+
+.login-orb {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+}
+
+.login-orb-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  filter: blur(1.2px);
+  box-shadow: 0 12px 36px rgba(56, 189, 248, 0.16);
+}
+
+.login-orb-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px;
+  text-align: center;
+  animation: login-orb-label 4.5s ease-in-out infinite;
+}
+
+.login-orb-name {
+  color: #0c4a6e;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.login-orb-hint {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.login-orb-a {
+  top: 8%;
+  left: 4%;
+  width: 168px;
+  height: 168px;
+  animation: login-orb-float-a 22s ease-in-out infinite;
+}
+.login-orb-a .login-orb-glow {
+  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #e0f2fe 42%, rgba(56, 189, 248, 0.45) 68%, transparent 74%);
+}
+
+.login-orb-b {
+  top: 10%;
+  right: 5%;
+  width: 128px;
+  height: 128px;
+  animation: login-orb-float-b 18s ease-in-out infinite;
+}
+.login-orb-b .login-orb-glow {
+  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #bae6fd 48%, rgba(14, 165, 233, 0.4) 70%, transparent 76%);
+}
+
+.login-orb-c {
+  bottom: 28%;
+  left: 5%;
+  width: 148px;
+  height: 148px;
+  animation: login-orb-float-c 26s ease-in-out infinite;
+}
+.login-orb-c .login-orb-glow {
+  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #f1f5f9 40%, rgba(125, 211, 252, 0.5) 68%, transparent 74%);
+}
+
+.login-orb-d {
+  bottom: 6%;
+  right: 8%;
+  width: 120px;
+  height: 120px;
+  animation: login-orb-float-d 20s ease-in-out infinite;
+}
+.login-orb-d .login-orb-glow {
+  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #e0f2fe 45%, rgba(56, 189, 248, 0.42) 70%, transparent 76%);
+}
+
+.login-orb-e {
+  top: 42%;
+  left: 2%;
+  width: 112px;
+  height: 112px;
+  animation: login-orb-float-b 24s ease-in-out infinite reverse;
+}
+.login-orb-e .login-orb-glow {
+  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #e0f2fe 46%, rgba(14, 165, 233, 0.35) 70%, transparent 76%);
+}
+
+.login-orb-f {
+  top: 38%;
+  right: 3%;
+  width: 118px;
+  height: 118px;
+  animation: login-orb-float-a 19s ease-in-out infinite reverse;
+}
+.login-orb-f .login-orb-glow {
+  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #bae6fd 44%, rgba(56, 189, 248, 0.4) 70%, transparent 76%);
+}
+
+@keyframes login-orb-label {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.login-sparkline {
+  position: absolute;
+  opacity: 0.62;
+}
+
+.login-sparkline-left {
+  left: 1%;
+  bottom: 1%;
+  width: min(280px, 28vw);
+}
+
+.login-sparkline-right {
+  right: 2%;
+  top: 1%;
+  width: min(220px, 22vw);
+  opacity: 0.5;
+}
+
+.login-sparkline-line {
+  stroke: #abdef4;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 420;
+  animation: login-spark-draw 16s ease-in-out infinite;
+}
+
+.login-sparkline-fill {
+  animation: login-spark-fill 16s ease-in-out infinite;
+}
+
+.login-sparkline-node {
+  fill: #73d1fa;
+  opacity: 1;
+  animation: login-chart-pulse 2.4s ease-in-out infinite;
+}
+
+.login-sparkline-node-delay {
+  animation-delay: 0.5s;
+}
+
+.login-graph {
+  position: absolute;
+  right: 1%;
+  bottom: 5%;
+  width: min(360px, 34vw);
+  opacity: 0.42;
+}
+
+.login-graph-edge {
+  stroke: #38bdf8;
+  stroke-width: 1.5;
+  stroke-dasharray: 8 10;
+  animation: login-graph-flow 14s linear infinite;
+}
+
+.login-graph-edge-delay {
+  animation-duration: 20s;
+  animation-direction: reverse;
+}
+
+.login-graph-node {
+  fill: #0ea5e9;
+  opacity: 1;
+  animation: login-chart-pulse 3s ease-in-out infinite;
+}
+
+@keyframes login-mesh-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    background-position:
+      12% 18%,
+      84% 16%,
+      80% 80%,
+      14% 84%,
+      0% 40%;
+  }
+  50% {
+    transform: translate3d(-2%, 1.5%, 0) scale(1.06);
+    background-position:
+      72% 28%,
+      22% 70%,
+      30% 24%,
+      78% 18%,
+      100% 60%;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    background-position:
+      12% 18%,
+      84% 16%,
+      80% 80%,
+      14% 84%,
+      0% 40%;
+  }
+}
+
+@keyframes login-wave {
+  0% {
+    transform: translate3d(-18%, -8%, 0) rotate(8deg);
+    opacity: 0.15;
+  }
+  50% {
+    transform: translate3d(16%, 10%, 0) rotate(8deg);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translate3d(-18%, -8%, 0) rotate(8deg);
+    opacity: 0.15;
+  }
+}
+
+@keyframes login-grid-pulse {
+  0%,
+  100% {
+    background-position: -40% 0;
+    opacity: 0.15;
+  }
+  50% {
+    background-position: 140% 0;
+    opacity: 0.55;
+  }
+}
+
+@keyframes login-orb-float-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(28px, -22px, 0);
+  }
+}
+
+@keyframes login-orb-float-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-24px, 18px, 0);
+  }
+}
+
+@keyframes login-orb-float-c {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(18px, 26px, 0);
+  }
+}
+
+@keyframes login-orb-float-d {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-16px, -20px, 0);
+  }
+}
+
+@keyframes login-graph-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -240;
+  }
+}
+
+@keyframes login-spark-draw {
+  0% {
+    stroke-dashoffset: 420;
+    opacity: 0.2;
+  }
+  22% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  72% {
+    stroke-dashoffset: 0;
+    opacity: 0.85;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0.2;
+  }
+}
+
+@keyframes login-spark-fill {
+  0%,
+  100% {
+    opacity: 0.08;
+  }
+  30%,
+  70% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 767px) {
+  .login-sparkline,
+  .login-graph,
+  .login-orb-e,
+  .login-orb-f {
+    display: none;
+  }
+}
+
 @keyframes login-grid-shift {
   from {
     background-position: 0 0;
@@ -340,6 +738,18 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .login-atmosphere-mesh,
+  .login-atmosphere-grid,
+  .login-atmosphere-grid::after,
+  .login-atmosphere-wave,
+  .login-orb,
+  .login-orb-copy,
+  .login-sparkline-line,
+  .login-sparkline-fill,
+  .login-sparkline-node,
+  .login-spark-draw,
+  .login-graph-edge,
+  .login-graph-node,
   .login-grid,
   .login-chart-line,
   .login-chart-fill,

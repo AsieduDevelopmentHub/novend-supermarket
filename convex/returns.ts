@@ -18,65 +18,9 @@ import {
   loadReturnableLines,
   nextReturnNumber,
 } from "./shared/returns";
-import {
-  DEFAULT_BUSINESS,
-  DEFAULT_RECEIPT_TEMPLATE,
-  type BusinessProfile,
-  type ReceiptTemplate,
-} from "./settings";
+import { loadPrintSnapshot } from "./settings";
 
 type DbCtx = QueryCtx | MutationCtx;
-
-async function loadSettingJson(
-  ctx: DbCtx,
-  organizationId: import("./_generated/dataModel").Id<"organizations">,
-  key: string,
-) {
-  const row = await ctx.db
-    .query("settings")
-    .withIndex("by_organization_key", (q) =>
-      q.eq("organizationId", organizationId).eq("key", key),
-    )
-    .unique();
-  return row?.value;
-}
-
-async function loadPrintSnapshot(
-  ctx: DbCtx,
-  organizationId: import("./_generated/dataModel").Id<"organizations">,
-  branchId?: Id<"branches"> | null,
-): Promise<{ business: BusinessProfile; template: ReceiptTemplate }> {
-  let business = DEFAULT_BUSINESS;
-  let template = DEFAULT_RECEIPT_TEMPLATE;
-  try {
-    const raw = await loadSettingJson(ctx, organizationId, "business.profile");
-    if (raw) business = { ...DEFAULT_BUSINESS, ...JSON.parse(raw) };
-  } catch {
-    /* default */
-  }
-  try {
-    const raw = await loadSettingJson(ctx, organizationId, "receipt.template");
-    if (raw) template = { ...DEFAULT_RECEIPT_TEMPLATE, ...JSON.parse(raw) };
-  } catch {
-    /* default */
-  }
-  if (branchId) {
-    const branch = await ctx.db.get(branchId);
-    if (branch) {
-      business = {
-        ...business,
-        branchName: (branch.receiptShowName ?? true) ? branch.name : undefined,
-        address: (branch.receiptShowAddress ?? true) ? (branch.address ?? "") : "",
-        phone: (branch.receiptShowPhone ?? true) ? (branch.phone ?? "") : "",
-        email: (branch.receiptShowEmail ?? true) ? (branch.email ?? "") : "",
-      };
-      if (branch.receiptPaperWidthMm === 58 || branch.receiptPaperWidthMm === 80) {
-        template = { ...template, paperWidthMm: branch.receiptPaperWidthMm };
-      }
-    }
-  }
-  return { business, template };
-}
 
 async function requireReturnableSale(ctx: DbCtx, saleId: Id<"sales">) {
   const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);

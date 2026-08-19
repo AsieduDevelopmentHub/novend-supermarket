@@ -1,6 +1,7 @@
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
+import { sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 
 /**
  * Minimal ESC/POS encoder for common 58/80mm thermal receipt printers.
@@ -50,7 +51,8 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
   write(ESC, 0x40, ESC, 0x74, 0x00);
   write(ESC, 0x61, 0x01);
   write(b.tradeName || "Receipt", "\n");
-  if (t.headerText) write(t.headerText, "\n");
+  const headerText = sanitizeReceiptCopy(t.headerText, "");
+  if (headerText) write(headerText, "\n");
   if (b.branchName) write(b.branchName, "\n");
   if (b.address) write(b.address, "\n");
   if (b.phone) write(`Tel: ${b.phone}`, "\n");

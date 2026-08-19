@@ -37,7 +37,7 @@ import { PrinterPanel } from "./printer-panel";
 import { UpdatesPanel } from "./updates-panel";
 import { DesktopDownloadPanel } from "./desktop-download-panel";
 import { ReceiptPrintModePicker } from "./receipt-print-mode-picker";
-import { resolveReceiptPrintMode } from "@/lib/receipt-print-mode";
+import { resolveReceiptPrintMode, sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 import {
   Download,
   Monitor,
@@ -460,7 +460,9 @@ function ReceiptTemplateForm({
   const posPrefs = useQuery(api.settings.getPosPreferences, readOnly ? "skip" : {});
   const updatePos = useMutation(api.settings.updatePosPreferences);
   const printMode = resolveReceiptPrintMode(posPrefs);
-  const [headerText, setHeaderText] = useState(initialTemplate.headerText);
+  const [headerText, setHeaderText] = useState(
+    sanitizeReceiptCopy(initialTemplate.headerText, ""),
+  );
   const [footerText, setFooterText] = useState(initialTemplate.footerText);
   const [thankYouLine, setThankYouLine] = useState(initialTemplate.thankYouLine);
   const [showCashier, setShowCashier] = useState(initialTemplate.showCashier);
@@ -550,13 +552,21 @@ function ReceiptTemplateForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="headerText">Header text</Label>
+              <Label htmlFor="receipt-tagline">Header text</Label>
               <Input
-                id="headerText"
+                id="receipt-tagline"
+                name="receipt-tagline"
+                autoComplete="off"
+                data-1p-ignore
+                data-lpignore="true"
+                placeholder="Smart POS. Strong business."
                 value={headerText}
                 onChange={(e) => setHeaderText(e.target.value)}
                 disabled={readOnly}
               />
+              <p className="text-muted-foreground text-xs">
+                Tagline under the business name. Not a website URL.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="footerText">Footer text</Label>

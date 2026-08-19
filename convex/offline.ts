@@ -1,23 +1,9 @@
 import { query } from "./_generated/server";
 import { requireBranchId } from "./shared/permissions";
-import {
-  DEFAULT_BUSINESS,
-  DEFAULT_RECEIPT_TEMPLATE,
-  type BusinessProfile,
-  type ReceiptTemplate,
-} from "./settings";
-import type { QueryCtx } from "./_generated/server";
+import { loadPrintSnapshot } from "./settings";
 import { stockMapForBranch } from "./shared/branchStock";
 import { deriveExpiryListFields, lotSummaries } from "./shared/lots";
 import { canViewCostPrice } from "./shared/permissions";
-
-async function loadSettingJson(ctx: QueryCtx, key: string) {
-  const row = await ctx.db
-    .query("settings")
-    .withIndex("by_key", (q) => q.eq("key", key))
-    .unique();
-  return row?.value;
-}
 
 /**
  * Compact catalog snapshot for Dexie offline mirror.
@@ -190,30 +176,9 @@ export const getSnapshot = query({
       };
     });
 
-    let business: BusinessProfile = DEFAULT_BUSINESS;
-    let template: ReceiptTemplate = DEFAULT_RECEIPT_TEMPLATE;
-    try {
-      const raw = await loadSettingJson(ctx, "business.profile");
-      if (raw) business = { ...DEFAULT_BUSINESS, ...JSON.parse(raw) };
-    } catch {
-      /* default */
-    }
-    try {
-      const raw = await loadSettingJson(ctx, "receipt.template");
-      if (raw) template = { ...DEFAULT_RECEIPT_TEMPLATE, ...JSON.parse(raw) };
-    } catch {
-      /* default */
-    }
-
+    const print = await loadPrintSnapshot(ctx, profile.organizationId, branchId);
+    const { business, template } = print;
     const branch = await ctx.db.get(branchId);
-    const showName = branch ? (branch.receiptShowName ?? true) : false;
-    const showAddress = branch ? (branch.receiptShowAddress ?? true) : false;
-    const showPhone = branch ? (branch.receiptShowPhone ?? true) : false;
-    const showEmail = branch ? (branch.receiptShowEmail ?? true) : false;
-    const paperWidthMm =
-      branch?.receiptPaperWidthMm === 58 || branch?.receiptPaperWidthMm === 80
-        ? branch.receiptPaperWidthMm
-        : template.paperWidthMm;
 
     return {
       products: mirroredProducts,
@@ -227,26 +192,8 @@ export const getSnapshot = query({
       orders: mirroredOrders,
       orderItems,
       print: {
-        business: {
-          tradeName: business.tradeName,
-          legalName: business.legalName,
-          branchName: showName && branch ? branch.name : undefined,
-          address: showAddress && branch ? (branch.address ?? "") : business.address,
-          phone: showPhone && branch ? (branch.phone ?? "") : business.phone,
-          email: showEmail && branch ? (branch.email ?? "") : business.email,
-          taxId: business.taxId,
-        },
-        template: {
-          paperWidthMm,
-          showLogo: template.showLogo,
-          headerText: template.headerText,
-          footerText: template.footerText,
-          thankYouLine: template.thankYouLine,
-          showCashier: template.showCashier,
-          showCustomer: template.showCustomer,
-          showPaymentMethod: template.showPaymentMethod,
-          showSku: template.showSku,
-        },
+        business,
+        template,
       },
       profile: {
         userId: userId as string,

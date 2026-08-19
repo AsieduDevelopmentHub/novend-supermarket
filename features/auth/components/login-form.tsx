@@ -206,25 +206,14 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
           />
         </div>
 
-        <div className="flex items-center justify-between gap-3 pt-0.5">
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <Checkbox
-              checked={rememberMe}
-              onCheckedChange={(value) => setRememberMe(value === true)}
-              aria-label="Remember me"
-            />
-            <span className="text-foreground/90">Remember me</span>
-          </label>
-          <button
-            type="button"
-            className="text-primary text-sm font-medium hover:underline"
-            onClick={() =>
-              toast.message("Ask your administrator to reset your password. Public reset is disabled.")
-            }
-          >
-            Forgot password?
-          </button>
-        </div>
+        <label className="flex cursor-pointer items-center gap-2 pt-0.5 text-sm">
+          <Checkbox
+            checked={rememberMe}
+            onCheckedChange={(value) => setRememberMe(value === true)}
+            aria-label="Remember me"
+          />
+          <span className="text-foreground/90">Remember me</span>
+        </label>
 
         <Button type="submit" className="h-11 w-full text-[15px] font-semibold" disabled={pending}>
           {pending ? "Signing in…" : "Sign in"}

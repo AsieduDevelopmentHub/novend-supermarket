@@ -4,6 +4,7 @@ import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import type { ReceiptPayload, ReceiptTemplateConfig, ReceiptBusiness } from "../types";
 import { SAMPLE_RECEIPT_PAYLOAD } from "../types";
+import { sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -34,6 +35,7 @@ export function ReceiptDocument({
   };
   const widthClass = template.paperWidthMm === 58 ? "w-[220px]" : "w-[302px]";
   const lines = Array.isArray(payload.lines) ? payload.lines : [];
+  const headerLine = sanitizeReceiptCopy(template.headerText, "");
 
   return (
     <div
@@ -47,8 +49,10 @@ export function ReceiptDocument({
     >
       <div className="space-y-2 px-3 py-4 text-[11px] leading-tight">
         <div className="text-center">
-          <p className="text-sm font-bold tracking-wide uppercase">{business.tradeName}</p>
-          {template.headerText ? <p className="mt-0.5">{template.headerText}</p> : null}
+          <p className="text-sm font-bold tracking-wide uppercase">
+            {business.tradeName?.trim() || SAMPLE_RECEIPT_PAYLOAD.business.tradeName}
+          </p>
+          {headerLine ? <p className="mt-0.5">{headerLine}</p> : null}
           {business.branchName ? <p className="mt-0.5">{business.branchName}</p> : null}
           {business.address ? <p>{business.address}</p> : null}
           {business.phone ? <p>Tel: {business.phone}</p> : null}

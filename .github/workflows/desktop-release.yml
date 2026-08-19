@@ -9,6 +9,19 @@ on:
       tag:
         description: "Existing tag to build (e.g. v0.1.0)"
         required: true
+      channel:
+        description: "Release channel published to Convex"
+        required: false
+        default: stable
+        type: choice
+        options:
+          - stable
+          - beta
+      mandatory:
+        description: "Mark update as mandatory"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: desktop-release-${{ github.ref }}
@@ -72,6 +85,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NOVEND_APP_URL: ${{ secrets.NOVEND_APP_URL }}
+          NOVEND_CONVEX_SITE_URL: ${{ secrets.CONVEX_SITE_URL }}
+          CONVEX_SITE_URL: ${{ secrets.CONVEX_SITE_URL }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload artifacts
@@ -88,3 +103,40 @@ jobs:
             apps/desktop/release/*.yml
           if-no-files-found: warn
           retention-days: 14
+
+  publish-convex:
+    name: Publish update metadata to Convex
+    needs: build
+    runs-on: ubuntu-latest
+    if: always() && needs.build.result != 'cancelled'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Wait for GitHub Release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          for i in $(seq 1 30); do
+            count=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" --jq '.assets | length')
+            echo "Attempt $i: $count assets"
+            if [ "$count" -gt 0 ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Timed out waiting for release assets" >&2
+          exit 1
+
+      - name: Publish metadata to Convex
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONVEX_SITE_URL: ${{ secrets.CONVEX_SITE_URL }}
+          DESKTOP_RELEASE_PUBLISH_SECRET: ${{ secrets.DESKTOP_RELEASE_PUBLISH_SECRET }}
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          RELEASE_CHANNEL: ${{ github.event.inputs.channel || 'stable' }}
+          RELEASE_MANDATORY: ${{ github.event.inputs.mandatory || 'false' }}
+        run: node scripts/publish-desktop-release-to-convex.mjs
