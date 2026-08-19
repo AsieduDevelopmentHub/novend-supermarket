@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Novend POS</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #111827;
+        --fg: #e2e8f0;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: "Segoe UI", system-ui, sans-serif;
+      }
+      main {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+        text-align: center;
+      }
+      h1 {
+        margin: 0 0 0.5rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+        line-height: 1.5;
+        max-width: 28rem;
+      }
+      .spinner {
+        width: 2rem;
+        height: 2rem;
+        margin: 0 auto 1.25rem;
+        border: 2px solid rgba(148, 163, 184, 0.25);
+        border-top-color: var(--accent);
+        border-radius: 999px;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      button {
+        margin-top: 1.25rem;
+        appearance: none;
+        border: 0;
+        border-radius: 0.5rem;
+        background: var(--accent);
+        color: #111827;
+        font: inherit;
+        font-weight: 600;
+        padding: 0.65rem 1.1rem;
+        cursor: pointer;
+      }
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div id="booting">
+        <div class="spinner" aria-hidden="true"></div>
+        <h1>Starting Novend POS</h1>
+        <p>Loading the desktop shell…</p>
+      </div>
+      <div id="failed" class="hidden">
+        <h1>Can't start offline yet</h1>
+        <p>
+          Connect once while online so this terminal can cache the app shell. After that, Novend POS
+          will open from the local cache.
+        </p>
+        <button type="button" id="retry">Try again</button>
+      </div>
+    </main>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var appUrl = (params.get("appUrl") || "https://novend.app").replace(/\/$/, "");
+        var entry = params.get("entry") || "/dashboard";
+        if (entry.charAt(0) !== "/") entry = "/" + entry;
+        var target = appUrl + entry;
+        var booting = document.getElementById("booting");
+        var failed = document.getElementById("failed");
+        var retry = document.getElementById("retry");
+        var navigated = false;
+        function showFailed() {
+          booting.classList.add("hidden");
+          failed.classList.remove("hidden");
+        }
+        function go() {
+          navigated = true;
+          window.location.replace(target);
+        }
+        retry.addEventListener("click", function () {
+          failed.classList.add("hidden");
+          booting.classList.remove("hidden");
+          go();
+        });
+        window.setTimeout(function () {
+          if (!navigated) return;
+          if (window.location.protocol === "file:") showFailed();
+        }, 8000);
+        go();
+      })();
+    </script>
+  </body>
+</html>

@@ -10,7 +10,6 @@ type Props = {
 
 /**
  * Photography hero. Desktop keeps a short caption; mobile is image-only.
- * Logo stays on the form — it does not render well over the photo.
  */
 export function LoginHeroPanel({ variant = "desktop", className }: Props) {
   const isMobile = variant === "mobile";

@@ -11,6 +11,12 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "desktop:dev": "pnpm --filter @novend/desktop dev",
+    "desktop:dist": "pnpm --filter @novend/desktop dist",
+    "desktop:dist:win": "pnpm --filter @novend/desktop dist:win",
+    "desktop:dist:mac": "pnpm --filter @novend/desktop dist:mac",
+    "desktop:dist:linux": "pnpm --filter @novend/desktop dist:linux",
+    "desktop:release": "pnpm --filter @novend/desktop release",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

@@ -1,0 +1,82 @@
+{
+  "name": "@novend/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Novend POS Electron desktop shell",
+  "author": {
+    "name": "Asiedu Development Hub",
+    "email": "asiedudev.hub@gmail.com"
+  },
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "pnpm run build && cross-env ELECTRON_DEV=1 electron .",
+    "start": "pnpm run build && electron .",
+    "dist": "pnpm run build && electron-builder",
+    "dist:win": "pnpm run build && electron-builder --win",
+    "dist:mac": "pnpm run build && electron-builder --mac",
+    "dist:linux": "pnpm run build && electron-builder --linux",
+    "release": "pnpm run build && electron-builder --publish always"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "cross-env": "^7.0.3",
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5"
+  },
+  "build": {
+    "appId": "com.novend.pos",
+    "productName": "Novend POS",
+    "npmRebuild": false,
+    "artifactName": "Novend-POS-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": ["dist/**/*", "package.json"],
+    "extraResources": [
+      {
+        "from": "../../public/icons/icon-512.png",
+        "to": "icon.png"
+      },
+      {
+        "from": "offline-boot.html",
+        "to": "offline-boot.html"
+      }
+    ],
+    "win": {
+      "icon": "../../public/icons/icon-512.png",
+      "executableName": "NovendPOS",
+      "target": [{ "target": "nsis", "arch": ["x64"] }]
+    },
+    "mac": {
+      "icon": "../../public/icons/icon-512.png",
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.business"
+    },
+    "linux": {
+      "icon": "../../public/icons/icon-512.png",
+      "target": ["AppImage", "deb"],
+      "category": "Office"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Novend POS",
+      "runAfterFinish": true,
+      "uninstallDisplayName": "Novend POS",
+      "artifactName": "Novend-POS-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "releaseType": "release"
+      }
+    ]
+  }
+}

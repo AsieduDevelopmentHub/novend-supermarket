@@ -6,7 +6,6 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
-import Image from "next/image";
 import { Mail } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,6 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { APP_NAME } from "@/constants/app";
-import { BRANDING } from "@/constants/branding";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
 
@@ -151,23 +149,11 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   if (!isProvisioned) {
     return (
       <div className="mx-auto w-full max-w-[360px]">
-        <div className={cn("text-center", compact ? "mb-6 space-y-3" : "mb-8 space-y-4")}>
-          <div className={cn("relative mx-auto w-full", compact ? "h-10 max-w-[200px]" : "h-12 max-w-[240px]")}>
-            <Image
-              src={BRANDING.logoHorizontal}
-              alt=""
-              fill
-              priority
-              sizes="240px"
-              className="object-contain"
-            />
-          </div>
-          <div className="space-y-1">
-            <h1 className="text-foreground text-2xl font-semibold tracking-tight">
-              System not provisioned
-            </h1>
-            <p className="text-muted-foreground text-sm">{APP_NAME}</p>
-          </div>
+        <div className={cn("text-center", compact ? "mb-6 space-y-1" : "mb-8 space-y-1")}>
+          <h1 className="text-foreground text-2xl font-semibold tracking-tight">
+            System not provisioned
+          </h1>
+          <p className="text-muted-foreground text-sm">{APP_NAME}</p>
         </div>
         <p className="bg-muted text-muted-foreground rounded-lg px-3 py-3 text-left text-sm leading-relaxed">
           No administrator exists yet. The system owner must create the first administrator with the
@@ -181,22 +167,10 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 
   return (
     <div className="mx-auto w-full max-w-[360px]">
-      <div className={cn("text-center", compact ? "mb-6 space-y-3" : "mb-8 space-y-4")}>
-        <div className={cn("relative mx-auto w-full", compact ? "h-10 max-w-[200px]" : "h-12 max-w-[240px]")}>
-          <Image
-            src={BRANDING.logoHorizontal}
-            alt={APP_NAME}
-            fill
-            priority
-            sizes="240px"
-            className="object-contain"
-          />
-        </div>
-        <div className="space-y-1">
+        <div className={cn("text-center", compact ? "mb-6 space-y-1" : "mb-8 space-y-1")}>
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">Welcome back</h1>
           <p className="text-muted-foreground text-sm">Smart POS. Strong business.</p>
         </div>
-      </div>
 
       <form className="space-y-4" onSubmit={onSubmit}>
         <div className="space-y-2">

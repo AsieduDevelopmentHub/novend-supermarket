@@ -75,7 +75,7 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      {visible ? <AppSplash label="Starting Princellen POS…" exiting={exiting} /> : null}
+      {visible ? <AppSplash label="Starting Novend POS…" exiting={exiting} /> : null}
     </>
   );
 }

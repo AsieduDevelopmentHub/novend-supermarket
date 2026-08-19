@@ -1,5 +1,9 @@
-# pnpm 11+ build-script allowlist (package.json "pnpm" field is ignored)
+packages:
+  - "apps/*"
+
+# pnpm 11+ build-script allowlist (replaces package.json pnpm.onlyBuiltDependencies)
 allowBuilds:
+  electron: true
   esbuild: true
   sharp: true
   unrs-resolver: true

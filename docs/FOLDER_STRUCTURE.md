@@ -27,6 +27,7 @@ novend-pos/
 ├── constants/           # Immutable shared constants
 ├── styles/              # Global tokens
 ├── public/              # Static assets, service worker
+├── apps/desktop/        # Electron shell (loads the hosted Next app)
 ├── docs/                # Project documentation
 ├── .cursor/             # AI rules
 └── overview.md          # Product vision
@@ -45,6 +46,7 @@ novend-pos/
 | `providers/` | App-wide providers only |
 | `docs/` | Project documentation |
 | `.cursor/` | Concise AI rules that reference docs |
+| `apps/desktop/` | Electron wrapper, installers, desktop CI |
 
 # Placement rules
 

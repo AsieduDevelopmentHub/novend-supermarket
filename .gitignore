@@ -7,6 +7,7 @@ node_modules
 *.tsbuildinfo
 .DS_Store
 dist
+release
 coverage
 scripts/.auth-keys.*
 .convex-auth-keys.tmp.json

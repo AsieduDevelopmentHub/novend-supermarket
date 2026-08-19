@@ -8,6 +8,7 @@ const SHELL_ROUTES = [
   "/orders",
   "/returns",
   "/inventory",
+  "/wholesale",
   "/customers",
   "/products",
   "/reports",

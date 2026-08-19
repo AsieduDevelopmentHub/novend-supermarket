@@ -43,16 +43,17 @@ export function AppSplash({ label = "Loading…", exiting = false, className }: 
       aria-busy={!exiting}
     >
       <div className="relative flex flex-col items-center">
-        <div className="relative flex h-36 w-[min(220px,70vw)] items-center justify-center sm:h-44 sm:w-[260px]">
+        <div className="relative flex h-32 w-32 items-center justify-center sm:h-40 sm:w-40">
           <div className="animate-splash-impact absolute inset-0 rounded-full" aria-hidden />
 
           <div className="animate-splash-fall relative z-10 h-full w-full">
             <Image
-              src={BRANDING.logoVertical}
+              src={BRANDING.brandmark}
               alt={APP_BRAND}
               fill
               priority
-              sizes="260px"
+              unoptimized
+              sizes="160px"
               className="object-contain drop-shadow-sm"
             />
           </div>
