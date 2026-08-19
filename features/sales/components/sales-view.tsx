@@ -325,8 +325,14 @@ export function SalesView() {
 
   async function triggerPrint(payload: ReceiptPayload) {
     setLastReceipt(payload);
-    if (posPrefs && !posPrefs.autoPrintReceipt) {
-      toast.message("Receipt saved. Open the order to print it.");
+    const printMode =
+      posPrefs?.receiptPrintMode ?? (posPrefs?.autoPrintReceipt ? "automatic" : "manual");
+    if (printMode === "never") {
+      toast.message("Sale complete. Receipt printing is turned off.");
+      return;
+    }
+    if (printMode === "manual") {
+      setPreviewOpen(true);
       return;
     }
     const config = loadTerminalPrinterConfig();

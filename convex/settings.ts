@@ -57,18 +57,34 @@ const BUSINESS_KEY = "business.profile";
 const RECEIPT_KEY = "receipt.template";
 const POS_KEY = "pos.preferences";
 
+export type ReceiptPrintMode = "automatic" | "manual" | "never";
+
 export type PosPreferences = {
   autoPrintReceipt: boolean;
+  receiptPrintMode: ReceiptPrintMode;
 };
 
 export const DEFAULT_POS_PREFERENCES: PosPreferences = {
   autoPrintReceipt: false,
+  receiptPrintMode: "manual",
 };
 
 function parsePosPreferences(raw: string | undefined): PosPreferences {
   if (!raw) return DEFAULT_POS_PREFERENCES;
   try {
-    return { ...DEFAULT_POS_PREFERENCES, ...(JSON.parse(raw) as Partial<PosPreferences>) };
+    const parsed = JSON.parse(raw) as Partial<PosPreferences>;
+    const receiptPrintMode: ReceiptPrintMode =
+      parsed.receiptPrintMode === "automatic" ||
+      parsed.receiptPrintMode === "manual" ||
+      parsed.receiptPrintMode === "never"
+        ? parsed.receiptPrintMode
+        : parsed.autoPrintReceipt
+          ? "automatic"
+          : "manual";
+    return {
+      autoPrintReceipt: receiptPrintMode === "automatic",
+      receiptPrintMode,
+    };
   } catch {
     return DEFAULT_POS_PREFERENCES;
   }
@@ -179,10 +195,20 @@ export const getPosPreferences = query({
 });
 
 export const updatePosPreferences = mutation({
-  args: { autoPrintReceipt: v.boolean() },
+  args: {
+    autoPrintReceipt: v.optional(v.boolean()),
+    receiptPrintMode: v.optional(
+      v.union(v.literal("automatic"), v.literal("manual"), v.literal("never")),
+    ),
+  },
   handler: async (ctx, args) => {
     const { userId, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
-    const prefs: PosPreferences = { autoPrintReceipt: args.autoPrintReceipt };
+    const receiptPrintMode: ReceiptPrintMode =
+      args.receiptPrintMode ?? (args.autoPrintReceipt ? "automatic" : "manual");
+    const prefs: PosPreferences = {
+      autoPrintReceipt: receiptPrintMode === "automatic",
+      receiptPrintMode,
+    };
     await upsertSetting(ctx, organizationId, POS_KEY, JSON.stringify(prefs));
     await writeAuditLog(ctx, {
       actorId: userId,

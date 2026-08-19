@@ -272,7 +272,85 @@
   animation: splash-caption 1.55s ease-out both;
 }
 
+@keyframes login-chart-draw {
+  from {
+    stroke-dashoffset: 420;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes login-chart-fill {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes login-chart-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    r: 3.5;
+  }
+  50% {
+    opacity: 1;
+    r: 5;
+  }
+}
+
+@keyframes login-grid-shift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 28px 28px;
+  }
+}
+
+.login-grid {
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+  animation: login-grid-shift 18s linear infinite;
+}
+
+.login-chart-line {
+  stroke-dasharray: 420;
+  stroke-dashoffset: 420;
+  animation: login-chart-draw 2.8s ease-out forwards infinite;
+  animation-duration: 6s;
+}
+
+.login-chart-fill {
+  animation: login-chart-fill 1.6s ease-out 0.4s both infinite;
+  animation-duration: 6s;
+}
+
+.login-chart-dot {
+  animation: login-chart-pulse 2.2s ease-in-out infinite;
+}
+
+.login-chart-dot-delay {
+  animation-delay: 0.4s;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .login-grid,
+  .login-chart-line,
+  .login-chart-fill,
+  .login-chart-dot {
+    animation: none !important;
+  }
+
+  .login-chart-line {
+    stroke-dashoffset: 0;
+  }
+
   .animate-splash-fall,
   .animate-splash-impact,
   .animate-splash-particle,

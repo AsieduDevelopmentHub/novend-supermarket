@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation } from "convex/react";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
-import { ChevronRight, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Shield } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut, Menu, Shield } from "lucide-react";
 import { navForRole, type AppRole } from "@/config/navigation";
 import { APP_BRAND } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
@@ -151,29 +151,48 @@ function NavLinks({
   );
 }
 
-function SidebarBrand({ businessName, collapsed }: { businessName: string; collapsed?: boolean }) {
+function SidebarBrand({
+  businessName,
+  collapsed,
+  onToggle,
+}: {
+  businessName: string;
+  collapsed?: boolean;
+  onToggle?: () => void;
+}) {
   return (
-    <div className={cn("flex items-center gap-3 py-5", collapsed ? "justify-center px-2" : "px-4")}>
-      <div className="relative h-12 w-12 shrink-0">
+    <div className={cn("flex items-center gap-2 py-4", collapsed ? "flex-col px-2" : "px-3")}>
+      <div className="relative h-11 w-11 shrink-0">
         <Image
           src={BRANDING.brandmark}
           alt=""
           fill
           priority
           className="object-contain"
-          sizes="48px"
+          sizes="44px"
         />
       </div>
       {collapsed ? (
         <span className="sr-only">{businessName}</span>
       ) : (
-        <div className="min-w-0">
-          <p className="text-sidebar-foreground truncate text-lg leading-tight font-semibold tracking-tight">
+        <div className="min-w-0 flex-1">
+          <p className="text-sidebar-foreground truncate text-base leading-tight font-semibold tracking-tight">
             {businessName}
           </p>
           <p className="text-sidebar-muted truncate text-xs">{APP_BRAND} POS</p>
         </div>
       )}
+      {onToggle ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="text-sidebar-foreground hover:bg-white/10 hover:text-white flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+        >
+          {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -257,15 +276,17 @@ function SidebarBody({
   user,
   onNavigate,
   collapsed,
+  onToggle,
 }: {
   user: ShellUser;
   onNavigate?: () => void;
   collapsed?: boolean;
+  onToggle?: () => void;
 }) {
   const businessName = user.organizationName?.trim() || APP_BRAND;
   return (
     <div className="bg-sidebar text-sidebar-foreground flex h-full flex-col">
-      <SidebarBrand businessName={businessName} collapsed={collapsed} />
+      <SidebarBrand businessName={businessName} collapsed={collapsed} onToggle={onToggle} />
       <div className={cn("h-px bg-white/10", collapsed ? "mx-2" : "mx-4")} />
       <div className="flex-1 overflow-y-auto py-4">
         <NavLinks role={user.role} onNavigate={onNavigate} collapsed={collapsed} />
@@ -303,16 +324,7 @@ export function AppSidebar({ user }: { user: ShellUser }) {
           collapsed ? "w-[76px]" : "w-[272px]",
         )}
       >
-        <SidebarBody user={user} collapsed={collapsed} />
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="border-border bg-card text-foreground hover:bg-muted absolute top-6 -right-3 z-30 flex h-6 w-6 items-center justify-center rounded-full border shadow-sm"
-        >
-          {collapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
-        </button>
+        <SidebarBody user={user} collapsed={collapsed} onToggle={toggle} />
       </aside>
     </TooltipProvider>
   );

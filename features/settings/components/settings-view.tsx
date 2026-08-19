@@ -17,7 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -35,6 +36,17 @@ import { ProfilePanel } from "./profile-panel";
 import { PrinterPanel } from "./printer-panel";
 import { UpdatesPanel } from "./updates-panel";
 import { DesktopDownloadPanel } from "./desktop-download-panel";
+import { ReceiptPrintModePicker } from "./receipt-print-mode-picker";
+import { resolveReceiptPrintMode } from "@/lib/receipt-print-mode";
+import {
+  Download,
+  Monitor,
+  Palette,
+  Receipt,
+  Shield,
+  Store,
+  UserRound,
+} from "lucide-react";
 
 type SettingsTab =
   | "profile"
@@ -149,22 +161,21 @@ export function SettingsView() {
       ) : null}
       <PageHeader
         title="Settings"
-        description={
-          isAdmin
-            ? `Profile, business, receipts, ${isDesktop ? "this terminal’s printer, updates, " : "desktop download, "}appearance, and security.`
-            : isManager
-              ? `Profile, branch receipt, ${isDesktop ? "this terminal’s printer, updates, " : "desktop download, "}appearance, and security.`
-              : `Manage your profile, ${isDesktop ? "this terminal’s printer, updates, " : "desktop download, "}appearance, and account security.`
-        }
+        description="Choose a section. Receipt printing for the whole business lives under Receipt."
       />
 
       <Tabs
         value={activeTab}
         onValueChange={(value) => setTab(value as SettingsTab)}
-        className="space-y-4"
+        className="flex flex-col gap-6 lg:flex-row lg:items-start"
       >
-        {/* Mobile: dropdown avoids crowded tab strip */}
-        <div className="md:hidden">
+        <SettingsTreeNav
+          sections={sections}
+          activeTab={activeTab}
+          onSelect={(value) => setTab(value)}
+        />
+        <div className="min-w-0 flex-1 space-y-4">
+        <div className="lg:hidden">
           <Label htmlFor="settings-section" className="sr-only">
             Settings section
           </Label>
@@ -180,22 +191,6 @@ export function SettingsView() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-
-        {/* Desktop / tablet: scrollable tabs that wrap when needed */}
-        <div className="hidden md:block">
-          <TabsList className="bg-muted/60 flex h-auto w-full flex-wrap justify-start gap-1 p-1">
-            {sections.map((section) => (
-              <TabsTrigger
-                key={section.value}
-                value={section.value}
-                className="data-[state=active]:bg-card px-3 py-2"
-              >
-                <span className="lg:hidden">{section.label}</span>
-                <span className="hidden lg:inline">{section.long}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
         </div>
 
         <TabsContent value="profile" className="mt-0">
@@ -256,8 +251,88 @@ export function SettingsView() {
         <TabsContent value="security" className="mt-0">
           <SecurityPanel />
         </TabsContent>
+        </div>
       </Tabs>
     </div>
+  );
+}
+
+const SETTINGS_ICONS: Record<SettingsTab, typeof UserRound> = {
+  profile: UserRound,
+  receipt: Receipt,
+  business: Store,
+  branchReceipt: Store,
+  printer: Monitor,
+  updates: Download,
+  desktop: Download,
+  appearance: Palette,
+  security: Shield,
+};
+
+function SettingsTreeNav({
+  sections,
+  activeTab,
+  onSelect,
+}: {
+  sections: ReadonlyArray<{ value: SettingsTab; label: string; long: string }>;
+  activeTab: SettingsTab;
+  onSelect: (value: SettingsTab) => void;
+}) {
+  const groups = [
+    {
+      label: "Account",
+      items: sections.filter((item) =>
+        item.value === "profile" || item.value === "appearance" || item.value === "security",
+      ),
+    },
+    {
+      label: "Business",
+      items: sections.filter((item) => item.value === "business" || item.value === "receipt"),
+    },
+    {
+      label: "Branch",
+      items: sections.filter((item) => item.value === "branchReceipt"),
+    },
+    {
+      label: "This device",
+      items: sections.filter(
+        (item) => item.value === "printer" || item.value === "updates" || item.value === "desktop",
+      ),
+    },
+  ].filter((group) => group.items.length > 0);
+
+  return (
+    <nav className="border-border hidden w-56 shrink-0 lg:block">
+      <div className="space-y-5">
+        {groups.map((group) => (
+          <div key={group.label}>
+            <p className="text-muted-foreground mb-2 px-2 text-xs font-semibold tracking-wider uppercase">
+              {group.label}
+            </p>
+            <div className="space-y-1">
+              {group.items.map((item) => {
+                const Icon = SETTINGS_ICONS[item.value];
+                const active = activeTab === item.value;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => onSelect(item.value)}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-medium",
+                      active ? "bg-accent text-accent-foreground" : "hover:bg-muted text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {item.long}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </nav>
   );
 }
 
@@ -384,7 +459,7 @@ function ReceiptTemplateForm({
   );
   const posPrefs = useQuery(api.settings.getPosPreferences, readOnly ? "skip" : {});
   const updatePos = useMutation(api.settings.updatePosPreferences);
-  const autoPrintReceipt = posPrefs?.autoPrintReceipt ?? false;
+  const printMode = resolveReceiptPrintMode(posPrefs);
   const [headerText, setHeaderText] = useState(initialTemplate.headerText);
   const [footerText, setFooterText] = useState(initialTemplate.footerText);
   const [thankYouLine, setThankYouLine] = useState(initialTemplate.thankYouLine);
@@ -502,20 +577,19 @@ function ReceiptTemplateForm({
               />
             </div>
 
+            <ReceiptPrintModePicker
+              value={printMode}
+              disabled={readOnly}
+              onChange={(mode) => {
+                if (!readOnly) {
+                  void updatePos({ receiptPrintMode: mode }).catch((error) =>
+                    showError(error, "Could not save print setting"),
+                  );
+                }
+              }}
+            />
+
             <div className="grid gap-3 sm:grid-cols-2">
-              <ToggleRow
-                id="autoPrintReceipt"
-                label="Auto-print receipt after sale"
-                checked={autoPrintReceipt}
-                onChange={(next) => {
-                  if (!readOnly) {
-                    void updatePos({ autoPrintReceipt: next }).catch((error) =>
-                      showError(error, "Could not save print setting"),
-                    );
-                  }
-                }}
-                disabled={readOnly}
-              />
               <ToggleRow
                 id="showCashier"
                 label="Show cashier"

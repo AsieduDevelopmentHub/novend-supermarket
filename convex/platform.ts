@@ -465,7 +465,7 @@ export const insertOrganization = mutation({
     await ctx.db.insert("settings", {
       organizationId,
       key: "pos.preferences",
-      value: JSON.stringify({ autoPrintReceipt: false }),
+      value: JSON.stringify({ autoPrintReceipt: false, receiptPrintMode: "manual" }),
     });
     await writeAuditLog(ctx, {
       actorId: userId,

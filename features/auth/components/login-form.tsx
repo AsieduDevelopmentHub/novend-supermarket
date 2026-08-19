@@ -167,9 +167,9 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 
   return (
     <div className="mx-auto w-full max-w-[360px]">
-        <div className={cn("text-center", compact ? "mb-6 space-y-1" : "mb-8 space-y-1")}>
+        <div className={cn(compact ? "mb-6 space-y-1" : "mb-8 space-y-1")}>
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">Welcome back</h1>
-          <p className="text-muted-foreground text-sm">Smart POS. Strong business.</p>
+          <p className="text-muted-foreground text-sm">Business login</p>
         </div>
 
       <form className="space-y-4" onSubmit={onSubmit}>
@@ -206,21 +206,32 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
           />
         </div>
 
-        <label className="flex cursor-pointer items-center gap-2 pt-0.5 text-sm">
-          <Checkbox
-            checked={rememberMe}
-            onCheckedChange={(value) => setRememberMe(value === true)}
-            aria-label="Remember me"
-          />
-          <span className="text-foreground/90">Remember me</span>
-        </label>
+        <div className="flex items-center justify-between gap-3 pt-0.5">
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <Checkbox
+              checked={rememberMe}
+              onCheckedChange={(value) => setRememberMe(value === true)}
+              aria-label="Remember me"
+            />
+            <span className="text-foreground/90">Remember me</span>
+          </label>
+          <button
+            type="button"
+            className="text-primary text-sm font-medium hover:underline"
+            onClick={() =>
+              toast.message("Ask your administrator to reset your password. Public reset is disabled.")
+            }
+          >
+            Forgot password?
+          </button>
+        </div>
 
         <Button type="submit" className="h-11 w-full text-[15px] font-semibold" disabled={pending}>
           {pending ? "Signing in…" : "Sign in"}
         </Button>
       </form>
 
-      <p className="text-muted-foreground mt-8 text-center text-sm leading-relaxed">
+      <p className="text-muted-foreground mt-8 text-sm leading-relaxed">
         Accounts are created by your administrator. Contact them if you need access.
       </p>
     </div>
