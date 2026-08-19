@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation } from "convex/react";
-import { ChevronRight, LogOut, Menu } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { ChevronRight, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Shield } from "lucide-react";
 import { navForRole, type AppRole } from "@/config/navigation";
 import { APP_BRAND } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
@@ -22,11 +23,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
 import { clearOfflineSession } from "@/lib/offline/session";
 import { clearShellProfile } from "@/lib/offline/shell-profile";
-import { useState } from "react";
+
+const SIDEBAR_COLLAPSED_KEY = "novend.sidebarCollapsed";
 
 type ShellUser = {
   name: string;
@@ -37,7 +45,61 @@ type ShellUser = {
   isPlatformAdmin?: boolean;
 };
 
-function NavLinks({ role, onNavigate }: { role: AppRole; onNavigate?: () => void }) {
+function useCollapsedSidebar() {
+  const [collapsed, setCollapsed] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1");
+    } catch {
+      // localStorage may be blocked; stay expanded.
+    }
+    setReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    try {
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+    } catch {
+      // Ignore quota / privacy errors.
+    }
+  }, [collapsed, ready]);
+
+  return {
+    collapsed,
+    toggle: () => setCollapsed((value) => !value),
+  };
+}
+
+function NavTooltip({
+  label,
+  enabled,
+  children,
+}: {
+  label: string;
+  enabled: boolean;
+  children: ReactNode;
+}) {
+  if (!enabled) return children;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function NavLinks({
+  role,
+  onNavigate,
+  collapsed,
+}: {
+  role: AppRole;
+  onNavigate?: () => void;
+  collapsed?: boolean;
+}) {
   const pathname = usePathname();
   const online = useConnectivity();
   const { navigate, activePath } = useOfflineNavigation();
@@ -45,45 +107,44 @@ function NavLinks({ role, onNavigate }: { role: AppRole; onNavigate?: () => void
   const items = navForRole(role);
 
   return (
-    <nav className="flex flex-1 flex-col gap-1.5 px-3">
+    <nav className={cn("flex flex-1 flex-col gap-1", collapsed ? "px-2" : "px-3")}>
       {items.map((item) => {
         const active = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
         const Icon = item.icon;
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={(event) => {
-              onNavigate?.();
-              if (online || item.href === currentPath) return;
+          <NavTooltip key={item.href} label={item.title} enabled={Boolean(collapsed)}>
+            <Link
+              href={item.href}
+              onClick={(event) => {
+                onNavigate?.();
+                if (online || item.href === currentPath) return;
 
-              // Soft RSC navigations fail offline and blank the shell. Keep the
-              // authenticated layout mounted and swap feature views client-side.
-              event.preventDefault();
-              navigate(item.href);
-            }}
-            className={cn(
-              "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-              active
-                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-                : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            )}
-          >
-            {active ? (
-              <span className="bg-sidebar-primary absolute top-1/2 left-0 h-6 w-1 -translate-y-1/2 rounded-r-full" />
-            ) : null}
-            <Icon className="h-4 w-4 shrink-0" />
-            <span>{item.title}</span>
-          </Link>
+                // Soft RSC navigations fail offline and blank the shell. Keep the
+                // authenticated layout mounted and swap feature views client-side.
+                event.preventDefault();
+                navigate(item.href);
+              }}
+              className={cn(
+                "flex items-center rounded-full py-2 text-sm font-medium transition-colors",
+                collapsed ? "justify-center px-0" : "gap-3 px-3",
+                active
+                  ? "bg-white/10 text-white ring-1 ring-[#38bdf8]/45"
+                  : "text-sidebar-foreground/80 hover:bg-white/5 hover:text-white",
+              )}
+            >
+              <Icon className={cn("h-4 w-4 shrink-0", active ? "text-[#38bdf8]" : null)} />
+              {collapsed ? <span className="sr-only">{item.title}</span> : <span>{item.title}</span>}
+            </Link>
+          </NavTooltip>
         );
       })}
     </nav>
   );
 }
 
-function SidebarBrand({ businessName }: { businessName: string }) {
+function SidebarBrand({ businessName, collapsed }: { businessName: string; collapsed?: boolean }) {
   return (
-    <div className="border-sidebar-border flex items-center gap-3 border-b px-4 py-5">
+    <div className={cn("flex items-center gap-3 py-5", collapsed ? "justify-center px-2" : "px-4")}>
       <div className="relative h-12 w-12 shrink-0">
         <Image
           src={BRANDING.brandmark}
@@ -94,17 +155,21 @@ function SidebarBrand({ businessName }: { businessName: string }) {
           sizes="48px"
         />
       </div>
-      <div className="min-w-0">
-        <p className="text-sidebar-foreground truncate text-lg leading-tight font-semibold tracking-tight">
-          {businessName}
-        </p>
-        <p className="text-sidebar-muted truncate text-xs">{APP_BRAND} POS</p>
-      </div>
+      {collapsed ? (
+        <span className="sr-only">{businessName}</span>
+      ) : (
+        <div className="min-w-0">
+          <p className="text-sidebar-foreground truncate text-lg leading-tight font-semibold tracking-tight">
+            {businessName}
+          </p>
+          <p className="text-sidebar-muted truncate text-xs">{APP_BRAND} POS</p>
+        </div>
+      )}
     </div>
   );
 }
 
-function SidebarUser({ user }: { user: ShellUser }) {
+function SidebarUser({ user, collapsed }: { user: ShellUser; collapsed?: boolean }) {
   const { signOut } = useAuthActions();
   const clearPresence = useMutation(api.users.clearPresence);
   const initials = user.name
@@ -131,7 +196,10 @@ function SidebarUser({ user }: { user: ShellUser }) {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="hover:bg-sidebar-accent flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors"
+            className={cn(
+              "hover:bg-white/5 flex w-full items-center rounded-full py-2 text-left transition-colors",
+              collapsed ? "justify-center px-0" : "gap-3 px-2",
+            )}
           >
             <Avatar className="border-sidebar-border h-10 w-10 border">
               {user.imageUrl ? <AvatarImage src={user.imageUrl} alt="" /> : null}
@@ -139,15 +207,21 @@ function SidebarUser({ user }: { user: ShellUser }) {
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="text-sidebar-accent-foreground truncate text-sm font-medium">
-                {user.name}
-              </p>
-              <p className="text-sidebar-muted truncate text-xs capitalize">
-                {user.role} — {user.branch}
-              </p>
-            </div>
-            <ChevronRight className="text-sidebar-muted h-4 w-4 shrink-0" />
+            {collapsed ? (
+              <span className="sr-only">{user.name}</span>
+            ) : (
+              <>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sidebar-accent-foreground truncate text-sm font-medium">
+                    {user.name}
+                  </p>
+                  <p className="text-sidebar-muted truncate text-xs capitalize">
+                    {user.role} — {user.branch}
+                  </p>
+                </div>
+                <ChevronRight className="text-sidebar-muted h-4 w-4 shrink-0" />
+              </>
+            )}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" side="top" className="w-56">
@@ -170,35 +244,68 @@ function SidebarUser({ user }: { user: ShellUser }) {
   );
 }
 
-function SidebarBody({ user, onNavigate }: { user: ShellUser; onNavigate?: () => void }) {
+function SidebarBody({
+  user,
+  onNavigate,
+  collapsed,
+}: {
+  user: ShellUser;
+  onNavigate?: () => void;
+  collapsed?: boolean;
+}) {
   const businessName = user.organizationName?.trim() || APP_BRAND;
   return (
     <div className="bg-sidebar text-sidebar-foreground flex h-full flex-col">
-      <SidebarBrand businessName={businessName} />
+      <SidebarBrand businessName={businessName} collapsed={collapsed} />
+      <div className={cn("h-px bg-white/10", collapsed ? "mx-2" : "mx-4")} />
       <div className="flex-1 overflow-y-auto py-4">
-        <NavLinks role={user.role} onNavigate={onNavigate} />
+        <NavLinks role={user.role} onNavigate={onNavigate} collapsed={collapsed} />
         {user.isPlatformAdmin ? (
-          <div className="px-3 pt-3">
-            <Link
-              href="/platform"
-              onClick={() => onNavigate?.()}
-              className="text-sidebar-foreground/85 hover:bg-sidebar-accent flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium"
-            >
-              Platform
-            </Link>
+          <div className={cn("pt-3", collapsed ? "px-2" : "px-3")}>
+            <NavTooltip label="Platform" enabled={Boolean(collapsed)}>
+              <Link
+                href="/platform"
+                onClick={() => onNavigate?.()}
+                className={cn(
+                  "text-sidebar-foreground/80 hover:bg-white/5 hover:text-white flex items-center rounded-full py-2 text-sm font-medium",
+                  collapsed ? "justify-center px-0" : "gap-3 px-3",
+                )}
+              >
+                <Shield className="h-4 w-4 shrink-0" />
+                {collapsed ? <span className="sr-only">Platform</span> : <span>Platform</span>}
+              </Link>
+            </NavTooltip>
           </div>
         ) : null}
       </div>
-      <SidebarUser user={user} />
+      <SidebarUser user={user} collapsed={collapsed} />
     </div>
   );
 }
 
 export function AppSidebar({ user }: { user: ShellUser }) {
+  const { collapsed, toggle } = useCollapsedSidebar();
+
   return (
-    <aside className="hidden h-full w-64 shrink-0 overflow-hidden lg:block">
-      <SidebarBody user={user} />
-    </aside>
+    <TooltipProvider delayDuration={200}>
+      <aside
+        className={cn(
+          "border-sidebar-border relative hidden h-full shrink-0 border-r transition-[width] duration-200 lg:block",
+          collapsed ? "w-[76px]" : "w-[272px]",
+        )}
+      >
+        <SidebarBody user={user} collapsed={collapsed} />
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="border-border bg-card text-foreground hover:bg-muted absolute top-6 -right-3 z-30 flex h-6 w-6 items-center justify-center rounded-full border shadow-sm"
+        >
+          {collapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+        </button>
+      </aside>
+    </TooltipProvider>
   );
 }
 
