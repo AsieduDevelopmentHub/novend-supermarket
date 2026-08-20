@@ -21,7 +21,11 @@
         min-height: 100%;
         background: var(--bg);
         color: var(--fg);
-        font-family: "Segoe UI", system-ui, sans-serif;
+        font-family:
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          sans-serif;
       }
       main {
         min-height: 100vh;
@@ -34,6 +38,7 @@
         margin: 0 0 0.5rem;
         font-size: 1.25rem;
         font-weight: 600;
+        letter-spacing: -0.02em;
       }
       p {
         margin: 0;
@@ -85,8 +90,11 @@
         <p>Loading the desktop shell…</p>
       </div>
       <div id="failed" class="hidden">
-        <h1 id="fail-title">Novend POS hasn't been initialized on this device.</h1>
-        <p id="fail-body">Connect to the internet once to initialize this terminal.</p>
+        <h1>Can’t start offline yet</h1>
+        <p>
+          Connect once while online so this terminal can cache the app shell. After that, Novend POS
+          will open from the local cache without a network.
+        </p>
         <button type="button" id="retry">Try again</button>
       </div>
     </main>
@@ -96,38 +104,38 @@
         var appUrl = (params.get("appUrl") || "https://novend-pos.vercel.app").replace(/\/$/, "");
         var entry = params.get("entry") || "/dashboard";
         if (entry.charAt(0) !== "/") entry = "/" + entry;
-        var initialized = params.get("initialized") === "1";
         var target = appUrl + entry;
+
         var booting = document.getElementById("booting");
         var failed = document.getElementById("failed");
-        var failTitle = document.getElementById("fail-title");
-        var failBody = document.getElementById("fail-body");
         var retry = document.getElementById("retry");
         var navigated = false;
-
-        if (initialized) {
-          failTitle.textContent = "You're offline.";
-          failBody.textContent =
-            "This terminal couldn't load the cached app shell. Reconnect once to restore it. After that, Novend runs from local data and syncs when you are back online.";
-        }
 
         function showFailed() {
           booting.classList.add("hidden");
           failed.classList.remove("hidden");
         }
+
         function go() {
           navigated = true;
+          // Client navigation (not Electron loadURL) lets the service worker
+          // serve a cached document when the device is offline.
           window.location.replace(target);
         }
+
         retry.addEventListener("click", function () {
           failed.classList.add("hidden");
           booting.classList.remove("hidden");
           go();
         });
+
         window.setTimeout(function () {
           if (!navigated) return;
-          if (window.location.protocol === "file:") showFailed();
+          if (window.location.protocol === "file:") {
+            showFailed();
+          }
         }, 8000);
+
         go();
       })();
     </script>

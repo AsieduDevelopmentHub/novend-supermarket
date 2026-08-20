@@ -46,6 +46,21 @@ reads, while Convex remains the authoritative source of truth.
 5. On success, local invoice is replaced with the server `INV-…` receipt.
 6. On insufficient stock, the outbox row is `failed`, local stock is restored.
 
+## Background auto-sync
+
+While online, `OfflineProvider` runs a lightweight poll (`OUTBOX_POLL_MS`, 15s):
+
+| Trigger | Behavior |
+|---------|----------|
+| Pending/syncing outbox ≥ `AUTO_SYNC_PENDING_THRESHOLD` (3) | Drain outbox immediately |
+| Failed outbox rows | Drain / retry |
+| Last snapshot older than `AUTO_SYNC_INTERVAL_MS` (2 min) | Force snapshot pull + drain outbox |
+| Browser `online` event | Force snapshot + drain |
+| Window focus with pending ≥ threshold | Drain outbox |
+
+Sales catalog uses **live Convex while online** so product creates appear without
+waiting for the next snapshot. Offline sales still read Dexie.
+
 ## Conflict policy
 
 Queue order + **server validation**. Negative inventory is never accepted.

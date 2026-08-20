@@ -31,23 +31,20 @@ Electron must not call `loadURL(https://…)` first when the machine is offline 
 Chromium fails that call even when the service worker already cached the app
 (electron#35112).
 
-Boot sequence:
+Boot sequence (aligned with Princellen):
 
 1. Main loads local `offline-boot.html` (packaged under `extraResources`).
 2. The boot page client-navigates to `/dashboard` on the hosted origin.
 3. The registered service worker serves the cached document; Dexie restores the shell.
-4. `persist:novend` keeps SW + IndexedDB across launches.
-5. After the first successful load of that origin, `userData/terminal-state.json`
-   records that this terminal is initialized.
+4. `persist:novend` keeps SW + IndexedDB + auth cookies across launches.
 
-If the hosted origin has never loaded on this device, show:
+If the shell is not yet cached, recovery asks the cashier to connect once so the
+terminal can cache Novend POS. After that, offline launch uses Cache Storage —
+no separate “initialized” flag file.
 
-> Novend POS hasn't been initialized on this device.
-> Connect to the internet once to initialize this terminal.
+Background sync (while online) runs on a timer and when the outbox pending count
+crosses a threshold — see `lib/offline/freshness.ts`.
 
-If it has loaded but the cached shell cannot be served, ask the cashier to
-reconnect once. Do not show “Can't reach Novend POS” when the local cache can
-run — that state is the in-app offline banner.
 
 ## Layers
 

@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v1";
+const CACHE_NAME = "novend-pos-v2";
 const PRECACHE = [
   "/",
   "/login",

@@ -10,8 +10,20 @@ export const MIRROR_LIST_TTL_MS = 5 * 60 * 1000;
 /** Minimum gap between background catalog snapshot pulls (unless forced). */
 export const SNAPSHOT_PULL_TTL_MS = 2 * 60 * 1000;
 
-/** How often the outbox drain timer runs while online. */
-export const OUTBOX_POLL_MS = 45_000;
+/**
+ * Background auto-sync cadence while online.
+ * Snapshot + outbox run at least this often when connected.
+ */
+export const AUTO_SYNC_INTERVAL_MS = 2 * 60 * 1000;
+
+/**
+ * Drain the outbox as soon as this many pending/syncing events accumulate,
+ * without waiting for the full auto-sync interval.
+ */
+export const AUTO_SYNC_PENDING_THRESHOLD = 3;
+
+/** How often we check pending count / decide whether to sync (desktop + web). */
+export const OUTBOX_POLL_MS = 15_000;
 
 export async function getLastSnapshotAt(): Promise<number | null> {
   const db = await getOfflineDb();

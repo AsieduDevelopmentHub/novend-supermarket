@@ -14,7 +14,12 @@ import { useConvex, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { getOfflineDb, isOfflineDbAvailable } from "@/lib/offline/db";
-import { OUTBOX_POLL_MS } from "@/lib/offline/freshness";
+import {
+  AUTO_SYNC_INTERVAL_MS,
+  AUTO_SYNC_PENDING_THRESHOLD,
+  OUTBOX_POLL_MS,
+  getLastSnapshotAt,
+} from "@/lib/offline/freshness";
 import { countOutboxByStatus } from "@/lib/offline/outbox";
 import { pullOfflineSnapshot } from "@/lib/offline/snapshot";
 import { drainOutbox } from "@/lib/offline/sync-engine";
@@ -25,6 +30,8 @@ type OfflineContextValue = OfflineStatus & {
   refreshStatus: () => Promise<void>;
   pullSnapshot: (options?: { force?: boolean }) => Promise<void>;
   flushOutbox: () => Promise<void>;
+  /** Force catalog mirror refresh + bump lastSyncAt so sales UI reloads. */
+  refreshCatalog: () => Promise<void>;
 };
 
 const OfflineContext = createContext<OfflineContextValue | null>(null);
@@ -132,6 +139,11 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     }
   }, [completeSale, processReturn, convex, refreshStatus]);
 
+  const refreshCatalog = useCallback(async () => {
+    if (!navigator.onLine) return;
+    await pullSnapshot({ force: true });
+  }, [pullSnapshot]);
+
   useEffect(() => {
     void (async () => {
       await getOfflineDb();
@@ -153,20 +165,37 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     const id = window.setInterval(() => {
       void (async () => {
         const counts = await countOutboxByStatus();
-        if (counts.pending + counts.syncing + counts.failed === 0) return;
-        await flushOutbox();
+        const pendingWork = counts.pending + counts.syncing;
+        const lastSnap = await getLastSnapshotAt();
+        const dueByTime = !lastSnap || Date.now() - lastSnap >= AUTO_SYNC_INTERVAL_MS;
+        const dueByEvents = pendingWork >= AUTO_SYNC_PENDING_THRESHOLD || counts.failed > 0;
+
+        if (dueByTime) {
+          await pullSnapshot({ force: true });
+          await flushOutbox();
+          return;
+        }
+        if (dueByEvents) {
+          await flushOutbox();
+        }
       })();
     }, OUTBOX_POLL_MS);
     return () => window.clearInterval(id);
-  }, [online, flushOutbox]);
+  }, [online, flushOutbox, pullSnapshot]);
 
   useEffect(() => {
     const onOnline = () => {
       void pullSnapshot({ force: true }).then(() => flushOutbox());
     };
     const onFocus = () => {
-      // Focus: drain outbox only — snapshot uses TTL via the interval/online path.
-      if (navigator.onLine) void flushOutbox();
+      if (!navigator.onLine) return;
+      void (async () => {
+        const counts = await countOutboxByStatus();
+        const pendingWork = counts.pending + counts.syncing;
+        if (pendingWork >= AUTO_SYNC_PENDING_THRESHOLD || counts.failed > 0) {
+          await flushOutbox();
+        }
+      })();
     };
     window.addEventListener("online", onOnline);
     window.addEventListener("focus", onFocus);
@@ -183,8 +212,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       refreshStatus,
       pullSnapshot,
       flushOutbox,
+      refreshCatalog,
     }),
-    [status, online, refreshStatus, pullSnapshot, flushOutbox],
+    [status, online, refreshStatus, pullSnapshot, flushOutbox, refreshCatalog],
   );
 
   return <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>;
@@ -198,6 +228,7 @@ export function useOfflineStatus() {
       refreshStatus: async () => undefined,
       pullSnapshot: async () => undefined,
       flushOutbox: async () => undefined,
+      refreshCatalog: async () => undefined,
     } satisfies OfflineContextValue;
   }
   return ctx;

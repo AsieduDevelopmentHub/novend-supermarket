@@ -21,7 +21,8 @@ export type CatalogProduct = {
 
 /**
  * Dexie-first product catalog for Sales.
- * Skips the live Convex catalog subscription when the offline mirror is warm.
+ * While online, always use the live Convex catalog so newly created products
+ * appear immediately. Offline uses the Dexie mirror.
  */
 export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null) {
   const { online, lastSyncAt } = useOfflineStatus();
@@ -32,10 +33,12 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
     let cancelled = false;
     void (async () => {
       // Admin cross-branch catalog is not mirrored locally.
+      // Online: live Convex so create/update shows on Sales without a manual sync.
+      // Offline: Dexie mirror only.
       let ok = false;
       if (branchId) ok = false;
       else if (!online) ok = true;
-      else ok = await canServeListsFromMirror();
+      else ok = false;
       if (cancelled) return;
       setServeLocal(ok);
       setGateReady(true);
@@ -71,6 +74,24 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
     };
   }, [search, lastSyncAt, remote]);
 
+  // Online: prefer remote so catalog stays current after product CRUD.
+  if (online && remote !== undefined) {
+    return {
+      products: remote.map((p) => ({
+        id: p.id as string,
+        name: p.name,
+        sku: p.sku,
+        sellingPrice: p.sellingPrice,
+        stockQuantity: p.stockQuantity,
+        unit: p.unit,
+        imageUrl: p.imageUrl,
+        isExpiring: p.isExpiring,
+      })),
+      source: "remote" as const,
+      loading: false,
+      refreshLocal,
+    };
+  }
   if (local && local.length > 0) {
     return { products: local, source: "local" as const, loading: false, refreshLocal };
   }

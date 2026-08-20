@@ -32,6 +32,7 @@ import { ImagePlus } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import { useOfflineStatus } from "@/providers/offline-provider";
 
 type Props = {
   open: boolean;
@@ -107,6 +108,7 @@ function ProductFormBody({
   const updateProduct = useMutation(api.products.updateProduct);
   const createCategory = useMutation(api.categories.create);
   const generateUploadUrl = useMutation(api.products.generateUploadUrl);
+  const { refreshCatalog } = useOfflineStatus();
 
   const [name, setName] = useState(initialProduct?.name ?? "");
   const [sku, setSku] = useState(initialProduct?.sku ?? "");
@@ -231,6 +233,7 @@ function ProductFormBody({
         });
         toast.success("Product created");
       }
+      void refreshCatalog();
       onOpenChange(false);
     } catch (error) {
       showError(error, "Save failed");

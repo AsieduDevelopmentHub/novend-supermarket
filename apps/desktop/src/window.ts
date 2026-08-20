@@ -1,10 +1,10 @@
 import { BrowserWindow, nativeImage, net, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { isTerminalInitialized, markTerminalInitialized } from "./terminal-state";
 
 const APP_DISPLAY_NAME = "Novend POS";
 const PERSIST_PARTITION = "persist:novend";
+/** Cached shell route — must stay in public/sw.js PRECACHE. */
 const OFFLINE_ENTRY_PATH = "/dashboard";
 
 function iconPath(): string {
@@ -65,12 +65,8 @@ function isNetworkFailure(errorCode: number): boolean {
   );
 }
 
-function recoveryHtml(appUrl: string, initialized: boolean): string {
+function recoveryHtml(appUrl: string): string {
   const target = `${appUrl.replace(/\/$/, "")}${OFFLINE_ENTRY_PATH}`;
-  const title = initialized ? "You're offline." : "Novend POS hasn't been initialized on this device.";
-  const body = initialized
-    ? "This terminal couldn't load the cached app shell. Reconnect once to restore it. After that, Novend runs from local data and syncs when you are back online."
-    : "Connect to the internet once to initialize this terminal.";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -88,8 +84,8 @@ function recoveryHtml(appUrl: string, initialized: boolean): string {
 </head>
 <body>
   <div>
-    <h1>${title}</h1>
-    <p>${body}</p>
+    <h1>Can’t reach the app shell</h1>
+    <p>Connect once online so this terminal can cache Novend POS. After that, offline launch uses the local cache.</p>
     <button type="button" id="retry">Retry</button>
   </div>
   <script>
@@ -108,20 +104,18 @@ function recoveryHtml(appUrl: string, initialized: boolean): string {
  */
 async function loadAppShell(win: BrowserWindow, appUrl: string): Promise<void> {
   const boot = offlineBootPath();
-  const initialized = isTerminalInitialized();
   if (fs.existsSync(boot)) {
     await win.loadFile(boot, {
       query: {
         appUrl,
         entry: OFFLINE_ENTRY_PATH,
-        initialized: initialized ? "1" : "0",
       },
     });
     return;
   }
   if (!net.isOnline()) {
     await win.loadURL(
-      `data:text/html;charset=utf-8,${encodeURIComponent(recoveryHtml(appUrl, initialized))}`,
+      `data:text/html;charset=utf-8,${encodeURIComponent(recoveryHtml(appUrl))}`,
     );
     return;
   }
@@ -161,13 +155,6 @@ export function createMainWindow(appUrl: string): BrowserWindow {
     return { action: "deny" };
   });
 
-  win.webContents.on("did-finish-load", () => {
-    const loaded = win.webContents.getURL();
-    if (loaded.startsWith(origin)) {
-      markTerminalInitialized(origin);
-    }
-  });
-
   win.webContents.on(
     "did-fail-load",
     (_event, errorCode, _errorDescription, validatedURL, isMainFrame) => {
@@ -178,11 +165,7 @@ export function createMainWindow(appUrl: string): BrowserWindow {
       if (!validatedURL.startsWith(origin)) return;
       showingRecovery = true;
       void win
-        .loadURL(
-          `data:text/html;charset=utf-8,${encodeURIComponent(
-            recoveryHtml(appUrl, isTerminalInitialized()),
-          )}`,
-        )
+        .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(recoveryHtml(appUrl))}`)
         .finally(() => {
           showingRecovery = false;
         });
