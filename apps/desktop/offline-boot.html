@@ -68,6 +68,10 @@
         padding: 0.65rem 1.1rem;
         cursor: pointer;
       }
+      button:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+      }
       .hidden {
         display: none !important;
       }
@@ -81,25 +85,32 @@
         <p>Loading the desktop shell…</p>
       </div>
       <div id="failed" class="hidden">
-        <h1>Can't start offline yet</h1>
-        <p>
-          Connect once while online so this terminal can cache the app shell. After that, Novend POS
-          will open from the local cache.
-        </p>
+        <h1 id="fail-title">Novend POS hasn't been initialized on this device.</h1>
+        <p id="fail-body">Connect to the internet once to initialize this terminal.</p>
         <button type="button" id="retry">Try again</button>
       </div>
     </main>
     <script>
       (function () {
         var params = new URLSearchParams(window.location.search);
-        var appUrl = (params.get("appUrl") || "https://novend.app").replace(/\/$/, "");
+        var appUrl = (params.get("appUrl") || "https://novend-pos.vercel.app").replace(/\/$/, "");
         var entry = params.get("entry") || "/dashboard";
         if (entry.charAt(0) !== "/") entry = "/" + entry;
+        var initialized = params.get("initialized") === "1";
         var target = appUrl + entry;
         var booting = document.getElementById("booting");
         var failed = document.getElementById("failed");
+        var failTitle = document.getElementById("fail-title");
+        var failBody = document.getElementById("fail-body");
         var retry = document.getElementById("retry");
         var navigated = false;
+
+        if (initialized) {
+          failTitle.textContent = "You're offline.";
+          failBody.textContent =
+            "This terminal couldn't load the cached app shell. Reconnect once to restore it. After that, Novend runs from local data and syncs when you are back online.";
+        }
+
         function showFailed() {
           booting.classList.add("hidden");
           failed.classList.remove("hidden");

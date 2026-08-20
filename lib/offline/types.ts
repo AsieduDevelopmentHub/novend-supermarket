@@ -55,6 +55,7 @@ export type MirroredOrder = {
   invoiceNumber: string;
   customerId: string | null;
   customerName: string;
+  cashierId?: string | null;
   cashierName: string;
   itemCount: number;
   subtotal: number;

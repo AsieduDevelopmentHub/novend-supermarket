@@ -79,6 +79,17 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Report desktop config (no secret values)
+        shell: bash
+        env:
+          NOVEND_APP_URL: ${{ secrets.NOVEND_APP_URL }}
+          CONVEX_SITE_URL: ${{ secrets.CONVEX_SITE_URL }}
+          DESKTOP_RELEASE_PUBLISH_SECRET: ${{ secrets.DESKTOP_RELEASE_PUBLISH_SECRET }}
+        run: |
+          if [ -n "$NOVEND_APP_URL" ]; then echo "NOVEND_APP_URL → configured"; else echo "NOVEND_APP_URL → unset (packaging default https://novend-pos.vercel.app)"; fi
+          if [ -n "$CONVEX_SITE_URL" ]; then echo "CONVEX_SITE_URL → configured"; else echo "CONVEX_SITE_URL → missing"; fi
+          if [ -n "$DESKTOP_RELEASE_PUBLISH_SECRET" ]; then echo "DESKTOP_RELEASE_PUBLISH_SECRET → configured"; else echo "DESKTOP_RELEASE_PUBLISH_SECRET → missing"; fi
+
       - name: Build installers
         run: pnpm desktop:release
         env:

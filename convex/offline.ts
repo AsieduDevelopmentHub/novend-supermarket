@@ -15,7 +15,7 @@ import { canViewCostPrice } from "./shared/permissions";
 export const getSnapshot = query({
   args: {},
   handler: async (ctx) => {
-    const { userId, profile, branchId } = await requireBranchId(ctx);
+    const { userId, profile, branchId, organizationId } = await requireBranchId(ctx);
     if (
       profile.role !== "administrator" &&
       profile.role !== "manager" &&
@@ -79,7 +79,7 @@ export const getSnapshot = query({
     // Recent completed sales only — avoid loading the entire sales table into the snapshot.
     const recentSales = await ctx.db
       .query("sales")
-      .withIndex("by_completedAt")
+      .withIndex("by_organization_completedAt", (q) => q.eq("organizationId", organizationId))
       .order("desc")
       .take(400);
 
@@ -93,7 +93,10 @@ export const getSnapshot = query({
     const refundedBySale = new Map<string, number>();
     const returnedByItem = new Map<string, number>();
     if (saleIds.length > 0) {
-      const returnRows = await ctx.db.query("saleReturns").collect();
+      const returnRows = await ctx.db
+        .query("saleReturns")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect();
       const relevant = returnRows.filter(
         (row) => row.status === "completed" && saleIds.includes(row.saleId),
       );
@@ -120,6 +123,7 @@ export const getSnapshot = query({
       invoiceNumber: sale.invoiceNumber,
       customerId: (sale.customerId as string | undefined) ?? null,
       customerName: sale.customerName,
+      cashierId: sale.cashierId as string,
       cashierName: nameByUser.get(sale.cashierId) ?? "Cashier",
       itemCount: sale.itemCount,
       subtotal: sale.subtotal,

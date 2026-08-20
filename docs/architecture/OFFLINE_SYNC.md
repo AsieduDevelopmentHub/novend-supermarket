@@ -57,3 +57,9 @@ Next.js App Router RSC fetches fail offline. While offline, in-app navigation
 uses `history.pushState` and a client outlet so the authenticated layout stays
 mounted. The service worker caches document shells and static chunks; RSC
 failures return plain text, never HTML.
+
+## Desktop
+
+Electron first-run must load **https://novend-pos.vercel.app** so the service worker
+and Dexie initialize in `persist:novend`. Later launches client-navigate from a
+local boot page so Chromium can use the cache while offline. See `DESKTOP_PLATFORM.md`.

@@ -33,11 +33,15 @@ npx convex env set DESKTOP_RELEASE_GITHUB_TOKEN <github-pat-with-repo-read>
 
 `CONVEX_SITE_URL` is provided by Convex. Bake it into installers with GitHub secret `CONVEX_SITE_URL`.
 
+The hosted web origin is baked into the same `update-config.json` as `appUrl`.
+Default is `https://novend-pos.vercel.app`. Optional GitHub secret `NOVEND_APP_URL`
+overrides that at **package** time. It is not read from the cashier’s environment.
+
 ## GitHub Actions secrets
 
-- `CONVEX_SITE_URL`
+- `CONVEX_SITE_URL` — required for auto-update metadata
 - `DESKTOP_RELEASE_PUBLISH_SECRET` (same value as Convex)
-- `NOVEND_APP_URL` (hosted web app loaded by Electron)
+- `NOVEND_APP_URL` — optional; defaults to `https://novend-pos.vercel.app` if unset
 
 ## Manual republish of an existing tag
 

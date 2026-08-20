@@ -313,9 +313,30 @@ export function useCustomersList(options: { search: string; includeInactive: boo
   return { customers: undefined, loading: true, source: "local" as const };
 }
 
-export function useOrdersList(options: { search: string; branchId?: Id<"branches"> }) {
+export type OrdersListOptions = {
+  search: string;
+  branchId?: Id<"branches">;
+  cashierId?: Id<"users">;
+  startDate?: number;
+  endDate?: number;
+  minTotal?: number;
+  maxTotal?: number;
+  paymentMethod?: "cash" | "card" | "mobile_money";
+  returnStatus?: "none" | "returned";
+};
+
+export function useOrdersList(options: OrdersListOptions) {
   const { online, serveLocal, ready, lastSyncAt } = useMirrorListGate();
-  const forceRemote = Boolean(options.branchId);
+  const forceRemote = Boolean(
+    options.branchId ||
+      options.cashierId ||
+      options.startDate !== undefined ||
+      options.endDate !== undefined ||
+      options.minTotal !== undefined ||
+      options.maxTotal !== undefined ||
+      options.paymentMethod ||
+      options.returnStatus,
+  );
   const useLocal = !forceRemote && serveLocal;
   const useRemote = online && ready && !useLocal;
   const remote = useQuery(
@@ -324,6 +345,13 @@ export function useOrdersList(options: { search: string; branchId?: Id<"branches
       ? {
           search: options.search || undefined,
           branchId: options.branchId,
+          cashierId: options.cashierId,
+          startDate: options.startDate,
+          endDate: options.endDate,
+          minTotal: options.minTotal,
+          maxTotal: options.maxTotal,
+          paymentMethod: options.paymentMethod,
+          returnStatus: options.returnStatus,
         }
       : "skip",
   );
@@ -331,18 +359,58 @@ export function useOrdersList(options: { search: string; branchId?: Id<"branches
 
   useEffect(() => {
     let cancelled = false;
-    void listLocalOrders(options.search || undefined, options.branchId).then((rows) => {
+    void listLocalOrders({
+      search: options.search || undefined,
+      branchId: options.branchId,
+      cashierId: options.cashierId,
+      startDate: options.startDate,
+      endDate: options.endDate,
+      minTotal: options.minTotal,
+      maxTotal: options.maxTotal,
+      paymentMethod: options.paymentMethod,
+      returnStatus: options.returnStatus,
+    }).then((rows) => {
       if (!cancelled) setLocal(rows);
     });
     return () => {
       cancelled = true;
     };
-  }, [options.search, options.branchId, remote, lastSyncAt, useLocal]);
+  }, [
+    options.search,
+    options.branchId,
+    options.cashierId,
+    options.startDate,
+    options.endDate,
+    options.minTotal,
+    options.maxTotal,
+    options.paymentMethod,
+    options.returnStatus,
+    remote,
+    lastSyncAt,
+    useLocal,
+  ]);
+
+  function mapLocalRow(o: NonNullable<Awaited<ReturnType<typeof listLocalOrders>>>[number]) {
+    return {
+      id: o.id as Id<"sales">,
+      invoiceNumber: o.invoiceNumber,
+      completedAt: o.completedAt,
+      branchId: (o.branchId as Id<"branches"> | null) ?? null,
+      branchName: o.branchName,
+      customerId: (o.customerId as Id<"customers"> | null) ?? null,
+      customerName: o.customerName,
+      cashierId: (o.cashierId as Id<"users"> | null) ?? null,
+      cashierName: o.cashierName,
+      itemCount: o.itemCount,
+      paymentMethod: o.paymentMethod,
+      total: o.total,
+      status: o.status === "synced" ? "completed" : o.status,
+      refundedAmount: o.refundedAmount,
+    };
+  }
 
   if (online && remote !== undefined) {
-    const refundById = new Map(
-      (local ?? []).map((o) => [o.id, o.refundedAmount] as const),
-    );
+    const refundById = new Map((local ?? []).map((o) => [o.id, o.refundedAmount] as const));
     const mergedRemote = remote.map((o) => ({
       ...o,
       refundedAmount: Math.max(o.refundedAmount ?? 0, refundById.get(String(o.id)) ?? 0),
@@ -353,23 +421,7 @@ export function useOrdersList(options: { search: string; branchId?: Id<"branches
       return { orders: mergedRemote, loading: false, source: "remote" as const };
     }
     const remoteIds = new Set(remote.map((o) => o.id));
-    const extras = pendingLocal
-      .filter((o) => !remoteIds.has(o.id as Id<"sales">))
-      .map((o) => ({
-        id: o.id as Id<"sales">,
-        invoiceNumber: o.invoiceNumber,
-        completedAt: o.completedAt,
-        branchId: (o.branchId as Id<"branches"> | null) ?? null,
-        branchName: o.branchName,
-        customerId: (o.customerId as Id<"customers"> | null) ?? null,
-        customerName: o.customerName,
-        cashierName: o.cashierName,
-        itemCount: o.itemCount,
-        paymentMethod: o.paymentMethod,
-        total: o.total,
-        status: o.status,
-        refundedAmount: o.refundedAmount,
-      }));
+    const extras = pendingLocal.filter((o) => !remoteIds.has(o.id as Id<"sales">)).map(mapLocalRow);
     return {
       orders: [...extras, ...mergedRemote].sort((a, b) => b.completedAt - a.completedAt),
       loading: false,
@@ -379,21 +431,7 @@ export function useOrdersList(options: { search: string; branchId?: Id<"branches
 
   if ((useLocal || !online) && local !== null) {
     return {
-      orders: local.map((o) => ({
-        id: o.id as Id<"sales">,
-        invoiceNumber: o.invoiceNumber,
-        completedAt: o.completedAt,
-        branchId: (o.branchId as Id<"branches"> | null) ?? null,
-        branchName: o.branchName,
-        customerId: (o.customerId as Id<"customers"> | null) ?? null,
-        customerName: o.customerName,
-        cashierName: o.cashierName,
-        itemCount: o.itemCount,
-        paymentMethod: o.paymentMethod,
-        total: o.total,
-        status: o.status === "synced" ? "completed" : o.status,
-        refundedAmount: o.refundedAmount,
-      })),
+      orders: local.map(mapLocalRow),
       loading: false,
       source: "local" as const,
     };
@@ -401,21 +439,7 @@ export function useOrdersList(options: { search: string; branchId?: Id<"branches
 
   if (local !== null) {
     return {
-      orders: local.map((o) => ({
-        id: o.id as Id<"sales">,
-        invoiceNumber: o.invoiceNumber,
-        completedAt: o.completedAt,
-        branchId: (o.branchId as Id<"branches"> | null) ?? null,
-        branchName: o.branchName,
-        customerId: (o.customerId as Id<"customers"> | null) ?? null,
-        customerName: o.customerName,
-        cashierName: o.cashierName,
-        itemCount: o.itemCount,
-        paymentMethod: o.paymentMethod,
-        total: o.total,
-        status: o.status === "synced" ? "completed" : o.status,
-        refundedAmount: o.refundedAmount,
-      })),
+      orders: local.map(mapLocalRow),
       loading: false,
       source: "local" as const,
     };

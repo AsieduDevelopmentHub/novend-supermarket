@@ -6,6 +6,7 @@ import {
   resolveBranchFilter,
   isAdmin,
   assertBranchAccess,
+  getProfileByUserId,
 } from "./shared/permissions";
 import { assertPositiveMoney, roundMoney } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
@@ -500,42 +501,158 @@ export const completeSale = mutation({
   },
 });
 
+const paymentMethodValidator = v.union(
+  v.literal("cash"),
+  v.literal("card"),
+  v.literal("mobile_money"),
+);
+
 export const listOrders = query({
   args: {
     search: v.optional(v.string()),
     limit: v.optional(v.number()),
     branchId: v.optional(v.id("branches")),
+    cashierId: v.optional(v.id("users")),
+    startDate: v.optional(v.number()),
+    endDate: v.optional(v.number()),
+    minTotal: v.optional(v.number()),
+    maxTotal: v.optional(v.number()),
+    paymentMethod: v.optional(paymentMethodValidator),
+    returnStatus: v.optional(v.union(v.literal("none"), v.literal("returned"))),
   },
   handler: async (ctx, args) => {
-    const { userId, profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
     const limit = Math.min(args.limit ?? 100, 200);
-    let sales = await ctx.db.query("sales").withIndex("by_completedAt").collect();
+
+    if (
+      args.startDate !== undefined &&
+      args.endDate !== undefined &&
+      args.endDate < args.startDate
+    ) {
+      throw new Error("End date must be on or after the start date");
+    }
+    if (args.minTotal !== undefined) {
+      assertPositiveMoney(args.minTotal, "minimum amount");
+    }
+    if (args.maxTotal !== undefined) {
+      assertPositiveMoney(args.maxTotal, "maximum amount");
+    }
+    if (
+      args.minTotal !== undefined &&
+      args.maxTotal !== undefined &&
+      args.maxTotal < args.minTotal
+    ) {
+      throw new Error("Maximum amount must be at least the minimum");
+    }
+
+    let cashierFilter: Id<"users"> | undefined =
+      profile.role === "cashier" ? userId : args.cashierId;
+    if (profile.role !== "cashier" && args.cashierId) {
+      const target = await getProfileByUserId(ctx, args.cashierId);
+      if (!target || target.organizationId !== organizationId) {
+        throw new Error("Cashier not found");
+      }
+      if (profile.role === "manager" && target.branchId !== profile.branchId) {
+        throw new Error("Forbidden");
+      }
+      cashierFilter = args.cashierId;
+    }
+
+    const startDate = args.startDate;
+    const endDate = args.endDate;
+    let sales;
+    if (startDate !== undefined && endDate !== undefined) {
+      sales = await ctx.db
+        .query("sales")
+        .withIndex("by_organization_completedAt", (q) =>
+          q
+            .eq("organizationId", organizationId)
+            .gte("completedAt", startDate)
+            .lte("completedAt", endDate),
+        )
+        .collect();
+    } else if (startDate !== undefined) {
+      sales = await ctx.db
+        .query("sales")
+        .withIndex("by_organization_completedAt", (q) =>
+          q.eq("organizationId", organizationId).gte("completedAt", startDate),
+        )
+        .collect();
+    } else if (endDate !== undefined) {
+      sales = await ctx.db
+        .query("sales")
+        .withIndex("by_organization_completedAt", (q) =>
+          q.eq("organizationId", organizationId).lte("completedAt", endDate),
+        )
+        .collect();
+    } else {
+      sales = await ctx.db
+        .query("sales")
+        .withIndex("by_organization_completedAt", (q) =>
+          q.eq("organizationId", organizationId),
+        )
+        .collect();
+    }
 
     if (branchFilter) {
       sales = sales.filter((s) => s.branchId === branchFilter);
     }
-    if (profile.role === "cashier") {
-      sales = sales.filter((s) => s.cashierId === userId);
+    if (cashierFilter) {
+      sales = sales.filter((s) => s.cashierId === cashierFilter);
+    }
+    if (args.paymentMethod) {
+      sales = sales.filter((s) => s.paymentMethod === args.paymentMethod);
+    }
+    if (args.minTotal !== undefined) {
+      sales = sales.filter((s) => s.total >= args.minTotal!);
+    }
+    if (args.maxTotal !== undefined) {
+      sales = sales.filter((s) => s.total <= args.maxTotal!);
     }
 
-    if (args.search?.trim()) {
-      const q = args.search.trim().toLowerCase();
-      sales = sales.filter(
-        (s) =>
-          s.invoiceNumber.toLowerCase().includes(q) || s.customerName.toLowerCase().includes(q),
-      );
-    }
-
-    const profiles = await ctx.db.query("profiles").collect();
+    const [profiles, branches, returnRows] = await Promise.all([
+      ctx.db
+        .query("profiles")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect(),
+      ctx.db
+        .query("branches")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect(),
+      ctx.db
+        .query("saleReturns")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect(),
+    ]);
     const nameByUser = new Map(profiles.map((p) => [p.userId, p.name]));
-    const branches = await ctx.db.query("branches").collect();
     const branchName = new Map(branches.map((b) => [b._id, b.name]));
-    const returnRows = await ctx.db.query("saleReturns").collect();
     const refundedBySale = new Map<Id<"sales">, number>();
     for (const row of returnRows) {
       if (row.status !== "completed") continue;
       refundedBySale.set(row.saleId, (refundedBySale.get(row.saleId) ?? 0) + row.refundAmount);
+    }
+
+    if (args.search?.trim()) {
+      const q = args.search.trim().toLowerCase();
+      sales = sales.filter((s) => {
+        const cashierName = nameByUser.get(s.cashierId) ?? "";
+        return (
+          s.invoiceNumber.toLowerCase().includes(q) ||
+          s.customerName.toLowerCase().includes(q) ||
+          cashierName.toLowerCase().includes(q)
+        );
+      });
+    }
+
+    if (args.returnStatus === "none") {
+      sales = sales.filter((s) => (refundedBySale.get(s._id) ?? 0) === 0);
+    } else if (args.returnStatus === "returned") {
+      sales = sales.filter((s) => (refundedBySale.get(s._id) ?? 0) > 0);
     }
 
     return sales
@@ -565,9 +682,13 @@ export const listOrders = query({
 export const getOrder = query({
   args: { id: v.id("sales") },
   handler: async (ctx, args) => {
-    const { userId, profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     const sale = await ctx.db.get(args.id);
-    if (!sale) return null;
+    if (!sale || sale.organizationId !== organizationId) return null;
     if (sale.branchId) assertBranchAccess(profile, sale.branchId);
     if (profile.role === "cashier" && sale.cashierId !== userId) {
       throw new Error("Forbidden");

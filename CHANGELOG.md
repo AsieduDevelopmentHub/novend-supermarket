@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 — 2026-08-20
+
+### Fixed
+- Packaged Electron now loads https://novend-pos.vercel.app (the previous default, novend.app, does not resolve)
+- Hosted app URL is baked into the installer at build time instead of reading a CI-only env var at runtime
+- First-run vs already-initialized desktop recovery copy
+
 ## 0.1.2 — 2026-08-19
 
 ### Fixed

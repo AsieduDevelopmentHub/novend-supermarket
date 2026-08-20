@@ -1,6 +1,7 @@
 import { BrowserWindow, nativeImage, net, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
+import { isTerminalInitialized, markTerminalInitialized } from "./terminal-state";
 
 const APP_DISPLAY_NAME = "Novend POS";
 const PERSIST_PARTITION = "persist:novend";
@@ -29,6 +30,7 @@ function preloadPath(): string {
 function isNetworkFailure(errorCode: number): boolean {
   return (
     errorCode === -2 ||
+    errorCode === -6 ||
     errorCode === -7 ||
     errorCode === -21 ||
     errorCode === -100 ||
@@ -43,8 +45,12 @@ function isNetworkFailure(errorCode: number): boolean {
   );
 }
 
-function recoveryHtml(appUrl: string): string {
+function recoveryHtml(appUrl: string, initialized: boolean): string {
   const target = `${appUrl.replace(/\/$/, "")}${OFFLINE_ENTRY_PATH}`;
+  const title = initialized ? "You're offline." : "Novend POS hasn't been initialized on this device.";
+  const body = initialized
+    ? "This terminal couldn't load the cached app shell. Reconnect once to restore it. After that, Novend runs from local data and syncs when you are back online."
+    : "Connect to the internet once to initialize this terminal.";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -62,8 +68,8 @@ function recoveryHtml(appUrl: string): string {
 </head>
 <body>
   <div>
-    <h1>Can't reach Novend POS</h1>
-    <p>Connect once so this terminal can cache the app. After that, offline launch uses the local cache.</p>
+    <h1>${title}</h1>
+    <p>${body}</p>
     <button type="button" id="retry">Retry</button>
   </div>
   <script>
@@ -75,16 +81,28 @@ function recoveryHtml(appUrl: string): string {
 </html>`;
 }
 
+/**
+ * Electron loadURL(https) fails offline even when the service worker already
+ * cached the document (electron#35112). Load a local boot page, then
+ * client-navigate so the SW can serve Cache Storage.
+ */
 async function loadAppShell(win: BrowserWindow, appUrl: string): Promise<void> {
   const boot = offlineBootPath();
+  const initialized = isTerminalInitialized();
   if (fs.existsSync(boot)) {
     await win.loadFile(boot, {
-      query: { appUrl, entry: OFFLINE_ENTRY_PATH },
+      query: {
+        appUrl,
+        entry: OFFLINE_ENTRY_PATH,
+        initialized: initialized ? "1" : "0",
+      },
     });
     return;
   }
   if (!net.isOnline()) {
-    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(recoveryHtml(appUrl))}`);
+    await win.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(recoveryHtml(appUrl, initialized))}`,
+    );
     return;
   }
   await win.loadURL(`${appUrl.replace(/\/$/, "")}${OFFLINE_ENTRY_PATH}`);
@@ -92,6 +110,7 @@ async function loadAppShell(win: BrowserWindow, appUrl: string): Promise<void> {
 
 export function createMainWindow(appUrl: string): BrowserWindow {
   const icon = nativeImage.createFromPath(iconPath());
+  const origin = appUrl.replace(/\/$/, "");
   let showingRecovery = false;
 
   const win = new BrowserWindow({
@@ -122,18 +141,28 @@ export function createMainWindow(appUrl: string): BrowserWindow {
     return { action: "deny" };
   });
 
+  win.webContents.on("did-finish-load", () => {
+    const loaded = win.webContents.getURL();
+    if (loaded.startsWith(origin)) {
+      markTerminalInitialized(origin);
+    }
+  });
+
   win.webContents.on(
     "did-fail-load",
     (_event, errorCode, _errorDescription, validatedURL, isMainFrame) => {
       if (!isMainFrame || showingRecovery) return;
       if (errorCode === -3) return;
       if (!isNetworkFailure(errorCode)) return;
-      const origin = appUrl.replace(/\/$/, "");
       if (validatedURL.startsWith("file:") || validatedURL.startsWith("data:")) return;
       if (!validatedURL.startsWith(origin)) return;
       showingRecovery = true;
       void win
-        .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(recoveryHtml(appUrl))}`)
+        .loadURL(
+          `data:text/html;charset=utf-8,${encodeURIComponent(
+            recoveryHtml(appUrl, isTerminalInitialized()),
+          )}`,
+        )
         .finally(() => {
           showingRecovery = false;
         });

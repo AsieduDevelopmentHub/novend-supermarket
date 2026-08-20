@@ -44,7 +44,7 @@ export function SyncStatusBanner() {
         )}
         <p className="truncate">
           {showOffline
-            ? "Working offline — sales will sync when you reconnect"
+            ? "You're offline. Novend is running from local data. Changes will synchronize when you're back online."
             : showConflict
               ? `${failedCount} sale${failedCount === 1 ? "" : "s"} need attention after sync`
               : `Syncing ${pendingCount} sale${pendingCount === 1 ? "" : "s"}…`}

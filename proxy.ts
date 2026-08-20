@@ -34,7 +34,7 @@ function buildCsp(nonce: string) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://*.convex.cloud",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud",
+    "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://*.convex.site",
     "worker-src 'self' blob:",
   ].join("; ");
 }

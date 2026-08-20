@@ -92,6 +92,22 @@ export function createOfflineDb(organizationId?: string): NovendOfflineDb {
     localReturnItems: "id, localReturnId, saleItemId",
     outbox: "id, status, createdAt, clientOperationId, type, [status+createdAt]",
   });
+  db.version(5).stores({
+    meta: "key",
+    products: "id, name, sku, status, categoryId, [status+name]",
+    categories: "id, name, isActive",
+    customers: "id, name, status, [status+name]",
+    orders: "id, completedAt, invoiceNumber, branchId, customerId, cashierId",
+    orderItems: "id, orderId, productId",
+    heldSales: "id, cashierId, heldAt",
+    localSales:
+      "id, clientOperationId, syncStatus, completedAt, invoiceNumber, [syncStatus+completedAt]",
+    localSaleItems: "id, localSaleId, productId",
+    localReceipts: "id, localSaleId, invoiceNumber",
+    localReturns: "id, clientOperationId, saleId, syncStatus, completedAt",
+    localReturnItems: "id, localReturnId, saleItemId",
+    outbox: "id, status, createdAt, clientOperationId, type, [status+createdAt]",
+  });
   return db;
 }
 

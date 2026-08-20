@@ -128,10 +128,22 @@ export async function getMirroredCustomer(id: string): Promise<MirroredCustomer 
   return (await db.customers.get(id)) ?? null;
 }
 
+export type LocalOrderFilters = {
+  search?: string;
+  branchId?: string;
+  cashierId?: string;
+  startDate?: number;
+  endDate?: number;
+  minTotal?: number;
+  maxTotal?: number;
+  paymentMethod?: "cash" | "card" | "mobile_money";
+  returnStatus?: "none" | "returned";
+};
+
 /**
  * Orders for offline / cold-start: mirrored Convex sales + unsynced local sales.
  */
-export async function listLocalOrders(search?: string, branchId?: string) {
+export async function listLocalOrders(filters: LocalOrderFilters = {}) {
   const db = await getOfflineDb();
   if (!db) return null;
 
@@ -155,6 +167,7 @@ export async function listLocalOrders(search?: string, branchId?: string) {
     branchName: string | null;
     customerId: string | null;
     customerName: string;
+    cashierId: string | null;
     cashierName: string;
     itemCount: number;
     paymentMethod: "cash" | "card" | "mobile_money";
@@ -180,6 +193,7 @@ export async function listLocalOrders(search?: string, branchId?: string) {
       branchName: o.branchName,
       customerId: o.customerId,
       customerName: o.customerName,
+      cashierId: o.cashierId ?? null,
       cashierName: o.cashierName,
       itemCount: o.itemCount,
       paymentMethod: o.paymentMethod,
@@ -196,6 +210,7 @@ export async function listLocalOrders(search?: string, branchId?: string) {
       branchName: s.branchName ?? null,
       customerId: s.customerId ?? null,
       customerName: s.customerName,
+      cashierId: s.cashierId,
       cashierName: s.cashierName,
       itemCount: s.itemCount,
       paymentMethod: s.paymentMethod,
@@ -206,12 +221,35 @@ export async function listLocalOrders(search?: string, branchId?: string) {
     })),
   ];
 
-  if (branchId) {
-    rows = rows.filter((r) => !r.branchId || r.branchId === branchId);
+  if (filters.branchId) {
+    rows = rows.filter((r) => !r.branchId || r.branchId === filters.branchId);
+  }
+  if (filters.cashierId) {
+    rows = rows.filter((r) => !r.cashierId || r.cashierId === filters.cashierId);
+  }
+  if (filters.startDate !== undefined) {
+    rows = rows.filter((r) => r.completedAt >= filters.startDate!);
+  }
+  if (filters.endDate !== undefined) {
+    rows = rows.filter((r) => r.completedAt <= filters.endDate!);
+  }
+  if (filters.minTotal !== undefined) {
+    rows = rows.filter((r) => r.total >= filters.minTotal!);
+  }
+  if (filters.maxTotal !== undefined) {
+    rows = rows.filter((r) => r.total <= filters.maxTotal!);
+  }
+  if (filters.paymentMethod) {
+    rows = rows.filter((r) => r.paymentMethod === filters.paymentMethod);
+  }
+  if (filters.returnStatus === "none") {
+    rows = rows.filter((r) => r.refundedAmount === 0);
+  } else if (filters.returnStatus === "returned") {
+    rows = rows.filter((r) => r.refundedAmount > 0);
   }
 
-  if (search?.trim()) {
-    const q = search.trim().toLowerCase();
+  if (filters.search?.trim()) {
+    const q = filters.search.trim().toLowerCase();
     rows = rows.filter(
       (s) =>
         s.invoiceNumber.toLowerCase().includes(q) ||

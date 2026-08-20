@@ -1,20 +1,13 @@
 import { app, BrowserWindow } from "electron";
 import { createMainWindow } from "./window";
 import { startAutoUpdater } from "./updater";
+import { resolveAppUrl } from "./desktop-config";
 
 const APP_USER_MODEL_ID = "com.novend.pos";
 const APP_DISPLAY_NAME = "Novend POS";
 
 if (process.platform === "win32") {
   app.setAppUserModelId(APP_USER_MODEL_ID);
-}
-
-const isDev = !app.isPackaged && process.env.ELECTRON_DEV === "1";
-
-function resolveAppUrl(): string {
-  if (process.env.NOVEND_APP_URL) return process.env.NOVEND_APP_URL;
-  if (isDev) return process.env.ELECTRON_RENDERER_URL || "http://127.0.0.1:3000";
-  return process.env.NOVEND_APP_URL || "https://novend.app";
 }
 
 let mainWindow: BrowserWindow | null = null;

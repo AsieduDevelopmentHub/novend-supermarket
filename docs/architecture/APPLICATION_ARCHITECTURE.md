@@ -9,10 +9,11 @@ UI (app/ + features/)
   → schema + business rules
   → database
 
-Desktop (later):
-  Electron renderer loads the same UI
+Desktop:
+  Electron loads https://novend-pos.vercel.app (baked appUrl)
+  → persist:novend session (SW + Dexie)
   → preload bridge
-  → native hardware adapters
+  → native hardware / auto-update
 ```
 
 ## Layers
@@ -29,9 +30,9 @@ Desktop (later):
 
 ## Deployment targets
 
-- **Web** — browsers, tablets (this slice)
+- **Web** — browsers, tablets
 - **PWA** — cached shell + Dexie for offline selling
-- **Desktop** — future Electron shell; not built here
+- **Desktop** — Electron shell at `apps/desktop`; first launch needs the hosted app, then offline from cache + Dexie
 
 ## Data flow
 
@@ -44,7 +45,7 @@ Cashier UI
 ```
 
 Convex is the source of truth for committed business state.
-Dexie is the operational cache. See `OFFLINE_SYNC.md` and `MULTI_TENANT.md`.
+Dexie is the operational cache. See `OFFLINE_SYNC.md`, `MULTI_TENANT.md`, and `DESKTOP_PLATFORM.md`.
 
 ## MVP modules
 

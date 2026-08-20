@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,29 +15,85 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
-import { usePermissions } from "@/hooks/use-permissions";
+import { CashierFilter } from "@/components/filters/cashier-filter";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useCurrentUser, usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useOrdersList } from "@/hooks/use-offline-lists";
 import { formatCurrency } from "@/lib/currency";
-import { formatDateTime } from "@/lib/date";
+import { formatDateTime, rangeForDatePreset, type DateRangePreset } from "@/lib/date";
+import {
+  defaultOrdersFilters,
+  hasActiveOrdersFilters,
+  ORDER_DATE_PRESETS,
+  parseAmountInput,
+  PAYMENT_FILTER_OPTIONS,
+  RETURN_STATUS_OPTIONS,
+  type PaymentFilter,
+  type ReturnStatusFilter,
+} from "@/features/orders/constants";
 import { Eye, ShoppingBag } from "lucide-react";
 
 export function OrdersView() {
-  const { isAdmin, branchId: myBranchId, branchName } = usePermissions();
+  const { isAdmin, isManager, isCashier, branchId: myBranchId, branchName } = usePermissions();
+  const { user } = useCurrentUser();
   const online = useConnectivity();
-  const [search, setSearch] = useState("");
-  const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
+  const [filters, setFilters] = useState(defaultOrdersFilters);
   const branches = useQuery(api.branches.list, isAdmin && online ? {} : "skip");
+  const staff = useQuery(
+    api.users.list,
+    (isAdmin || isManager) && online ? {} : "skip",
+  );
+
+  const dateRange = useMemo(
+    () => rangeForDatePreset(filters.datePreset, filters.customStart, filters.customEnd),
+    [filters.datePreset, filters.customStart, filters.customEnd],
+  );
+  const minTotal = parseAmountInput(filters.minAmount);
+  const maxTotal = parseAmountInput(filters.maxAmount);
+  const amountRangeInvalid =
+    minTotal !== undefined && maxTotal !== undefined && maxTotal < minTotal;
+
   const { orders } = useOrdersList({
-    search,
-    branchId: isAdmin && branchFilter !== "all" ? branchFilter : undefined,
+    search: filters.search,
+    branchId: isAdmin && filters.branchId !== "all" ? (filters.branchId as Id<"branches">) : undefined,
+    cashierId:
+      !isCashier && filters.cashierId !== "all" ? (filters.cashierId as Id<"users">) : undefined,
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
+    minTotal: amountRangeInvalid ? undefined : minTotal,
+    maxTotal: amountRangeInvalid ? undefined : maxTotal,
+    paymentMethod: filters.paymentMethod === "all" ? undefined : filters.paymentMethod,
+    returnStatus: filters.returnStatus === "all" ? undefined : filters.returnStatus,
   });
+
+  const cashiers = useMemo(() => {
+    if (!staff) return undefined;
+    return staff
+      .map((row) => ({
+        userId: row.userId,
+        name: row.status === "inactive" ? `${row.name} (inactive)` : row.name,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [staff]);
+
+  const filtersActive = hasActiveOrdersFilters(filters);
+
+  function resetFilters() {
+    setFilters(defaultOrdersFilters());
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Orders"
-        description="All completed sales — search by invoice or customer to reprint or assist."
+        description="Find a completed sale by day, cashier, amount, payment, or invoice."
         actions={
           <Button asChild>
             <Link href="/sales">New Sale</Link>
@@ -44,38 +101,203 @@ export function OrdersView() {
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search invoice or customer…"
-          className="max-w-md"
-        />
-        {isAdmin ? (
-          <BranchFilter
-            branches={branches}
-            value={branchFilter}
-            onChange={setBranchFilter}
-            allowAll
-            className="w-full sm:w-auto"
-          />
-        ) : branchName ? (
-          <BranchFilter
-            branches={undefined}
-            value={myBranchId}
-            onChange={() => undefined}
-            lockedLabel={branchName}
-            className="w-full sm:w-auto"
-          />
-        ) : null}
-      </div>
+      <Card>
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="w-full space-y-1 sm:max-w-xs">
+            <Label htmlFor="orders-search">Search</Label>
+            <Input
+              id="orders-search"
+              value={filters.search}
+              onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+              placeholder="Invoice, customer, or cashier…"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="orders-date-preset">Date</Label>
+            <Select
+              value={filters.datePreset}
+              onValueChange={(value) =>
+                setFilters((prev) => ({ ...prev, datePreset: value as DateRangePreset }))
+              }
+            >
+              <SelectTrigger id="orders-date-preset" className="w-full sm:w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ORDER_DATE_PRESETS.map((preset) => (
+                  <SelectItem key={preset.value} value={preset.value}>
+                    {preset.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {filters.datePreset === "custom" ? (
+            <>
+              <div className="space-y-1">
+                <Label htmlFor="orders-start">From</Label>
+                <Input
+                  id="orders-start"
+                  type="date"
+                  value={filters.customStart}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, customStart: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="orders-end">To</Label>
+                <Input
+                  id="orders-end"
+                  type="date"
+                  value={filters.customEnd}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, customEnd: e.target.value }))}
+                />
+              </div>
+            </>
+          ) : null}
+
+          {isAdmin ? (
+            <BranchFilter
+              branches={branches}
+              value={filters.branchId === "all" ? "all" : (filters.branchId as Id<"branches">)}
+              onChange={(value) => setFilters((prev) => ({ ...prev, branchId: value }))}
+              allowAll
+              className="w-full sm:w-auto"
+            />
+          ) : branchName ? (
+            <BranchFilter
+              branches={undefined}
+              value={myBranchId}
+              onChange={() => undefined}
+              lockedLabel={branchName}
+              className="w-full sm:w-auto"
+            />
+          ) : null}
+
+          {isCashier ? (
+            <CashierFilter
+              cashiers={undefined}
+              value={null}
+              onChange={() => undefined}
+              lockedLabel={user?.name ?? "You"}
+              className="w-full sm:w-auto"
+            />
+          ) : (
+            <CashierFilter
+              cashiers={cashiers}
+              value={filters.cashierId === "all" ? "all" : (filters.cashierId as Id<"users">)}
+              onChange={(value) => setFilters((prev) => ({ ...prev, cashierId: value }))}
+              className="w-full sm:w-auto"
+            />
+          )}
+
+          <div className="space-y-1">
+            <Label htmlFor="orders-min">Min amount</Label>
+            <Input
+              id="orders-min"
+              type="number"
+              min={0}
+              inputMode="decimal"
+              placeholder="0"
+              className="w-full sm:w-32"
+              value={filters.minAmount}
+              onChange={(e) => setFilters((prev) => ({ ...prev, minAmount: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="orders-max">Max amount</Label>
+            <Input
+              id="orders-max"
+              type="number"
+              min={0}
+              inputMode="decimal"
+              placeholder="Any"
+              className="w-full sm:w-32"
+              value={filters.maxAmount}
+              onChange={(e) => setFilters((prev) => ({ ...prev, maxAmount: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="orders-payment">Payment</Label>
+            <Select
+              value={filters.paymentMethod}
+              onValueChange={(value) =>
+                setFilters((prev) => ({ ...prev, paymentMethod: value as PaymentFilter }))
+              }
+            >
+              <SelectTrigger id="orders-payment" className="w-full sm:w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAYMENT_FILTER_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="orders-return">Returns</Label>
+            <Select
+              value={filters.returnStatus}
+              onValueChange={(value) =>
+                setFilters((prev) => ({ ...prev, returnStatus: value as ReturnStatusFilter }))
+              }
+            >
+              <SelectTrigger id="orders-return" className="w-full sm:w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RETURN_STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button type="button" variant="outline" onClick={resetFilters}>
+            Reset
+          </Button>
+        </CardContent>
+      </Card>
+
+      {amountRangeInvalid ? (
+        <p className="text-destructive text-sm">Maximum amount must be at least the minimum.</p>
+      ) : null}
 
       {orders === undefined ? (
         <LoadingState label="Loading orders…" variant="table" />
       ) : orders.length === 0 ? (
-        <EmptyState icon={ShoppingBag} title="No orders yet" />
+        <EmptyState
+          icon={ShoppingBag}
+          title={filtersActive ? "No orders match these filters" : "No orders yet"}
+          description={
+            filtersActive
+              ? "Try a wider date range, clear the amount, or reset filters."
+              : "Completed sales will appear here."
+          }
+          action={
+            filtersActive ? (
+              <Button type="button" variant="outline" onClick={resetFilters}>
+                Reset filters
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <>
+          <p className="text-muted-foreground text-sm">
+            {orders.length === 1 ? "1 order" : `${orders.length} orders`}
+            {filters.datePreset !== "all"
+              ? ` · ${ORDER_DATE_PRESETS.find((p) => p.value === filters.datePreset)?.label}`
+              : ""}
+          </p>
           <div className="hidden md:block">
             <Card>
               <CardContent className="overflow-x-auto p-0">

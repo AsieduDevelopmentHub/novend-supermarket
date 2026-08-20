@@ -46,7 +46,7 @@ novend-pos/
 | `providers/` | App-wide providers only |
 | `docs/` | Project documentation |
 | `.cursor/` | Concise AI rules that reference docs |
-| `apps/desktop/` | Electron wrapper, installers, desktop CI |
+| `apps/desktop/` | Electron wrapper, installers, desktop CI. Bakes `appUrl` + Convex update feed into `build/update-config.json`. |
 
 # Placement rules
 
