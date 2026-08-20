@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.4 — 2026-08-20
+
+### Added
+- Settings → Hardware: printer, barcode scanner discovery/config, and future-device placeholders
+- Product image Take Photo (webcam) with client-side compression
+- Sales barcode multi-match picker and offline SKU lookup gated by terminal scanner settings
+- Desktop hardware IPC bridge (`novendDesktop`) for printers, scanners, and update status
+
+### Changed
+- Offline Electron boot aligned with Princellen (no terminal-state gate); background auto-sync cadence
+
 ## 0.1.3 — 2026-08-20
 
 ### Fixed
