@@ -29,6 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { SyncStatusChip } from "@/components/offline/sync-status-chip";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
 import { clearOfflineSession } from "@/lib/offline/session";
@@ -308,6 +309,7 @@ function SidebarBody({
           </div>
         ) : null}
       </div>
+      <SyncStatusChip collapsed={collapsed} />
       <SidebarUser user={user} collapsed={collapsed} />
     </div>
   );

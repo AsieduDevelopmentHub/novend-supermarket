@@ -23,7 +23,8 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { OfflineAdminShell } from "@/components/offline/offline-admin-shell";
+import { useOfflineAnalytics } from "@/hooks/use-offline-analytics";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatCurrency, formatNumber } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { expenseCategoryLabel, type ExpenseCategory } from "../constants";
@@ -97,9 +98,15 @@ export function AnalyticsView() {
 
   const branchArg = isAdmin && branchFilter !== "all" ? branchFilter : undefined;
 
-  const summary = useQuery(
+  const remoteSummary = useQuery(
     api.analytics.summary,
     online && range ? { ...range, granularity, branchId: branchArg } : "skip",
+  );
+  const { summary: localSummary } = useOfflineAnalytics(
+    range,
+    granularity,
+    branchArg ? String(branchArg) : null,
+    !online,
   );
   const expenses = useQuery(
     api.analytics.listExpenses,
@@ -109,10 +116,10 @@ export function AnalyticsView() {
   );
   const removeExpense = useMutation(api.analytics.removeExpense);
 
-  if (!online) {
-    return (
-      <OfflineAdminShell title="Analytics" description="Live performance and expense tracking." />
-    );
+  const summary = online ? remoteSummary : localSummary;
+
+  if (!online && localSummary === undefined) {
+    return <LoadingState label="Loading offline analytics…" variant="cards" />;
   }
 
   function onApply() {
@@ -248,6 +255,13 @@ export function AnalyticsView() {
 
   return (
     <div className="space-y-6">
+      {!online ? (
+        <Alert>
+          <AlertDescription>
+            Offline analytics from local sales and inventory. Expense tracking requires a connection.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <PageHeader
         title="Analytics"
         description="Financial performance, expenses, and profit & loss."
@@ -261,16 +275,18 @@ export function AnalyticsView() {
               <Download className="h-4 w-4" />
               Export CSV
             </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                setEditing(null);
-                setExpenseOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4" />
-              Record expense
-            </Button>
+            {online ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  setEditing(null);
+                  setExpenseOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                Record expense
+              </Button>
+            ) : null}
           </div>
         }
       />
@@ -324,7 +340,7 @@ export function AnalyticsView() {
 
       {!range ? (
         <EmptyState title="Select a date range" />
-      ) : summary === undefined ? (
+      ) : !summary ? (
         <LoadingState label="Loading analytics…" variant="cards" />
       ) : (
         <Tabs defaultValue="overview">

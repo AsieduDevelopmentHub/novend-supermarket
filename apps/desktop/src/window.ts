@@ -8,11 +8,31 @@ const PERSIST_PARTITION = "persist:novend";
 const OFFLINE_ENTRY_PATH = "/dashboard";
 
 function iconPath(): string {
-  const candidates = [
-    path.join(process.resourcesPath, "icon.png"),
-    path.resolve(__dirname, "..", "..", "..", "..", "public", "icons", "icon-512.png"),
-  ];
+  const candidates =
+    process.platform === "win32"
+      ? [
+          path.join(process.resourcesPath, "icon.ico"),
+          path.resolve(__dirname, "..", "..", "build", "icon.ico"),
+          path.join(process.resourcesPath, "icon.png"),
+          path.resolve(__dirname, "..", "..", "build", "icon.png"),
+        ]
+      : [
+          path.join(process.resourcesPath, "icon.png"),
+          path.resolve(__dirname, "..", "..", "build", "icon.png"),
+        ];
   return candidates.find((candidate) => fs.existsSync(candidate)) || candidates[0]!;
+}
+
+function windowIcon() {
+  const loaded = nativeImage.createFromPath(iconPath());
+  if (loaded.isEmpty()) return loaded;
+  if (process.platform === "win32") {
+    return loaded.resize({ width: 256, height: 256, quality: "best" });
+  }
+  if (process.platform === "darwin") {
+    return loaded.resize({ width: 512, height: 512, quality: "best" });
+  }
+  return loaded;
 }
 
 function offlineBootPath(): string {
@@ -109,7 +129,7 @@ async function loadAppShell(win: BrowserWindow, appUrl: string): Promise<void> {
 }
 
 export function createMainWindow(appUrl: string): BrowserWindow {
-  const icon = nativeImage.createFromPath(iconPath());
+  const icon = windowIcon();
   const origin = appUrl.replace(/\/$/, "");
   let showingRecovery = false;
 

@@ -15,7 +15,8 @@
   "main": "dist/main.js",
   "scripts": {
     "write-update-config": "node ../../scripts/write-desktop-update-config.mjs",
-    "prebuild": "pnpm run write-update-config",
+    "generate-icons": "node ../../scripts/generate-desktop-icons.mjs",
+    "prebuild": "pnpm run write-update-config && pnpm run generate-icons",
     "build": "tsc -p tsconfig.json",
     "dev": "pnpm run build && cross-env ELECTRON_DEV=1 electron .",
     "start": "pnpm run build && electron .",
@@ -33,6 +34,7 @@
     "cross-env": "^7.0.3",
     "electron": "^34.2.0",
     "electron-builder": "^25.1.8",
+    "png-to-ico": "^2.1.8",
     "typescript": "^5"
   },
   "build": {
@@ -51,6 +53,10 @@
         "to": "icon.png"
       },
       {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
+      },
+      {
         "from": "offline-boot.html",
         "to": "offline-boot.html"
       },
@@ -60,7 +66,7 @@
       }
     ],
     "win": {
-      "icon": "build/icon.png",
+      "icon": "build/icon.ico",
       "executableName": "NovendPOS",
       "target": [{ "target": "nsis", "arch": ["x64"] }]
     },

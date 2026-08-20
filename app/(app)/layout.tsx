@@ -16,6 +16,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SyncStatusBanner } from "@/components/offline/sync-status-banner";
 import { SyncConflictPanel } from "@/components/offline/sync-conflict-panel";
+import { InstallPromptDialog } from "@/components/install-prompt-dialog";
 import { OfflineProvider } from "@/providers/offline-provider";
 import { OfflineNavigationProvider, OfflineOutlet } from "@/providers/offline-navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -313,6 +314,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             </main>
           </div>
         </div>
+        <InstallPromptDialog />
       </OfflineNavigationProvider>
     </OfflineProvider>
   );

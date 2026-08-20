@@ -36,6 +36,7 @@ import { ProfilePanel } from "./profile-panel";
 import { PrinterPanel } from "./printer-panel";
 import { UpdatesPanel } from "./updates-panel";
 import { DesktopDownloadPanel } from "./desktop-download-panel";
+import { LocalBackupPanel } from "./local-backup-panel";
 import { ReceiptPrintModePicker } from "./receipt-print-mode-picker";
 import { resolveReceiptPrintMode, sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 import {
@@ -56,6 +57,7 @@ type SettingsTab =
   | "printer"
   | "updates"
   | "desktop"
+  | "backup"
   | "appearance"
   | "security";
 
@@ -134,6 +136,7 @@ export function SettingsView() {
           : ([
               { value: "desktop" as const, label: "Desktop", long: "Download desktop app" },
             ] as const)),
+        { value: "backup" as const, label: "Backup", long: "Local backup" },
         { value: "appearance" as const, label: "Appearance", long: "Appearance" },
         { value: "security" as const, label: "Security", long: "Security" },
       ] as const,
@@ -244,6 +247,10 @@ export function SettingsView() {
           </TabsContent>
         )}
 
+        <TabsContent value="backup" className="mt-0">
+          <LocalBackupPanel />
+        </TabsContent>
+
         <TabsContent value="appearance" className="mt-0">
           <AppearancePanel />
         </TabsContent>
@@ -265,6 +272,7 @@ const SETTINGS_ICONS: Record<SettingsTab, typeof UserRound> = {
   printer: Monitor,
   updates: Download,
   desktop: Download,
+  backup: Download,
   appearance: Palette,
   security: Shield,
 };
