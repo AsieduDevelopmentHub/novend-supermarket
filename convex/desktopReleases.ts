@@ -576,6 +576,26 @@ export const latestMetaHttp = httpAction(async (ctx, request) => {
   );
 });
 
+function githubAssetRedirect(location: string): Response {
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: location,
+      "cache-control": "private, max-age=60",
+    },
+  });
+}
+
+function upstreamError(status: number, message: string): Response {
+  return new Response(message, {
+    status,
+    headers: {
+      "content-type": "text/plain; charset=utf-8",
+      "cache-control": "no-store",
+    },
+  });
+}
+
 async function redirectGithubAsset(release: Doc<"desktopReleases">, fileName: string) {
   const asset = release.assets.find((entry) => entry.fileName === fileName);
   if (!asset || !asset.githubAssetId) {
@@ -586,52 +606,53 @@ async function redirectGithubAsset(release: Doc<"desktopReleases">, fileName: st
   try {
     token = githubReleasesToken();
   } catch (error) {
-    return new Response(error instanceof Error ? error.message : "Token missing", {
-      status: 500,
-    });
+    return upstreamError(500, error instanceof Error ? error.message : "Token missing");
   }
 
   const apiUrl = `https://api.github.com/repos/${release.githubOwner}/${release.githubRepo}/releases/assets/${asset.githubAssetId}`;
-  const githubResponse = await fetch(apiUrl, {
-    method: "GET",
-    redirect: "manual",
-    headers: {
-      Accept: "application/octet-stream",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "NovendPOS-DesktopUpdater",
-    },
-  });
+
+  let githubResponse: Response;
+  try {
+    githubResponse = await fetch(apiUrl, {
+      method: "GET",
+      redirect: "manual",
+      headers: {
+        Accept: "application/octet-stream",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "NovendPOS-DesktopUpdater",
+      },
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "Network error";
+    return upstreamError(503, `GitHub asset fetch failed: ${detail}`);
+  }
 
   if (githubResponse.status >= 300 && githubResponse.status < 400) {
     const location = githubResponse.headers.get("location");
     if (!location) {
-      return new Response("GitHub redirect missing Location", { status: 502 });
+      return upstreamError(503, "GitHub redirect missing Location header");
     }
-    return Response.redirect(location, 302);
+    return githubAssetRedirect(location);
   }
 
   if (githubResponse.ok) {
-    const headers = new Headers();
-    const contentType = githubResponse.headers.get("content-type");
-    const contentLength = githubResponse.headers.get("content-length");
-    const contentDisposition =
-      githubResponse.headers.get("content-disposition") ||
-      `attachment; filename="${asset.fileName}"`;
-    if (contentType) headers.set("content-type", contentType);
-    if (contentLength) headers.set("content-length", contentLength);
-    headers.set("content-disposition", contentDisposition);
-    headers.set("cache-control", "private, max-age=60");
-    return new Response(githubResponse.body, {
-      status: 200,
-      headers,
-    });
+    const location = githubResponse.headers.get("location");
+    if (location) {
+      return githubAssetRedirect(location);
+    }
+    return upstreamError(
+      503,
+      "GitHub returned installer bytes instead of a redirect; configure DESKTOP_RELEASE_GITHUB_TOKEN and retry",
+    );
   }
 
   const detail = await githubResponse.text().catch(() => "");
-  return new Response(`GitHub asset fetch failed (${githubResponse.status}): ${detail}`, {
-    status: 502,
-  });
+  const summary =
+    githubResponse.status === 401 || githubResponse.status === 403
+      ? "GitHub rejected DESKTOP_RELEASE_GITHUB_TOKEN (needs read access to private release assets)"
+      : `GitHub asset fetch failed (${githubResponse.status})`;
+  return upstreamError(503, detail ? `${summary}: ${detail}` : summary);
 }
 
 function rewriteUpdaterManifest(raw: string, siteOrigin: string, version: string): string {

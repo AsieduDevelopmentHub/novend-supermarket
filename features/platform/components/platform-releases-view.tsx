@@ -35,7 +35,7 @@ export function PlatformReleasesView() {
         <EmptyState
           icon={Package}
           title="No desktop releases in Convex yet"
-          description="Push a v* tag. After GitHub Actions builds installers, CI publishes metadata here. Set CONVEX_SITE_URL, DESKTOP_RELEASE_PUBLISH_SECRET, and DESKTOP_RELEASE_GITHUB_TOKEN."
+          description="Push a v* tag. CI uploads installers to GitHub Releases, then publishes metadata here. Convex redirects downloads via DESKTOP_RELEASE_GITHUB_TOKEN (private repo read). Verify with pnpm desktop:verify-github-token."
         />
       ) : (
         releases.map((release) => (

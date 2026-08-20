@@ -29,9 +29,28 @@ Then set the GitHub PAT Convex uses to mint private asset downloads:
 
 ```bash
 npx convex env set DESKTOP_RELEASE_GITHUB_TOKEN <github-pat-with-repo-read>
+pnpm desktop:verify-github-token -- --tag v0.1.3
 ```
 
-`CONVEX_SITE_URL` is provided by Convex. Bake it into installers with GitHub secret `CONVEX_SITE_URL`.
+**Critical:** `DESKTOP_RELEASE_GITHUB_TOKEN` must be able to read **private** GitHub
+Release assets for `AsieduDevelopmentHub/novend-pos`. CI’s ephemeral `GITHUB_TOKEN`
+is not stored in Convex — downloads fail with Cloudflare 502 when this PAT is missing
+or lacks repository access.
+
+Use either:
+
+- **Classic PAT** — `repo` scope (simplest), or
+- **Fine-grained PAT** — repository access to `novend-pos`, **Contents: Read**
+
+Symptoms of a bad token: Settings → Download returns 502; Convex asset URLs return
+`GitHub rejected DESKTOP_RELEASE_GITHUB_TOKEN` after deploy.
+
+Installers stay on **GitHub Releases**; Convex only stores metadata and issues a
+302 redirect to GitHub’s CDN. Do not upload `.exe` files to Convex file storage.
+
+`CONVEX_SITE_URL` is provided by Convex (`*.convex.site`). Bake it into installers
+with GitHub secret `CONVEX_SITE_URL`. The hostname (e.g. `lovable-kangaroo-386`) is
+correct when it matches your active Convex deployment — not hardcoded in source.
 
 The hosted web origin is baked into the same `update-config.json` as `appUrl`.
 Default is `https://novend-pos.vercel.app`. Optional GitHub secret `NOVEND_APP_URL`
