@@ -7,40 +7,67 @@ import {
   type LocalAnalyticsSummary,
 } from "@/lib/offline/analytics-engine";
 
+type OfflineAnalyticsState = {
+  key: string;
+  summary: LocalAnalyticsSummary | null;
+  loading: boolean;
+};
+
+/**
+ * Local P&L summary from Dexie. Disabled state is derived (no sync setState in effects).
+ */
 export function useOfflineAnalytics(
   range: { startDate: number; endDate: number } | null,
   granularity: AnalyticsGranularity,
   branchId: string | null | undefined,
   enabled: boolean,
 ) {
-  const [data, setData] = useState<LocalAnalyticsSummary | null>(null);
-  const [loading, setLoading] = useState(false);
+  const requestKey =
+    enabled && range
+      ? `${range.startDate}:${range.endDate}:${granularity}:${branchId ?? "all"}`
+      : "";
+
+  const [state, setState] = useState<OfflineAnalyticsState>({
+    key: "",
+    summary: null,
+    loading: false,
+  });
 
   useEffect(() => {
-    if (!enabled || !range) {
-      setData(null);
-      return;
-    }
+    if (!requestKey || !range) return;
+
     let cancelled = false;
-    setLoading(true);
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setState((prev) =>
+        prev.key === requestKey && prev.loading
+          ? prev
+          : { key: requestKey, summary: null, loading: true },
+      );
+    });
+
     void buildLocalAnalyticsSummary({
       startDate: range.startDate,
       endDate: range.endDate,
       granularity,
       branchId: branchId ?? null,
-    })
-      .then((summary) => {
-        if (!cancelled) setData(summary);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    }).then((summary) => {
+      if (cancelled) return;
+      setState({ key: requestKey, summary, loading: false });
+    });
+
     return () => {
       cancelled = true;
     };
-  }, [enabled, range, granularity, branchId]);
+  }, [requestKey, range, granularity, branchId]);
 
-  if (!enabled) return { summary: null, loading: false };
-  if (loading && !data) return { summary: undefined, loading: true };
-  return { summary: data, loading };
+  if (!enabled || !range) {
+    return { summary: null, loading: false };
+  }
+
+  if (state.key !== requestKey || state.loading || !state.summary) {
+    return { summary: undefined, loading: true };
+  }
+
+  return { summary: state.summary, loading: false };
 }

@@ -309,7 +309,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             </header>
             <SyncStatusBanner />
             <SyncConflictPanel />
-            <main className="min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto overscroll-y-contain px-4 py-6 lg:px-8">
+            <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-4 py-6 lg:px-8">
               <OfflineOutlet>{children}</OfflineOutlet>
             </main>
           </div>

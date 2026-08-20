@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -17,6 +17,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
@@ -82,6 +88,7 @@ export function SalesView() {
   const [discountField, setDiscountField] = useState(0);
   const [lastReceipt, setLastReceipt] = useState<ReceiptPayload | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [localHeld, setLocalHeld] = useState<LocalHeldSale[]>([]);
   const [cashierId, setCashierId] = useState<string | null>(null);
   /** Draft qty strings while editing — empty allowed until blur. */
@@ -299,6 +306,7 @@ export function SalesView() {
         });
         setCart([]);
         clearCartDiscount();
+        setCheckoutOpen(false);
         await refreshLocalHeld();
         toast.success("Sale held on this device");
         return;
@@ -317,6 +325,7 @@ export function SalesView() {
       });
       setCart([]);
       clearCartDiscount();
+      setCheckoutOpen(false);
       toast.success("Sale held");
     } catch (error) {
       showError(error, "Hold failed");
@@ -373,6 +382,7 @@ export function SalesView() {
         clearCartDiscount();
         setCustomer(null);
         setCustomerQuery("");
+        setCheckoutOpen(false);
         toast.success(`Sale complete · ${result.invoiceNumber}`);
         await triggerPrint(result.receiptPayload as ReceiptPayload);
         return;
@@ -390,6 +400,7 @@ export function SalesView() {
       clearCartDiscount();
       setCustomer(null);
       setCustomerQuery("");
+      setCheckoutOpen(false);
       await refreshLocal();
       toast.success(
         online
@@ -488,8 +499,8 @@ export function SalesView() {
     <div className="space-y-6 pb-24 xl:pb-0">
       <PageHeader title="Sales" description="Create a new wholesale or retail sale." />
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-        <div className="space-y-4">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
+        <div className="min-w-0 space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <Input
               value={search}
@@ -584,280 +595,129 @@ export function SalesView() {
           ) : null}
         </div>
 
-        <Card className="h-fit xl:sticky xl:top-6">
-          <CardHeader>
+        <Card className="hidden h-fit self-start xl:sticky xl:top-4 xl:block xl:max-h-[calc(100dvh-5.5rem)] xl:overflow-y-auto">
+          <CardHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
             <CardTitle className="flex items-center gap-2 text-base">
               <ShoppingCart className="h-4 w-4" />
               Current Sale
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <Label className="flex items-center gap-1.5">
-                  <UserRound className="h-3.5 w-3.5" />
-                  Customer
-                </Label>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={!online}
-                  title={!online ? "Requires internet" : undefined}
-                  onClick={() => setQuickOpen(true)}
-                >
-                  Quick create
-                </Button>
-              </div>
-              {customer ? (
-                <div className="border-border flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
-                  <div>
-                    <p className="font-medium">{customer.name}</p>
-                    {customer.phone ? (
-                      <p className="text-muted-foreground text-xs">{customer.phone}</p>
-                    ) : null}
-                  </div>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7"
-                    onClick={() => setCustomer(null)}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    <span className="sr-only">Clear to Walk-in</span>
-                  </Button>
-                </div>
-              ) : (
-                <div className="relative space-y-1">
-                  <Input
-                    value={customerQuery}
-                    onChange={(e) => setCustomerQuery(e.target.value)}
-                    placeholder="Walk-in · search to attach…"
-                  />
-                  {customerHits.length > 0 ? (
-                    <div className="border-border bg-card absolute z-10 mt-1 w-full overflow-hidden rounded-lg border shadow-md">
-                      {customerHits.map((hit) => (
-                        <button
-                          key={hit.id}
-                          type="button"
-                          className="hover:bg-muted block w-full px-3 py-2 text-left text-sm"
-                          onClick={() => {
-                            setCustomer(hit);
-                            setCustomerQuery("");
-                          }}
-                        >
-                          <span className="font-medium">{hit.name}</span>
-                          {hit.phone ? (
-                            <span className="text-muted-foreground"> · {hit.phone}</span>
-                          ) : null}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                  <p className="text-muted-foreground text-xs">Default: Walk-in Customer</p>
-                </div>
-              )}
-            </div>
-
-            {cart.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Add products to start a sale.</p>
-            ) : (
-              <ul className="space-y-3">
-                {cart.map((item) => (
-                  <li key={item.productId} className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{item.name}</p>
-                      <p className="text-muted-foreground text-xs">
-                        {formatCurrency(item.unitPrice)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        className="h-7 w-7"
-                        onClick={() =>
-                          setCart((prev) =>
-                            prev
-                              .map((row) =>
-                                row.productId === item.productId
-                                  ? { ...row, quantity: row.quantity - 1 }
-                                  : row,
-                              )
-                              .filter((row) => row.quantity > 0),
-                          )
-                        }
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        aria-label={`Quantity for ${item.name}`}
-                        className="h-7 w-14 px-1 text-center text-sm tabular-nums"
-                        value={qtyDrafts[item.productId] ?? String(item.quantity)}
-                        onChange={(e) => setCartQuantity(item.productId, e.target.value)}
-                        onBlur={() => commitCartQuantity(item.productId)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.currentTarget.blur();
-                          }
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        className="h-7 w-7"
-                        onClick={() => {
-                          const stock =
-                            catalog.find((p) => p.id === item.productId)?.stockQuantity ??
-                            item.quantity + 1;
-                          if (item.quantity + 1 > stock) {
-                            toast.error("Not enough stock");
-                            return;
-                          }
-                          setCart((prev) =>
-                            prev.map((row) =>
-                              row.productId === item.productId
-                                ? { ...row, quantity: row.quantity + 1 }
-                                : row,
-                            ),
-                          );
-                        }}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="space-y-2 border-t pt-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-muted-foreground">Discount</span>
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className="bg-muted inline-flex rounded-md p-0.5"
-                      role="group"
-                      aria-label="Discount type"
-                    >
-                      <button
-                        type="button"
-                        className={cn(
-                          "rounded px-2 py-1 text-xs font-medium transition-colors",
-                          discountMode === "amount"
-                            ? "bg-card text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground",
-                        )}
-                        onClick={() => setDiscountModeAndConvert("amount")}
-                      >
-                        GHS
-                      </button>
-                      <button
-                        type="button"
-                        className={cn(
-                          "rounded px-2 py-1 text-xs font-medium transition-colors",
-                          discountMode === "percent"
-                            ? "bg-card text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground",
-                        )}
-                        onClick={() => setDiscountModeAndConvert("percent")}
-                      >
-                        %
-                      </button>
-                    </div>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      max={discountMode === "percent" ? 100 : Math.max(0, subtotal)}
-                      className="h-8 w-24"
-                      value={discountField}
-                      onChange={(e) => {
-                        const next = Number(e.target.value) || 0;
-                        setDiscountField(Math.max(0, next));
-                      }}
-                      aria-invalid={discountExceedsSubtotal}
-                      aria-describedby={discountExceedsSubtotal ? "cart-discount-error" : undefined}
-                    />
-                  </div>
-                </div>
-                {discountMode === "percent" && discountField > 0 && !discountExceedsSubtotal ? (
-                  <p className="text-muted-foreground text-right text-xs">
-                    Equals {formatCurrency(cartDiscount)}
-                  </p>
-                ) : null}
-                {discountExceedsSubtotal ? (
-                  <p id="cart-discount-error" className="text-destructive text-right text-xs">
-                    {discountMode === "percent"
-                      ? "Percentage cannot exceed 100%"
-                      : `Discount cannot exceed the subtotal (${formatCurrency(subtotal)})`}
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex justify-between text-base font-semibold">
-                <span>Total</span>
-                <span className="text-primary">{formatCurrency(total)}</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={!canCheckout}
-                onClick={() => void onHold()}
-              >
-                Hold
-              </Button>
-              <Button type="button" disabled={!canCheckout} onClick={() => void onPay()}>
-                Pay
-              </Button>
-            </div>
-
-            {lastReceipt ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => setPreviewOpen(true)}
-              >
-                Reprint last receipt
-              </Button>
-            ) : null}
+            <SalesCheckoutFields
+              online={online}
+              customer={customer}
+              customerQuery={customerQuery}
+              customerHits={customerHits}
+              cart={cart}
+              catalog={catalog}
+              qtyDrafts={qtyDrafts}
+              subtotal={subtotal}
+              cartDiscount={cartDiscount}
+              total={total}
+              discountMode={discountMode}
+              discountField={discountField}
+              discountExceedsSubtotal={discountExceedsSubtotal}
+              canCheckout={canCheckout}
+              lastReceipt={lastReceipt}
+              onQuickCreate={() => setQuickOpen(true)}
+              onClearCustomer={() => setCustomer(null)}
+              onCustomerQuery={setCustomerQuery}
+              onSelectCustomer={(hit) => {
+                setCustomer(hit);
+                setCustomerQuery("");
+              }}
+              onSetCart={setCart}
+              onSetCartQuantity={setCartQuantity}
+              onCommitCartQuantity={commitCartQuantity}
+              onDiscountMode={setDiscountModeAndConvert}
+              onDiscountField={setDiscountField}
+              onHold={() => void onHold()}
+              onPay={() => void onPay()}
+              onReprint={() => setPreviewOpen(true)}
+            />
           </CardContent>
         </Card>
       </div>
 
       <div className="border-border bg-card/95 supports-[backdrop-filter]:bg-card/80 fixed inset-x-0 bottom-0 z-30 border-t px-4 py-3 backdrop-blur xl:hidden">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">
-              {cartItemCount} {cartItemCount === 1 ? "item" : "items"} · {formatCurrency(total)}
-            </p>
-            {cartDiscount > 0 ? (
-              <p className="text-muted-foreground text-xs">
-                Discount {formatCurrency(cartDiscount)}
-              </p>
-            ) : (
-              <p className="text-muted-foreground text-xs">Tap Pay to complete</p>
-            )}
-          </div>
-          <Button type="button" disabled={!canCheckout} onClick={() => void onPay()}>
-            Pay
-          </Button>
-        </div>
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 text-left"
+          onClick={() => setCheckoutOpen(true)}
+          aria-label={
+            cartItemCount > 0
+              ? `Open cart, ${cartItemCount} items, ${formatCurrency(total)}`
+              : "Open cart"
+          }
+        >
+          <span className="bg-primary/10 text-primary relative flex size-11 shrink-0 items-center justify-center rounded-full">
+            <ShoppingCart className="size-5" aria-hidden />
+            {cartItemCount > 0 ? (
+              <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold tabular-nums">
+                {cartItemCount > 99 ? "99+" : cartItemCount}
+              </span>
+            ) : null}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium">
+              {cartItemCount > 0
+                ? `${cartItemCount} ${cartItemCount === 1 ? "item" : "items"} · ${formatCurrency(total)}`
+                : "Cart empty"}
+            </span>
+            <span className="text-muted-foreground block text-xs">
+              {cartItemCount > 0 ? "Tap to review cart and pay" : "Add products to start a sale"}
+            </span>
+          </span>
+          <span className="bg-primary text-primary-foreground inline-flex h-9 shrink-0 items-center rounded-md px-3 text-sm font-medium">
+            View cart
+          </span>
+        </button>
       </div>
+
+      <Drawer open={checkoutOpen} onOpenChange={setCheckoutOpen}>
+        <DrawerContent className="max-h-[92dvh] xl:hidden">
+          <DrawerHeader className="border-border border-b text-left">
+            <DrawerTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" aria-hidden />
+              Current Sale
+            </DrawerTitle>
+          </DrawerHeader>
+          <div className="overflow-y-auto px-4 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            <SalesCheckoutFields
+              online={online}
+              customer={customer}
+              customerQuery={customerQuery}
+              customerHits={customerHits}
+              cart={cart}
+              catalog={catalog}
+              qtyDrafts={qtyDrafts}
+              subtotal={subtotal}
+              cartDiscount={cartDiscount}
+              total={total}
+              discountMode={discountMode}
+              discountField={discountField}
+              discountExceedsSubtotal={discountExceedsSubtotal}
+              canCheckout={canCheckout}
+              lastReceipt={lastReceipt}
+              onQuickCreate={() => setQuickOpen(true)}
+              onClearCustomer={() => setCustomer(null)}
+              onCustomerQuery={setCustomerQuery}
+              onSelectCustomer={(hit) => {
+                setCustomer(hit);
+                setCustomerQuery("");
+              }}
+              onSetCart={setCart}
+              onSetCartQuantity={setCartQuantity}
+              onCommitCartQuantity={commitCartQuantity}
+              onDiscountMode={setDiscountModeAndConvert}
+              onDiscountField={setDiscountField}
+              onHold={() => void onHold()}
+              onPay={() => void onPay()}
+              onReprint={() => setPreviewOpen(true)}
+            />
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       <ReceiptPreviewDialog
         open={previewOpen}
@@ -899,6 +759,305 @@ export function SalesView() {
           </form>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+type CheckoutCustomerHit = {
+  id: string;
+  name: string;
+  phone: string | null;
+};
+
+type SalesCheckoutFieldsProps = {
+  online: boolean;
+  customer: SelectedCustomer;
+  customerQuery: string;
+  customerHits: CheckoutCustomerHit[];
+  cart: CartItem[];
+  catalog: Array<{ id: string; stockQuantity: number }>;
+  qtyDrafts: Record<string, string>;
+  subtotal: number;
+  cartDiscount: number;
+  total: number;
+  discountMode: DiscountMode;
+  discountField: number;
+  discountExceedsSubtotal: boolean;
+  canCheckout: boolean;
+  lastReceipt: ReceiptPayload | null;
+  onQuickCreate: () => void;
+  onClearCustomer: () => void;
+  onCustomerQuery: (value: string) => void;
+  onSelectCustomer: (hit: CheckoutCustomerHit) => void;
+  onSetCart: Dispatch<SetStateAction<CartItem[]>>;
+  onSetCartQuantity: (productId: string, raw: string) => void;
+  onCommitCartQuantity: (productId: string) => void;
+  onDiscountMode: (mode: DiscountMode) => void;
+  onDiscountField: (value: number) => void;
+  onHold: () => void;
+  onPay: () => void;
+  onReprint: () => void;
+};
+
+function SalesCheckoutFields({
+  online,
+  customer,
+  customerQuery,
+  customerHits,
+  cart,
+  catalog,
+  qtyDrafts,
+  subtotal,
+  cartDiscount,
+  total,
+  discountMode,
+  discountField,
+  discountExceedsSubtotal,
+  canCheckout,
+  lastReceipt,
+  onQuickCreate,
+  onClearCustomer,
+  onCustomerQuery,
+  onSelectCustomer,
+  onSetCart,
+  onSetCartQuantity,
+  onCommitCartQuantity,
+  onDiscountMode,
+  onDiscountField,
+  onHold,
+  onPay,
+  onReprint,
+}: SalesCheckoutFieldsProps) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <Label className="flex items-center gap-1.5">
+            <UserRound className="h-3.5 w-3.5" />
+            Customer
+          </Label>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={!online}
+            title={!online ? "Requires internet" : undefined}
+            onClick={onQuickCreate}
+          >
+            Quick create
+          </Button>
+        </div>
+        {customer ? (
+          <div className="border-border flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
+            <div>
+              <p className="font-medium">{customer.name}</p>
+              {customer.phone ? (
+                <p className="text-muted-foreground text-xs">{customer.phone}</p>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={onClearCustomer}
+            >
+              <X className="h-3.5 w-3.5" />
+              <span className="sr-only">Clear to Walk-in</span>
+            </Button>
+          </div>
+        ) : (
+          <div className="relative space-y-1">
+            <Input
+              value={customerQuery}
+              onChange={(e) => onCustomerQuery(e.target.value)}
+              placeholder="Walk-in · search to attach…"
+            />
+            {customerHits.length > 0 ? (
+              <div className="border-border bg-card absolute z-10 mt-1 w-full overflow-hidden rounded-lg border shadow-md">
+                {customerHits.map((hit) => (
+                  <button
+                    key={hit.id}
+                    type="button"
+                    className="hover:bg-muted block w-full px-3 py-2 text-left text-sm"
+                    onClick={() => onSelectCustomer(hit)}
+                  >
+                    <span className="font-medium">{hit.name}</span>
+                    {hit.phone ? (
+                      <span className="text-muted-foreground"> · {hit.phone}</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <p className="text-muted-foreground text-xs">Default: Walk-in Customer</p>
+          </div>
+        )}
+      </div>
+
+      {cart.length === 0 ? (
+        <p className="text-muted-foreground text-sm">Add products to start a sale.</p>
+      ) : (
+        <ul className="space-y-3">
+          {cart.map((item) => (
+            <li key={item.productId} className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{item.name}</p>
+                <p className="text-muted-foreground text-xs">{formatCurrency(item.unitPrice)}</p>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-7 w-7"
+                  onClick={() =>
+                    onSetCart((prev) =>
+                      prev
+                        .map((row) =>
+                          row.productId === item.productId
+                            ? { ...row, quantity: row.quantity - 1 }
+                            : row,
+                        )
+                        .filter((row) => row.quantity > 0),
+                    )
+                  }
+                >
+                  <Minus className="h-3 w-3" />
+                </Button>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  aria-label={`Quantity for ${item.name}`}
+                  className="h-7 w-14 px-1 text-center text-sm tabular-nums"
+                  value={qtyDrafts[item.productId] ?? String(item.quantity)}
+                  onChange={(e) => onSetCartQuantity(item.productId, e.target.value)}
+                  onBlur={() => onCommitCartQuantity(item.productId)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.currentTarget.blur();
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-7 w-7"
+                  onClick={() => {
+                    const stock =
+                      catalog.find((p) => p.id === item.productId)?.stockQuantity ??
+                      item.quantity + 1;
+                    if (item.quantity + 1 > stock) {
+                      toast.error("Not enough stock");
+                      return;
+                    }
+                    onSetCart((prev) =>
+                      prev.map((row) =>
+                        row.productId === item.productId
+                          ? { ...row, quantity: row.quantity + 1 }
+                          : row,
+                      ),
+                    );
+                  }}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="space-y-2 border-t pt-3 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Subtotal</span>
+          <span>{formatCurrency(subtotal)}</span>
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">Discount</span>
+            <div className="flex items-center gap-1.5">
+              <div
+                className="bg-muted inline-flex rounded-md p-0.5"
+                role="group"
+                aria-label="Discount type"
+              >
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded px-2 py-1 text-xs font-medium transition-colors",
+                    discountMode === "amount"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => onDiscountMode("amount")}
+                >
+                  GHS
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded px-2 py-1 text-xs font-medium transition-colors",
+                    discountMode === "percent"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => onDiscountMode("percent")}
+                >
+                  %
+                </button>
+              </div>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                max={discountMode === "percent" ? 100 : Math.max(0, subtotal)}
+                className="h-8 w-24"
+                value={discountField}
+                onChange={(e) => {
+                  const next = Number(e.target.value) || 0;
+                  onDiscountField(Math.max(0, next));
+                }}
+                aria-invalid={discountExceedsSubtotal}
+                aria-describedby={discountExceedsSubtotal ? "cart-discount-error" : undefined}
+              />
+            </div>
+          </div>
+          {discountMode === "percent" && discountField > 0 && !discountExceedsSubtotal ? (
+            <p className="text-muted-foreground text-right text-xs">
+              Equals {formatCurrency(cartDiscount)}
+            </p>
+          ) : null}
+          {discountExceedsSubtotal ? (
+            <p id="cart-discount-error" className="text-destructive text-right text-xs">
+              {discountMode === "percent"
+                ? "Percentage cannot exceed 100%"
+                : `Discount cannot exceed the subtotal (${formatCurrency(subtotal)})`}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex justify-between text-base font-semibold">
+          <span>Total</span>
+          <span className="text-primary">{formatCurrency(total)}</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Button type="button" variant="secondary" disabled={!canCheckout} onClick={onHold}>
+          Hold
+        </Button>
+        <Button type="button" disabled={!canCheckout} onClick={onPay}>
+          Pay
+        </Button>
+      </div>
+
+      {lastReceipt ? (
+        <Button type="button" variant="outline" className="w-full" onClick={onReprint}>
+          Reprint last receipt
+        </Button>
+      ) : null}
     </div>
   );
 }
