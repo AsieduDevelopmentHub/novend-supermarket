@@ -1,5 +1,5 @@
 /**
- * Client-side image upload checks before posting to Convex storage.
+ * Client-side image upload checks and compression before posting to Convex storage.
  * Server `assertStoredImage` remains the source of truth for stored blobs.
  */
 
@@ -13,6 +13,9 @@ export const ALLOWED_IMAGE_MIME_TYPES = [
 export const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"] as const;
 
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB
+
+/** Max edge length for product photos before upload (keeps offline sync light). */
+export const PRODUCT_IMAGE_MAX_EDGE = 1280;
 
 export const IMAGE_ACCEPT = "image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
 
@@ -79,4 +82,63 @@ export async function assertValidImageFile(file: File): Promise<void> {
   if (!matchesImageMagic(magic)) {
     throw new Error("File content is not a valid JPG, PNG, or WebP image");
   }
+}
+
+/**
+ * Compress / downscale a product image for upload and offline-friendly sync.
+ * Returns a JPEG File under MAX_IMAGE_BYTES when possible.
+ */
+export async function compressProductImage(
+  file: File,
+  options?: { maxEdge?: number; quality?: number },
+): Promise<File> {
+  const maxEdge = options?.maxEdge ?? PRODUCT_IMAGE_MAX_EDGE;
+  const quality = options?.quality ?? 0.82;
+
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not process image");
+    ctx.drawImage(bitmap, 0, 0, width, height);
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((next) => resolve(next), "image/jpeg", quality),
+    );
+    if (!blob) throw new Error("Could not compress image");
+
+    let out = blob;
+    if (out.size > MAX_IMAGE_BYTES) {
+      const tighter = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob((next) => resolve(next), "image/jpeg", 0.65),
+      );
+      if (tighter) out = tighter;
+    }
+    if (out.size > MAX_IMAGE_BYTES) {
+      throw new Error("Image must be 2 MB or smaller after compression");
+    }
+
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "product";
+    return new File([out], `${baseName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
+  } finally {
+    bitmap.close();
+  }
+}
+
+/** Build a JPEG File from a webcam capture canvas. */
+export async function canvasToProductImageFile(
+  canvas: HTMLCanvasElement,
+  fileName = `product-photo-${Date.now()}.jpg`,
+): Promise<File> {
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob((next) => resolve(next), "image/jpeg", 0.85),
+  );
+  if (!blob) throw new Error("Could not capture photo");
+  const file = new File([blob], fileName, { type: "image/jpeg", lastModified: Date.now() });
+  return compressProductImage(file);
 }

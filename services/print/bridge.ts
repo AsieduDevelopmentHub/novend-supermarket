@@ -45,7 +45,7 @@ export async function probePrintBridge(): Promise<BridgeStatus> {
     return {
       ok: false,
       runtime: "browser",
-      message: "Native printing requires the Princellen POS desktop app",
+      message: "Native printing requires the Novend POS desktop app",
     };
   }
   try {
@@ -72,7 +72,7 @@ export async function discoverPrinters(): Promise<PrinterDiscoveryResult> {
   if (!desktop) {
     return {
       ok: false,
-      message: "Open Settings in the Princellen POS desktop app to discover printers",
+      message: "Open Settings in the Novend POS desktop app to discover printers",
       windowsPrinters: [],
       suggested: null,
     };

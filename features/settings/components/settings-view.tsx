@@ -34,6 +34,8 @@ import { SecurityPanel } from "./security-panel";
 import { BranchReceiptPanel } from "./branch-receipt-panel";
 import { ProfilePanel } from "./profile-panel";
 import { PrinterPanel } from "./printer-panel";
+import { ScannerPanel } from "./scanner-panel";
+import { FutureDevicesPanel } from "./future-devices-panel";
 import { UpdatesPanel } from "./updates-panel";
 import { DesktopDownloadPanel } from "./desktop-download-panel";
 import { LocalBackupPanel } from "./local-backup-panel";
@@ -44,9 +46,11 @@ import {
   Monitor,
   Palette,
   Receipt,
+  ScanBarcode,
   Shield,
   Store,
   UserRound,
+  Wrench,
 } from "lucide-react";
 
 type SettingsTab =
@@ -55,6 +59,8 @@ type SettingsTab =
   | "business"
   | "branchReceipt"
   | "printer"
+  | "scanner"
+  | "futureDevices"
   | "updates"
   | "desktop"
   | "backup"
@@ -130,7 +136,13 @@ export function SettingsView() {
           : []),
         ...(isDesktop
           ? ([
-              { value: "printer" as const, label: "Printer", long: "This terminal’s printer" },
+              { value: "printer" as const, label: "Printer", long: "Printer" },
+              { value: "scanner" as const, label: "Scanner", long: "Barcode scanner" },
+              {
+                value: "futureDevices" as const,
+                label: "Future",
+                long: "Future devices",
+              },
               { value: "updates" as const, label: "Updates", long: "Desktop updates" },
             ] as const)
           : ([
@@ -237,6 +249,12 @@ export function SettingsView() {
             <TabsContent value="printer" className="mt-0">
               <PrinterPanel />
             </TabsContent>
+            <TabsContent value="scanner" className="mt-0">
+              <ScannerPanel />
+            </TabsContent>
+            <TabsContent value="futureDevices" className="mt-0">
+              <FutureDevicesPanel />
+            </TabsContent>
             <TabsContent value="updates" className="mt-0">
               <UpdatesPanel />
             </TabsContent>
@@ -270,12 +288,16 @@ const SETTINGS_ICONS: Record<SettingsTab, typeof UserRound> = {
   business: Store,
   branchReceipt: Store,
   printer: Monitor,
+  scanner: ScanBarcode,
+  futureDevices: Wrench,
   updates: Download,
   desktop: Download,
   backup: Download,
   appearance: Palette,
   security: Shield,
 };
+
+const HARDWARE_TABS: SettingsTab[] = ["printer", "scanner", "futureDevices"];
 
 function SettingsTreeNav({
   sections,
@@ -286,11 +308,13 @@ function SettingsTreeNav({
   activeTab: SettingsTab;
   onSelect: (value: SettingsTab) => void;
 }) {
+  const hardwareItems = sections.filter((item) => HARDWARE_TABS.includes(item.value));
   const groups = [
     {
       label: "Account",
-      items: sections.filter((item) =>
-        item.value === "profile" || item.value === "appearance" || item.value === "security",
+      items: sections.filter(
+        (item) =>
+          item.value === "profile" || item.value === "appearance" || item.value === "security",
       ),
     },
     {
@@ -302,9 +326,14 @@ function SettingsTreeNav({
       items: sections.filter((item) => item.value === "branchReceipt"),
     },
     {
+      label: "Hardware",
+      items: hardwareItems,
+    },
+    {
       label: "This device",
       items: sections.filter(
-        (item) => item.value === "printer" || item.value === "updates" || item.value === "desktop",
+        (item) =>
+          item.value === "updates" || item.value === "desktop" || item.value === "backup",
       ),
     },
   ].filter((group) => group.items.length > 0);
@@ -321,6 +350,7 @@ function SettingsTreeNav({
               {group.items.map((item) => {
                 const Icon = SETTINGS_ICONS[item.value];
                 const active = activeTab === item.value;
+                const nested = HARDWARE_TABS.includes(item.value);
                 return (
                   <button
                     key={item.value}
@@ -328,6 +358,7 @@ function SettingsTreeNav({
                     onClick={() => onSelect(item.value)}
                     className={cn(
                       "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-medium",
+                      nested && "pl-4",
                       active ? "bg-accent text-accent-foreground" : "hover:bg-muted text-foreground",
                     )}
                   >

@@ -53,8 +53,11 @@ Next.js UI (renderer at novend-pos.vercel.app)
         ↓
 window.novendDesktop (preload)
         ↓
-Electron main
+Electron main (IPC) → hardware registry (printers, scanners, …)
 ```
+
+Hardware configuration lives under Settings → Hardware. See
+`docs/architecture/HARDWARE.md`.
 
 ## Packaging
 

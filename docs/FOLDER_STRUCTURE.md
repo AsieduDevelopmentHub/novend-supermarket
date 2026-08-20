@@ -21,7 +21,7 @@ novend-pos/
 ├── lib/                 # Shared non-React utilities (including offline)
 ├── hooks/               # Shared generic React hooks
 ├── types/               # Shared TypeScript types
-├── services/            # Print and other integrations
+├── services/            # Print, hardware, and other integrations
 ├── providers/           # App-wide providers
 ├── config/              # Navigation and app config
 ├── constants/           # Immutable shared constants

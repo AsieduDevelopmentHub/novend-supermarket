@@ -1,16 +1,28 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, session } from "electron";
 import { createMainWindow } from "./window";
 import { startAutoUpdater } from "./updater";
 import { resolveAppUrl } from "./desktop-config";
+import { registerDesktopIpc } from "./ipc";
 
 const APP_USER_MODEL_ID = "com.novend.pos";
 const APP_DISPLAY_NAME = "Novend POS";
+const PERSIST_PARTITION = "persist:novend";
 
 if (process.platform === "win32") {
   app.setAppUserModelId(APP_USER_MODEL_ID);
 }
 
 let mainWindow: BrowserWindow | null = null;
+
+function allowMediaPermissions() {
+  const ses = session.fromPartition(PERSIST_PARTITION);
+  ses.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === "media" || permission === "mediaKeySystem");
+  });
+  ses.setPermissionCheckHandler((_webContents, permission) => {
+    return permission === "media" || permission === "mediaKeySystem";
+  });
+}
 
 function showWindow() {
   if (!mainWindow) {
@@ -35,6 +47,8 @@ if (!gotLock) {
 
   void app.whenReady().then(() => {
     app.setName(APP_DISPLAY_NAME);
+    allowMediaPermissions();
+    registerDesktopIpc();
     showWindow();
     startAutoUpdater(() => mainWindow);
     app.on("activate", () => {

@@ -14,13 +14,13 @@ export const SNAPSHOT_PULL_TTL_MS = 2 * 60 * 1000;
  * Background auto-sync cadence while online.
  * Snapshot + outbox run at least this often when connected.
  */
-export const AUTO_SYNC_INTERVAL_MS = 2 * 60 * 1000;
+export const AUTO_SYNC_INTERVAL_MS = 20 * 60 * 1000;
 
 /**
  * Drain the outbox as soon as this many pending/syncing events accumulate,
  * without waiting for the full auto-sync interval.
  */
-export const AUTO_SYNC_PENDING_THRESHOLD = 3;
+export const AUTO_SYNC_PENDING_THRESHOLD = 10;
 
 /** How often we check pending count / decide whether to sync (desktop + web). */
 export const OUTBOX_POLL_MS = 15_000;

@@ -27,12 +27,13 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { generateSkuFromName } from "@/lib/sku";
 import { DEFAULT_EXPIRY_ALERT_DAYS } from "@/lib/expiry";
-import { assertValidImageFile, IMAGE_ACCEPT } from "@/lib/uploads/image";
-import { ImagePlus } from "lucide-react";
+import { assertValidImageFile, compressProductImage, IMAGE_ACCEPT } from "@/lib/uploads/image";
+import { Camera, ImagePlus, Upload } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { useOfflineStatus } from "@/providers/offline-provider";
+import { TakeProductPhotoDialog } from "@/features/products/components/take-product-photo-dialog";
 
 type Props = {
   open: boolean;
@@ -134,6 +135,7 @@ function ProductFormBody({
   const [description, setDescription] = useState(initialProduct?.description ?? "");
   const [file, setFile] = useState<File | null>(null);
   const [pending, setPending] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
 
@@ -166,6 +168,16 @@ function ProductFormBody({
       toast.success("Category created");
     } catch (error) {
       showError(error, "Could not create category");
+    }
+  }
+
+  async function applyImageFile(next: File) {
+    try {
+      const compressed = await compressProductImage(next);
+      await assertValidImageFile(compressed);
+      setFile(compressed);
+    } catch (error) {
+      showError(error, "Invalid image file");
     }
   }
 
@@ -434,12 +446,9 @@ function ProductFormBody({
           />
         </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="image">Product Image</Label>
-        <label
-          htmlFor="image"
-          className="border-border bg-muted/30 hover:border-primary/50 relative flex min-h-48 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed p-4 text-center transition-colors"
-        >
+      <div className="space-y-3">
+        <Label>Product Image</Label>
+        <div className="border-border bg-muted/30 relative flex min-h-48 flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed p-4 text-center">
           {displayImage ? (
             <Image
               src={displayImage}
@@ -452,12 +461,24 @@ function ProductFormBody({
           ) : (
             <>
               <ImagePlus className="text-muted-foreground mb-2 h-8 w-8" />
-              <p className="text-sm font-medium">Click to upload image</p>
+              <p className="text-sm font-medium">Add a product photo</p>
               <p className="text-muted-foreground mt-1 text-xs">
-                JPG/JPEG, PNG, or WebP · max 2 MB
+                JPG, PNG, or WebP · compressed for offline sync · max 2 MB
               </p>
             </>
           )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" asChild>
+            <label htmlFor="image" className="cursor-pointer">
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Image
+            </label>
+          </Button>
+          <Button type="button" variant="outline" onClick={() => setCameraOpen(true)}>
+            <Camera className="mr-2 h-4 w-4" />
+            Take Photo
+          </Button>
           <Input
             id="image"
             type="file"
@@ -465,21 +486,20 @@ function ProductFormBody({
             className="sr-only"
             onChange={(e) => {
               const next = e.target.files?.[0] ?? null;
-              if (!next) {
-                setFile(null);
-                return;
-              }
-              void assertValidImageFile(next)
-                .then(() => setFile(next))
-                .catch((error) => {
-                  showError(error, "Invalid image file");
-                  e.target.value = "";
-                  setFile(null);
-                });
+              e.target.value = "";
+              if (!next) return;
+              void applyImageFile(next);
             }}
           />
-        </label>
+        </div>
         {file ? <p className="text-muted-foreground truncate text-xs">{file.name}</p> : null}
+        <TakeProductPhotoDialog
+          open={cameraOpen}
+          onOpenChange={setCameraOpen}
+          onCapture={(captured) => {
+            void applyImageFile(captured);
+          }}
+        />
       </div>
       <DialogFooter className="md:col-span-2">
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

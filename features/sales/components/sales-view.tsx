@@ -45,9 +45,14 @@ import {
   listLocalHeldSales,
   resumeLocalHeldSale,
 } from "@/lib/offline/sales-repository";
-import { findLocalProductBySku } from "@/lib/offline/snapshot";
+import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
 import type { LocalHeldSale } from "@/lib/offline/types";
 import { cn } from "@/lib/utils";
+import { isBarcodeScanningEnabled } from "@/services/hardware";
+import {
+  BarcodeMatchDialog,
+  type BarcodeMatchProduct,
+} from "@/features/sales/components/barcode-match-dialog";
 
 type DiscountMode = "amount" | "percent";
 
@@ -93,6 +98,10 @@ export function SalesView() {
   const [cashierId, setCashierId] = useState<string | null>(null);
   /** Draft qty strings while editing — empty allowed until blur. */
   const [qtyDrafts, setQtyDrafts] = useState<Record<string, string>>({});
+  const [barcodeMatches, setBarcodeMatches] = useState<{
+    code: string;
+    products: BarcodeMatchProduct[];
+  } | null>(null);
 
   const branches = useQuery(api.branches.list, isAdmin ? {} : "skip");
   const workingBranchId = isAdmin
@@ -212,22 +221,49 @@ export function SalesView() {
     });
   }
 
+  function addScannedProduct(product: {
+    id: string;
+    name: string;
+    sellingPrice: number;
+    stockQuantity: number;
+  }) {
+    if (product.stockQuantity <= 0) {
+      toast.error("Not enough stock");
+      return;
+    }
+    addToCart(product);
+    toast.success(`Added ${product.name}`);
+  }
+
   useBarcodeScanner(
     (code) => {
+      if (!isBarcodeScanningEnabled()) return;
       void (async () => {
-        const local = await findLocalProductBySku(code);
-        const fromCatalog = catalog.find((p) => p.sku.toLowerCase() === code.toLowerCase());
-        const product = local ?? fromCatalog;
-        if (!product) {
-          toast.error(`No product for barcode “${code}”`);
+        const localMatches = await findLocalProductsByBarcode(code);
+        const catalogMatches = catalog.filter(
+          (p) => p.sku.toLowerCase() === code.trim().toLowerCase(),
+        );
+        const byId = new Map<string, BarcodeMatchProduct>();
+        for (const product of [...localMatches, ...catalogMatches]) {
+          byId.set(product.id, {
+            id: product.id,
+            name: product.name,
+            sku: product.sku,
+            sellingPrice: product.sellingPrice,
+            stockQuantity: product.stockQuantity,
+            imageUrl: product.imageUrl,
+          });
+        }
+        const matches = [...byId.values()];
+        if (matches.length === 0) {
+          toast.error("Product not found");
           return;
         }
-        if (product.stockQuantity <= 0) {
-          toast.error("Not enough stock");
+        if (matches.length === 1) {
+          addScannedProduct(matches[0]!);
           return;
         }
-        addToCart(product);
-        toast.success(`Added ${product.name}`);
+        setBarcodeMatches({ code, products: matches });
       })();
     },
     { enabled: true, allowInInputs: true },
@@ -723,6 +759,19 @@ export function SalesView() {
         open={previewOpen}
         onOpenChange={setPreviewOpen}
         payload={lastReceipt}
+      />
+
+      <BarcodeMatchDialog
+        open={barcodeMatches != null}
+        code={barcodeMatches?.code ?? ""}
+        products={barcodeMatches?.products ?? []}
+        onOpenChange={(open) => {
+          if (!open) setBarcodeMatches(null);
+        }}
+        onSelect={(product) => {
+          setBarcodeMatches(null);
+          addScannedProduct(product);
+        }}
       />
 
       <Dialog open={quickOpen} onOpenChange={setQuickOpen}>

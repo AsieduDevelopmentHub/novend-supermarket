@@ -170,13 +170,26 @@ export async function listLocalCatalogProducts(search?: string) {
 
 /** Exact SKU match for barcode / keyboard-wedge scanners. */
 export async function findLocalProductBySku(sku: string) {
+  const matches = await findLocalProductsByBarcode(sku);
+  return matches[0] ?? null;
+}
+
+/**
+ * Offline barcode lookup — returns every active product whose SKU matches the
+ * scanned code (exact, case-insensitive). Multiple rows support future barcode
+ * aliases and rare catalog duplicates; the sales UI shows a picker when needed.
+ */
+export async function findLocalProductsByBarcode(code: string) {
   const db = await getOfflineDb();
-  if (!db) return null;
-  const code = sku.trim().toLowerCase();
-  if (!code) return null;
-  const product = await db.products.filter((p) => p.sku.toLowerCase() === code).first();
-  if (!product || product.status !== "active") return null;
-  return {
+  if (!db) return [];
+  const normalized = code.trim().toLowerCase();
+  if (!normalized) return [];
+
+  const products = await db.products
+    .filter((p) => p.status === "active" && p.sku.toLowerCase() === normalized)
+    .toArray();
+
+  return products.map((product) => ({
     id: product.id,
     name: product.name,
     sku: product.sku,
@@ -185,7 +198,7 @@ export async function findLocalProductBySku(sku: string) {
     unit: product.unit,
     imageUrl: product.imageUrl,
     isExpiring: product.isExpiring,
-  };
+  }));
 }
 
 export async function searchLocalCustomers(q: string, limit = 6) {
