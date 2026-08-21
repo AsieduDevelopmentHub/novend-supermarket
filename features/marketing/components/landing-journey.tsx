@@ -1,22 +1,12 @@
-"use client";
-
-import { useRef, type ReactNode, type RefObject } from "react";
+import { type ReactNode } from "react";
 import { landingCopy } from "@/features/marketing/content";
-import { useLandingJourneyPin } from "@/features/marketing/hooks/use-landing-journey-pin";
 
-type Props = {
-  scrollerRef: RefObject<HTMLElement | null>;
-};
-
-/** Sticky 3D scroll story — pinned stage while steps advance. */
-export function LandingJourney({ scrollerRef }: Props) {
-  const pinRef = useRef<HTMLDivElement | null>(null);
-  useLandingJourneyPin(pinRef, scrollerRef);
-
+/** Operational journey — alternating step + visual (no sticky pin). */
+export function LandingJourney() {
   return (
     <section
       id="journey"
-      className="landing-journey scroll-mt-24 border-t border-border bg-white px-4 py-20 sm:px-6 sm:py-24 lg:px-8"
+      className="landing-journey scroll-mt-24 border-t border-border bg-white px-4 py-24 sm:px-6 sm:py-28 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="mx-auto max-w-2xl text-center">
@@ -31,46 +21,33 @@ export function LandingJourney({ scrollerRef }: Props) {
           </p>
         </div>
 
-        <div
-          ref={pinRef}
-          data-journey-pin
-          className="landing-journey-pin relative mt-14 min-h-[70vh] lg:min-h-[78vh]"
-        >
-          <div className="landing-journey-pin-inner grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:gap-14">
-            <div className="landing-journey-steps relative min-h-[280px] sm:min-h-[320px]">
-              {landingCopy.journey.steps.map((step, index) => (
-                <article
-                  key={step.id}
-                  data-journey-step
-                  data-step-index={index}
-                  className="landing-journey-step border-border bg-card absolute inset-x-0 top-0 rounded-2xl border p-5 shadow-sm sm:p-6"
-                >
-                  <p className="text-primary text-[11px] font-bold tracking-[0.16em] uppercase">
+        <div className="mt-16 space-y-20 lg:space-y-28">
+          {landingCopy.journey.steps.map((step, index) => {
+            const reverse = index % 2 === 1;
+            return (
+              <article
+                key={step.id}
+                className={`grid items-center gap-10 lg:grid-cols-2 lg:gap-16 ${
+                  reverse ? "lg:[&>*:first-child]:order-2" : ""
+                }`}
+              >
+                <div data-reveal>
+                  <p className="text-primary text-xs font-bold tracking-[0.18em] uppercase">
                     Step {step.step}
                   </p>
-                  <h3 className="text-foreground mt-2 text-xl font-semibold tracking-tight sm:text-2xl">
+                  <h3 className="text-foreground mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
                     {step.title}
                   </h3>
-                  <p className="text-muted-foreground mt-2 text-sm leading-relaxed sm:text-base">
+                  <p className="text-muted-foreground mt-4 max-w-md text-base leading-relaxed">
                     {step.detail}
                   </p>
-                </article>
-              ))}
-            </div>
-
-            <div className="landing-perspective relative min-h-[320px] sm:min-h-[380px]">
-              {landingCopy.journey.steps.map((step, index) => (
-                <div
-                  key={step.id}
-                  data-journey-visual
-                  data-step-index={index}
-                  className="landing-journey-visual landing-depth-preserve absolute inset-0"
-                >
+                </div>
+                <div data-depth-panel className="landing-depth-preserve">
                   <JourneyVisual id={step.id} />
                 </div>
-              ))}
-            </div>
-          </div>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -246,7 +223,7 @@ function Panel({
 }) {
   return (
     <div
-      className={`border-border bg-card h-full rounded-2xl border shadow-[0_18px_44px_rgba(15,23,42,0.08)] ${className}`}
+      className={`border-border bg-card rounded-2xl border shadow-[0_18px_44px_rgba(15,23,42,0.08)] ${className}`}
     >
       {children}
     </div>

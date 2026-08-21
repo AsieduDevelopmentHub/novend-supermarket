@@ -14,6 +14,7 @@ import { LandingJourney } from "@/features/marketing/components/landing-journey"
 import { LandingArchitecture } from "@/features/marketing/components/landing-architecture";
 import { LandingIndustries } from "@/features/marketing/components/landing-industries";
 import { LandingWhy } from "@/features/marketing/components/landing-why";
+import { LandingPricing } from "@/features/marketing/components/landing-pricing";
 import { LandingFaq } from "@/features/marketing/components/landing-faq";
 import { LandingCta } from "@/features/marketing/components/landing-cta";
 import { LandingFooter } from "@/features/marketing/components/landing-footer";
@@ -21,7 +22,6 @@ import { LandingFooter } from "@/features/marketing/components/landing-footer";
 /**
  * Web-only SaaS landing — product DNA shared with login/app UI.
  * Electron detects `novendDesktop` and leaves for /dashboard.
- * Pricing / subscription is paused for a future update.
  */
 export function LandingPage() {
   const isDesktop = useDesktopRuntime();
@@ -56,10 +56,11 @@ export function LandingPage() {
         <LandingNav scrollRootRef={scrollRef} />
         <main>
           <LandingHero />
-          <LandingJourney scrollerRef={scrollRef} />
+          <LandingJourney />
           <LandingArchitecture />
           <LandingIndustries />
           <LandingWhy />
+          <LandingPricing />
           <LandingFaq />
           <LandingCta />
         </main>

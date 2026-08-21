@@ -41,7 +41,7 @@ export const landingCopy = {
     eyebrow: "How Novend works",
     title: "One operational path — from supplier to synced sales",
     subtitle:
-      "Scroll through the same workflow your team runs in the product. Each step updates the product illustration beside it.",
+      "The same workflow your team runs in the product: receive, warehouse, transfer, sell, store locally, then sync.",
     steps: [
       {
         id: "receive",
@@ -99,6 +99,12 @@ export const landingCopy = {
     "Wholesale distributors",
     "Electronics stores",
     "Fashion boutiques",
+    "Hardware stores",
+    "Mini-marts",
+    "Beauty & cosmetics",
+    "Agro & farm supply",
+    "Phone accessory shops",
+    "Bookshops & stationery",
   ],
   why: {
     eyebrow: "Security & trust",
@@ -134,6 +140,60 @@ export const landingCopy = {
     ghanaNote:
       "From neighborhood provision shops to pharmacy counters and wholesale distributors — Novend speaks Ghanaian retail without locking you into a single market.",
   },
+  pricing: {
+    title: "Pricing",
+    subtitle: "Plan structure is ready. Billing activates in a future update.",
+    badge: "Coming Soon",
+    plans: [
+      {
+        id: "basic",
+        name: "Basic",
+        status: "Coming Soon",
+        blurb: "Single branch starter for focused counters.",
+        featured: false,
+        features: ["1 branch", "Core POS & receipts", "Offline checkout", "Email support"],
+      },
+      {
+        id: "pro",
+        name: "Pro",
+        status: "Coming Soon",
+        blurb: "Multi-branch operations for growing retailers.",
+        featured: true,
+        features: [
+          "Multi-branch",
+          "Wholesale warehouse flow",
+          "Analytics & reports",
+          "Priority support",
+        ],
+      },
+      {
+        id: "enterprise",
+        name: "Enterprise",
+        status: "Coming Soon",
+        blurb: "Organization-wide control and guided rollout.",
+        featured: false,
+        features: [
+          "Org-wide settings",
+          "Advanced roles",
+          "Dedicated onboarding",
+          "SLA options",
+        ],
+      },
+      {
+        id: "lifetime",
+        name: "Lifetime License",
+        status: "Coming Soon",
+        blurb: "One-time license path for long-term ownership.",
+        featured: false,
+        features: [
+          "Perpetual license option",
+          "Major version access window",
+          "Desktop + web",
+          "Community updates",
+        ],
+      },
+    ],
+  },
   faq: {
     eyebrow: "Questions & answers",
     title: "A few important things to know about Novend.",
@@ -156,7 +216,7 @@ export const landingCopy = {
       },
       {
         q: "When will pricing be available?",
-        a: "Subscription and licensing plans are paused for now. Contact Sales if you want early access details.",
+        a: "Plan cards are visible as Coming Soon. Billing is not live yet — Contact Sales if you want early access details.",
       },
     ],
   },
@@ -170,7 +230,7 @@ export const landingCopy = {
   nav: [
     { href: "#journey", label: "How it works" },
     { href: "#architecture", label: "Architecture" },
-    { href: "#about", label: "Trust" },
+    { href: "#pricing", label: "Pricing" },
     { href: "#faq", label: "FAQ" },
   ],
   footer: {
@@ -178,7 +238,7 @@ export const landingCopy = {
       "Commercial offline-first Point of Sale for independent businesses — desktop, web, and cloud sync.",
     product: [
       { href: "#journey", label: "How it works" },
-      { href: "#architecture", label: "Architecture" },
+      { href: "#pricing", label: "Pricing" },
       { href: "/login", label: "Login" },
     ],
     company: [

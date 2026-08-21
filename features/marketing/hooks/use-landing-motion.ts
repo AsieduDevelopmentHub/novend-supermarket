@@ -112,18 +112,18 @@ export function useLandingDepth(
       if (stage) {
         gsap.fromTo(
           stage,
-          { rotateY: -14, rotateX: 8, z: -40 },
+          { rotateY: -8, rotateX: 4, z: -16 },
           {
-            rotateY: 8,
-            rotateX: -3,
+            rotateY: 5,
+            rotateX: -2,
             z: 0,
             ease: "none",
             scrollTrigger: {
               trigger: stage,
               scroller: scrollEl,
-              start: "top 80%",
-              end: "bottom 25%",
-              scrub: 1.1,
+              start: "top 85%",
+              end: "bottom 35%",
+              scrub: 0.4,
             },
           },
         );
