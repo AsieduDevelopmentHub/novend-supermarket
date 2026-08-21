@@ -16,12 +16,16 @@ let mainWindow: BrowserWindow | null = null;
 
 function allowMediaPermissions() {
   const ses = session.fromPartition(PERSIST_PARTITION);
+  const allow = (permission: string) =>
+    permission === "media" || permission === "mediaKeySystem";
+
+  // Auto-approve Chromium's media permission so getUserMedia can open the OS
+  // camera prompt / stream. Still requires Permissions-Policy camera=(self)
+  // on the hosted app (see proxy.ts).
   ses.setPermissionRequestHandler((_webContents, permission, callback) => {
-    callback(permission === "media" || permission === "mediaKeySystem");
+    callback(allow(permission));
   });
-  ses.setPermissionCheckHandler((_webContents, permission) => {
-    return permission === "media" || permission === "mediaKeySystem";
-  });
+  ses.setPermissionCheckHandler((_webContents, permission) => allow(permission));
 }
 
 function showWindow() {

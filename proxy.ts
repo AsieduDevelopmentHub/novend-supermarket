@@ -48,7 +48,8 @@ function withSecurityHeaders(response: NextResponse, nonce: string) {
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set(
     "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=(), payment=()",
+    // camera=(self) — product Take Photo (desktop + PWA). Mic/geo/payment stay blocked.
+    "camera=(self), microphone=(), geolocation=(), payment=()",
   );
   return response;
 }
