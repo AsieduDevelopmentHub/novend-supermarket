@@ -10,7 +10,7 @@ export const landingCopy = {
     headline: "The Offline-First POS Built for Growing Businesses",
     subhead:
       "Sell faster, manage smarter, and keep your supermarket, pharmacy, or wholesale yard running—even without internet. Sync with confidence when the network returns.",
-    primaryCta: "Get Started",
+    primaryCta: "Start free trial",
     secondaryCta: "Book a Demo",
   },
   architecture: {
@@ -141,58 +141,10 @@ export const landingCopy = {
       "From neighborhood provision shops to pharmacy counters and wholesale distributors — Novend speaks Ghanaian retail without locking you into a single market.",
   },
   pricing: {
-    title: "Pricing",
-    subtitle: "Plan structure is ready. Billing activates in a future update.",
-    badge: "Coming Soon",
-    plans: [
-      {
-        id: "basic",
-        name: "Basic",
-        status: "Coming Soon",
-        blurb: "Single branch starter for focused counters.",
-        featured: false,
-        features: ["1 branch", "Core POS & receipts", "Offline checkout", "Email support"],
-      },
-      {
-        id: "pro",
-        name: "Pro",
-        status: "Coming Soon",
-        blurb: "Multi-branch operations for growing retailers.",
-        featured: true,
-        features: [
-          "Multi-branch",
-          "Wholesale warehouse flow",
-          "Analytics & reports",
-          "Priority support",
-        ],
-      },
-      {
-        id: "enterprise",
-        name: "Enterprise",
-        status: "Coming Soon",
-        blurb: "Organization-wide control and guided rollout.",
-        featured: false,
-        features: [
-          "Org-wide settings",
-          "Advanced roles",
-          "Dedicated onboarding",
-          "SLA options",
-        ],
-      },
-      {
-        id: "lifetime",
-        name: "Lifetime License",
-        status: "Coming Soon",
-        blurb: "One-time license path for long-term ownership.",
-        featured: false,
-        features: [
-          "Perpetual license option",
-          "Major version access window",
-          "Desktop + web",
-          "Community updates",
-        ],
-      },
-    ],
+    title: "Simple pricing that grows with you",
+    subtitle:
+      "Pay monthly or yearly, or own a lifetime licence. Every plan includes offline checkout, receipts and reports.",
+    badge: "14-day free trial",
   },
   faq: {
     eyebrow: "Questions & answers",
@@ -212,11 +164,11 @@ export const landingCopy = {
       },
       {
         q: "Can I sign up myself?",
-        a: "Organizations are provisioned by platform administrators. Use Get Started to sign in, or Contact Sales if you need an account.",
+        a: "Yes. Create an account, set up your business, and start a 14-day Pro trial. Staff logins are still created by your administrator.",
       },
       {
-        q: "When will pricing be available?",
-        a: "Plan cards are visible as Coming Soon. Billing is not live yet — Contact Sales if you want early access details.",
+        q: "How does billing work?",
+        a: "Pay monthly or yearly from Settings → Billing with Paystack (card or mobile money). Lifetime is a one-time licence. Enterprise is quoted with our sales team.",
       },
     ],
   },
@@ -224,7 +176,7 @@ export const landingCopy = {
     title: "Open the same product your team will run.",
     subtitle:
       "Offline-first checkout, inventory, and cloud sync — built for Ghanaian commerce, ready for growth.",
-    primary: "Get Started",
+    primary: "Start free trial",
     secondary: "Contact Sales",
   },
   nav: [
@@ -239,6 +191,7 @@ export const landingCopy = {
     product: [
       { href: "#journey", label: "How it works" },
       { href: "#pricing", label: "Pricing" },
+      { href: "/signup", label: "Start trial" },
       { href: "/login", label: "Login" },
     ],
     company: [

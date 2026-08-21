@@ -4,6 +4,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import Image from "next/image";
@@ -218,8 +219,14 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         </Button>
       </form>
 
-      <p className="text-muted-foreground mt-8 text-center text-xs leading-relaxed">
-        Accounts are created by your administrator. Contact them if you need access.
+      <p className="text-muted-foreground mt-6 text-center text-sm">
+        New business?{" "}
+        <Link href="/signup" className="text-primary font-medium hover:underline">
+          Start a 14-day free trial
+        </Link>
+      </p>
+      <p className="text-muted-foreground mt-3 text-center text-xs leading-relaxed">
+        Staff accounts are created by your administrator.
       </p>
     </div>
   );

@@ -29,11 +29,12 @@ One Convex Auth user belongs to exactly one organization
 
 # Onboarding
 
-1. Public email/password signup is enabled.
-2. Users without a profile are forced to `/onboarding`.
-3. `organizations.create` in one mutation: organization, MAIN branch, owner
-   profile (`administrator`), default settings.
-4. Further staff are created by in-org administrators/managers, not public signup.
+1. A business owner signs up at `/signup` and creates the organization during
+   `/onboarding`. That provisions MAIN, an owner `administrator` profile,
+   default settings, and a **14-day Pro trial**.
+2. A Novend platform administrator can also provision a tenant with
+   `platform.createOrganization` (trial or an assigned plan).
+3. Further staff are created by in-org administrators/managers.
 
 # Isolation rules
 
@@ -50,7 +51,8 @@ One Convex Auth user belongs to exactly one organization
 - `administrator` | `manager` | `cashier` — Princellen capability map, always
   scoped to the session organization (and branch for manager/cashier)
 
-Platform super-admin and billing are out of scope.
+Platform super-admin (`platformAdmins`) sits outside organization RBAC.
+Billing, plans and activation are documented in [`BILLING.md`](./BILLING.md).
 
 # IDOR test
 

@@ -21,7 +21,7 @@ export function LandingCta() {
             size="lg"
             className="landing-shadow-cta-primary h-11 w-full px-6 text-[15px] font-semibold transition-[box-shadow,transform] hover:-translate-y-0.5 sm:w-auto"
           >
-            <Link href="/login">{landingCopy.cta.primary}</Link>
+            <Link href="/signup">{landingCopy.cta.primary}</Link>
           </Button>
           <Button
             asChild

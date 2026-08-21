@@ -17,6 +17,43 @@ export const expenseCategoryValidator = v.union(
   v.literal("misc"),
 );
 
+export const planKeyValidator = v.union(
+  v.literal("basic"),
+  v.literal("pro"),
+  v.literal("enterprise"),
+  v.literal("lifetime"),
+);
+
+/** `inactive` is the pre-licensing value and is treated as `disabled`. */
+export const organizationStatusValidator = v.union(
+  v.literal("active"),
+  v.literal("trial"),
+  v.literal("suspended"),
+  v.literal("expired"),
+  v.literal("disabled"),
+  v.literal("inactive"),
+);
+
+export const subscriptionStatusValidator = v.union(
+  v.literal("trialing"),
+  v.literal("active"),
+  v.literal("past_due"),
+  v.literal("cancelled"),
+  v.literal("expired"),
+);
+
+export const billingCycleValidator = v.union(
+  v.literal("monthly"),
+  v.literal("yearly"),
+  v.literal("lifetime"),
+);
+
+export const paymentGatewayValidator = v.union(
+  v.literal("none"),
+  v.literal("paystack"),
+  v.literal("manual"),
+);
+
 export const inventoryReasonValidator = v.union(
   v.literal("sale"),
   v.literal("receive"),
@@ -37,17 +74,141 @@ export default defineSchema({
   organizations: defineTable({
     name: v.string(),
     slug: v.string(),
-    status: v.union(v.literal("active"), v.literal("inactive"), v.literal("suspended")),
+    status: organizationStatusValidator,
     ownerUserId: v.id("users"),
     currency: v.string(),
     timezone: v.optional(v.string()),
     taxId: v.optional(v.string()),
+    /** Legacy free-text plan label kept for older records. `planKey` is authoritative. */
     plan: v.optional(v.string()),
+    planKey: v.optional(planKeyValidator),
+    /** Catalog row for the active plan. Mirrors `planKey` for platform joins. */
+    activePlanId: v.optional(v.id("plans")),
+    subscriptionId: v.optional(v.id("subscriptions")),
+    trialEndsAt: v.optional(v.number()),
     createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_slug", ["slug"])
     .index("by_ownerUserId", ["ownerUserId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_planKey", ["planKey"]),
+
+  /**
+   * Commercial plan catalog. Mirrors `convex/shared/plans.ts`, which stays the
+   * source of truth for limits; this table adds gateway plan codes and gives the
+   * platform dashboard something to join against.
+   */
+  plans: defineTable({
+    key: planKeyValidator,
+    name: v.string(),
+    description: v.string(),
+    monthlyPrice: v.union(v.number(), v.null()),
+    yearlyPrice: v.union(v.number(), v.null()),
+    oneTimePrice: v.union(v.number(), v.null()),
+    currency: v.string(),
+    productLimit: v.union(v.number(), v.null()),
+    userLimit: v.union(v.number(), v.null()),
+    branchLimit: v.union(v.number(), v.null()),
+    deviceLimit: v.union(v.number(), v.null()),
+    backupLimitBytes: v.union(v.number(), v.null()),
+    features: v.array(v.string()),
+    isLifetime: v.boolean(),
+    sortOrder: v.number(),
+    gatewayMonthlyPlanCode: v.optional(v.string()),
+    gatewayYearlyPlanCode: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
+
+  subscriptions: defineTable({
+    organizationId: v.id("organizations"),
+    planKey: planKeyValidator,
+    planId: v.optional(v.id("plans")),
+    status: subscriptionStatusValidator,
+    billingCycle: billingCycleValidator,
+    isLifetime: v.boolean(),
+    startsAt: v.number(),
+    expiresAt: v.optional(v.number()),
+    nextBillingDate: v.optional(v.number()),
+    /** Full access continues until this instant after a lapse. */
+    graceUntil: v.optional(v.number()),
+    cancelAtPeriodEnd: v.optional(v.boolean()),
+    cancelledAt: v.optional(v.number()),
+    amount: v.number(),
+    currency: v.string(),
+    paymentGateway: paymentGatewayValidator,
+    gatewayCustomerCode: v.optional(v.string()),
+    gatewaySubscriptionCode: v.optional(v.string()),
+    gatewayEmailToken: v.optional(v.string()),
+    gatewayPlanCode: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_status", ["organizationId", "status"])
+    .index("by_status", ["status"])
+    .index("by_gatewaySubscriptionCode", ["gatewaySubscriptionCode"])
+    .index("by_gatewayCustomerCode", ["gatewayCustomerCode"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  devices: defineTable({
+    organizationId: v.id("organizations"),
+    userId: v.id("users"),
+    name: v.string(),
+    /** Stable per-installation identifier generated on the client. */
+    fingerprint: v.string(),
+    platform: v.string(),
+    runtime: v.union(v.literal("desktop"), v.literal("web")),
+    appVersion: v.optional(v.string()),
+    registeredAt: v.number(),
+    lastSeenAt: v.number(),
+    isActive: v.boolean(),
+    deactivatedAt: v.optional(v.number()),
+    deactivatedBy: v.optional(v.id("users")),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_fingerprint", ["organizationId", "fingerprint"])
+    .index("by_organization_active", ["organizationId", "isActive"])
+    .index("by_user", ["userId"]),
+
+  billingHistory: defineTable({
+    organizationId: v.id("organizations"),
+    subscriptionId: v.optional(v.id("subscriptions")),
+    planKey: v.optional(planKeyValidator),
+    billingCycle: v.optional(billingCycleValidator),
+    amount: v.number(),
+    currency: v.string(),
+    gateway: paymentGatewayValidator,
+    reference: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("success"),
+      v.literal("failed"),
+      v.literal("abandoned"),
+      v.literal("refunded"),
+    ),
+    description: v.string(),
+    paidAt: v.optional(v.number()),
+    initiatedBy: v.optional(v.id("users")),
+    metadata: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_createdAt", ["organizationId", "createdAt"])
+    .index("by_reference", ["reference"]),
+
+  cloudBackups: defineTable({
+    organizationId: v.id("organizations"),
+    storageId: v.id("_storage"),
+    fileName: v.string(),
+    sizeBytes: v.number(),
+    kind: v.union(v.literal("manual"), v.literal("automatic")),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_createdAt", ["organizationId", "createdAt"]),
 
   platformAdmins: defineTable({
     userId: v.id("users"),

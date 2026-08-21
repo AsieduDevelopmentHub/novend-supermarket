@@ -6,6 +6,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
+import { PlanLimitNotice } from "@/features/billing/components/plan-limit-notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -155,6 +156,8 @@ export function BranchesView() {
           </Button>
         }
       />
+
+      <PlanLimitNotice resource="branches" />
 
       <Card>
         <CardContent className="overflow-x-auto p-0">

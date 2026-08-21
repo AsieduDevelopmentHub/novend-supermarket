@@ -63,14 +63,24 @@ export function LandingNav({ scrollRootRef }: Props) {
           ))}
         </nav>
 
-        <Button
-          asChild
-          variant="outline"
-          size="sm"
-          className="landing-shadow-cta-outline h-9 shrink-0 font-semibold transition-[box-shadow,transform] hover:-translate-y-0.5"
-        >
-          <Link href="/login">Login</Link>
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="hidden h-9 font-semibold sm:inline-flex"
+          >
+            <Link href="/signup">Start trial</Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="landing-shadow-cta-outline h-9 shrink-0 font-semibold transition-[box-shadow,transform] hover:-translate-y-0.5"
+          >
+            <Link href="/login">Login</Link>
+          </Button>
+        </div>
       </div>
     </header>
   );

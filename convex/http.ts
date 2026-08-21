@@ -1,9 +1,16 @@
 import { httpRouter } from "convex/server";
 import { auth } from "./auth";
 import { assetHttp, feedHttp, latestMetaHttp, publishHttp, purgeHttp } from "./desktopReleases";
+import { paystackWebhookHttp } from "./billingHttp";
 
 const http = httpRouter();
 auth.addHttpRoutes(http);
+
+http.route({
+  path: "/billing/paystack/webhook",
+  method: "POST",
+  handler: paystackWebhookHttp,
+});
 
 http.route({
   path: "/desktop-updates/publish",

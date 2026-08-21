@@ -14,11 +14,19 @@ import {
   getProfileByUserId,
   requireProfile,
   requireRole,
+  requireRoleIgnoringLicense,
+  requireSessionIgnoringLicense,
 } from "./shared/permissions";
 import { roleValidator } from "./schema";
 import { writeAuditLog } from "./shared/audit";
 import { Id } from "./_generated/dataModel";
 import { assertStoredImage, sanitizePhone, sanitizeText, TEXT_LIMITS } from "./shared/validation";
+import {
+  assertOrganizationCapacity,
+  countUsage,
+  resolveLicense,
+} from "./shared/entitlements";
+import { limitReachedMessage } from "./shared/plans";
 
 const ONLINE_WINDOW_MS = 2 * 60 * 1000;
 
@@ -359,7 +367,11 @@ export const updateOwnAppearance = mutation({
     fontSize: v.union(v.literal("sm"), v.literal("md"), v.literal("lg")),
   },
   handler: async (ctx, args) => {
-    const { userId, profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { userId, profile } = await requireRoleIgnoringLicense(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     await ctx.db.patch(profile._id, {
       appearanceTheme: args.theme,
       appearanceFontSize: args.fontSize,
@@ -436,7 +448,7 @@ export const writePasswordChangeAudit = internalMutation({
 export const heartbeat = mutation({
   args: { device: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { profile } = await requireProfile(ctx);
+    const { profile } = await requireSessionIgnoringLicense(ctx);
     const now = Date.now();
     const sessionFresh = !profile.lastLoginAt || now - profile.lastLoginAt > 8 * 60 * 60 * 1000;
     await ctx.db.patch(profile._id, {
@@ -458,6 +470,28 @@ export const clearPresence = mutation({
   },
 });
 
+/** Whether the plan still allows another staff account. */
+export const staffCapacity = query({
+  args: {},
+  handler: async (ctx) => {
+    const { organization, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const license = await resolveLicense(ctx, organization);
+    const limit = license.plan.limits.users;
+    const usage = await countUsage(ctx, organizationId);
+    const used = usage.users;
+    if (limit === null) {
+      return { allowed: true as const, used, limit: null, message: "" };
+    }
+    const allowed = used < limit;
+    return {
+      allowed,
+      used,
+      limit,
+      message: allowed ? "" : limitReachedMessage(license.planKey, "users", limit),
+    };
+  },
+});
+
 export const insertProfileForUser = internalMutation({
   args: {
     userId: v.id("users"),
@@ -474,6 +508,10 @@ export const insertProfileForUser = internalMutation({
 
     const branch = await ctx.db.get(args.branchId);
     if (!branch) throw new Error("Invalid branch");
+
+    const organization = await ctx.db.get(branch.organizationId);
+    if (!organization) throw new Error("Invalid branch");
+    await assertOrganizationCapacity(ctx, organization, "users");
 
     const profileId = await ctx.db.insert("profiles", {
       organizationId: branch.organizationId,
@@ -528,6 +566,11 @@ export const createUserAccount = action({
     if (!me || (me.role !== "administrator" && me.role !== "manager")) {
       throw new Error("Only administrators or managers can create user accounts");
     }
+
+    // Checked before the auth account exists so a full plan cannot leave an
+    // orphaned credential behind. `insertProfileForUser` re-checks on write.
+    const capacity = await ctx.runQuery(api.users.staffCapacity, {});
+    if (!capacity.allowed) throw new Error(capacity.message);
 
     const role = args.role;
     const actorId = me.userId;

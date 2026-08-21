@@ -1,7 +1,15 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { query, mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getProfileByUserId, requireProfile } from "./shared/permissions";
+import {
+  getPlatformAdmin,
+  getProfileByUserId,
+  requireAuth,
+  requireProfile,
+} from "./shared/permissions";
+import { provisionOrganization } from "./shared/provisionOrganization";
+import { DEFAULT_BRANCH_NAME } from "./shared/defaultBranch";
+import { sanitizeText, TEXT_LIMITS } from "./shared/validation";
 
 export const mine = query({
   args: {},
@@ -21,6 +29,10 @@ export const mine = query({
   },
 });
 
+/**
+ * Public SaaS onboarding. A signed-in user with no staff profile creates their
+ * organization and becomes its owner on a 14-day Pro trial.
+ */
 export const create = mutation({
   args: {
     name: v.string(),
@@ -30,10 +42,52 @@ export const create = mutation({
     address: v.optional(v.string()),
     taxId: v.optional(v.string()),
   },
-  handler: async () => {
-    throw new Error(
-      "Public organization signup is disabled. A Novend platform administrator must create this business.",
+  handler: async (ctx, args) => {
+    const { userId, user } = await requireAuth(ctx);
+    const existing = await getProfileByUserId(ctx, userId);
+    if (existing) {
+      throw new Error("This account already belongs to a business.");
+    }
+    const platformAdmin = await getPlatformAdmin(ctx, userId);
+    if (platformAdmin) {
+      throw new Error("Platform administrators create businesses from the platform dashboard.");
+    }
+
+    const ownerName = sanitizeText(
+      user.name?.trim() || user.email?.split("@")[0] || "Owner",
+      "Name",
+      TEXT_LIMITS.name,
     );
+
+    const { organizationId, branchId } = await provisionOrganization(ctx, {
+      name: args.name,
+      currency: args.currency,
+      phone: args.phone,
+      address: args.address,
+      taxId: args.taxId,
+      email: user.email ?? undefined,
+      ownerUserId: userId,
+      actorId: userId,
+      license: { kind: "trial", planKey: "pro" },
+      auditAction: "organization_self_signup",
+    });
+
+    if (args.timezone?.trim()) {
+      await ctx.db.patch(organizationId, { timezone: args.timezone.trim().slice(0, 64) });
+    }
+
+    await ctx.db.insert("profiles", {
+      organizationId,
+      userId,
+      name: ownerName,
+      role: "administrator",
+      branch: DEFAULT_BRANCH_NAME,
+      branchId,
+      status: "active",
+      lastSeenAt: 0,
+    });
+
+    return { organizationId, branchId };
   },
 });
 

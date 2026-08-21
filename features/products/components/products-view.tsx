@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
+import { PlanLimitNotice } from "@/features/billing/components/plan-limit-notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -108,6 +109,8 @@ export function ProductsView() {
           ) : undefined
         }
       />
+
+      <PlanLimitNotice resource="products" />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <Input

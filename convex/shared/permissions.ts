@@ -2,6 +2,8 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { QueryCtx, MutationCtx } from "../_generated/server";
 import { Doc, Id, TableNames } from "../_generated/dataModel";
 import { findDefaultBranch } from "./defaultBranch";
+import { deriveAccess, type LicenseAccess, type OrganizationStatus } from "./licensing";
+import { getActiveSubscription } from "./entitlements";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -50,17 +52,75 @@ export async function getProfileByUserId(ctx: Ctx, userId: Id<"users">) {
     .unique();
 }
 
-export async function requireProfile(ctx: Ctx) {
+/**
+ * Mutations and queries share the same session helpers, so the licence gate has
+ * to know which one is running. Only a `MutationCtx` exposes writers.
+ */
+function isMutationCtx(ctx: Ctx): ctx is MutationCtx {
+  return typeof (ctx.db as Partial<MutationCtx["db"]>).insert === "function";
+}
+
+/**
+ * Resolves the authenticated session without applying the licence write gate.
+ *
+ * Use this for the few flows that must keep working while a business is
+ * suspended or expired: billing and renewal, device management, and session
+ * housekeeping. Everything else should use `requireProfile`.
+ */
+export async function requireSessionIgnoringLicense(ctx: Ctx) {
   const { userId, user } = await requireAuth(ctx);
   const profile = await getProfileByUserId(ctx, userId);
   if (!profile || profile.status !== "active") {
     throw new Error("Forbidden");
   }
   const organization = await ctx.db.get(profile.organizationId);
-  if (!organization || organization.status !== "active") {
+  if (!organization) {
     throw new Error("Organization is inactive");
   }
-  return { userId, user, profile, organizationId: profile.organizationId, organization };
+  const subscription = await getActiveSubscription(ctx, organization);
+  const access = deriveAccess(
+    organization.status as OrganizationStatus,
+    subscription
+      ? {
+          status: subscription.status,
+          isLifetime: subscription.isLifetime,
+          expiresAt: subscription.expiresAt ?? null,
+          graceUntil: subscription.graceUntil ?? null,
+        }
+      : null,
+    Date.now(),
+  );
+  if (!access.canRead) {
+    throw new Error(access.reason ?? "Organization is inactive");
+  }
+  return {
+    userId,
+    user,
+    profile,
+    organizationId: profile.organizationId,
+    organization,
+    access,
+  };
+}
+
+/**
+ * Standard session resolution.
+ *
+ * When called from a mutation this also enforces the licence: suspended and
+ * expired businesses keep full read access but cannot record new activity.
+ */
+export async function requireProfile(ctx: Ctx) {
+  const session = await requireSessionIgnoringLicense(ctx);
+  if (isMutationCtx(ctx)) {
+    assertCanWrite(session.access);
+  }
+  return session;
+}
+
+export function assertCanWrite(access: LicenseAccess) {
+  if (!access.canWrite) {
+    throw new Error(access.reason ?? "This business cannot record new activity right now.");
+  }
 }
 
 export async function requireOrgContext(ctx: Ctx) {
@@ -90,6 +150,18 @@ export async function requireOrgDoc<T extends TableNames>(
 
 export async function requireRole(ctx: Ctx, roles: AppRole[]) {
   const session = await requireProfile(ctx);
+  if (!roles.includes(session.profile.role as AppRole)) {
+    throw new Error("Forbidden");
+  }
+  return session;
+}
+
+/**
+ * Role check without the licence write gate, for personal account actions that
+ * stay available while a business is suspended or expired.
+ */
+export async function requireRoleIgnoringLicense(ctx: Ctx, roles: AppRole[]) {
+  const session = await requireSessionIgnoringLicense(ctx);
   if (!roles.includes(session.profile.role as AppRole)) {
     throw new Error("Forbidden");
   }

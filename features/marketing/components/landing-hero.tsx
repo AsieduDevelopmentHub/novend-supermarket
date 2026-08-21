@@ -33,7 +33,7 @@ export function LandingHero() {
               size="lg"
               className="landing-shadow-cta-primary h-11 w-full px-6 text-[15px] font-semibold transition-[box-shadow,transform] hover:-translate-y-0.5 sm:w-auto"
             >
-              <Link href="/login">{landingCopy.hero.primaryCta}</Link>
+              <Link href="/signup">{landingCopy.hero.primaryCta}</Link>
             </Button>
             <Button
               asChild

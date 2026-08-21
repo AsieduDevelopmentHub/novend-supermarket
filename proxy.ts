@@ -8,7 +8,12 @@ import { NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
 
 const isLoginPage = createRouteMatcher(["/login", "/signup"]);
-const isPublicRoute = createRouteMatcher(["/login", "/signup", "/api/auth(.*)"]);
+const isPublicRoute = createRouteMatcher([
+  "/login",
+  "/signup",
+  "/billing/callback",
+  "/api/auth(.*)",
+]);
 const isPlatformRoute = createRouteMatcher(["/platform(.*)"]);
 const isAdminOnly = createRouteMatcher(["/branches(.*)"]);
 const isAdminOrManager = createRouteMatcher(["/analytics(.*)", "/users(.*)"]);
@@ -80,10 +85,6 @@ export default convexAuthNextjsMiddleware(
     const authenticated = await convexAuth.isAuthenticated();
 
     const pathname = request.nextUrl.pathname;
-
-    if (pathname.startsWith("/signup")) {
-      return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/login"), nonce);
-    }
 
     if (isLandingPath(pathname) && authenticated) {
       return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);
