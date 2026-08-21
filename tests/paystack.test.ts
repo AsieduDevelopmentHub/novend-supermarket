@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PLAN_LIST, priceForCycle } from "@/convex/shared/plans";
 import {
   buildReference,
   fromSubunits,
@@ -13,9 +14,13 @@ describe("Paystack money conversion", () => {
     expect(fromSubunits(29900)).toBe(299);
   });
 
-  it("round-trips the catalog prices", () => {
-    for (const amount of [149, 299, 599, 1490, 2990, 5990, 7990]) {
-      expect(fromSubunits(toSubunits(amount))).toBe(amount);
+  it("round-trips every catalog price that checkout would send", () => {
+    for (const plan of PLAN_LIST) {
+      for (const cycle of ["monthly", "yearly", "lifetime"] as const) {
+        const amount = priceForCycle(plan, cycle);
+        if (amount === null) continue;
+        expect(fromSubunits(toSubunits(amount))).toBe(amount);
+      }
     }
   });
 });

@@ -169,17 +169,18 @@ function PlanCard({
     >
       <CardContent className="flex flex-1 flex-col gap-4 p-5">
         <div className="space-y-2">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <h4 className="text-base font-semibold">{plan.name}</h4>
-            {plan.featured ? (
+            {isCurrent ? (
+              <Badge variant="success">Current</Badge>
+            ) : plan.featured ? (
               <Badge className="gap-1">
                 <Sparkles className="h-3 w-3" aria-hidden />
                 Recommended
               </Badge>
             ) : null}
-            {isCurrent ? <Badge variant="success">Current</Badge> : null}
           </div>
-          <p className="text-muted-foreground text-sm">{plan.tagline}</p>
+          <p className="text-muted-foreground text-sm leading-relaxed">{plan.tagline}</p>
         </div>
 
         <div>
@@ -204,19 +205,19 @@ function PlanCard({
         </ul>
 
         {isCurrent ? (
-          <Button variant="outline" disabled className="w-full">
-            {plan.isLifetime ? "One-time licence activated" : "Current plan"}
+          <Button variant="outline" disabled className="h-auto min-h-11 w-full px-3 whitespace-normal">
+            {plan.isLifetime ? "Lifetime licence active" : "Current plan"}
           </Button>
         ) : (
           <Button
-            className="w-full"
+            className="h-auto min-h-11 w-full px-3 whitespace-normal"
             variant={plan.featured ? "default" : "outline"}
             disabled={disabled || !onlinePaymentsEnabled}
             onClick={onChoose}
           >
             {pending ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" aria-hidden />
                 Opening checkout…
               </>
             ) : plan.isLifetime ? (

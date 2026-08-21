@@ -34,7 +34,7 @@ import {
   getBillingProvider,
   type BillingProviderId,
 } from "./shared/billingProvider";
-import { buildReference, createPlan, isPaystackConfigured } from "./shared/paystack";
+import { buildReference, ensureRecurringPlan, isPaystackConfigured } from "./shared/paystack";
 import {
   activateSubscription,
   ensurePlanCatalogRows,
@@ -431,6 +431,25 @@ export const startCheckout = action({
     });
 
     const siteUrl = process.env.NOVEND_SITE_URL ?? process.env.SITE_URL ?? "http://localhost:3000";
+    let gatewayPlanCode = context.gatewayPlanCode ?? undefined;
+    if (providerId === "paystack" && (args.cycle === "monthly" || args.cycle === "yearly")) {
+      const ensuredCode = await ensureRecurringPlan({
+        existingCode: gatewayPlanCode,
+        name: `Novend ${plan.name} (${args.cycle === "yearly" ? "Yearly" : "Monthly"})`,
+        amount,
+        interval: args.cycle === "yearly" ? "annually" : "monthly",
+        currency: context.currency,
+        description: plan.tagline,
+      });
+      if (ensuredCode !== gatewayPlanCode) {
+        await ctx.runMutation(internal.billing.savePlanGatewayCodes, {
+          planKey: args.planKey,
+          ...(args.cycle === "monthly" ? { monthlyCode: ensuredCode } : { yearlyCode: ensuredCode }),
+        });
+      }
+      gatewayPlanCode = ensuredCode;
+    }
+
     const result = await provider.createSubscription({
       email: context.email,
       planKey: args.planKey,
@@ -439,7 +458,7 @@ export const startCheckout = action({
       currency: context.currency,
       reference,
       callbackUrl: `${siteUrl.replace(/\/$/, "")}/billing/callback`,
-      planCode: context.gatewayPlanCode ?? undefined,
+      planCode: gatewayPlanCode,
       metadata: {
         organizationId: context.organizationId,
         organizationName: context.organizationName,
@@ -807,6 +826,9 @@ export const dailyMaintenance = internalAction({
   args: {},
   handler: async (ctx): Promise<void> => {
     await ctx.runMutation(internal.billing.ensurePlanCatalog, {});
+    if (isPaystackConfigured()) {
+      await ctx.runAction(internal.billing.syncGatewayPlansInternal, {});
+    }
     await ctx.runMutation(internal.billing.expireLapsedSubscriptions, {});
     await ctx.runMutation(internal.billing.expireTrials, {});
   },
@@ -857,10 +879,9 @@ export const storedGatewayPlanCodes = internalQuery({
 });
 
 /**
- * Creates the recurring plans inside Paystack and stores their codes.
- *
- * Internal so it can also be run from the CLI during deployment setup, before
- * any platform administrator exists.
+ * Creates or updates the recurring plans inside Paystack so checkout amounts
+ * match the code catalog. Paystack ignores the initialize `amount` when a plan
+ * code is present, so stale gateway plans would charge the old price.
  */
 export const syncGatewayPlansInternal = internalAction({
   args: {},
@@ -879,25 +900,25 @@ export const syncGatewayPlansInternal = internalAction({
       let monthlyCode = current?.monthlyCode ?? undefined;
       let yearlyCode = current?.yearlyCode ?? undefined;
 
-      if (!monthlyCode && plan.monthlyPrice !== null) {
-        const created = await createPlan({
+      if (plan.monthlyPrice !== null) {
+        monthlyCode = await ensureRecurringPlan({
+          existingCode: monthlyCode,
           name: `Novend ${plan.name} (Monthly)`,
           amount: plan.monthlyPrice,
           interval: "monthly",
           currency: "GHS",
           description: plan.tagline,
         });
-        monthlyCode = created.plan_code;
       }
-      if (!yearlyCode && plan.yearlyPrice !== null) {
-        const created = await createPlan({
+      if (plan.yearlyPrice !== null) {
+        yearlyCode = await ensureRecurringPlan({
+          existingCode: yearlyCode,
           name: `Novend ${plan.name} (Yearly)`,
           amount: plan.yearlyPrice,
           interval: "annually",
           currency: "GHS",
           description: plan.tagline,
         });
-        yearlyCode = created.plan_code;
       }
 
       await ctx.runMutation(internal.billing.savePlanGatewayCodes, {

@@ -91,8 +91,19 @@ the new record of that kind; existing records and sales are untouched.
 # Payments
 
 Paystack is the live gateway. New businesses start a 14-day Pro trial from
-`/signup` → `/onboarding`, then pay from Settings → Billing. Money flows in
-three steps:
+`/signup` → `/onboarding`, then pay from Settings → Billing.
+
+**Recurring vs one-time.** Basic, Pro and Enterprise checkout pass a Paystack
+plan code. Paystack then ignores the initialize `amount` and charges the plan:
+the first payment creates a subscription, and Paystack deducts again each month
+or year until the customer cancels. Lifetime has no plan code — it is a single
+charge and never renews.
+
+Because the plan owns the amount, `startCheckout` updates the Paystack plan to
+the current catalog price before opening checkout. `billing:syncGatewayPlansInternal`
+does the same for every recurring plan.
+
+Money flows in three steps:
 
 1. `billing.startCheckout` records a `pending` row in `billingHistory` with our
    own reference, then asks Paystack for an authorization URL.
@@ -129,8 +140,8 @@ problem. Past the TTL the device falls back to read-only until it reconnects.
 # Scheduled work
 
 `convex/crons.ts` runs `billing.dailyMaintenance` once a day: sync the plan
-catalog, expire subscriptions whose grace window closed, and expire finished
-trials.
+catalog, push catalog prices onto Paystack recurring plans, expire subscriptions
+whose grace window closed, and expire finished trials.
 
 # Deployment
 

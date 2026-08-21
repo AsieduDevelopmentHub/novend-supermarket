@@ -38,7 +38,7 @@ type PaystackEnvelope<T> = {
 
 async function paystackFetch<T>(
   path: string,
-  init: { method: "GET" | "POST"; body?: unknown },
+  init: { method: "GET" | "POST" | "PUT"; body?: unknown },
 ): Promise<T> {
   const response = await fetch(`${PAYSTACK_BASE_URL}${path}`, {
     method: init.method,
@@ -77,7 +77,7 @@ export async function initializeTransaction(args: {
   currency: string;
   reference: string;
   callbackUrl: string;
-  /** Present for recurring plans; Paystack then creates the subscription. */
+  /** Present for recurring plans. Paystack then ignores `amount` and charges the plan. */
   planCode?: string;
   metadata?: Record<string, unknown>;
 }): Promise<PaystackInitializeResult> {
@@ -140,6 +140,61 @@ export async function createPlan(args: {
       ...(args.description ? { description: args.description } : {}),
     },
   });
+}
+
+export async function fetchPlan(code: string): Promise<PaystackPlan> {
+  return await paystackFetch<PaystackPlan>(`/plan/${encodeURIComponent(code)}`, {
+    method: "GET",
+  });
+}
+
+export async function updatePlan(
+  code: string,
+  args: { name: string; amount: number; description?: string },
+): Promise<PaystackPlan> {
+  return await paystackFetch<PaystackPlan>(`/plan/${encodeURIComponent(code)}`, {
+    method: "PUT",
+    body: {
+      name: args.name,
+      amount: toSubunits(args.amount),
+      ...(args.description ? { description: args.description } : {}),
+    },
+  });
+}
+
+/**
+ * Paystack recurring plans own the charge amount. Passing `plan` on initialize
+ * ignores the `amount` field, so the gateway plan must match our catalog before
+ * checkout. Creates the plan if missing; updates it when the catalog price moved.
+ */
+export async function ensureRecurringPlan(args: {
+  existingCode?: string | null;
+  name: string;
+  amount: number;
+  interval: "monthly" | "annually";
+  currency: string;
+  description: string;
+}): Promise<string> {
+  if (!args.existingCode) {
+    const created = await createPlan({
+      name: args.name,
+      amount: args.amount,
+      interval: args.interval,
+      currency: args.currency,
+      description: args.description,
+    });
+    return created.plan_code;
+  }
+
+  const current = await fetchPlan(args.existingCode);
+  if (current.amount !== toSubunits(args.amount) || current.name !== args.name) {
+    await updatePlan(args.existingCode, {
+      name: args.name,
+      amount: args.amount,
+      description: args.description,
+    });
+  }
+  return args.existingCode;
 }
 
 export type PaystackSubscription = {

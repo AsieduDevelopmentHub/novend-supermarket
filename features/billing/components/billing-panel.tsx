@@ -192,7 +192,7 @@ function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
       <p className="text-muted-foreground text-xs tracking-wide uppercase">{label}</p>
-      <p className="mt-1 truncate font-medium">{value}</p>
+      <p className="mt-1 font-medium break-words">{value}</p>
     </div>
   );
 }
