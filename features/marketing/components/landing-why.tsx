@@ -9,7 +9,7 @@ export function LandingWhy() {
       id="about"
       className="landing-trust relative scroll-mt-24 overflow-hidden px-5 py-28 sm:px-10 sm:py-36 lg:px-20 lg:py-40"
     >
-      <LandingAtmosphere className="landing-atmosphere-frame landing-atmosphere-frame-soft" />
+      <LandingAtmosphere soft />
       <div className="relative z-10 mx-auto max-w-6xl">
         <div data-reveal className="mx-auto max-w-2xl text-center">
           <span className="bg-primary/15 text-primary inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold tracking-wide uppercase">

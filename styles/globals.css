@@ -825,15 +825,19 @@
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  opacity: 0.85;
+  opacity: 0.72;
 }
 
 .landing-atmosphere-frame-soft {
-  opacity: 0.45;
+  opacity: 0.35;
 }
 
 .landing-atmosphere-frame .login-atmosphere {
   background-color: transparent;
+}
+
+.landing-atmosphere-lite .login-sparkline {
+  opacity: 0.35;
 }
 
 .landing-hero {
@@ -850,6 +854,25 @@
 
 .landing-journey {
   background: #ffffff;
+}
+
+.landing-journey-pin-inner {
+  min-height: min(78vh, 720px);
+}
+
+.landing-journey-steps {
+  perspective: 900px;
+}
+
+.landing-journey-step {
+  will-change: transform, opacity;
+  transform-origin: center top;
+}
+
+.landing-journey-visual {
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
 }
 
 .landing-journey-stack {

@@ -13,43 +13,77 @@ export const landingCopy = {
     primaryCta: "Get Started",
     secondaryCta: "Book a Demo",
   },
-  journey: {
-    eyebrow: "How Novend runs your day",
-    title: "From warehouse receive to offline checkout — one operational path",
+  architecture: {
+    eyebrow: "How your data moves",
+    title: "Built to keep selling when the network does not",
     subtitle:
-      "Follow the same flow your team uses in the product: receive, restock branches, sell at the till, and sync when online.",
+      "A clear path from the counter to your business view — without asking you to learn the stack.",
+    flow: [
+      { id: "device", label: "Device", detail: "The till where your team sells and receives stock." },
+      {
+        id: "local",
+        label: "Local database",
+        detail: "Sales and inventory stay on the terminal while you work offline.",
+      },
+      {
+        id: "cloud",
+        label: "Cloud sync",
+        detail: "When you reconnect, committed work catches up automatically.",
+      },
+      {
+        id: "dashboard",
+        label: "Business dashboard",
+        detail: "Branches, stock, and sales roll up into one clear picture.",
+      },
+    ],
+  },
+  journey: {
+    eyebrow: "How Novend works",
+    title: "One operational path — from supplier to synced sales",
+    subtitle:
+      "Scroll through the same workflow your team runs in the product. Each step updates the product illustration beside it.",
     steps: [
       {
         id: "receive",
         step: "01",
-        title: "Receive stock",
+        title: "Receive stock from suppliers",
         detail:
-          "Supplier deliveries land in wholesale inventory with a recorded business reason — not silent quantity edits.",
-        visual: "receive" as const,
+          "Deliveries land with a recorded business reason — cartons and crates enter wholesale inventory cleanly.",
       },
       {
-        id: "restock",
+        id: "warehouse",
         step: "02",
-        title: "Restock branches",
+        title: "Store in wholesale inventory",
         detail:
-          "Issue cartons and crates from the warehouse to the counters that need them — Accra retail, Kumasi wholesale, or both.",
-        visual: "restock" as const,
+          "Warehouse stock stays honest and attributable — ready to issue when branches need refill.",
+      },
+      {
+        id: "transfer",
+        step: "03",
+        title: "Transfer to branches",
+        detail:
+          "Move stock from the warehouse to East Legon retail, Kumasi wholesale, or any branch in your organization.",
       },
       {
         id: "sell",
-        step: "03",
-        title: "Sell anywhere",
+        step: "04",
+        title: "Sell through POS",
         detail:
-          "Scan barcodes, discount, take MoMo or cash, and print a receipt — even when the connection drops mid-rush.",
-        visual: "sell" as const,
+          "Scan barcodes, adjust quantities, take MoMo or cash, and print a receipt — even mid-rush offline.",
+      },
+      {
+        id: "local",
+        step: "05",
+        title: "Automatic local storage",
+        detail:
+          "Every completed sale and inventory change is stored on the device first so the till never waits on the network.",
       },
       {
         id: "sync",
-        step: "04",
-        title: "Stay in sync",
+        step: "06",
+        title: "Cloud synchronization when online",
         detail:
-          "Offline sales queue in the outbox. When internet returns, Convex becomes the committed source of truth automatically.",
-        visual: "sync" as const,
+          "Queued work syncs to the cloud, then your business dashboard reflects what actually moved.",
       },
     ],
   },
@@ -78,11 +112,11 @@ export const landingCopy = {
       },
       {
         title: "Local data ownership",
-        detail: "The device holds a local operational cache; you are not blocked waiting on the cloud to sell.",
+        detail: "The device holds a local database; you are not blocked waiting on the cloud to sell.",
       },
       {
         title: "Automatic synchronization",
-        detail: "The outbox pushes committed work the moment connectivity returns.",
+        detail: "Queued work pushes to the cloud the moment connectivity returns.",
       },
       {
         title: "Role-based security",
@@ -94,65 +128,11 @@ export const landingCopy = {
       },
       {
         title: "Desktop & web",
-        detail: "Electron terminals for counters plus a PWA for flexible access — same Novend DNA.",
+        detail: "Dedicated desktop terminals plus a web app for flexible access — same Novend experience.",
       },
     ],
     ghanaNote:
       "From neighborhood provision shops to pharmacy counters and wholesale distributors — Novend speaks Ghanaian retail without locking you into a single market.",
-  },
-  pricing: {
-    title: "Pricing",
-    subtitle: "Plan structure is ready. Billing activates in a future update.",
-    badge: "Coming in a future update",
-    plans: [
-      {
-        id: "basic",
-        name: "Basic",
-        status: "Coming Soon",
-        blurb: "Single branch starter for focused counters.",
-        featured: false,
-        features: ["1 branch", "Core POS & receipts", "Offline checkout", "Email support"],
-      },
-      {
-        id: "pro",
-        name: "Pro",
-        status: "Coming Soon",
-        blurb: "Multi-branch operations for growing retailers.",
-        featured: true,
-        features: [
-          "Multi-branch",
-          "Wholesale warehouse flow",
-          "Analytics & reports",
-          "Priority support",
-        ],
-      },
-      {
-        id: "enterprise",
-        name: "Enterprise",
-        status: "Coming Soon",
-        blurb: "Organization-wide control and guided rollout.",
-        featured: false,
-        features: [
-          "Org-wide settings",
-          "Advanced roles",
-          "Dedicated onboarding",
-          "SLA options",
-        ],
-      },
-      {
-        id: "lifetime",
-        name: "Lifetime License",
-        status: "Coming Soon",
-        blurb: "One-time license path for long-term ownership.",
-        featured: false,
-        features: [
-          "Perpetual license option",
-          "Major version access window",
-          "Desktop + PWA",
-          "Community updates",
-        ],
-      },
-    ],
   },
   faq: {
     eyebrow: "Questions & answers",
@@ -164,11 +144,11 @@ export const landingCopy = {
       },
       {
         q: "Does Novend work offline?",
-        a: "Yes. Checkout and the operational cache run on the device. When you reconnect, committed work syncs through the outbox.",
+        a: "Yes. Checkout and the local database run on the device. When you reconnect, committed work syncs to the cloud automatically.",
       },
       {
         q: "Is there a desktop app?",
-        a: "Yes. Electron builds for Windows, macOS, and Linux open straight to login — not the marketing site.",
+        a: "Yes. Desktop builds for Windows, macOS, and Linux open straight to login — not the marketing site.",
       },
       {
         q: "Can I sign up myself?",
@@ -176,7 +156,7 @@ export const landingCopy = {
       },
       {
         q: "When will pricing be available?",
-        a: "Billing is not live yet. Plan cards are placeholders so activation can ship without redesigning the page.",
+        a: "Subscription and licensing plans are paused for now. Contact Sales if you want early access details.",
       },
     ],
   },
@@ -189,16 +169,16 @@ export const landingCopy = {
   },
   nav: [
     { href: "#journey", label: "How it works" },
+    { href: "#architecture", label: "Architecture" },
     { href: "#about", label: "Trust" },
-    { href: "#pricing", label: "Pricing" },
     { href: "#faq", label: "FAQ" },
   ],
   footer: {
     description:
-      "Commercial offline-first Point of Sale for independent businesses — desktop, PWA, and cloud sync.",
+      "Commercial offline-first Point of Sale for independent businesses — desktop, web, and cloud sync.",
     product: [
       { href: "#journey", label: "How it works" },
-      { href: "#pricing", label: "Pricing" },
+      { href: "#architecture", label: "Architecture" },
       { href: "/login", label: "Login" },
     ],
     company: [

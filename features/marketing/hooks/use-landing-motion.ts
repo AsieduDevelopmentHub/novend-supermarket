@@ -78,18 +78,16 @@ export function useLandingHeroIntro(rootRef: RefObject<HTMLElement | null>) {
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-      tl.from("[data-hero-brand]", { autoAlpha: 0, y: 14, duration: 0.65 })
-        .from("[data-hero-copy] > *:not([data-hero-brand])", {
-          autoAlpha: 0,
-          y: 24,
-          duration: 0.75,
-          stagger: 0.08,
-        }, "-=0.3")
-        .from(
-          "[data-hero-visual]",
-          { autoAlpha: 0, y: 36, rotateX: 8, duration: 1 },
-          "-=0.5",
-        );
+      tl.from("[data-hero-copy] > *", {
+        autoAlpha: 0,
+        y: 24,
+        duration: 0.75,
+        stagger: 0.08,
+      }).from(
+        "[data-hero-visual]",
+        { autoAlpha: 0, y: 36, rotateX: 8, duration: 1 },
+        "-=0.45",
+      );
     }, root);
 
     return () => ctx.revert();

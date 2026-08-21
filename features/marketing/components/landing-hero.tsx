@@ -1,27 +1,16 @@
-import Image from "next/image";
 import Link from "next/link";
-import { BRANDING } from "@/constants/branding";
 import { Button } from "@/components/ui/button";
 import { landingCopy } from "@/features/marketing/content";
 import { LandingAtmosphere } from "@/features/marketing/components/landing-atmosphere";
 import { LandingPosStage } from "@/features/marketing/components/landing-pos-stage";
 
-/** Product-first hero — copy + isometric Novend POS stage. */
+/** Product-first hero — copy + realistic Novend Sales stage. */
 export function LandingHero() {
   return (
     <section className="landing-hero relative isolate overflow-hidden px-4 pb-8 sm:px-6 lg:px-8">
       <LandingAtmosphere />
-      <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 pt-10 pb-20 lg:grid-cols-[1fr_1.05fr] lg:gap-10 lg:pt-14 lg:pb-28">
+      <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 pt-10 pb-20 lg:grid-cols-[0.95fr_1.15fr] lg:gap-10 lg:pt-14 lg:pb-28">
         <div data-hero-copy>
-          <Image
-            data-hero-brand
-            src={BRANDING.logoHorizontal}
-            alt={landingCopy.brand}
-            width={200}
-            height={48}
-            className="mb-8 h-10 w-auto object-contain sm:h-11"
-            priority
-          />
           <p className="text-primary mb-4 text-sm font-semibold tracking-wide">
             {landingCopy.hero.eyebrow}
           </p>
