@@ -785,3 +785,328 @@
     transform: none;
   }
 }
+
+/* —— SaaS marketing landing (Vital-Go layout patterns, Novend palette) —— */
+
+[data-reveal] {
+  opacity: 0;
+}
+
+[data-depth-panel],
+[data-depth-card] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal],
+  [data-depth-panel],
+  [data-depth-card] {
+    opacity: 1;
+  }
+}
+
+.landing-perspective {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+}
+
+.landing-depth-preserve {
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.landing-ambient {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.landing-ambient-img {
+  position: absolute;
+  width: min(42vw, 420px);
+  height: min(42vw, 420px);
+  border-radius: 9999px;
+  overflow: hidden;
+  opacity: 0.14;
+  filter: grayscale(0.25) saturate(0.85);
+}
+
+.landing-ambient-light .landing-ambient-img {
+  opacity: 0.12;
+}
+
+.landing-ambient-dark .landing-ambient-img {
+  opacity: 0.18;
+  filter: grayscale(0.35) saturate(0.7) brightness(0.7);
+}
+
+.landing-ambient-img-a {
+  top: -8%;
+  left: -6%;
+}
+
+.landing-ambient-img-b {
+  top: 18%;
+  right: -10%;
+  width: min(36vw, 360px);
+  height: min(36vw, 360px);
+  opacity: 0.1;
+}
+
+.landing-ambient-img-c {
+  right: 18%;
+  bottom: -12%;
+  width: min(34vw, 320px);
+  height: min(34vw, 320px);
+  opacity: 0.09;
+}
+
+.landing-ambient-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(248, 250, 252, 0.55) 0%,
+    rgba(248, 250, 252, 0.2) 40%,
+    rgba(248, 250, 252, 0.65) 100%
+  );
+}
+
+.landing-ambient-dark .landing-ambient-veil {
+  background: linear-gradient(
+    180deg,
+    rgba(11, 18, 32, 0.72) 0%,
+    rgba(11, 18, 32, 0.45) 45%,
+    rgba(11, 18, 32, 0.8) 100%
+  );
+}
+
+.landing-trust-shell {
+  background: linear-gradient(160deg, rgba(17, 24, 39, 0.92), rgba(15, 23, 42, 0.88));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28);
+}
+
+.landing-pricing,
+.landing-features {
+  background: #f8fafc;
+}
+
+.landing-price-card:hover,
+.landing-feature-panel:hover {
+  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.12);
+}
+
+.landing-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 1.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.landing-pill-btn-primary {
+  background: #38bdf8;
+  color: #111827;
+  box-shadow: 0 10px 24px rgba(56, 189, 248, 0.28);
+}
+
+.landing-pill-btn-primary:hover {
+  background: #0ea5e9;
+}
+
+.landing-pill-btn-outline {
+  background: #ffffff;
+  color: #0284c7;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+}
+
+.landing-pill-btn-outline:hover {
+  border-color: #38bdf8;
+  background: #f0f9ff;
+}
+
+.landing-hero {
+  background:
+    radial-gradient(ellipse 55% 50% at 12% 20%, rgba(56, 189, 248, 0.16), transparent 60%),
+    radial-gradient(ellipse 50% 45% at 88% 15%, rgba(14, 165, 233, 0.12), transparent 55%),
+    linear-gradient(180deg, #ffffff 0%, #f0f9ff 48%, #ffffff 100%);
+}
+
+.landing-hero-blobs {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(56, 189, 248, 0.18), transparent 28%),
+    radial-gradient(circle at 80% 35%, rgba(125, 211, 252, 0.22), transparent 32%);
+  animation: landing-mesh-drift 20s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.landing-hero-wave {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 64px;
+  background: #ffffff;
+  clip-path: ellipse(70% 100% at 50% 100%);
+}
+
+.landing-hero-stage {
+  min-height: 420px;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 1.5rem;
+}
+
+.landing-hero-orb {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+.landing-hero-orb-a {
+  width: 280px;
+  height: 280px;
+  top: 8%;
+  right: 8%;
+  background: rgba(56, 189, 248, 0.18);
+  filter: blur(2px);
+  animation: landing-orb-pulse 8s ease-in-out infinite;
+}
+
+.landing-hero-orb-b {
+  width: 190px;
+  height: 190px;
+  top: 28%;
+  right: 28%;
+  background: rgba(14, 165, 233, 0.16);
+  animation: landing-orb-pulse 9s ease-in-out infinite reverse;
+}
+
+.landing-hero-orb-c {
+  width: 120px;
+  height: 120px;
+  top: 18%;
+  right: 42%;
+  background: rgba(125, 211, 252, 0.28);
+  animation: landing-orb-pulse 7s ease-in-out infinite;
+}
+
+.landing-hero-pedestal {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 50%;
+  width: 70%;
+  height: 28px;
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  background: radial-gradient(ellipse at center, rgba(15, 23, 42, 0.12), transparent 70%);
+  filter: blur(6px);
+}
+
+.landing-hero-logo {
+  animation: landing-logo-in 0.8s ease-out both;
+}
+
+.landing-hero-mini-chart-line {
+  stroke: #38bdf8;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 280;
+  stroke-dashoffset: 280;
+  animation: landing-chart-draw 2.4s ease-out forwards;
+}
+
+.landing-section-soft {
+  background: linear-gradient(180deg, #f8fafc 0%, #e0f2fe 50%, #f8fafc 100%);
+}
+
+.landing-soft-blob {
+  position: absolute;
+  inset: 10% 5% auto;
+  height: 60%;
+  background: radial-gradient(ellipse at center, rgba(56, 189, 248, 0.18), transparent 65%);
+  pointer-events: none;
+}
+
+.landing-cta-band {
+  background:
+    radial-gradient(ellipse 60% 80% at 20% 30%, rgba(56, 189, 248, 0.2), transparent 55%),
+    radial-gradient(ellipse 50% 70% at 85% 70%, rgba(14, 165, 233, 0.14), transparent 50%),
+    #f0f9ff;
+  border: 1px solid rgba(186, 230, 253, 0.8);
+}
+
+@keyframes landing-mesh-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(1.5%, -1.5%, 0) scale(1.03);
+  }
+}
+
+@keyframes landing-orb-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
+@keyframes landing-chart-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes landing-logo-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .landing-hero-stage {
+    min-height: 360px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero-blobs,
+  .landing-hero-orb,
+  .landing-hero-logo,
+  .landing-hero-mini-chart-line {
+    animation: none !important;
+  }
+
+  .landing-hero-mini-chart-line {
+    stroke-dashoffset: 0;
+  }
+
+  .landing-hero-logo {
+    opacity: 1;
+  }
+}

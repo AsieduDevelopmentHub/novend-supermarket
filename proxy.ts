@@ -13,6 +13,10 @@ const isPlatformRoute = createRouteMatcher(["/platform(.*)"]);
 const isAdminOnly = createRouteMatcher(["/branches(.*)"]);
 const isAdminOrManager = createRouteMatcher(["/analytics(.*)", "/users(.*)"]);
 
+function isLandingPath(pathname: string) {
+  return pathname === "/";
+}
+
 function buildCsp(nonce: string) {
   const isDev = process.env.NODE_ENV === "development";
   // Dev bundlers may need eval; production drops unsafe-eval.
@@ -75,15 +79,21 @@ export default convexAuthNextjsMiddleware(
 
     const authenticated = await convexAuth.isAuthenticated();
 
-    if (request.nextUrl.pathname.startsWith("/signup")) {
+    const pathname = request.nextUrl.pathname;
+
+    if (pathname.startsWith("/signup")) {
       return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/login"), nonce);
+    }
+
+    if (isLandingPath(pathname) && authenticated) {
+      return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);
     }
 
     if (isLoginPage(request) && authenticated) {
       return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);
     }
 
-    if (!isPublicRoute(request) && !authenticated) {
+    if (!isPublicRoute(request) && !isLandingPath(pathname) && !authenticated) {
       return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/login"), nonce);
     }
 
