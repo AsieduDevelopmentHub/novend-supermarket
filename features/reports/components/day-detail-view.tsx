@@ -16,7 +16,8 @@ import { formatCurrency } from "@/lib/currency";
 import { formatDate, formatDateTime } from "@/lib/date";
 import { ArrowLeft } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { OfflineAdminShell } from "@/components/offline/offline-admin-shell";
+import { listLocalOrders } from "@/lib/offline/mirror-queries";
+import { useEffect, useState } from "react";
 
 function isIsoDate(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -49,17 +50,12 @@ export function ReportDayDetailView() {
     return suffix ? `/reports?${suffix}` : "/reports";
   })();
 
-  if (!online) {
-    return (
-      <OfflineAdminShell
-        title="Daily breakdown"
-        description="Reconnect to inspect orders and refunds for this day."
-      />
-    );
-  }
-
   if (!isIsoDate(date)) {
     return <ErrorState message="Choose a day from the Reports daily breakdown." />;
+  }
+
+  if (!online) {
+    return <LocalDayFallback date={date} backHref={backHref} />;
   }
 
   const titleDate = formatDate(new Date(`${date}T00:00:00Z`));
@@ -186,5 +182,65 @@ function Kpi({ title, value }: { title: string; value: string }) {
         <p className="mt-2 truncate text-2xl font-semibold tracking-tight">{value}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function LocalDayFallback({ date, backHref }: { date: string; backHref: string }) {
+  const [orders, setOrders] = useState<Awaited<ReturnType<typeof listLocalOrders>>>(null);
+  useEffect(() => {
+    const start = new Date(`${date}T00:00:00`).getTime();
+    const end = start + 24 * 60 * 60 * 1000 - 1;
+    let cancelled = false;
+    void listLocalOrders({ startDate: start, endDate: end }).then((rows) => {
+      if (!cancelled) setOrders(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [date]);
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={formatDate(new Date(`${date}T00:00:00`))}
+        description="Orders saved on this device"
+        actions={
+          <Button asChild variant="outline">
+            <Link href={backHref}>
+              <ArrowLeft className="h-4 w-4" />
+              Reports
+            </Link>
+          </Button>
+        }
+      />
+      {orders === null ? (
+        <LoadingState label="Loading local orders…" />
+      ) : orders.length === 0 ? (
+        <EmptyState title="No local orders for this day" />
+      ) : (
+        <Card>
+          <CardContent className="overflow-x-auto p-0">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Invoice</th>
+                  <th className="px-4 py-3 font-medium">Customer</th>
+                  <th className="px-4 py-3 font-medium">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order) => (
+                  <ClickableTableRow key={order.id} href={`/orders/${order.id}`}>
+                    <td className="px-4 py-3 font-medium">{order.invoiceNumber}</td>
+                    <td className="px-4 py-3">{order.customerName}</td>
+                    <td className="px-4 py-3">{formatCurrency(order.total)}</td>
+                  </ClickableTableRow>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }

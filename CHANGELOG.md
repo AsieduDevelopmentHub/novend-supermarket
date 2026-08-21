@@ -1,5 +1,26 @@
 # Changelog
 
+All notable changes to Novend POS are recorded here. The project follows [Semantic Versioning](https://semver.org/); each `vX.Y.Z` tag builds desktop installers and publishes a GitHub Release titled **Novend POS vX.Y.Z**.
+
+---
+
+## v0.2.0 — 2026-08-21
+
+### Added
+
+- Dexie-first operational replica: wholesale, suppliers, inventory, customers, branches, users, expenses, returns, and profile stay usable without a network.
+- Product photos cached in IndexedDB so catalog tiles still render offline.
+- Outbox writes beyond sales/returns (`upsert_supplier`, wholesale receive/transfer, stock adjust/transfer, customers, expenses, profile).
+- Clear offline error copy: “You're working offline” instead of `net::ERR_INTERNET_DISCONNECTED`.
+- GitHub Release titles and notes now sync from this changelog after desktop publish.
+
+### Changed
+
+- Screens open from the local replica when it is warm; Convex is a freshness shortcut, not a gate.
+- Online-only admin walls removed from operational modules. First login, password changes, and Paystack checkout still need the internet.
+
+---
+
 ## 0.1.4 — 2026-08-20
 
 ### Added

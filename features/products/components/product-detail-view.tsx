@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import Image from "next/image";
@@ -34,14 +34,30 @@ import { StockStatusBadges } from "@/features/inventory/components/stock-status-
 import { formatExpiryDate } from "@/lib/expiry";
 import { showError } from "@/lib/errors";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { getMirroredProduct } from "@/lib/offline/mirror-queries";
+import { persistBusinessWrite, queuedSaveMessage, queueAdjustStock } from "@/lib/offline/replica-writes";
 import { ArrowLeft, Package, Pencil, PackagePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ProductFormDialog } from "./product-form-dialog";
 
 export function ProductDetailView({ productId }: { productId: Id<"products"> }) {
   const { canManageProducts, canViewCost } = usePermissions();
-  const product = useQuery(api.products.getProduct, { id: productId });
-  const lots = useQuery(api.inventory.listLots, { productId });
+  const online = useConnectivity();
+  const remote = useQuery(api.products.getProduct, online ? { id: productId } : "skip");
+  const lots = useQuery(api.inventory.listLots, online ? { productId } : "skip");
+  const [local, setLocal] = useState<Awaited<ReturnType<typeof getMirroredProduct>> | undefined>(
+    undefined,
+  );
+  useEffect(() => {
+    let cancelled = false;
+    void getMirroredProduct(productId).then((row) => {
+      if (!cancelled) setLocal(row);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
   const archiveProduct = useMutation(api.products.archiveProduct);
   const adjustStock = useMutation(api.inventory.adjustStock);
   const writeOffExpired = useMutation(api.inventory.writeOffExpired);
@@ -55,6 +71,35 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
   const [note, setNote] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [writeOffPending, setWriteOffPending] = useState(false);
+
+  const product =
+    remote ??
+    (local
+      ? {
+          _id: productId,
+          id: productId,
+          name: local.name,
+          sku: local.sku,
+          categoryName: local.categoryName,
+          sellingPrice: local.sellingPrice,
+          costPrice: local.costPrice,
+          stockQuantity: local.stockQuantity,
+          sellableQuantity: local.sellableQuantity ?? local.stockQuantity,
+          unit: local.unit,
+          lowStockThreshold: local.lowStockThreshold,
+          status: local.status,
+          imageUrl: local.imageUrl,
+          tracksExpiry: local.tracksExpiry,
+          nearestExpiry: local.nearestExpiry,
+          isExpired: local.isExpired,
+          isExpiring: local.isExpiring,
+          isLowStock: local.stockQuantity <= local.lowStockThreshold,
+          description: null,
+          expiredQuantity: 0,
+        }
+      : remote === undefined && local === undefined
+        ? undefined
+        : null);
 
   if (product === undefined) {
     return <LoadingState label="Loading product…" />;
@@ -72,14 +117,26 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
   async function onRestock(event: FormEvent) {
     event.preventDefault();
     try {
-      await adjustStock({
-        productId,
-        quantityChange: Number(quantityChange),
-        reason,
-        note: note || undefined,
-        expiryDate: expiryDate || undefined,
+      const kind = await persistBusinessWrite({
+        online,
+        remote: () =>
+          adjustStock({
+            productId,
+            quantityChange: Number(quantityChange),
+            reason,
+            note: note || undefined,
+            expiryDate: expiryDate || undefined,
+          }),
+        local: () =>
+          queueAdjustStock({
+            productId,
+            quantityChange: Number(quantityChange),
+            reason,
+            note: note || undefined,
+            expiryDate: expiryDate || undefined,
+          }),
       });
-      toast.success("Stock updated");
+      toast.success(queuedSaveMessage(kind, "Stock updated"));
       setRestockOpen(false);
       setQuantityChange("0");
       setNote("");

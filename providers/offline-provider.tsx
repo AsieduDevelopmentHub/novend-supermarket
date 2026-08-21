@@ -51,6 +51,17 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const convex = useConvex();
   const completeSale = useMutation(api.sales.completeSale);
   const processReturn = useMutation(api.returns.processReturn);
+  const createSupplier = useMutation(api.suppliers.create);
+  const updateSupplier = useMutation(api.suppliers.update);
+  const recordPurchase = useMutation(api.wholesale.recordPurchase);
+  const transferToBranch = useMutation(api.wholesale.transferToBranch);
+  const adjustStock = useMutation(api.inventory.adjustStock);
+  const transferStock = useMutation(api.inventory.transferStock);
+  const createCustomer = useMutation(api.customers.create);
+  const updateCustomer = useMutation(api.customers.update);
+  const createExpense = useMutation(api.analytics.createExpense);
+  const removeExpense = useMutation(api.analytics.removeExpense);
+  const updateOwnProfile = useMutation(api.users.updateOwnProfile);
   const [status, setStatus] = useState<OfflineStatus>(emptyStatus);
   const pullingRef = useRef(false);
 
@@ -123,8 +134,59 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     }));
     try {
       await drainOutbox({
-        completeSale: (args) => completeSale(args),
-        processReturn: (args) => processReturn(args),
+        mutators: {
+          completeSale: (args) => completeSale(args),
+          processReturn: (args) => processReturn(args),
+          createSupplier: (args) => createSupplier(args),
+          updateSupplier: (args) => updateSupplier(args),
+          recordPurchase: (payload) =>
+            recordPurchase({
+              supplierId: payload.supplierId as never,
+              invoiceNumber: payload.invoiceNumber,
+              purchasedAt: payload.purchasedAt,
+              notes: payload.notes,
+              items: payload.items.map((item) => ({
+                productId: item.productId as never,
+                quantity: item.quantity,
+                unitCost: item.unitCost,
+                expiryDate: item.expiryDate,
+              })),
+            }),
+          transferToBranch: (args) => transferToBranch(args),
+          adjustStock: (payload) =>
+            adjustStock({
+              productId: payload.productId as never,
+              branchId: payload.branchId as never,
+              quantityChange: payload.quantityChange,
+              reason: payload.reason,
+              note: payload.note,
+              expiryDate: payload.expiryDate,
+            }),
+          transferStock: (payload) =>
+            transferStock({
+              productId: payload.productId as never,
+              fromBranchId: payload.fromBranchId as never,
+              toBranchId: payload.toBranchId as never,
+              quantity: payload.quantity,
+              note: payload.note,
+            }),
+          createCustomer: (args) => createCustomer(args),
+          updateCustomer: (args) => updateCustomer(args),
+          createExpense: (payload) =>
+            createExpense({
+              amount: payload.amount,
+              category: payload.category as never,
+              occurredAt: payload.occurredAt,
+              description: payload.description,
+              branchId: payload.branchId as never,
+            }),
+          removeExpense: (args) => removeExpense(args),
+          updateOwnProfile: (args) =>
+            updateOwnProfile({
+              name: args.name,
+              phone: args.phone,
+            }),
+        },
         convex: { query: convex.query.bind(convex) },
       });
       setStatus((prev) => ({ ...prev, lastSyncAt: Date.now(), lastError: null }));
@@ -137,7 +199,23 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       setStatus((prev) => ({ ...prev, syncing: false }));
       await refreshStatus();
     }
-  }, [completeSale, processReturn, convex, refreshStatus]);
+  }, [
+    completeSale,
+    processReturn,
+    createSupplier,
+    updateSupplier,
+    recordPurchase,
+    transferToBranch,
+    adjustStock,
+    transferStock,
+    createCustomer,
+    updateCustomer,
+    createExpense,
+    removeExpense,
+    updateOwnProfile,
+    convex,
+    refreshStatus,
+  ]);
 
   const refreshCatalog = useCallback(async () => {
     if (!navigator.onLine) return;

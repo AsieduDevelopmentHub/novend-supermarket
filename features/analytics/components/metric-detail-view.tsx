@@ -17,7 +17,6 @@ import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { ArrowLeft } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { OfflineAdminShell } from "@/components/offline/offline-admin-shell";
 
 const METRICS = [
   "revenue",
@@ -94,17 +93,31 @@ export function AnalyticsMetricDetailView({ metric }: { metric: string }) {
       : "skip",
   );
 
-  if (!online) {
-    return (
-      <OfflineAdminShell
-        title="Analytics detail"
-        description="Metric records require a live connection."
-      />
-    );
-  }
-
   if (!isMetric(metric) || !range) {
     return <ErrorState message="Choose a valid metric and date range from Analytics." />;
+  }
+
+  if (!online) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Local records"
+          description={`${start} → ${end}`}
+          actions={
+            <Button asChild variant="outline">
+              <Link href="/analytics">
+                <ArrowLeft className="h-4 w-4" />
+                Analytics
+              </Link>
+            </Button>
+          }
+        />
+        <EmptyState
+          title="Using this device’s copy"
+          description="Open Analytics for the full local P&L. Detailed metric tables sync when you reconnect."
+        />
+      </div>
+    );
   }
 
   return (

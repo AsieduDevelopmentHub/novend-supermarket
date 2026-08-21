@@ -15,6 +15,7 @@ import { useCurrentUser } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { assertValidImageFile, IMAGE_ACCEPT } from "@/lib/uploads/image";
+import { persistBusinessWrite, queuedSaveMessage, queueUpdateProfile } from "@/lib/offline/replica-writes";
 import { Camera, Trash2 } from "lucide-react";
 
 function initialsFromName(name: string) {
@@ -65,7 +66,8 @@ export function ProfilePanel() {
       initialName={me.name}
       initialPhone={me.phone ?? ""}
       imageUrl={me.imageUrl}
-      readOnly={!online}
+      readOnly={false}
+      online={online}
     />
   );
 }
@@ -76,12 +78,14 @@ function ProfileForm({
   initialPhone,
   imageUrl,
   readOnly = false,
+  online = true,
 }: {
   email: string | null;
   initialName: string;
   initialPhone: string;
   imageUrl: string | null;
   readOnly?: boolean;
+  online?: boolean;
 }) {
   const updateOwnProfile = useMutation(api.users.updateOwnProfile);
   const generateUploadUrl = useMutation(api.users.generateProfileUploadUrl);
@@ -136,24 +140,29 @@ function ProfileForm({
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (readOnly) {
-      toast.message("Reconnect to update your profile");
-      return;
-    }
     if (!name.trim()) {
       toast.error("Name is required");
       return;
     }
+    if (!online && (file || removeImage)) {
+      toast.error("Photo updates need a connection. Your name and phone can still be saved on this device.");
+    }
     setPending(true);
     try {
-      const imageStorageId = await uploadImage();
-      await updateOwnProfile({
-        name: name.trim(),
-        phone: phone.trim() || undefined,
-        imageStorageId,
-        clearImage: removeImage || undefined,
+      const kind = await persistBusinessWrite({
+        online,
+        remote: async () => {
+          const imageStorageId = await uploadImage();
+          await updateOwnProfile({
+            name: name.trim(),
+            phone: phone.trim() || undefined,
+            imageStorageId,
+            clearImage: removeImage || undefined,
+          });
+        },
+        local: () => queueUpdateProfile({ name: name.trim(), phone: phone.trim() || undefined }),
       });
-      toast.success("Profile saved");
+      toast.success(queuedSaveMessage(kind, "Profile saved"));
       setFile(null);
       if (previewUrl) {
         URL.revokeObjectURL(previewUrl);
@@ -252,7 +261,7 @@ function ProfileForm({
           </div>
 
           <Button type="submit" disabled={pending || readOnly}>
-            {readOnly ? "Read-only offline" : pending ? "Saving…" : "Save profile"}
+            {pending ? "Saving…" : "Save profile"}
           </Button>
         </form>
       </CardContent>

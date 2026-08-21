@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
@@ -14,29 +15,77 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { OfflineAdminShell } from "@/components/offline/offline-admin-shell";
+import { getMirroredBranch, listMirroredUsers } from "@/lib/offline/mirror-queries";
+import { buildLocalAnalyticsSummary } from "@/lib/offline/analytics-engine";
 import { formatCurrency } from "@/lib/currency";
 import { ArrowLeft } from "lucide-react";
 
 export function BranchDetailView({ branchId }: { branchId: string }) {
   const { canManageBranches } = usePermissions();
   const online = useConnectivity();
-  const overview = useQuery(
+  const overviewRemote = useQuery(
     api.branches.getOverview,
     online && canManageBranches ? { id: branchId as Id<"branches"> } : "skip",
   );
+  const [localOverview, setLocalOverview] = useState<{
+    name: string;
+    code: string;
+    address: string | null;
+    phone: string | null;
+    email: string | null;
+    status: string;
+    kpis: { inventoryValue: number; revenue: number; profit: number; expenses: number; refunds: number };
+    manager: { id: string; name: string } | null;
+    staff: Array<{ id: string; name: string; role: string }>;
+    recentSales: Array<{ id: string; invoiceNumber: string; total: number; completedAt: number; customerName: string }>;
+  } | null | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const branch = await getMirroredBranch(branchId);
+      if (!branch) {
+        if (!cancelled) setLocalOverview(null);
+        return;
+      }
+      const now = Date.now();
+      const summary = await buildLocalAnalyticsSummary({
+        startDate: now - 30 * 24 * 60 * 60 * 1000,
+        endDate: now,
+        granularity: "day",
+        branchId,
+      });
+      const staff = (await listMirroredUsers()).filter((user) => user.branchId === branchId);
+      if (cancelled) return;
+      setLocalOverview({
+        name: branch.name,
+        code: branch.code,
+        address: branch.address,
+        phone: branch.phone,
+        email: null,
+        status: branch.status,
+        kpis: {
+          inventoryValue: 0,
+          revenue: summary.kpis.revenue,
+          profit: summary.kpis.netProfit,
+          expenses: summary.kpis.operatingExpenses,
+          refunds: summary.kpis.totalRefunds,
+        },
+        manager: staff.find((user) => user.role === "manager") ?? null,
+        staff: staff.map((user) => ({ id: user.id, name: user.name, role: user.role })),
+        recentSales: [],
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [branchId]);
 
   if (!canManageBranches) {
     return <ErrorState message="Branch overview is administrator-only." />;
   }
-  if (!online) {
-    return (
-      <OfflineAdminShell
-        title="Branch overview"
-        description="Reconnect to load live branch performance and staff."
-      />
-    );
-  }
+
+  const overview = overviewRemote ?? localOverview;
   if (overview === undefined) {
     return <LoadingState label="Loading branch…" />;
   }

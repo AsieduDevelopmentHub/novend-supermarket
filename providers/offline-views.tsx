@@ -19,7 +19,11 @@ import { ReturnDetailView } from "@/features/returns/components/return-detail-vi
 import { BranchDetailView } from "@/features/branches/components/branch-detail-view";
 import { WholesaleView } from "@/features/wholesale/components/wholesale-view";
 import { SuppliersView } from "@/features/suppliers/components/suppliers-view";
+import { CustomerDetailView } from "@/features/customers/components/customer-detail-view";
+import { ProductDetailView } from "@/features/products/components/product-detail-view";
+import { UserDetailView } from "@/features/users/components/user-detail-view";
 import { OfflineUnavailable } from "@/components/offline/offline-unavailable";
+import { Id } from "@/convex/_generated/dataModel";
 
 const SHELL_VIEWS: Record<string, () => ReactNode> = {
   "/dashboard": () => <DashboardView />,
@@ -44,13 +48,10 @@ export function resolveOfflineView(path: string): ReactNode {
   if (exact) return exact();
 
   if (path.startsWith("/products/")) {
-    return (
-      <OfflineUnavailable
-        title="Product details unavailable offline"
-        backHref="/products"
-        backLabel="Back to products"
-      />
-    );
+    const productId = path.slice("/products/".length);
+    if (productId) {
+      return <ProductDetailView productId={productId as Id<"products">} />;
+    }
   }
   if (path.startsWith("/orders/")) {
     const orderId = path.slice("/orders/".length);
@@ -67,13 +68,10 @@ export function resolveOfflineView(path: string): ReactNode {
     );
   }
   if (path.startsWith("/customers/")) {
-    return (
-      <OfflineUnavailable
-        title="Customer details unavailable offline"
-        backHref="/customers"
-        backLabel="Back to customers"
-      />
-    );
+    const customerId = path.slice("/customers/".length);
+    if (customerId) {
+      return <CustomerDetailView customerId={customerId as Id<"customers">} />;
+    }
   }
   if (path.startsWith("/returns/")) {
     const returnId = path.slice("/returns/".length);
@@ -91,6 +89,10 @@ export function resolveOfflineView(path: string): ReactNode {
     return <ReportDayDetailView />;
   }
   if (path.startsWith("/users/")) {
+    const userId = path.slice("/users/".length);
+    if (userId) {
+      return <UserDetailView profileId={userId as Id<"profiles">} />;
+    }
     return <UsersView />;
   }
 

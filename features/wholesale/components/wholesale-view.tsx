@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
@@ -21,7 +21,14 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { OfflineAdminShell } from "@/components/offline/offline-admin-shell";
+import { useBranchesList, useProductsList, useSuppliersList, useWholesaleLists } from "@/hooks/use-offline-lists";
+import {
+  persistBusinessWrite,
+  queuedSaveMessage,
+  queueUpsertSupplier,
+  queueWholesalePurchase,
+  queueWholesaleTransfer,
+} from "@/lib/offline/replica-writes";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { toast } from "sonner";
@@ -33,22 +40,15 @@ export function WholesaleView() {
   const { canManageProducts, isAdmin, branchId } = usePermissions();
   const online = useConnectivity();
   const [search, setSearch] = useState("");
-  const stock = useQuery(api.wholesale.listStock, online && canManageProducts ? { search } : "skip");
-  const summary = useQuery(api.wholesale.summary, online && canManageProducts ? {} : "skip");
-  const purchases = useQuery(
-    api.wholesale.listPurchases,
-    online && canManageProducts ? {} : "skip",
-  );
-  const transfers = useQuery(
-    api.wholesale.listTransfers,
-    online && canManageProducts ? {} : "skip",
-  );
-  const suppliers = useQuery(api.suppliers.list, online && canManageProducts ? {} : "skip");
-  const products = useQuery(
-    api.products.listProducts,
-    online && canManageProducts ? {} : "skip",
-  );
-  const branches = useQuery(api.branches.list, online && canManageProducts ? {} : "skip");
+  const { stock, summary, purchases, transfers } = useWholesaleLists(search);
+  const { suppliers } = useSuppliersList({ search: "", includeInactive: false });
+  const { products } = useProductsList({
+    search: "",
+    includeInactive: false,
+    canViewCost: true,
+    preferLocal: true,
+  });
+  const branches = useBranchesList(false);
   const recordPurchase = useMutation(api.wholesale.recordPurchase);
   const transferToBranch = useMutation(api.wholesale.transferToBranch);
   const createSupplier = useMutation(api.suppliers.create);
@@ -76,27 +76,27 @@ export function WholesaleView() {
     );
   }
 
-  if (!online) {
-    return (
-      <OfflineAdminShell
-        title="Wholesale"
-        description="Supplier purchases and warehouse stock require a live connection."
-      />
-    );
-  }
-
   async function onPurchase(event: FormEvent) {
     event.preventDefault();
     setPending(true);
     try {
-      let sid = supplierId as Id<"suppliers">;
+      let sid = supplierId;
       if (!sid && newSupplier.trim()) {
-        sid = await createSupplier({ name: newSupplier.trim() });
+        const kind = await persistBusinessWrite({
+          online,
+          remote: async () => {
+            sid = await createSupplier({ name: newSupplier.trim() });
+          },
+          local: async () => {
+            sid = await queueUpsertSupplier({ name: newSupplier.trim() });
+          },
+        });
+        void kind;
       }
       if (!sid) throw new Error("Select or create a supplier");
       if (!productId) throw new Error("Select a product");
-      await recordPurchase({
-        supplierId: sid,
+      const purchaseArgs = {
+        supplierId: sid as Id<"suppliers">,
         invoiceNumber: invoiceNumber || undefined,
         purchasedAt: Date.now(),
         items: [
@@ -107,8 +107,19 @@ export function WholesaleView() {
             expiryDate: expiryDate || undefined,
           },
         ],
+      };
+      const kind = await persistBusinessWrite({
+        online,
+        remote: () => recordPurchase(purchaseArgs),
+        local: () =>
+          queueWholesalePurchase({
+            supplierId: sid,
+            invoiceNumber: invoiceNumber || undefined,
+            purchasedAt: purchaseArgs.purchasedAt,
+            items: purchaseArgs.items,
+          }),
       });
-      toast.success("Purchase recorded in wholesale");
+      toast.success(queuedSaveMessage(kind, "Purchase recorded in wholesale"));
       setBuyOpen(false);
       setQuantity("1");
       setUnitCost("");
@@ -125,14 +136,24 @@ export function WholesaleView() {
     event.preventDefault();
     setPending(true);
     try {
-      const dest = (issueBranchId || branchId || "") as Id<"branches">;
+      const dest = issueBranchId || branchId || "";
       if (!issueProductId || !dest) throw new Error("Choose a product and branch");
-      await transferToBranch({
-        productId: issueProductId as Id<"products">,
-        branchId: dest,
-        quantity: Number(issueQty),
+      const kind = await persistBusinessWrite({
+        online,
+        remote: () =>
+          transferToBranch({
+            productId: issueProductId as Id<"products">,
+            branchId: dest as Id<"branches">,
+            quantity: Number(issueQty),
+          }),
+        local: () =>
+          queueWholesaleTransfer({
+            productId: issueProductId,
+            branchId: dest,
+            quantity: Number(issueQty),
+          }),
       });
-      toast.success("Stock issued to branch");
+      toast.success(queuedSaveMessage(kind, "Stock issued to branch"));
       setIssueOpen(false);
     } catch (error) {
       showError(error, "Transfer failed");
@@ -195,7 +216,7 @@ export function WholesaleView() {
 
       <Card>
         <CardContent className="overflow-x-auto p-0">
-          {stock === undefined ? (
+          {stock == null ? (
             <div className="p-6">
               <LoadingState label="Loading wholesale stock…" />
             </div>
@@ -289,7 +310,7 @@ export function WholesaleView() {
               <div className="space-y-2">
                 <Label>Supplier</Label>
                 <SearchableSelect
-                  options={(suppliers ?? []).map((s) => ({ value: s._id, label: s.name }))}
+                  options={(suppliers ?? []).map((s) => ({ value: s.id, label: s.name }))}
                   value={supplierId}
                   onValueChange={setSupplierId}
                   placeholder="Select supplier"

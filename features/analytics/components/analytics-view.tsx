@@ -24,6 +24,8 @@ import { BranchFilter } from "@/components/filters/branch-filter";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useOfflineAnalytics } from "@/hooks/use-offline-analytics";
+import { useLocalExpenses } from "@/hooks/use-offline-lists";
+import { persistBusinessWrite, queuedSaveMessage, queueRemoveExpense } from "@/lib/offline/replica-writes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatCurrency, formatNumber } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
@@ -108,15 +110,26 @@ export function AnalyticsView() {
     branchArg ? String(branchArg) : null,
     !online,
   );
-  const expenses = useQuery(
+  const expensesRemote = useQuery(
     api.analytics.listExpenses,
     online && range
       ? { startDate: range.startDate, endDate: range.endDate, limit: 200, branchId: branchArg }
       : "skip",
   );
+  const expensesLocal = useLocalExpenses(range);
   const removeExpense = useMutation(api.analytics.removeExpense);
 
   const summary = online ? remoteSummary : localSummary;
+  const expenses = expensesRemote ?? expensesLocal?.map((row) => ({
+    id: row.id as Id<"expenses">,
+    amount: row.amount,
+    category: row.category as ExpenseCategory,
+    occurredAt: row.occurredAt,
+    description: row.description,
+    recordedByName: row.recordedByName,
+    branchId: (row.branchId as Id<"branches"> | null) ?? null,
+    branchName: row.branchName,
+  }));
 
   if (!online && localSummary === undefined) {
     return <LoadingState label="Loading offline analytics…" variant="cards" />;
@@ -154,11 +167,18 @@ export function AnalyticsView() {
       `P&L,Profit Margin %,${summary.pnl.profitMargin}`,
       "",
       "Category,Amount",
-      ...summary.expenseBreakdown.map((row) => `${row.label},${row.amount}`),
+      ...summary.expenseBreakdown.map((row: { label: string; amount: number }) => `${row.label},${row.amount}`),
       "",
       "Period,Revenue,COGS,Expenses,Gross Profit,Net Profit",
       ...summary.trend.map(
-        (row) =>
+        (row: {
+          period: string;
+          revenue: number;
+          cogs: number;
+          expenses: number;
+          grossProfit: number;
+          netProfit: number;
+        }) =>
           `${row.period},${row.revenue},${row.cogs},${row.expenses},${row.grossProfit},${row.netProfit}`,
       ),
     ];
@@ -175,9 +195,9 @@ export function AnalyticsView() {
   function printReport() {
     if (!summary) return;
     const rows = summary.expenseBreakdown
-      .filter((r) => r.amount > 0)
+      .filter((r: { amount: number; label: string }) => r.amount > 0)
       .map(
-        (r) =>
+        (r: { amount: number; label: string }) =>
           `<tr><td>${escapeHtml(r.label)}</td><td style="text-align:right">${escapeHtml(formatCurrency(r.amount))}</td></tr>`,
       )
       .join("");
@@ -237,8 +257,12 @@ export function AnalyticsView() {
     if (!deleteTarget) return;
     setDeletePending(true);
     try {
-      await removeExpense({ id: deleteTarget.id });
-      toast.success("Expense removed");
+      const kind = await persistBusinessWrite({
+        online,
+        remote: () => removeExpense({ id: deleteTarget.id }),
+        local: () => queueRemoveExpense({ expenseId: deleteTarget.id }),
+      });
+      toast.success(queuedSaveMessage(kind, "Expense removed"));
       setDeleteTarget(null);
     } catch (error) {
       showError(error, "Could not remove expense");
@@ -258,7 +282,7 @@ export function AnalyticsView() {
       {!online ? (
         <Alert>
           <AlertDescription>
-            Offline analytics from local sales and inventory. Expense tracking requires a connection.
+            Offline analytics from this device. Changes sync when you reconnect.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -275,8 +299,7 @@ export function AnalyticsView() {
               <Download className="h-4 w-4" />
               Export CSV
             </Button>
-            {online ? (
-              <Button
+            <Button
                 type="button"
                 onClick={() => {
                   setEditing(null);
@@ -286,7 +309,6 @@ export function AnalyticsView() {
                 <Plus className="h-4 w-4" />
                 Record expense
               </Button>
-            ) : null}
           </div>
         }
       />
@@ -556,7 +578,7 @@ export function AnalyticsView() {
                 <CardTitle>Breakdown by category</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {summary.expenseBreakdown.map((row) => (
+                {summary.expenseBreakdown.map((row: { label: string; amount: number; category: string }) => (
                   <div key={row.category} className="flex items-center justify-between text-sm">
                     <span>{row.label}</span>
                     <span className="font-medium">{formatCurrency(row.amount)}</span>

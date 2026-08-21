@@ -2,7 +2,18 @@
 
 export type OutboxStatus = "pending" | "syncing" | "synced" | "failed";
 
-export type OutboxOpType = "complete_sale" | "process_return";
+export type OutboxOpType =
+  | "complete_sale"
+  | "process_return"
+  | "upsert_supplier"
+  | "record_wholesale_purchase"
+  | "wholesale_transfer"
+  | "adjust_stock"
+  | "transfer_stock"
+  | "upsert_customer"
+  | "create_expense"
+  | "remove_expense"
+  | "update_profile";
 
 export type LocalSaleSyncStatus = "pending" | "synced" | "failed";
 
@@ -197,6 +208,190 @@ export type LocalReturnItem = {
   quantity: number;
   unitPrice: number;
   lineRefund: number;
+};
+
+export type MirroredSupplier = {
+  id: string;
+  name: string;
+  contactName: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  notes: string | null;
+  status: "active" | "inactive";
+  createdAt: number;
+};
+
+export type MirroredWholesaleStock = {
+  id: string;
+  productId: string;
+  name: string;
+  sku: string;
+  unit: string;
+  costPrice: number;
+  quantity: number;
+  tracksExpiry: boolean;
+};
+
+export type MirroredWholesalePurchase = {
+  id: string;
+  reference: string;
+  invoiceNumber: string | null;
+  supplierId: string;
+  supplierName: string;
+  purchasedAt: number;
+  itemCount: number;
+  totalCost: number;
+  notes: string | null;
+  status: string;
+};
+
+export type MirroredWholesaleTransfer = {
+  id: string;
+  productName: string;
+  branchName: string;
+  quantity: number;
+  note: string | null;
+  createdAt: number;
+};
+
+export type MirroredBranch = {
+  id: string;
+  name: string;
+  code: string;
+  address: string | null;
+  phone: string | null;
+  status: "active" | "inactive";
+};
+
+export type MirroredUser = {
+  id: string;
+  userId: string;
+  name: string;
+  role: string;
+  branch: string;
+  branchId: string | null;
+  phone: string | null;
+  status: string;
+  email: string | null;
+  imageUrl: string | null;
+  presence?: "online" | "offline";
+  lastSeenAt?: number | null;
+  lastLoginAt?: number | null;
+  lastDevice?: string | null;
+};
+
+export type MirroredExpense = {
+  id: string;
+  amount: number;
+  category: string;
+  occurredAt: number;
+  description: string | null;
+  recordedByName: string;
+  branchId: string | null;
+  branchName: string | null;
+};
+
+export type MirroredReturn = {
+  id: string;
+  returnNumber: string;
+  saleId: string;
+  invoiceNumber: string | null;
+  refundAmount: number;
+  itemCount: number;
+  kind: string;
+  completedAt: number;
+  branchId: string | null;
+  branchName: string | null;
+  customerName?: string;
+  cashierName?: string;
+  reason?: string;
+  status?: string;
+};
+
+export type ProductImageCache = {
+  id: string;
+  blob: Blob;
+  mimeType: string;
+  updatedAt: number;
+};
+
+export type UpsertSupplierPayload = {
+  localId: string;
+  serverId?: string;
+  name: string;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+  status?: "active" | "inactive";
+};
+
+export type RecordWholesalePurchasePayload = {
+  localId: string;
+  supplierId: string;
+  invoiceNumber?: string;
+  purchasedAt: number;
+  notes?: string;
+  items: Array<{
+    productId: string;
+    quantity: number;
+    unitCost: number;
+    expiryDate?: string;
+  }>;
+};
+
+export type WholesaleTransferPayload = {
+  localId: string;
+  productId: string;
+  branchId: string;
+  quantity: number;
+};
+
+export type AdjustStockPayload = {
+  productId: string;
+  branchId?: string;
+  quantityChange: number;
+  reason: "receive" | "adjustment" | "damage" | "return";
+  note?: string;
+  expiryDate?: string;
+};
+
+export type TransferStockPayload = {
+  productId: string;
+  fromBranchId: string;
+  toBranchId: string;
+  quantity: number;
+  note?: string;
+};
+
+export type UpsertCustomerPayload = {
+  localId: string;
+  serverId?: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+  status?: "active" | "inactive";
+};
+
+export type CreateExpensePayload = {
+  localId: string;
+  amount: number;
+  category: string;
+  occurredAt: number;
+  description?: string;
+  branchId: string;
+};
+
+export type RemoveExpensePayload = {
+  expenseId: string;
+};
+
+export type UpdateProfilePayload = {
+  name?: string;
+  phone?: string;
 };
 
 export type OutboxRow = {

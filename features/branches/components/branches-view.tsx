@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
@@ -30,19 +30,14 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { usePermissions } from "@/hooks/use-permissions";
-import { useConnectivity } from "@/hooks/use-connectivity";
-import { OfflineAdminShell } from "@/components/offline/offline-admin-shell";
+import { useBranchesList } from "@/hooks/use-offline-lists";
 import { Building2, Eye, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 
 export function BranchesView() {
   const { canManageBranches } = usePermissions();
-  const online = useConnectivity();
-  const branches = useQuery(
-    api.branches.list,
-    online && canManageBranches ? { includeInactive: true } : "skip",
-  );
+  const branches = useBranchesList(true);
   const createBranch = useMutation(api.branches.create);
   const updateBranch = useMutation(api.branches.update);
 
@@ -60,15 +55,6 @@ export function BranchesView() {
       <EmptyState
         title="Admin access required"
         description="Branch management is administrator-only."
-      />
-    );
-  }
-
-  if (!online) {
-    return (
-      <OfflineAdminShell
-        title="Branches"
-        description="Organization branches and contact details."
       />
     );
   }

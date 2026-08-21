@@ -32,13 +32,19 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { useCategoriesList, useInventoryList } from "@/hooks/use-offline-lists";
+import { useCategoriesList, useInventoryList, useBranchesList } from "@/hooks/use-offline-lists";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
 import { formatExpiryDate } from "@/lib/expiry";
 import { ArrowLeftRight, Boxes, Eye } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import {
+  persistBusinessWrite,
+  queuedSaveMessage,
+  queueAdjustStock,
+  queueTransferStock,
+} from "@/lib/offline/replica-writes";
 
 function InventoryViewInner() {
   const {
@@ -71,11 +77,8 @@ function InventoryViewInner() {
   const [transferQty, setTransferQty] = useState("1");
   const [transferNote, setTransferNote] = useState("");
 
-  const branches = useQuery(api.branches.list, isAdmin && online ? {} : "skip");
-  const transferBranches = useQuery(
-    api.branches.listTransferOptions,
-    canTransferStock && online ? {} : "skip",
-  );
+  const branches = useBranchesList(false);
+  const transferBranches = branches;
   const categories = useCategoriesList();
 
   const branchFilter = isAdmin ? branchOverride : myBranchId;
@@ -116,10 +119,6 @@ function InventoryViewInner() {
 
   async function onAdjust(event: FormEvent) {
     event.preventDefault();
-    if (!online) {
-      toast.error("Stock adjustments require a connection");
-      return;
-    }
     if (!adjustId) return;
     const branchId = listBranchId ?? (adjustBranchId || null);
     if (!branchId) {
@@ -127,15 +126,28 @@ function InventoryViewInner() {
       return;
     }
     try {
-      await adjustStock({
-        productId: adjustId,
-        quantityChange: Number(quantityChange),
-        reason,
-        note: note || undefined,
-        branchId,
-        expiryDate: expiryDate || undefined,
+      const kind = await persistBusinessWrite({
+        online,
+        remote: () =>
+          adjustStock({
+            productId: adjustId,
+            quantityChange: Number(quantityChange),
+            reason,
+            note: note || undefined,
+            branchId,
+            expiryDate: expiryDate || undefined,
+          }),
+        local: () =>
+          queueAdjustStock({
+            productId: adjustId,
+            branchId,
+            quantityChange: Number(quantityChange),
+            reason,
+            note: note || undefined,
+            expiryDate: expiryDate || undefined,
+          }),
       });
-      toast.success("Stock updated");
+      toast.success(queuedSaveMessage(kind, "Stock updated"));
       setAdjustId(null);
       setAdjustBranchId("");
       setQuantityChange("0");
@@ -155,9 +167,9 @@ function InventoryViewInner() {
   function openTransfer(productId?: Id<"products">) {
     setTransferProductId(productId ?? "");
     setFromBranchId(
-      isAdmin
+      (isAdmin
         ? (listBranchId ?? myBranchId ?? transferBranches?.[0]?.id ?? "")
-        : (myBranchId ?? ""),
+        : (myBranchId ?? "")) as Id<"branches"> | "",
     );
     setToBranchId("");
     setTransferQty("1");
@@ -167,23 +179,31 @@ function InventoryViewInner() {
 
   async function onTransfer(event: FormEvent) {
     event.preventDefault();
-    if (!online) {
-      toast.error("Stock transfers require a connection");
-      return;
-    }
     if (!fromBranchId || !toBranchId || !transferProductId) {
       toast.error("Select from/to branches and a product");
       return;
     }
     try {
-      await transferStock({
-        fromBranchId,
-        toBranchId,
-        productId: transferProductId,
-        quantity: Number(transferQty),
-        note: transferNote || undefined,
+      const kind = await persistBusinessWrite({
+        online,
+        remote: () =>
+          transferStock({
+            fromBranchId,
+            toBranchId,
+            productId: transferProductId,
+            quantity: Number(transferQty),
+            note: transferNote || undefined,
+          }),
+        local: () =>
+          queueTransferStock({
+            fromBranchId,
+            toBranchId,
+            productId: transferProductId,
+            quantity: Number(transferQty),
+            note: transferNote || undefined,
+          }),
       });
-      toast.success("Stock transferred");
+      toast.success(queuedSaveMessage(kind, "Stock transferred"));
       setTransferOpen(false);
     } catch (error) {
       showError(error, "Transfer failed");

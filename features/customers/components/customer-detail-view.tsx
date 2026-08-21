@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
@@ -15,16 +16,51 @@ import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { ArrowLeft, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { getMirroredCustomerDetail } from "@/lib/offline/mirror-queries";
 
 export function CustomerDetailView({ customerId }: { customerId: Id<"customers"> }) {
   const router = useRouter();
-  const customer = useQuery(api.customers.get, { id: customerId });
-  const history = useQuery(api.customers.purchaseHistory, {
-    customerId,
-    limit: 30,
-  });
+  const online = useConnectivity();
+  const remote = useQuery(api.customers.get, online ? { id: customerId } : "skip");
+  const history = useQuery(
+    api.customers.purchaseHistory,
+    online ? { customerId, limit: 30 } : "skip",
+  );
+  const [local, setLocal] = useState<Awaited<ReturnType<typeof getMirroredCustomerDetail>> | undefined>(
+    undefined,
+  );
+  useEffect(() => {
+    let cancelled = false;
+    void getMirroredCustomerDetail(customerId).then((row) => {
+      if (!cancelled) setLocal(row);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
 
-  if (customer === undefined || history === undefined) {
+  const customer =
+    remote ??
+    (local?.customer
+      ? {
+          ...local.customer,
+          _id: customerId,
+        }
+      : remote === undefined && local === undefined
+        ? undefined
+        : null);
+  const localHistory = local?.orders.map((order) => ({
+    id: order.id,
+    invoiceNumber: order.invoiceNumber,
+    completedAt: order.completedAt,
+    total: order.total,
+    itemCount: order.itemCount,
+    paymentMethod: order.paymentMethod,
+  }));
+  const purchases = history ?? localHistory;
+
+  if (customer === undefined || (online && history === undefined && !localHistory)) {
     return <LoadingState label="Loading customer…" />;
   }
 
@@ -80,11 +116,11 @@ export function CustomerDetailView({ customerId }: { customerId: Id<"customers">
           <CardTitle>Purchase history</CardTitle>
         </CardHeader>
         <CardContent>
-          {history.length === 0 ? (
+          {purchases?.length === 0 ? (
             <EmptyState title="No purchases yet" />
           ) : (
             <ul className="space-y-3">
-              {history.map((sale) => (
+              {(purchases ?? []).map((sale) => (
                 <li key={sale.id}>
                   <button
                     type="button"

@@ -4,15 +4,24 @@ import type {
   LocalReceipt,
   LocalSale,
   LocalSaleItem,
+  MirroredBranch,
   MirroredCategory,
   MirroredCustomer,
+  MirroredExpense,
   MirroredOrder,
+  MirroredOrderItem,
   MirroredProduct,
+  MirroredReturn,
+  MirroredSupplier,
+  MirroredUser,
+  MirroredWholesalePurchase,
+  MirroredWholesaleStock,
+  MirroredWholesaleTransfer,
   OfflineMeta,
   OutboxRow,
   LocalReturn,
   LocalReturnItem,
-  MirroredOrderItem,
+  ProductImageCache,
 } from "./types";
 
 export type PrincellenOfflineDb = NovendOfflineDb;
@@ -29,6 +38,15 @@ export type NovendOfflineDb = Dexie & {
   localReceipts: EntityTable<LocalReceipt, "id">;
   localReturns: EntityTable<LocalReturn, "id">;
   localReturnItems: EntityTable<LocalReturnItem, "id">;
+  suppliers: EntityTable<MirroredSupplier, "id">;
+  wholesaleStock: EntityTable<MirroredWholesaleStock, "id">;
+  wholesalePurchases: EntityTable<MirroredWholesalePurchase, "id">;
+  wholesaleTransfers: EntityTable<MirroredWholesaleTransfer, "id">;
+  branches: EntityTable<MirroredBranch, "id">;
+  users: EntityTable<MirroredUser, "id">;
+  expenses: EntityTable<MirroredExpense, "id">;
+  returns: EntityTable<MirroredReturn, "id">;
+  productImages: EntityTable<ProductImageCache, "id">;
   outbox: EntityTable<OutboxRow, "id">;
 };
 
@@ -106,6 +124,31 @@ export function createOfflineDb(organizationId?: string): NovendOfflineDb {
     localReceipts: "id, localSaleId, invoiceNumber",
     localReturns: "id, clientOperationId, saleId, syncStatus, completedAt",
     localReturnItems: "id, localReturnId, saleItemId",
+    outbox: "id, status, createdAt, clientOperationId, type, [status+createdAt]",
+  });
+  db.version(6).stores({
+    meta: "key",
+    products: "id, name, sku, status, categoryId, [status+name]",
+    categories: "id, name, isActive",
+    customers: "id, name, status, [status+name]",
+    orders: "id, completedAt, invoiceNumber, branchId, customerId, cashierId",
+    orderItems: "id, orderId, productId",
+    heldSales: "id, cashierId, heldAt",
+    localSales:
+      "id, clientOperationId, syncStatus, completedAt, invoiceNumber, [syncStatus+completedAt]",
+    localSaleItems: "id, localSaleId, productId",
+    localReceipts: "id, localSaleId, invoiceNumber",
+    localReturns: "id, clientOperationId, saleId, syncStatus, completedAt",
+    localReturnItems: "id, localReturnId, saleItemId",
+    suppliers: "id, name, status",
+    wholesaleStock: "id, productId, name",
+    wholesalePurchases: "id, supplierId, purchasedAt",
+    wholesaleTransfers: "id, createdAt",
+    branches: "id, name, status",
+    users: "id, name, role, branchId",
+    expenses: "id, occurredAt, branchId, category",
+    returns: "id, completedAt, saleId, branchId",
+    productImages: "id",
     outbox: "id, status, createdAt, clientOperationId, type, [status+createdAt]",
   });
   return db;

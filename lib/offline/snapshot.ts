@@ -3,13 +3,22 @@ import { api } from "@/convex/_generated/api";
 import type { AppRole } from "@/config/navigation";
 import { ensureDeviceId, getOfflineDb, META_KEYS, setMeta, type PrincellenOfflineDb } from "./db";
 import { getLastSnapshotAt, SNAPSHOT_PULL_TTL_MS } from "./freshness";
+import { cacheProductImages } from "./image-cache";
 import { saveShellProfile } from "./shell-profile";
 import type {
+  MirroredBranch,
   MirroredCategory,
   MirroredCustomer,
+  MirroredExpense,
   MirroredOrder,
   MirroredOrderItem,
   MirroredProduct,
+  MirroredReturn,
+  MirroredSupplier,
+  MirroredUser,
+  MirroredWholesalePurchase,
+  MirroredWholesaleStock,
+  MirroredWholesaleTransfer,
   PrintSnapshot,
 } from "./types";
 
@@ -21,6 +30,17 @@ export type PullOfflineSnapshotOptions = {
   /** Bypass TTL and always fetch from Convex. */
   force?: boolean;
 };
+
+async function replaceServerRows<T extends { id: string }>(
+  table: { filter: (fn: (row: T) => boolean) => { toArray: () => Promise<T[]> }; clear: () => Promise<void>; bulkPut: (rows: T[]) => Promise<unknown> },
+  rows: T[],
+) {
+  const localOnly = await table.filter((row) => row.id.startsWith("local_")).toArray();
+  await table.clear();
+  if (rows.length + localOnly.length > 0) {
+    await table.bulkPut([...rows, ...localOnly]);
+  }
+}
 
 /** Pull catalog + customers + orders + print settings into Dexie. */
 export async function pullOfflineSnapshot(
@@ -53,6 +73,7 @@ export async function pullOfflineSnapshot(
 
   const snapshot = await convex.query(api.offline.getSnapshot, {});
   await applySnapshot(db, snapshot);
+  void cacheProductImages(snapshot.products);
   return {
     productCount: snapshot.products.length,
     customerCount: snapshot.customers.length,
@@ -69,6 +90,14 @@ export async function applySnapshot(
     customers: MirroredCustomer[];
     orders: MirroredOrder[];
     orderItems?: MirroredOrderItem[];
+    suppliers?: MirroredSupplier[];
+    wholesaleStock?: MirroredWholesaleStock[];
+    wholesalePurchases?: MirroredWholesalePurchase[];
+    wholesaleTransfers?: MirroredWholesaleTransfer[];
+    branches?: MirroredBranch[];
+    users?: MirroredUser[];
+    expenses?: MirroredExpense[];
+    returns?: MirroredReturn[];
     print: PrintSnapshot;
     profile: {
       userId: string;
@@ -80,49 +109,64 @@ export async function applySnapshot(
   },
 ) {
   const now = Date.now();
-  await db.transaction(
-    "rw",
-    [db.products, db.categories, db.customers, db.orders, db.orderItems, db.meta],
-    async () => {
-      await db.products.clear();
-      await db.categories.clear();
-      await db.customers.clear();
-      await db.orders.clear();
-      await db.orderItems.clear();
-      await db.products.bulkPut(
-        snapshot.products.map((p) => ({ ...p, updatedAt: p.updatedAt || now })),
-      );
-      await db.categories.bulkPut(snapshot.categories);
-      await db.customers.bulkPut(
-        snapshot.customers.map((c) => ({
-          ...c,
-          notes: c.notes ?? null,
-          purchaseCount: c.purchaseCount ?? 0,
-          lastPurchaseAt: c.lastPurchaseAt ?? null,
-          lastPurchaseTotal: c.lastPurchaseTotal ?? null,
-          lastInvoiceNumber: c.lastInvoiceNumber ?? null,
-          updatedAt: c.updatedAt || now,
-        })),
-      );
-      await db.orders.bulkPut(snapshot.orders ?? []);
-      if (snapshot.orderItems && snapshot.orderItems.length > 0) {
-        await db.orderItems.bulkPut(snapshot.orderItems);
-      }
-      await setMeta(db, META_KEYS.printSnapshot, JSON.stringify(snapshot.print));
-      await setMeta(db, META_KEYS.profileUserId, snapshot.profile.userId);
-      await setMeta(db, META_KEYS.profileName, snapshot.profile.name);
-      if (snapshot.profile.role) {
-        await setMeta(db, META_KEYS.profileRole, snapshot.profile.role);
-      }
-      if (snapshot.profile.branchId) {
-        await setMeta(db, META_KEYS.profileBranchId, snapshot.profile.branchId);
-      }
-      if (snapshot.profile.branchName) {
-        await setMeta(db, META_KEYS.profileBranchName, snapshot.profile.branchName);
-      }
-      await setMeta(db, META_KEYS.lastSnapshotAt, String(now));
-    },
-  );
+  const tables = [
+    db.products,
+    db.categories,
+    db.customers,
+    db.orders,
+    db.orderItems,
+    db.suppliers,
+    db.wholesaleStock,
+    db.wholesalePurchases,
+    db.wholesaleTransfers,
+    db.branches,
+    db.users,
+    db.expenses,
+    db.returns,
+    db.meta,
+  ];
+  await db.transaction("rw", tables, async () => {
+    await replaceServerRows(db.products, snapshot.products.map((p) => ({ ...p, updatedAt: p.updatedAt || now })));
+    await replaceServerRows(db.categories, snapshot.categories);
+    await replaceServerRows(
+      db.customers,
+      snapshot.customers.map((c) => ({
+        ...c,
+        notes: c.notes ?? null,
+        purchaseCount: c.purchaseCount ?? 0,
+        lastPurchaseAt: c.lastPurchaseAt ?? null,
+        lastPurchaseTotal: c.lastPurchaseTotal ?? null,
+        lastInvoiceNumber: c.lastInvoiceNumber ?? null,
+        updatedAt: c.updatedAt || now,
+      })),
+    );
+    await replaceServerRows(db.orders, snapshot.orders ?? []);
+    await db.orderItems.clear();
+    if (snapshot.orderItems && snapshot.orderItems.length > 0) {
+      await db.orderItems.bulkPut(snapshot.orderItems);
+    }
+    await replaceServerRows(db.suppliers, snapshot.suppliers ?? []);
+    await replaceServerRows(db.wholesaleStock, snapshot.wholesaleStock ?? []);
+    await replaceServerRows(db.wholesalePurchases, snapshot.wholesalePurchases ?? []);
+    await replaceServerRows(db.wholesaleTransfers, snapshot.wholesaleTransfers ?? []);
+    await replaceServerRows(db.branches, snapshot.branches ?? []);
+    await replaceServerRows(db.users, snapshot.users ?? []);
+    await replaceServerRows(db.expenses, snapshot.expenses ?? []);
+    await replaceServerRows(db.returns, snapshot.returns ?? []);
+    await setMeta(db, META_KEYS.printSnapshot, JSON.stringify(snapshot.print));
+    await setMeta(db, META_KEYS.profileUserId, snapshot.profile.userId);
+    await setMeta(db, META_KEYS.profileName, snapshot.profile.name);
+    if (snapshot.profile.role) {
+      await setMeta(db, META_KEYS.profileRole, snapshot.profile.role);
+    }
+    if (snapshot.profile.branchId) {
+      await setMeta(db, META_KEYS.profileBranchId, snapshot.profile.branchId);
+    }
+    if (snapshot.profile.branchName) {
+      await setMeta(db, META_KEYS.profileBranchName, snapshot.profile.branchName);
+    }
+    await setMeta(db, META_KEYS.lastSnapshotAt, String(now));
+  });
 
   if (snapshot.profile.role && snapshot.profile.branchId) {
     await saveShellProfile({

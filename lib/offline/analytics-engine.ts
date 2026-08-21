@@ -95,7 +95,7 @@ export async function buildLocalAnalyticsSummary(args: {
 
   if (!db) return empty;
 
-  const [products, mirroredOrders, localSales, orderItems, localSaleItems, localReturns, localReturnItems] =
+  const [products, mirroredOrders, localSales, orderItems, localSaleItems, localReturns, localReturnItems, expenses] =
     await Promise.all([
       db.products.toArray(),
       db.orders.toArray(),
@@ -104,6 +104,7 @@ export async function buildLocalAnalyticsSummary(args: {
       db.localSaleItems.toArray(),
       db.localReturns.toArray(),
       db.localReturnItems.toArray(),
+      db.expenses.toArray(),
     ]);
 
   const costByProduct = new Map(products.map((p) => [p.id, p.costPrice]));
@@ -197,7 +198,12 @@ export async function buildLocalAnalyticsSummary(args: {
   );
   const cogs = roundMoney(Math.max(0, soldCogs - returnedCogs));
   const revenue = roundMoney(revenueGross - totalRefunds);
-  const operatingExpenses = 0;
+  const periodExpenses = expenses.filter((row) => {
+    if (row.occurredAt < args.startDate || row.occurredAt > args.endDate) return false;
+    if (args.branchId && row.branchId && row.branchId !== args.branchId) return false;
+    return true;
+  });
+  const operatingExpenses = roundMoney(periodExpenses.reduce((sum, row) => sum + row.amount, 0));
   const grossProfit = roundMoney(revenue - cogs);
   const netProfit = roundMoney(grossProfit - operatingExpenses);
   const profitMargin = revenue > 0 ? roundMoney((netProfit / revenue) * 100) : 0;
@@ -238,6 +244,10 @@ export async function buildLocalAnalyticsSummary(args: {
     const bucket = ensure(periodKey(parent.completedAt, args.granularity));
     bucket.cogs -= cost * item.quantity;
   }
+  for (const row of periodExpenses) {
+    const bucket = ensure(periodKey(row.occurredAt, args.granularity));
+    bucket.expenses += row.amount;
+  }
 
   const trend = [...buckets.values()]
     .sort((a, b) => a.key.localeCompare(b.key))
@@ -263,7 +273,7 @@ export async function buildLocalAnalyticsSummary(args: {
       netProfit,
       profitMargin,
       totalOrders: sales.length,
-      expenseCount: 0,
+      expenseCount: periodExpenses.length,
       totalRefunds,
       itemsReturned,
       returnRate,
@@ -282,7 +292,11 @@ export async function buildLocalAnalyticsSummary(args: {
     expenseBreakdown: EXPENSE_CATEGORY_OPTIONS.map((cat) => ({
       category: cat.value,
       label: cat.label,
-      amount: 0,
+      amount: roundMoney(
+        periodExpenses
+          .filter((row) => row.category === cat.value)
+          .reduce((sum, row) => sum + row.amount, 0),
+      ),
     })),
     trend,
     branchId: args.branchId ?? null,

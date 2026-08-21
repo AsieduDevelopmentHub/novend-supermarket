@@ -1,9 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "convex/react";
 import Link from "next/link";
-import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
 import { Input } from "@/components/ui/input";
@@ -22,8 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePermissions } from "@/hooks/use-permissions";
-import { useConnectivity } from "@/hooks/use-connectivity";
-import { OfflineAdminShell } from "@/components/offline/offline-admin-shell";
+import { useBranchesList, useReturnsList } from "@/hooks/use-offline-lists";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { Eye, Undo2 } from "lucide-react";
@@ -32,37 +29,22 @@ const PAGE_SIZE = 25;
 
 export function ReturnsView() {
   const { isAdmin, branchId: myBranchId, branchName } = usePermissions();
-  const online = useConnectivity();
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<"all" | "full" | "partial">("all");
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
   const [page, setPage] = useState(0);
-  const branches = useQuery(api.branches.list, isAdmin && online ? {} : "skip");
-  const returns = useQuery(
-    api.returns.list,
-    online
-      ? {
-          search: search || undefined,
-          kind: kind === "all" ? undefined : kind,
-          branchId: isAdmin && branchFilter !== "all" ? branchFilter : undefined,
-        }
-      : "skip",
-  );
+  const branches = useBranchesList(false);
+  const returns = useReturnsList({
+    search,
+    kind,
+    branchId: isAdmin && branchFilter !== "all" ? branchFilter : undefined,
+  });
 
   const paged = useMemo(() => {
     if (!returns) return [];
     return returns.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
   }, [returns, page]);
   const pageCount = returns ? Math.max(1, Math.ceil(returns.length / PAGE_SIZE)) : 1;
-
-  if (!online) {
-    return (
-      <OfflineAdminShell
-        title="Returns"
-        description="Processed refunds are listed here when you are online. Offline returns still sync from the order screen."
-      />
-    );
-  }
 
   return (
     <div className="space-y-6">

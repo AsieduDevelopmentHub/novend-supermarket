@@ -1,5 +1,39 @@
 import { toast } from "sonner";
 
+const CONNECTIVITY_MESSAGE =
+  "You're offline. Keep working on this device — we'll sync when the internet is back.";
+
+const CONNECTIVITY_PATTERNS = [
+  "err_internet_disconnected",
+  "err_network_changed",
+  "err_name_not_resolved",
+  "err_connection_reset",
+  "err_connection_refused",
+  "err_connection_timed_out",
+  "err_address_unreachable",
+  "err_failed",
+  "failed to fetch",
+  "networkerror",
+  "network request failed",
+  "load failed",
+  "econnrefused",
+  "enotfound",
+  "timed out",
+  "timeout",
+  "offline",
+  "net::",
+];
+
+export function isConnectivityError(error: unknown): boolean {
+  const raw = error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
+  const lower = raw.toLowerCase();
+  if (CONNECTIVITY_PATTERNS.some((pattern) => lower.includes(pattern))) return true;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    return lower.includes("fetch") || lower.includes("network") || lower.includes("convex");
+  }
+  return false;
+}
+
 /**
  * Convert backend / Convex errors into short messages safe to show end users.
  * Full details are logged for debugging.
@@ -9,6 +43,8 @@ export function toUserMessage(
   fallback = "Something went wrong. Please try again.",
 ): string {
   console.error(error);
+
+  if (isConnectivityError(error)) return CONNECTIVITY_MESSAGE;
 
   const raw = error instanceof Error ? error.message : String(error ?? "");
   if (!raw.trim()) return fallback;
@@ -61,16 +97,7 @@ export function toUserMessage(
   ) {
     return "Please sign in again to continue.";
   }
-  if (
-    lower.includes("failed to fetch") ||
-    lower.includes("networkerror") ||
-    lower.includes("network request failed") ||
-    lower.includes("econnrefused") ||
-    lower.includes("timed out") ||
-    lower.includes("timeout")
-  ) {
-    return "Network problem. Check your connection and try again.";
-  }
+  if (isConnectivityError(message)) return CONNECTIVITY_MESSAGE;
   if (
     lower.includes("argumentvalidation") ||
     lower.includes("validator") ||
