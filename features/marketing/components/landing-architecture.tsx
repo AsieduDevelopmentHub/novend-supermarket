@@ -23,11 +23,11 @@ export function LandingArchitecture() {
 
         <ol
           data-reveal
-          className="mt-14 flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-3"
+          className="mt-10 flex flex-col gap-3 sm:mt-14 sm:gap-4 lg:flex-row lg:items-stretch lg:gap-3"
         >
           {landingCopy.architecture.flow.map((node, index) => (
             <li key={node.id} className="flex flex-1 items-stretch gap-3">
-              <div className="border-border bg-background flex flex-1 flex-col rounded-2xl border p-5 shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
+              <div className="border-border bg-background landing-shadow-card flex flex-1 flex-col rounded-2xl border p-5">
                 <span className="text-primary text-[11px] font-bold tracking-[0.14em] uppercase">
                   {String(index + 1).padStart(2, "0")}
                 </span>

@@ -8,7 +8,7 @@ export function LandingPricing() {
   return (
     <section
       id="pricing"
-      className="landing-pricing scroll-mt-24 border-t border-border bg-background px-4 py-28 sm:px-6 sm:py-32 lg:px-8"
+      className="landing-pricing scroll-mt-24 border-t border-border bg-background px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="mx-auto max-w-2xl text-center">
@@ -23,20 +23,20 @@ export function LandingPricing() {
           </span>
         </div>
 
-        <ul className="landing-perspective mt-16 grid items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
+        <ul className="landing-perspective mt-10 grid items-stretch gap-5 sm:mt-16 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
           {landingCopy.pricing.plans.map((plan) => (
             <li
               key={plan.id}
               data-depth-card
               className={cn(
-                "landing-price-card landing-depth-preserve group relative flex flex-col rounded-2xl border p-6 shadow-[0_18px_44px_rgba(15,23,42,0.08)] transition-[box-shadow] duration-300 sm:p-7",
+                "landing-price-card landing-depth-preserve group relative flex flex-col rounded-2xl border p-6 transition-[box-shadow,transform] duration-300 sm:p-7",
                 plan.featured
-                  ? "border-primary/40 bg-card shadow-[0_24px_60px_rgba(56,189,248,0.18)] xl:-translate-y-2"
-                  : "border-border bg-card",
+                  ? "landing-shadow-card-featured border-primary/40 bg-card xl:-translate-y-2"
+                  : "landing-shadow-card border-border bg-card",
               )}
             >
               {plan.featured ? (
-                <span className="bg-primary text-primary-foreground absolute -top-3 left-1/2 -translate-x-1/2 rounded-md px-3 py-1 text-[10px] font-bold tracking-[0.12em] uppercase shadow-sm">
+                <span className="bg-primary text-primary-foreground landing-shadow-chip absolute -top-3 left-1/2 -translate-x-1/2 rounded-md px-3 py-1 text-[10px] font-bold tracking-[0.12em] uppercase">
                   Recommended
                 </span>
               ) : null}
@@ -68,7 +68,11 @@ export function LandingPricing() {
                   type="button"
                   disabled
                   variant={plan.featured ? "default" : "secondary"}
-                  className="h-11 w-full font-semibold"
+                  className={
+                    plan.featured
+                      ? "landing-shadow-cta-primary h-11 w-full font-semibold"
+                      : "landing-shadow-chip h-11 w-full font-semibold"
+                  }
                 >
                   Coming Soon
                 </Button>

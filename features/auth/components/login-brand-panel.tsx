@@ -4,17 +4,20 @@ import { BRANDING } from "@/constants/branding";
 import { cn } from "@/lib/utils";
 
 type Props = {
-  compact?: boolean;
+  /** Mobile: shorter hero under overlapping form; desktop: full brand rail. */
+  variant?: "desktop" | "mobile";
   className?: string;
 };
 
-/** Onyx brand rail with a looping commerce chart — not photography, not AI-themed. */
-export function LoginBrandPanel({ compact = false, className }: Props) {
+/** Onyx brand rail — commerce chart motif (not photography). */
+export function LoginBrandPanel({ variant = "desktop", className }: Props) {
+  const isMobile = variant === "mobile";
+
   return (
     <div
       className={cn(
         "relative overflow-hidden bg-[#0b1220] text-white",
-        compact ? "min-h-[220px]" : "min-h-full",
+        !isMobile && "min-h-full",
         className,
       )}
     >
@@ -22,18 +25,21 @@ export function LoginBrandPanel({ compact = false, className }: Props) {
         className="pointer-events-none absolute inset-0 opacity-80"
         aria-hidden
         style={{
-          background:
-            "radial-gradient(ellipse 80% 60% at 20% 90%, rgba(56,189,248,0.22), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 10%, rgba(14,165,233,0.14), transparent 50%)",
+          background: isMobile
+            ? "radial-gradient(ellipse 90% 70% at 50% 100%, rgba(56,189,248,0.28), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 10%, rgba(14,165,233,0.16), transparent 50%)"
+            : "radial-gradient(ellipse 80% 60% at 20% 90%, rgba(56,189,248,0.22), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 10%, rgba(14,165,233,0.14), transparent 50%)",
         }}
       />
-      <div
-        className="login-grid pointer-events-none absolute inset-0 opacity-40"
-        aria-hidden
-      />
+      <div className="login-grid pointer-events-none absolute inset-0 opacity-40" aria-hidden />
 
-      <div className={cn("relative z-10 flex h-full flex-col", compact ? "p-6" : "p-8 lg:p-10")}>
+      <div
+        className={cn(
+          "relative z-10 flex h-full flex-col",
+          isMobile ? "justify-between p-6 pb-14" : "p-8 lg:p-10",
+        )}
+      >
         <div className="flex items-center gap-3">
-          <div className={cn("relative shrink-0", compact ? "h-10 w-10" : "h-12 w-12")}>
+          <div className={cn("relative shrink-0", isMobile ? "h-10 w-10" : "h-12 w-12")}>
             <Image src={BRANDING.brandmark} alt="" fill sizes="48px" className="object-contain" />
           </div>
           <div>
@@ -42,15 +48,22 @@ export function LoginBrandPanel({ compact = false, className }: Props) {
           </div>
         </div>
 
-        <div className="mt-8 flex flex-1 flex-col justify-center">
-          <p className={cn("font-semibold tracking-tight", compact ? "text-xl" : "text-3xl lg:text-4xl")}>
-            Built for the counter.
-          </p>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/65">
-            Fast checkout, live stock, and a warehouse that feeds every branch.
-          </p>
-          <CommerceChart className={cn("mt-8", compact ? "h-24" : "h-40")} />
-        </div>
+        {isMobile ? (
+          <div>
+            <p className="text-xl font-semibold tracking-tight">Built for the counter.</p>
+            <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/65">
+              Fast checkout, live stock, and sync when you reconnect.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-8 flex flex-1 flex-col justify-center">
+            <p className="text-3xl font-semibold tracking-tight lg:text-4xl">Built for the counter.</p>
+            <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/65">
+              Fast checkout, live stock, and a warehouse that feeds every branch.
+            </p>
+            <CommerceChart className="mt-8 h-40" />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -58,11 +71,7 @@ export function LoginBrandPanel({ compact = false, className }: Props) {
 
 function CommerceChart({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 320 140"
-      className={cn("login-chart w-full", className)}
-      aria-hidden
-    >
+    <svg viewBox="0 0 320 140" className={cn("login-chart w-full", className)} aria-hidden>
       <defs>
         <linearGradient id="novendChartFill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.35" />

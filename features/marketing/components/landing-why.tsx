@@ -7,7 +7,7 @@ export function LandingWhy() {
   return (
     <section
       id="about"
-      className="landing-trust relative scroll-mt-24 overflow-hidden px-5 py-28 sm:px-10 sm:py-36 lg:px-20 lg:py-40"
+      className="landing-trust relative scroll-mt-24 overflow-hidden px-4 py-20 sm:px-10 sm:py-28 lg:px-20 lg:py-40"
     >
       <LandingAtmosphere soft />
       <div className="relative z-10 mx-auto max-w-6xl">
@@ -29,7 +29,7 @@ export function LandingWhy() {
             <li
               key={card.title}
               data-depth-card
-              className="landing-trust-card landing-depth-preserve rounded-2xl border border-white/10 bg-[#111827] p-6 text-white shadow-[0_22px_50px_rgba(17,24,39,0.28)] sm:p-7"
+              className="landing-trust-card landing-depth-preserve landing-shadow-onyx rounded-2xl border border-white/10 bg-[#111827] p-6 text-white sm:p-7"
             >
               <span className="bg-primary/20 text-primary inline-flex h-10 w-10 items-center justify-center rounded-xl">
                 <Check className="h-5 w-5" aria-hidden />

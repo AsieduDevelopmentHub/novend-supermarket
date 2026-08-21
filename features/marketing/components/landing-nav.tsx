@@ -31,7 +31,7 @@ export function LandingNav({ scrollRootRef }: Props) {
       <div
         className={cn(
           "pointer-events-auto mx-auto flex max-w-6xl items-center justify-between gap-3 transition-all",
-          scrolled && "drop-shadow-sm",
+          scrolled && "drop-shadow-md",
         )}
       >
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
@@ -49,7 +49,7 @@ export function LandingNav({ scrollRootRef }: Props) {
         </Link>
 
         <nav
-          className="border-border bg-card/95 hidden items-center gap-0.5 rounded-xl border px-1.5 py-1 shadow-[0_8px_30px_rgba(15,23,42,0.06)] backdrop-blur-md md:flex"
+          className="landing-shadow-nav border-border bg-card/95 hidden items-center gap-0.5 rounded-xl border px-1.5 py-1 backdrop-blur-md md:flex"
           aria-label="Primary"
         >
           {landingCopy.nav.map((item) => (
@@ -63,7 +63,12 @@ export function LandingNav({ scrollRootRef }: Props) {
           ))}
         </nav>
 
-        <Button asChild variant="outline" size="sm" className="h-9 shrink-0 font-semibold">
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="landing-shadow-cta-outline h-9 shrink-0 font-semibold transition-[box-shadow,transform] hover:-translate-y-0.5"
+        >
           <Link href="/login">Login</Link>
         </Button>
       </div>

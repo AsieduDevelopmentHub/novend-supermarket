@@ -6,7 +6,7 @@ export function LandingJourney() {
   return (
     <section
       id="journey"
-      className="landing-journey scroll-mt-24 border-t border-border bg-white px-4 py-24 sm:px-6 sm:py-28 lg:px-8"
+      className="landing-journey scroll-mt-24 border-t border-border bg-white px-4 py-16 sm:px-6 sm:py-24 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="mx-auto max-w-2xl text-center">
@@ -21,13 +21,13 @@ export function LandingJourney() {
           </p>
         </div>
 
-        <div className="mt-16 space-y-20 lg:space-y-28">
+        <div className="mt-12 space-y-14 sm:mt-16 sm:space-y-20 lg:space-y-28">
           {landingCopy.journey.steps.map((step, index) => {
             const reverse = index % 2 === 1;
             return (
               <article
                 key={step.id}
-                className={`grid items-center gap-10 lg:grid-cols-2 lg:gap-16 ${
+                className={`grid items-center gap-8 lg:grid-cols-2 lg:gap-16 ${
                   reverse ? "lg:[&>*:first-child]:order-2" : ""
                 }`}
               >
@@ -97,12 +97,12 @@ function JourneyVisual({ id }: { id: string }) {
       return (
         <Panel>
           <p className="text-muted-foreground text-[10px] tracking-wide uppercase">Branch transfer</p>
-          <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <div className="mt-4 grid grid-cols-1 items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
             <div className="rounded-xl bg-[#111827] px-3 py-4 text-white">
               <p className="text-[10px] text-slate-400 uppercase">Warehouse</p>
               <p className="mt-1 text-sm font-semibold">−200 units</p>
             </div>
-            <div className="landing-transfer-rail" aria-hidden>
+            <div className="landing-transfer-rail hidden sm:block" aria-hidden>
               <span data-transfer-dot />
               <span data-transfer-dot />
               <span data-transfer-dot />
@@ -223,7 +223,7 @@ function Panel({
 }) {
   return (
     <div
-      className={`border-border bg-card rounded-2xl border shadow-[0_18px_44px_rgba(15,23,42,0.08)] ${className}`}
+      className={`border-border bg-card landing-shadow-panel rounded-2xl border ${className}`}
     >
       {children}
     </div>

@@ -12,7 +12,6 @@ import {
 import { BRANDING } from "@/constants/branding";
 import { formatCurrency } from "@/lib/currency";
 
-/** Real app nav (collapsed rail) — mirrors `config/navigation` Sales-first set. */
 const NAV = [
   { title: "Dashboard", Icon: LayoutDashboard, active: false },
   { title: "Sales", Icon: ShoppingCart, active: true },
@@ -23,10 +22,6 @@ const NAV = [
   { title: "Products", Icon: Package, active: false },
 ] as const;
 
-/**
- * Demo catalog shaped like live POS tiles (name + sellingPrice).
- * Images omitted → Package placeholder — same empty-image state as SalesView.
- */
 const PRODUCTS = [
   { id: "p1", name: "Panadol Extra 500mg", sellingPrice: 18 },
   { id: "p2", name: "Indomie Chicken (Carton)", sellingPrice: 145 },
@@ -44,14 +39,74 @@ const CART_LINES = [
 
 const CART_TOTAL = CART_LINES.reduce((sum, line) => sum + line.qty * line.unit, 0);
 
-/** Realistic Novend Sales shell — real nav icons, POS empty-image tiles, spaced KPI cards. */
+/** Desktop shell + mobile phone checkout — mirrors real Sales UI density per viewport. */
 export function LandingPosStage() {
   return (
-    <div
-      data-depth-stage
-      className="landing-pos-stage landing-depth-preserve relative mx-auto w-full max-w-[560px]"
-    >
-      <div className="landing-pos-frame relative z-10 overflow-hidden rounded-2xl border border-border bg-background shadow-[0_28px_70px_rgba(15,23,42,0.16)]">
+    <div data-depth-stage className="landing-pos-stage landing-depth-preserve relative mx-auto w-full">
+      <MobilePosMock />
+      <DesktopPosMock />
+    </div>
+  );
+}
+
+/** Phone-width Sales mock — products + sticky cart summary (real mobile POS shape). */
+function MobilePosMock() {
+  return (
+    <div className="landing-shadow-mock border-border bg-background relative z-10 mx-auto w-full max-w-[340px] overflow-hidden rounded-[1.5rem] border md:hidden">
+      <div className="bg-muted/40 flex items-center justify-center gap-1.5 border-b border-border py-2">
+        <span className="bg-foreground/15 h-1 w-10 rounded-full" />
+      </div>
+      <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
+        <p className="text-foreground text-sm font-semibold">Sales</p>
+        <span className="bg-primary/15 text-primary rounded-md px-2 py-0.5 text-[10px] font-semibold">
+          Synced
+        </span>
+      </div>
+      <div className="space-y-3 p-3 pb-24">
+        <div className="border-border bg-muted/50 text-muted-foreground h-9 rounded-md border px-3 text-xs leading-9">
+          Search products…
+        </div>
+        <p className="text-foreground text-xs font-semibold">Quick Products</p>
+        <div className="grid grid-cols-2 gap-2">
+          {PRODUCTS.slice(0, 4).map((product) => (
+            <div
+              key={product.id}
+              className="border-border bg-card rounded-xl border p-2 text-left shadow-sm"
+            >
+              <div className="bg-muted relative mb-2 aspect-square overflow-hidden rounded-lg">
+                <Package className="text-muted-foreground absolute inset-0 m-auto h-7 w-7" />
+              </div>
+              <p className="text-foreground line-clamp-2 text-xs font-medium leading-tight">
+                {product.name}
+              </p>
+              <p className="text-primary mt-1 text-xs font-semibold tabular-nums">
+                {formatCurrency(product.sellingPrice)}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="border-border bg-card absolute inset-x-0 bottom-0 border-t px-3 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-muted-foreground text-[10px]">Current Sale · 3 items</p>
+            <p className="text-primary text-base font-semibold tabular-nums">
+              {formatCurrency(CART_TOTAL)}
+            </p>
+          </div>
+          <span className="bg-primary text-primary-foreground rounded-md px-4 py-2.5 text-xs font-semibold">
+            Pay
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DesktopPosMock() {
+  return (
+    <div className="relative mx-auto hidden w-full max-w-[560px] md:block">
+      <div className="landing-pos-frame landing-shadow-mock relative z-10 overflow-hidden rounded-2xl border border-border bg-background">
         <div className="flex items-center gap-2 border-b border-border bg-card px-3 py-2">
           <span className="h-2 w-2 rounded-full bg-slate-300" />
           <span className="h-2 w-2 rounded-full bg-slate-300" />
@@ -62,7 +117,7 @@ export function LandingPosStage() {
           </span>
         </div>
 
-        <div className="grid grid-cols-[52px_minmax(0,1fr)_minmax(140px,168px)] sm:grid-cols-[60px_minmax(0,1fr)_minmax(156px,180px)]">
+        <div className="grid grid-cols-[60px_minmax(0,1fr)_minmax(156px,180px)]">
           <aside className="bg-sidebar flex flex-col items-center gap-1.5 px-1.5 py-3">
             <div className="relative mb-1.5 h-8 w-8 overflow-hidden rounded-lg">
               <Image src={BRANDING.brandmark} alt="" fill sizes="32px" className="object-contain" />
@@ -98,11 +153,11 @@ export function LandingPosStage() {
               Search products…
             </div>
             <p className="text-foreground text-[10px] font-semibold tracking-tight">Quick Products</p>
-            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+            <div className="grid grid-cols-3 gap-1.5">
               {PRODUCTS.map((product) => (
                 <div
                   key={product.id}
-                  className="border-border hover:border-primary bg-card rounded-xl border p-1.5 text-left shadow-sm transition-colors sm:p-2"
+                  className="border-border hover:border-primary bg-card landing-shadow-chip rounded-xl border p-2 text-left transition-[box-shadow,border-color]"
                 >
                   <div className="bg-muted relative mb-1.5 aspect-[4/3] overflow-hidden rounded-lg">
                     <Package className="text-muted-foreground absolute inset-0 m-auto h-6 w-6" />
@@ -156,9 +211,7 @@ export function LandingPosStage() {
                     </span>
                   </div>
                   <p className={line.scanned ? "text-primary/80" : "text-muted-foreground"}>
-                    {line.scanned
-                      ? "Just scanned"
-                      : `${line.qty} × ${formatCurrency(line.unit)}`}
+                    {line.scanned ? "Just scanned" : `${line.qty} × ${formatCurrency(line.unit)}`}
                   </p>
                 </li>
               ))}
@@ -191,7 +244,7 @@ export function LandingPosStage() {
 
       <div
         data-kpi
-        className="landing-float-kpi border-border bg-card absolute top-2 right-2 z-20 hidden rounded-xl border px-3.5 py-2.5 shadow-md sm:block lg:top-0 lg:right-0 lg:translate-x-[28%] lg:-translate-y-[22%]"
+        className="landing-float-kpi landing-shadow-float border-border bg-card absolute top-0 right-0 z-20 hidden rounded-xl border px-3.5 py-2.5 lg:block lg:translate-x-[28%] lg:-translate-y-[22%]"
       >
         <p className="text-muted-foreground text-[9px]">Today&apos;s sales</p>
         <p className="text-foreground text-sm font-semibold tabular-nums">
@@ -200,7 +253,7 @@ export function LandingPosStage() {
       </div>
       <div
         data-kpi
-        className="landing-float-kpi border-border bg-card absolute bottom-2 left-2 z-20 hidden rounded-xl border px-3.5 py-2.5 shadow-md sm:block lg:bottom-0 lg:left-0 lg:-translate-x-[24%] lg:translate-y-[28%]"
+        className="landing-float-kpi landing-shadow-float border-border bg-card absolute bottom-0 left-0 z-20 hidden rounded-xl border px-3.5 py-2.5 lg:block lg:-translate-x-[24%] lg:translate-y-[28%]"
       >
         <p className="text-muted-foreground text-[9px]">Low stock</p>
         <p className="text-foreground text-sm font-semibold">12 alerts</p>

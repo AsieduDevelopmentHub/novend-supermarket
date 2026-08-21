@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import Image from "next/image";
 import { Mail } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { APP_NAME } from "@/constants/app";
+import { BRANDING } from "@/constants/branding";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
 
@@ -129,7 +131,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
             showError(lockError, "Too many failed sign-in attempts.");
             return;
           }
-          // Rate-limit bookkeeping must never replace the sign-in error (e.g. deploy lag).
         }
         showError(error, "Sign in failed. Check your email and password.");
       }
@@ -167,10 +168,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 
   return (
     <div className="mx-auto w-full max-w-[360px]">
-        <div className={cn(compact ? "mb-6 space-y-1" : "mb-8 space-y-1")}>
-          <h1 className="text-foreground text-2xl font-semibold tracking-tight">Welcome back</h1>
-          <p className="text-muted-foreground text-sm">Business login</p>
-        </div>
+      <FormHeader compact={compact} />
 
       <form className="space-y-4" onSubmit={onSubmit}>
         <div className="space-y-2">
@@ -220,9 +218,30 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         </Button>
       </form>
 
-      <p className="text-muted-foreground mt-8 text-sm leading-relaxed">
+      <p className="text-muted-foreground mt-8 text-center text-xs leading-relaxed">
         Accounts are created by your administrator. Contact them if you need access.
       </p>
+    </div>
+  );
+}
+
+function FormHeader({ compact }: { compact: boolean }) {
+  return (
+    <div className={cn("text-center", compact ? "mb-6 space-y-3" : "mb-8 space-y-4")}>
+      <div className={cn("relative mx-auto", compact ? "h-14 w-14" : "h-16 w-16")}>
+        <Image
+          src={BRANDING.brandmark}
+          alt=""
+          fill
+          priority
+          sizes="64px"
+          className="object-contain"
+        />
+      </div>
+      <div className="space-y-1">
+        <h1 className="text-foreground text-2xl font-semibold tracking-tight">Welcome back</h1>
+        <p className="text-muted-foreground text-sm">{APP_NAME}</p>
+      </div>
     </div>
   );
 }
