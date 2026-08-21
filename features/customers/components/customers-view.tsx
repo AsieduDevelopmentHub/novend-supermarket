@@ -39,6 +39,11 @@ import { Eye, Pencil, Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import {
+  persistBusinessWrite,
+  queuedSaveMessage,
+  queueUpsertCustomer,
+} from "@/lib/offline/replica-writes";
 
 export function CustomersView() {
   const { isAdmin } = usePermissions();
@@ -103,31 +108,40 @@ export function CustomersView() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!online) {
-      toast.error("Customer edits require a connection");
-      return;
-    }
     setPending(true);
     try {
-      if (editingId) {
-        await updateCustomer({
-          id: editingId,
-          name,
-          phone: phone || undefined,
-          email: email || undefined,
-          notes: notes || undefined,
-          status,
-        });
-        toast.success("Customer updated");
-      } else {
-        await createCustomer({
-          name,
-          phone: phone || undefined,
-          email: email || undefined,
-          notes: notes || undefined,
-        });
-        toast.success("Customer created");
-      }
+      const kind = await persistBusinessWrite({
+        online,
+        remote: async () => {
+          if (editingId) {
+            await updateCustomer({
+              id: editingId,
+              name,
+              phone: phone || undefined,
+              email: email || undefined,
+              notes: notes || undefined,
+              status,
+            });
+          } else {
+            await createCustomer({
+              name,
+              phone: phone || undefined,
+              email: email || undefined,
+              notes: notes || undefined,
+            });
+          }
+        },
+        local: () =>
+          queueUpsertCustomer({
+            serverId: editingId ? String(editingId) : undefined,
+            name,
+            phone: phone || undefined,
+            email: email || undefined,
+            notes: notes || undefined,
+            status,
+          }),
+      });
+      toast.success(queuedSaveMessage(kind, editingId ? "Customer updated" : "Customer created"));
       setFormOpen(false);
     } catch (error) {
       showError(error, "Save failed");

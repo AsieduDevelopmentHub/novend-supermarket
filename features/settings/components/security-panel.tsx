@@ -117,8 +117,18 @@ function PasswordForm({ readOnly = false }: { readOnly?: boolean }) {
             />
           </div>
           <Button type="submit" disabled={savingPassword || readOnly}>
-            {readOnly ? "Unavailable offline" : savingPassword ? "Updating…" : "Update password"}
+            {readOnly
+              ? "Needs a connection"
+              : savingPassword
+                ? "Updating…"
+                : "Update password"}
           </Button>
+          {readOnly ? (
+            <p className="text-muted-foreground text-sm">
+              Password changes are stored securely in the cloud, so they need an internet
+              connection. Everything else in Novend still works on this device.
+            </p>
+          ) : null}
         </form>
       </CardContent>
     </Card>

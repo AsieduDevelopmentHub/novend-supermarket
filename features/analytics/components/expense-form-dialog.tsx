@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import {
@@ -17,9 +17,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { useBranchesList } from "@/hooks/use-offline-lists";
 import { EXPENSE_CATEGORY_OPTIONS, type ExpenseCategory } from "../constants";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import {
+  persistBusinessWrite,
+  queuedSaveMessage,
+  queueCreateExpense,
+} from "@/lib/offline/replica-writes";
 
 export type ExpenseRow = {
   id: Id<"expenses">;
@@ -73,7 +80,8 @@ function ExpenseFormFields({
   onOpenChange: (open: boolean) => void;
 }) {
   const { isManager, branchId: myBranchId } = usePermissions();
-  const branches = useQuery(api.branches.list, {});
+  const online = useConnectivity();
+  const branches = useBranchesList(false);
   const createExpense = useMutation(api.analytics.createExpense);
   const updateExpense = useMutation(api.analytics.updateExpense);
   const isEdit = Boolean(expense);
@@ -111,15 +119,29 @@ function ExpenseFormFields({
         category,
         occurredAt: fromDateInput(occurredOn),
         description: description.trim() || undefined,
-        branchId: resolvedBranchId,
+        branchId: resolvedBranchId as Id<"branches">,
       };
-      if (isEdit && expense) {
-        await updateExpense({ id: expense.id, ...payload });
-        toast.success("Expense updated");
-      } else {
-        await createExpense(payload);
-        toast.success("Expense recorded");
-      }
+      const kind = await persistBusinessWrite({
+        online,
+        remote: async () => {
+          if (isEdit && expense) {
+            await updateExpense({ id: expense.id, ...payload });
+          } else {
+            await createExpense(payload);
+          }
+        },
+        local: () =>
+          queueCreateExpense({
+            amount: payload.amount,
+            category: payload.category,
+            occurredAt: payload.occurredAt,
+            description: payload.description,
+            branchId: payload.branchId,
+          }),
+      });
+      toast.success(
+        queuedSaveMessage(kind, isEdit && expense ? "Expense updated" : "Expense recorded"),
+      );
       onOpenChange(false);
     } catch (error) {
       showError(error, "Could not save expense");

@@ -69,3 +69,12 @@ pnpm desktop:publish-convex
 ```
 
 Requires `CONVEX_SITE_URL`, `DESKTOP_RELEASE_PUBLISH_SECRET`, `GH_TOKEN`, and `RELEASE_TAG`.
+
+## GitHub Release title and notes
+
+electron-builder often creates the GitHub Release with a bare version title and an empty body. After installer assets land, `scripts/sync-github-release-notes.mjs` rewrites:
+
+- **Title:** `Novend POS vX.Y.Z`
+- **Body:** the matching `CHANGELOG.md` section
+
+Add a `## vX.Y.Z` (or `## X.Y.Z`) heading before tagging. The desktop workflow fails the notes step if that section is missing.

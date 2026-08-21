@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
@@ -34,14 +34,32 @@ import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { formatDateTime } from "@/lib/date";
 import { showError } from "@/lib/errors";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { useBranchesList } from "@/hooks/use-offline-lists";
+import { listMirroredUsers } from "@/lib/offline/mirror-queries";
 import type { AppRole } from "@/config/navigation";
 import { ArrowLeft, KeyRound, Pencil, UserX, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
   const { canManageUsers, isAdmin, isManager, branchId: myBranchId } = usePermissions();
-  const user = useQuery(api.users.get, canManageUsers ? { id: profileId } : "skip");
-  const branches = useQuery(api.branches.list, canManageUsers ? {} : "skip");
+  const online = useConnectivity();
+  const remote = useQuery(api.users.get, canManageUsers && online ? { id: profileId } : "skip");
+  const branches = useBranchesList(false);
+  const [localUser, setLocalUser] = useState<(Awaited<ReturnType<typeof listMirroredUsers>>[number]) | null | undefined>(
+    undefined,
+  );
+  useEffect(() => {
+    let cancelled = false;
+    void listMirroredUsers().then((rows) => {
+      if (cancelled) return;
+      setLocalUser(rows.find((row) => row.id === profileId) ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId]);
+  const user = remote ?? localUser;
   const updateProfile = useMutation(api.users.updateProfile);
   const resetUserPassword = useAction(api.users.resetUserPassword);
 
@@ -86,10 +104,10 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
 
   function openEdit() {
     setName(profile.name);
-    setRole(isManager ? "cashier" : profile.role);
-    setBranchId(profile.branchId ?? myBranchId ?? "");
+    setRole(isManager ? "cashier" : (profile.role as AppRole));
+    setBranchId((profile.branchId ?? myBranchId ?? "") as Id<"branches"> | "");
     setPhone(profile.phone ?? "");
-    setStatus(profile.status);
+    setStatus((profile.status === "inactive" ? "inactive" : "active") as "active" | "inactive");
     setEditOpen(true);
   }
 
@@ -105,7 +123,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
         id: profileId,
         name,
         role: isManager ? "cashier" : role,
-        branchId: formBranchId,
+        branchId: formBranchId as Id<"branches">,
         phone: phone || undefined,
         status,
       });
@@ -129,8 +147,8 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
       await updateProfile({
         id: profileId,
         name: profile.name,
-        role: profile.role,
-        branchId: profile.branchId,
+        role: profile.role as AppRole,
+        branchId: profile.branchId as Id<"branches">,
         phone: profile.phone ?? undefined,
         status: nextStatus,
       });

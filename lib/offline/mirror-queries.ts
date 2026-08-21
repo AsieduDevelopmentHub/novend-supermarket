@@ -260,3 +260,212 @@ export async function listLocalOrders(filters: LocalOrderFilters = {}) {
 
   return rows.sort((a, b) => b.completedAt - a.completedAt);
 }
+
+export async function listMirroredSuppliers(options?: {
+  search?: string;
+  includeInactive?: boolean;
+}) {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  let rows = await db.suppliers.toArray();
+  if (!options?.includeInactive) {
+    rows = rows.filter((row) => row.status === "active");
+  }
+  if (options?.search?.trim()) {
+    const q = options.search.trim().toLowerCase();
+    rows = rows.filter(
+      (row) =>
+        row.name.toLowerCase().includes(q) ||
+        (row.contactName?.toLowerCase().includes(q) ?? false) ||
+        (row.phone?.includes(q) ?? false),
+    );
+  }
+  return rows.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getMirroredSupplier(id: string) {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  const supplier = await db.suppliers.get(id);
+  if (!supplier) return null;
+  const purchases = (await db.wholesalePurchases.where("supplierId").equals(id).toArray()).sort(
+    (a, b) => b.purchasedAt - a.purchasedAt,
+  );
+  return {
+    ...supplier,
+    purchaseCount: purchases.length,
+    purchaseTotal: purchases.reduce((sum, row) => sum + row.totalCost, 0),
+    purchases: purchases.slice(0, 50).map((p) => ({
+      id: p.id,
+      reference: p.reference,
+      invoiceNumber: p.invoiceNumber,
+      purchasedAt: p.purchasedAt,
+      itemCount: p.itemCount,
+      totalCost: p.totalCost,
+    })),
+  };
+}
+
+export async function listMirroredWholesaleStock(search?: string) {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  let rows = await db.wholesaleStock.toArray();
+  if (search?.trim()) {
+    const q = search.trim().toLowerCase();
+    rows = rows.filter((row) => row.name.toLowerCase().includes(q) || row.sku.toLowerCase().includes(q));
+  }
+  return rows
+    .map((row) => ({ ...row, value: row.quantity * row.costPrice }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function wholesaleSummaryFromMirror() {
+  const rows = await listMirroredWholesaleStock();
+  return {
+    units: rows.reduce((sum, row) => sum + row.quantity, 0),
+    value: rows.reduce((sum, row) => sum + row.value, 0),
+    skuCount: rows.filter((row) => row.quantity > 0).length,
+  };
+}
+
+export async function listMirroredWholesalePurchases() {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  return (await db.wholesalePurchases.toArray()).sort((a, b) => b.purchasedAt - a.purchasedAt);
+}
+
+export async function listMirroredWholesaleTransfers() {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  return (await db.wholesaleTransfers.toArray()).sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export async function listMirroredBranches(includeInactive = false) {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  let rows = await db.branches.toArray();
+  if (!includeInactive) rows = rows.filter((row) => row.status === "active");
+  return rows.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getMirroredBranch(id: string) {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  return (await db.branches.get(id)) ?? null;
+}
+
+export async function listMirroredUsers(search?: string) {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  let rows = await db.users.toArray();
+  if (search?.trim()) {
+    const q = search.trim().toLowerCase();
+    rows = rows.filter(
+      (row) =>
+        row.name.toLowerCase().includes(q) ||
+        (row.email?.toLowerCase().includes(q) ?? false) ||
+        (row.phone?.includes(q) ?? false),
+    );
+  }
+  return rows.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function listMirroredExpenses(range?: { startDate: number; endDate: number }) {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  let rows = await db.expenses.toArray();
+  if (range) {
+    rows = rows.filter((row) => row.occurredAt >= range.startDate && row.occurredAt <= range.endDate);
+  }
+  return rows.sort((a, b) => b.occurredAt - a.occurredAt);
+}
+
+export async function listMirroredReturns(options?: { search?: string; kind?: string; branchId?: string }) {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  const mirrored = await db.returns.toArray();
+  const local = await db.localReturns.toArray();
+  let rows = [
+    ...mirrored.map((row) => ({
+      id: row.id,
+      returnNumber: row.returnNumber,
+      saleId: row.saleId,
+      invoiceNumber: row.invoiceNumber,
+      refundAmount: row.refundAmount,
+      itemCount: row.itemCount,
+      kind: row.kind,
+      completedAt: row.completedAt,
+      branchId: row.branchId,
+      branchName: row.branchName,
+      customerName: row.customerName ?? "—",
+      cashierName: row.cashierName ?? "—",
+      reason: row.reason ?? "",
+      status: row.status ?? "completed",
+    })),
+    ...local
+      .filter((row) => row.syncStatus !== "synced")
+      .map((row) => ({
+        id: row.id,
+        returnNumber: row.returnNumber,
+        saleId: row.saleId,
+        invoiceNumber: null as string | null,
+        refundAmount: row.refundAmount,
+        itemCount: row.itemCount,
+        kind: "partial",
+        completedAt: row.completedAt,
+        branchId: null as string | null,
+        branchName: null as string | null,
+        customerName: "—",
+        cashierName: "—",
+        reason: row.reason,
+        status: row.syncStatus,
+      })),
+  ];
+  if (options?.kind && options.kind !== "all") {
+    rows = rows.filter((row) => row.kind === options.kind);
+  }
+  if (options?.branchId) {
+    rows = rows.filter((row) => row.branchId === options.branchId);
+  }
+  if (options?.search?.trim()) {
+    const q = options.search.trim().toLowerCase();
+    rows = rows.filter(
+      (row) =>
+        row.returnNumber.toLowerCase().includes(q) ||
+        (row.invoiceNumber?.toLowerCase().includes(q) ?? false),
+    );
+  }
+  return rows.sort((a, b) => b.completedAt - a.completedAt);
+}
+
+export async function getMirroredCustomerDetail(id: string) {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  const customer = await db.customers.get(id);
+  if (!customer) return null;
+  const orders = (await db.orders.where("customerId").equals(id).toArray()).sort(
+    (a, b) => b.completedAt - a.completedAt,
+  );
+  return { customer, orders };
+}
+
+export async function getMirroredReturn(id: string) {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  const mirrored = await db.returns.get(id);
+  if (mirrored) return mirrored;
+  const local = await db.localReturns.get(id);
+  if (!local) return null;
+  return {
+    id: local.id,
+    returnNumber: local.returnNumber,
+    saleId: local.saleId,
+    invoiceNumber: null,
+    refundAmount: local.refundAmount,
+    itemCount: local.itemCount,
+    kind: "partial",
+    completedAt: local.completedAt,
+    branchId: null,
+    branchName: null,
+  };
+}

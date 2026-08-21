@@ -1,80 +1,86 @@
 # Offline Sync
 
-Version: 1.0.0
+Version: 2.0.0
 
 ## Purpose
 
-Keep the POS usable without a network for **sales checkout** and catalog/customer
-reads, while Convex remains the authoritative source of truth.
+Keep every operational Novend screen usable without a network. Dexie is the
+**operational replica** the UI reads and writes. Convex remains the
+**committed cloud replica**: it authenticates, authorizes, validates, and
+stores canonical state when a device is online.
 
-**This is local-first UX, not a local source of truth.**
-
-## Scope (this slice)
-
-**Offline:**
-
-- Browse mirrored products, inventory, customers, recent orders
-- Navigate the app shell without RSC blank screens
-- Complete sales (optimistic local receipt + stock decrement)
-- Hold / resume carts on the current device
-- Sync `complete_sale` when connectivity returns
-- Dashboard from last snapshot or local sales
-
-**Online-only:**
-
-- First login / signup / onboarding
-- Product, inventory, customer, user, settings writes
-- Password changes and image uploads
-
-## Components
-
-| Area | Location |
-|------|----------|
-| Dexie DB | `lib/offline/db.ts` (`novend-offline-${organizationId}`) |
-| Snapshot pull | `lib/offline/snapshot.ts`, `convex/offline.getSnapshot` |
-| Outbox | `lib/offline/outbox.ts` |
-| Sync drain | `lib/offline/sync-engine.ts` |
-| Provider | `providers/offline-provider.tsx` |
+This is local-first operations, not a second source of truth. Negative
+inventory and immutable completed sales are still enforced when the outbox
+drains to Convex.
 
 ## Data flow
 
-1. While online, pull a branch-scoped catalog snapshot into IndexedDB.
-2. Checkout writes a local sale + outbox row (`clientOperationId`), then prints
-   a provisional invoice (`OFF-…`).
-3. Sync calls Convex `sales.completeSale` with the same `clientOperationId`.
-4. Server enforces org, branch, sellable stock, and records `saleClientOps`.
-5. On success, local invoice is replaced with the server `INV-…` receipt.
-6. On insufficient stock, the outbox row is `failed`, local stock is restored.
+```text
+UI
+↓
+Repository / Dexie replica
+↓
+Sync outbox
+↓
+Convex (when online)
+```
 
-## Background auto-sync
+1. While online, `offline.getSnapshot` pulls a branch-scoped replica into IndexedDB
+   (catalog, customers, orders, suppliers, wholesale, branches, users, expenses,
+   returns, product photos).
+2. Screens always render from Dexie when the replica is warm. Live Convex is
+   used as a freshness shortcut, never as a gate to open the page.
+3. Writes apply locally, then enqueue an outbox event (`upsert_supplier`,
+   `record_wholesale_purchase`, `complete_sale`, …).
+4. `OfflineProvider` drains the outbox when the network returns. Server
+   validation wins; failed business conflicts stay on the device for the cashier
+   to retry or discard.
 
-While online, `OfflineProvider` runs a lightweight poll (`OUTBOX_POLL_MS`, 15s):
+## Startup
 
-| Trigger | Behavior |
-|---------|----------|
-| Pending/syncing outbox ≥ `AUTO_SYNC_PENDING_THRESHOLD` (3) | Drain outbox immediately |
-| Failed outbox rows | Drain / retry |
-| Last snapshot older than `AUTO_SYNC_INTERVAL_MS` (2 min) | Force snapshot pull + drain outbox |
-| Browser `online` event | Force snapshot + drain |
-| Window focus with pending ≥ threshold | Drain outbox |
+Network checks never block rendering.
 
-Sales catalog uses **live Convex while online** so product creates appear without
-waiting for the next snapshot. Offline sales still read Dexie.
+```text
+Load Dexie
+↓
+Restore session
+↓
+Render from local modules
+↓
+Check connectivity in the background
+↓
+Pull snapshot + drain outbox
+```
+
+## What still needs a connection
+
+These cannot complete locally without weakening security or talking to a
+payment network:
+
+- First login, signup, and onboarding
+- Creating a new login (password is stored by Convex Auth)
+- Changing a password
+- Paystack checkout and live billing mutations
+- Cloud backup upload/download
+- Desktop auto-update download
+
+Name, phone, catalog, inventory, wholesale, suppliers, customers, expenses,
+sales, returns, reports, and analytics all continue on the device.
 
 ## Conflict policy
 
-Queue order + **server validation**. Negative inventory is never accepted.
-Cashiers resolve failed syncs (retry or discard).
+Queue order + server validation. Inventory cannot become negative on Convex.
+Cashiers resolve failed syncs (retry or discard). Local `local_*` ids are
+remapped after creates succeed.
 
 ## Offline navigation
 
 Next.js App Router RSC fetches fail offline. While offline, in-app navigation
 uses `history.pushState` and a client outlet so the authenticated layout stays
-mounted. The service worker caches document shells and static chunks; RSC
-failures return plain text, never HTML.
+mounted.
 
 ## Desktop
 
-Electron first-run must load **https://novend-pos.vercel.app** so the service worker
-and Dexie initialize in `persist:novend`. Later launches client-navigate from a
-local boot page so Chromium can use the cache while offline. See `DESKTOP_PLATFORM.md`.
+Electron first-run must load the hosted app so the service worker and Dexie
+initialize. Later launches client-navigate from a local boot page. See
+`DESKTOP_PLATFORM.md`.

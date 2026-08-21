@@ -14,10 +14,22 @@ import {
   markOutboxSynced,
   parseCompleteSalePayload,
   parseProcessReturnPayload,
+  replaceIdInPendingOutbox,
 } from "./outbox";
 import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
 import { markLocalReturnFailed, markLocalReturnSynced } from "./returns-repository";
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
+import type {
+  AdjustStockPayload,
+  CreateExpensePayload,
+  RecordWholesalePurchasePayload,
+  RemoveExpensePayload,
+  TransferStockPayload,
+  UpdateProfilePayload,
+  UpsertCustomerPayload,
+  UpsertSupplierPayload,
+  WholesaleTransferPayload,
+} from "./types";
 
 export type CompleteSaleMutator = (args: {
   customerId?: Id<"customers">;
@@ -59,6 +71,7 @@ let drainCycles = 0;
 function isBusinessConflict(message: string) {
   const m = message.toLowerCase();
   return (
+    m.includes("insufficient wholesale") ||
     m.includes("insufficient stock") ||
     m.includes("product unavailable") ||
     m.includes("customer not found") ||
@@ -76,10 +89,57 @@ function nextBackoffMs(attempts: number) {
   return Math.min(MAX_BACKOFF_MS, exp + jitter);
 }
 
-/** Drain pending outbox ops to Convex. Safe to call frequently. */
-export async function drainOutbox(options: {
+export type QueuedMutators = {
   completeSale: CompleteSaleMutator;
   processReturn: ProcessReturnMutator;
+  createSupplier: (args: {
+    name: string;
+    contactName?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    notes?: string;
+  }) => Promise<Id<"suppliers">>;
+  updateSupplier: (args: {
+    id: Id<"suppliers">;
+    name: string;
+    contactName?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    notes?: string;
+    status: "active" | "inactive";
+  }) => Promise<Id<"suppliers">>;
+  recordPurchase: (args: RecordWholesalePurchasePayload) => Promise<unknown>;
+  transferToBranch: (args: {
+    productId: Id<"products">;
+    branchId: Id<"branches">;
+    quantity: number;
+  }) => Promise<unknown>;
+  adjustStock: (args: AdjustStockPayload) => Promise<unknown>;
+  transferStock: (args: TransferStockPayload) => Promise<unknown>;
+  createCustomer: (args: {
+    name: string;
+    phone?: string;
+    email?: string;
+    notes?: string;
+  }) => Promise<Id<"customers">>;
+  updateCustomer: (args: {
+    id: Id<"customers">;
+    name: string;
+    phone?: string;
+    email?: string;
+    notes?: string;
+    status: "active" | "inactive";
+  }) => Promise<unknown>;
+  createExpense: (args: CreateExpensePayload) => Promise<unknown>;
+  removeExpense: (args: { id: Id<"expenses"> }) => Promise<unknown>;
+  updateOwnProfile: (args: UpdateProfilePayload & { name: string }) => Promise<unknown>;
+};
+
+/** Drain pending outbox ops to Convex. Safe to call frequently. */
+export async function drainOutbox(options: {
+  mutators: QueuedMutators;
   convex: SnapshotSource;
 }): Promise<{ processed: number; failed: number }> {
   if (draining) return { processed: 0, failed: 0 };
@@ -118,7 +178,7 @@ export async function drainOutbox(options: {
       try {
         if (claimed.type === "complete_sale") {
           const payload = parseCompleteSalePayload(claimed);
-          const result = await options.completeSale({
+          const result = await options.mutators.completeSale({
             customerId: payload.customerId as Id<"customers"> | undefined,
             customerName: payload.customerName,
             items: payload.items.map((i) => ({
@@ -141,7 +201,7 @@ export async function drainOutbox(options: {
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "process_return") {
           const payload = parseProcessReturnPayload(claimed);
-          const result = await options.processReturn({
+          const result = await options.mutators.processReturn({
             saleId: payload.saleId as Id<"sales">,
             items: payload.items.map((item) => ({
               saleItemId: item.saleItemId as Id<"saleItems">,
@@ -159,6 +219,110 @@ export async function drainOutbox(options: {
           });
           processed += 1;
           consecutiveTransientFailures = 0;
+        } else if (claimed.type === "upsert_supplier") {
+          const payload = JSON.parse(claimed.payloadJson) as UpsertSupplierPayload;
+          if (payload.serverId && !payload.serverId.startsWith("local_")) {
+            await options.mutators.updateSupplier({
+              id: payload.serverId as Id<"suppliers">,
+              name: payload.name,
+              contactName: payload.contactName,
+              phone: payload.phone,
+              email: payload.email,
+              address: payload.address,
+              notes: payload.notes,
+              status: payload.status ?? "active",
+            });
+          } else {
+            const id = await options.mutators.createSupplier({
+              name: payload.name,
+              contactName: payload.contactName,
+              phone: payload.phone,
+              email: payload.email,
+              address: payload.address,
+              notes: payload.notes,
+            });
+            await replaceIdInPendingOutbox(db, payload.localId, id);
+          }
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "record_wholesale_purchase") {
+          const payload = JSON.parse(claimed.payloadJson) as RecordWholesalePurchasePayload;
+          await options.mutators.recordPurchase({
+            ...payload,
+            supplierId: payload.supplierId,
+          });
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "wholesale_transfer") {
+          const payload = JSON.parse(claimed.payloadJson) as WholesaleTransferPayload;
+          await options.mutators.transferToBranch({
+            productId: payload.productId as Id<"products">,
+            branchId: payload.branchId as Id<"branches">,
+            quantity: payload.quantity,
+          });
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "adjust_stock") {
+          const payload = JSON.parse(claimed.payloadJson) as AdjustStockPayload;
+          await options.mutators.adjustStock(payload);
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "transfer_stock") {
+          const payload = JSON.parse(claimed.payloadJson) as TransferStockPayload;
+          await options.mutators.transferStock(payload);
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "upsert_customer") {
+          const payload = JSON.parse(claimed.payloadJson) as UpsertCustomerPayload;
+          if (payload.serverId && !payload.serverId.startsWith("local_")) {
+            await options.mutators.updateCustomer({
+              id: payload.serverId as Id<"customers">,
+              name: payload.name,
+              phone: payload.phone,
+              email: payload.email,
+              notes: payload.notes,
+              status: payload.status ?? "active",
+            });
+          } else {
+            const id = await options.mutators.createCustomer({
+              name: payload.name,
+              phone: payload.phone,
+              email: payload.email,
+              notes: payload.notes,
+            });
+            await replaceIdInPendingOutbox(db, payload.localId, id);
+          }
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "create_expense") {
+          const payload = JSON.parse(claimed.payloadJson) as CreateExpensePayload;
+          await options.mutators.createExpense(payload);
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "remove_expense") {
+          const payload = JSON.parse(claimed.payloadJson) as RemoveExpensePayload;
+          if (!payload.expenseId.startsWith("local_")) {
+            await options.mutators.removeExpense({ id: payload.expenseId as Id<"expenses"> });
+          }
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "update_profile") {
+          const payload = JSON.parse(claimed.payloadJson) as UpdateProfilePayload;
+          await options.mutators.updateOwnProfile({
+            name: payload.name ?? "User",
+            phone: payload.phone,
+          });
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
         }
       } catch (error) {
         const raw = error instanceof Error ? error.message : "Sync failed";
@@ -169,10 +333,12 @@ export async function drainOutbox(options: {
             const payload = parseProcessReturnPayload(claimed);
             await markOutboxFailed(db, claimed.id, message);
             await markLocalReturnFailed(payload.localReturnId, message);
-          } else {
+          } else if (claimed.type === "complete_sale") {
             const payload = parseCompleteSalePayload(claimed);
             await markOutboxFailed(db, claimed.id, message);
             await markLocalSaleFailed(payload.localSaleId, message);
+          } else {
+            await markOutboxFailed(db, claimed.id, message);
           }
           failed += 1;
         } else {

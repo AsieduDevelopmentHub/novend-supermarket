@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -22,7 +22,13 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { OfflineAdminShell } from "@/components/offline/offline-admin-shell";
+import { useSuppliersList } from "@/hooks/use-offline-lists";
+import { getMirroredSupplier } from "@/lib/offline/mirror-queries";
+import {
+  persistBusinessWrite,
+  queuedSaveMessage,
+  queueUpsertSupplier,
+} from "@/lib/offline/replica-writes";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { toast } from "sonner";
@@ -33,10 +39,7 @@ export function SuppliersView() {
   const { canManageProducts } = usePermissions();
   const online = useConnectivity();
   const [search, setSearch] = useState("");
-  const suppliers = useQuery(
-    api.suppliers.list,
-    online && canManageProducts ? { search, includeInactive: true } : "skip",
-  );
+  const { suppliers, loading } = useSuppliersList({ search, includeInactive: true });
   const createSupplier = useMutation(api.suppliers.create);
   const updateSupplier = useMutation(api.suppliers.update);
   const [open, setOpen] = useState(false);
@@ -49,23 +52,29 @@ export function SuppliersView() {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [pending, setPending] = useState(false);
-  const [selectedId, setSelectedId] = useState<Id<"suppliers"> | null>(null);
-  const detail = useQuery(
+  const [selectedId, setSelectedId] = useState<Id<"suppliers"> | string | null>(null);
+  const remoteDetail = useQuery(
     api.suppliers.get,
-    online && selectedId ? { id: selectedId } : "skip",
+    online && selectedId && !String(selectedId).startsWith("local_")
+      ? { id: selectedId as Id<"suppliers"> }
+      : "skip",
   );
+  const [localDetail, setLocalDetail] = useState<Awaited<ReturnType<typeof getMirroredSupplier>>>(null);
+  useEffect(() => {
+    if (!selectedId) return;
+    let cancelled = false;
+    void getMirroredSupplier(String(selectedId)).then((row) => {
+      if (!cancelled) setLocalDetail(row);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
+  const detail = selectedId ? (remoteDetail ?? localDetail) : null;
 
   if (!canManageProducts) {
     return (
       <EmptyState title="Access required" description="Supplier records are for managers and administrators." />
-    );
-  }
-  if (!online) {
-    return (
-      <OfflineAdminShell
-        title="Suppliers"
-        description="Supplier records require a live connection."
-      />
     );
   }
 
@@ -84,29 +93,38 @@ export function SuppliersView() {
     event.preventDefault();
     setPending(true);
     try {
-      if (editingId) {
-        await updateSupplier({
-          id: editingId,
-          name,
-          contactName: contactName || undefined,
-          phone: phone || undefined,
-          email: email || undefined,
-          address: address || undefined,
-          notes: notes || undefined,
-          status,
-        });
-        toast.success("Supplier updated");
-      } else {
-        await createSupplier({
-          name,
-          contactName: contactName || undefined,
-          phone: phone || undefined,
-          email: email || undefined,
-          address: address || undefined,
-          notes: notes || undefined,
-        });
-        toast.success("Supplier added");
-      }
+      const fields = {
+        name,
+        contactName: contactName || undefined,
+        phone: phone || undefined,
+        email: email || undefined,
+        address: address || undefined,
+        notes: notes || undefined,
+        status,
+      };
+      const kind = await persistBusinessWrite({
+        online,
+        remote: async () => {
+          if (editingId) {
+            await updateSupplier({ id: editingId, ...fields });
+          } else {
+            await createSupplier({
+              name: fields.name,
+              contactName: fields.contactName,
+              phone: fields.phone,
+              email: fields.email,
+              address: fields.address,
+              notes: fields.notes,
+            });
+          }
+        },
+        local: () =>
+          queueUpsertSupplier({
+            serverId: editingId ? String(editingId) : undefined,
+            ...fields,
+          }),
+      });
+      toast.success(queuedSaveMessage(kind, editingId ? "Supplier updated" : "Supplier added"));
       setOpen(false);
       reset();
     } catch (error) {
@@ -143,7 +161,7 @@ export function SuppliersView() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
         <Card>
           <CardContent className="overflow-x-auto p-0">
-            {suppliers === undefined ? (
+            {loading ? (
               <div className="p-6">
                 <LoadingState label="Loading suppliers…" />
               </div>
@@ -165,9 +183,9 @@ export function SuppliersView() {
                 <tbody>
                   {suppliers.map((row) => (
                     <tr
-                      key={row._id}
+                      key={row.id}
                       className="border-border hover:bg-muted/40 cursor-pointer border-t"
-                      onClick={() => setSelectedId(row._id)}
+                      onClick={() => setSelectedId(row.id as Id<"suppliers">)}
                     >
                       <td className="px-4 py-3 font-medium">{row.name}</td>
                       <td className="px-4 py-3">{row.contactName ?? "—"}</td>
@@ -184,7 +202,7 @@ export function SuppliersView() {
                           variant="ghost"
                           onClick={(event) => {
                             event.stopPropagation();
-                            setEditingId(row._id);
+                            setEditingId(row.id as Id<"suppliers">);
                             setName(row.name);
                             setContactName(row.contactName ?? "");
                             setPhone(row.phone ?? "");

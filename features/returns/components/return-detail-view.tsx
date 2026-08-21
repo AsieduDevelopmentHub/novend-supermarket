@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
@@ -17,24 +17,51 @@ import { ReceiptPreviewDialog } from "@/features/receipts/components/receipt-pre
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { ArrowLeft, Printer } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { OfflineAdminShell } from "@/components/offline/offline-admin-shell";
+import { getMirroredReturn } from "@/lib/offline/mirror-queries";
 
 export function ReturnDetailView({ returnId }: { returnId: string }) {
   const online = useConnectivity();
   const [previewOpen, setPreviewOpen] = useState(false);
-  const record = useQuery(
+  const remote = useQuery(
     api.returns.get,
-    online ? { id: returnId as Id<"saleReturns"> } : "skip",
+    online && !returnId.startsWith("local_") ? { id: returnId as Id<"saleReturns"> } : "skip",
   );
-
-  if (!online) {
-    return (
-      <OfflineAdminShell
-        title="Return details"
-        description="Reconnect to open the full return record and reprint the refund receipt."
-      />
-    );
-  }
+  const [local, setLocal] = useState<Awaited<ReturnType<typeof getMirroredReturn>> | undefined>(
+    undefined,
+  );
+  useEffect(() => {
+    let cancelled = false;
+    void getMirroredReturn(returnId).then((row) => {
+      if (!cancelled) setLocal(row);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [returnId]);
+  const record =
+    remote ??
+    (local
+      ? {
+          ...local,
+          items: [] as Array<{
+            id: string;
+            productName: string;
+            quantity: number;
+            unitPrice: number;
+            lineRefund: number;
+          }>,
+          reason: "",
+          notes: null,
+          invoiceNumber: local.invoiceNumber,
+          customerName: local.customerName ?? "Customer",
+          cashierName: local.cashierName ?? "Cashier",
+          status: local.status ?? "completed",
+          receiptPayload: null,
+          refundMethod: "cash" as const,
+        }
+      : remote === undefined && local === undefined
+        ? undefined
+        : null);
 
   if (record === undefined) {
     return <LoadingState label="Loading return…" />;

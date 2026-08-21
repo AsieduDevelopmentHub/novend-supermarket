@@ -1,5 +1,10 @@
 import { getOfflineDb, type PrincellenOfflineDb } from "./db";
-import type { CompleteSaleOutboxPayload, ProcessReturnOutboxPayload, OutboxRow } from "./types";
+import type {
+  CompleteSaleOutboxPayload,
+  ProcessReturnOutboxPayload,
+  OutboxOpType,
+  OutboxRow,
+} from "./types";
 import { newClientId } from "./db";
 
 export async function enqueueCompleteSale(
@@ -101,6 +106,44 @@ export async function markOutboxPending(db: PrincellenOfflineDb, id: string, err
     lastError: error,
     updatedAt: Date.now(),
   });
+}
+
+export async function enqueueOutbox(
+  db: PrincellenOfflineDb,
+  type: OutboxOpType,
+  payload: unknown,
+  clientOperationId = newClientId("op"),
+): Promise<OutboxRow> {
+  const now = Date.now();
+  const row: OutboxRow = {
+    id: newClientId("outbox"),
+    type,
+    clientOperationId,
+    payloadJson: JSON.stringify(payload),
+    status: "pending",
+    attempts: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.outbox.put(row);
+  return row;
+}
+
+export async function replaceIdInPendingOutbox(
+  db: PrincellenOfflineDb,
+  fromId: string,
+  toId: string,
+) {
+  if (!fromId || fromId === toId) return;
+  const pending = await listPendingOutbox(db);
+  for (const row of pending) {
+    if (!row.payloadJson.includes(fromId)) continue;
+    await db.outbox.put({
+      ...row,
+      payloadJson: row.payloadJson.split(fromId).join(toId),
+      updatedAt: Date.now(),
+    });
+  }
 }
 
 export async function countOutboxByStatus() {

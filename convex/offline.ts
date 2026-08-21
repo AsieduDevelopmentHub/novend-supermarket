@@ -25,22 +25,38 @@ export const getSnapshot = query({
     }
     const now = Date.now();
 
-    const [categories, activeProducts, activeCustomers, stockByProduct, summaries, branches, profiles] =
-      await Promise.all([
-        ctx.db.query("categories").collect(),
-        ctx.db
-          .query("products")
-          .withIndex("by_status", (q) => q.eq("status", "active"))
-          .collect(),
-        ctx.db
-          .query("customers")
-          .withIndex("by_status", (q) => q.eq("status", "active"))
-          .collect(),
-        stockMapForBranch(ctx, branchId),
-        lotSummaries(ctx, branchId),
-        ctx.db.query("branches").collect(),
-        ctx.db.query("profiles").collect(),
-      ]);
+    const [
+      categories,
+      activeProducts,
+      activeCustomers,
+      stockByProduct,
+      summaries,
+      branches,
+      profiles,
+    ] = await Promise.all([
+      ctx.db
+        .query("categories")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect(),
+      ctx.db
+        .query("products")
+        .withIndex("by_status", (q) => q.eq("status", "active"))
+        .collect(),
+      ctx.db
+        .query("customers")
+        .withIndex("by_status", (q) => q.eq("status", "active"))
+        .collect(),
+      stockMapForBranch(ctx, branchId),
+      lotSummaries(ctx, branchId),
+      ctx.db
+        .query("branches")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect(),
+      ctx.db
+        .query("profiles")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect(),
+    ]);
 
     const categoryMap = new Map(categories.map((c) => [c._id, c.name]));
     const showCost = canViewCostPrice(profile);
@@ -183,6 +199,219 @@ export const getSnapshot = query({
     const print = await loadPrintSnapshot(ctx, profile.organizationId, branchId);
     const { business, template } = print;
     const branch = await ctx.db.get(branchId);
+    const canManage = profile.role === "administrator" || profile.role === "manager";
+
+    let suppliers: Array<{
+      id: string;
+      name: string;
+      contactName: string | null;
+      phone: string | null;
+      email: string | null;
+      address: string | null;
+      notes: string | null;
+      status: "active" | "inactive";
+      createdAt: number;
+    }> = [];
+    let wholesaleStock: Array<{
+      id: string;
+      productId: string;
+      name: string;
+      sku: string;
+      unit: string;
+      costPrice: number;
+      quantity: number;
+      tracksExpiry: boolean;
+    }> = [];
+    let wholesalePurchases: Array<{
+      id: string;
+      reference: string;
+      invoiceNumber: string | null;
+      supplierId: string;
+      supplierName: string;
+      purchasedAt: number;
+      itemCount: number;
+      totalCost: number;
+      notes: string | null;
+      status: string;
+    }> = [];
+    let wholesaleTransfers: Array<{
+      id: string;
+      productName: string;
+      branchName: string;
+      quantity: number;
+      note: string | null;
+      createdAt: number;
+    }> = [];
+    let staff: Array<{
+      id: string;
+      userId: string;
+      name: string;
+      role: string;
+      branch: string;
+      branchId: string | null;
+      phone: string | null;
+      status: string;
+      email: string | null;
+      imageUrl: string | null;
+    }> = [];
+    let expenses: Array<{
+      id: string;
+      amount: number;
+      category: string;
+      occurredAt: number;
+      description: string | null;
+      recordedByName: string;
+      branchId: string | null;
+      branchName: string | null;
+    }> = [];
+
+    if (canManage) {
+      const [
+        supplierRows,
+        wholesaleRows,
+        purchaseRows,
+        transferRows,
+        expenseRows,
+      ] = await Promise.all([
+        ctx.db
+          .query("suppliers")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("wholesaleStock")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("supplierPurchases")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("stockTransfers")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("expenses")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+      ]);
+
+      const productById = new Map(activeProducts.map((p) => [p._id, p]));
+      suppliers = supplierRows.map((row) => ({
+        id: row._id as string,
+        name: row.name,
+        contactName: row.contactName ?? null,
+        phone: row.phone ?? null,
+        email: row.email ?? null,
+        address: row.address ?? null,
+        notes: row.notes ?? null,
+        status: row.status,
+        createdAt: row.createdAt,
+      }));
+      wholesaleStock = wholesaleRows.map((row) => {
+        const product = productById.get(row.productId);
+        return {
+          id: row._id as string,
+          productId: row.productId as string,
+          name: product?.name ?? "Unknown",
+          sku: product?.sku ?? "",
+          unit: product?.unit ?? "",
+          costPrice: showCost ? (product?.costPrice ?? 0) : 0,
+          quantity: row.quantity,
+          tracksExpiry: product?.tracksExpiry ?? false,
+        };
+      });
+      const supplierName = new Map(supplierRows.map((s) => [s._id, s.name]));
+      wholesalePurchases = purchaseRows
+        .sort((a, b) => b.purchasedAt - a.purchasedAt)
+        .slice(0, 80)
+        .map((row) => ({
+          id: row._id as string,
+          reference: row.reference,
+          invoiceNumber: row.invoiceNumber ?? null,
+          supplierId: row.supplierId as string,
+          supplierName: supplierName.get(row.supplierId) ?? "Supplier",
+          purchasedAt: row.purchasedAt,
+          itemCount: row.itemCount,
+          totalCost: row.totalCost,
+          notes: row.notes ?? null,
+          status: row.status,
+        }));
+      wholesaleTransfers = transferRows
+        .filter((row) => (row.kind ?? "branch") === "wholesale")
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 80)
+        .map((row) => ({
+          id: row._id as string,
+          productName: productById.get(row.productId)?.name ?? "Product",
+          branchName: branchNameById.get(row.toBranchId) ?? "Branch",
+          quantity: row.quantity,
+          note: row.note ?? null,
+          createdAt: row.createdAt,
+        }));
+      expenses = expenseRows
+        .sort((a, b) => b.occurredAt - a.occurredAt)
+        .slice(0, 200)
+        .map((row) => ({
+          id: row._id as string,
+          amount: row.amount,
+          category: row.category,
+          occurredAt: row.occurredAt,
+          description: row.description ?? null,
+          recordedByName: nameByUser.get(row.recordedBy) ?? "Unknown",
+          branchId: (row.branchId as string | undefined) ?? null,
+          branchName: row.branchId ? (branchNameById.get(row.branchId) ?? null) : null,
+        }));
+
+      staff = profiles
+        .filter((p) =>
+          profile.role === "manager"
+            ? p.branchId === profile.branchId && (p.role === "cashier" || p._id === profile._id)
+            : true,
+        )
+        .map((p) => ({
+          id: p._id as string,
+          userId: p.userId as string,
+          name: p.name,
+          role: p.role,
+          branch: p.branchId ? (branchNameById.get(p.branchId) ?? p.branch ?? "") : (p.branch ?? ""),
+          branchId: (p.branchId as string | undefined) ?? null,
+          phone: p.phone ?? null,
+          status: p.status,
+          email: null,
+          imageUrl: null,
+        }));
+    }
+
+    const returnRows = await ctx.db
+      .query("saleReturns")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
+    const invoiceBySale = new Map(orderSales.map((s) => [s._id, s.invoiceNumber]));
+    let scopedReturns = returnRows.filter((row) => row.status === "completed");
+    if (profile.role === "cashier") {
+      scopedReturns = scopedReturns.filter((row) => row.branchId === branchId);
+    } else if (profile.role === "manager") {
+      scopedReturns = scopedReturns.filter((row) => row.branchId === branchId);
+    }
+    const returns = scopedReturns
+      .sort((a, b) => b.completedAt - a.completedAt)
+      .slice(0, 100)
+      .map((row) => ({
+        id: row._id as string,
+        returnNumber: row.returnNumber,
+        saleId: row.saleId as string,
+        invoiceNumber: invoiceBySale.get(row.saleId) ?? null,
+        refundAmount: row.refundAmount,
+        itemCount: row.itemCount,
+        kind: row.kind ?? "partial",
+        completedAt: row.completedAt,
+        branchId: row.branchId as string,
+        branchName: branchNameById.get(row.branchId) ?? null,
+        customerName: row.customerName,
+        cashierName: nameByUser.get(row.processedBy) ?? "Cashier",
+        reason: row.reason,
+        status: row.status,
+      }));
 
     return {
       products: mirroredProducts,
@@ -195,6 +424,25 @@ export const getSnapshot = query({
       customers,
       orders: mirroredOrders,
       orderItems,
+      suppliers,
+      wholesaleStock,
+      wholesalePurchases,
+      wholesaleTransfers,
+      branches: branches
+        .filter((b) =>
+          profile.role === "administrator" ? true : b._id === branchId,
+        )
+        .map((b) => ({
+          id: b._id as string,
+          name: b.name,
+          code: b.code,
+          address: b.address ?? null,
+          phone: b.phone ?? null,
+          status: b.status,
+        })),
+      users: staff,
+      expenses,
+      returns,
       print: {
         business,
         template,

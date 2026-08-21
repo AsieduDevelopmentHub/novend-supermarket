@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
@@ -33,7 +33,7 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { OfflineAdminShell } from "@/components/offline/offline-admin-shell";
+import { useBranchesList, useUsersList } from "@/hooks/use-offline-lists";
 import { Eye, Pencil, Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -56,11 +56,8 @@ export function UsersView() {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<Id<"profiles"> | null>(null);
   const [creating, setCreating] = useState(false);
-  const users = useQuery(
-    api.users.list,
-    online && canManageUsers ? { search: search || undefined } : "skip",
-  );
-  const branches = useQuery(api.branches.list, online && canManageUsers ? {} : "skip");
+  const users = useUsersList(search);
+  const branches = useBranchesList(false);
   const updateProfile = useMutation(api.users.updateProfile);
   const createUserAccount = useAction(api.users.createUserAccount);
 
@@ -84,15 +81,6 @@ export function UsersView() {
     );
   }
 
-  if (!online) {
-    return (
-      <OfflineAdminShell
-        title="Users"
-        description="Manage cashiers, managers, and administrators."
-      />
-    );
-  }
-
   function openEdit(row: {
     id: Id<"profiles">;
     name: string;
@@ -104,9 +92,9 @@ export function UsersView() {
     setEditingId(row.id);
     setName(row.name);
     setRole(isManager ? "cashier" : row.role);
-    setBranchId(row.branchId ?? myBranchId ?? "");
+    setBranchId((row.branchId ?? myBranchId ?? "") as Id<"branches"> | "");
     setPhone(row.phone ?? "");
-    setStatus(row.status);
+    setStatus(row.status === "inactive" ? "inactive" : "active");
   }
 
   function openCreate() {
@@ -115,7 +103,7 @@ export function UsersView() {
     setEmail("");
     setPassword("");
     setRole("cashier");
-    setBranchId(isManager ? (myBranchId ?? "") : (branches?.[0]?.id ?? ""));
+    setBranchId((isManager ? (myBranchId ?? "") : (branches?.[0]?.id ?? "")) as Id<"branches"> | "");
     setPhone("");
   }
 
@@ -131,7 +119,7 @@ export function UsersView() {
         id: editingId,
         name,
         role: isManager ? "cashier" : role,
-        branchId: formBranchId,
+        branchId: formBranchId as Id<"branches">,
         phone: phone || undefined,
         status,
       });
@@ -150,6 +138,10 @@ export function UsersView() {
       toast.error("Select a branch");
       return;
     }
+    if (!online) {
+      toast.error("Creating a login needs a connection so the password can be stored securely.");
+      return;
+    }
     setPending(true);
     try {
       await createUserAccount({
@@ -157,7 +149,7 @@ export function UsersView() {
         password,
         name,
         role: isManager ? "cashier" : role,
-        branchId: formBranchId,
+        branchId: formBranchId as Id<"branches">,
         phone: phone || undefined,
       });
       toast.success("User created. Share the login credentials securely.");
