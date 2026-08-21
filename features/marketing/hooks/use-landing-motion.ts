@@ -7,26 +7,21 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 gsap.registerPlugin(ScrollTrigger);
 
 type Options = {
-  /** Scroll container (landing uses overflow-y on a div, not window). */
   scroller: RefObject<HTMLElement | null>;
-  /** CSS selector relative to the root element. */
   targets?: string;
   y?: number;
   duration?: number;
   start?: string;
 };
 
-/**
- * Vital-Go-like scroll reveals via GSAP ScrollTrigger.
- * Respects prefers-reduced-motion.
- */
+/** Scroll reveals via GSAP ScrollTrigger. Respects prefers-reduced-motion. */
 export function useLandingReveal(
   rootRef: RefObject<HTMLElement | null>,
   {
     scroller,
     targets = "[data-reveal]",
-    y = 40,
-    duration = 1,
+    y = 36,
+    duration = 0.9,
     start = "top 88%",
   }: Options,
 ) {
@@ -74,7 +69,7 @@ export function useLandingReveal(
   }, [rootRef, scroller, targets, y, duration, start]);
 }
 
-/** Hero entrance — runs once on mount (not scroll). */
+/** Hero entrance — product stage + copy. */
 export function useLandingHeroIntro(rootRef: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const root = rootRef.current;
@@ -83,13 +78,17 @@ export function useLandingHeroIntro(rootRef: RefObject<HTMLElement | null>) {
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-      tl.from("[data-hero-brand]", { autoAlpha: 0, y: 16, duration: 0.7 })
-        .from("[data-hero-copy] > *", { autoAlpha: 0, y: 28, duration: 0.8, stagger: 0.1 }, "-=0.35")
-        .from("[data-hero-visual]", { autoAlpha: 0, y: 44, scale: 0.96, duration: 1.05 }, "-=0.55")
+      tl.from("[data-hero-brand]", { autoAlpha: 0, y: 14, duration: 0.65 })
+        .from("[data-hero-copy] > *:not([data-hero-brand])", {
+          autoAlpha: 0,
+          y: 24,
+          duration: 0.75,
+          stagger: 0.08,
+        }, "-=0.3")
         .from(
-          "[data-hero-orb]",
-          { autoAlpha: 0, scale: 0.82, duration: 1.15, stagger: 0.12, ease: "power2.out" },
-          "-=0.95",
+          "[data-hero-visual]",
+          { autoAlpha: 0, y: 36, rotateX: 8, duration: 1 },
+          "-=0.5",
         );
     }, root);
 
@@ -98,7 +97,7 @@ export function useLandingHeroIntro(rootRef: RefObject<HTMLElement | null>) {
 }
 
 /**
- * Scroll-linked 3D depth — product stage, feature panels, pricing cards.
+ * Product scroll depth — POS stage, journey panels, inventory, scan, receipt, chart.
  */
 export function useLandingDepth(
   rootRef: RefObject<HTMLElement | null>,
@@ -115,17 +114,17 @@ export function useLandingDepth(
       if (stage) {
         gsap.fromTo(
           stage,
-          { rotateY: -18, rotateX: 10, z: -80 },
+          { rotateY: -14, rotateX: 8, z: -40 },
           {
             rotateY: 8,
-            rotateX: -4,
+            rotateX: -3,
             z: 0,
             ease: "none",
             scrollTrigger: {
               trigger: stage,
               scroller: scrollEl,
               start: "top 80%",
-              end: "bottom 20%",
+              end: "bottom 25%",
               scrub: 1.1,
             },
           },
@@ -133,16 +132,15 @@ export function useLandingDepth(
       }
 
       gsap.utils.toArray<HTMLElement>("[data-depth-panel]").forEach((panel, index) => {
-        const fromY = index % 2 === 0 ? 48 : 64;
         gsap.fromTo(
           panel,
-          { autoAlpha: 0, y: fromY, rotateX: 14, z: -60 },
+          { autoAlpha: 0, y: index % 2 === 0 ? 40 : 52, rotateX: 10, z: -40 },
           {
             autoAlpha: 1,
             y: 0,
             rotateX: 0,
             z: 0,
-            duration: 1.05,
+            duration: 1,
             ease: "power3.out",
             scrollTrigger: {
               trigger: panel,
@@ -157,15 +155,15 @@ export function useLandingDepth(
       gsap.utils.toArray<HTMLElement>("[data-depth-card]").forEach((card, index) => {
         gsap.fromTo(
           card,
-          { autoAlpha: 0, y: 56, rotateY: index % 2 === 0 ? -12 : 12, z: -40 },
+          { autoAlpha: 0, y: 40, rotateY: index % 2 === 0 ? -8 : 8, z: -24 },
           {
             autoAlpha: 1,
             y: 0,
             rotateY: 0,
             z: 0,
-            duration: 0.95,
+            duration: 0.9,
             ease: "power3.out",
-            delay: index * 0.05,
+            delay: index * 0.04,
             scrollTrigger: {
               trigger: card,
               scroller: scrollEl,
@@ -176,54 +174,16 @@ export function useLandingDepth(
         );
       });
 
-      gsap.utils.toArray<HTMLElement>("[data-parallax]").forEach((layer) => {
-        const speed = Number(layer.dataset.parallaxSpeed || 40);
-        gsap.to(layer, {
-          y: speed,
-          ease: "none",
-          scrollTrigger: {
-            trigger: layer.parentElement || layer,
-            scroller: scrollEl,
-            start: "top bottom",
-            end: "bottom top",
-            scrub: true,
-          },
-        });
-      });
-
-      const iso = root.querySelector<HTMLElement>("[data-iso-device]");
-      if (iso) {
-        gsap.fromTo(
-          iso,
-          { rotateY: -22, rotateX: 16, z: -50, autoAlpha: 0.7 },
-          {
-            rotateY: 10,
-            rotateX: -6,
-            z: 0,
-            autoAlpha: 1,
-            ease: "none",
-            scrollTrigger: {
-              trigger: iso,
-              scroller: scrollEl,
-              start: "top 85%",
-              end: "bottom 25%",
-              scrub: 1.2,
-            },
-          },
-        );
-      }
-
       gsap.utils.toArray<HTMLElement>("[data-kpi]").forEach((kpi, index) => {
         gsap.fromTo(
           kpi,
-          { autoAlpha: 0, y: 36, z: -30 },
+          { autoAlpha: 0, y: 20 },
           {
             autoAlpha: 1,
             y: 0,
-            z: 0,
-            duration: 0.9,
+            duration: 0.8,
+            delay: 0.15 + index * 0.08,
             ease: "power3.out",
-            delay: index * 0.08,
             scrollTrigger: {
               trigger: kpi,
               scroller: scrollEl,
@@ -232,42 +192,126 @@ export function useLandingDepth(
             },
           },
         );
-        gsap.to(kpi, {
-          y: index % 2 === 0 ? -18 : 14,
-          ease: "none",
-          scrollTrigger: {
-            trigger: kpi.parentElement || kpi,
-            scroller: scrollEl,
-            start: "top bottom",
-            end: "bottom top",
-            scrub: true,
-          },
-        });
       });
 
       const boxes = gsap.utils.toArray<HTMLElement>("[data-inventory-box]");
-      if (boxes.length) {
-        boxes.forEach((box, index) => {
-          gsap.fromTo(
-            box,
-            { y: 48 + index * 12, rotateX: 24, autoAlpha: 0 },
-            {
-              y: -index * 18,
-              rotateX: 0,
-              autoAlpha: 1,
-              duration: 1,
-              ease: "power3.out",
-              delay: index * 0.1,
-              scrollTrigger: {
-                trigger: box.parentElement || box,
-                scroller: scrollEl,
-                start: "top 88%",
-                toggleActions: "play none none none",
-              },
+      boxes.forEach((box, index) => {
+        gsap.fromTo(
+          box,
+          { y: 36 + index * 10, autoAlpha: 0 },
+          {
+            y: -index * 14,
+            autoAlpha: 1,
+            duration: 0.95,
+            ease: "power3.out",
+            delay: index * 0.08,
+            scrollTrigger: {
+              trigger: box.parentElement || box,
+              scroller: scrollEl,
+              start: "top 88%",
+              toggleActions: "play none none none",
             },
-          );
-        });
-      }
+          },
+        );
+      });
+
+      gsap.utils.toArray<HTMLElement>("[data-scan-line]").forEach((line) => {
+        gsap.fromTo(
+          line,
+          { autoAlpha: 0, x: -24, scaleX: 0.92 },
+          {
+            autoAlpha: 1,
+            x: 0,
+            scaleX: 1,
+            duration: 0.85,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: line,
+              scroller: scrollEl,
+              start: "top 90%",
+              toggleActions: "play none none none",
+            },
+          },
+        );
+      });
+
+      gsap.utils.toArray<HTMLElement>("[data-receipt]").forEach((receipt) => {
+        gsap.fromTo(
+          receipt,
+          { autoAlpha: 0, y: -28 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.95,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: receipt,
+              scroller: scrollEl,
+              start: "top 92%",
+              toggleActions: "play none none none",
+            },
+          },
+        );
+      });
+
+      gsap.utils.toArray<HTMLElement>("[data-outbox-item]").forEach((item, index) => {
+        gsap.fromTo(
+          item,
+          { autoAlpha: 0, x: -12 },
+          {
+            autoAlpha: 1,
+            x: 0,
+            duration: 0.55,
+            delay: index * 0.1,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: item.parentElement || item,
+              scroller: scrollEl,
+              start: "top 88%",
+              toggleActions: "play none none none",
+            },
+          },
+        );
+      });
+
+      gsap.utils.toArray<SVGPathElement>("[data-chart-line]").forEach((line) => {
+        const length = line.getTotalLength();
+        gsap.fromTo(
+          line,
+          { strokeDasharray: length, strokeDashoffset: length },
+          {
+            strokeDashoffset: 0,
+            duration: 1.2,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: line,
+              scroller: scrollEl,
+              start: "top 90%",
+              toggleActions: "play none none none",
+            },
+          },
+        );
+      });
+
+      gsap.utils.toArray<HTMLElement>("[data-transfer-dot]").forEach((dot, index) => {
+        gsap.fromTo(
+          dot,
+          { autoAlpha: 0.2, scale: 0.6 },
+          {
+            autoAlpha: 1,
+            scale: 1,
+            duration: 0.45,
+            delay: index * 0.12,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: dot.parentElement || dot,
+              scroller: scrollEl,
+              start: "top 90%",
+              toggleActions: "play none none none",
+            },
+          },
+        );
+      });
     }, root);
 
     ScrollTrigger.refresh();

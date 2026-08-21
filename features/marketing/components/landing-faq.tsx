@@ -8,7 +8,7 @@ import { landingCopy } from "@/features/marketing/content";
 
 export function LandingFaq() {
   return (
-    <section id="faq" className="scroll-mt-24 border-t border-slate-100 bg-[#F8FAFC] px-4 py-24 sm:px-6 lg:px-8">
+    <section id="faq" className="scroll-mt-24 border-t border-border bg-background px-4 py-24 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl">
         <div data-reveal>
           <p className="text-primary text-sm font-semibold tracking-wide">{landingCopy.faq.eyebrow}</p>
@@ -18,7 +18,7 @@ export function LandingFaq() {
         </div>
         <Accordion type="single" collapsible className="mt-10" data-reveal>
           {landingCopy.faq.items.map((item, index) => (
-            <AccordionItem key={item.q} value={`faq-${index}`} className="border-slate-200">
+            <AccordionItem key={item.q} value={`faq-${index}`} className="border-border">
               <AccordionTrigger className="text-foreground py-5 text-left text-base font-medium hover:no-underline">
                 {item.q}
               </AccordionTrigger>

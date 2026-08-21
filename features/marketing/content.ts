@@ -6,119 +6,103 @@ export const landingCopy = {
   brand: APP_BRAND,
   tagline: APP_TAGLINE,
   hero: {
-    eyebrow: "Offline-first POS for everyday commerce",
-    headlineLead: "Sell faster.",
-    headlineAccent: "Stay in control — online or off.",
+    eyebrow: "Commercial offline-first POS",
+    headline: "The Offline-First POS Built for Growing Businesses",
     subhead:
-      "Novend turns sales, stock, and branch operations into one clear system — so Ghanaian shops, pharmacies, wholesalers, and multi-branch retailers keep moving when the network drops, then sync with confidence.",
+      "Sell faster, manage smarter, and keep your supermarket, pharmacy, or wholesale yard running—even without internet. Sync with confidence when the network returns.",
     primaryCta: "Get Started",
     secondaryCta: "Book a Demo",
   },
-  howItWorks: {
-    eyebrow: "How it works",
-    title: "From counter to cloud — without slowing the till",
+  journey: {
+    eyebrow: "How Novend runs your day",
+    title: "From warehouse receive to offline checkout — one operational path",
     subtitle:
-      "Local-first checkout on the terminal. Automatic catch-up when connectivity returns.",
+      "Follow the same flow your team uses in the product: receive, restock branches, sell at the till, and sync when online.",
     steps: [
-      { step: "01", title: "Sell on the terminal", detail: "Scan, discount, and take payment — even offline." },
-      { step: "02", title: "Stock stays honest", detail: "Every sale and receive writes a reasoned inventory change." },
-      { step: "03", title: "Branches stay aligned", detail: "Warehouse issues to branches under one organization." },
-      { step: "04", title: "Sync when online", detail: "The outbox pushes committed work to Convex automatically." },
-      { step: "05", title: "See what moved", detail: "Analytics and reports reflect real sales — not guesswork." },
-    ],
-  },
-  audience: {
-    title: "Built around your counter. Connected to your business.",
-    subtitle: "One product for the people who ring the till and the people who run the shop.",
-    forCashiers: {
-      title: "For cashiers",
-      detail:
-        "Fast checkout, barcode scanning, and sticky totals — without waiting on a shaky connection.",
-    },
-    forManagers: {
-      title: "For managers",
-      detail: "Branch stock, held sales, and day-to-day control in one workspace.",
-    },
-    highlights: [
-      "Offline-first operational cache on the device",
-      "Cloud authority when you reconnect",
-      "Electron desktop + installable PWA",
-      "Roles and organization isolation by design",
+      {
+        id: "receive",
+        step: "01",
+        title: "Receive stock",
+        detail:
+          "Supplier deliveries land in wholesale inventory with a recorded business reason — not silent quantity edits.",
+        visual: "receive" as const,
+      },
+      {
+        id: "restock",
+        step: "02",
+        title: "Restock branches",
+        detail:
+          "Issue cartons and crates from the warehouse to the counters that need them — Accra retail, Kumasi wholesale, or both.",
+        visual: "restock" as const,
+      },
+      {
+        id: "sell",
+        step: "03",
+        title: "Sell anywhere",
+        detail:
+          "Scan barcodes, discount, take MoMo or cash, and print a receipt — even when the connection drops mid-rush.",
+        visual: "sell" as const,
+      },
+      {
+        id: "sync",
+        step: "04",
+        title: "Stay in sync",
+        detail:
+          "Offline sales queue in the outbox. When internet returns, Convex becomes the committed source of truth automatically.",
+        visual: "sync" as const,
+      },
     ],
   },
   industriesIntro: {
-    title: "Trusted across modern commerce",
-    subtitle: "Familiar businesses across Ghana — ready to grow beyond it.",
+    title: "Built for Ghanaian commerce — ready to grow beyond it",
+    subtitle:
+      "Provision shops, pharmacies, electronics counters, fashion boutiques, and multi-branch retailers share one system.",
   },
   industries: [
-    "Retail",
-    "Pharmacy",
-    "Supermarket",
-    "Wholesale",
-    "Electronics",
-    "Fashion",
-    "Hardware",
+    "Provision shops",
+    "Pharmacies",
+    "Supermarkets",
+    "Wholesale distributors",
+    "Electronics stores",
+    "Fashion boutiques",
   ],
-  features: {
-    eyebrow: "Platform",
-    title: "What you get on day one",
-    subtitle: "Fewer screens. Clearer workflows. The capabilities that matter at the till.",
-    items: [
-      {
-        title: "Offline-first POS",
-        detail: "Keep selling when internet is unreliable — sync later without redoing the day.",
-      },
-      {
-        title: "Inventory that never goes silent",
-        detail: "Receives, adjustments, and sales always leave a business reason.",
-      },
-      {
-        title: "Wholesale → branch flow",
-        detail: "Buy into warehouse stock, then issue to the counters that need it.",
-      },
-      {
-        title: "Desktop & mobile ready",
-        detail: "Native Electron terminals plus a PWA for flexible counters.",
-      },
-    ],
-  },
   why: {
     eyebrow: "Security & trust",
-    title: "Designed for control. Built for real shops.",
+    title: "Product controls that protect the till and the business",
     subtitle:
-      "Secure access and accountable operations — without slowing checkout. Calm enterprise controls in a layout built for confidence.",
+      "Trust comes from architecture you can operate — offline resilience, clear roles, and sync you can explain to your team.",
     cards: [
       {
-        title: "Offline resilience",
-        detail: "Sales and stock stay available on the terminal when the network drops.",
+        title: "Offline-first architecture",
+        detail: "Checkout and operational stock stay available on the terminal when the network drops.",
       },
       {
-        title: "Automatic sync",
-        detail: "The outbox catches up committed work the moment you reconnect.",
+        title: "Local data ownership",
+        detail: "The device holds a local operational cache; you are not blocked waiting on the cloud to sell.",
       },
       {
-        title: "Local + cloud truth",
-        detail: "Operational cache on device; Convex remains the committed source of truth.",
+        title: "Automatic synchronization",
+        detail: "The outbox pushes committed work the moment connectivity returns.",
       },
       {
-        title: "Least privilege",
-        detail: "Role-based access so cashiers never inherit admin capabilities.",
+        title: "Role-based security",
+        detail: "Cashiers, managers, and admins inherit least privilege — never accidental admin powers.",
       },
       {
-        title: "Attributable actions",
-        detail: "Important operations stay tied to user, time, and reason.",
+        title: "Multi-branch ready",
+        detail: "Warehouse and branch stock stay aligned under one organization.",
       },
       {
-        title: "Org isolation",
-        detail: "Every business record stays scoped to the session organization.",
+        title: "Desktop & web",
+        detail: "Electron terminals for counters plus a PWA for flexible access — same Novend DNA.",
       },
     ],
     ghanaNote:
-      "From Accra pharmacies to Kumasi wholesale yards and neighborhood provision shops — Novend speaks Ghanaian retail without locking you into a single market.",
+      "From neighborhood provision shops to pharmacy counters and wholesale distributors — Novend speaks Ghanaian retail without locking you into a single market.",
   },
   pricing: {
     title: "Pricing",
-    subtitle: "Production-ready plan structure. Billing activates in a future update.",
+    subtitle: "Plan structure is ready. Billing activates in a future update.",
     badge: "Coming in a future update",
     plans: [
       {
@@ -176,7 +160,7 @@ export const landingCopy = {
     items: [
       {
         q: "Who is Novend designed for?",
-        a: "Independent retailers, pharmacies, wholesalers, and multi-branch operators who need a reliable till — especially where connectivity is uneven.",
+        a: "Retailers, pharmacies, wholesalers, electronics and fashion shops, and multi-branch operators who need a reliable till — especially where connectivity is uneven.",
       },
       {
         q: "Does Novend work offline?",
@@ -197,15 +181,15 @@ export const landingCopy = {
     ],
   },
   cta: {
-    title: "See Novend in action.",
+    title: "Open the same product your team will run.",
     subtitle:
-      "Explore offline-first checkout, inventory, and cloud sync — built for Ghana, ready for growth.",
+      "Offline-first checkout, inventory, and cloud sync — built for Ghanaian commerce, ready for growth.",
     primary: "Get Started",
     secondary: "Contact Sales",
   },
   nav: [
-    { href: "#how-it-works", label: "How it works" },
-    { href: "#platform", label: "Platform" },
+    { href: "#journey", label: "How it works" },
+    { href: "#about", label: "Trust" },
     { href: "#pricing", label: "Pricing" },
     { href: "#faq", label: "FAQ" },
   ],
@@ -213,8 +197,7 @@ export const landingCopy = {
     description:
       "Commercial offline-first Point of Sale for independent businesses — desktop, PWA, and cloud sync.",
     product: [
-      { href: "#how-it-works", label: "How it works" },
-      { href: "#platform", label: "Platform" },
+      { href: "#journey", label: "How it works" },
       { href: "#pricing", label: "Pricing" },
       { href: "/login", label: "Login" },
     ],

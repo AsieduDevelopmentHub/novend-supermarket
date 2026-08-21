@@ -10,11 +10,8 @@ import {
 } from "@/features/marketing/hooks/use-landing-motion";
 import { LandingNav } from "@/features/marketing/components/landing-nav";
 import { LandingHero } from "@/features/marketing/components/landing-hero";
-import { LandingHowItWorks } from "@/features/marketing/components/landing-how-it-works";
-import { LandingAudience } from "@/features/marketing/components/landing-audience";
+import { LandingJourney } from "@/features/marketing/components/landing-journey";
 import { LandingIndustries } from "@/features/marketing/components/landing-industries";
-import { LandingFeatures } from "@/features/marketing/components/landing-features";
-import { LandingShowcase } from "@/features/marketing/components/landing-showcase";
 import { LandingWhy } from "@/features/marketing/components/landing-why";
 import { LandingPricing } from "@/features/marketing/components/landing-pricing";
 import { LandingFaq } from "@/features/marketing/components/landing-faq";
@@ -22,7 +19,7 @@ import { LandingCta } from "@/features/marketing/components/landing-cta";
 import { LandingFooter } from "@/features/marketing/components/landing-footer";
 
 /**
- * Web-only SaaS landing — Vital-Go section wiring + GSAP motion, Novend palette.
+ * Web-only SaaS landing — product DNA shared with login/app UI.
  * Electron detects `novendDesktop` and leaves for /dashboard.
  */
 export function LandingPage() {
@@ -58,11 +55,8 @@ export function LandingPage() {
         <LandingNav scrollRootRef={scrollRef} />
         <main>
           <LandingHero />
-          <LandingHowItWorks />
-          <LandingAudience />
+          <LandingJourney />
           <LandingIndustries />
-          <LandingFeatures />
-          <LandingShowcase />
           <LandingWhy />
           <LandingPricing />
           <LandingFaq />

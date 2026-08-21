@@ -1,17 +1,15 @@
 import { Check, Shield } from "lucide-react";
 import { landingCopy } from "@/features/marketing/content";
-import { LandingAmbient } from "@/features/marketing/components/landing-ambient";
+import { LandingAtmosphere } from "@/features/marketing/components/landing-atmosphere";
 
-/**
- * Security & trust — light section chrome; onyx cards only.
- */
+/** Trust — light section chrome; onyx product cards. */
 export function LandingWhy() {
   return (
     <section
       id="about"
       className="landing-trust relative scroll-mt-24 overflow-hidden px-5 py-28 sm:px-10 sm:py-36 lg:px-20 lg:py-40"
     >
-      <LandingAmbient variant="light" />
+      <LandingAtmosphere className="landing-atmosphere-frame landing-atmosphere-frame-soft" />
       <div className="relative z-10 mx-auto max-w-6xl">
         <div data-reveal className="mx-auto max-w-2xl text-center">
           <span className="bg-primary/15 text-primary inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold tracking-wide uppercase">
@@ -31,9 +29,9 @@ export function LandingWhy() {
             <li
               key={card.title}
               data-depth-card
-              className="landing-trust-card landing-depth-preserve rounded-[1.5rem] border border-white/10 bg-[#0B1220] p-6 text-white shadow-[0_22px_50px_rgba(11,18,32,0.28)] sm:p-7"
+              className="landing-trust-card landing-depth-preserve rounded-2xl border border-white/10 bg-[#111827] p-6 text-white shadow-[0_22px_50px_rgba(17,24,39,0.28)] sm:p-7"
             >
-              <span className="bg-primary/20 text-primary inline-flex h-10 w-10 items-center justify-center rounded-2xl">
+              <span className="bg-primary/20 text-primary inline-flex h-10 w-10 items-center justify-center rounded-xl">
                 <Check className="h-5 w-5" aria-hidden />
               </span>
               <h3 className="mt-5 text-lg font-semibold tracking-tight text-white">{card.title}</h3>
@@ -44,7 +42,7 @@ export function LandingWhy() {
 
         <p
           data-reveal
-          className="text-muted-foreground mx-auto mt-16 max-w-3xl border-t border-sky-100 pt-10 text-center text-sm leading-relaxed sm:text-base"
+          className="text-muted-foreground mx-auto mt-16 max-w-3xl border-t border-border pt-10 text-center text-sm leading-relaxed sm:text-base"
         >
           {landingCopy.why.ghanaNote}
         </p>
