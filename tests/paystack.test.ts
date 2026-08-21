@@ -14,7 +14,7 @@ describe("Paystack money conversion", () => {
   });
 
   it("round-trips the catalog prices", () => {
-    for (const amount of [149, 299, 599, 1490, 2990, 4999]) {
+    for (const amount of [149, 299, 599, 1490, 2990, 5990, 7990]) {
       expect(fromSubunits(toSubunits(amount))).toBe(amount);
     }
   });

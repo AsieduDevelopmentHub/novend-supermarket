@@ -143,7 +143,7 @@ export const landingCopy = {
   pricing: {
     title: "Simple pricing that grows with you",
     subtitle:
-      "Pay monthly or yearly, or own a lifetime licence. Every plan includes offline checkout, receipts and reports.",
+      "Pay monthly or yearly, or own a lifetime licence that sits above every subscription. Every plan includes offline checkout, receipts and reports.",
     badge: "14-day free trial",
   },
   faq: {
@@ -168,7 +168,7 @@ export const landingCopy = {
       },
       {
         q: "How does billing work?",
-        a: "Pay monthly or yearly from Settings → Billing with Paystack (card or mobile money). Lifetime is a one-time licence. Enterprise is quoted with our sales team.",
+        a: "Pay monthly or yearly from Settings → Billing with Paystack (card or mobile money). Enterprise is the same checkout as Basic and Pro. Lifetime is a one-time licence priced above a year of every plan.",
       },
     ],
   },

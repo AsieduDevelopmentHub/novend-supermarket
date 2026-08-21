@@ -12,7 +12,6 @@ import { formatCurrency, formatNumber } from "@/lib/currency";
 import { formatBytes } from "@/lib/bytes";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
-import { LANDING_CONTACT_EMAIL } from "@/features/marketing/content";
 import {
   PLAN_LIST,
   type BillingCycle,
@@ -207,12 +206,6 @@ function PlanCard({
         {isCurrent ? (
           <Button variant="outline" disabled className="w-full">
             {plan.isLifetime ? "One-time licence activated" : "Current plan"}
-          </Button>
-        ) : !plan.selfServe ? (
-          <Button variant="outline" asChild className="w-full">
-            <a href={`mailto:${LANDING_CONTACT_EMAIL}?subject=Novend%20${plan.name}%20plan`}>
-              Contact sales
-            </a>
           </Button>
         ) : (
           <Button

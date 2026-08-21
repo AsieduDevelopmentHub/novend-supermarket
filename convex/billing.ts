@@ -401,7 +401,7 @@ export const startCheckout = action({
       throw new Error(`The ${plan.name} plan is not sold on a ${args.cycle} cycle.`);
     }
     if (!plan.selfServe) {
-      throw new Error(`The ${plan.name} plan is arranged with our sales team.`);
+      throw new Error(`The ${plan.name} plan is not available for self-service checkout.`);
     }
     const amount = priceForCycle(plan, args.cycle);
     if (amount === null) throw new Error("This plan has no price for that cycle.");

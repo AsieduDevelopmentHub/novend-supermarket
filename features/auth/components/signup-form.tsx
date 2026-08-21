@@ -4,17 +4,39 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { Mail, User } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
-import Image from "next/image";
 import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
+import { cn } from "@/lib/utils";
 
-export function SignupForm() {
+export function SignupForm({ compact = false }: { compact?: boolean }) {
+  const configured = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
+
+  if (!configured) {
+    return (
+      <div className="w-full max-w-sm space-y-3 text-center">
+        <h1 className="text-xl font-semibold">Connect Convex</h1>
+        <p className="text-muted-foreground text-sm">
+          Run <code className="bg-muted rounded px-1">npx convex dev</code>, copy the deployment URL
+          into <code className="bg-muted rounded px-1">.env.local</code> as{" "}
+          <code className="bg-muted rounded px-1">NEXT_PUBLIC_CONVEX_URL</code>, then restart the
+          Next.js server.
+        </p>
+      </div>
+    );
+  }
+
+  return <ConfiguredSignupForm compact={compact} />;
+}
+
+function ConfiguredSignupForm({ compact }: { compact: boolean }) {
   const { signIn } = useAuthActions();
   const router = useRouter();
   const [name, setName] = useState("");
@@ -43,47 +65,65 @@ export function SignupForm() {
 
   return (
     <div className="mx-auto w-full max-w-[360px]">
-      <div className="mb-8 space-y-3 text-center">
-        <div className="relative mx-auto h-12 w-full max-w-[240px]">
+      <div className={cn("text-center", compact ? "mb-6 space-y-3" : "mb-8 space-y-4")}>
+        <div className={cn("relative mx-auto", compact ? "h-14 w-14" : "h-16 w-16")}>
           <Image
-            src={BRANDING.logoHorizontal}
-            alt={APP_NAME}
+            src={BRANDING.brandmark}
+            alt=""
             fill
             priority
-            sizes="240px"
+            sizes="64px"
             className="object-contain"
           />
         </div>
         <div className="space-y-1">
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">
-            Create your Novend account
+            Create your account
           </h1>
-          <p className="text-muted-foreground text-sm">Smart POS. Strong business.</p>
+          <p className="text-muted-foreground text-sm">{APP_NAME}</p>
         </div>
       </div>
+
       <form className="space-y-4" onSubmit={onSubmit}>
         <div className="space-y-2">
           <Label htmlFor="name">Your name</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="h-11"
-          />
+          <div className="relative">
+            <Input
+              id="name"
+              autoComplete="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ama Mensah"
+              className="bg-muted/50 h-11 pr-10"
+              required
+            />
+            <User
+              className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2"
+              aria-hidden
+            />
+          </div>
         </div>
+
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="h-11"
-          />
+          <div className="relative">
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@business.com"
+              className="bg-muted/50 h-11 pr-10"
+              required
+            />
+            <Mail
+              className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2"
+              aria-hidden
+            />
+          </div>
         </div>
+
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
           <PasswordInput
@@ -91,20 +131,25 @@ export function SignupForm() {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            className="bg-muted/50 h-11"
             required
             minLength={8}
-            className="h-11"
           />
         </div>
-        <Button type="submit" className="h-11 w-full font-semibold" disabled={pending}>
-          {pending ? "Creating account…" : "Sign up"}
+
+        <Button type="submit" className="h-11 w-full text-[15px] font-semibold" disabled={pending}>
+          {pending ? "Creating account…" : "Start free trial"}
         </Button>
       </form>
-      <p className="text-muted-foreground mt-8 text-center text-sm">
+
+      <p className="text-muted-foreground mt-6 text-center text-sm">
         Already have an account?{" "}
         <Link href="/login" className="text-primary font-medium hover:underline">
           Sign in
         </Link>
+      </p>
+      <p className="text-muted-foreground mt-3 text-center text-xs leading-relaxed">
+        Then set up your business. Staff accounts are created by your administrator.
       </p>
     </div>
   );

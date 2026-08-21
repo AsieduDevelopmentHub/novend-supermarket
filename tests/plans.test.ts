@@ -49,6 +49,23 @@ describe("plan catalog", () => {
     }
   });
 
+  it("prices lifetime above a year of every subscription", () => {
+    const lifetimePrice = resolvePlan("lifetime").oneTimePrice;
+    expect(lifetimePrice).toBeGreaterThan(0);
+    for (const plan of PLAN_LIST) {
+      if (plan.isLifetime || plan.yearlyPrice === null) continue;
+      expect(lifetimePrice).toBeGreaterThan(plan.yearlyPrice);
+    }
+  });
+
+  it("sells enterprise on the same checkout as basic and pro", () => {
+    const enterprise = resolvePlan("enterprise");
+    expect(enterprise.selfServe).toBe(true);
+    expect(supportsCycle(enterprise, "monthly")).toBe(true);
+    expect(supportsCycle(enterprise, "yearly")).toBe(true);
+    expect(supportsCycle(enterprise, "lifetime")).toBe(false);
+  });
+
   it("grows limits as plans get more expensive", () => {
     const basic = resolvePlan("basic");
     const pro = resolvePlan("pro");

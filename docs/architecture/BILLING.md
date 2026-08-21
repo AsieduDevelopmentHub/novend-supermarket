@@ -41,11 +41,13 @@ licence so a terminal keeps selling offline, but it never decides access.
 |---|---|---|---|---|---|---|---|
 | Basic | GH₵149 | GH₵1,490 | 500 | 3 | 1 | 2 | 2 GB |
 | Pro | GH₵299 | GH₵2,990 | 5,000 | 15 | 5 | 5 | 10 GB |
-| Enterprise | from GH₵599 | from GH₵5,990 | ∞ | ∞ | ∞ | ∞ | 50 GB |
-| Lifetime | — | — | ∞ | ∞ | ∞ | 5 | 10 GB |
+| Enterprise | GH₵599 | GH₵5,990 | ∞ | ∞ | ∞ | ∞ | 50 GB |
+| Lifetime | — | GH₵7,990 one-time | ∞ | ∞ | ∞ | ∞ | 50 GB |
 
-Lifetime is sold only as a one-time purchase; recurring plans are never sold on a
-lifetime cycle. Enterprise is quoted, so it is not self-serve.
+Lifetime sits above every subscription: the one-time price is higher than a year of
+Basic, Pro, or Enterprise because it includes every entitlement permanently.
+Recurring plans are never sold on a lifetime cycle. Enterprise is self-serve, same
+checkout as Basic and Pro.
 
 `null` always means unlimited. Add a plan by editing `PLAN_CATALOG` and
 `planKeyValidator`, then run the gateway sync.

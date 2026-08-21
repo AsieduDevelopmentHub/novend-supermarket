@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { landingCopy, LANDING_CONTACT_EMAIL } from "@/features/marketing/content";
+import { landingCopy } from "@/features/marketing/content";
 import { PLAN_LIST, type PlanDefinition } from "@/convex/shared/plans";
 
 type Cycle = "monthly" | "yearly";
@@ -113,17 +113,7 @@ export function LandingPricing() {
                       plan.featured ? "landing-shadow-cta-primary" : "landing-shadow-chip",
                     )}
                   >
-                    {plan.selfServe ? (
-                      <Link href="/signup">Start free trial</Link>
-                    ) : (
-                      <a
-                        href={`mailto:${LANDING_CONTACT_EMAIL}?subject=${encodeURIComponent(
-                          `Novend ${plan.name} plan`,
-                        )}`}
-                      >
-                        Talk to sales
-                      </a>
-                    )}
+                    <Link href="/signup">{plan.isLifetime ? "Buy lifetime" : "Start free trial"}</Link>
                   </Button>
                 </div>
               </li>
@@ -132,8 +122,8 @@ export function LandingPricing() {
         </ul>
 
         <p className="text-muted-foreground mt-8 text-center text-sm">
-          Every plan starts with a {landingCopy.pricing.badge.toLowerCase()}. We set your business up
-          and you pay from inside the app.
+          Every plan starts with a {landingCopy.pricing.badge.toLowerCase()}. You pay from inside the
+          app — including Enterprise.
         </p>
       </div>
     </section>

@@ -36,7 +36,7 @@ export type PlanDefinition = {
   yearlyPrice: number | null;
   /** GH₵ one-time. `null` unless the plan is a perpetual licence. */
   oneTimePrice: number | null;
-  /** Enterprise is quoted, so the published price is a starting point. */
+  /** When true, the published price is a starting point rather than a fixed amount. */
   priceFrom: boolean;
   isLifetime: boolean;
   featured: boolean;
@@ -122,10 +122,10 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     monthlyPrice: 599,
     yearlyPrice: 5990,
     oneTimePrice: null,
-    priceFrom: true,
+    priceFrom: false,
     isLifetime: false,
     featured: false,
-    selfServe: false,
+    selfServe: true,
     sortOrder: 3,
     limits: {
       products: null,
@@ -145,11 +145,11 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
   lifetime: {
     key: "lifetime",
     name: "Lifetime",
-    tagline: "One payment, permanent desktop licence.",
+    tagline: "Own Novend outright — every plan, permanently.",
     audience: "Businesses that prefer to own their software",
     monthlyPrice: null,
     yearlyPrice: null,
-    oneTimePrice: 4999,
+    oneTimePrice: 7990,
     priceFrom: false,
     isLifetime: true,
     featured: false,
@@ -159,16 +159,16 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
       products: null,
       users: null,
       branches: null,
-      devices: 5,
-      backupBytes: 10 * GIGABYTE,
+      devices: null,
+      backupBytes: 50 * GIGABYTE,
     },
     features: [
-      "Permanent desktop licence",
+      "Everything in Enterprise",
+      "Permanent licence",
       "Offline operations",
       "Cloud sync",
-      "Analytics",
-      "Reports",
-      "One year of updates",
+      "Analytics and reports",
+      "One year of updates included",
     ],
   },
 };
