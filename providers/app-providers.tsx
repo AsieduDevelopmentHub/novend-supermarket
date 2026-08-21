@@ -19,8 +19,8 @@ function MissingConvexConfig({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="system"
-      enableSystem
+      defaultTheme="light"
+      enableSystem={false}
       storageKey={THEME_STORAGE_KEY}
     >
       <AppearanceBootstrap>
@@ -56,8 +56,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <ConvexAuthNextjsProvider client={client}>
       <ThemeProvider
         attribute="class"
-        defaultTheme="system"
-        enableSystem
+        defaultTheme="light"
+        enableSystem={false}
         storageKey={THEME_STORAGE_KEY}
       >
         <AppearanceBootstrap>

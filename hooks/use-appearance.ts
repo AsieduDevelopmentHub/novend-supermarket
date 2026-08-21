@@ -7,7 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { useTheme } from "next-themes";
 
 export type FontSize = "sm" | "md" | "lg";
-export type AppearanceTheme = "light" | "dark" | "system";
+export type AppearanceTheme = "light" | "dark";
 
 /** Stable device cache key — do not remount ThemeProvider per user (that resets prefs). */
 export const THEME_STORAGE_KEY = "novend-theme";
@@ -20,7 +20,13 @@ function isFontSize(value: string | null): value is FontSize {
 }
 
 function isTheme(value: string | null): value is AppearanceTheme {
-  return value === "light" || value === "dark" || value === "system";
+  return value === "light" || value === "dark";
+}
+
+/** Map stored next-themes / profile values onto light or dark. Legacy `system` becomes light. */
+export function normalizeTheme(value: string | null | undefined): AppearanceTheme {
+  if (value === "dark") return "dark";
+  return "light";
 }
 
 export function getStoredFontSize(): FontSize {
@@ -55,6 +61,9 @@ export function applyFontSize(size: FontSize) {
 export function AppearanceBootstrap({ children }: { children: ReactNode }) {
   useEffect(() => {
     applyFontSize(getStoredFontSize());
+    if (window.localStorage.getItem(THEME_STORAGE_KEY) === "system") {
+      window.localStorage.setItem(THEME_STORAGE_KEY, "light");
+    }
   }, []);
   return children;
 }
@@ -77,13 +86,13 @@ export function AppearanceProfileSync() {
 
     const localTheme = getStoredTheme();
     const localFont = getStoredFontSize();
-    const theme: AppearanceTheme = me.appearanceTheme ?? localTheme ?? "system";
+    const theme = normalizeTheme(me.appearanceTheme ?? localTheme);
     const fontSize: FontSize = me.appearanceFontSize ?? localFont;
 
     setTheme(theme);
     applyFontSize(fontSize);
 
-    if (!me.appearanceTheme || !me.appearanceFontSize) {
+    if (!me.appearanceTheme || me.appearanceTheme === "system" || !me.appearanceFontSize) {
       void updateOwnAppearance({ theme, fontSize });
     }
   }, [me, setTheme, updateOwnAppearance]);
@@ -100,7 +109,7 @@ export function useAppearance() {
   );
 
   return {
-    theme: theme ?? "system",
+    theme: normalizeTheme(theme),
     setTheme,
     resolvedTheme,
     fontSize,

@@ -15,6 +15,7 @@ import {
 import {
   applyFontSize,
   getStoredFontSize,
+  normalizeTheme,
   subscribeFontSize,
   type AppearanceTheme,
   type FontSize,
@@ -58,7 +59,7 @@ export function AppearancePanel() {
         <div className="space-y-2">
           <Label>Theme</Label>
           <Select
-            value={theme ?? "system"}
+            value={normalizeTheme(theme)}
             onValueChange={(value) => {
               void persist(value as AppearanceTheme, fontSize);
             }}
@@ -69,7 +70,6 @@ export function AppearancePanel() {
             <SelectContent>
               <SelectItem value="light">Light</SelectItem>
               <SelectItem value="dark">Dark</SelectItem>
-              <SelectItem value="system">System</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-muted-foreground text-xs">
@@ -81,7 +81,7 @@ export function AppearancePanel() {
           <Select
             value={fontSize}
             onValueChange={(value) => {
-              void persist((theme as AppearanceTheme) ?? "system", value as FontSize);
+              void persist(normalizeTheme(theme), value as FontSize);
             }}
           >
             <SelectTrigger>
