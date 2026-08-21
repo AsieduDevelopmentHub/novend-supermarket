@@ -8,10 +8,19 @@ import { NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
 
 const isLoginPage = createRouteMatcher(["/login", "/signup"]);
-const isPublicRoute = createRouteMatcher(["/login", "/signup", "/api/auth(.*)"]);
+const isPublicRoute = createRouteMatcher([
+  "/login",
+  "/signup",
+  "/billing/callback",
+  "/api/auth(.*)",
+]);
 const isPlatformRoute = createRouteMatcher(["/platform(.*)"]);
 const isAdminOnly = createRouteMatcher(["/branches(.*)"]);
 const isAdminOrManager = createRouteMatcher(["/analytics(.*)", "/users(.*)"]);
+
+function isLandingPath(pathname: string) {
+  return pathname === "/";
+}
 
 function buildCsp(nonce: string) {
   const isDev = process.env.NODE_ENV === "development";
@@ -75,15 +84,17 @@ export default convexAuthNextjsMiddleware(
 
     const authenticated = await convexAuth.isAuthenticated();
 
-    if (request.nextUrl.pathname.startsWith("/signup")) {
-      return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/login"), nonce);
+    const pathname = request.nextUrl.pathname;
+
+    if (isLandingPath(pathname) && authenticated) {
+      return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);
     }
 
     if (isLoginPage(request) && authenticated) {
       return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);
     }
 
-    if (!isPublicRoute(request) && !authenticated) {
+    if (!isPublicRoute(request) && !isLandingPath(pathname) && !authenticated) {
       return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/login"), nonce);
     }
 

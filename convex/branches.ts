@@ -6,6 +6,7 @@ import {
   requireProfile,
   requireRole,
 } from "./shared/permissions";
+import { assertOrganizationCapacity } from "./shared/entitlements";
 import {
   sanitizeOptionalText,
   sanitizePhone,
@@ -230,8 +231,11 @@ export const create = mutation({
     phone: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator"]);
+    const { userId, profile, organizationId, organization } = await requireRole(ctx, [
+      "administrator",
+    ]);
     if (!canManageBranches(profile)) throw new Error("Forbidden");
+    await assertOrganizationCapacity(ctx, organization, "branches");
 
     const name = sanitizeText(args.name, "Branch name", TEXT_LIMITS.name);
     const code = normalizeCode(args.code);

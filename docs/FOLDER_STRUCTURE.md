@@ -38,7 +38,7 @@ novend-pos/
 | Location | Owns |
 |----------|------|
 | `app/` | Routes, layouts, metadata, page assembly |
-| `features/` | Feature UI and presentation logic |
+| `features/` | Feature UI and presentation logic (including `features/marketing` for the public SaaS landing) |
 | `components/` | Shared UI — never Convex, never business rules |
 | `convex/` | Schema, auth, authorization, validation, integrity |
 | `lib/` | Shared non-React utilities |

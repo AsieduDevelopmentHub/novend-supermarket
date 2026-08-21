@@ -17,7 +17,8 @@ Related: Convex guide, Constitution §10, `docs/architecture/MULTI_TENANT.md`
 # Authentication
 
 - Convex Auth Password provider with Next.js cookie sessions
-- Public **signup** is enabled for organization owners only
+- Public **signup** is enabled for organization owners only (`/signup` →
+  `/onboarding`). Staff cannot self-provision a profile.
 - Staff accounts are created by in-org administrators (or managers for cashiers)
 - Login is rate-limited by email (`loginAttempts`): 5 failures / 15 minutes →
   15-minute lockout

@@ -8,18 +8,11 @@ import { action, internalMutation, mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { getPlatformAdmin, requirePlatformAdmin } from "./shared/permissions";
-import { sanitizeText, TEXT_LIMITS } from "./shared/validation";
+import { sanitizeText } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
-import { DEFAULT_BRANCH_CODE, DEFAULT_BRANCH_NAME } from "./shared/defaultBranch";
-
-function slugify(value: string) {
-  const slug = value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 48);
-  return slug || "business";
-}
+import { planKeyValidator, billingCycleValidator } from "./schema";
+import { resolvePlan } from "./shared/plans";
+import { provisionOrganization } from "./shared/provisionOrganization";
 
 export const me = query({
   args: {},
@@ -55,8 +48,12 @@ export const overview = query({
     return {
       organizationCount: organizations.length,
       activeOrganizations: organizations.filter((org) => org.status === "active").length,
+      trialOrganizations: organizations.filter((org) => org.status === "trial").length,
       suspendedOrganizations: organizations.filter((org) => org.status === "suspended").length,
-      inactiveOrganizations: organizations.filter((org) => org.status === "inactive").length,
+      expiredOrganizations: organizations.filter((org) => org.status === "expired").length,
+      inactiveOrganizations: organizations.filter(
+        (org) => org.status === "inactive" || org.status === "disabled",
+      ).length,
       userCount: profiles.length,
       branchCount: branches.length,
       saleCount: sales.length,
@@ -69,7 +66,7 @@ export const overview = query({
           name: org.name,
           slug: org.slug,
           status: org.status,
-          plan: org.plan ?? "standard",
+          plan: resolvePlan(org.planKey).name,
           createdAt: org.createdAt,
         })),
     };
@@ -97,9 +94,11 @@ export const listOrganizations = query({
           name: org.name,
           slug: org.slug,
           status: org.status,
-          plan: org.plan ?? "standard",
+          planKey: resolvePlan(org.planKey).key,
+          plan: resolvePlan(org.planKey).name,
           currency: org.currency,
           createdAt: org.createdAt,
+          trialEndsAt: org.trialEndsAt ?? null,
           userCount: staff.length,
           saleCount: orgSales.length,
         };
@@ -203,7 +202,8 @@ export const getOrganization = query({
       name: org.name,
       slug: org.slug,
       status: org.status,
-      plan: org.plan ?? "standard",
+      planKey: resolvePlan(org.planKey).key,
+      plan: resolvePlan(org.planKey).name,
       currency: org.currency,
       timezone: org.timezone ?? null,
       taxId: org.taxId ?? business.taxId ?? null,
@@ -260,13 +260,19 @@ export const getOrganization = query({
 export const setOrganizationStatus = mutation({
   args: {
     organizationId: v.id("organizations"),
-    status: v.union(v.literal("active"), v.literal("inactive"), v.literal("suspended")),
+    status: v.union(
+      v.literal("active"),
+      v.literal("trial"),
+      v.literal("suspended"),
+      v.literal("expired"),
+      v.literal("disabled"),
+    ),
   },
   handler: async (ctx, args) => {
     const { userId } = await requirePlatformAdmin(ctx);
     const org = await ctx.db.get(args.organizationId);
     if (!org) throw new Error("Organization not found");
-    await ctx.db.patch(args.organizationId, { status: args.status });
+    await ctx.db.patch(args.organizationId, { status: args.status, updatedAt: Date.now() });
     await writeAuditLog(ctx, {
       actorId: userId,
       action: "platform_set_org_status",
@@ -278,6 +284,7 @@ export const setOrganizationStatus = mutation({
   },
 });
 
+/** @deprecated Use `billing.assignPlan`, which also writes the subscription. */
 export const setOrganizationPlan = mutation({
   args: {
     organizationId: v.id("organizations"),
@@ -288,7 +295,7 @@ export const setOrganizationPlan = mutation({
     const org = await ctx.db.get(args.organizationId);
     if (!org) throw new Error("Organization not found");
     const plan = sanitizeText(args.plan, "Plan", 40);
-    await ctx.db.patch(args.organizationId, { plan });
+    await ctx.db.patch(args.organizationId, { plan, updatedAt: Date.now() });
     await writeAuditLog(ctx, {
       actorId: userId,
       action: "platform_set_org_plan",
@@ -364,6 +371,9 @@ export const createOrganization = action({
     adminPassword: v.string(),
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
+    planKey: v.optional(planKeyValidator),
+    cycle: v.optional(billingCycleValidator),
+    trial: v.optional(v.boolean()),
   },
   handler: async (
     ctx,
@@ -377,6 +387,9 @@ export const createOrganization = action({
       currency: args.currency,
       phone: args.phone,
       address: args.address,
+      planKey: args.planKey,
+      cycle: args.cycle,
+      trial: args.trial,
     });
 
     const email = args.adminEmail.trim().toLowerCase();
@@ -405,75 +418,26 @@ export const insertOrganization = mutation({
     currency: v.optional(v.string()),
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
+    planKey: v.optional(planKeyValidator),
+    cycle: v.optional(billingCycleValidator),
+    /** Provision on a trial instead of activating a plan immediately. */
+    trial: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { userId } = await requirePlatformAdmin(ctx);
-    const name = sanitizeText(args.name, "Business name", TEXT_LIMITS.name);
-    const currency = (args.currency?.trim().toUpperCase() || "GHS").slice(0, 8);
-    let slug = slugify(name);
-    const clash = await ctx.db
-      .query("organizations")
-      .withIndex("by_slug", (q) => q.eq("slug", slug))
-      .unique();
-    if (clash) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
-    const now = Date.now();
-    const organizationId = await ctx.db.insert("organizations", {
-      name,
-      slug,
-      status: "active",
-      ownerUserId: userId,
-      currency,
-      plan: "standard",
-      createdAt: now,
-    });
-    const branchId = await ctx.db.insert("branches", {
-      organizationId,
-      name: DEFAULT_BRANCH_NAME,
-      code: DEFAULT_BRANCH_CODE,
-      address: args.address,
+    const trial = args.trial !== false;
+    return await provisionOrganization(ctx, {
+      name: args.name,
+      currency: args.currency,
       phone: args.phone,
-      status: "active",
-      createdAt: now,
-    });
-    await ctx.db.insert("settings", {
-      organizationId,
-      key: "business.profile",
-      value: JSON.stringify({
-        tradeName: name,
-        legalName: name,
-        address: args.address ?? "",
-        phone: args.phone ?? "",
-        email: "",
-        taxId: "",
-      }),
-    });
-    await ctx.db.insert("settings", {
-      organizationId,
-      key: "receipt.template",
-      value: JSON.stringify({
-        paperWidthMm: 80,
-        showLogo: false,
-        headerText: "",
-        footerText: "Goods sold are not returnable without receipt",
-        thankYouLine: "Thank you for your business",
-        showCashier: true,
-        showCustomer: true,
-        showPaymentMethod: true,
-        showSku: false,
-      }),
-    });
-    await ctx.db.insert("settings", {
-      organizationId,
-      key: "pos.preferences",
-      value: JSON.stringify({ autoPrintReceipt: false, receiptPrintMode: "manual" }),
-    });
-    await writeAuditLog(ctx, {
+      address: args.address,
+      ownerUserId: userId,
       actorId: userId,
-      action: "platform_create_organization",
-      entityType: "organizations",
-      entityId: organizationId,
+      license: trial
+        ? { kind: "trial", planKey: args.planKey ?? "pro" }
+        : { kind: "activate", planKey: args.planKey ?? "lifetime", cycle: args.cycle },
+      auditAction: "platform_create_organization",
     });
-    return { organizationId, branchId };
   },
 });
 

@@ -1,0 +1,104 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { loadLicenseSnapshot, saveLicenseSnapshot } from "@/lib/offline/license";
+import type { LicenseAccess, LicenseSnapshot } from "@/convex/shared/licensing";
+import { resolvePlan, type PlanKey, type PlanLimits } from "@/convex/shared/plans";
+
+export type LicenseState = {
+  isLoading: boolean;
+  planKey: PlanKey;
+  planName: string;
+  limits: PlanLimits;
+  features: string[];
+  access: LicenseAccess;
+  /** True when the licence came from the offline cache rather than Convex. */
+  fromCache: boolean;
+  /** Cached licence that is too old to be trusted for writes. */
+  stale: boolean;
+  subscription: LicenseSnapshot["subscription"];
+};
+
+const DEFAULT_ACCESS: LicenseAccess = {
+  state: "active",
+  canRead: true,
+  canWrite: true,
+  reason: null,
+  expiresAt: null,
+};
+
+/**
+ * The organization's licence, live when connected and cached when not.
+ *
+ * The server is always the authority — this hook exists so the UI can show the
+ * right banners and disable actions before a mutation is rejected.
+ */
+export function useLicense(): LicenseState {
+  const online = useConnectivity();
+  const remote = useQuery(api.billing.licenseSnapshot, online ? {} : "skip");
+  const [cached, setCached] = useState<Awaited<ReturnType<typeof loadLicenseSnapshot>>>(null);
+  const [cacheReady, setCacheReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadLicenseSnapshot().then((snapshot) => {
+      if (cancelled) return;
+      setCached(snapshot);
+      setCacheReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!remote) return;
+    void saveLicenseSnapshot(remote as LicenseSnapshot);
+  }, [remote]);
+
+  if (remote) {
+    const plan = resolvePlan(remote.planKey);
+    return {
+      isLoading: false,
+      planKey: plan.key,
+      planName: remote.planName,
+      limits: remote.limits,
+      features: remote.features,
+      access: remote.access,
+      fromCache: false,
+      stale: false,
+      subscription: remote.subscription,
+    };
+  }
+
+  if (!online && cached) {
+    const plan = resolvePlan(cached.planKey);
+    return {
+      isLoading: false,
+      planKey: plan.key,
+      planName: cached.planName,
+      limits: cached.limits,
+      features: cached.features,
+      access: cached.access,
+      fromCache: true,
+      stale: cached.access.stale,
+      subscription: cached.subscription,
+    };
+  }
+
+  const fallback = resolvePlan(undefined);
+  return {
+    isLoading: (online && remote === undefined) || (!online && !cacheReady),
+    planKey: fallback.key,
+    planName: fallback.name,
+    limits: fallback.limits,
+    features: fallback.features,
+    access: DEFAULT_ACCESS,
+    fromCache: false,
+    stale: false,
+    subscription: null,
+  };
+}

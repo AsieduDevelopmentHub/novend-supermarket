@@ -148,6 +148,7 @@ export const META_KEYS = {
   profileEmail: "profileEmail",
   profilePhone: "profilePhone",
   profileOrganizationName: "profileOrganizationName",
+  licenseSnapshot: "licenseSnapshot",
   lastCleanupAt: "lastCleanupAt",
   lastSyncAt: "lastSyncAt",
   lastSyncProcessed: "lastSyncProcessed",

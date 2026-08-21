@@ -1,10 +1,26 @@
 # Routing
 
-Version: 1.0.0
+Version: 1.1.0
+
+## Public vs authenticated entry
+
+```text
+/                    Public SaaS landing (web only)
+/login               Authentication
+/(app)/*             Authenticated POS shell
+```
+
+**Web:** Unauthenticated users may open `/` (marketing). Authenticated visits to
+`/` redirect to `/dashboard`. Login and Get Started CTAs go to `/login`.
+
+**Electron:** Boots to `/dashboard` via `offline-boot.html` — never the landing
+page. The landing client also redirects if `window.novendDesktop` is present.
+See `docs/architecture/DESKTOP_PLATFORM.md`.
 
 ## Route groups
 
 ```text
+app/page.tsx                 # Public marketing landing
 app/(auth)/login
 app/(auth)/signup
 app/(auth)/onboarding
@@ -22,11 +38,14 @@ app/(app)/users/[id]
 app/(app)/settings
 ```
 
-Navigation: `config/navigation.ts` (permission-aware).
+Navigation: `config/navigation.ts` (permission-aware). Marketing copy:
+`features/marketing/`.
 
 ## Gates
 
-- Unauthenticated → `/login`
+- Unauthenticated on protected routes → `/login`
+- Unauthenticated may access `/` and `/login`
+- Authenticated on `/` or `/login` → `/dashboard`
 - Authenticated without profile → `/onboarding`
 - Inactive organization or profile → blocked message
 - `/users` — administrator or manager (proxy + Convex)

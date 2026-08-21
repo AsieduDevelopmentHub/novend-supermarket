@@ -1,0 +1,224 @@
+"use client";
+
+import { useState } from "react";
+import { useAction, useQuery } from "convex/react";
+import { CircleAlert, Copy, ShieldCheck } from "lucide-react";
+import { api } from "@/convex/_generated/api";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
+import { LoadingState } from "@/components/feedback/loading-state";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { formatCurrency } from "@/lib/currency";
+import { showError } from "@/lib/errors";
+import { toast } from "sonner";
+import { PlanUsageGrid } from "./plan-usage-grid";
+import { PlansGrid } from "./plans-grid";
+import { BillingHistoryTable } from "./billing-history-table";
+import { CloudBackupPanel } from "./cloud-backup-panel";
+import type { AccessState } from "@/convex/shared/licensing";
+
+const ACCESS_BADGE: Record<AccessState, { label: string; variant: "success" | "secondary" | "warning" | "destructive" }> =
+  {
+    active: { label: "Active", variant: "success" },
+    trial: { label: "Trial", variant: "secondary" },
+    grace: { label: "Payment overdue", variant: "warning" },
+    suspended: { label: "Suspended", variant: "destructive" },
+    expired: { label: "Expired", variant: "destructive" },
+    disabled: { label: "Disabled", variant: "destructive" },
+  };
+
+function formatDate(value: number | null) {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("en-GH", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/** Settings → Billing. Administrators only. */
+export function BillingPanel() {
+  const online = useConnectivity();
+  const overview = useQuery(api.billing.overview, online ? {} : "skip");
+  const cancelSubscription = useAction(api.billing.cancelSubscription);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  if (!online) {
+    return (
+      <Card>
+        <CardContent className="text-muted-foreground p-5 text-sm">
+          Billing needs a connection. Reconnect to view your plan, usage and payments.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (overview === undefined) {
+    return <LoadingState label="Loading billing…" variant="form" />;
+  }
+
+  const badge = ACCESS_BADGE[overview.access.state];
+  const subscription = overview.subscription;
+  const canCancel = Boolean(subscription && !subscription.isLifetime && !subscription.cancelAtPeriodEnd);
+
+  async function onCancel() {
+    setCancelling(true);
+    try {
+      const result = await cancelSubscription({});
+      toast.success(
+        result.endsAt
+          ? `Subscription ends on ${formatDate(result.endsAt)}`
+          : "Subscription cancelled",
+      );
+    } catch (error) {
+      showError(error, "Could not cancel the subscription");
+    } finally {
+      setCancelling(false);
+      setConfirmCancel(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {overview.access.reason ? (
+        <Alert variant={overview.access.canWrite ? "default" : "destructive"}>
+          <CircleAlert className="h-4 w-4" aria-hidden />
+          <AlertTitle>
+            {overview.access.canWrite ? "Action needed" : "Read-only mode"}
+          </AlertTitle>
+          <AlertDescription>{overview.access.reason}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex flex-wrap items-center gap-2">
+            Current plan
+            <Badge variant={badge.variant}>{badge.label}</Badge>
+          </CardTitle>
+          <CardDescription>{overview.plan.tagline}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <Detail label="Plan" value={overview.plan.name} />
+          <Detail
+            label={subscription?.isLifetime ? "Licence" : "Renews"}
+            value={
+              subscription?.isLifetime
+                ? "Never expires"
+                : formatDate(subscription?.nextBillingDate ?? overview.trialEndsAt)
+            }
+          />
+          <Detail
+            label="Billing"
+            value={
+              subscription
+                ? subscription.isLifetime
+                  ? `${formatCurrency(subscription.amount)} one-time`
+                  : `${formatCurrency(subscription.amount)} / ${subscription.billingCycle === "yearly" ? "year" : "month"}`
+                : "—"
+            }
+          />
+          <OrganizationId id={overview.organizationId} />
+        </CardContent>
+      </Card>
+
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-base font-semibold">Usage</h3>
+          <p className="text-muted-foreground text-sm">
+            Reaching a limit only blocks new records of that kind. Selling never stops.
+          </p>
+        </div>
+        <PlanUsageGrid usage={overview.usage} />
+      </section>
+
+      <PlansGrid
+        currentPlanKey={overview.planKey}
+        currentCycle={subscription?.billingCycle ?? null}
+        onlinePaymentsEnabled={overview.onlinePaymentsEnabled}
+      />
+
+      <CloudBackupPanel />
+
+      <section className="space-y-3">
+        <h3 className="text-base font-semibold">Payment history</h3>
+        <BillingHistoryTable />
+      </section>
+
+      {canCancel ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Cancel subscription</CardTitle>
+            <CardDescription>
+              Your plan keeps working until the end of the period you already paid for.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" onClick={() => setConfirmCancel(true)}>
+              Cancel subscription
+            </Button>
+          </CardContent>
+        </Card>
+      ) : subscription?.cancelAtPeriodEnd ? (
+        <Alert>
+          <ShieldCheck className="h-4 w-4" aria-hidden />
+          <AlertTitle>Cancellation scheduled</AlertTitle>
+          <AlertDescription>
+            This plan ends on {formatDate(subscription.expiresAt)}. Choose a plan above to stay
+            active.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      <ConfirmDialog
+        open={confirmCancel}
+        onOpenChange={setConfirmCancel}
+        title="Cancel this subscription?"
+        description="Novend will stop renewing this plan. You keep full access until the current period ends, then the business becomes read-only."
+        confirmLabel={cancelling ? "Cancelling…" : "Cancel subscription"}
+        cancelLabel="Keep plan"
+        pending={cancelling}
+        onConfirm={() => void onCancel()}
+      />
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-muted-foreground text-xs tracking-wide uppercase">{label}</p>
+      <p className="mt-1 truncate font-medium">{value}</p>
+    </div>
+  );
+}
+
+function OrganizationId({ id }: { id: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-muted-foreground text-xs tracking-wide uppercase">Organization ID</p>
+      <div className="mt-1 flex items-center gap-1">
+        <code className="bg-muted truncate rounded px-1.5 py-0.5 font-mono text-xs">{id}</code>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 shrink-0"
+          aria-label="Copy organization ID"
+          onClick={() => {
+            void navigator.clipboard
+              .writeText(id)
+              .then(() => toast.success("Organization ID copied"))
+              .catch(() => toast.error("Could not copy"));
+          }}
+        >
+          <Copy className="h-3.5 w-3.5" aria-hidden />
+        </Button>
+      </div>
+    </div>
+  );
+}

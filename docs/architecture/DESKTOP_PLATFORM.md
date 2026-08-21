@@ -45,6 +45,17 @@ no separate “initialized” flag file.
 Background sync (while online) runs on a timer and when the outbox pending count
 crosses a threshold — see `lib/offline/freshness.ts`.
 
+## Web marketing vs desktop
+
+The hosted web app serves a public SaaS landing at `/`. Electron must **not**
+open that route:
+
+1. Offline boot always navigates to `/dashboard`.
+2. The landing page client-redirects to `/dashboard` when `novendDesktop` is present.
+
+Marketing UI lives in `features/marketing/` and must stay out of the desktop
+offline-first login path.
+
 
 ## Layers
 

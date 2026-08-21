@@ -1,0 +1,245 @@
+/**
+ * Pure licensing rules: access derivation, usage levels and alert thresholds.
+ *
+ * Kept free of Convex and React imports so the same rules run on the server,
+ * in the browser (including from the offline license cache) and in unit tests.
+ */
+
+import type { LimitResource, PlanKey } from "./plans";
+
+export const ORGANIZATION_STATUSES = [
+  "active",
+  "trial",
+  "suspended",
+  "expired",
+  "disabled",
+  /** Legacy value from before licensing; treated as `disabled`. */
+  "inactive",
+] as const;
+
+export type OrganizationStatus = (typeof ORGANIZATION_STATUSES)[number];
+
+export const SUBSCRIPTION_STATUSES = [
+  "trialing",
+  "active",
+  "past_due",
+  "cancelled",
+  "expired",
+] as const;
+
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+
+/**
+ * Days a lapsed subscription keeps full access. Protects businesses from losing
+ * the counter because of a failed card or a bank delay.
+ */
+export const GRACE_PERIOD_DAYS = 7;
+
+export const GRACE_PERIOD_MS = GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000;
+
+/**
+ * How long a cached licence stays trusted while the device is offline. Longer
+ * than the grace period on purpose: connectivity loss must never stop selling.
+ */
+export const OFFLINE_LICENSE_TTL_DAYS = 30;
+
+export const OFFLINE_LICENSE_TTL_MS = OFFLINE_LICENSE_TTL_DAYS * 24 * 60 * 60 * 1000;
+
+export const USAGE_WARNING_RATIO = 0.8;
+
+export type AccessState = "active" | "trial" | "grace" | "suspended" | "expired" | "disabled";
+
+export type LicenseAccess = {
+  state: AccessState;
+  /** Sign in and read business data. */
+  canRead: boolean;
+  /** Create sales, move inventory and change records. */
+  canWrite: boolean;
+  /** Present tense explanation for the UI and for thrown errors. */
+  reason: string | null;
+  /** Milliseconds until the current state lapses, when known. */
+  expiresAt: number | null;
+};
+
+export type SubscriptionSnapshot = {
+  status: SubscriptionStatus;
+  isLifetime: boolean;
+  expiresAt?: number | null;
+  graceUntil?: number | null;
+};
+
+const READ_ONLY_SUSPENDED =
+  "This business is suspended. You can review existing records, but new activity is paused.";
+const READ_ONLY_EXPIRED =
+  "Your subscription has expired. Renew from Settings → Billing to start selling again.";
+const BLOCKED_DISABLED = "This business has been disabled. Contact Novend support.";
+
+/**
+ * Single place that decides what a licence permits. Organization status set by a
+ * platform admin always wins; otherwise the subscription decides.
+ */
+export function deriveAccess(
+  organizationStatus: OrganizationStatus,
+  subscription: SubscriptionSnapshot | null,
+  now: number,
+): LicenseAccess {
+  if (organizationStatus === "disabled" || organizationStatus === "inactive") {
+    return { state: "disabled", canRead: false, canWrite: false, reason: BLOCKED_DISABLED, expiresAt: null };
+  }
+  if (organizationStatus === "suspended") {
+    return {
+      state: "suspended",
+      canRead: true,
+      canWrite: false,
+      reason: READ_ONLY_SUSPENDED,
+      expiresAt: null,
+    };
+  }
+
+  if (!subscription) {
+    if (organizationStatus === "expired") {
+      return {
+        state: "expired",
+        canRead: true,
+        canWrite: false,
+        reason: READ_ONLY_EXPIRED,
+        expiresAt: null,
+      };
+    }
+    return { state: "active", canRead: true, canWrite: true, reason: null, expiresAt: null };
+  }
+
+  if (subscription.isLifetime) {
+    return { state: "active", canRead: true, canWrite: true, reason: null, expiresAt: null };
+  }
+
+  const expiresAt = subscription.expiresAt ?? null;
+  const graceUntil = subscription.graceUntil ?? (expiresAt ? expiresAt + GRACE_PERIOD_MS : null);
+  const lapsed = expiresAt !== null && now > expiresAt;
+
+  if (subscription.status === "cancelled" || subscription.status === "expired" || lapsed) {
+    if (graceUntil !== null && now <= graceUntil) {
+      return {
+        state: "grace",
+        canRead: true,
+        canWrite: true,
+        reason: "Payment is overdue. Renew now to avoid interruption.",
+        expiresAt: graceUntil,
+      };
+    }
+    return {
+      state: "expired",
+      canRead: true,
+      canWrite: false,
+      reason: READ_ONLY_EXPIRED,
+      expiresAt,
+    };
+  }
+
+  if (subscription.status === "past_due") {
+    return {
+      state: "grace",
+      canRead: true,
+      canWrite: true,
+      reason: "Your last payment failed. Update payment to keep your subscription active.",
+      expiresAt: graceUntil,
+    };
+  }
+
+  if (subscription.status === "trialing" || organizationStatus === "trial") {
+    return {
+      state: "trial",
+      canRead: true,
+      canWrite: true,
+      reason: "You're on a free trial. Choose a plan before it ends to keep selling.",
+      expiresAt,
+    };
+  }
+
+  return { state: "active", canRead: true, canWrite: true, reason: null, expiresAt };
+}
+
+export type UsageLevel = "ok" | "warning" | "full";
+
+export type UsageMetric = {
+  resource: LimitResource;
+  used: number;
+  limit: number | null;
+  /** 0–100, capped. `0` when the resource is unlimited. */
+  percent: number;
+  level: UsageLevel;
+  unlimited: boolean;
+  remaining: number | null;
+};
+
+export function buildUsageMetric(
+  resource: LimitResource,
+  used: number,
+  limit: number | null,
+): UsageMetric {
+  const safeUsed = Math.max(0, used);
+  if (limit === null) {
+    return {
+      resource,
+      used: safeUsed,
+      limit: null,
+      percent: 0,
+      level: "ok",
+      unlimited: true,
+      remaining: null,
+    };
+  }
+  const ratio = limit <= 0 ? 1 : safeUsed / limit;
+  return {
+    resource,
+    used: safeUsed,
+    limit,
+    percent: Math.min(100, Math.round(ratio * 100)),
+    level: ratio >= 1 ? "full" : ratio >= USAGE_WARNING_RATIO ? "warning" : "ok",
+    unlimited: false,
+    remaining: Math.max(0, limit - safeUsed),
+  };
+}
+
+export function hasCapacity(metric: UsageMetric, additional = 1): boolean {
+  if (metric.unlimited || metric.limit === null) return true;
+  return metric.used + additional <= metric.limit;
+}
+
+/** Trial length for organizations provisioned without a paid plan. */
+export const TRIAL_PERIOD_DAYS = 14;
+
+export const TRIAL_PERIOD_MS = TRIAL_PERIOD_DAYS * 24 * 60 * 60 * 1000;
+
+export type LicenseSnapshot = {
+  organizationId: string;
+  organizationName: string;
+  planKey: PlanKey;
+  planName: string;
+  organizationStatus: OrganizationStatus;
+  subscription: SubscriptionSnapshot | null;
+  access: LicenseAccess;
+  limits: Record<LimitResource, number | null>;
+  features: string[];
+  issuedAt: number;
+};
+
+/**
+ * Re-evaluates a cached snapshot on the client. Devices that stay offline past
+ * the cache TTL fall back to read-only rather than losing the app entirely.
+ */
+export function evaluateCachedLicense(
+  snapshot: LicenseSnapshot,
+  now: number,
+): LicenseAccess & { stale: boolean } {
+  const stale = now - snapshot.issuedAt > OFFLINE_LICENSE_TTL_MS;
+  const access = deriveAccess(snapshot.organizationStatus, snapshot.subscription, now);
+  if (!stale) return { ...access, stale };
+  return {
+    ...access,
+    canWrite: false,
+    state: access.canWrite ? "expired" : access.state,
+    reason: "This device has been offline too long to confirm your licence. Reconnect to continue.",
+    stale,
+  };
+}

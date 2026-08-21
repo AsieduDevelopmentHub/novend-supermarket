@@ -7,6 +7,7 @@ import {
   requireRole,
   resolveBranchFilter,
 } from "./shared/permissions";
+import { assertOrganizationCapacity } from "./shared/entitlements";
 import {
   assertPositiveMoney,
   assertStoredImage,
@@ -180,11 +181,12 @@ export const createProduct = mutation({
     expiryDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, [
+    const { userId, profile, organizationId, organization } = await requireRole(ctx, [
       "administrator",
       "manager",
     ]);
     if (!canManageCatalog(profile)) throw new Error("Forbidden");
+    await assertOrganizationCapacity(ctx, organization, "products");
 
     const name = sanitizeText(args.name, "Product name", TEXT_LIMITS.name);
     const sku = sanitizeSku(args.sku);

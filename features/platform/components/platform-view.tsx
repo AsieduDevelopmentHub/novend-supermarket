@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PageHeader } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
@@ -22,12 +22,13 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { formatDateTime } from "@/lib/date";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { Building2, Eye, Plus } from "lucide-react";
+import { PLAN_LIST, type PlanKey } from "@/convex/shared/plans";
 
 export function PlatformView() {
   const orgs = useQuery(api.platform.listOrganizations, {});
-  const setPlan = useMutation(api.platform.setOrganizationPlan);
   const createOrg = useAction(api.platform.createOrganization);
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -36,6 +37,8 @@ export function PlatformView() {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [currency, setCurrency] = useState("GHS");
+  const [trial, setTrial] = useState(true);
+  const [planKey, setPlanKey] = useState<PlanKey>("pro");
 
   async function onCreate(event: FormEvent) {
     event.preventDefault();
@@ -47,13 +50,17 @@ export function PlatformView() {
         adminName,
         adminEmail,
         adminPassword,
+        trial,
+        planKey,
       });
-      toast.success("Organization created");
+      toast.success(trial ? "Organization created on a Pro trial" : "Organization created");
       setOpen(false);
       setName("");
       setAdminName("");
       setAdminEmail("");
       setAdminPassword("");
+      setTrial(true);
+      setPlanKey("pro");
     } catch (error) {
       showError(error, "Could not create organization");
     } finally {
@@ -110,20 +117,7 @@ export function PlatformView() {
                         {org.status}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3">
-                      <Input
-                        defaultValue={org.plan}
-                        className="h-8 w-28"
-                        onBlur={(event) => {
-                          const plan = event.target.value.trim();
-                          if (plan && plan !== org.plan) {
-                            void setPlan({ organizationId: org.id, plan }).catch((error) =>
-                              showError(error, "Could not update plan"),
-                            );
-                          }
-                        }}
-                      />
-                    </td>
+                    <td className="px-4 py-3">{org.plan}</td>
                     <td className="px-4 py-3">{org.userCount}</td>
                     <td className="px-4 py-3">{org.saleCount}</td>
                     <td className="px-4 py-3">{formatDateTime(org.createdAt)}</td>
@@ -181,6 +175,29 @@ export function PlatformView() {
                   minLength={8}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="platform-plan">Starting plan</Label>
+                <select
+                  id="platform-plan"
+                  className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+                  value={planKey}
+                  onChange={(event) => setPlanKey(event.target.value as PlanKey)}
+                >
+                  {PLAN_LIST.map((plan) => (
+                    <option key={plan.key} value={plan.key}>
+                      {plan.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <Checkbox
+                  checked={trial}
+                  onCheckedChange={(value) => setTrial(value === true)}
+                  aria-label="Start on a 14-day trial"
+                />
+                <span>Start on a 14-day trial</span>
+              </label>
             </div>
             <DialogFooter>
               <Button type="submit" disabled={pending}>

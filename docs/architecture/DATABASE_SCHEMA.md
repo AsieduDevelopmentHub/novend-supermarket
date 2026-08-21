@@ -11,7 +11,13 @@ or drive hot queries **start with** `organizationId`.
 
 ## Core tables
 
-- `organizations` — name, slug, status, ownerUserId, currency, timezone, taxId
+- `organizations` — name, slug, status, ownerUserId, currency, planKey,
+  subscriptionId, trialEndsAt
+- `plans` — catalog mirror of `convex/shared/plans.ts` plus gateway plan codes
+- `subscriptions` — one live licence per organization
+- `devices` — activated terminals counted against the plan
+- `billingHistory` — checkout and webhook payment records
+- `cloudBackups` — cloud backup blobs counted against the storage quota
 - `users` / auth tables — Convex Auth (global identity)
 - `profiles` — name, role, organizationId, branchId, status, appearance
 - `branches` — name, unique code per org, status (MVP: MAIN)

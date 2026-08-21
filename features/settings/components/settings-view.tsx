@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PageHeader } from "@/components/layout/primitives";
@@ -42,8 +43,10 @@ import { LocalBackupPanel } from "./local-backup-panel";
 import { ReceiptPrintModePicker } from "./receipt-print-mode-picker";
 import { resolveReceiptPrintMode, sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 import {
+  CreditCard,
   Download,
   Monitor,
+  MonitorSmartphone,
   Palette,
   Receipt,
   ScanBarcode,
@@ -52,11 +55,15 @@ import {
   UserRound,
   Wrench,
 } from "lucide-react";
+import { BillingPanel } from "@/features/billing/components/billing-panel";
+import { DevicesPanel } from "@/features/billing/components/devices-panel";
 
 type SettingsTab =
   | "profile"
   | "receipt"
   | "business"
+  | "billing"
+  | "devices"
   | "branchReceipt"
   | "printer"
   | "scanner"
@@ -79,6 +86,7 @@ export function SettingsView() {
   } | null>(null);
   const [cacheReady, setCacheReady] = useState(false);
   const [tab, setTab] = useState<SettingsTab | null>(null);
+  const requestedSection = useSearchParams().get("section");
 
   useEffect(() => {
     let cancelled = false;
@@ -127,11 +135,13 @@ export function SettingsView() {
           ? ([
               { value: "receipt" as const, label: "Receipt", long: "Receipt template" },
               { value: "business" as const, label: "Business", long: "Business profile" },
+              { value: "billing" as const, label: "Billing", long: "Billing & plan" },
             ] as const)
           : []),
         ...(isManager || isAdmin
           ? ([
               { value: "branchReceipt" as const, label: "Branch", long: "Branch receipt" },
+              { value: "devices" as const, label: "Devices", long: "Activated devices" },
             ] as const)
           : []),
         ...(isDesktop
@@ -155,7 +165,10 @@ export function SettingsView() {
     [isAdmin, isManager, isDesktop],
   );
 
-  const activeTab: SettingsTab = tab && sections.some((s) => s.value === tab) ? tab : "profile";
+  // Banners and limit prompts deep-link here with `?section=billing|devices`.
+  const linkedTab = sections.find((section) => section.value === requestedSection)?.value ?? null;
+  const activeTab: SettingsTab =
+    tab && sections.some((s) => s.value === tab) ? tab : (linkedTab ?? "profile");
 
   const waitingAdminRemote =
     online && isAdmin && (remoteBusiness === undefined || remoteTemplate === undefined);
@@ -238,10 +251,21 @@ export function SettingsView() {
           </TabsContent>
         ) : null}
 
-        {isManager || isAdmin ? (
-          <TabsContent value="branchReceipt" className="mt-0">
-            <BranchReceiptPanel />
+        {isAdmin ? (
+          <TabsContent value="billing" className="mt-0">
+            <BillingPanel />
           </TabsContent>
+        ) : null}
+
+        {isManager || isAdmin ? (
+          <>
+            <TabsContent value="branchReceipt" className="mt-0">
+              <BranchReceiptPanel />
+            </TabsContent>
+            <TabsContent value="devices" className="mt-0">
+              <DevicesPanel />
+            </TabsContent>
+          </>
         ) : null}
 
         {isDesktop ? (
@@ -286,6 +310,8 @@ const SETTINGS_ICONS: Record<SettingsTab, typeof UserRound> = {
   profile: UserRound,
   receipt: Receipt,
   business: Store,
+  billing: CreditCard,
+  devices: MonitorSmartphone,
   branchReceipt: Store,
   printer: Monitor,
   scanner: ScanBarcode,
@@ -319,11 +345,18 @@ function SettingsTreeNav({
     },
     {
       label: "Business",
-      items: sections.filter((item) => item.value === "business" || item.value === "receipt"),
+      items: sections.filter(
+        (item) =>
+          item.value === "business" || item.value === "receipt" || item.value === "billing",
+      ),
     },
     {
       label: "Branch",
       items: sections.filter((item) => item.value === "branchReceipt"),
+    },
+    {
+      label: "Devices",
+      items: sections.filter((item) => item.value === "devices"),
     },
     {
       label: "Hardware",

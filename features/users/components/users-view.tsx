@@ -5,6 +5,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
+import { PlanLimitNotice } from "@/features/billing/components/plan-limit-notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -187,6 +188,8 @@ export function UsersView() {
           </Button>
         }
       />
+
+      <PlanLimitNotice resource="users" />
 
       <Input
         value={search}

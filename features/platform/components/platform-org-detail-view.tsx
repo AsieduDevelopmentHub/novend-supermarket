@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader, Grid } from "@/components/layout/primitives";
@@ -19,14 +19,12 @@ import { formatDateTime, formatPresence } from "@/lib/date";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { ArrowLeft } from "lucide-react";
+import { PlatformLicensePanel } from "./platform-license-panel";
 
 export function PlatformOrgDetailView({ organizationId }: { organizationId: string }) {
   const id = organizationId as Id<"organizations">;
   const org = useQuery(api.platform.getOrganization, { organizationId: id });
-  const setStatus = useMutation(api.platform.setOrganizationStatus);
-  const setPlan = useMutation(api.platform.setOrganizationPlan);
   const resetPassword = useAction(api.platform.resetOrganizationAdminPassword);
-  const [plan, setPlanValue] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -35,35 +33,6 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
   }
   if (!org) {
     return <ErrorState message="Organization not found." />;
-  }
-
-  const detail = org;
-  const planValue = plan ?? detail.plan;
-
-  async function onSavePlan() {
-    const next = planValue.trim();
-    if (!next || next === detail.plan) return;
-    setPending(true);
-    try {
-      await setPlan({ organizationId: id, plan: next });
-      toast.success("Plan updated");
-    } catch (error) {
-      showError(error, "Could not update plan");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function onStatus(status: "active" | "inactive" | "suspended") {
-    setPending(true);
-    try {
-      await setStatus({ organizationId: id, status });
-      toast.success(status === "active" ? "Organization enabled" : `Organization ${status}`);
-    } catch (error) {
-      showError(error, "Could not change status");
-    } finally {
-      setPending(false);
-    }
   }
 
   async function onReset() {
@@ -101,32 +70,6 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={org.status === "active" ? "success" : "secondary"}>{org.status}</Badge>
         <Badge variant="outline">{org.plan}</Badge>
-        {org.status === "active" ? (
-          <>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={pending}
-              onClick={() => void onStatus("suspended")}
-            >
-              Suspend
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={pending}
-              onClick={() => void onStatus("inactive")}
-            >
-              Disable
-            </Button>
-          </>
-        ) : (
-          <Button type="button" size="sm" disabled={pending} onClick={() => void onStatus("active")}>
-            Enable
-          </Button>
-        )}
       </div>
 
       <Grid cols={5}>
@@ -159,7 +102,7 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
 
         <Card>
           <CardHeader>
-            <CardTitle>Owner & plan</CardTitle>
+            <CardTitle>Owner & team</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -174,19 +117,6 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
                 label="Wholesale units"
                 value={String(org.kpis.wholesaleUnits)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="plan">Plan</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="plan"
-                  value={planValue}
-                  onChange={(e) => setPlanValue(e.target.value)}
-                />
-                <Button type="button" variant="outline" disabled={pending} onClick={() => void onSavePlan()}>
-                  Save
-                </Button>
-              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="resetPassword">Reset owner password</Label>
@@ -207,6 +137,8 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
           </CardContent>
         </Card>
       </div>
+
+      <PlatformLicensePanel organizationId={id} status={org.status} />
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
