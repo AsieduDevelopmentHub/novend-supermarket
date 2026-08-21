@@ -14,7 +14,9 @@ export type OutboxOpType =
   | "create_expense"
   | "remove_expense"
   | "update_profile"
-  | "create_user";
+  | "create_user"
+  | "upsert_product"
+  | "create_category";
 
 export type LocalSaleSyncStatus = "pending" | "synced" | "failed";
 
@@ -403,6 +405,31 @@ export type CreateUserPayload = {
   role: "administrator" | "manager" | "cashier";
   branchId: string;
   phone?: string;
+};
+
+export type CreateCategoryPayload = {
+  localId: string;
+  name: string;
+};
+
+export type UpsertProductPayload = {
+  localId: string;
+  serverId?: string;
+  name: string;
+  sku: string;
+  categoryId: string;
+  costPrice: number;
+  sellingPrice: number;
+  stockQuantity: number;
+  unit: string;
+  lowStockThreshold: number;
+  status: "active" | "inactive";
+  description?: string;
+  tracksExpiry?: boolean;
+  expiryAlertDays?: number;
+  expiryDate?: string;
+  imageStorageId?: string;
+  hasLocalImage?: boolean;
 };
 
 export type OutboxRow = {

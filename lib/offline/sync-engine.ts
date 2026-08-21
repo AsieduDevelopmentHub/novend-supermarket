@@ -21,6 +21,7 @@ import { markLocalReturnFailed, markLocalReturnSynced } from "./returns-reposito
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
 import type {
   AdjustStockPayload,
+  CreateCategoryPayload,
   CreateExpensePayload,
   CreateUserPayload,
   RecordWholesalePurchasePayload,
@@ -28,6 +29,7 @@ import type {
   TransferStockPayload,
   UpdateProfilePayload,
   UpsertCustomerPayload,
+  UpsertProductPayload,
   UpsertSupplierPayload,
   WholesaleTransferPayload,
 } from "./types";
@@ -143,6 +145,40 @@ export type QueuedMutators = {
     role: "administrator" | "manager" | "cashier";
     branchId: Id<"branches">;
     phone?: string;
+  }) => Promise<unknown>;
+  createCategory: (args: { name: string }) => Promise<Id<"categories">>;
+  generateUploadUrl: () => Promise<string>;
+  createProduct: (args: {
+    name: string;
+    sku: string;
+    categoryId: Id<"categories">;
+    costPrice: number;
+    sellingPrice: number;
+    stockQuantity: number;
+    unit: string;
+    lowStockThreshold: number;
+    status: "active" | "inactive";
+    description?: string;
+    imageStorageId?: Id<"_storage">;
+    tracksExpiry?: boolean;
+    expiryAlertDays?: number;
+    expiryDate?: string;
+  }) => Promise<unknown>;
+  updateProduct: (args: {
+    id: Id<"products">;
+    name: string;
+    sku: string;
+    categoryId: Id<"categories">;
+    costPrice: number;
+    sellingPrice: number;
+    unit: string;
+    lowStockThreshold: number;
+    status: "active" | "inactive";
+    description?: string;
+    imageStorageId?: Id<"_storage">;
+    tracksExpiry?: boolean;
+    expiryAlertDays?: number;
+    openingExpiryDate?: string;
   }) => Promise<unknown>;
 };
 
@@ -343,6 +379,76 @@ export async function drainOutbox(options: {
             phone: payload.phone,
           });
           await db.users.delete(payload.localId);
+          await markOutboxSynced(db, claimed.id);
+          await pullOfflineSnapshot(options.convex, { force: true });
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "create_category") {
+          const payload = JSON.parse(claimed.payloadJson) as CreateCategoryPayload;
+          const id = await options.mutators.createCategory({ name: payload.name });
+          await db.categories.delete(payload.localId);
+          await replaceIdInPendingOutbox(db, payload.localId, String(id));
+          await markOutboxSynced(db, claimed.id);
+          await pullOfflineSnapshot(options.convex, { force: true });
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "upsert_product") {
+          const payload = JSON.parse(claimed.payloadJson) as UpsertProductPayload;
+          let imageStorageId = payload.imageStorageId as Id<"_storage"> | undefined;
+          if (payload.hasLocalImage && !imageStorageId) {
+            const cached = await db.productImages.get(payload.localId);
+            if (cached) {
+              const uploadUrl = await options.mutators.generateUploadUrl();
+              const result = await fetch(uploadUrl, {
+                method: "POST",
+                headers: { "Content-Type": cached.mimeType || "image/jpeg" },
+                body: cached.blob,
+              });
+              if (result.ok) {
+                const json = (await result.json()) as { storageId: Id<"_storage"> };
+                imageStorageId = json.storageId;
+              }
+            }
+          }
+          const categoryId = payload.categoryId as Id<"categories">;
+          if (payload.serverId && !payload.serverId.startsWith("local_")) {
+            await options.mutators.updateProduct({
+              id: payload.serverId as Id<"products">,
+              name: payload.name,
+              sku: payload.sku,
+              categoryId,
+              costPrice: payload.costPrice,
+              sellingPrice: payload.sellingPrice,
+              unit: payload.unit,
+              lowStockThreshold: payload.lowStockThreshold,
+              status: payload.status,
+              description: payload.description,
+              imageStorageId,
+              tracksExpiry: payload.tracksExpiry,
+              expiryAlertDays: payload.expiryAlertDays,
+              openingExpiryDate: payload.expiryDate,
+            });
+          } else {
+            await options.mutators.createProduct({
+              name: payload.name,
+              sku: payload.sku,
+              categoryId,
+              costPrice: payload.costPrice,
+              sellingPrice: payload.sellingPrice,
+              stockQuantity: payload.stockQuantity,
+              unit: payload.unit,
+              lowStockThreshold: payload.lowStockThreshold,
+              status: payload.status,
+              description: payload.description,
+              imageStorageId,
+              tracksExpiry: payload.tracksExpiry,
+              expiryAlertDays: payload.expiryAlertDays,
+              expiryDate: payload.expiryDate,
+            });
+            if (payload.localId.startsWith("local_")) {
+              await db.products.delete(payload.localId);
+            }
+          }
           await markOutboxSynced(db, claimed.id);
           await pullOfflineSnapshot(options.convex, { force: true });
           processed += 1;

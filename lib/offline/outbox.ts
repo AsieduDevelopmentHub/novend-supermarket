@@ -1,4 +1,5 @@
 import { getOfflineDb, type PrincellenOfflineDb } from "./db";
+import { notifyReplicaChanged } from "./replica-events";
 import type {
   CompleteSaleOutboxPayload,
   ProcessReturnOutboxPayload,
@@ -6,6 +7,18 @@ import type {
   OutboxRow,
 } from "./types";
 import { newClientId } from "./db";
+
+let suppressOutboxEnqueue = false;
+
+/** Run replica Dexie writes without enqueueing a duplicate Convex sync. */
+export async function withMirrorOnly<T>(fn: () => Promise<T>): Promise<T> {
+  suppressOutboxEnqueue = true;
+  try {
+    return await fn();
+  } finally {
+    suppressOutboxEnqueue = false;
+  }
+}
 
 export async function enqueueCompleteSale(
   db: PrincellenOfflineDb,
@@ -24,6 +37,7 @@ export async function enqueueCompleteSale(
     updatedAt: now,
   };
   await db.outbox.put(row);
+  notifyReplicaChanged();
   return row;
 }
 
@@ -44,6 +58,7 @@ export async function enqueueProcessReturn(
     updatedAt: now,
   };
   await db.outbox.put(row);
+  notifyReplicaChanged();
   return row;
 }
 
@@ -120,12 +135,15 @@ export async function enqueueOutbox(
     type,
     clientOperationId,
     payloadJson: JSON.stringify(payload),
-    status: "pending",
+    status: suppressOutboxEnqueue ? "synced" : "pending",
     attempts: 0,
     createdAt: now,
     updatedAt: now,
   };
-  await db.outbox.put(row);
+  if (!suppressOutboxEnqueue) {
+    await db.outbox.put(row);
+  }
+  notifyReplicaChanged();
   return row;
 }
 

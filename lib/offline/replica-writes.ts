@@ -1,14 +1,17 @@
 import { isConnectivityError } from "@/lib/errors";
 import { getOfflineDb, newClientId } from "./db";
 import { enqueueOutbox } from "./outbox";
+import { notifyReplicaChanged } from "./replica-events";
 import type {
   AdjustStockPayload,
+  CreateCategoryPayload,
   CreateExpensePayload,
   CreateUserPayload,
   RecordWholesalePurchasePayload,
   RemoveExpensePayload,
   TransferStockPayload,
   UpsertCustomerPayload,
+  UpsertProductPayload,
   UpsertSupplierPayload,
   WholesaleTransferPayload,
 } from "./types";
@@ -23,12 +26,14 @@ export async function persistBusinessWrite(args: {
   if (args.online) {
     try {
       await args.remote();
+      notifyReplicaChanged({ pull: true });
       return "remote";
     } catch (error) {
       if (!isConnectivityError(error)) throw error;
     }
   }
   await args.local();
+  notifyReplicaChanged();
   return "queued";
 }
 
@@ -223,5 +228,67 @@ export async function queueCreateUser(payload: Omit<CreateUserPayload, "localId"
     lastDevice: null,
   });
   await enqueueOutbox(db, "create_user", { ...payload, localId } satisfies CreateUserPayload);
+  return localId;
+}
+
+export async function queueCreateCategory(name: string) {
+  const db = await getOfflineDb();
+  if (!db) throw new Error("Local storage is not available on this device.");
+  const localId = newClientId("local");
+  const trimmed = name.trim();
+  await db.categories.put({
+    id: localId,
+    name: trimmed,
+    slug: trimmed.toLowerCase().replace(/\s+/g, "-"),
+    isActive: true,
+  });
+  await enqueueOutbox(db, "create_category", { localId, name: trimmed } satisfies CreateCategoryPayload);
+  return localId;
+}
+
+export async function queueUpsertProduct(
+  payload: Omit<UpsertProductPayload, "localId"> & { localId?: string; imageBlob?: Blob },
+) {
+  const db = await getOfflineDb();
+  if (!db) throw new Error("Local storage is not available on this device.");
+  const localId = payload.serverId ?? payload.localId ?? newClientId("local");
+  const category = await db.categories.get(payload.categoryId);
+  const existing = await db.products.get(localId);
+  const stockQuantity = payload.stockQuantity;
+  await db.products.put({
+    id: localId,
+    name: payload.name,
+    sku: payload.sku,
+    categoryId: payload.categoryId,
+    categoryName: category?.name ?? existing?.categoryName ?? "Uncategorized",
+    sellingPrice: payload.sellingPrice,
+    costPrice: payload.costPrice,
+    stockQuantity,
+    sellableQuantity: stockQuantity,
+    unit: payload.unit,
+    lowStockThreshold: payload.lowStockThreshold,
+    status: payload.status,
+    imageUrl: existing?.imageUrl ?? null,
+    tracksExpiry: payload.tracksExpiry,
+    expiryAlertDays: payload.expiryAlertDays ?? null,
+    nearestExpiry: payload.expiryDate ?? existing?.nearestExpiry ?? null,
+    isExpired: existing?.isExpired ?? false,
+    isExpiring: existing?.isExpiring ?? false,
+    updatedAt: Date.now(),
+  });
+  if (payload.imageBlob) {
+    await db.productImages.put({
+      id: localId,
+      blob: payload.imageBlob,
+      mimeType: payload.imageBlob.type || "image/jpeg",
+      updatedAt: Date.now(),
+    });
+  }
+  const { imageBlob: _imageBlob, ...rest } = payload;
+  await enqueueOutbox(db, "upsert_product", {
+    ...rest,
+    localId,
+    hasLocalImage: Boolean(payload.imageBlob) || payload.hasLocalImage,
+  } satisfies UpsertProductPayload);
   return localId;
 }

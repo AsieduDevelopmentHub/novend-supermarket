@@ -11,6 +11,7 @@ import {
   listMirroredBranches,
   listMirroredCategories,
   listMirroredCustomers,
+  getMirroredProduct,
   listMirroredExpenses,
   listMirroredProducts,
   listMirroredReturns,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/offline/mirror-queries";
 import type { MirroredCustomer } from "@/lib/offline/types";
 import { useOfflineStatus } from "@/providers/offline-provider";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 
 type ProductListRow = {
   id: Id<"products">;
@@ -97,7 +99,9 @@ export function useProductsList(options: {
   // Cross-branch admin filters are not in the Dexie mirror — always use Convex.
   const forceRemote = Boolean(options.branchId);
   const preferLocal = !forceRemote && (options.preferLocal === true || serveLocal);
-  const useRemote = online && ready && !preferLocal;
+  const [local, setLocal] = useState<ProductListRow[] | null>(null);
+  const replicaEmpty = local !== null && local.length === 0;
+  const useRemote = online && ready && (!preferLocal || replicaEmpty || forceRemote);
   const remote = useQuery(
     api.products.listProducts,
     useRemote
@@ -108,8 +112,6 @@ export function useProductsList(options: {
         }
       : "skip",
   );
-  const [local, setLocal] = useState<ProductListRow[] | null>(null);
-
   useEffect(() => {
     let cancelled = false;
     void listMirroredProducts({
@@ -131,7 +133,7 @@ export function useProductsList(options: {
     serveLocal,
   ]);
 
-  if (preferLocal && local !== null) {
+  if (preferLocal && local !== null && local.length > 0) {
     return { products: local, loading: false, source: "local" as const };
   }
   if (online && remote !== undefined) {
@@ -264,6 +266,33 @@ export function useCategoriesList() {
   if (online && remote !== undefined) return remote;
   if (local !== null) return local;
   return remote;
+}
+
+export function useMirroredProduct(productId: string | null) {
+  const { lastSyncAt } = useOfflineStatus();
+  const [product, setProduct] = useState<MirroredProductRow | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!productId) {
+      setProduct(null);
+      return;
+    }
+    let cancelled = false;
+    void getMirroredProduct(productId).then((row) => {
+      if (!cancelled) setProduct(row);
+    });
+    const unsub = subscribeReplicaChanged(() => {
+      void getMirroredProduct(productId).then((row) => {
+        if (!cancelled) setProduct(row);
+      });
+    });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [productId, lastSyncAt]);
+
+  return product;
 }
 
 export function useCustomersList(options: { search: string; includeInactive: boolean }) {
@@ -466,15 +495,20 @@ function useMirrorRows<T>(loader: () => Promise<T[]>, deps: unknown[]) {
 
   useEffect(() => {
     let cancelled = false;
-    void loader()
-      .then((data) => {
-        if (!cancelled) setRows(data);
-      })
-      .catch(() => {
-        if (!cancelled) setRows([]);
-      });
+    const run = () => {
+      void loader()
+        .then((data) => {
+          if (!cancelled) setRows(data);
+        })
+        .catch(() => {
+          if (!cancelled) setRows([]);
+        });
+    };
+    run();
+    const unsub = subscribeReplicaChanged(run);
     return () => {
       cancelled = true;
+      unsub();
     };
     // loader is recreated each render; deps capture the inputs that change the query.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -598,16 +632,6 @@ export function useReturnsList(options: {
   branchId?: Id<"branches">;
 }) {
   const { online, serveLocal, ready } = useMirrorListGate();
-  const remote = useQuery(
-    api.returns.list,
-    online && ready && !serveLocal
-      ? {
-          search: options.search || undefined,
-          kind: options.kind === "all" ? undefined : options.kind,
-          branchId: options.branchId,
-        }
-      : "skip",
-  );
   const local = useMirrorRows(
     () =>
       listMirroredReturns({
@@ -625,7 +649,19 @@ export function useReturnsList(options: {
       ),
     [options.search, options.kind, options.branchId],
   );
-  if (serveLocal && local) return local;
+  const replicaEmpty = local !== null && local.length === 0;
+  const useRemote = online && ready && (!serveLocal || replicaEmpty);
+  const remote = useQuery(
+    api.returns.list,
+    useRemote
+      ? {
+          search: options.search || undefined,
+          kind: options.kind === "all" ? undefined : options.kind,
+          branchId: options.branchId,
+        }
+      : "skip",
+  );
+  if (serveLocal && local && local.length > 0) return local;
   if (online && remote !== undefined) return remote;
   return local ?? remote;
 }

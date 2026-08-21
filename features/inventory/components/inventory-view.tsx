@@ -30,6 +30,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { BranchFilter } from "@/components/filters/branch-filter";
+import { CollapsibleFilters } from "@/components/filters/collapsible-filters";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCategoriesList, useInventoryList, useBranchesList } from "@/hooks/use-offline-lists";
@@ -238,13 +239,22 @@ function InventoryViewInner() {
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+      <div className="space-y-3">
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search inventory…"
           className="max-w-md"
         />
+        <CollapsibleFilters
+          activeCount={
+            (categoryId !== "all" ? 1 : 0) + (isAdmin && branchOverride !== "all" ? 1 : 0)
+          }
+          onReset={() => {
+            setCategoryId("all");
+            if (isAdmin) setBranchOverride("all");
+          }}
+        >
         <SearchableSelect
           className="w-full sm:w-56"
           options={[
@@ -276,6 +286,7 @@ function InventoryViewInner() {
             className="w-full sm:w-auto"
           />
         ) : null}
+        </CollapsibleFilters>
       </div>
 
       <Card>

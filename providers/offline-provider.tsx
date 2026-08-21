@@ -24,6 +24,7 @@ import { countOutboxByStatus } from "@/lib/offline/outbox";
 import { pullOfflineSnapshot } from "@/lib/offline/snapshot";
 import { drainOutbox } from "@/lib/offline/sync-engine";
 import type { OfflineStatus } from "@/lib/offline/types";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { toUserMessage } from "@/lib/errors";
 
 type OfflineContextValue = OfflineStatus & {
@@ -63,6 +64,10 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const removeExpense = useMutation(api.analytics.removeExpense);
   const updateOwnProfile = useMutation(api.users.updateOwnProfile);
   const createUserAccount = useAction(api.users.createUserAccount);
+  const createCategory = useMutation(api.categories.create);
+  const createProduct = useMutation(api.products.createProduct);
+  const updateProduct = useMutation(api.products.updateProduct);
+  const generateUploadUrl = useMutation(api.products.generateUploadUrl);
   const [status, setStatus] = useState<OfflineStatus>(emptyStatus);
   const pullingRef = useRef(false);
 
@@ -196,6 +201,10 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
               branchId: args.branchId,
               phone: args.phone,
             }),
+          createCategory: (args) => createCategory({ name: args.name }),
+          generateUploadUrl: () => generateUploadUrl({}),
+          createProduct: (args) => createProduct(args),
+          updateProduct: (args) => updateProduct(args),
         },
         convex: { query: convex.query.bind(convex) },
       });
@@ -224,14 +233,29 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     removeExpense,
     updateOwnProfile,
     createUserAccount,
+    createCategory,
+    createProduct,
+    updateProduct,
+    generateUploadUrl,
     convex,
     refreshStatus,
   ]);
 
   const refreshCatalog = useCallback(async () => {
-    if (!navigator.onLine) return;
+    if (!navigator.onLine) {
+      setStatus((prev) => ({ ...prev, lastSyncAt: Date.now() }));
+      return;
+    }
     await pullSnapshot({ force: true });
   }, [pullSnapshot]);
+
+  useEffect(() => {
+    return subscribeReplicaChanged((detail) => {
+      setStatus((prev) => ({ ...prev, lastSyncAt: Date.now() }));
+      if (detail.pull) void pullSnapshot({ force: true });
+      void refreshStatus();
+    });
+  }, [pullSnapshot, refreshStatus]);
 
   useEffect(() => {
     void (async () => {

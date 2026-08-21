@@ -64,16 +64,23 @@ export function parseAmountInput(value: string): number | undefined {
   return amount;
 }
 
-export function hasActiveOrdersFilters(filters: OrdersFilterState) {
+export function hasAdvancedOrdersFilters(filters: OrdersFilterState) {
   return (
-    Boolean(filters.search.trim()) ||
     filters.branchId !== "all" ||
     filters.cashierId !== "all" ||
-    filters.datePreset !== "all" ||
+    filters.datePreset !== "7d" ||
     Boolean(filters.minAmount.trim()) ||
     Boolean(filters.maxAmount.trim()) ||
     filters.paymentMethod !== "all" ||
     filters.returnStatus !== "all"
+  );
+}
+
+export function hasActiveOrdersFilters(filters: OrdersFilterState) {
+  return (
+    Boolean(filters.search.trim()) ||
+    hasAdvancedOrdersFilters(filters) ||
+    filters.datePreset !== "all"
   );
 }
 

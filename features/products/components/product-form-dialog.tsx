@@ -32,8 +32,15 @@ import { Camera, ImagePlus, Upload } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
-import { useOfflineStatus } from "@/providers/offline-provider";
 import { TakeProductPhotoDialog } from "@/features/products/components/take-product-photo-dialog";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { useCategoriesList, useMirroredProduct } from "@/hooks/use-offline-lists";
+import {
+  persistBusinessWrite,
+  queuedSaveMessage,
+  queueCreateCategory,
+  queueUpsertProduct,
+} from "@/lib/offline/replica-writes";
 
 type Props = {
   open: boolean;
@@ -60,10 +67,38 @@ type ProductDetails = {
 };
 
 export function ProductFormDialog({ open, onOpenChange, productId }: Props) {
-  const categories = useQuery(api.categories.list, open ? {} : "skip");
-  const product = useQuery(api.products.getProduct, open && productId ? { id: productId } : "skip");
+  const online = useConnectivity();
+  const categories = useCategoriesList();
+  const mirrored = useMirroredProduct(open ? (productId as string | null) : null);
+  const remoteProduct = useQuery(
+    api.products.getProduct,
+    open && productId && online && mirrored === null ? { id: productId } : "skip",
+  );
 
-  const ready = open && categories !== undefined && (!productId || product !== undefined);
+  const mappedLocal: ProductDetails | null =
+    mirrored == null
+      ? null
+      : {
+          _id: mirrored.id as Id<"products">,
+          _creationTime: mirrored.updatedAt,
+          name: mirrored.name,
+          sku: mirrored.sku,
+          categoryId: mirrored.categoryId as Id<"categories">,
+          sellingPrice: mirrored.sellingPrice,
+          costPrice: mirrored.costPrice,
+          stockQuantity: mirrored.stockQuantity,
+          unit: mirrored.unit,
+          lowStockThreshold: mirrored.lowStockThreshold,
+          tracksExpiry: mirrored.tracksExpiry,
+          expiryAlertDays: mirrored.expiryAlertDays ?? undefined,
+          status: mirrored.status === "inactive" ? "inactive" : "active",
+          imageUrl: mirrored.imageUrl,
+        };
+
+  const product = mappedLocal ?? (remoteProduct as ProductDetails | null | undefined);
+  const localReady = !productId || mirrored !== undefined;
+  const waitingRemote = Boolean(productId && mirrored === null && online && remoteProduct === undefined);
+  const ready = open && categories !== undefined && localReady && !waitingRemote;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,7 +144,7 @@ function ProductFormBody({
   const updateProduct = useMutation(api.products.updateProduct);
   const createCategory = useMutation(api.categories.create);
   const generateUploadUrl = useMutation(api.products.generateUploadUrl);
-  const { refreshCatalog } = useOfflineStatus();
+  const online = useConnectivity();
 
   const [name, setName] = useState(initialProduct?.name ?? "");
   const [sku, setSku] = useState(initialProduct?.sku ?? "");
@@ -161,11 +196,20 @@ function ProductFormBody({
       return;
     }
     try {
-      const id = await createCategory({ name: trimmed });
-      setCategoryId(id);
+      let createdId = "";
+      const kind = await persistBusinessWrite({
+        online,
+        remote: async () => {
+          createdId = String(await createCategory({ name: trimmed }));
+        },
+        local: async () => {
+          createdId = await queueCreateCategory(trimmed);
+        },
+      });
+      setCategoryId(createdId);
       setNewCategory("");
       setShowNewCategory(false);
-      toast.success("Category created");
+      toast.success(queuedSaveMessage(kind, "Category created"));
     } catch (error) {
       showError(error, "Could not create category");
     }
@@ -207,45 +251,67 @@ function ProductFormBody({
     }
     setPending(true);
     try {
-      const imageStorageId = await uploadImage();
-      if (productId) {
-        await updateProduct({
-          id: productId,
-          name,
-          sku,
-          categoryId: categoryId as Id<"categories">,
-          costPrice: Number(costPrice),
-          sellingPrice: Number(sellingPrice),
-          unit,
-          lowStockThreshold: Number(lowStockThreshold),
-          status,
-          description,
-          imageStorageId,
-          tracksExpiry,
-          expiryAlertDays: tracksExpiry ? Number(expiryAlertDays) : undefined,
-          openingExpiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
-        });
-        toast.success("Product updated");
-      } else {
-        await createProduct({
-          name,
-          sku,
-          categoryId: categoryId as Id<"categories">,
-          costPrice: Number(costPrice),
-          sellingPrice: Number(sellingPrice),
-          stockQuantity: Number(stockQuantity),
-          unit,
-          lowStockThreshold: Number(lowStockThreshold),
-          status,
-          description,
-          imageStorageId,
-          tracksExpiry,
-          expiryAlertDays: tracksExpiry ? Number(expiryAlertDays) : undefined,
-          expiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
-        });
-        toast.success("Product created");
-      }
-      void refreshCatalog();
+      const imageStorageId = online ? await uploadImage() : undefined;
+      const kind = await persistBusinessWrite({
+        online,
+        remote: () =>
+          productId
+            ? updateProduct({
+                id: productId,
+                name,
+                sku,
+                categoryId: categoryId as Id<"categories">,
+                costPrice: Number(costPrice),
+                sellingPrice: Number(sellingPrice),
+                unit,
+                lowStockThreshold: Number(lowStockThreshold),
+                status,
+                description,
+                imageStorageId,
+                tracksExpiry,
+                expiryAlertDays: tracksExpiry ? Number(expiryAlertDays) : undefined,
+                openingExpiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
+              })
+            : createProduct({
+                name,
+                sku,
+                categoryId: categoryId as Id<"categories">,
+                costPrice: Number(costPrice),
+                sellingPrice: Number(sellingPrice),
+                stockQuantity: Number(stockQuantity),
+                unit,
+                lowStockThreshold: Number(lowStockThreshold),
+                status,
+                description,
+                imageStorageId,
+                tracksExpiry,
+                expiryAlertDays: tracksExpiry ? Number(expiryAlertDays) : undefined,
+                expiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
+              }),
+        local: () =>
+          queueUpsertProduct({
+            serverId: productId ?? undefined,
+            name,
+            sku,
+            categoryId,
+            costPrice: Number(costPrice),
+            sellingPrice: Number(sellingPrice),
+            stockQuantity: Number(stockQuantity),
+            unit,
+            lowStockThreshold: Number(lowStockThreshold),
+            status,
+            description,
+            tracksExpiry,
+            expiryAlertDays: tracksExpiry ? Number(expiryAlertDays) : undefined,
+            expiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
+            imageStorageId,
+            imageBlob: file ?? undefined,
+            hasLocalImage: Boolean(file),
+          }),
+      });
+      toast.success(
+        queuedSaveMessage(kind, productId ? "Product updated" : "Product created"),
+      );
       onOpenChange(false);
     } catch (error) {
       showError(error, "Save failed");

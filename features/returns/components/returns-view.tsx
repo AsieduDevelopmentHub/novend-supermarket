@@ -12,6 +12,7 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
+import { CollapsibleFilters } from "@/components/filters/collapsible-filters";
 import {
   Select,
   SelectContent,
@@ -53,7 +54,7 @@ export function ReturnsView() {
         description="Every processed refund, linked to the original order."
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+      <div className="space-y-3">
         <Input
           value={search}
           onChange={(e) => {
@@ -63,6 +64,14 @@ export function ReturnsView() {
           placeholder="Search return, invoice, customer…"
           className="max-w-md"
         />
+        <CollapsibleFilters
+          activeCount={(kind !== "all" ? 1 : 0) + (isAdmin && branchFilter !== "all" ? 1 : 0)}
+          onReset={() => {
+            setKind("all");
+            setBranchFilter("all");
+            setPage(0);
+          }}
+        >
         <Select
           value={kind}
           onValueChange={(value) => {
@@ -99,6 +108,7 @@ export function ReturnsView() {
             className="w-full sm:w-auto"
           />
         ) : null}
+        </CollapsibleFilters>
       </div>
 
       {returns === undefined ? (

@@ -1,9 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "convex/react";
 import Link from "next/link";
-import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
 import { Input } from "@/components/ui/input";
@@ -16,6 +14,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { CashierFilter } from "@/components/filters/cashier-filter";
+import { CollapsibleFilters } from "@/components/filters/collapsible-filters";
 import {
   Select,
   SelectContent,
@@ -24,8 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCurrentUser, usePermissions } from "@/hooks/use-permissions";
-import { useConnectivity } from "@/hooks/use-connectivity";
-import { useOrdersList } from "@/hooks/use-offline-lists";
+import { useBranchesList, useOrdersList, useUsersList } from "@/hooks/use-offline-lists";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime, rangeForDatePreset, type DateRangePreset } from "@/lib/date";
 import {
@@ -41,15 +39,11 @@ import {
 import { Eye, ShoppingBag } from "lucide-react";
 
 export function OrdersView() {
-  const { isAdmin, isManager, isCashier, branchId: myBranchId, branchName } = usePermissions();
+  const { isAdmin, isCashier, branchId: myBranchId, branchName } = usePermissions();
   const { user } = useCurrentUser();
-  const online = useConnectivity();
   const [filters, setFilters] = useState(defaultOrdersFilters);
-  const branches = useQuery(api.branches.list, isAdmin && online ? {} : "skip");
-  const staff = useQuery(
-    api.users.list,
-    (isAdmin || isManager) && online ? {} : "skip",
-  );
+  const branches = useBranchesList(false);
+  const staff = useUsersList("");
 
   const dateRange = useMemo(
     () => rangeForDatePreset(filters.datePreset, filters.customStart, filters.customEnd),
@@ -77,7 +71,7 @@ export function OrdersView() {
     if (!staff) return undefined;
     return staff
       .map((row) => ({
-        userId: row.userId,
+        userId: row.userId as Id<"users">,
         name: row.status === "inactive" ? `${row.name} (inactive)` : row.name,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -102,8 +96,8 @@ export function OrdersView() {
       />
 
       <Card>
-        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">
-          <div className="w-full space-y-1 sm:max-w-xs">
+        <CardContent className="flex flex-col gap-3 p-4">
+          <div className="w-full space-y-1 sm:max-w-md">
             <Label htmlFor="orders-search">Search</Label>
             <Input
               id="orders-search"
@@ -113,6 +107,20 @@ export function OrdersView() {
             />
           </div>
 
+          <CollapsibleFilters
+            activeCount={
+              [
+                filters.branchId !== "all",
+                filters.cashierId !== "all",
+                filters.datePreset !== "7d",
+                Boolean(filters.minAmount.trim()),
+                Boolean(filters.maxAmount.trim()),
+                filters.paymentMethod !== "all",
+                filters.returnStatus !== "all",
+              ].filter(Boolean).length
+            }
+            onReset={resetFilters}
+          >
           <div className="space-y-1">
             <Label htmlFor="orders-date-preset">Date</Label>
             <Select
@@ -260,10 +268,7 @@ export function OrdersView() {
               </SelectContent>
             </Select>
           </div>
-
-          <Button type="button" variant="outline" onClick={resetFilters}>
-            Reset
-          </Button>
+          </CollapsibleFilters>
         </CardContent>
       </Card>
 
