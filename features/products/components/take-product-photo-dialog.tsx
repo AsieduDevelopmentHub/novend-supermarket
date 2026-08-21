@@ -75,6 +75,7 @@ async function openCameraStream(): Promise<MediaStream> {
 export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [session, setSession] = useState(0);
   const [ready, setReady] = useState(false);
   const [starting, setStarting] = useState(false);
   const [pending, setPending] = useState(false);
@@ -91,20 +92,27 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
   }
 
   useEffect(() => {
-    if (!open) {
+    return () => {
+      stopStream();
+    };
+  }, []);
+
+  function handleOpenChange(next: boolean) {
+    if (!next) {
       stopStream();
       setReady(false);
       setStarting(false);
       setError(null);
       setPending(false);
+    } else {
+      setSession((n) => n + 1);
+      setReady(false);
+      setStarting(false);
+      setError(null);
+      setPending(false);
     }
-  }, [open]);
-
-  useEffect(() => {
-    return () => {
-      stopStream();
-    };
-  }, []);
+    onOpenChange(next);
+  }
 
   async function startCamera() {
     setStarting(true);
@@ -141,7 +149,7 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const file = await canvasToProductImageFile(canvas);
       onCapture(file);
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (err) {
       showError(err, "Could not capture photo");
     } finally {
@@ -150,14 +158,8 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) stopStream();
-        onOpenChange(next);
-      }}
-    >
-      <DialogContent className="max-w-lg">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-lg" key={session}>
         <DialogHeader>
           <DialogTitle>Take photo</DialogTitle>
         </DialogHeader>
@@ -211,7 +213,7 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
           ) : null}
         </div>
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button
