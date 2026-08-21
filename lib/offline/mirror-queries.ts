@@ -343,9 +343,13 @@ export async function listMirroredWholesaleTransfers() {
 export async function listMirroredBranches(includeInactive = false) {
   const db = await getOfflineDb();
   if (!db) return [];
-  let rows = await db.branches.toArray();
-  if (!includeInactive) rows = rows.filter((row) => row.status === "active");
-  return rows.sort((a, b) => a.name.localeCompare(b.name));
+  try {
+    let rows = await db.branches.toArray();
+    if (!includeInactive) rows = rows.filter((row) => row.status === "active");
+    return rows.sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    return [];
+  }
 }
 
 export async function getMirroredBranch(id: string) {
@@ -357,17 +361,21 @@ export async function getMirroredBranch(id: string) {
 export async function listMirroredUsers(search?: string) {
   const db = await getOfflineDb();
   if (!db) return [];
-  let rows = await db.users.toArray();
-  if (search?.trim()) {
-    const q = search.trim().toLowerCase();
-    rows = rows.filter(
-      (row) =>
-        row.name.toLowerCase().includes(q) ||
-        (row.email?.toLowerCase().includes(q) ?? false) ||
-        (row.phone?.includes(q) ?? false),
-    );
+  try {
+    let rows = await db.users.toArray();
+    if (search?.trim()) {
+      const q = search.trim().toLowerCase();
+      rows = rows.filter(
+        (row) =>
+          row.name.toLowerCase().includes(q) ||
+          (row.email?.toLowerCase().includes(q) ?? false) ||
+          (row.phone?.includes(q) ?? false),
+      );
+    }
+    return rows.sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    return [];
   }
-  return rows.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function listMirroredExpenses(range?: { startDate: number; endDate: number }) {

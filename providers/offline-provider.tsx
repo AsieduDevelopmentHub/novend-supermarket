@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useConvex, useMutation } from "convex/react";
+import { useAction, useConvex, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { getOfflineDb, isOfflineDbAvailable } from "@/lib/offline/db";
@@ -62,6 +62,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const createExpense = useMutation(api.analytics.createExpense);
   const removeExpense = useMutation(api.analytics.removeExpense);
   const updateOwnProfile = useMutation(api.users.updateOwnProfile);
+  const createUserAccount = useAction(api.users.createUserAccount);
   const [status, setStatus] = useState<OfflineStatus>(emptyStatus);
   const pullingRef = useRef(false);
 
@@ -186,6 +187,15 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
               name: args.name,
               phone: args.phone,
             }),
+          createUserAccount: (args) =>
+            createUserAccount({
+              email: args.email,
+              password: args.password,
+              name: args.name,
+              role: args.role,
+              branchId: args.branchId,
+              phone: args.phone,
+            }),
         },
         convex: { query: convex.query.bind(convex) },
       });
@@ -213,6 +223,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     createExpense,
     removeExpense,
     updateOwnProfile,
+    createUserAccount,
     convex,
     refreshStatus,
   ]);

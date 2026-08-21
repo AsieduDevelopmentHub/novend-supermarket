@@ -38,6 +38,7 @@ import { Eye, Pencil, Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import { persistBusinessWrite, queuedSaveMessage, queueCreateUser } from "@/lib/offline/replica-writes";
 import { formatPresence } from "@/lib/date";
 import type { AppRole } from "@/config/navigation";
 
@@ -138,21 +139,32 @@ export function UsersView() {
       toast.error("Select a branch");
       return;
     }
-    if (!online) {
-      toast.error("Creating a login needs a connection so the password can be stored securely.");
-      return;
-    }
     setPending(true);
     try {
-      await createUserAccount({
-        email,
-        password,
-        name,
-        role: isManager ? "cashier" : role,
-        branchId: formBranchId as Id<"branches">,
-        phone: phone || undefined,
+      const kind = await persistBusinessWrite({
+        online,
+        remote: () =>
+          createUserAccount({
+            email,
+            password,
+            name,
+            role: isManager ? "cashier" : role,
+            branchId: formBranchId as Id<"branches">,
+            phone: phone || undefined,
+          }),
+        local: () =>
+          queueCreateUser({
+            email,
+            password,
+            name,
+            role: isManager ? "cashier" : role,
+            branchId: formBranchId,
+            phone: phone || undefined,
+          }),
       });
-      toast.success("User created. Share the login credentials securely.");
+      toast.success(
+        queuedSaveMessage(kind, "User created. Share the login credentials securely."),
+      );
       setCreating(false);
       setPassword("");
     } catch (error) {
@@ -385,7 +397,7 @@ export function UsersView() {
                 value={formBranchId || undefined}
                 onValueChange={(v) => setBranchId(v as Id<"branches">)}
                 disabled={isManager}
-                placeholder="Select branch"
+                placeholder={branches === undefined ? "Loading branches…" : "Select branch"}
                 searchPlaceholder="Search branches…"
               />
             </div>
@@ -486,7 +498,7 @@ export function UsersView() {
                 value={formBranchId || undefined}
                 onValueChange={(v) => setBranchId(v as Id<"branches">)}
                 disabled={isManager}
-                placeholder="Select branch"
+                placeholder={branches === undefined ? "Loading branches…" : "Select branch"}
                 searchPlaceholder="Search branches…"
               />
             </div>

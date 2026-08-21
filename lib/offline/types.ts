@@ -13,7 +13,8 @@ export type OutboxOpType =
   | "upsert_customer"
   | "create_expense"
   | "remove_expense"
-  | "update_profile";
+  | "update_profile"
+  | "create_user";
 
 export type LocalSaleSyncStatus = "pending" | "synced" | "failed";
 
@@ -391,6 +392,16 @@ export type RemoveExpensePayload = {
 
 export type UpdateProfilePayload = {
   name?: string;
+  phone?: string;
+};
+
+export type CreateUserPayload = {
+  localId: string;
+  email: string;
+  password: string;
+  name: string;
+  role: "administrator" | "manager" | "cashier";
+  branchId: string;
   phone?: string;
 };
 

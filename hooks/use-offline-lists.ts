@@ -466,9 +466,13 @@ function useMirrorRows<T>(loader: () => Promise<T[]>, deps: unknown[]) {
 
   useEffect(() => {
     let cancelled = false;
-    void loader().then((data) => {
-      if (!cancelled) setRows(data);
-    });
+    void loader()
+      .then((data) => {
+        if (!cancelled) setRows(data);
+      })
+      .catch(() => {
+        if (!cancelled) setRows([]);
+      });
     return () => {
       cancelled = true;
     };
@@ -546,10 +550,6 @@ export function useWholesaleLists(search: string) {
 
 export function useBranchesList(includeInactive = false) {
   const { online, serveLocal, ready } = useMirrorListGate();
-  const remote = useQuery(
-    api.branches.list,
-    online && ready && !serveLocal ? { includeInactive } : "skip",
-  );
   const local = useMirrorRows(() => listMirroredBranches(includeInactive), [includeInactive]);
   const mappedLocal = local?.map((row) => ({
     id: row.id as Id<"branches">,
@@ -559,17 +559,16 @@ export function useBranchesList(includeInactive = false) {
     phone: row.phone,
     status: row.status,
   }));
-  if (serveLocal && mappedLocal) return mappedLocal;
+  const replicaEmpty = local !== null && local.length === 0;
+  const useRemote = online && ready && (!serveLocal || replicaEmpty);
+  const remote = useQuery(api.branches.list, useRemote ? { includeInactive } : "skip");
+  if (serveLocal && mappedLocal && mappedLocal.length > 0) return mappedLocal;
   if (online && remote !== undefined) return remote;
   return mappedLocal ?? remote;
 }
 
 export function useUsersList(search: string) {
   const { online, serveLocal, ready } = useMirrorListGate();
-  const remote = useQuery(
-    api.users.list,
-    online && ready && !serveLocal ? { search: search || undefined } : "skip",
-  );
   const local = useMirrorRows(() => listMirroredUsers(search), [search]);
   const mappedLocal = local?.map((row) => ({
     ...row,
@@ -582,7 +581,13 @@ export function useUsersList(search: string) {
     lastLoginAt: row.lastLoginAt ?? null,
     lastDevice: row.lastDevice ?? null,
   }));
-  if (serveLocal && mappedLocal) return mappedLocal;
+  const replicaEmpty = local !== null && local.length === 0;
+  const useRemote = online && ready && (!serveLocal || replicaEmpty);
+  const remote = useQuery(
+    api.users.list,
+    useRemote ? { search: search || undefined } : "skip",
+  );
+  if (serveLocal && mappedLocal && mappedLocal.length > 0) return mappedLocal;
   if (online && remote !== undefined) return remote;
   return mappedLocal ?? remote;
 }

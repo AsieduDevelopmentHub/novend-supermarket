@@ -197,7 +197,11 @@ export const META_KEYS = {
   lastSyncProcessed: "lastSyncProcessed",
   lastSyncFailed: "lastSyncFailed",
   lastSyncError: "lastSyncError",
+  replicaSchemaVersion: "replicaSchemaVersion",
 } as const;
+
+/** Bump when Dexie adds replica tables so TTL snapshot skips cannot leave new stores empty. */
+export const REPLICA_SCHEMA_VERSION = "6";
 
 export async function getMeta(db: PrincellenOfflineDb, key: string): Promise<string | null> {
   const row = await db.meta.get(key);

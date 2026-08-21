@@ -253,6 +253,10 @@ export const getSnapshot = query({
       status: string;
       email: string | null;
       imageUrl: string | null;
+      presence: "online" | "offline";
+      lastSeenAt: number | null;
+      lastLoginAt: number | null;
+      lastDevice: string | null;
     }> = [];
     let expenses: Array<{
       id: string;
@@ -379,7 +383,17 @@ export const getSnapshot = query({
           status: p.status,
           email: null,
           imageUrl: null,
+          presence: "offline" as const,
+          lastSeenAt: p.lastSeenAt ?? null,
+          lastLoginAt: p.lastLoginAt ?? null,
+          lastDevice: p.lastDevice ?? null,
         }));
+      const authUsers = await ctx.db.query("users").collect();
+      const emailById = new Map(authUsers.map((u) => [String(u._id), u.email ?? null]));
+      staff = staff.map((row) => ({
+        ...row,
+        email: emailById.get(row.userId) ?? null,
+      }));
     }
 
     const returnRows = await ctx.db

@@ -22,6 +22,7 @@ import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
 import type {
   AdjustStockPayload,
   CreateExpensePayload,
+  CreateUserPayload,
   RecordWholesalePurchasePayload,
   RemoveExpensePayload,
   TransferStockPayload,
@@ -135,6 +136,14 @@ export type QueuedMutators = {
   createExpense: (args: CreateExpensePayload) => Promise<unknown>;
   removeExpense: (args: { id: Id<"expenses"> }) => Promise<unknown>;
   updateOwnProfile: (args: UpdateProfilePayload & { name: string }) => Promise<unknown>;
+  createUserAccount: (args: {
+    email: string;
+    password: string;
+    name: string;
+    role: "administrator" | "manager" | "cashier";
+    branchId: Id<"branches">;
+    phone?: string;
+  }) => Promise<unknown>;
 };
 
 /** Drain pending outbox ops to Convex. Safe to call frequently. */
@@ -321,6 +330,21 @@ export async function drainOutbox(options: {
             phone: payload.phone,
           });
           await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "create_user") {
+          const payload = JSON.parse(claimed.payloadJson) as CreateUserPayload;
+          await options.mutators.createUserAccount({
+            email: payload.email,
+            password: payload.password,
+            name: payload.name,
+            role: payload.role,
+            branchId: payload.branchId as Id<"branches">,
+            phone: payload.phone,
+          });
+          await db.users.delete(payload.localId);
+          await markOutboxSynced(db, claimed.id);
+          await pullOfflineSnapshot(options.convex, { force: true });
           processed += 1;
           consecutiveTransientFailures = 0;
         }

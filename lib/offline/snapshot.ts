@@ -1,7 +1,15 @@
 import type { ConvexReactClient } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { AppRole } from "@/config/navigation";
-import { ensureDeviceId, getOfflineDb, META_KEYS, setMeta, type PrincellenOfflineDb } from "./db";
+import {
+  ensureDeviceId,
+  getMeta,
+  getOfflineDb,
+  META_KEYS,
+  REPLICA_SCHEMA_VERSION,
+  setMeta,
+  type PrincellenOfflineDb,
+} from "./db";
 import { getLastSnapshotAt, SNAPSHOT_PULL_TTL_MS } from "./freshness";
 import { cacheProductImages } from "./image-cache";
 import { saveShellProfile } from "./shell-profile";
@@ -59,7 +67,10 @@ export async function pullOfflineSnapshot(
 
   if (!options.force) {
     const lastAt = await getLastSnapshotAt();
-    if (lastAt && Date.now() - lastAt < SNAPSHOT_PULL_TTL_MS) {
+    const replicaVersion = await getMeta(db, META_KEYS.replicaSchemaVersion);
+    const branchCount = await db.branches.count();
+    const replicaComplete = replicaVersion === REPLICA_SCHEMA_VERSION && branchCount > 0;
+    if (lastAt && Date.now() - lastAt < SNAPSHOT_PULL_TTL_MS && replicaComplete) {
       const [productCount, customerCount, orderCount] = await Promise.all([
         db.products.count(),
         db.customers.count(),
@@ -149,7 +160,22 @@ export async function applySnapshot(
     await replaceServerRows(db.wholesaleStock, snapshot.wholesaleStock ?? []);
     await replaceServerRows(db.wholesalePurchases, snapshot.wholesalePurchases ?? []);
     await replaceServerRows(db.wholesaleTransfers, snapshot.wholesaleTransfers ?? []);
-    await replaceServerRows(db.branches, snapshot.branches ?? []);
+    const branchRows =
+      snapshot.branches && snapshot.branches.length > 0
+        ? snapshot.branches
+        : snapshot.profile.branchId
+          ? [
+              {
+                id: snapshot.profile.branchId,
+                name: snapshot.profile.branchName ?? "Main Branch",
+                code: "MAIN",
+                address: null,
+                phone: null,
+                status: "active" as const,
+              },
+            ]
+          : [];
+    await replaceServerRows(db.branches, branchRows);
     await replaceServerRows(db.users, snapshot.users ?? []);
     await replaceServerRows(db.expenses, snapshot.expenses ?? []);
     await replaceServerRows(db.returns, snapshot.returns ?? []);
@@ -166,6 +192,7 @@ export async function applySnapshot(
       await setMeta(db, META_KEYS.profileBranchName, snapshot.profile.branchName);
     }
     await setMeta(db, META_KEYS.lastSnapshotAt, String(now));
+    await setMeta(db, META_KEYS.replicaSchemaVersion, REPLICA_SCHEMA_VERSION);
   });
 
   if (snapshot.profile.role && snapshot.profile.branchId) {
