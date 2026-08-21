@@ -85,26 +85,89 @@ export const landingCopy = {
   why: {
     eyebrow: "Security & trust",
     title: "Designed for control. Built for real shops.",
-    subtitle: "Secure access and accountable operations — without slowing checkout.",
-    points: [
-      "Works without internet on the terminal",
-      "Automatic outbox synchronization",
-      "Local operational cache; Convex as committed truth",
-      "Role-based access and least privilege",
-      "Audit-friendly, attributable actions",
+    subtitle:
+      "Secure access and accountable operations — without slowing checkout. Calm enterprise controls in a layout built for confidence.",
+    cards: [
+      {
+        title: "Offline resilience",
+        detail: "Sales and stock stay available on the terminal when the network drops.",
+      },
+      {
+        title: "Automatic sync",
+        detail: "The outbox catches up committed work the moment you reconnect.",
+      },
+      {
+        title: "Local + cloud truth",
+        detail: "Operational cache on device; Convex remains the committed source of truth.",
+      },
+      {
+        title: "Least privilege",
+        detail: "Role-based access so cashiers never inherit admin capabilities.",
+      },
+      {
+        title: "Attributable actions",
+        detail: "Important operations stay tied to user, time, and reason.",
+      },
+      {
+        title: "Org isolation",
+        detail: "Every business record stays scoped to the session organization.",
+      },
     ],
     ghanaNote:
       "From Accra pharmacies to Kumasi wholesale yards and neighborhood provision shops — Novend speaks Ghanaian retail without locking you into a single market.",
   },
   pricing: {
     title: "Pricing",
-    subtitle: "Plans will unlock as billing ships. Structure first — activation later.",
+    subtitle: "Production-ready plan structure. Billing activates in a future update.",
     badge: "Coming in a future update",
     plans: [
-      { id: "basic", name: "Basic", status: "Coming Soon", blurb: "Single branch starter." },
-      { id: "pro", name: "Pro", status: "Coming Soon", blurb: "Multi-branch operations." },
-      { id: "enterprise", name: "Enterprise", status: "Coming Soon", blurb: "Org-wide control and support." },
-      { id: "lifetime", name: "Lifetime", status: "Coming Soon", blurb: "One-time license option." },
+      {
+        id: "basic",
+        name: "Basic",
+        status: "Coming Soon",
+        blurb: "Single branch starter for focused counters.",
+        featured: false,
+        features: ["1 branch", "Core POS & receipts", "Offline checkout", "Email support"],
+      },
+      {
+        id: "pro",
+        name: "Pro",
+        status: "Coming Soon",
+        blurb: "Multi-branch operations for growing retailers.",
+        featured: true,
+        features: [
+          "Multi-branch",
+          "Wholesale warehouse flow",
+          "Analytics & reports",
+          "Priority support",
+        ],
+      },
+      {
+        id: "enterprise",
+        name: "Enterprise",
+        status: "Coming Soon",
+        blurb: "Organization-wide control and guided rollout.",
+        featured: false,
+        features: [
+          "Org-wide settings",
+          "Advanced roles",
+          "Dedicated onboarding",
+          "SLA options",
+        ],
+      },
+      {
+        id: "lifetime",
+        name: "Lifetime License",
+        status: "Coming Soon",
+        blurb: "One-time license path for long-term ownership.",
+        featured: false,
+        features: [
+          "Perpetual license option",
+          "Major version access window",
+          "Desktop + PWA",
+          "Community updates",
+        ],
+      },
     ],
   },
   faq: {

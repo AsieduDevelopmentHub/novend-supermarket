@@ -190,6 +190,84 @@ export function useLandingDepth(
           },
         });
       });
+
+      const iso = root.querySelector<HTMLElement>("[data-iso-device]");
+      if (iso) {
+        gsap.fromTo(
+          iso,
+          { rotateY: -22, rotateX: 16, z: -50, autoAlpha: 0.7 },
+          {
+            rotateY: 10,
+            rotateX: -6,
+            z: 0,
+            autoAlpha: 1,
+            ease: "none",
+            scrollTrigger: {
+              trigger: iso,
+              scroller: scrollEl,
+              start: "top 85%",
+              end: "bottom 25%",
+              scrub: 1.2,
+            },
+          },
+        );
+      }
+
+      gsap.utils.toArray<HTMLElement>("[data-kpi]").forEach((kpi, index) => {
+        gsap.fromTo(
+          kpi,
+          { autoAlpha: 0, y: 36, z: -30 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            z: 0,
+            duration: 0.9,
+            ease: "power3.out",
+            delay: index * 0.08,
+            scrollTrigger: {
+              trigger: kpi,
+              scroller: scrollEl,
+              start: "top 92%",
+              toggleActions: "play none none none",
+            },
+          },
+        );
+        gsap.to(kpi, {
+          y: index % 2 === 0 ? -18 : 14,
+          ease: "none",
+          scrollTrigger: {
+            trigger: kpi.parentElement || kpi,
+            scroller: scrollEl,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: true,
+          },
+        });
+      });
+
+      const boxes = gsap.utils.toArray<HTMLElement>("[data-inventory-box]");
+      if (boxes.length) {
+        boxes.forEach((box, index) => {
+          gsap.fromTo(
+            box,
+            { y: 48 + index * 12, rotateX: 24, autoAlpha: 0 },
+            {
+              y: -index * 18,
+              rotateX: 0,
+              autoAlpha: 1,
+              duration: 1,
+              ease: "power3.out",
+              delay: index * 0.1,
+              scrollTrigger: {
+                trigger: box.parentElement || box,
+                scroller: scrollEl,
+                start: "top 88%",
+                toggleActions: "play none none none",
+              },
+            },
+          );
+        });
+      }
     }, root);
 
     ScrollTrigger.refresh();

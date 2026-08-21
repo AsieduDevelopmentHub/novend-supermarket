@@ -800,7 +800,10 @@
 @media (prefers-reduced-motion: reduce) {
   [data-reveal],
   [data-depth-panel],
-  [data-depth-card] {
+  [data-depth-card],
+  [data-kpi],
+  [data-iso-device],
+  [data-inventory-box] {
     opacity: 1;
   }
 }
@@ -828,16 +831,16 @@
   height: min(42vw, 420px);
   border-radius: 9999px;
   overflow: hidden;
-  opacity: 0.14;
+  opacity: 0.1;
   filter: grayscale(0.25) saturate(0.85);
 }
 
 .landing-ambient-light .landing-ambient-img {
-  opacity: 0.12;
+  opacity: 0.09;
 }
 
 .landing-ambient-dark .landing-ambient-img {
-  opacity: 0.18;
+  opacity: 0.12;
   filter: grayscale(0.35) saturate(0.7) brightness(0.7);
 }
 
@@ -851,7 +854,7 @@
   right: -10%;
   width: min(36vw, 360px);
   height: min(36vw, 360px);
-  opacity: 0.1;
+  opacity: 0.07;
 }
 
 .landing-ambient-img-c {
@@ -859,7 +862,7 @@
   bottom: -12%;
   width: min(34vw, 320px);
   height: min(34vw, 320px);
-  opacity: 0.09;
+  opacity: 0.06;
 }
 
 .landing-ambient-veil {
@@ -882,19 +885,85 @@
   );
 }
 
-.landing-trust-shell {
-  background: linear-gradient(160deg, rgba(17, 24, 39, 0.92), rgba(15, 23, 42, 0.88));
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28);
+.landing-trust {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 0%, rgba(186, 230, 253, 0.55), transparent 62%),
+    linear-gradient(180deg, #f0f9ff 0%, #ffffff 42%, #f8fafc 100%);
 }
 
 .landing-pricing,
-.landing-features {
+.landing-features,
+.landing-showcase {
   background: #f8fafc;
 }
 
 .landing-price-card:hover,
-.landing-feature-panel:hover {
-  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.12);
+.landing-feature-panel:hover,
+.landing-trust-card:hover {
+  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.12);
+}
+
+.landing-kpi-float {
+  min-width: 7.5rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.75rem 1rem;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.landing-kpi-float p {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.landing-kpi-float strong {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.landing-iso-device {
+  transform-origin: center center;
+}
+
+.landing-inventory-stack {
+  width: 120px;
+  height: 120px;
+  perspective: 600px;
+}
+
+.landing-box {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 42px;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: linear-gradient(135deg, rgba(224, 242, 254, 0.95), rgba(255, 255, 255, 0.95));
+  box-shadow: 0 10px 24px rgba(14, 165, 233, 0.12);
+}
+
+.landing-box-a {
+  bottom: 0;
+}
+
+.landing-box-b {
+  bottom: 18px;
+  opacity: 0.92;
+}
+
+.landing-box-c {
+  bottom: 36px;
+  opacity: 0.84;
+}
+
+.landing-analytics-panel {
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.1);
 }
 
 .landing-pill-btn {

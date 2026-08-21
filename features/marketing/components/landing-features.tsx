@@ -6,7 +6,7 @@ export function LandingFeatures() {
   return (
     <section
       id="platform"
-      className="landing-features relative scroll-mt-24 overflow-hidden border-t border-slate-100 px-4 py-24 sm:px-6 sm:py-28 lg:px-8"
+      className="landing-features relative scroll-mt-24 overflow-hidden border-t border-slate-100 px-4 py-28 sm:px-6 sm:py-32 lg:px-8"
     >
       <LandingAmbient variant="light" />
       <div className="relative z-10 mx-auto max-w-6xl">
