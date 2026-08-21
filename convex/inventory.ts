@@ -36,20 +36,26 @@ export const list = query({
     branchId: v.optional(v.id("branches")),
   },
   handler: async (ctx, args) => {
-    const { profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { profile, organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
     // Admin with no branchId → org-wide totals; others forced to own branch.
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
 
-    const categories = await ctx.db.query("categories").collect();
+    const categories = await ctx.db
+      .query("categories")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const categoryMap = new Map(categories.map((c) => [c._id, c.name]));
     const stockByProduct = branchFilter
       ? await stockMapForBranch(ctx, branchFilter)
-      : await stockMapOrgWide(ctx);
-    const summaries = await lotSummaries(ctx, branchFilter);
+      : await stockMapOrgWide(ctx, organizationId);
+    const summaries = await lotSummaries(ctx, branchFilter, organizationId);
 
-    let products = (await ctx.db.query("products").collect()).filter(
-      (p) => p.status === "active" || p.status === "inactive",
-    );
+    let products = (
+      await ctx.db
+        .query("products")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect()
+    ).filter((p) => p.status === "active" || p.status === "inactive");
 
     if (args.categoryId) {
       products = products.filter((p) => p.categoryId === args.categoryId);
@@ -117,9 +123,9 @@ export const adjustStock = mutation({
     lotCode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     const product = await ctx.db.get(args.productId);
-    if (!product) throw new Error("Product not found");
+    if (!product || product.organizationId !== organizationId) throw new Error("Product not found");
     if (!Number.isInteger(args.quantityChange) || args.quantityChange === 0) {
       throw new Error("Quantity change must be a non-zero integer");
     }
@@ -167,7 +173,7 @@ export const transferStock = mutation({
     note: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     if (args.fromBranchId === args.toBranchId) {
       throw new Error("Choose two different branches");
     }
@@ -177,10 +183,16 @@ export const transferStock = mutation({
 
     const from = await ctx.db.get(args.fromBranchId);
     const to = await ctx.db.get(args.toBranchId);
-    if (!from || from.status !== "active") throw new Error("Source branch unavailable");
-    if (!to || to.status !== "active") throw new Error("Destination branch unavailable");
+    if (!from || from.status !== "active" || from.organizationId !== organizationId) {
+      throw new Error("Source branch unavailable");
+    }
+    if (!to || to.status !== "active" || to.organizationId !== organizationId) {
+      throw new Error("Destination branch unavailable");
+    }
     const product = await ctx.db.get(args.productId);
-    if (!product || product.status === "archived") throw new Error("Product unavailable");
+    if (!product || product.status === "archived" || product.organizationId !== organizationId) {
+      throw new Error("Product unavailable");
+    }
 
     if (!isAdmin(profile)) {
       // Managers may only transfer out of their own branch.
@@ -278,21 +290,28 @@ export const listLots = query({
     branchId: v.optional(v.id("branches")),
   },
   handler: async (ctx, args) => {
-    const { profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { profile, organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
     const product = await ctx.db.get(args.productId);
-    if (!product) return [];
+    if (!product || product.organizationId !== organizationId) return [];
     const alertDays = productExpiryAlertDays(product);
     const today = todayDateString();
 
     const lots = branchFilter
       ? await listLotsForProductBranch(ctx, branchFilter, args.productId)
-      : await ctx.db
-          .query("inventoryLots")
-          .withIndex("by_product", (q) => q.eq("productId", args.productId))
-          .collect();
+      : (
+          await ctx.db
+            .query("inventoryLots")
+            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+            .collect()
+        ).filter((lot) => lot.productId === args.productId);
 
-    const branches = branchFilter ? [] : await ctx.db.query("branches").collect();
+    const branches = branchFilter
+      ? []
+      : await ctx.db
+          .query("branches")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect();
     const branchName = new Map(branches.map((b) => [b._id, b.name]));
 
     return lots
@@ -319,9 +338,9 @@ export const writeOffExpired = mutation({
     note: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     const product = await ctx.db.get(args.productId);
-    if (!product) throw new Error("Product not found");
+    if (!product || product.organizationId !== organizationId) throw new Error("Product not found");
     if (!productTracksExpiry(product)) {
       throw new Error("This product does not track expiry");
     }
@@ -329,7 +348,7 @@ export const writeOffExpired = mutation({
     let branchId = args.branchId ?? profile.branchId ?? null;
     if (args.lotId) {
       const lot = await ctx.db.get(args.lotId);
-      if (!lot || lot.productId !== args.productId) {
+      if (!lot || lot.productId !== args.productId || lot.organizationId !== organizationId) {
         throw new Error("Lot not found for this product");
       }
       branchId = lot.branchId;
@@ -365,13 +384,16 @@ export const history = query({
     branchId: v.optional(v.id("branches")),
   },
   handler: async (ctx, args) => {
-    const { profile } = await requireRole(ctx, ["administrator", "manager"]);
+    const { profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
+    const product = await ctx.db.get(args.productId);
+    if (!product || product.organizationId !== organizationId) return [];
 
     let rows = await ctx.db
       .query("inventoryHistory")
       .withIndex("by_product", (q) => q.eq("productId", args.productId))
       .collect();
+    rows = rows.filter((r) => r.organizationId === organizationId);
 
     if (branchFilter) {
       rows = rows.filter((r) => r.branchId === branchFilter);
@@ -387,18 +409,27 @@ export const listTransfers = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { profile } = await requireRole(ctx, ["administrator", "manager"]);
+    const { profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
     const limit = Math.min(args.limit ?? 50, 100);
 
-    let rows = await ctx.db.query("stockTransfers").collect();
+    let rows = await ctx.db
+      .query("stockTransfers")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     if (branchFilter) {
       rows = rows.filter((r) => r.fromBranchId === branchFilter || r.toBranchId === branchFilter);
     }
 
-    const branches = await ctx.db.query("branches").collect();
+    const branches = await ctx.db
+      .query("branches")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const branchName = new Map(branches.map((b) => [b._id, b.name]));
-    const products = await ctx.db.query("products").collect();
+    const products = await ctx.db
+      .query("products")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const productName = new Map(products.map((p) => [p._id, p.name]));
 
     return rows

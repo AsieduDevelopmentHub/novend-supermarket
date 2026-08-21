@@ -73,7 +73,9 @@ export const summary = query({
 
     const stockBranchId = branchFilter ?? profile.branchId ?? null;
     const stockByProduct = stockBranchId ? await stockMapForBranch(ctx, stockBranchId) : null;
-    const summaries = stockBranchId ? await lotSummaries(ctx, stockBranchId) : await lotSummaries(ctx);
+    const summaries = stockBranchId
+      ? await lotSummaries(ctx, stockBranchId, organizationId)
+      : await lotSummaries(ctx, null, organizationId);
 
     const stockRows = activeProducts.map((p) => {
       const stockQuantity = stockByProduct ? (stockByProduct.get(p._id) ?? 0) : p.stockQuantity;

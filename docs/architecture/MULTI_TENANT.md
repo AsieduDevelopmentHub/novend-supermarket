@@ -42,6 +42,7 @@ One Convex Auth user belongs to exactly one organization
 - `requireOrgContext(ctx)` reads org from the authenticated profile.
 - `assertOrgDoc(doc)` after every `db.get` of a business record.
 - Queries use `organizationId` indexes; do not `collect()` the whole table.
+- Never list business rows by a global `by_status` (or similar) index.
 - Dexie database name: `novend-offline-${organizationId}`.
 - Offline snapshots are org + branch scoped.
 

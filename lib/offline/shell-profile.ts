@@ -1,5 +1,5 @@
 import type { AppRole } from "@/config/navigation";
-import { getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
+import { bindOfflineOrganization, getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
 
 /** Cached authenticated shell identity for offline boot and permissions. */
 export type ShellProfile = {
@@ -12,6 +12,7 @@ export type ShellProfile = {
   email: string | null;
   phone: string | null;
   organizationName: string | null;
+  organizationId: string | null;
 };
 
 function isAppRole(value: string | null): value is AppRole {
@@ -20,6 +21,9 @@ function isAppRole(value: string | null): value is AppRole {
 
 /** Persist the signed-in shell profile into Dexie for offline remounts / navigation. */
 export async function saveShellProfile(profile: ShellProfile): Promise<void> {
+  if (profile.organizationId) {
+    bindOfflineOrganization(profile.organizationId);
+  }
   const db = await getOfflineDb();
   if (!db) return;
   await db.transaction("rw", db.meta, async () => {
@@ -32,6 +36,7 @@ export async function saveShellProfile(profile: ShellProfile): Promise<void> {
     await setMeta(db, META_KEYS.profileEmail, profile.email ?? "");
     await setMeta(db, META_KEYS.profilePhone, profile.phone ?? "");
     await setMeta(db, META_KEYS.profileOrganizationName, profile.organizationName ?? "");
+    await setMeta(db, META_KEYS.profileOrganizationId, profile.organizationId ?? "");
   });
 }
 
@@ -49,6 +54,7 @@ export async function clearShellProfile(): Promise<void> {
     await setMeta(db, META_KEYS.profileEmail, "");
     await setMeta(db, META_KEYS.profilePhone, "");
     await setMeta(db, META_KEYS.profileOrganizationName, "");
+    await setMeta(db, META_KEYS.profileOrganizationId, "");
   });
 }
 
@@ -57,8 +63,18 @@ export async function loadShellProfile(): Promise<ShellProfile | null> {
   const db = await getOfflineDb();
   if (!db) return null;
 
-  const [userId, name, role, branchId, branchName, imageUrl, email, phone, organizationName] =
-    await Promise.all([
+  const [
+    userId,
+    name,
+    role,
+    branchId,
+    branchName,
+    imageUrl,
+    email,
+    phone,
+    organizationName,
+    organizationId,
+  ] = await Promise.all([
     getMeta(db, META_KEYS.profileUserId),
     getMeta(db, META_KEYS.profileName),
     getMeta(db, META_KEYS.profileRole),
@@ -68,10 +84,15 @@ export async function loadShellProfile(): Promise<ShellProfile | null> {
     getMeta(db, META_KEYS.profileEmail),
     getMeta(db, META_KEYS.profilePhone),
     getMeta(db, META_KEYS.profileOrganizationName),
+    getMeta(db, META_KEYS.profileOrganizationId),
   ]);
 
   if (!userId || !name || !isAppRole(role) || !branchId) {
     return null;
+  }
+
+  if (organizationId) {
+    bindOfflineOrganization(organizationId);
   }
 
   return {
@@ -84,5 +105,6 @@ export async function loadShellProfile(): Promise<ShellProfile | null> {
     email: email ? email : null,
     phone: phone ? phone : null,
     organizationName: organizationName ? organizationName : null,
+    organizationId: organizationId ? organizationId : null,
   };
 }

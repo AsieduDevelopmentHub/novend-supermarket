@@ -47,11 +47,17 @@ export const catalog = query({
     branchId: v.optional(v.id("branches")),
   },
   handler: async (ctx, args) => {
-    const { branchId } = await requireBranchId(ctx, args.branchId);
+    const { branchId, organizationId } = await requireBranchId(ctx, args.branchId);
     const stockByProduct = await stockMapForBranch(ctx, branchId);
     const summaries = await lotSummaries(ctx, branchId);
-    let products = (await ctx.db.query("products").collect()).filter((p) => {
-      if (p.status !== "active") return false;
+    let products = (
+      await ctx.db
+        .query("products")
+        .withIndex("by_organization_status", (q) =>
+          q.eq("organizationId", organizationId).eq("status", "active"),
+        )
+        .collect()
+    ).filter((p) => {
       const onHand = stockByProduct.get(p._id) ?? 0;
       const expiry = deriveExpiryListFields(p, onHand, summaries.get(p._id));
       return expiry.sellableQuantity > 0;
@@ -87,23 +93,21 @@ export const catalog = query({
 export const listHeld = query({
   args: {},
   handler: async (ctx) => {
-    const { userId, profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
-    if (isAdmin(profile)) {
-      const all = await ctx.db.query("heldSales").collect();
-      return all.sort((a, b) => b.heldAt - a.heldAt);
-    }
-    if (profile.role === "manager" && profile.branchId) {
-      const all = await ctx.db
-        .query("heldSales")
-        .withIndex("by_branch", (q) => q.eq("branchId", profile.branchId!))
-        .collect();
-      return all.sort((a, b) => b.heldAt - a.heldAt);
-    }
-    const held = await ctx.db
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
+    const all = await ctx.db
       .query("heldSales")
-      .withIndex("by_cashier", (q) => q.eq("cashierId", userId))
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
       .collect();
-    return held.sort((a, b) => b.heldAt - a.heldAt);
+    const scoped = isAdmin(profile)
+      ? all
+      : profile.role === "manager" && profile.branchId
+        ? all.filter((row) => row.branchId === profile.branchId)
+        : all.filter((row) => row.cashierId === userId);
+    return scoped.sort((a, b) => b.heldAt - a.heldAt);
   },
 });
 
@@ -138,7 +142,11 @@ export const holdSale = mutation({
     let customerName = args.customerName?.trim() || "Walk-in Customer";
     if (customerId) {
       const customer = await ctx.db.get(customerId);
-      if (!customer || customer.status !== "active") {
+      if (
+        !customer ||
+        customer.organizationId !== profile.organizationId ||
+        customer.status !== "active"
+      ) {
         throw new Error("Customer not found");
       }
       customerName = customer.name;
@@ -152,7 +160,7 @@ export const holdSale = mutation({
       }
       assertPositiveMoney(item.discount, "line discount");
       const product = await ctx.db.get(item.productId);
-      if (!product || product.status !== "active") {
+      if (!product || product.status !== "active" || product.organizationId !== profile.organizationId) {
         throw new Error("Product unavailable");
       }
       const gross = roundMoney(product.sellingPrice * item.quantity);
@@ -196,9 +204,13 @@ export const holdSale = mutation({
 export const resumeHeld = mutation({
   args: { id: v.id("heldSales") },
   handler: async (ctx, args) => {
-    const { userId, profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     const held = await ctx.db.get(args.id);
-    if (!held) throw new Error("Held sale not found");
+    if (!held || held.organizationId !== organizationId) throw new Error("Held sale not found");
     if (isAdmin(profile)) {
       /* ok */
     } else if (profile.role === "manager") {
@@ -214,9 +226,13 @@ export const resumeHeld = mutation({
 export const getReceipt = query({
   args: { saleId: v.id("sales") },
   handler: async (ctx, args) => {
-    const { userId, profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     const sale = await ctx.db.get(args.saleId);
-    if (!sale) return null;
+    if (!sale || sale.organizationId !== organizationId) return null;
     if (sale.branchId) assertBranchAccess(profile, sale.branchId);
     if (profile.role === "cashier" && sale.cashierId !== userId) {
       throw new Error("Forbidden");
@@ -282,8 +298,10 @@ export const completeSale = mutation({
     if (args.clientOperationId?.trim()) {
       const existing = await ctx.db
         .query("saleClientOps")
-        .withIndex("by_clientOperationId", (q) =>
-          q.eq("clientOperationId", args.clientOperationId!.trim()),
+        .withIndex("by_organization_clientOperationId", (q) =>
+          q
+            .eq("organizationId", profile.organizationId)
+            .eq("clientOperationId", args.clientOperationId!.trim()),
         )
         .unique();
       if (existing) {
@@ -310,7 +328,11 @@ export const completeSale = mutation({
     let customerPhone: string | null = null;
     if (customerId) {
       const customer = await ctx.db.get(customerId);
-      if (!customer || customer.status !== "active") {
+      if (
+        !customer ||
+        customer.organizationId !== profile.organizationId ||
+        customer.status !== "active"
+      ) {
         throw new Error("Customer not found");
       }
       customerName = customer.name;
@@ -337,7 +359,7 @@ export const completeSale = mutation({
       }
       assertPositiveMoney(item.discount, "line discount");
       const product = await ctx.db.get(item.productId);
-      if (!product || product.status !== "active") {
+      if (!product || product.status !== "active" || product.organizationId !== profile.organizationId) {
         throw new Error(`Product unavailable`);
       }
       const available = productTracksExpiry(product)
@@ -486,7 +508,9 @@ export const completeSale = mutation({
 
     if (args.heldSaleId) {
       const held = await ctx.db.get(args.heldSaleId);
-      if (held) await ctx.db.delete(args.heldSaleId);
+      if (held && held.organizationId === profile.organizationId) {
+        await ctx.db.delete(args.heldSaleId);
+      }
     }
 
     await writeAuditLog(ctx, {

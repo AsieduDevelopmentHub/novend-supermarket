@@ -69,8 +69,8 @@ export const listProducts = query({
     const branchId = resolveBranchFilter(profile, args.branchId ?? null);
     const stockByProduct = branchId
       ? await stockMapForBranch(ctx, branchId)
-      : await stockMapOrgWide(ctx);
-    const summaries = await lotSummaries(ctx, branchId);
+      : await stockMapOrgWide(ctx, organizationId);
+    const summaries = await lotSummaries(ctx, branchId, organizationId);
 
     const showCost = canViewCostPrice(profile);
     return await Promise.all(
@@ -120,9 +120,9 @@ export const getProduct = query({
     branchId: v.optional(v.id("branches")),
   },
   handler: async (ctx, args) => {
-    const { profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { profile, organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
     const product = await ctx.db.get(args.id);
-    if (!product) return null;
+    if (!product || product.organizationId !== organizationId) return null;
     const category = await ctx.db.get(product.categoryId);
     const imageUrl = product.imageStorageId
       ? await ctx.storage.getUrl(product.imageStorageId)
@@ -130,8 +130,8 @@ export const getProduct = query({
     const branchId = resolveBranchFilter(profile, args.branchId ?? null);
     const stockQuantity = branchId
       ? ((await stockMapForBranch(ctx, branchId)).get(product._id) ?? 0)
-      : ((await stockMapOrgWide(ctx)).get(product._id) ?? 0);
-    const summaries = await lotSummaries(ctx, branchId);
+      : ((await stockMapOrgWide(ctx, organizationId)).get(product._id) ?? 0);
+    const summaries = await lotSummaries(ctx, branchId, organizationId);
     const expiry = deriveExpiryListFields(product, stockQuantity, summaries.get(product._id));
     return {
       ...product,
@@ -224,7 +224,9 @@ export const createProduct = mutation({
     if (existingSku) throw new Error("SKU already exists");
 
     const category = await ctx.db.get(args.categoryId);
-    if (!category || !category.isActive) throw new Error("Invalid category");
+    if (!category || !category.isActive || category.organizationId !== organizationId) {
+      throw new Error("Invalid category");
+    }
 
     if (args.imageStorageId) {
       await assertStoredImage(ctx, args.imageStorageId);
@@ -320,10 +322,10 @@ export const updateProduct = mutation({
     openingExpiryDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     if (!canManageCatalog(profile)) throw new Error("Forbidden");
     const product = await ctx.db.get(args.id);
-    if (!product) throw new Error("Product not found");
+    if (!product || product.organizationId !== organizationId) throw new Error("Product not found");
 
     const name = sanitizeText(args.name, "Product name", TEXT_LIMITS.name);
     const sku = sanitizeSku(args.sku);
@@ -332,14 +334,16 @@ export const updateProduct = mutation({
 
     const existingSku = await ctx.db
       .query("products")
-      .withIndex("by_sku", (q) => q.eq("sku", sku))
+      .withIndex("by_organization_sku", (q) =>
+        q.eq("organizationId", organizationId).eq("sku", sku),
+      )
       .unique();
     if (existingSku && existingSku._id !== args.id) {
       throw new Error("SKU already exists");
     }
 
     const category = await ctx.db.get(args.categoryId);
-    if (!category) throw new Error("Invalid category");
+    if (!category || category.organizationId !== organizationId) throw new Error("Invalid category");
 
     if (!Number.isFinite(args.lowStockThreshold) || args.lowStockThreshold < 0) {
       throw new Error("Invalid low stock threshold");

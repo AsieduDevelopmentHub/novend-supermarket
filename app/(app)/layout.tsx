@@ -24,6 +24,7 @@ import { OfflineNavigationProvider, OfflineOutlet } from "@/providers/offline-na
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { loadShellProfile, saveShellProfile, type ShellProfile } from "@/lib/offline/shell-profile";
 import { markOfflineSession, readOfflineSession } from "@/lib/offline/session";
+import { bindOfflineOrganization } from "@/lib/offline/db";
 import { toUserMessage } from "@/lib/errors";
 
 const OFFLINE_AUTH_BUDGET_MS = 2000;
@@ -76,6 +77,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
           role: profile.role,
           branchId: profile.branchId,
           branchName: profile.branchName,
+          organizationId: profile.organizationId ?? undefined,
           savedAt: Date.now(),
         });
       } else {
@@ -95,6 +97,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             email: null,
             phone: null,
             organizationName: null,
+            organizationId: hint.organizationId ?? null,
           });
         }
       }
@@ -135,6 +138,9 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     ) {
       return;
     }
+    if ("organizationId" in user && user.organizationId) {
+      bindOfflineOrganization(String(user.organizationId));
+    }
     const next: ShellProfile = {
       userId: String(user.userId),
       name: user.name,
@@ -145,6 +151,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       email: user.email ?? null,
       phone: user.phone ?? null,
       organizationName: user.organizationName ?? null,
+      organizationId:
+        "organizationId" in user && user.organizationId ? String(user.organizationId) : null,
     };
     void saveShellProfile(next).then(() => {
       setCachedProfile(next);
@@ -154,6 +162,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         role: next.role,
         branchId: next.branchId,
         branchName: next.branchName,
+        organizationId: next.organizationId ?? undefined,
         savedAt: Date.now(),
       });
     });

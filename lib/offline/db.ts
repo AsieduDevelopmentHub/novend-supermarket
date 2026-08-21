@@ -52,6 +52,55 @@ export type NovendOfflineDb = Dexie & {
 
 let dbInstance: NovendOfflineDb | null = null;
 let dbFailed = false;
+let boundOrganizationId: string | null = null;
+
+const ORG_STORAGE_KEY = "novend.offlineOrganizationId";
+
+function readStoredOrganizationId(): string | undefined {
+  if (boundOrganizationId) return boundOrganizationId;
+  if (typeof window === "undefined") return undefined;
+  try {
+    const stored = window.localStorage.getItem(ORG_STORAGE_KEY);
+    if (stored) return stored;
+  } catch {
+    /* private mode */
+  }
+  return undefined;
+}
+
+/** Bind IndexedDB to the session organization. Switching orgs closes the previous replica. */
+export function bindOfflineOrganization(organizationId: string) {
+  boundOrganizationId = organizationId;
+  dbFailed = false;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(ORG_STORAGE_KEY, organizationId);
+    } catch {
+      /* private mode / quota */
+    }
+  }
+  const expectedName = `novend-offline-${organizationId}`;
+  if (dbInstance && dbInstance.name !== expectedName) {
+    dbInstance.close();
+    dbInstance = null;
+  }
+}
+
+/** Drop the session org binding (sign-out). Does not delete the org replica. */
+export function unbindOfflineOrganization() {
+  boundOrganizationId = null;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.removeItem(ORG_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (dbInstance) {
+    dbInstance.close();
+    dbInstance = null;
+  }
+}
 
 export function createOfflineDb(organizationId?: string): NovendOfflineDb {
   const suffix = organizationId ? `-${organizationId}` : "anon";
@@ -157,10 +206,17 @@ export function createOfflineDb(organizationId?: string): NovendOfflineDb {
 /** Opens IndexedDB; returns null if unavailable (private mode / blocked). */
 export async function getOfflineDb(): Promise<PrincellenOfflineDb | null> {
   if (dbFailed) return null;
-  if (dbInstance) return dbInstance;
 
   try {
-    const db = createOfflineDb();
+    const organizationId = readStoredOrganizationId();
+    const expectedName = `novend-offline-${organizationId ?? "anon"}`;
+    if (dbInstance && dbInstance.name !== expectedName) {
+      dbInstance.close();
+      dbInstance = null;
+    }
+    if (dbInstance) return dbInstance;
+
+    const db = createOfflineDb(organizationId);
     await db.open();
     dbInstance = db;
     return db;
@@ -198,6 +254,7 @@ export const META_KEYS = {
   lastSyncFailed: "lastSyncFailed",
   lastSyncError: "lastSyncError",
   replicaSchemaVersion: "replicaSchemaVersion",
+  profileOrganizationId: "profileOrganizationId",
 } as const;
 
 /** Bump when Dexie adds replica tables so TTL snapshot skips cannot leave new stores empty. */

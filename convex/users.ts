@@ -150,9 +150,14 @@ export const list = query({
         (p) => p.branchId === actor.branchId && (p.role === "cashier" || p._id === actor._id),
       );
     }
-    const users = await ctx.db.query("users").collect();
-    const emailById = new Map(users.map((u) => [u._id, u.email ?? null]));
-    const branches = await ctx.db.query("branches").collect();
+    const users = await Promise.all(profiles.map((p) => ctx.db.get(p.userId)));
+    const emailById = new Map(
+      users.flatMap((u) => (u ? [[u._id, u.email ?? null] as const] : [])),
+    );
+    const branches = await ctx.db
+      .query("branches")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const branchName = new Map(branches.map((b) => [b._id, b.name]));
 
     let rows = await Promise.all(
@@ -205,9 +210,9 @@ export const list = query({
 export const get = query({
   args: { id: v.id("profiles") },
   handler: async (ctx, args) => {
-    const { profile: actor } = await requireRole(ctx, ["administrator", "manager"]);
+    const { profile: actor, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     const profile = await ctx.db.get(args.id);
-    if (!profile) return null;
+    if (!profile || profile.organizationId !== organizationId) return null;
     if (
       actor.role === "manager" &&
       (profile.branchId !== actor.branchId ||

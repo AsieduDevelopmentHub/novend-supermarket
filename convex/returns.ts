@@ -361,7 +361,13 @@ export const list = query({
       rows = rows.filter((row) => row.branchId === branchFilter);
     }
     if (profile.role === "cashier") {
-      const mySales = (await ctx.db.query("sales").withIndex("by_cashier", (q) => q.eq("cashierId", userId)).collect())
+      const mySales = (
+        await ctx.db
+          .query("sales")
+          .withIndex("by_cashier", (q) => q.eq("cashierId", userId))
+          .collect()
+      )
+        .filter((s) => s.organizationId === organizationId)
         .map((s) => s._id);
       const mine = new Set(mySales);
       rows = rows.filter((row) => mine.has(row.saleId) || row.processedBy === userId);

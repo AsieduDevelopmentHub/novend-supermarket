@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireRole } from "./shared/permissions";
+import { assertOrgDoc, requireRole } from "./shared/permissions";
 import { writeAuditLog } from "./shared/audit";
 import {
   sanitizeEmail,
@@ -74,18 +74,26 @@ export const search = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     const queryText = args.q.trim().toLowerCase();
     if (!queryText) return [];
     const limit = Math.min(args.limit ?? 8, 20);
-    const customers = await ctx.db.query("customers").collect();
+    const customers = await ctx.db
+      .query("customers")
+      .withIndex("by_organization_status", (q) =>
+        q.eq("organizationId", organizationId).eq("status", "active"),
+      )
+      .collect();
     return customers
       .filter(
         (c) =>
-          c.status === "active" &&
-          (c.name.toLowerCase().includes(queryText) ||
-            c.phone?.toLowerCase().includes(queryText) ||
-            c.email?.toLowerCase().includes(queryText)),
+          c.name.toLowerCase().includes(queryText) ||
+          c.phone?.toLowerCase().includes(queryText) ||
+          c.email?.toLowerCase().includes(queryText),
       )
       .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, limit)
@@ -100,9 +108,13 @@ export const search = query({
 export const get = query({
   args: { id: v.id("customers") },
   handler: async (ctx, args) => {
-    await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     const customer = await ctx.db.get(args.id);
-    if (!customer) return null;
+    if (!customer || customer.organizationId !== organizationId) return null;
     return {
       id: customer._id,
       name: customer.name,
@@ -120,7 +132,13 @@ export const purchaseHistory = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
+    const customer = await ctx.db.get(args.customerId);
+    if (!customer || customer.organizationId !== organizationId) return [];
     const limit = Math.min(args.limit ?? 20, 50);
     const sales = await ctx.db
       .query("sales")
@@ -128,6 +146,7 @@ export const purchaseHistory = query({
       .collect();
 
     return sales
+      .filter((sale) => sale.organizationId === organizationId)
       .sort((a, b) => b.completedAt - a.completedAt)
       .slice(0, limit)
       .map((sale) => ({
@@ -186,12 +205,16 @@ export const update = mutation({
     status: v.union(v.literal("active"), v.literal("inactive")),
   },
   handler: async (ctx, args) => {
-    const { userId, profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     if (profile.role !== "administrator" && args.status === "inactive") {
       throw new Error("Only administrators can deactivate customers");
     }
     const customer = await ctx.db.get(args.id);
-    if (!customer) throw new Error("Customer not found");
+    assertOrgDoc(customer, organizationId);
 
     const name = sanitizeText(args.name, "Customer name", TEXT_LIMITS.name);
 
@@ -215,9 +238,9 @@ export const update = mutation({
 export const archive = mutation({
   args: { id: v.id("customers") },
   handler: async (ctx, args) => {
-    const { userId } = await requireRole(ctx, ["administrator"]);
+    const { userId, organizationId } = await requireRole(ctx, ["administrator"]);
     const customer = await ctx.db.get(args.id);
-    if (!customer) throw new Error("Customer not found");
+    assertOrgDoc(customer, organizationId);
     await ctx.db.patch(args.id, { status: "inactive" });
     await writeAuditLog(ctx, {
       actorId: userId,

@@ -209,6 +209,10 @@ export async function applySnapshot(
         "organizationName" in snapshot.profile
           ? ((snapshot.profile as { organizationName?: string | null }).organizationName ?? null)
           : null,
+      organizationId:
+        "organizationId" in snapshot.profile
+          ? ((snapshot.profile as { organizationId?: string | null }).organizationId ?? null)
+          : null,
     });
   }
 }

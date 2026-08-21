@@ -186,6 +186,7 @@ export async function listLotsForProductBranch(
 export async function lotSummaries(
   ctx: Ctx,
   branchId?: Id<"branches"> | null,
+  organizationId?: Id<"organizations">,
 ): Promise<Map<Id<"products">, LotSummary>> {
   const today = todayDateString();
   const rows = branchId
@@ -193,7 +194,12 @@ export async function lotSummaries(
         .query("inventoryLots")
         .withIndex("by_branch", (q) => q.eq("branchId", branchId))
         .collect()
-    : await ctx.db.query("inventoryLots").collect();
+    : organizationId
+      ? await ctx.db
+          .query("inventoryLots")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect()
+      : [];
 
   const map = new Map<Id<"products">, LotSummary>();
   for (const lot of rows) {

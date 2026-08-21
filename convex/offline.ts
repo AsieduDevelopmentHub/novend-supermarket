@@ -1,4 +1,5 @@
 import { query } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 import { requireBranchId } from "./shared/permissions";
 import { loadPrintSnapshot } from "./settings";
 import { stockMapForBranch } from "./shared/branchStock";
@@ -40,11 +41,15 @@ export const getSnapshot = query({
         .collect(),
       ctx.db
         .query("products")
-        .withIndex("by_status", (q) => q.eq("status", "active"))
+        .withIndex("by_organization_status", (q) =>
+          q.eq("organizationId", organizationId).eq("status", "active"),
+        )
         .collect(),
       ctx.db
         .query("customers")
-        .withIndex("by_status", (q) => q.eq("status", "active"))
+        .withIndex("by_organization_status", (q) =>
+          q.eq("organizationId", organizationId).eq("status", "active"),
+        )
         .collect(),
       stockMapForBranch(ctx, branchId),
       lotSummaries(ctx, branchId),
@@ -388,8 +393,12 @@ export const getSnapshot = query({
           lastLoginAt: p.lastLoginAt ?? null,
           lastDevice: p.lastDevice ?? null,
         }));
-      const authUsers = await ctx.db.query("users").collect();
-      const emailById = new Map(authUsers.map((u) => [String(u._id), u.email ?? null]));
+      const authUsers = await Promise.all(
+        staff.map((row) => ctx.db.get(row.userId as Id<"users">)),
+      );
+      const emailById = new Map(
+        authUsers.flatMap((u) => (u ? [[String(u._id), u.email ?? null] as const] : [])),
+      );
       staff = staff.map((row) => ({
         ...row,
         email: emailById.get(row.userId) ?? null,
@@ -467,6 +476,7 @@ export const getSnapshot = query({
         role: profile.role as "administrator" | "manager" | "cashier",
         branchId: branchId as string,
         branchName: branch?.name ?? null,
+        organizationId: organizationId as string,
         organizationName: business.tradeName,
       },
     };

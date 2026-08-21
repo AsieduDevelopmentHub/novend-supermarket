@@ -4,6 +4,8 @@
  * Lets the splash / auth gate proceed without waiting on Convex while offline.
  */
 
+import { bindOfflineOrganization, unbindOfflineOrganization } from "./db";
+
 const STORAGE_KEY = "princellen.offlineSession";
 
 export type OfflineSessionHint = {
@@ -12,6 +14,7 @@ export type OfflineSessionHint = {
   role: string;
   branchId: string;
   branchName: string;
+  organizationId?: string;
   savedAt: number;
 };
 
@@ -21,6 +24,9 @@ export function markOfflineSession(hint: OfflineSessionHint): void {
   } catch {
     // private mode / quota
   }
+  if (hint.organizationId) {
+    bindOfflineOrganization(hint.organizationId);
+  }
 }
 
 export function clearOfflineSession(): void {
@@ -29,6 +35,7 @@ export function clearOfflineSession(): void {
   } catch {
     // ignore
   }
+  unbindOfflineOrganization();
 }
 
 export function readOfflineSession(): OfflineSessionHint | null {

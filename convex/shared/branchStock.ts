@@ -108,9 +108,15 @@ export async function stockMapForBranch(
   return map;
 }
 
-/** Sum quantities across every branch (admin org-wide stock views). */
-export async function stockMapOrgWide(ctx: Ctx): Promise<Map<Id<"products">, number>> {
-  const rows = await ctx.db.query("branchStock").collect();
+/** Sum quantities across every branch in the session organization. */
+export async function stockMapOrgWide(
+  ctx: Ctx,
+  organizationId: Id<"organizations">,
+): Promise<Map<Id<"products">, number>> {
+  const rows = await ctx.db
+    .query("branchStock")
+    .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+    .collect();
   const map = new Map<Id<"products">, number>();
   for (const row of rows) {
     map.set(row.productId, (map.get(row.productId) ?? 0) + row.quantity);
