@@ -52,9 +52,17 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
   const supported = isCameraBarcodeSupported();
 
   function stopScanner() {
-    scannerRef.current?.stop();
+    try {
+      scannerRef.current?.stop();
+    } catch {
+      /* always allow dialog to close */
+    }
     scannerRef.current = null;
   }
+
+  useEffect(() => {
+    if (!open) stopScanner();
+  }, [open]);
 
   useEffect(() => {
     return () => {

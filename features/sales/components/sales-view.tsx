@@ -116,7 +116,7 @@ export function SalesView() {
     products: catalog,
     loading: catalogLoading,
     refreshLocal,
-  } = useSalesCatalog(search, isAdmin ? workingBranchId : undefined);
+  } = useSalesCatalog(search, workingBranchId ?? myBranchId ?? undefined);
   const customerHits = useSalesCustomerSearch(customerQuery);
   const remoteHeld = useQuery(api.sales.listHeld, online ? {} : "skip");
   const holdSale = useMutation(api.sales.holdSale);

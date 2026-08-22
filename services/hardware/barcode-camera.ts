@@ -32,9 +32,11 @@ type ZxingReader = {
   decodeFromVideoDevice: (
     deviceId: string | undefined,
     video: HTMLVideoElement,
-    callback: (result: { getText: () => string; getResultPoints?: () => Array<{ getX: () => number; getY: () => number }> } | undefined, error?: unknown) => void,
-  ) => void;
-  reset: () => void;
+    callback: (
+      result: { getText: () => string; getResultPoints?: () => Array<{ getX: () => number; getY: () => number }> } | undefined,
+      error?: unknown,
+    ) => void,
+  ) => Promise<{ stop: () => void }>;
 };
 
 export type CameraScannerSession = {
@@ -252,47 +254,47 @@ export async function startCameraBarcodeScanning(options: {
 
   const reader = await loadZxingReader();
   let active = true;
+  let controls: { stop: () => void } | null = null;
 
-  return await new Promise<CameraScannerSession>((resolve, reject) => {
-    try {
-      reader.decodeFromVideoDevice(options.deviceId, options.video, (result, error) => {
-        if (!active) return;
-        if (result) {
-          const value = result.getText()?.trim();
-          if (value) {
-            active = false;
-            reader.reset();
-            options.onDetect(value, pointsToBoundingBox(result.getResultPoints?.(), options.video));
-          }
-          return;
-        }
-        if (
-          error &&
-          typeof error === "object" &&
-          "name" in error &&
-          error.name === "NotFoundException"
-        ) {
-          return;
-        }
-        if (error && active) {
+  try {
+    controls = await reader.decodeFromVideoDevice(options.deviceId, options.video, (result, error) => {
+      if (!active) return;
+      if (result) {
+        const value = result.getText()?.trim();
+        if (value) {
           active = false;
-          reader.reset();
-          reject(error);
+          controls?.stop();
+          options.onDetect(value, pointsToBoundingBox(result.getResultPoints?.(), options.video));
         }
-      });
+        return;
+      }
+      if (error && typeof error === "object" && "name" in error && error.name === "NotFoundException") {
+        return;
+      }
+    });
 
-      void options.video.play().then(() => {
-        resolve({
-          deviceId: activeDeviceId(options.video),
-          stop: () => {
-            active = false;
-            reader.reset();
-            stopVideoStream(options.video);
-          },
-        });
-      }).catch(reject);
-    } catch (err) {
-      reject(err);
+    await options.video.play();
+
+    return {
+      deviceId: activeDeviceId(options.video),
+      stop: () => {
+        active = false;
+        try {
+          controls?.stop();
+        } catch {
+          /* ignore */
+        }
+        stopVideoStream(options.video);
+      },
+    };
+  } catch (err) {
+    active = false;
+    try {
+      controls?.stop();
+    } catch {
+      /* ignore */
     }
-  });
+    stopVideoStream(options.video);
+    throw err;
+  }
 }

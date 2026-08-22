@@ -4,10 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { canServeListsFromMirror } from "@/lib/offline/freshness";
 import { listLocalCatalogProducts, searchLocalCustomers } from "@/lib/offline/snapshot";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
-import { pickReplicaList } from "@/lib/offline/list-preference";
+import { canServeListsFromMirror } from "@/lib/offline/freshness";
 import { useOfflineStatus } from "@/providers/offline-provider";
 
 export type CatalogProduct = {
@@ -22,40 +21,42 @@ export type CatalogProduct = {
   isExpiring?: boolean;
 };
 
+function mapRemoteProducts(
+  remote: Array<{
+    id: string;
+    name: string;
+    sku: string;
+    barcode?: string | null;
+    sellingPrice: number;
+    stockQuantity: number;
+    unit: string;
+    imageUrl: string | null;
+    isExpiring?: boolean;
+  }>,
+): CatalogProduct[] {
+  return remote.map((p) => ({
+    id: p.id as string,
+    name: p.name,
+    sku: p.sku,
+    barcode: p.barcode,
+    sellingPrice: p.sellingPrice,
+    stockQuantity: p.stockQuantity,
+    unit: p.unit,
+    imageUrl: p.imageUrl,
+    isExpiring: p.isExpiring,
+  }));
+}
+
 /**
- * Dexie-first product catalog for Sales.
- * While online, always use the live Convex catalog so newly created products
- * appear immediately. Offline uses the Dexie mirror.
+ * Branch-scoped product catalog for Sales.
+ * Online: live Convex stock for the selected branch.
+ * Offline: Dexie mirror (stock for the session branch at last sync).
  */
 export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null) {
   const { online, lastSyncAt } = useOfflineStatus();
-  const [serveLocal, setServeLocal] = useState(false);
-  const [gateReady, setGateReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      // Admin cross-branch catalog is not mirrored locally.
-      // Online: live Convex so create/update shows on Sales without a manual sync.
-      // Offline: Dexie mirror only.
-      let ok = false;
-      if (branchId) ok = false;
-      else if (!online) ok = true;
-      else ok = false;
-      if (cancelled) return;
-      setServeLocal(ok);
-      setGateReady(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [online, lastSyncAt, branchId]);
-
   const remote = useQuery(
     api.sales.catalog,
-    online && gateReady && !serveLocal
-      ? { search: search || undefined, branchId: branchId ?? undefined }
-      : "skip",
+    online ? { search: search || undefined, branchId: branchId ?? undefined } : "skip",
   );
   const [local, setLocal] = useState<CatalogProduct[] | null>(null);
 
@@ -65,6 +66,7 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
   }, [search]);
 
   useEffect(() => {
+    if (online) return;
     let cancelled = false;
     const load = () => {
       void listLocalCatalogProducts(search || undefined).then((rows) => {
@@ -78,30 +80,27 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
       window.clearTimeout(timer);
       unsub();
     };
-  }, [search, lastSyncAt, remote]);
+  }, [online, search, lastSyncAt, branchId]);
 
-  // Dexie first so newly created products appear in POS immediately.
-  const picked = pickReplicaList({ local, remote: remote as CatalogProduct[] | undefined, online });
-  if (picked.source === "remote" && remote !== undefined) {
+  if (online) {
+    if (remote === undefined) {
+      return {
+        products: [] as CatalogProduct[],
+        source: "remote" as const,
+        loading: true,
+        refreshLocal,
+      };
+    }
     return {
-      products: remote.map((p) => ({
-        id: p.id as string,
-        name: p.name,
-        sku: p.sku,
-        barcode: p.barcode,
-        sellingPrice: p.sellingPrice,
-        stockQuantity: p.stockQuantity,
-        unit: p.unit,
-        imageUrl: p.imageUrl,
-        isExpiring: p.isExpiring,
-      })),
+      products: mapRemoteProducts(remote),
       source: "remote" as const,
       loading: false,
       refreshLocal,
     };
   }
-  if (picked.rows) {
-    return { products: picked.rows, source: "local" as const, loading: false, refreshLocal };
+
+  if (local != null) {
+    return { products: local, source: "local" as const, loading: false, refreshLocal };
   }
   return {
     products: [] as CatalogProduct[],
