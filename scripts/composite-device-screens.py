@@ -69,7 +69,9 @@ def fill_mask_with_image(base: Image.Image, mask: np.ndarray, ui: Image.Image) -
 
 
 def composite_hero() -> None:
-    shell = chroma_key(Image.open(V3 / "hero-shell-empty.png"))
+    # Transparent shell with built-in Candy Blue base glow — do not chroma-key
+    # (keying would strip the intentional perimeter light).
+    shell = Image.open(V3 / "hero-shell-empty-no-bg.png").convert("RGBA")
     mask = black_screen_mask(shell)
     # Keep only the largest contiguous horizontal band (the panel), drop stand shadows
     # Restrict to upper 72% of image so stand base isn't included

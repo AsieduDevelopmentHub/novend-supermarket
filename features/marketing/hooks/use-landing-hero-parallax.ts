@@ -13,7 +13,7 @@ export function useLandingHeroParallax(stageRef: RefObject<HTMLElement | null>) 
       const rect = stage.getBoundingClientRect();
       const x = (event.clientX - rect.left) / rect.width - 0.5;
       const y = (event.clientY - rect.top) / rect.height - 0.5;
-      stage.style.transform = `rotateY(${x * 6}deg) rotateX(${-y * 4}deg) translateZ(0)`;
+      stage.style.transform = `rotateY(${x * 3}deg) rotateX(${-y * 2}deg) translateZ(0)`;
     };
 
     const onLeave = () => {

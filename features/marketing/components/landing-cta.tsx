@@ -4,7 +4,7 @@ import { BRANDING } from "@/constants/branding";
 import { Button } from "@/components/ui/button";
 import { landingCopy } from "@/features/marketing/content";
 
-/** Final CTA — previous laptop + phone device image. */
+/** Final CTA — laptop + phone, rounded and blended into the card. */
 export function LandingCta() {
   const { cta } = landingCopy;
 
@@ -55,15 +55,18 @@ export function LandingCta() {
           </ul>
         </div>
 
-        <div className="relative flex min-h-[240px] items-center justify-center px-4 pb-8 pt-2 sm:px-8 lg:min-h-[340px] lg:pb-10">
-          <Image
-            src={BRANDING.landingCtaDevices}
-            alt="Novend on laptop and mobile"
-            width={1536}
-            height={1024}
-            className="h-auto w-full max-w-lg object-contain"
-            sizes="(max-width: 1024px) 90vw, 480px"
-          />
+        <div className="landing-cta-devices relative flex min-h-[240px] items-end justify-center px-4 pb-6 pt-4 sm:px-8 lg:min-h-[340px] lg:pb-8">
+          <div className="landing-cta-devices-frame">
+            <Image
+              src={BRANDING.landingCtaDevices}
+              alt="Novend on laptop and mobile"
+              width={1536}
+              height={1024}
+              className="landing-cta-devices-img h-auto w-full max-w-lg object-contain"
+              sizes="(max-width: 1024px) 90vw, 480px"
+            />
+            <span className="landing-cta-devices-fade" aria-hidden />
+          </div>
         </div>
       </div>
     </section>
