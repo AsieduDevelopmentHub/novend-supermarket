@@ -14,6 +14,8 @@ import {
 type Props = {
   value: string;
   onChange: (value: string) => void;
+  /** Called when a scan completes (HID or camera), after `onChange`. */
+  onScan?: (code: string) => void;
   placeholder?: string;
   className?: string;
   id?: string;
@@ -27,6 +29,7 @@ type Props = {
 export function BarcodeSearchField({
   value,
   onChange,
+  onScan,
   placeholder = "Search or scan barcode…",
   className,
   id,
@@ -36,9 +39,14 @@ export function BarcodeSearchField({
   const showCamera = shouldShowCameraBarcodeButton();
   const hidActive = isHardwareBarcodeScannerActive();
 
+  function applyScan(code: string) {
+    onChange(code);
+    onScan?.(code);
+  }
+
   useBarcodeScanner(
     (code) => {
-      onChange(code);
+      applyScan(code);
     },
     {
       enabled: listenHid && hidActive,
@@ -52,6 +60,12 @@ export function BarcodeSearchField({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && onScan && value.trim()) {
+            e.preventDefault();
+            onScan(value);
+          }
+        }}
         placeholder={placeholder}
         autoComplete="off"
         className={showCamera ? undefined : "flex-1"}
@@ -70,7 +84,7 @@ export function BarcodeSearchField({
       <ScanBarcodeCameraDialog
         open={cameraOpen}
         onOpenChange={setCameraOpen}
-        onDetect={(code) => onChange(code)}
+        onDetect={(code) => applyScan(code)}
       />
     </div>
   );

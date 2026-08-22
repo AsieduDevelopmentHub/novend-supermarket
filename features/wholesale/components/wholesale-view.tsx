@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ProductBarcodePicker } from "@/components/hardware/product-barcode-picker";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -212,6 +213,7 @@ export function WholesaleView() {
         value={search}
         onChange={setSearch}
         placeholder="Search warehouse stock or scan barcode…"
+        listenHid={!buyOpen && !issueOpen}
       />
 
       <Card>
@@ -321,18 +323,23 @@ export function WholesaleView() {
                   placeholder="Or type a new supplier name"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Product</Label>
-                <SearchableSelect
-                  options={(products ?? []).map((p) => ({
-                    value: p.id,
-                    label: p.name,
-                  }))}
-                  value={productId}
-                  onValueChange={setProductId}
-                  placeholder="Select product"
-                />
-              </div>
+              <ProductBarcodePicker
+                products={(products ?? []).map((product) => ({
+                  id: product.id,
+                  name: product.name,
+                  sku: product.sku,
+                  barcode: product.barcode,
+                  costPrice: product.costPrice,
+                }))}
+                value={productId}
+                onValueChange={setProductId}
+                onProductResolved={(product) => {
+                  if (!unitCost && product.costPrice != null && product.costPrice > 0) {
+                    setUnitCost(String(product.costPrice));
+                  }
+                }}
+                enabled={buyOpen}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Quantity</Label>

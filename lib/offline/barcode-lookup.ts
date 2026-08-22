@@ -38,3 +38,13 @@ export function productMatchesQuery(
 
 export const BARCODE_ALREADY_ASSIGNED =
   "This barcode is already assigned to another product in your organization.";
+
+/** Match active catalog rows by dedicated barcode or SKU (no stock filter). */
+export function filterProductsByBarcode<T extends { sku: string; barcode?: string | null }>(
+  catalog: T[],
+  code: string,
+): T[] {
+  const normalized = normalizeBarcodeInput(code);
+  if (!normalized) return [];
+  return catalog.filter((product) => productMatchesBarcode(product, normalized));
+}
