@@ -19,6 +19,7 @@ import {
 import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
 import { markLocalReturnFailed, markLocalReturnSynced } from "./returns-repository";
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
+import { isSyncBusinessConflict } from "./sync-errors";
 import type {
   AdjustStockPayload,
   CreateCategoryPayload,
@@ -71,21 +72,6 @@ const BASE_BACKOFF_MS = 2_000;
 const MAX_BACKOFF_MS = 60_000;
 const CLEANUP_EVERY_N_DRAINS = 8;
 let drainCycles = 0;
-
-function isBusinessConflict(message: string) {
-  const m = message.toLowerCase();
-  return (
-    m.includes("insufficient wholesale") ||
-    m.includes("insufficient stock") ||
-    m.includes("product unavailable") ||
-    m.includes("customer not found") ||
-    m.includes("cart is empty") ||
-    m.includes("cannot return") ||
-    m.includes("order not found") ||
-    m.includes("select at least one") ||
-    m.includes("invalid")
-  );
-}
 
 function nextBackoffMs(attempts: number) {
   const exp = Math.min(MAX_BACKOFF_MS, BASE_BACKOFF_MS * 2 ** Math.max(0, attempts - 1));
@@ -187,17 +173,27 @@ export type QueuedMutators = {
 export async function drainOutbox(options: {
   mutators: QueuedMutators;
   convex: SnapshotSource;
-}): Promise<{ processed: number; failed: number }> {
-  if (draining) return { processed: 0, failed: 0 };
+  /** Ignore backoff and re-queue failed rows (cashier Sync now / Sync Center). */
+  force?: boolean;
+}): Promise<{ processed: number; failed: number; skipped: boolean }> {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
-    return { processed: 0, failed: 0 };
+    return { processed: 0, failed: 0, skipped: true };
   }
-  if (Date.now() < backoffUntil) {
-    return { processed: 0, failed: 0 };
+  if (options.force) {
+    backoffUntil = 0;
+    consecutiveTransientFailures = 0;
+    const started = Date.now();
+    while (draining && Date.now() - started < 20_000) {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    }
+  }
+  if (draining) return { processed: 0, failed: 0, skipped: true };
+  if (!options.force && Date.now() < backoffUntil) {
+    return { processed: 0, failed: 0, skipped: true };
   }
 
   const db = await getOfflineDb();
-  if (!db) return { processed: 0, failed: 0 };
+  if (!db) return { processed: 0, failed: 0, skipped: true };
 
   draining = true;
   let processed = 0;
@@ -206,6 +202,13 @@ export async function drainOutbox(options: {
 
   try {
     await recoverInterruptedSync(db);
+
+    if (options.force) {
+      const failedRows = await db.outbox.where("status").equals("failed").toArray();
+      for (const row of failedRows) {
+        await markOutboxPending(db, row.id);
+      }
+    }
 
     drainCycles += 1;
     if (drainCycles % CLEANUP_EVERY_N_DRAINS === 0) {
@@ -455,12 +458,19 @@ export async function drainOutbox(options: {
           await pullOfflineSnapshot(options.convex, { force: true });
           processed += 1;
           consecutiveTransientFailures = 0;
+        } else {
+          await markOutboxFailed(
+            db,
+            claimed.id,
+            "This event is no longer supported and will not upload.",
+          );
+          failed += 1;
         }
       } catch (error) {
         const raw = error instanceof Error ? error.message : "Sync failed";
         const message = toUserMessage(error, "Sync failed");
         lastError = message;
-        if (isBusinessConflict(raw)) {
+        if (isSyncBusinessConflict(raw)) {
           if (claimed.type === "process_return") {
             const payload = parseProcessReturnPayload(claimed);
             await markOutboxFailed(db, claimed.id, message);
@@ -502,7 +512,7 @@ export async function drainOutbox(options: {
     draining = false;
   }
 
-  return { processed, failed };
+  return { processed, failed, skipped: false };
 }
 
 export function isSyncEngineBusy() {

@@ -8,16 +8,20 @@ import type {
 } from "./types";
 import { newClientId } from "./db";
 
-let suppressOutboxEnqueue = false;
+let mirrorOnlyDepth = 0;
 
 /** Run replica Dexie writes without enqueueing a duplicate Convex sync. */
 export async function withMirrorOnly<T>(fn: () => Promise<T>): Promise<T> {
-  suppressOutboxEnqueue = true;
+  mirrorOnlyDepth += 1;
   try {
     return await fn();
   } finally {
-    suppressOutboxEnqueue = false;
+    mirrorOnlyDepth -= 1;
   }
+}
+
+function isMirrorOnly() {
+  return mirrorOnlyDepth > 0;
 }
 
 export async function enqueueCompleteSale(
@@ -135,12 +139,12 @@ export async function enqueueOutbox(
     type,
     clientOperationId,
     payloadJson: JSON.stringify(payload),
-    status: suppressOutboxEnqueue ? "synced" : "pending",
+    status: isMirrorOnly() ? "synced" : "pending",
     attempts: 0,
     createdAt: now,
     updatedAt: now,
   };
-  if (!suppressOutboxEnqueue) {
+  if (!isMirrorOnly()) {
     await db.outbox.put(row);
   }
   notifyReplicaChanged();
@@ -185,4 +189,29 @@ export function parseCompleteSalePayload(row: OutboxRow): CompleteSaleOutboxPayl
 
 export function parseProcessReturnPayload(row: OutboxRow): ProcessReturnOutboxPayload {
   return JSON.parse(row.payloadJson) as ProcessReturnOutboxPayload;
+}
+
+const OPEN_STATUSES: OutboxRow["status"][] = ["pending", "syncing", "failed"];
+
+export async function listOpenOutbox(): Promise<OutboxRow[]> {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  const rows = await db.outbox.toArray();
+  return rows
+    .filter((row) => OPEN_STATUSES.includes(row.status))
+    .sort((a, b) => a.createdAt - b.createdAt);
+}
+
+export async function listRecentSyncedOutbox(limit = 12): Promise<OutboxRow[]> {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  const rows = await db.outbox.where("status").equals("synced").toArray();
+  return rows.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, limit);
+}
+
+export async function deleteOutboxRow(id: string) {
+  const db = await getOfflineDb();
+  if (!db) return;
+  await db.outbox.delete(id);
+  notifyReplicaChanged();
 }

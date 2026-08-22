@@ -7,17 +7,14 @@ import { cn } from "@/lib/utils";
 
 /**
  * Quiet shell indicator.
- * Pending sync stays in the background. Surface only offline mode, active sync
- * when there is real outbox work, or conflicts that need cashier attention.
- * Snapshot refresh alone must never flash this banner.
+ * Pending uploads stay in the sidebar. Surface offline mode, active sync,
+ * or conflicts that need cashier attention — Review opens Sync Center.
  */
 export function SyncStatusBanner() {
-  const { online, pendingCount, failedCount, syncing, flushOutbox } = useOfflineStatus();
+  const { online, pendingCount, failedCount, syncing, openSyncCenter } = useOfflineStatus();
 
   const showOffline = !online;
-  // Only show syncing when there is something to sync — avoids boot/focus flicker.
   const showSyncing = online && syncing && pendingCount > 0;
-  // Outbox failures only — transient snapshot errors must not paint the conflict strip.
   const showConflict = online && failedCount > 0;
 
   if (!showOffline && !showSyncing && !showConflict) {
@@ -46,20 +43,13 @@ export function SyncStatusBanner() {
           {showOffline
             ? "You're offline. Novend is running from local data. Changes will synchronize when you're back online."
             : showConflict
-              ? `${failedCount} sale${failedCount === 1 ? "" : "s"} need attention after sync`
-              : `Syncing ${pendingCount} sale${pendingCount === 1 ? "" : "s"}…`}
+              ? `${failedCount} sync conflict${failedCount === 1 ? "" : "s"} need review`
+              : `Uploading ${pendingCount} event${pendingCount === 1 ? "" : "s"}…`}
         </p>
       </div>
       {showConflict ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="shrink-0"
-          disabled={syncing}
-          onClick={() => void flushOutbox()}
-        >
-          Retry sync
+        <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={openSyncCenter}>
+          Review
         </Button>
       ) : null}
     </div>

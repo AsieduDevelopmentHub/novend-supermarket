@@ -1,6 +1,6 @@
 "use client";
 
-import { CloudOff, CloudUpload, Loader2, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { CloudOff, CloudUpload, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { cn } from "@/lib/utils";
@@ -23,32 +23,41 @@ function SyncGlyph({
 
 /**
  * Compact sync indicator for the sidebar — always visible, non-intrusive.
- * Shows offline / syncing / pending / synced / failed with last sync time.
+ * Opens Sync Center for queue details, conflicts, and a forced upload.
  */
 export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
-  const { online, pendingCount, failedCount, syncing, lastSyncAt, pullSnapshot, flushOutbox } =
-    useOfflineStatus();
+  const {
+    online,
+    pendingCount,
+    failedCount,
+    syncing,
+    lastSyncAt,
+    lastError,
+    openSyncCenter,
+  } = useOfflineStatus();
 
   const failed = online && failedCount > 0;
   const pending = online && pendingCount > 0 && !failed;
   const activeSync = online && syncing && pendingCount > 0;
+  const needsReview = pendingCount > 0 || failedCount > 0;
 
   const label = !online
     ? "Offline"
     : failed
-      ? `${failedCount} failed`
+      ? `${failedCount} conflict${failedCount === 1 ? "" : "s"}`
       : activeSync
         ? "Syncing…"
         : pending
           ? `${pendingCount} pending`
           : "Synced";
 
-  const detail = lastSyncAt ? `Last sync ${formatDateTime(lastSyncAt)}` : "Not synced yet";
-
-  async function syncNow() {
-    await pullSnapshot({ force: true });
-    await flushOutbox();
-  }
+  const detail = !online
+    ? "Working from this device"
+    : needsReview
+      ? lastError || "Tap to review queue"
+      : lastSyncAt
+        ? `Last sync ${formatDateTime(lastSyncAt)}`
+        : "Not synced yet";
 
   return (
     <div
@@ -57,13 +66,16 @@ export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
         collapsed && "px-2",
       )}
     >
-      <div
+      <button
+        type="button"
         className={cn(
-          "flex items-center gap-2 text-xs",
-          collapsed && "justify-center",
+          "hover:bg-white/5 flex w-full items-center gap-2 rounded-md text-left text-xs",
+          collapsed ? "justify-center px-1 py-1" : "px-1 py-0.5",
           !online && "text-sidebar-accent-foreground/80",
           failed && "text-destructive",
         )}
+        aria-label={`${label}. ${detail}. Open sync center.`}
+        onClick={openSyncCenter}
       >
         <SyncGlyph online={online} syncing={activeSync} failed={failed} />
         {!collapsed ? (
@@ -76,35 +88,17 @@ export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
             {label}. {detail}
           </span>
         )}
-        {!collapsed && online ? (
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="text-sidebar-muted hover:text-sidebar-accent-foreground size-7 shrink-0"
-            disabled={activeSync}
-            aria-label="Sync now"
-            onClick={() => void syncNow()}
-          >
-            {activeSync ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            ) : (
-              <RefreshCw className="size-3.5" aria-hidden />
-            )}
-          </Button>
-        ) : null}
-      </div>
-      {!collapsed && online && (pending || failed) ? (
+      </button>
+      {!collapsed && online && needsReview ? (
         <Button
           type="button"
           size="sm"
           variant="secondary"
           className="mt-2 h-7 w-full text-xs"
-          disabled={activeSync}
-          onClick={() => void syncNow()}
+          onClick={openSyncCenter}
         >
           <CloudUpload className="mr-1.5 size-3.5" aria-hidden />
-          Sync now
+          Review sync
         </Button>
       ) : null}
     </div>

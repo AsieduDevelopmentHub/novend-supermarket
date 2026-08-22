@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.0.0
+Version: 2.1.0
 
 ## Purpose
 
@@ -72,6 +72,11 @@ sales, returns, reports, and analytics all continue on the device.
 Queue order + server validation. Inventory cannot become negative on Convex.
 Cashiers resolve failed syncs (retry or discard). Local `local_*` ids are
 remapped after creates succeed.
+
+The sidebar chip opens **Sync Center**: waiting uploads, server conflicts, and
+recently synced events. A catalog refresh must not look like the outbox is empty.
+**Sync now** bypasses retry backoff and re-queues failed rows. Forbidden,
+duplicate, and stock rejections stay as conflicts instead of silent pending.
 
 ## Offline navigation
 

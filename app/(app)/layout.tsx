@@ -15,7 +15,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SyncStatusBanner } from "@/components/offline/sync-status-banner";
-import { SyncConflictPanel } from "@/components/offline/sync-conflict-panel";
+import { SyncCenterDialog } from "@/components/offline/sync-center-dialog";
 import { LicenseBanner } from "@/features/billing/components/license-banner";
 import { DeviceActivationGate } from "@/features/billing/components/device-activation-gate";
 import { InstallPromptDialog } from "@/components/install-prompt-dialog";
@@ -320,12 +320,12 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             </header>
             <LicenseBanner />
             <SyncStatusBanner />
-            <SyncConflictPanel />
             <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-4 py-6 lg:px-8">
               <OfflineOutlet>{children}</OfflineOutlet>
             </main>
           </div>
         </div>
+        <SyncCenterDialog />
         <InstallPromptDialog />
         <DeviceActivationGate enabled={Boolean(liveReady)} />
       </OfflineNavigationProvider>

@@ -20,7 +20,7 @@ import {
   OUTBOX_POLL_MS,
   getLastSnapshotAt,
 } from "@/lib/offline/freshness";
-import { countOutboxByStatus } from "@/lib/offline/outbox";
+import { countOutboxByStatus, listOpenOutbox } from "@/lib/offline/outbox";
 import { pullOfflineSnapshot } from "@/lib/offline/snapshot";
 import { drainOutbox } from "@/lib/offline/sync-engine";
 import type { OfflineStatus } from "@/lib/offline/types";
@@ -30,9 +30,12 @@ import { toUserMessage } from "@/lib/errors";
 type OfflineContextValue = OfflineStatus & {
   refreshStatus: () => Promise<void>;
   pullSnapshot: (options?: { force?: boolean }) => Promise<void>;
-  flushOutbox: () => Promise<void>;
+  flushOutbox: (options?: { force?: boolean }) => Promise<void>;
   /** Force catalog mirror refresh + bump lastSyncAt so sales UI reloads. */
   refreshCatalog: () => Promise<void>;
+  syncCenterOpen: boolean;
+  openSyncCenter: () => void;
+  closeSyncCenter: () => void;
 };
 
 const OfflineContext = createContext<OfflineContextValue | null>(null);
@@ -69,17 +72,24 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const updateProduct = useMutation(api.products.updateProduct);
   const generateUploadUrl = useMutation(api.products.generateUploadUrl);
   const [status, setStatus] = useState<OfflineStatus>(emptyStatus);
+  const [syncCenterOpen, setSyncCenterOpen] = useState(false);
   const pullingRef = useRef(false);
+
+  const openSyncCenter = useCallback(() => setSyncCenterOpen(true), []);
+  const closeSyncCenter = useCallback(() => setSyncCenterOpen(false), []);
 
   const refreshStatus = useCallback(async () => {
     const db = await getOfflineDb();
     const counts = await countOutboxByStatus();
+    const open = await listOpenOutbox();
+    const queuedError = open.find((row) => row.lastError)?.lastError ?? null;
     setStatus((prev) => ({
       ...prev,
       online: typeof navigator === "undefined" ? true : navigator.onLine,
       dexieAvailable: Boolean(db) || isOfflineDbAvailable(),
       pendingCount: counts.pending + counts.syncing,
       failedCount: counts.failed,
+      lastError: queuedError,
     }));
   }, []);
 
@@ -117,12 +127,12 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     [convex, refreshStatus],
   );
 
-  const flushOutbox = useCallback(async () => {
+  const flushOutbox = useCallback(async (options?: { force?: boolean }) => {
     if (!navigator.onLine) return;
 
     const counts = await countOutboxByStatus();
     const work = counts.pending + counts.syncing;
-    if (work === 0 && counts.failed === 0) {
+    if (!options?.force && work === 0 && counts.failed === 0) {
       setStatus((prev) => ({
         ...prev,
         pendingCount: 0,
@@ -134,12 +144,13 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
     setStatus((prev) => ({
       ...prev,
-      pendingCount: work,
-      failedCount: counts.failed,
-      syncing: work > 0,
+      pendingCount: work + (options?.force ? counts.failed : 0),
+      failedCount: options?.force ? 0 : counts.failed,
+      syncing: work > 0 || (options?.force === true && counts.failed > 0),
     }));
     try {
-      await drainOutbox({
+      const result = await drainOutbox({
+        force: options?.force === true,
         mutators: {
           completeSale: (args) => completeSale(args),
           processReturn: (args) => processReturn(args),
@@ -208,7 +219,13 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         },
         convex: { query: convex.query.bind(convex) },
       });
-      setStatus((prev) => ({ ...prev, lastSyncAt: Date.now(), lastError: null }));
+      if (!result.skipped) {
+        setStatus((prev) => ({
+          ...prev,
+          lastSyncAt: Date.now(),
+          lastError: result.failed > 0 ? prev.lastError : null,
+        }));
+      }
     } catch (error) {
       setStatus((prev) => ({
         ...prev,
@@ -326,8 +343,11 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       pullSnapshot,
       flushOutbox,
       refreshCatalog,
+      syncCenterOpen,
+      openSyncCenter,
+      closeSyncCenter,
     }),
-    [status, online, refreshStatus, pullSnapshot, flushOutbox, refreshCatalog],
+    [status, online, refreshStatus, pullSnapshot, flushOutbox, refreshCatalog, syncCenterOpen, openSyncCenter, closeSyncCenter],
   );
 
   return <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>;
@@ -342,6 +362,9 @@ export function useOfflineStatus() {
       pullSnapshot: async () => undefined,
       flushOutbox: async () => undefined,
       refreshCatalog: async () => undefined,
+      syncCenterOpen: false,
+      openSyncCenter: () => undefined,
+      closeSyncCenter: () => undefined,
     } satisfies OfflineContextValue;
   }
   return ctx;
