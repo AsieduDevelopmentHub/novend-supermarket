@@ -273,10 +273,7 @@ export function useMirroredProduct(productId: string | null) {
   const [product, setProduct] = useState<MirroredProductRow | null | undefined>(undefined);
 
   useEffect(() => {
-    if (!productId) {
-      setProduct(null);
-      return;
-    }
+    if (!productId) return;
     let cancelled = false;
     void getMirroredProduct(productId).then((row) => {
       if (!cancelled) setProduct(row);
@@ -292,6 +289,7 @@ export function useMirroredProduct(productId: string | null) {
     };
   }, [productId, lastSyncAt]);
 
+  if (!productId) return null;
   return product;
 }
 
