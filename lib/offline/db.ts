@@ -5,6 +5,7 @@ import type {
   LocalSale,
   LocalSaleItem,
   MirroredBranch,
+  MirroredBranchStock,
   MirroredCategory,
   MirroredCustomer,
   MirroredExpense,
@@ -27,6 +28,7 @@ import type {
 export type NovendOfflineDb = Dexie & {
   meta: EntityTable<OfflineMeta, "key">;
   products: EntityTable<MirroredProduct, "id">;
+  branchStock: EntityTable<MirroredBranchStock, "id">;
   categories: EntityTable<MirroredCategory, "id">;
   customers: EntityTable<MirroredCustomer, "id">;
   orders: EntityTable<MirroredOrder, "id">;
@@ -249,6 +251,32 @@ export function createOfflineDb(organizationId?: string, userId?: string): Noven
     productImages: "id",
     outbox: "id, status, createdAt, clientOperationId, type, [status+createdAt]",
   });
+  db.version(8).stores({
+    meta: "key",
+    products: "id, name, sku, barcode, status, categoryId, [status+name]",
+    branchStock: "id, branchId, productId, [branchId+productId]",
+    categories: "id, name, isActive",
+    customers: "id, name, status, [status+name]",
+    orders: "id, completedAt, invoiceNumber, branchId, customerId, cashierId",
+    orderItems: "id, orderId, productId",
+    heldSales: "id, cashierId, heldAt",
+    localSales:
+      "id, clientOperationId, syncStatus, completedAt, invoiceNumber, [syncStatus+completedAt]",
+    localSaleItems: "id, localSaleId, productId",
+    localReceipts: "id, localSaleId, invoiceNumber",
+    localReturns: "id, clientOperationId, saleId, syncStatus, completedAt",
+    localReturnItems: "id, localReturnId, saleItemId",
+    suppliers: "id, name, status",
+    wholesaleStock: "id, productId, name",
+    wholesalePurchases: "id, supplierId, purchasedAt",
+    wholesaleTransfers: "id, createdAt",
+    branches: "id, name, status",
+    users: "id, name, role, branchId",
+    expenses: "id, occurredAt, branchId, category",
+    returns: "id, completedAt, saleId, branchId",
+    productImages: "id",
+    outbox: "id, status, createdAt, clientOperationId, type, [status+createdAt]",
+  });
   return db;
 }
 
@@ -308,7 +336,7 @@ export const META_KEYS = {
 } as const;
 
 /** Bump when Dexie adds replica tables so TTL snapshot skips cannot leave new stores empty. */
-export const REPLICA_SCHEMA_VERSION = "7";
+export const REPLICA_SCHEMA_VERSION = "8";
 
 export async function getMeta(db: NovendOfflineDb, key: string): Promise<string | null> {
   const row = await db.meta.get(key);

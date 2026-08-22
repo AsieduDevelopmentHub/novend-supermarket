@@ -14,9 +14,15 @@ import { getLastSnapshotAt, SNAPSHOT_PULL_TTL_MS } from "./freshness";
 import { cacheProductImages } from "./image-cache";
 import { notifyReplicaChanged } from "./replica-events";
 import { productMatchesBarcode, productMatchesQuery } from "./barcode-lookup";
+import {
+  branchStockMapForBranch,
+  resolveCatalogBranchId,
+  sellableFromBranchStock,
+} from "./branch-stock";
 import { saveShellProfile } from "./shell-profile";
 import type {
   MirroredBranch,
+  MirroredBranchStock,
   MirroredCategory,
   MirroredCustomer,
   MirroredExpense,
@@ -99,6 +105,7 @@ export async function applySnapshot(
   db: NovendOfflineDb,
   snapshot: {
     products: MirroredProduct[];
+    branchStock?: MirroredBranchStock[];
     categories: MirroredCategory[];
     customers: MirroredCustomer[];
     orders: MirroredOrder[];
@@ -124,6 +131,7 @@ export async function applySnapshot(
   const now = Date.now();
   const tables = [
     db.products,
+    db.branchStock,
     db.categories,
     db.customers,
     db.orders,
@@ -140,6 +148,7 @@ export async function applySnapshot(
   ];
   await db.transaction("rw", tables, async () => {
     await replaceServerRows(db.products, snapshot.products.map((p) => ({ ...p, updatedAt: p.updatedAt || now })));
+    await replaceServerRows(db.branchStock, snapshot.branchStock ?? []);
     await replaceServerRows(db.categories, snapshot.categories);
     await replaceServerRows(
       db.customers,
@@ -220,28 +229,50 @@ export async function applySnapshot(
   notifyReplicaChanged();
 }
 
-export async function listLocalCatalogProducts(search?: string) {
+export async function listLocalCatalogProducts(search?: string, branchId?: string | null) {
   const db = await getOfflineDb();
   if (!db) return null;
+  const effectiveBranchId = await resolveCatalogBranchId(db, branchId);
+  if (!effectiveBranchId) return [];
+
   let products = await db.products.filter((p) => p.status === "active").toArray();
   if (search?.trim()) {
     products = products.filter((p) => productMatchesQuery(p, search));
   }
+
+  const stockByProduct = await branchStockMapForBranch(db, effectiveBranchId);
+  const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
+
   return products
-    .filter((p) => (p.sellableQuantity ?? p.stockQuantity) > 0)
+    .map((product) => {
+      const stock = stockByProduct.get(product.id);
+      let stockQuantity: number;
+      let isExpiring = product.isExpiring;
+
+      if (stock) {
+        stockQuantity = sellableFromBranchStock(stock, product);
+        isExpiring = stock.isExpiring ?? product.isExpiring;
+      } else if (profileBranchId && profileBranchId === effectiveBranchId) {
+        stockQuantity = product.sellableQuantity ?? product.stockQuantity;
+      } else {
+        stockQuantity = 0;
+      }
+
+      return {
+        id: product.id,
+        name: product.name,
+        sku: product.sku,
+        barcode: product.barcode ?? null,
+        sellingPrice: product.sellingPrice,
+        stockQuantity,
+        unit: product.unit,
+        imageUrl: product.imageUrl,
+        isExpiring,
+      };
+    })
+    .filter((p) => p.stockQuantity > 0)
     .sort((a, b) => a.name.localeCompare(b.name))
-    .slice(0, 48)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      sku: p.sku,
-      barcode: p.barcode ?? null,
-      sellingPrice: p.sellingPrice,
-      stockQuantity: p.sellableQuantity ?? p.stockQuantity,
-      unit: p.unit,
-      imageUrl: p.imageUrl,
-      isExpiring: p.isExpiring,
-    }));
+    .slice(0, 48);
 }
 
 /** Exact SKU or dedicated barcode match for scanners. */
@@ -254,7 +285,7 @@ export async function findLocalProductBySku(sku: string) {
  * Offline barcode lookup — Dexie only. Matches dedicated barcode first, then SKU.
  * Multiple rows support rare catalog duplicates; the sales UI shows a picker.
  */
-export async function findLocalProductsByBarcode(code: string) {
+export async function findLocalProductsByBarcode(code: string, branchId?: string | null) {
   const db = await getOfflineDb();
   if (!db) return [];
   const normalized = code.trim();
@@ -264,17 +295,36 @@ export async function findLocalProductsByBarcode(code: string) {
     .filter((p) => p.status === "active" && productMatchesBarcode(p, normalized))
     .toArray();
 
-  return products.map((product) => ({
-    id: product.id,
-    name: product.name,
-    sku: product.sku,
-    barcode: product.barcode ?? null,
-    sellingPrice: product.sellingPrice,
-    stockQuantity: product.sellableQuantity ?? product.stockQuantity,
-    unit: product.unit,
-    imageUrl: product.imageUrl,
-    isExpiring: product.isExpiring,
-  }));
+  const effectiveBranchId = await resolveCatalogBranchId(db, branchId);
+  if (!effectiveBranchId) return [];
+
+  const stockByProduct = await branchStockMapForBranch(db, effectiveBranchId);
+  const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
+
+  return products
+    .map((product) => {
+      const stock = stockByProduct.get(product.id);
+      let stockQuantity: number;
+      if (stock) {
+        stockQuantity = sellableFromBranchStock(stock, product);
+      } else if (profileBranchId && profileBranchId === effectiveBranchId) {
+        stockQuantity = product.sellableQuantity ?? product.stockQuantity;
+      } else {
+        stockQuantity = 0;
+      }
+      return {
+        id: product.id,
+        name: product.name,
+        sku: product.sku,
+        barcode: product.barcode ?? null,
+        sellingPrice: product.sellingPrice,
+        stockQuantity,
+        unit: product.unit,
+        imageUrl: product.imageUrl,
+        isExpiring: stock?.isExpiring ?? product.isExpiring,
+      };
+    })
+    .filter((product) => product.stockQuantity > 0);
 }
 
 export async function searchLocalCustomers(q: string, limit = 6) {

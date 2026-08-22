@@ -245,7 +245,10 @@ export function SalesView() {
     (code) => {
       if (!isBarcodeScanningEnabled()) return;
       void (async () => {
-        const localMatches = await findLocalProductsByBarcode(code);
+        const localMatches = await findLocalProductsByBarcode(
+          code,
+          workingBranchId ?? myBranchId ?? undefined,
+        );
         const catalogMatches = catalog.filter(
           (p) =>
             p.sku.toLowerCase() === code.trim().toLowerCase() ||

@@ -7,6 +7,7 @@ import {
   nextProvisionalInvoice,
   type NovendOfflineDb,
 } from "./db";
+import { applyLocalBranchStockChange, getSellableQuantity } from "./branch-stock";
 import { enqueueCompleteSale } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
 import type {
@@ -108,7 +109,7 @@ export async function completeSaleLocally(input: {
 
   await db.transaction(
     "rw",
-    [db.products, db.localSales, db.localSaleItems, db.localReceipts, db.outbox, db.heldSales],
+    [db.products, db.branchStock, db.localSales, db.localSaleItems, db.localReceipts, db.outbox, db.heldSales],
     async () => {
       for (const item of input.items) {
         if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
@@ -118,9 +119,10 @@ export async function completeSaleLocally(input: {
         if (!product || product.status !== "active") {
           throw new Error(`Product unavailable: ${item.name}`);
         }
-        const available = product.tracksExpiry
-          ? (product.sellableQuantity ?? 0)
-          : (product.sellableQuantity ?? product.stockQuantity);
+        if (!branchId) {
+          throw new Error("Branch is required to complete this sale offline");
+        }
+        const available = await getSellableQuantity(db, branchId, item.productId, product);
         if (available < item.quantity) {
           throw new Error(
             `Not enough stock for ${product.name}. Available: ${available}.`,
@@ -149,12 +151,7 @@ export async function completeSaleLocally(input: {
           discount: item.discount,
           lineTotal,
         });
-        await db.products.put({
-          ...product,
-          stockQuantity: product.stockQuantity - item.quantity,
-          sellableQuantity: (product.sellableQuantity ?? product.stockQuantity) - item.quantity,
-          updatedAt: completedAt,
-        });
+        await applyLocalBranchStockChange(db, branchId, product.id, -item.quantity, product);
       }
 
       const cartDiscount = roundMoney(input.discount);
@@ -264,7 +261,7 @@ export async function markLocalSaleFailed(localSaleId: string, error: string) {
   const db = await getOfflineDb();
   if (!db) return;
 
-  await db.transaction("rw", db.products, db.localSales, db.localSaleItems, async () => {
+  await db.transaction("rw", [db.products, db.branchStock, db.localSales, db.localSaleItems], async () => {
     const sale = await db.localSales.get(localSaleId);
     if (!sale || sale.syncStatus === "synced") return;
 
@@ -272,13 +269,8 @@ export async function markLocalSaleFailed(localSaleId: string, error: string) {
       const items = await db.localSaleItems.where("localSaleId").equals(localSaleId).toArray();
       for (const item of items) {
         const product = await db.products.get(item.productId);
-        if (!product) continue;
-        await db.products.put({
-          ...product,
-          stockQuantity: product.stockQuantity + item.quantity,
-          sellableQuantity: (product.sellableQuantity ?? product.stockQuantity) + item.quantity,
-          updatedAt: Date.now(),
-        });
+        if (!product || !sale.branchId) continue;
+        await applyLocalBranchStockChange(db, sale.branchId, item.productId, item.quantity, product);
       }
     }
 

@@ -1,5 +1,6 @@
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { getMeta, getOfflineDb, META_KEYS, newClientId, type NovendOfflineDb } from "./db";
+import { applyLocalBranchStockChange } from "./branch-stock";
 import { enqueueProcessReturn } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
 import { estimateReturnRefund, roundMoney } from "@/lib/sales/returns";
@@ -119,6 +120,9 @@ export async function processReturnLocally(input: {
   const returnNumber = `RET-OFF-${short}`;
   const cashierName = (await getMeta(db, META_KEYS.profileName)) ?? "Cashier";
   const snapshot = await loadPrintSnapshot(db);
+  const order = await db.orders.get(input.saleId);
+  const branchId =
+    order?.branchId ?? (await getMeta(db, META_KEYS.profileBranchId)) ?? undefined;
 
   const receiptPayload: ReceiptPayload = {
     kind: "return",
@@ -165,6 +169,7 @@ export async function processReturnLocally(input: {
     db.localReturns,
     db.localReturnItems,
     db.products,
+    db.branchStock,
     db.outbox,
     async () => {
       await db.localReturns.put(localReturn);
@@ -179,15 +184,10 @@ export async function processReturnLocally(input: {
           unitPrice: item.unitPrice,
           lineRefund: roundMoney((item.quantity / item.soldQty) * item.lineTotal),
         });
-        if (item.productId) {
+        if (item.productId && branchId) {
           const product = await db.products.get(item.productId);
           if (product) {
-            await db.products.put({
-              ...product,
-              stockQuantity: product.stockQuantity + item.quantity,
-              sellableQuantity: (product.sellableQuantity ?? product.stockQuantity) + item.quantity,
-              updatedAt: now,
-            });
+            await applyLocalBranchStockChange(db, branchId, item.productId, item.quantity, product);
           }
         }
       }

@@ -44,6 +44,17 @@ export type MirroredProduct = {
   updatedAt: number;
 };
 
+/** Per-branch sellable stock mirrored for offline POS (admin: all branches). */
+export type MirroredBranchStock = {
+  id: string;
+  branchId: string;
+  productId: string;
+  quantity: number;
+  sellableQuantity: number;
+  isExpiring?: boolean;
+  updatedAt: number;
+};
+
 export type MirroredCategory = {
   id: string;
   name: string;

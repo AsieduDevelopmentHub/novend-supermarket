@@ -49,28 +49,31 @@ function mapRemoteProducts(
 
 /**
  * Branch-scoped product catalog for Sales.
- * Online: live Convex stock for the selected branch.
- * Offline: Dexie mirror (stock for the session branch at last sync).
+ * Online and offline both resolve stock for the selected branch.
  */
 export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null) {
   const { online, lastSyncAt } = useOfflineStatus();
+  const branchKey = branchId ?? undefined;
   const remote = useQuery(
     api.sales.catalog,
-    online ? { search: search || undefined, branchId: branchId ?? undefined } : "skip",
+    online ? { search: search || undefined, branchId: branchKey } : "skip",
   );
   const [local, setLocal] = useState<CatalogProduct[] | null>(null);
 
   const refreshLocal = useCallback(async () => {
-    const rows = await listLocalCatalogProducts(search || undefined);
+    const rows = await listLocalCatalogProducts(search || undefined, branchKey ?? null);
     setLocal(rows);
-  }, [search]);
+  }, [search, branchKey]);
 
   useEffect(() => {
-    if (online) return;
+    if (online) {
+      setLocal(null);
+      return;
+    }
     let cancelled = false;
     const load = () => {
-      void listLocalCatalogProducts(search || undefined).then((rows) => {
-        if (!cancelled) setLocal(rows);
+      void listLocalCatalogProducts(search || undefined, branchKey ?? null).then((rows) => {
+        if (!cancelled) setLocal(rows ?? []);
       });
     };
     const timer = window.setTimeout(load, 0);
@@ -80,7 +83,7 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
       window.clearTimeout(timer);
       unsub();
     };
-  }, [online, search, lastSyncAt, branchId]);
+  }, [online, search, branchKey, lastSyncAt]);
 
   if (online) {
     if (remote === undefined) {

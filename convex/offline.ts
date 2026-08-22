@@ -1,14 +1,14 @@
 import { query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
-import { requireBranchId } from "./shared/permissions";
+import { requireBranchId, canViewCostPrice, isAdmin } from "./shared/permissions";
 import { loadPrintSnapshot } from "./settings";
 import { stockMapForBranch } from "./shared/branchStock";
 import { deriveExpiryListFields, lotSummaries } from "./shared/lots";
-import { canViewCostPrice } from "./shared/permissions";
 
 /**
  * Compact catalog snapshot for Dexie offline mirror.
- * Stock quantities are for the caller's assigned branch.
+ * Product rows carry catalog metadata; branchStock carries per-branch quantities.
+ * Administrators receive stock for every branch (offline branch switching on Sales).
  * Includes cost prices for local sale line snapshots; cashiers must not display cost in UI.
  *
  * Tuned for bandwidth: indexed status filters, recent orders only (not full sales table).
@@ -67,6 +67,44 @@ export const getSnapshot = query({
     const showCost = canViewCostPrice(profile);
     const nameByUser = new Map(profiles.map((p) => [p.userId, p.name]));
     const branchNameById = new Map(branches.map((b) => [b._id, b.name]));
+
+    const stockBranchIds = isAdmin(profile)
+      ? branches.map((b) => b._id)
+      : [branchId];
+
+    const branchStockRows: Array<{
+      id: string;
+      branchId: string;
+      productId: string;
+      quantity: number;
+      sellableQuantity: number;
+      isExpiring?: boolean;
+      updatedAt: number;
+    }> = [];
+
+    for (const stockBranchId of stockBranchIds) {
+      const [branchStockMap, branchLotSummaries] = await Promise.all([
+        stockMapForBranch(ctx, stockBranchId),
+        lotSummaries(ctx, stockBranchId),
+      ]);
+      for (const product of activeProducts) {
+        const quantity = branchStockMap.get(product._id) ?? 0;
+        const expiry = deriveExpiryListFields(
+          product,
+          quantity,
+          branchLotSummaries.get(product._id),
+        );
+        branchStockRows.push({
+          id: `${stockBranchId}:${product._id}`,
+          branchId: stockBranchId as string,
+          productId: product._id as string,
+          quantity,
+          sellableQuantity: expiry.sellableQuantity,
+          isExpiring: expiry.isExpiring,
+          updatedAt: now,
+        });
+      }
+    }
 
     const mirroredProducts = await Promise.all(
       activeProducts.map(async (product) => {
@@ -439,6 +477,7 @@ export const getSnapshot = query({
 
     return {
       products: mirroredProducts,
+      branchStock: branchStockRows,
       categories: categories.map((c) => ({
         id: c._id as string,
         name: c.name,
