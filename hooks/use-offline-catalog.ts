@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { canServeListsFromMirror } from "@/lib/offline/freshness";
 import { listLocalCatalogProducts, searchLocalCustomers } from "@/lib/offline/snapshot";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { useOfflineStatus } from "@/providers/offline-provider";
 
 export type CatalogProduct = {
@@ -63,14 +64,17 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
 
   useEffect(() => {
     let cancelled = false;
-    const timer = window.setTimeout(() => {
+    const load = () => {
       void listLocalCatalogProducts(search || undefined).then((rows) => {
         if (!cancelled) setLocal(rows);
       });
-    }, 0);
+    };
+    const timer = window.setTimeout(load, 0);
+    const unsub = subscribeReplicaChanged(load);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      unsub();
     };
   }, [search, lastSyncAt, remote]);
 

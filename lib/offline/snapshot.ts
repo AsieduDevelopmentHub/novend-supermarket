@@ -12,6 +12,7 @@ import {
 } from "./db";
 import { getLastSnapshotAt, SNAPSHOT_PULL_TTL_MS } from "./freshness";
 import { cacheProductImages } from "./image-cache";
+import { notifyReplicaChanged } from "./replica-events";
 import { saveShellProfile } from "./shell-profile";
 import type {
   MirroredBranch,
@@ -215,6 +216,7 @@ export async function applySnapshot(
           : null,
     });
   }
+  notifyReplicaChanged();
 }
 
 export async function listLocalCatalogProducts(search?: string) {

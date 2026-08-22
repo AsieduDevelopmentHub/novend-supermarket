@@ -95,16 +95,11 @@ export function useProductsList(options: {
   canViewCost: boolean;
   preferLocal?: boolean;
 }) {
-  const { online, serveLocal, ready, lastSyncAt } = useMirrorListGate();
-  // Cross-branch admin filters are not in the Dexie mirror — always use Convex.
-  const forceRemote = Boolean(options.branchId);
-  const preferLocal = !forceRemote && (options.preferLocal === true || serveLocal);
+  const { online, ready, lastSyncAt } = useMirrorListGate();
   const [local, setLocal] = useState<ProductListRow[] | null>(null);
-  const replicaEmpty = local !== null && local.length === 0;
-  const useRemote = online && ready && (!preferLocal || replicaEmpty || forceRemote);
   const remote = useQuery(
     api.products.listProducts,
-    useRemote
+    online && ready
       ? {
           search: options.search || undefined,
           includeInactive: options.includeInactive,
@@ -114,15 +109,20 @@ export function useProductsList(options: {
   );
   useEffect(() => {
     let cancelled = false;
-    void listMirroredProducts({
-      search: options.search || undefined,
-      includeInactive: options.includeInactive,
-    }).then((rows) => {
-      if (cancelled || !rows) return;
-      setLocal(rows.map((r) => mapProduct(r, options.canViewCost)));
-    });
+    const load = () => {
+      void listMirroredProducts({
+        search: options.search || undefined,
+        includeInactive: options.includeInactive,
+      }).then((rows) => {
+        if (cancelled || !rows) return;
+        setLocal(rows.map((r) => mapProduct(r, options.canViewCost)));
+      });
+    };
+    load();
+    const unsub = subscribeReplicaChanged(load);
     return () => {
       cancelled = true;
+      unsub();
     };
   }, [
     options.search,
@@ -130,12 +130,8 @@ export function useProductsList(options: {
     options.canViewCost,
     remote,
     lastSyncAt,
-    serveLocal,
   ]);
 
-  if (preferLocal && local !== null && local.length > 0) {
-    return { products: local, loading: false, source: "local" as const };
-  }
   if (online && remote !== undefined) {
     return { products: remote, loading: false, source: "remote" as const };
   }
@@ -177,13 +173,10 @@ export function useInventoryList(options: {
   categoryId?: Id<"categories">;
   branchId?: Id<"branches">;
 }) {
-  const { online, serveLocal, ready, lastSyncAt } = useMirrorListGate();
-  const forceRemote = Boolean(options.branchId);
-  const useLocal = !forceRemote && serveLocal;
-  const useRemote = online && ready && !useLocal;
+  const { online, ready, lastSyncAt } = useMirrorListGate();
   const remote = useQuery(
     api.inventory.list,
-    useRemote
+    online && ready
       ? {
           search: options.search || undefined,
           categoryId: options.categoryId,
@@ -195,45 +188,46 @@ export function useInventoryList(options: {
 
   useEffect(() => {
     let cancelled = false;
-    void listMirroredProducts({
-      search: options.search || undefined,
-      categoryId: options.categoryId,
-    }).then((rows) => {
-      if (cancelled || !rows) return;
-      setLocal(
-        rows.map((r) => ({
-          id: r.id as Id<"products">,
-          name: r.name,
-          sku: r.sku,
-          categoryName: r.categoryName,
-          stockQuantity: r.stockQuantity,
-          unit: r.unit,
-          lowStockThreshold: r.lowStockThreshold,
-          isLowStock: r.isLowStock,
-          statusLabel: r.isExpired
-            ? "Expired"
-            : r.isExpiring
-              ? "Expiring"
-              : r.isLowStock
-                ? "Low stock"
-                : "In stock",
-          imageUrl: r.imageUrl,
-          tracksExpiry: r.tracksExpiry,
-          sellableQuantity: r.sellableQuantity ?? r.stockQuantity,
-          nearestExpiry: r.nearestExpiry,
-          isExpired: r.isExpired,
-          isExpiring: r.isExpiring,
-        })),
-      );
-    });
+    const load = () => {
+      void listMirroredProducts({
+        search: options.search || undefined,
+        categoryId: options.categoryId,
+      }).then((rows) => {
+        if (cancelled || !rows) return;
+        setLocal(
+          rows.map((r) => ({
+            id: r.id as Id<"products">,
+            name: r.name,
+            sku: r.sku,
+            categoryName: r.categoryName,
+            stockQuantity: r.stockQuantity,
+            unit: r.unit,
+            lowStockThreshold: r.lowStockThreshold,
+            isLowStock: r.isLowStock,
+            statusLabel: r.isExpired
+              ? "Expired"
+              : r.isExpiring
+                ? "Expiring"
+                : r.isLowStock
+                  ? "Low stock"
+                  : "In stock",
+            imageUrl: r.imageUrl,
+            tracksExpiry: r.tracksExpiry,
+            sellableQuantity: r.sellableQuantity ?? r.stockQuantity,
+            nearestExpiry: r.nearestExpiry,
+            isExpired: r.isExpired,
+            isExpiring: r.isExpiring,
+          })),
+        );
+      });
+    };
+    load();
+    const unsub = subscribeReplicaChanged(load);
     return () => {
       cancelled = true;
+      unsub();
     };
-  }, [options.search, options.categoryId, remote, lastSyncAt, useLocal]);
-
-  if (useLocal && local !== null) {
-    return { rows: local, loading: false, source: "local" as const };
-  }
+  }, [options.search, options.categoryId, remote, lastSyncAt]);
   if (online && remote !== undefined) {
     return { rows: remote, loading: false, source: "remote" as const };
   }
@@ -247,22 +241,26 @@ export function useInventoryList(options: {
 }
 
 export function useCategoriesList() {
-  const { online, serveLocal, ready, lastSyncAt } = useMirrorListGate();
-  const remote = useQuery(api.categories.list, online && ready && !serveLocal ? {} : "skip");
+  const { online, ready, lastSyncAt } = useMirrorListGate();
+  const remote = useQuery(api.categories.list, online && ready ? {} : "skip");
   const [local, setLocal] = useState<Array<{ _id: Id<"categories">; name: string }> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void listMirroredCategories().then((rows) => {
-      if (cancelled || !rows) return;
-      setLocal(rows.map((c) => ({ _id: c.id as Id<"categories">, name: c.name })));
-    });
+    const load = () => {
+      void listMirroredCategories().then((rows) => {
+        if (cancelled || !rows) return;
+        setLocal(rows.map((c) => ({ _id: c.id as Id<"categories">, name: c.name })));
+      });
+    };
+    load();
+    const unsub = subscribeReplicaChanged(load);
     return () => {
       cancelled = true;
+      unsub();
     };
-  }, [remote, lastSyncAt, serveLocal]);
+  }, [remote, lastSyncAt]);
 
-  if (serveLocal && local !== null) return local;
   if (online && remote !== undefined) return remote;
   if (local !== null) return local;
   return remote;
@@ -294,11 +292,10 @@ export function useMirroredProduct(productId: string | null) {
 }
 
 export function useCustomersList(options: { search: string; includeInactive: boolean }) {
-  const { online, serveLocal, ready, lastSyncAt } = useMirrorListGate();
-  const useRemote = online && ready && !serveLocal;
+  const { online, ready, lastSyncAt } = useMirrorListGate();
   const remote = useQuery(
     api.customers.list,
-    useRemote
+    online && ready
       ? {
           search: options.search || undefined,
           includeInactive: options.includeInactive,
@@ -309,16 +306,21 @@ export function useCustomersList(options: { search: string; includeInactive: boo
 
   useEffect(() => {
     let cancelled = false;
-    void listMirroredCustomers({
-      search: options.search || undefined,
-      includeInactive: options.includeInactive,
-    }).then((rows) => {
-      if (!cancelled) setLocal(rows);
-    });
+    const load = () => {
+      void listMirroredCustomers({
+        search: options.search || undefined,
+        includeInactive: options.includeInactive,
+      }).then((rows) => {
+        if (!cancelled) setLocal(rows);
+      });
+    };
+    load();
+    const unsub = subscribeReplicaChanged(load);
     return () => {
       cancelled = true;
+      unsub();
     };
-  }, [options.search, options.includeInactive, remote, lastSyncAt, serveLocal]);
+  }, [options.search, options.includeInactive, remote, lastSyncAt]);
 
   const mapLocal = (rows: MirroredCustomer[]) =>
     rows.map((c) => ({
@@ -334,9 +336,6 @@ export function useCustomersList(options: { search: string; includeInactive: boo
       lastInvoiceNumber: c.lastInvoiceNumber ?? null,
     }));
 
-  if (serveLocal && local !== null) {
-    return { customers: mapLocal(local), loading: false, source: "local" as const };
-  }
   if (online && remote !== undefined) {
     return { customers: remote, loading: false, source: "remote" as const };
   }
@@ -509,17 +508,15 @@ function useMirrorRows<T>(loader: () => Promise<T[]>, deps: unknown[]) {
 }
 
 export function useSuppliersList(options: { search: string; includeInactive: boolean }) {
-  const { online, serveLocal, ready } = useMirrorListGate();
-  const useRemote = online && ready && !serveLocal;
+  const { online, ready } = useMirrorListGate();
   const remote = useQuery(
     api.suppliers.list,
-    useRemote ? { search: options.search || undefined, includeInactive: options.includeInactive } : "skip",
+    online && ready ? { search: options.search || undefined, includeInactive: options.includeInactive } : "skip",
   );
   const local = useMirrorRows(
     () => listMirroredSuppliers({ search: options.search, includeInactive: options.includeInactive }),
     [options.search, options.includeInactive],
   );
-  if (serveLocal && local) return { suppliers: local, loading: false };
   if (online && remote !== undefined) {
     return {
       suppliers: remote.map((row) => ({
@@ -541,12 +538,11 @@ export function useSuppliersList(options: { search: string; includeInactive: boo
 }
 
 export function useWholesaleLists(search: string) {
-  const { online, serveLocal, ready } = useMirrorListGate();
-  const useRemote = online && ready && !serveLocal;
-  const stock = useQuery(api.wholesale.listStock, useRemote ? { search } : "skip");
-  const summary = useQuery(api.wholesale.summary, useRemote ? {} : "skip");
-  const purchases = useQuery(api.wholesale.listPurchases, useRemote ? {} : "skip");
-  const transfers = useQuery(api.wholesale.listTransfers, useRemote ? {} : "skip");
+  const { online, ready } = useMirrorListGate();
+  const stock = useQuery(api.wholesale.listStock, online && ready ? { search } : "skip");
+  const summary = useQuery(api.wholesale.summary, online && ready ? {} : "skip");
+  const purchases = useQuery(api.wholesale.listPurchases, online && ready ? {} : "skip");
+  const transfers = useQuery(api.wholesale.listTransfers, online && ready ? {} : "skip");
   const localStock = useMirrorRows(() => listMirroredWholesaleStock(search), [search]);
   const localPurchases = useMirrorRows(() => listMirroredWholesalePurchases(), []);
   const localTransfers = useMirrorRows(() => listMirroredWholesaleTransfers(), []);
@@ -564,17 +560,16 @@ export function useWholesaleLists(search: string) {
     };
   }, [lastSyncAt, localStock]);
 
-  const preferLocal = serveLocal || !online;
   return {
-    stock: preferLocal ? localStock : (stock ?? localStock),
-    summary: preferLocal ? localSummary : (summary ?? localSummary),
-    purchases: preferLocal ? localPurchases : (purchases ?? localPurchases),
-    transfers: preferLocal ? localTransfers : (transfers ?? localTransfers),
+    stock: online ? (stock ?? localStock) : localStock,
+    summary: online ? (summary ?? localSummary) : localSummary,
+    purchases: online ? (purchases ?? localPurchases) : localPurchases,
+    transfers: online ? (transfers ?? localTransfers) : localTransfers,
   };
 }
 
 export function useBranchesList(includeInactive = false) {
-  const { online, serveLocal, ready } = useMirrorListGate();
+  const { online, ready } = useMirrorListGate();
   const local = useMirrorRows(() => listMirroredBranches(includeInactive), [includeInactive]);
   const mappedLocal = local?.map((row) => ({
     id: row.id as Id<"branches">,
@@ -584,16 +579,13 @@ export function useBranchesList(includeInactive = false) {
     phone: row.phone,
     status: row.status,
   }));
-  const replicaEmpty = local !== null && local.length === 0;
-  const useRemote = online && ready && (!serveLocal || replicaEmpty);
-  const remote = useQuery(api.branches.list, useRemote ? { includeInactive } : "skip");
-  if (serveLocal && mappedLocal && mappedLocal.length > 0) return mappedLocal;
+  const remote = useQuery(api.branches.list, online && ready ? { includeInactive } : "skip");
   if (online && remote !== undefined) return remote;
   return mappedLocal ?? remote;
 }
 
 export function useUsersList(search: string, enabled = true) {
-  const { online, serveLocal, ready } = useMirrorListGate();
+  const { online, ready } = useMirrorListGate();
   const local = useMirrorRows(() => listMirroredUsers(search), [search]);
   const mappedLocal = local?.map((row) => ({
     ...row,
@@ -606,14 +598,11 @@ export function useUsersList(search: string, enabled = true) {
     lastLoginAt: row.lastLoginAt ?? null,
     lastDevice: row.lastDevice ?? null,
   }));
-  const replicaEmpty = local !== null && local.length === 0;
-  const useRemote = enabled && online && ready && (!serveLocal || replicaEmpty);
   const remote = useQuery(
     api.users.list,
-    useRemote ? { search: search || undefined } : "skip",
+    enabled && online && ready ? { search: search || undefined } : "skip",
   );
   if (!enabled) return mappedLocal;
-  if (serveLocal && mappedLocal && mappedLocal.length > 0) return mappedLocal;
   if (online && remote !== undefined) return remote;
   return mappedLocal ?? remote;
 }
@@ -623,7 +612,7 @@ export function useReturnsList(options: {
   kind: "all" | "full" | "partial";
   branchId?: Id<"branches">;
 }) {
-  const { online, serveLocal, ready } = useMirrorListGate();
+  const { online, ready } = useMirrorListGate();
   const local = useMirrorRows(
     () =>
       listMirroredReturns({
@@ -641,11 +630,9 @@ export function useReturnsList(options: {
       ),
     [options.search, options.kind, options.branchId],
   );
-  const replicaEmpty = local !== null && local.length === 0;
-  const useRemote = online && ready && (!serveLocal || replicaEmpty);
   const remote = useQuery(
     api.returns.list,
-    useRemote
+    online && ready
       ? {
           search: options.search || undefined,
           kind: options.kind === "all" ? undefined : options.kind,
@@ -653,7 +640,6 @@ export function useReturnsList(options: {
         }
       : "skip",
   );
-  if (serveLocal && local && local.length > 0) return local;
   if (online && remote !== undefined) return remote;
   return local ?? remote;
 }

@@ -1,6 +1,6 @@
 import { isConnectivityError } from "@/lib/errors";
-import { getOfflineDb, newClientId } from "./db";
-import { enqueueOutbox } from "./outbox";
+import { getMeta, getOfflineDb, META_KEYS, newClientId } from "./db";
+import { enqueueOutbox, withMirrorOnly } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
 import type {
   AdjustStockPayload,
@@ -26,6 +26,11 @@ export async function persistBusinessWrite(args: {
   if (args.online) {
     try {
       await args.remote();
+      try {
+        await withMirrorOnly(args.local);
+      } catch {
+        /* Dexie may be empty or behind; snapshot pull will catch up. */
+      }
       notifyReplicaChanged({ pull: true });
       return "remote";
     } catch (error) {
@@ -150,6 +155,23 @@ export async function queueAdjustStock(payload: AdjustStockPayload) {
 export async function queueTransferStock(payload: TransferStockPayload) {
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
+  const assignedBranchId = await getMeta(db, META_KEYS.profileBranchId);
+  const product = await db.products.get(payload.productId);
+  if (product && assignedBranchId) {
+    let delta = 0;
+    if (payload.fromBranchId === assignedBranchId) delta -= payload.quantity;
+    if (payload.toBranchId === assignedBranchId) delta += payload.quantity;
+    if (delta !== 0) {
+      const next = product.stockQuantity + delta;
+      if (next < 0) throw new Error("Inventory cannot become negative");
+      await db.products.put({
+        ...product,
+        stockQuantity: next,
+        sellableQuantity: Math.max(0, (product.sellableQuantity ?? product.stockQuantity) + delta),
+        updatedAt: Date.now(),
+      });
+    }
+  }
   await enqueueOutbox(db, "transfer_stock", payload);
 }
 
