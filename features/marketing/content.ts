@@ -481,7 +481,7 @@ export const landingCopy = {
     title: "Frequently Asked Questions.",
     contactTitle: "Still have questions?",
     contactDetail:
-      "Talk to the Novend team about demos, onboarding, or the right plan for your stores.",
+      "We're here to help you. Contact our support team anytime.",
     contactCta: "Contact Support",
     contactHref: GENERAL_SALES_MAILTO,
     items: [

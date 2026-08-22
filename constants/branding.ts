@@ -1,3 +1,10 @@
+/** Bump when replacing files under /public/marketing so Next Image + browsers refetch. */
+const MARKETING_ASSET_VERSION = "20260822c";
+
+function marketingAsset(path: string): string {
+  return `${path}?v=${MARKETING_ASSET_VERSION}`;
+}
+
 export const BRANDING = {
   brandmark: "/branding/brandmark.png",
   logoHorizontal: "/branding/logo_horizontal.png",
@@ -5,11 +12,12 @@ export const BRANDING = {
   logoVertical: "/branding/logo_vertical.png",
   loginHero: "/branding/login_hero.png",
   /** Real product dashboard — landing hero & analytics showcase. */
-  dashboardHero: "/marketing/dashboard.png",
+  dashboardHero: marketingAsset("/marketing/dashboard.png"),
   /** V3 landing device / diagram marketing assets (from ui_reference). */
-  landingHeroMonitor: "/marketing/v3/hero-shell-empty-no-bg.png",
-  landingHowItWorks: "/marketing/v3/how-it-works-diagram.png",
-  landingCtaDevices: "/marketing/v3/cta-devices.png",
+  landingHeroMonitor: marketingAsset("/marketing/v3/hero-shell-empty-no-bg.png"),
+  landingHowItWorks: marketingAsset("/marketing/v3/how-it-works-diagram.png"),
+  landingCtaDevices: marketingAsset("/marketing/v3/cta-devices.png"),
+  landingFaqHeadset: marketingAsset("/marketing/v3/headset.png"),
 } as const;
 
 export const BRAND_TAGLINE = "Smart POS. Strong business.";

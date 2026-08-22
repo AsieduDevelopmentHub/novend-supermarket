@@ -65,7 +65,6 @@ export function LandingCta() {
               className="landing-cta-devices-img h-auto w-full max-w-lg object-contain"
               sizes="(max-width: 1024px) 90vw, 480px"
             />
-            <span className="landing-cta-devices-fade" aria-hidden />
           </div>
         </div>
       </div>

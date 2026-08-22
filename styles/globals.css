@@ -1283,60 +1283,19 @@
     #ffffff;
 }
 
-/* CTA laptop + phone — round corners, dissolve black plate into card */
+/* CTA laptop + phone — empty shells (no dashboard composite) */
 .landing-cta-devices-frame {
   position: relative;
   width: 100%;
   max-width: 32rem;
-  border-radius: 1.35rem;
-  overflow: hidden;
-  isolation: isolate;
-  background: #f8fafc;
+  background: transparent;
 }
 
 .landing-cta-devices-img {
   position: relative;
   z-index: 1;
   display: block;
-  border-radius: 1.15rem;
-  /* Soft vignette so the PNG’s black field melts into #F8FAFC */
-  mask-image: radial-gradient(
-    ellipse 82% 78% at 50% 48%,
-    #000 42%,
-    rgba(0, 0, 0, 0.9) 58%,
-    rgba(0, 0, 0, 0.4) 72%,
-    transparent 88%
-  );
-  -webkit-mask-image: radial-gradient(
-    ellipse 82% 78% at 50% 48%,
-    #000 42%,
-    rgba(0, 0, 0, 0.9) 58%,
-    rgba(0, 0, 0, 0.4) 72%,
-    transparent 88%
-  );
-}
-
-.landing-cta-devices-fade {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  border-radius: inherit;
-  background:
-    linear-gradient(
-      180deg,
-      #f8fafc 0%,
-      transparent 10%,
-      transparent 88%,
-      rgba(248, 250, 252, 0.25) 100%
-    ),
-    linear-gradient(
-      90deg,
-      #f8fafc 0%,
-      transparent 8%,
-      transparent 92%,
-      #f8fafc 100%
-    );
+  filter: drop-shadow(0 18px 28px rgba(15, 23, 42, 0.14));
 }
 
 .landing-pos-frame {
@@ -1345,6 +1304,34 @@
 
 .landing-float-kpi {
   background: #ffffff;
+}
+
+/* FAQ support card — headset sits beside the CTA, reference scale */
+.landing-faq-headset {
+  width: 5.25rem;
+  height: 5.25rem;
+  margin-right: -0.35rem;
+  margin-bottom: -0.15rem;
+  filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.12));
+}
+
+@media (min-width: 640px) {
+  .landing-faq-headset {
+    width: 6rem;
+    height: 6rem;
+    margin-right: -0.45rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-faq-support {
+    min-height: auto;
+  }
+
+  .landing-faq-headset {
+    width: 6.75rem;
+    height: 6.75rem;
+  }
 }
 
 /* â”€â”€ Landing V2 â€” Header + Hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
