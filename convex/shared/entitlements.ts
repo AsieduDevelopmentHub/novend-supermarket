@@ -9,11 +9,13 @@ import {
   type UsageMetric,
 } from "./licensing";
 import {
+  effectivePlanLimits,
   limitReachedMessage,
   resolvePlan,
   type LimitResource,
   type PlanDefinition,
   type PlanKey,
+  type PlanLimits,
 } from "./plans";
 
 type Ctx = QueryCtx | MutationCtx;
@@ -22,6 +24,8 @@ export type OrganizationLicense = {
   organization: Doc<"organizations">;
   plan: PlanDefinition;
   planKey: PlanKey;
+  /** Catalog limits with the Enterprise backup quota applied when one is set. */
+  limits: PlanLimits;
   subscription: Doc<"subscriptions"> | null;
   access: LicenseAccess;
 };
@@ -66,7 +70,14 @@ export async function resolveLicense(
     toSnapshot(subscription),
     now,
   );
-  return { organization, plan, planKey: plan.key, subscription, access };
+  return {
+    organization,
+    plan,
+    planKey: plan.key,
+    limits: effectivePlanLimits(plan, organization.backupLimitBytes),
+    subscription,
+    access,
+  };
 }
 
 export type OrganizationUsage = Record<LimitResource, number>;
@@ -109,9 +120,9 @@ export async function countUsage(
   };
 }
 
-export function buildUsageMetrics(plan: PlanDefinition, usage: OrganizationUsage): UsageMetric[] {
-  return (Object.keys(plan.limits) as LimitResource[]).map((resource) =>
-    buildUsageMetric(resource, usage[resource], plan.limits[resource]),
+export function buildUsageMetrics(limits: PlanLimits, usage: OrganizationUsage): UsageMetric[] {
+  return (Object.keys(limits) as LimitResource[]).map((resource) =>
+    buildUsageMetric(resource, usage[resource], limits[resource]),
   );
 }
 
@@ -173,8 +184,10 @@ export async function assertWithinLimit(
   resource: LimitResource,
   additional = 1,
 ): Promise<void> {
+  const organization = await ctx.db.get(organizationId);
+  if (!organization) throw new Error("Organization not found");
   const plan = resolvePlan(planKey);
-  const limit = plan.limits[resource];
+  const limit = effectivePlanLimits(plan, organization.backupLimitBytes)[resource];
   if (limit === null) return;
   const used = await countResource(ctx, organizationId, resource);
   if (used + additional > limit) {

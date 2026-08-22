@@ -137,7 +137,7 @@ export const listDevices = query({
 
     const active = devices.filter((device) => device.isActive);
     return {
-      limit: license.plan.limits.devices,
+      limit: license.limits.devices,
       activeCount: active.length,
       devices: devices
         .sort((a, b) => Number(b.isActive) - Number(a.isActive) || b.lastSeenAt - a.lastSeenAt)

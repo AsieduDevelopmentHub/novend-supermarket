@@ -4,6 +4,9 @@ import {
   PLAN_LIST,
   isPlanKey,
   limitReachedMessage,
+  planLimitLines,
+  effectivePlanLimits,
+  parseCustomBackupGb,
   priceForCycle,
   resolvePlan,
   supportsCycle,
@@ -81,10 +84,66 @@ describe("plan catalog", () => {
   });
 
   it("explains every limit in plain language", () => {
-    for (const resource of ["products", "users", "branches", "devices", "backupBytes"] as const) {
-      const message = limitReachedMessage("basic", resource, 5);
-      expect(message.length).toBeGreaterThan(10);
-      expect(message.endsWith(".")).toBe(true);
-    }
+    expect(limitReachedMessage("basic", "products", 500)).toBe(
+      "Cannot create Product #501 on Basic. Upgrade to add more.",
+    );
+    expect(limitReachedMessage("basic", "users", 3)).toBe(
+      "Cannot create User #4 on Basic. Upgrade to add more.",
+    );
+    expect(limitReachedMessage("basic", "devices", 3)).toBe(
+      "Cannot activate Device #4 on Basic. Deactivate another device or upgrade.",
+    );
+    expect(limitReachedMessage("basic", "backupBytes", 250 * 1024 * 1024)).toMatch(
+      /Local backups continue/,
+    );
+  });
+
+  it("matches the published commercial limits", () => {
+    expect(resolvePlan("basic").limits).toEqual({
+      products: 500,
+      users: 3,
+      branches: 1,
+      devices: 3,
+      backupBytes: 250 * 1024 * 1024,
+    });
+    expect(resolvePlan("pro").limits).toEqual({
+      products: 5000,
+      users: 15,
+      branches: 5,
+      devices: 15,
+      backupBytes: 500 * 1024 * 1024,
+    });
+    expect(resolvePlan("enterprise").limits.backupBytes).toBeNull();
+    expect(resolvePlan("enterprise").variableBackup).toBe(true);
+    expect(resolvePlan("enterprise").priceFrom).toBe(true);
+    expect(resolvePlan("lifetime").limits.backupBytes).toBe(1024 * 1024 * 1024);
+    expect(resolvePlan("lifetime").oneTimePrice).toBe(7990);
+    expect(resolvePlan("pro").featured).toBe(true);
+    expect(resolvePlan("lifetime").features.some((feature) => feature.includes("1.5 years"))).toBe(
+      true,
+    );
+    expect(planLimitLines(resolvePlan("basic"))).toEqual([
+      "500 products",
+      "3 users",
+      "1 branch",
+      "3 devices",
+      "250 MB cloud backup",
+    ]);
+    expect(planLimitLines(resolvePlan("enterprise"))).toContain("Custom cloud backup");
+  });
+
+  it("applies an Enterprise backup quota without changing the catalog", () => {
+    const enterprise = resolvePlan("enterprise");
+    expect(effectivePlanLimits(enterprise).backupBytes).toBeNull();
+    expect(effectivePlanLimits(enterprise, 5 * 1024 * 1024 * 1024).backupBytes).toBe(
+      5 * 1024 * 1024 * 1024,
+    );
+    expect(effectivePlanLimits(resolvePlan("pro"), 5 * 1024 * 1024 * 1024).backupBytes).toBe(
+      500 * 1024 * 1024,
+    );
+    expect(parseCustomBackupGb(null)).toBeNull();
+    expect(parseCustomBackupGb(8)).toBe(8 * 1024 * 1024 * 1024);
+    expect(() => parseCustomBackupGb(0)).toThrow(/whole number of GB/);
+    expect(() => parseCustomBackupGb(1.5)).toThrow(/whole number of GB/);
   });
 });

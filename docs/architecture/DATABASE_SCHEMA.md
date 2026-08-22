@@ -12,7 +12,7 @@ or drive hot queries **start with** `organizationId`.
 ## Core tables
 
 - `organizations` — name, slug, status, ownerUserId, currency, planKey,
-  subscriptionId, trialEndsAt
+  subscriptionId, trialEndsAt, backupLimitBytes (Enterprise quota override)
 - `plans` — catalog mirror of `convex/shared/plans.ts` plus gateway plan codes
 - `subscriptions` — one live licence per organization
 - `devices` — activated terminals counted against the plan

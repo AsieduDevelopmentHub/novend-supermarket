@@ -38,6 +38,11 @@ export type PlanDefinition = {
   oneTimePrice: number | null;
   /** When true, the published price is a starting point rather than a fixed amount. */
   priceFrom: boolean;
+  /**
+   * When true, cloud backup is quoted per organization instead of a catalog
+   * number. `limits.backupBytes` stays `null`; Super Admin assigns the quota.
+   */
+  variableBackup: boolean;
   isLifetime: boolean;
   featured: boolean;
   /** Self-service checkout is available for this plan. */
@@ -47,9 +52,22 @@ export type PlanDefinition = {
   features: string[];
 };
 
-const GIGABYTE = 1024 * 1024 * 1024;
+export const KIBIBYTE = 1024;
+export const MEBIBYTE = 1024 * 1024;
+export const GIBIBYTE = 1024 * 1024 * 1024;
+/** @deprecated Use `GIBIBYTE`. */
+export const GB_IN_BYTES = GIBIBYTE;
 
-export const GB_IN_BYTES = GIGABYTE;
+/** Updates and premium support included with a lifetime licence. */
+export const LIFETIME_UPDATES_YEARS = 1.5;
+
+export function formatPlanBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  if (bytes >= GIBIBYTE && bytes % GIBIBYTE === 0) return `${bytes / GIBIBYTE} GB`;
+  if (bytes >= MEBIBYTE && bytes % MEBIBYTE === 0) return `${bytes / MEBIBYTE} MB`;
+  if (bytes >= MEBIBYTE) return `${Math.round(bytes / MEBIBYTE)} MB`;
+  return `${bytes} B`;
+}
 
 export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
   basic: {
@@ -61,6 +79,7 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     yearlyPrice: 1490,
     oneTimePrice: null,
     priceFrom: false,
+    variableBackup: false,
     isLifetime: false,
     featured: false,
     selfServe: true,
@@ -69,20 +88,20 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
       products: 500,
       users: 3,
       branches: 1,
-      devices: 2,
-      backupBytes: 2 * GIGABYTE,
+      devices: 3,
+      backupBytes: 250 * MEBIBYTE,
     },
     features: [
       "Offline POS",
       "Inventory",
-      "Customers",
-      "Suppliers",
+      "Products & categories",
+      "Customers & suppliers",
+      "Barcode (camera & hardware)",
+      "Receipt printing",
       "Returns",
       "Expenses",
       "Reports",
       "Analytics",
-      "Receipt printing",
-      "Barcode scanner",
     ],
   },
   pro: {
@@ -94,6 +113,7 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     yearlyPrice: 2990,
     oneTimePrice: null,
     priceFrom: false,
+    variableBackup: false,
     isLifetime: false,
     featured: true,
     selfServe: true,
@@ -102,15 +122,15 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
       products: 5000,
       users: 15,
       branches: 5,
-      devices: 5,
-      backupBytes: 10 * GIGABYTE,
+      devices: 15,
+      backupBytes: 500 * MEBIBYTE,
     },
     features: [
       "Everything in Basic",
       "Wholesale inventory",
       "Branch transfers",
+      "Multi-branch management",
       "Advanced analytics",
-      "Cloud synchronization",
       "Priority support",
     ],
   },
@@ -122,7 +142,8 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     monthlyPrice: 599,
     yearlyPrice: 5990,
     oneTimePrice: null,
-    priceFrom: false,
+    priceFrom: true,
+    variableBackup: true,
     isLifetime: false,
     featured: false,
     selfServe: true,
@@ -132,13 +153,14 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
       users: null,
       branches: null,
       devices: null,
-      backupBytes: 50 * GIGABYTE,
+      backupBytes: null,
     },
     features: [
       "Everything in Pro",
-      "Dedicated support",
-      "Custom deployment",
+      "Custom cloud backup",
       "API ready",
+      "Custom integrations",
+      "Dedicated support",
       "Enterprise onboarding",
     ],
   },
@@ -151,6 +173,7 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     yearlyPrice: null,
     oneTimePrice: 7990,
     priceFrom: false,
+    variableBackup: false,
     isLifetime: true,
     featured: false,
     selfServe: true,
@@ -160,15 +183,14 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
       users: null,
       branches: null,
       devices: null,
-      backupBytes: 50 * GIGABYTE,
+      backupBytes: 1 * GIBIBYTE,
     },
     features: [
       "Everything in Enterprise",
-      "Permanent licence",
+      "Permanent commercial licence",
+      `${LIFETIME_UPDATES_YEARS} years of updates and premium support`,
       "Offline operations",
       "Cloud sync",
-      "Analytics and reports",
-      "One year of updates included",
     ],
   },
 };
@@ -196,6 +218,36 @@ export function planLimit(planKey: PlanKey, resource: LimitResource): number | n
   return PLAN_CATALOG[planKey].limits[resource];
 }
 
+export const MIN_CUSTOM_BACKUP_GB = 1;
+export const MAX_CUSTOM_BACKUP_GB = 1024;
+
+/** Catalog backup plus the per-organization Enterprise quota, when one is set. */
+export function effectivePlanLimits(
+  plan: PlanDefinition,
+  organizationBackupLimitBytes?: number | null,
+): PlanLimits {
+  if (!plan.variableBackup) return plan.limits;
+  return {
+    ...plan.limits,
+    backupBytes: organizationBackupLimitBytes ?? null,
+  };
+}
+
+/** Converts a Super Admin gigabyte entry to stored bytes. `null` means no cap. */
+export function parseCustomBackupGb(gigabytes: number | null): number | null {
+  if (gigabytes === null) return null;
+  if (
+    !Number.isInteger(gigabytes) ||
+    gigabytes < MIN_CUSTOM_BACKUP_GB ||
+    gigabytes > MAX_CUSTOM_BACKUP_GB
+  ) {
+    throw new Error(
+      `Cloud backup must be a whole number of GB from ${MIN_CUSTOM_BACKUP_GB} to ${MAX_CUSTOM_BACKUP_GB}, or empty for no cap.`,
+    );
+  }
+  return gigabytes * GIBIBYTE;
+}
+
 /** Price for a cycle, or `null` when the plan is not sold on that cycle. */
 export function priceForCycle(plan: PlanDefinition, cycle: BillingCycle): number | null {
   if (cycle === "monthly") return plan.monthlyPrice;
@@ -216,6 +268,45 @@ export const RESOURCE_LABELS: Record<LimitResource, string> = {
   backupBytes: "Cloud backup",
 };
 
+export function formatPlanLimit(resource: LimitResource, limit: number | null): string {
+  if (limit === null) {
+    switch (resource) {
+      case "products":
+        return "Unlimited products";
+      case "users":
+        return "Unlimited users";
+      case "branches":
+        return "Unlimited branches";
+      case "devices":
+        return "Unlimited devices";
+      case "backupBytes":
+        return "Unlimited cloud backup";
+    }
+  }
+  switch (resource) {
+    case "products":
+      return `${limit.toLocaleString()} products`;
+    case "users":
+      return `${limit.toLocaleString()} users`;
+    case "branches":
+      return `${limit.toLocaleString()} ${limit === 1 ? "branch" : "branches"}`;
+    case "devices":
+      return `${limit.toLocaleString()} devices`;
+    case "backupBytes":
+      return `${formatPlanBytes(limit)} cloud backup`;
+  }
+}
+
+/** Compact limit lines for pricing cards, in display order. */
+export function planLimitLines(plan: PlanDefinition): string[] {
+  return (Object.keys(plan.limits) as LimitResource[]).map((resource) => {
+    if (resource === "backupBytes" && plan.variableBackup) {
+      return "Custom cloud backup";
+    }
+    return formatPlanLimit(resource, plan.limits[resource]);
+  });
+}
+
 /** Message shown when a create action is blocked by the plan. */
 export function limitReachedMessage(
   planKey: PlanKey,
@@ -225,14 +316,14 @@ export function limitReachedMessage(
   const plan = PLAN_CATALOG[planKey];
   switch (resource) {
     case "products":
-      return `Your ${plan.name} plan includes ${limit.toLocaleString()} products. Upgrade to add more.`;
+      return `Cannot create Product #${limit + 1} on ${plan.name}. Upgrade to add more.`;
     case "users":
-      return `Your ${plan.name} plan includes ${limit} staff accounts. Upgrade to add more.`;
+      return `Cannot create User #${limit + 1} on ${plan.name}. Upgrade to add more.`;
     case "branches":
-      return `Your ${plan.name} plan supports ${limit} ${limit === 1 ? "branch" : "branches"}. Upgrade to add more locations.`;
+      return `Cannot create Branch #${limit + 1} on ${plan.name}. Upgrade to add more.`;
     case "devices":
-      return `Device limit reached. Deactivate another device or upgrade your plan.`;
+      return `Cannot activate Device #${limit + 1} on ${plan.name}. Deactivate another device or upgrade.`;
     case "backupBytes":
-      return `Cloud backup storage is full on the ${plan.name} plan. Upgrade for more space.`;
+      return `Cloud backup pauses after ${formatPlanBytes(limit)} on ${plan.name}. Local backups continue.`;
   }
 }

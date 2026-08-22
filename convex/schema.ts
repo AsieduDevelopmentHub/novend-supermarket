@@ -86,6 +86,11 @@ export default defineSchema({
     activePlanId: v.optional(v.id("plans")),
     subscriptionId: v.optional(v.id("subscriptions")),
     trialEndsAt: v.optional(v.number()),
+    /**
+     * Enterprise cloud backup quota in bytes. Ignored on plans that publish a
+     * fixed backup limit. `undefined` / `null` means no cap.
+     */
+    backupLimitBytes: v.optional(v.union(v.number(), v.null())),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
   })

@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatNumber } from "@/lib/currency";
-import { formatBytes } from "@/lib/bytes";
+import { formatCurrency } from "@/lib/currency";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import {
   PLAN_LIST,
+  planLimitLines,
   type BillingCycle,
   type PlanDefinition,
   type PlanKey,
@@ -125,21 +125,6 @@ function planPrice(plan: PlanDefinition, cycle: Exclude<BillingCycle, "lifetime"
   };
 }
 
-function limitLine(plan: PlanDefinition): string {
-  const parts = [
-    plan.limits.products === null
-      ? "Unlimited products"
-      : `${formatNumber(plan.limits.products)} products`,
-    plan.limits.users === null ? "unlimited users" : `${plan.limits.users} users`,
-    plan.limits.branches === null ? "unlimited branches" : `${plan.limits.branches} branches`,
-    plan.limits.devices === null ? "unlimited devices" : `${plan.limits.devices} devices`,
-    plan.limits.backupBytes === null
-      ? "unlimited backup"
-      : `${formatBytes(plan.limits.backupBytes)} cloud backup`,
-  ];
-  return parts.join(" · ");
-}
-
 function PlanCard({
   plan,
   cycle,
@@ -171,14 +156,14 @@ function PlanCard({
         <div className="space-y-2">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <h4 className="text-base font-semibold">{plan.name}</h4>
-            {isCurrent ? (
-              <Badge variant="success">Current</Badge>
-            ) : plan.featured ? (
+            {isCurrent ? <Badge variant="success">Current</Badge> : null}
+            {!isCurrent && plan.featured ? (
               <Badge className="gap-1">
                 <Sparkles className="h-3 w-3" aria-hidden />
-                Recommended
+                Most Popular
               </Badge>
             ) : null}
+            {plan.isLifetime ? <Badge variant="outline">Lifetime</Badge> : null}
           </div>
           <p className="text-muted-foreground text-sm leading-relaxed">{plan.tagline}</p>
         </div>
@@ -191,9 +176,11 @@ function PlanCard({
           <p className="text-muted-foreground text-xs">{amount === null ? "Talk to us" : suffix}</p>
         </div>
 
-        <p className="text-muted-foreground border-border border-t pt-3 text-xs leading-relaxed">
-          {limitLine(plan)}
-        </p>
+        <ul className="text-muted-foreground border-border space-y-1 border-t pt-3 text-xs leading-relaxed">
+          {planLimitLines(plan).map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
 
         <ul className="flex-1 space-y-1.5">
           {plan.features.map((feature) => (

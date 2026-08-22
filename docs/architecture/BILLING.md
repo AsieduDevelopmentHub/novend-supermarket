@@ -1,6 +1,6 @@
 # Billing, Plans & Activation
 
-Version: 1.0.0
+Version: 1.2.0
 
 Novend is sold as a subscription with a lifetime licence option. This document is
 the reference for how entitlements are defined, enforced and paid for.
@@ -29,7 +29,7 @@ licence so a terminal keeps selling offline, but it never decides access.
 | `convex/shared/provisionOrganization.ts` | Tenant bootstrap (trial or assigned plan) |
 | `convex/shared/paystack.ts` | Paystack REST client and webhook signature verification |
 | `convex/shared/billingProvider.ts` | Gateway abstraction (`manual`, `paystack`) |
-| `convex/billing.ts` | Tenant queries, checkout, webhook handlers, platform administration |
+| `convex/billing.ts` | Tenant queries, checkout, webhook handlers, platform administration, Enterprise backup quota |
 | `convex/billingHttp.ts` | `POST /billing/paystack/webhook` |
 | `convex/devices.ts` | Device activation and deactivation |
 | `convex/cloudBackups.ts` | Cloud backup uploads against the storage quota |
@@ -39,15 +39,19 @@ licence so a terminal keeps selling offline, but it never decides access.
 
 | Plan | Monthly | Yearly | Products | Users | Branches | Devices | Cloud backup |
 |---|---|---|---|---|---|---|---|
-| Basic | GH₵149 | GH₵1,490 | 500 | 3 | 1 | 2 | 2 GB |
-| Pro | GH₵299 | GH₵2,990 | 5,000 | 15 | 5 | 5 | 10 GB |
-| Enterprise | GH₵599 | GH₵5,990 | ∞ | ∞ | ∞ | ∞ | 50 GB |
-| Lifetime | — | GH₵7,990 one-time | ∞ | ∞ | ∞ | ∞ | 50 GB |
+| Basic | GH₵149 | GH₵1,490 | 500 | 3 | 1 | 3 | 250 MB |
+| Pro (Most Popular) | GH₵299 | GH₵2,990 | 5,000 | 15 | 5 | 15 | 500 MB |
+| Enterprise | From GH₵599 | From GH₵5,990 | ∞ | ∞ | ∞ | ∞ | Custom |
+| Lifetime | — | GH₵7,990 one-time | ∞ | ∞ | ∞ | ∞ | 1 GB |
 
 Lifetime sits above every subscription: the one-time price is higher than a year of
-Basic, Pro, or Enterprise because it includes every entitlement permanently.
-Recurring plans are never sold on a lifetime cycle. Enterprise is self-serve, same
-checkout as Basic and Pro.
+Basic, Pro, or Enterprise because it includes every entitlement permanently. The
+licence does not expire; **1.5 years of updates and premium support** are included
+with the purchase. Recurring plans are never sold on a lifetime cycle. Enterprise
+is self-serve, same checkout as Basic and Pro — published as a starting price.
+Enterprise cloud backup is **quoted per organization** (whole GB, or no cap).
+The catalog never publishes a fixed Enterprise storage size. A Novend platform
+administrator sets `organizations.backupLimitBytes` from the licence panel.
 
 `null` always means unlimited. Add a plan by editing `PLAN_CATALOG` and
 `planKeyValidator`, then run the gateway sync.
@@ -87,6 +91,10 @@ Locking an administrator out of the page where they would pay is a bug.
 Resource limits are enforced at the create path with `assertOrganizationCapacity`
 (products, users, branches, devices, backup bytes). Reaching a limit blocks only
 the new record of that kind; existing records and sales are untouched.
+
+Usage alerts are derived in `buildUsageMetric`: **80% informational**, **95% strong
+warning**, **100% full** (create of that resource is refused). Cloud backup at
+quota pauses cloud uploads only — local backups and the POS continue.
 
 # Payments
 

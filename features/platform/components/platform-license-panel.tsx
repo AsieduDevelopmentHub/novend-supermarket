@@ -19,7 +19,14 @@ import {
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { LoadingState } from "@/components/feedback/loading-state";
-import { PLAN_LIST, supportsCycle, type BillingCycle, type PlanKey } from "@/convex/shared/plans";
+import {
+  GIBIBYTE,
+  MAX_CUSTOM_BACKUP_GB,
+  PLAN_LIST,
+  supportsCycle,
+  type BillingCycle,
+  type PlanKey,
+} from "@/convex/shared/plans";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { showError } from "@/lib/errors";
@@ -58,6 +65,7 @@ export function PlatformLicensePanel({
   const assignPlan = useMutation(api.billing.assignPlan);
   const startTrial = useMutation(api.billing.startTrial);
   const resetActivation = useMutation(api.billing.resetActivation);
+  const setBackupLimit = useMutation(api.billing.setBackupLimit);
   const setStatus = useMutation(api.platform.setOrganizationStatus);
 
   const [planKey, setPlanKey] = useState<PlanKey>("pro");
@@ -111,6 +119,26 @@ export function PlatformLicensePanel({
         </CardHeader>
         <CardContent className="space-y-5">
           <PlanUsageGrid usage={license.usage} />
+
+          {license.variableBackup ? (
+            <EnterpriseBackupQuota
+              key={organizationId}
+              currentBytes={license.backupLimitBytes}
+              disabled={pending}
+              onSave={(backupLimitGb) =>
+                void run(
+                  backupLimitGb === null
+                    ? "Cloud backup cap removed"
+                    : `Cloud backup set to ${backupLimitGb} GB`,
+                  () => setBackupLimit({ organizationId, backupLimitGb }),
+                )
+              }
+            />
+          ) : (
+            <p className="text-muted-foreground text-xs">
+              Cloud backup follows the published plan. Assign Enterprise to set a custom quota.
+            </p>
+          )}
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
@@ -289,6 +317,66 @@ export function PlatformLicensePanel({
           )
         }
       />
+    </div>
+  );
+}
+
+function EnterpriseBackupQuota({
+  currentBytes,
+  disabled,
+  onSave,
+}: {
+  currentBytes: number | null;
+  disabled: boolean;
+  onSave: (backupLimitGb: number | null) => void;
+}) {
+  const [value, setValue] = useState(
+    currentBytes === null ? "" : String(currentBytes / GIBIBYTE),
+  );
+
+  function submit() {
+    const trimmed = value.trim();
+    if (trimmed === "") {
+      onSave(null);
+      return;
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isInteger(parsed)) {
+      toast.error("Enter a whole number of gigabytes, or leave blank for no cap.");
+      return;
+    }
+    onSave(parsed);
+  }
+
+  return (
+    <div className="border-border space-y-3 rounded-lg border p-4">
+      <div className="space-y-1">
+        <p className="text-sm font-medium">Cloud backup quota</p>
+        <p className="text-muted-foreground text-xs">
+          Quoted per Enterprise customer. Leave blank for no cap. Whole gigabytes,{" "}
+          {MAX_CUSTOM_BACKUP_GB} GB maximum.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-0 flex-1 space-y-2">
+          <Label htmlFor="enterprise-backup-gb">Storage (GB)</Label>
+          <Input
+            id="enterprise-backup-gb"
+            type="number"
+            min={1}
+            max={MAX_CUSTOM_BACKUP_GB}
+            step={1}
+            inputMode="numeric"
+            placeholder="No cap"
+            value={value}
+            disabled={disabled}
+            onChange={(event) => setValue(event.target.value)}
+          />
+        </div>
+        <Button type="button" variant="outline" disabled={disabled} onClick={submit}>
+          Save quota
+        </Button>
+      </div>
     </div>
   );
 }

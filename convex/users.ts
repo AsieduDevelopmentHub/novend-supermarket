@@ -481,7 +481,7 @@ export const staffCapacity = query({
   handler: async (ctx) => {
     const { organization, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     const license = await resolveLicense(ctx, organization);
-    const limit = license.plan.limits.users;
+    const limit = license.limits.users;
     const usage = await countUsage(ctx, organizationId);
     const used = usage.users;
     if (limit === null) {

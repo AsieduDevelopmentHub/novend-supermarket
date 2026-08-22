@@ -24,6 +24,7 @@ import {
   DEFAULT_PLAN_KEY,
   PLAN_CATALOG,
   PLAN_LIST,
+  parseCustomBackupGb,
   priceForCycle,
   supportsCycle,
   type BillingCycle,
@@ -70,7 +71,7 @@ export const licenseSnapshot = query({
       planKey: license.planKey,
       planName: license.plan.name,
       access: license.access,
-      limits: license.plan.limits,
+      limits: license.limits,
       features: license.plan.features,
       subscription: license.subscription
         ? {
@@ -104,7 +105,7 @@ export const usageSnapshot = query({
     return {
       planKey: license.planKey,
       planName: license.plan.name,
-      usage: buildUsageMetrics(license.plan, usage),
+      usage: buildUsageMetrics(license.limits, usage),
     };
   },
 });
@@ -119,7 +120,7 @@ export const overview = query({
     }
     const license = await resolveLicense(ctx, organization);
     const usage = await countUsage(ctx, organization._id);
-    const metrics = buildUsageMetrics(license.plan, usage);
+    const metrics = buildUsageMetrics(license.limits, usage);
 
     return {
       organizationId: organization._id,
@@ -992,6 +993,42 @@ export const assignPlan = mutation({
 });
 
 /**
+ * Sets the Enterprise cloud backup quota for one organization.
+ *
+ * Catalog plans never publish a fixed Enterprise size. Empty / null means no cap.
+ * The quota is ignored if the organization is not on a variable-backup plan.
+ */
+export const setBackupLimit = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    backupLimitGb: v.union(v.number(), v.null()),
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    const organization = await ctx.db.get(args.organizationId);
+    if (!organization) throw new Error("Organization not found");
+    const license = await resolveLicense(ctx, organization);
+    if (!license.plan.variableBackup) {
+      throw new Error("Custom cloud backup is only available on Enterprise.");
+    }
+    const backupLimitBytes = parseCustomBackupGb(args.backupLimitGb);
+    await ctx.db.patch(organization._id, {
+      backupLimitBytes,
+      updatedAt: Date.now(),
+    });
+    await writeAuditLog(ctx, {
+      organizationId: organization._id,
+      actorId: userId,
+      action: "platform_set_backup_limit",
+      entityType: "organizations",
+      entityId: organization._id,
+      metadata: { backupLimitGb: args.backupLimitGb, backupLimitBytes },
+    });
+    return { backupLimitBytes };
+  },
+});
+
+/**
  * Clears device registrations so a business can re-activate its terminals.
  * Used when hardware is replaced or a device list is stuck.
  */
@@ -1052,6 +1089,8 @@ export const organizationLicense = query({
     return {
       planKey: license.planKey,
       planName: license.plan.name,
+      variableBackup: license.plan.variableBackup,
+      backupLimitBytes: organization.backupLimitBytes ?? null,
       access: license.access,
       status: organization.status,
       trialEndsAt: organization.trialEndsAt ?? null,
@@ -1068,7 +1107,7 @@ export const organizationLicense = query({
             paymentGateway: license.subscription.paymentGateway,
           }
         : null,
-      usage: buildUsageMetrics(license.plan, usage),
+      usage: buildUsageMetrics(license.limits, usage),
       payments: payments.map((row) => ({
         id: row._id,
         amount: row.amount,

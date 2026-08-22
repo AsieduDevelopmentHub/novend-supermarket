@@ -45,7 +45,11 @@ export const OFFLINE_LICENSE_TTL_DAYS = 30;
 
 export const OFFLINE_LICENSE_TTL_MS = OFFLINE_LICENSE_TTL_DAYS * 24 * 60 * 60 * 1000;
 
-export const USAGE_WARNING_RATIO = 0.8;
+/** Informational heads-up when a metered resource is getting full. */
+export const USAGE_INFO_RATIO = 0.8;
+
+/** Strong warning just before the create path is blocked. */
+export const USAGE_WARNING_RATIO = 0.95;
 
 export type AccessState = "active" | "trial" | "grace" | "suspended" | "expired" | "disabled";
 
@@ -159,7 +163,7 @@ export function deriveAccess(
   return { state: "active", canRead: true, canWrite: true, reason: null, expiresAt };
 }
 
-export type UsageLevel = "ok" | "warning" | "full";
+export type UsageLevel = "ok" | "info" | "warning" | "full";
 
 export type UsageMetric = {
   resource: LimitResource;
@@ -195,7 +199,14 @@ export function buildUsageMetric(
     used: safeUsed,
     limit,
     percent: Math.min(100, Math.round(ratio * 100)),
-    level: ratio >= 1 ? "full" : ratio >= USAGE_WARNING_RATIO ? "warning" : "ok",
+    level:
+      ratio >= 1
+        ? "full"
+        : ratio >= USAGE_WARNING_RATIO
+          ? "warning"
+          : ratio >= USAGE_INFO_RATIO
+            ? "info"
+            : "ok",
     unlimited: false,
     remaining: Math.max(0, limit - safeUsed),
   };

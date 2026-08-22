@@ -108,7 +108,7 @@ describe("evaluateCachedLicense", () => {
       organizationStatus: "active",
       subscription: subscription(),
       access: deriveAccess("active", subscription(), issuedAt),
-      limits: { products: 5000, users: 15, branches: 5, devices: 5, backupBytes: null },
+      limits: { products: 5000, users: 15, branches: 5, devices: 15, backupBytes: null },
       features: [],
       issuedAt,
     };
@@ -136,9 +136,12 @@ describe("usage metrics", () => {
     expect(hasCapacity(metric, 1_000_000)).toBe(true);
   });
 
-  it("warns from 80 percent", () => {
-    expect(buildUsageMetric("users", 12, 15).level).toBe("warning");
+  it("informs from 80 percent and warns from 95 percent", () => {
     expect(buildUsageMetric("users", 11, 15).level).toBe("ok");
+    expect(buildUsageMetric("users", 12, 15).level).toBe("info");
+    expect(buildUsageMetric("products", 400, 500).level).toBe("info");
+    expect(buildUsageMetric("products", 475, 500).level).toBe("warning");
+    expect(buildUsageMetric("products", 500, 500).level).toBe("full");
   });
 
   it("reports full at the limit and refuses more capacity", () => {

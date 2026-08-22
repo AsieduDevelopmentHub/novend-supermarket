@@ -3,6 +3,7 @@ import { mutation, query } from "./_generated/server";
 import { requireRoleIgnoringLicense } from "./shared/permissions";
 import { writeAuditLog } from "./shared/audit";
 import { countUsage, resolveLicense } from "./shared/entitlements";
+import { limitReachedMessage } from "./shared/plans";
 import { sanitizeText, TEXT_LIMITS } from "./shared/validation";
 
 const MAX_BACKUP_BYTES = 200 * 1024 * 1024;
@@ -27,7 +28,7 @@ export const usage = query({
       .order("desc")
       .take(20);
 
-    const limit = license.plan.limits.backupBytes;
+    const limit = license.limits.backupBytes;
     return {
       usedBytes: counts.backupBytes,
       limitBytes: limit,
@@ -52,13 +53,11 @@ export const generateBackupUploadUrl = mutation({
       "administrator",
     ]);
     const license = await resolveLicense(ctx, organization);
-    const limit = license.plan.limits.backupBytes;
+    const limit = license.limits.backupBytes;
     if (limit !== null) {
       const counts = await countUsage(ctx, organizationId);
       if (counts.backupBytes >= limit) {
-        throw new Error(
-          "Cloud backup storage is full. Delete an old backup or upgrade your plan. Local backups still work.",
-        );
+        throw new Error(limitReachedMessage(license.planKey, "backupBytes", limit));
       }
     }
     return await ctx.storage.generateUploadUrl();
@@ -86,14 +85,12 @@ export const recordBackup = mutation({
     }
 
     const license = await resolveLicense(ctx, organization);
-    const limit = license.plan.limits.backupBytes;
+    const limit = license.limits.backupBytes;
     if (limit !== null) {
       const counts = await countUsage(ctx, organizationId);
       if (counts.backupBytes + sizeBytes > limit) {
         await ctx.storage.delete(args.storageId);
-        throw new Error(
-          "This backup would exceed your cloud storage. Delete an older backup or upgrade your plan.",
-        );
+        throw new Error(limitReachedMessage(license.planKey, "backupBytes", limit));
       }
     }
 

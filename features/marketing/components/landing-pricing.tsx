@@ -6,7 +6,7 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { landingCopy } from "@/features/marketing/content";
-import { PLAN_LIST, type PlanDefinition } from "@/convex/shared/plans";
+import { PLAN_LIST, planLimitLines, type PlanDefinition } from "@/convex/shared/plans";
 
 type Cycle = "monthly" | "yearly";
 
@@ -81,7 +81,11 @@ export function LandingPricing() {
               >
                 {plan.featured ? (
                   <span className="bg-primary text-primary-foreground landing-shadow-chip absolute -top-3 left-1/2 -translate-x-1/2 rounded-md px-3 py-1 text-[10px] font-bold tracking-[0.12em] uppercase">
-                    Recommended
+                    Most Popular
+                  </span>
+                ) : plan.isLifetime ? (
+                  <span className="bg-card text-foreground border-border landing-shadow-chip absolute -top-3 left-1/2 -translate-x-1/2 rounded-md border px-3 py-1 text-[10px] font-bold tracking-[0.12em] uppercase">
+                    Lifetime
                   </span>
                 ) : null}
 
@@ -94,6 +98,12 @@ export function LandingPricing() {
                   </p>
                   <p className="text-muted-foreground mt-1 text-xs">{price.suffix || plan.audience}</p>
                 </div>
+
+                <ul className="text-muted-foreground mt-5 space-y-1 text-xs">
+                  {planLimitLines(plan).map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
 
                 <ul className="mt-6 flex-1 space-y-2.5">
                   {plan.features.map((feature) => (
