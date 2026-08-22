@@ -295,11 +295,6 @@ export function ReturnOrderDialog({
               <span>Refund</span>
               <span className="text-primary">{formatCurrency(refundEstimate)}</span>
             </div>
-            {!online ? (
-              <p className="text-muted-foreground pt-1 text-xs">
-                Offline: this return syncs when the connection is back.
-              </p>
-            ) : null}
           </div>
         </div>
 

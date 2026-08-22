@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.3.0
+Version: 2.3.1
 
 ## Purpose
 
@@ -85,8 +85,9 @@ Queue order + server validation. Inventory cannot become negative on Convex.
 Cashiers resolve failed syncs (retry or discard). Local `local_*` ids are
 remapped after creates succeed.
 
-The sidebar chip opens **Sync Center**: waiting uploads, server conflicts, and
-recently synced events. A catalog refresh must not look like the outbox is empty.
+The sidebar chip is the only always-on offline indicator. The top banner
+appears only for active uploads and sync conflicts. **Sync Center** (from the
+chip) lists waiting uploads, server conflicts, and recently synced events.
 **Sync now** bypasses retry backoff and re-queues failed rows. Forbidden,
 duplicate, and stock rejections stay as conflicts instead of silent pending.
 

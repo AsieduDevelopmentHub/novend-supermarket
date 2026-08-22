@@ -181,13 +181,6 @@ export function SettingsView() {
 
   return (
     <div className="min-w-0 space-y-6 overflow-x-clip">
-      {!online ? (
-        <p className="text-muted-foreground border-border bg-muted/40 rounded-lg border px-3 py-2 text-sm">
-          You&apos;re offline — browsing cached settings. Profile photo, password, and server saves
-          need a connection. Appearance and desktop terminal settings still work on this device.
-          Desktop downloads need a connection.
-        </p>
-      ) : null}
       <PageHeader
         title="Settings"
         description="Choose a section. Receipt printing for the whole business lives under Receipt."
@@ -510,7 +503,7 @@ function BusinessForm({
             />
           </div>
           <Button type="submit" disabled={pending || readOnly} className="w-fit">
-            {readOnly ? "Read-only offline" : pending ? "Saving…" : "Save business profile"}
+            {readOnly ? "Can't save offline" : pending ? "Saving…" : "Save business profile"}
           </Button>
         </form>
       </CardContent>
@@ -705,7 +698,7 @@ function ReceiptTemplateForm({
             </div>
 
             <Button type="submit" disabled={pending || readOnly}>
-              {readOnly ? "Read-only offline" : pending ? "Saving…" : "Save receipt template"}
+              {readOnly ? "Can't save offline" : pending ? "Saving…" : "Save receipt template"}
             </Button>
           </form>
         </CardContent>

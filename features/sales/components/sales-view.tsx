@@ -381,7 +381,6 @@ export function SalesView() {
     const printMode =
       posPrefs?.receiptPrintMode ?? (posPrefs?.autoPrintReceipt ? "automatic" : "manual");
     if (printMode === "never") {
-      toast.message("Sale complete. Receipt printing is turned off.");
       return;
     }
     if (printMode === "manual") {
@@ -389,7 +388,7 @@ export function SalesView() {
       return;
     }
     const config = loadTerminalPrinterConfig();
-    if (config.autoPrint && config.preferNative) {
+    if (config.preferNative) {
       const status = await probePrintBridge();
       if (status.ok) {
         const result = await printReceipt(payload);
@@ -461,7 +460,7 @@ export function SalesView() {
         setCustomerQuery("");
         setCheckoutOpen(false);
         await refreshLocal();
-        toast.success(`Sale complete · ${result.invoiceNumber}`);
+        toast.success(`Sale complete · ${result.invoiceNumber}`, { id: "sale-complete" });
         await triggerPrint(result.receiptPayload as ReceiptPayload);
         return;
       }
@@ -488,7 +487,7 @@ export function SalesView() {
       setCustomerQuery("");
       setCheckoutOpen(false);
       await refreshLocal();
-      toast.success(`Sale saved offline · ${result.invoiceNumber}`);
+      toast.success(`Sale saved · ${result.invoiceNumber}`, { id: "sale-complete" });
       await triggerPrint(result.receiptPayload);
     } catch (error) {
       showError(error, "Payment failed");

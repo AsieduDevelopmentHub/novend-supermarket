@@ -72,6 +72,11 @@ export function ReceiptPrintModePicker({
           );
         })}
       </div>
+      {value === "never" ? (
+        <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-2 text-xs">
+          Receipts are not printed after sales. Cashiers still see the sale confirmation.
+        </p>
+      ) : null}
     </div>
   );
 }

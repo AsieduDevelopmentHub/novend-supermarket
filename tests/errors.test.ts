@@ -10,6 +10,11 @@ describe("connectivity errors", () => {
   });
 
   it("maps failed fetch without leaking the raw error", () => {
-    expect(toUserMessage(new TypeError("Failed to fetch"))).toMatch(/offline|sync/i);
+    expect(toUserMessage(new TypeError("Failed to fetch"))).toMatch(/couldn't load|try again/i);
+    expect(toUserMessage(new TypeError("Failed to fetch"))).not.toMatch(/Failed to fetch/i);
+  });
+
+  it("maps a live network failure to a server message", () => {
+    expect(toUserMessage(new Error("NETWORK_ERROR"))).toMatch(/Unable to reach the server/i);
   });
 });

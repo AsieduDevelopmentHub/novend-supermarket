@@ -21,7 +21,7 @@ import { showError } from "@/lib/errors";
 import { ProductFormDialog } from "./product-form-dialog";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
 import { usePermissions } from "@/hooks/use-permissions";
-import { exportCsvStub } from "@/services";
+import { exportCsv } from "@/services";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useProductsList } from "@/hooks/use-offline-lists";
@@ -86,10 +86,10 @@ export function ProductsView() {
                 type="button"
                 variant="outline"
                 onClick={() =>
-                  void exportCsvStub(
+                  void exportCsv(
                     "products.csv",
                     rows.map((r) => ({ name: r.name, sku: r.sku, stock: r.stockQuantity })),
-                  ).then(() => toast.success("Export queued (stub)"))
+                  ).then(() => toast.success("Export downloaded"))
                 }
               >
                 <Download className="h-4 w-4" />

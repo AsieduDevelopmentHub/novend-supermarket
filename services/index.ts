@@ -30,10 +30,29 @@ export async function uploadFileStub(file: File) {
   };
 }
 
-export async function exportCsvStub(filename: string, rows: Record<string, unknown>[]) {
-  console.info("[export:stub]", filename, rows.length);
+export async function exportCsv(filename: string, rows: Record<string, unknown>[]) {
+  const headers = rows[0] ? Object.keys(rows[0]) : [];
+  const escape = (value: unknown) => {
+    const text = value == null ? "" : String(value);
+    if (/[",\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+    return text;
+  };
+  const lines = [
+    headers.join(","),
+    ...rows.map((row) => headers.map((key) => escape(row[key])).join(",")),
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
   return { filename, rows: rows.length };
 }
+
+/** @deprecated Use `exportCsv`. */
+export const exportCsvStub = exportCsv;
 
 export async function notifyStub(message: string) {
   console.info("[notify:stub]", message);

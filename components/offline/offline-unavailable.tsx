@@ -23,7 +23,7 @@ export function OfflineUnavailable({
       title={title}
       description={
         description ??
-        "This screen needs a connection. You can keep selling and browse cached catalog data while offline."
+        "This screen needs a connection. You can keep selling from the till."
       }
       action={
         <Button asChild variant="outline">

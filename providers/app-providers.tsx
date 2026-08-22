@@ -3,9 +3,9 @@
 import { ConvexAuthNextjsProvider } from "@convex-dev/auth/nextjs";
 import { ConvexReactClient } from "convex/react";
 import { ThemeProvider } from "next-themes";
-import { Toaster } from "sonner";
 import { ReactNode, useMemo } from "react";
 import Link from "next/link";
+import { Toaster } from "@/components/ui/sonner";
 import {
   AppearanceBootstrap,
   AppearanceProfileSync,
@@ -36,7 +36,7 @@ function MissingConvexConfig({ children }: { children: ReactNode }) {
           </div>
           {children}
         </div>
-        <Toaster richColors position="top-right" />
+        <Toaster />
       </AppearanceBootstrap>
     </ThemeProvider>
   );
@@ -63,7 +63,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <AppearanceBootstrap>
           <AppearanceProfileSync />
           <StartupSplash>{children}</StartupSplash>
-          <Toaster richColors position="top-right" />
+          <Toaster />
         </AppearanceBootstrap>
       </ThemeProvider>
     </ConvexAuthNextjsProvider>

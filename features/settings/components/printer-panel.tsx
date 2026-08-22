@@ -26,7 +26,7 @@ import {
   type TerminalPrinterConfig,
 } from "@/services/printing";
 import { toast } from "sonner";
-import { showError } from "@/lib/errors";
+import { showError, toUserMessage } from "@/lib/errors";
 import { formatOperatingSystem } from "@/lib/desktop";
 import { cn } from "@/lib/utils";
 import { Loader2, RefreshCw, Printer, Monitor, CheckCircle2, Info } from "lucide-react";
@@ -90,7 +90,7 @@ export function PrinterPanel() {
 
       const result = await discoverPrinters();
       if (!result.ok) {
-        toast.error(result.message || "Could not discover printers");
+        toast.error(toUserMessage(result.message, "Could not discover printers"));
         setDiscovered([]);
         return;
       }
@@ -164,7 +164,7 @@ export function PrinterPanel() {
       if (result.ok) {
         toast.success(result.message || "Test print sent");
       } else {
-        toast.error(result.message || "Test print failed");
+        toast.error(toUserMessage(result.message, "Test print failed"));
       }
     } finally {
       setPending(false);
@@ -202,7 +202,7 @@ export function PrinterPanel() {
               <Info className="h-4 w-4" />
               <AlertTitle>Hardware bridge unavailable</AlertTitle>
               <AlertDescription>
-                Restart the Princellen POS desktop app, then refresh this status.
+                Restart Novend POS, then refresh this status.
               </AlertDescription>
             </Alert>
           ) : null}
@@ -253,15 +253,12 @@ export function PrinterPanel() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Print behaviour</CardTitle>
-          <CardDescription>Applies after a sale is completed on this device.</CardDescription>
+          <CardDescription>
+            Hardware options for this terminal. Whether receipts print after a sale is set under
+            Receipt.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <ToggleRow
-            checked={config.autoPrint}
-            onChange={(v) => patch({ autoPrint: v })}
-            label="Auto-print after completing a sale"
-            hint="Skips the receipt preview when printing starts automatically."
-          />
           <ToggleRow
             checked={config.preferNative}
             onChange={(v) => patch({ preferNative: v })}

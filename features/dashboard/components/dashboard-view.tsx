@@ -251,17 +251,9 @@ export function DashboardView() {
   }
 
   const showOps = data.role === "administrator" || data.role === "manager";
-  const offlineNote = !online
-    ? "Showing this device's replica. Figures update as you sell and restock."
-    : null;
 
   return (
     <div className="min-w-0 space-y-6">
-      {offlineNote ? (
-        <p className="text-muted-foreground border-border bg-muted/40 rounded-lg border px-3 py-2 text-sm">
-          {offlineNote}
-        </p>
-      ) : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>

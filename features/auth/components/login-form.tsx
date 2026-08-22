@@ -6,7 +6,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { showError } from "@/lib/errors";
+import { SERVER_UNREACHABLE_MESSAGE, showError } from "@/lib/errors";
 import Image from "next/image";
 import { Mail } from "lucide-react";
 import { api } from "@/convex/_generated/api";
@@ -84,9 +84,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!isProvisioned) {
-      toast.error(
-        "System is not provisioned yet. Run the bootstrap CLI to create the administrator.",
-      );
+      toast.error("This business isn't set up yet. Contact Novend support.");
       return;
     }
 
@@ -121,9 +119,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     } catch (error) {
       const raw = error instanceof Error ? error.message : "";
       if (raw.toLowerCase().includes("auth provider discovery")) {
-        toast.error(
-          "Auth could not reach Convex. Check NEXT_PUBLIC_CONVEX_URL / SITE_URL and restart Next.js.",
-        );
+        showError(error, SERVER_UNREACHABLE_MESSAGE);
       } else if (raw.toLowerCase().includes("too many failed")) {
         showError(error, "Too many failed sign-in attempts.");
       } else {
@@ -161,10 +157,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
           <p className="text-muted-foreground text-sm">{APP_NAME}</p>
         </div>
         <p className="bg-muted text-muted-foreground rounded-lg px-3 py-3 text-left text-sm leading-relaxed">
-          No administrator exists yet. The system owner must create the first administrator with the
-          secure bootstrap CLI (
-          <code className="bg-card rounded px-1 text-xs">pnpm bootstrap:admin</code>
-          ). Public registration is disabled.
+          No administrator exists yet. Ask the system owner to finish setup, then try again.
         </p>
       </div>
     );

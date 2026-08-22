@@ -1,16 +1,25 @@
 import { toast } from "sonner";
 
-const CONNECTIVITY_MESSAGE =
-  "You're offline. Keep working on this device — we'll sync when the internet is back.";
+export const OFFLINE_MESSAGE = "You're offline. Please connect to the internet and try again.";
 
-const CONNECTIVITY_PATTERNS = [
+export const SERVER_UNREACHABLE_MESSAGE =
+  "Unable to reach the server. We'll sync automatically when you're back online.";
+
+const LOAD_FAILED_MESSAGE = "We couldn't load this data. Please try again.";
+
+const UNKNOWN_MESSAGE = "Something went wrong. Please try again.";
+
+const OFFLINE_PATTERNS = [
   "err_internet_disconnected",
   "err_network_changed",
+  "err_address_unreachable",
   "err_name_not_resolved",
+];
+
+const SERVER_PATTERNS = [
   "err_connection_reset",
   "err_connection_refused",
   "err_connection_timed_out",
-  "err_address_unreachable",
   "err_failed",
   "failed to fetch",
   "networkerror",
@@ -20,14 +29,25 @@ const CONNECTIVITY_PATTERNS = [
   "enotfound",
   "timed out",
   "timeout",
-  "offline",
   "net::",
+  "network_error",
 ];
 
+function rawErrorText(error: unknown): string {
+  return error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
+}
+
+function isOfflineError(error: unknown): boolean {
+  const lower = rawErrorText(error).toLowerCase();
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
+  if (OFFLINE_PATTERNS.some((pattern) => lower.includes(pattern))) return true;
+  return lower.includes("you are offline") || lower === "offline";
+}
+
 export function isConnectivityError(error: unknown): boolean {
-  const raw = error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
-  const lower = raw.toLowerCase();
-  if (CONNECTIVITY_PATTERNS.some((pattern) => lower.includes(pattern))) return true;
+  if (isOfflineError(error)) return true;
+  const lower = rawErrorText(error).toLowerCase();
+  if (SERVER_PATTERNS.some((pattern) => lower.includes(pattern))) return true;
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
     return lower.includes("fetch") || lower.includes("network") || lower.includes("convex");
   }
@@ -38,13 +58,17 @@ export function isConnectivityError(error: unknown): boolean {
  * Convert backend / Convex errors into short messages safe to show end users.
  * Full details are logged for debugging.
  */
-export function toUserMessage(
-  error: unknown,
-  fallback = "Something went wrong. Please try again.",
-): string {
+export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): string {
   console.error(error);
 
-  if (isConnectivityError(error)) return CONNECTIVITY_MESSAGE;
+  if (isOfflineError(error)) return OFFLINE_MESSAGE;
+  if (isConnectivityError(error)) {
+    const lower = rawErrorText(error).toLowerCase();
+    if (lower.includes("failed to fetch") || lower.includes("load failed")) {
+      return LOAD_FAILED_MESSAGE;
+    }
+    return SERVER_UNREACHABLE_MESSAGE;
+  }
 
   const raw = error instanceof Error ? error.message : String(error ?? "");
   if (!raw.trim()) return fallback;
@@ -88,16 +112,19 @@ export function toUserMessage(
   ) {
     return "You don’t have permission to do that.";
   }
+  if (lower.includes("auth provider discovery")) {
+    return SERVER_UNREACHABLE_MESSAGE;
+  }
   if (
     lower.includes("unauthenticated") ||
     lower.includes("not authenticated") ||
     lower.includes("signed in") ||
-    lower.includes("auth provider discovery") ||
     lower.includes("missing session")
   ) {
     return "Please sign in again to continue.";
   }
-  if (isConnectivityError(message)) return CONNECTIVITY_MESSAGE;
+  if (isOfflineError(message)) return OFFLINE_MESSAGE;
+  if (isConnectivityError(message)) return SERVER_UNREACHABLE_MESSAGE;
   if (
     lower.includes("argumentvalidation") ||
     lower.includes("validator") ||
@@ -136,7 +163,12 @@ export function toUserMessage(
   return message;
 }
 
-/** Show a sanitized error toast (logs the raw error). */
+/** Show a sanitized error toast (logs the raw error). Repeats replace instead of stacking. */
 export function showError(error: unknown, fallback?: string) {
-  toast.error(toUserMessage(error, fallback));
+  const message = toUserMessage(error, fallback);
+  const network = isConnectivityError(error) || isOfflineError(error);
+  toast.error(message, {
+    id: network ? "network" : message,
+    duration: 6000,
+  });
 }

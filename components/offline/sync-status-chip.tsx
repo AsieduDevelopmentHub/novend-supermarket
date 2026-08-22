@@ -52,7 +52,7 @@ export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
           : "Synced";
 
   const detail = !online
-    ? "Working from this device"
+    ? "On this device"
     : needsReview
       ? lastError || "Tap to review queue"
       : lastSyncAt

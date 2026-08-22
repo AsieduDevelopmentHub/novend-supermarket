@@ -30,7 +30,7 @@ import {
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { ScanBarcodeCameraDialog } from "@/components/hardware/scan-barcode-camera-dialog";
 import { toast } from "sonner";
-import { showError } from "@/lib/errors";
+import { showError, toUserMessage } from "@/lib/errors";
 import { formatOperatingSystem } from "@/lib/desktop";
 import { cn } from "@/lib/utils";
 import { Loader2, RefreshCw, ScanBarcode, CheckCircle2, Info, Camera } from "lucide-react";
@@ -111,7 +111,7 @@ export function ScannerPanel() {
       const result = await discoverScanners();
       setDiscovered(result.scanners);
       if (!result.ok) {
-        toast.error(result.message || "Discover failed");
+        toast.error(result.message ? toUserMessage(result.message, "Could not find scanners") : "Could not find scanners");
         return;
       }
       toast.success(result.message || "Devices refreshed");

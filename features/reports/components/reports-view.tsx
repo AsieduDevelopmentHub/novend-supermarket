@@ -126,7 +126,7 @@ export function ReportsView() {
     }
     setRangeError(null);
     setApplied({ start, end });
-    toast.success(online ? "Report generated" : "Offline report from this device");
+    toast.success("Report generated");
   }
 
   function metricHref(metric: string) {
@@ -148,11 +148,6 @@ export function ReportsView() {
   return (
     <div className="space-y-6">
       <PageHeader title="Reports" description="Sales performance over a selected period." />
-      {!online ? (
-        <p className="text-muted-foreground border-border bg-muted/40 rounded-lg border px-3 py-2 text-sm">
-          Offline report uses sales completed on this device only (including provisional invoices).
-        </p>
-      ) : null}
 
       <Card>
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">

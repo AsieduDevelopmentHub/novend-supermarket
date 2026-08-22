@@ -113,8 +113,8 @@ export function AnalyticsMetricDetailView({ metric }: { metric: string }) {
           }
         />
         <EmptyState
-          title="Using this device’s copy"
-          description="Open Analytics for the full local P&L. Detailed metric tables sync when you reconnect."
+          title="Open Analytics for this range"
+          description="The summary on Analytics is available on this device. Row-level tables need a connection."
         />
       </div>
     );

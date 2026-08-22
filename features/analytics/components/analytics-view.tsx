@@ -26,7 +26,6 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { useOfflineAnalytics } from "@/hooks/use-offline-analytics";
 import { useLocalExpenses } from "@/hooks/use-offline-lists";
 import { persistBusinessWrite, queuedSaveMessage, queueRemoveExpense } from "@/lib/offline/replica-writes";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatCurrency, formatNumber } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { expenseCategoryLabel, type ExpenseCategory } from "../constants";
@@ -279,13 +278,6 @@ export function AnalyticsView() {
 
   return (
     <div className="space-y-6">
-      {!online ? (
-        <Alert>
-          <AlertDescription>
-            Offline analytics from this device. Changes sync when you reconnect.
-          </AlertDescription>
-        </Alert>
-      ) : null}
       <PageHeader
         title="Analytics"
         description="Financial performance, expenses, and profit & loss."

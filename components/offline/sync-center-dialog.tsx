@@ -200,7 +200,7 @@ export function SyncCenterDialog() {
               </p>
               <p className="text-muted-foreground truncate text-xs">
                 {!online
-                  ? "Offline — events stay on this device until you reconnect."
+                  ? "Waiting until you're back online."
                   : lastSyncAt
                     ? `Last cloud refresh ${formatDateTime(lastSyncAt)}`
                     : "Not synced yet"}
