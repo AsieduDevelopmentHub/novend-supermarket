@@ -365,17 +365,9 @@ export type OrdersListOptions = {
 
 export function useOrdersList(options: OrdersListOptions) {
   const { online, serveLocal, ready, lastSyncAt } = useMirrorListGate();
-  const forceRemote = Boolean(
-    options.branchId ||
-      options.cashierId ||
-      options.startDate !== undefined ||
-      options.endDate !== undefined ||
-      options.minTotal !== undefined ||
-      options.maxTotal !== undefined ||
-      options.paymentMethod ||
-      options.returnStatus,
-  );
-  const useLocal = !forceRemote && serveLocal;
+  const [local, setLocal] = useState<Awaited<ReturnType<typeof listLocalOrders>>>(null);
+  const replicaEmpty = local !== null && local.length === 0;
+  const useLocal = serveLocal && !replicaEmpty;
   const useRemote = online && ready && !useLocal;
   const remote = useQuery(
     api.sales.listOrders,
@@ -393,7 +385,6 @@ export function useOrdersList(options: OrdersListOptions) {
         }
       : "skip",
   );
-  const [local, setLocal] = useState<Awaited<ReturnType<typeof listLocalOrders>>>(null);
 
   useEffect(() => {
     let cancelled = false;
