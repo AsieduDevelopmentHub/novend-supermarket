@@ -170,6 +170,8 @@ export type CompleteSaleOutboxPayload = {
   }>;
   discount: number;
   paymentMethod: "cash" | "card" | "mobile_money";
+  /** Working branch for this sale (admin may choose; others use assigned). */
+  branchId?: string;
   /** Local held sale id if checkout came from a hold. */
   localHeldSaleId?: string;
   serverHeldSaleId?: string;

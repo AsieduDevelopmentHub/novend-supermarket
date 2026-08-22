@@ -106,7 +106,7 @@ export const getSnapshot = query({
 
     let orderSales = recentSales.filter((s) => s.status === "completed");
     if (profile.role === "cashier") {
-      orderSales = orderSales.filter((s) => s.cashierId === userId && s.branchId === branchId);
+      orderSales = orderSales.filter((s) => s.cashierId === userId);
     } else if (profile.role === "manager") {
       orderSales = orderSales.filter((s) => s.branchId === branchId);
     }

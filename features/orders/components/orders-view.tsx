@@ -39,11 +39,11 @@ import {
 import { Eye, ShoppingBag } from "lucide-react";
 
 export function OrdersView() {
-  const { isAdmin, isCashier, branchId: myBranchId, branchName } = usePermissions();
+  const { isAdmin, isManager, isCashier, branchId: myBranchId, branchName } = usePermissions();
   const { user } = useCurrentUser();
   const [filters, setFilters] = useState(defaultOrdersFilters);
   const branches = useBranchesList(false);
-  const staff = useUsersList("");
+  const staff = useUsersList("", isAdmin || isManager);
 
   const dateRange = useMemo(
     () => rangeForDatePreset(filters.datePreset, filters.customStart, filters.customEnd),

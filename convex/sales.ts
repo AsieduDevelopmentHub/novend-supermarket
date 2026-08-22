@@ -233,9 +233,10 @@ export const getReceipt = query({
     ]);
     const sale = await ctx.db.get(args.saleId);
     if (!sale || sale.organizationId !== organizationId) return null;
-    if (sale.branchId) assertBranchAccess(profile, sale.branchId);
-    if (profile.role === "cashier" && sale.cashierId !== userId) {
-      throw new Error("Forbidden");
+    if (profile.role === "cashier") {
+      if (sale.cashierId !== userId) throw new Error("Forbidden");
+    } else if (sale.branchId) {
+      assertBranchAccess(profile, sale.branchId);
     }
 
     const receipt = await ctx.db
@@ -367,9 +368,7 @@ export const completeSale = mutation({
         : await getBranchQuantity(ctx, branchId, product._id);
       if (available < item.quantity) {
         throw new Error(
-          productTracksExpiry(product)
-            ? `Insufficient sellable stock for ${product.name}`
-            : `Insufficient stock for ${product.name}`,
+          `Not enough stock for ${product.name}. Available: ${available}.`,
         );
       }
       const gross = roundMoney(product.sellingPrice * item.quantity);
@@ -550,7 +549,12 @@ export const listOrders = query({
       "manager",
       "cashier",
     ]);
-    const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
+    if (profile.role === "cashier" && args.branchId && args.branchId !== profile.branchId) {
+      throw new Error("Forbidden: branch access denied");
+    }
+    // Cashiers see their own sales even if an older checkout stored the wrong branch.
+    const branchFilter =
+      profile.role === "cashier" ? null : resolveBranchFilter(profile, args.branchId ?? null);
     const limit = Math.min(args.limit ?? 100, 200);
 
     if (
@@ -713,9 +717,10 @@ export const getOrder = query({
     ]);
     const sale = await ctx.db.get(args.id);
     if (!sale || sale.organizationId !== organizationId) return null;
-    if (sale.branchId) assertBranchAccess(profile, sale.branchId);
-    if (profile.role === "cashier" && sale.cashierId !== userId) {
-      throw new Error("Forbidden");
+    if (profile.role === "cashier") {
+      if (sale.cashierId !== userId) throw new Error("Forbidden");
+    } else if (sale.branchId) {
+      assertBranchAccess(profile, sale.branchId);
     }
 
     const items = await ctx.db

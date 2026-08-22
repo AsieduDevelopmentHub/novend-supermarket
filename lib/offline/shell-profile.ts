@@ -22,7 +22,7 @@ function isAppRole(value: string | null): value is AppRole {
 /** Persist the signed-in shell profile into Dexie for offline remounts / navigation. */
 export async function saveShellProfile(profile: ShellProfile): Promise<void> {
   if (profile.organizationId) {
-    bindOfflineOrganization(profile.organizationId);
+    bindOfflineOrganization(profile.organizationId, profile.userId);
   }
   const db = await getOfflineDb();
   if (!db) return;
@@ -92,7 +92,7 @@ export async function loadShellProfile(): Promise<ShellProfile | null> {
   }
 
   if (organizationId) {
-    bindOfflineOrganization(organizationId);
+    bindOfflineOrganization(organizationId, userId);
   }
 
   return {

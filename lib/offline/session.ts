@@ -25,7 +25,7 @@ export function markOfflineSession(hint: OfflineSessionHint): void {
     // private mode / quota
   }
   if (hint.organizationId) {
-    bindOfflineOrganization(hint.organizationId);
+    bindOfflineOrganization(hint.organizationId, hint.userId);
   }
 }
 

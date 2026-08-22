@@ -68,6 +68,7 @@ export async function completeSaleLocally(input: {
   customerId?: string;
   customerName?: string;
   customerPhone?: string | null;
+  branchId?: string;
   localHeldSaleId?: string;
   serverHeldSaleId?: string;
 }): Promise<{
@@ -87,7 +88,8 @@ export async function completeSaleLocally(input: {
 
   const cashierId = (await getMeta(db, META_KEYS.profileUserId)) ?? "unknown";
   const cashierName = (await getMeta(db, META_KEYS.profileName)) ?? "Cashier";
-  const branchId = (await getMeta(db, META_KEYS.profileBranchId)) ?? undefined;
+  const assignedBranchId = (await getMeta(db, META_KEYS.profileBranchId)) ?? undefined;
+  const branchId = input.branchId ?? assignedBranchId;
   const branchName = (await getMeta(db, META_KEYS.profileBranchName)) ?? null;
   const print = await loadPrintSnapshot(db);
   const clientOperationId = newClientId("sale");
@@ -113,9 +115,13 @@ export async function completeSaleLocally(input: {
         if (!product || product.status !== "active") {
           throw new Error(`Product unavailable: ${item.name}`);
         }
-        const available = product.sellableQuantity ?? product.stockQuantity;
+        const available = product.tracksExpiry
+          ? (product.sellableQuantity ?? 0)
+          : (product.sellableQuantity ?? product.stockQuantity);
         if (available < item.quantity) {
-          throw new Error(`Insufficient stock for ${product.name}`);
+          throw new Error(
+            `Not enough stock for ${product.name}. Available: ${available}.`,
+          );
         }
         const gross = roundMoney(product.sellingPrice * item.quantity);
         if (!Number.isFinite(item.discount) || item.discount < 0 || item.discount - gross > 0.001) {
@@ -225,6 +231,7 @@ export async function completeSaleLocally(input: {
         })),
         discount: cartDiscount,
         paymentMethod: input.paymentMethod,
+        branchId,
         localHeldSaleId: input.localHeldSaleId,
         serverHeldSaleId: input.serverHeldSaleId,
       };

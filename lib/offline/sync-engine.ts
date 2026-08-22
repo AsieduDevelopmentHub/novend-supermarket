@@ -42,6 +42,7 @@ export type CompleteSaleMutator = (args: {
   paymentMethod: "cash" | "card" | "mobile_money";
   heldSaleId?: Id<"heldSales">;
   clientOperationId?: string;
+  branchId?: Id<"branches">;
 }) => Promise<{
   saleId: Id<"sales">;
   invoiceNumber: string;
@@ -235,6 +236,7 @@ export async function drainOutbox(options: {
             paymentMethod: payload.paymentMethod,
             heldSaleId: payload.serverHeldSaleId as Id<"heldSales"> | undefined,
             clientOperationId: claimed.clientOperationId,
+            branchId: payload.branchId as Id<"branches"> | undefined,
           });
           await markOutboxSynced(db, claimed.id);
           await markLocalSaleSynced(payload.localSaleId, {

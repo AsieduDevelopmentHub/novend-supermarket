@@ -110,7 +110,7 @@ export function SalesView() {
       : (myBranchId ?? branches?.[0]?.id ?? null)
     : myBranchId;
 
-  const { online, flushOutbox, dexieAvailable } = useOfflineStatus();
+  const { online, dexieAvailable } = useOfflineStatus();
   const {
     products: catalog,
     loading: catalogLoading,
@@ -197,11 +197,15 @@ export function SalesView() {
     stockQuantity: number;
     isExpiring?: boolean;
   }) {
+    if (product.stockQuantity < 1) {
+      toast.error(`Not enough stock for ${product.name}`);
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((item) => item.productId === product.id);
       if (existing) {
         if (existing.quantity + 1 > product.stockQuantity) {
-          toast.error("Not enough stock");
+          toast.error(`Not enough stock for ${product.name}. Available: ${product.stockQuantity}.`);
           return prev;
         }
         return prev.map((item) =>
@@ -228,7 +232,7 @@ export function SalesView() {
     stockQuantity: number;
   }) {
     if (product.stockQuantity <= 0) {
-      toast.error("Not enough stock");
+      toast.error(`Not enough stock for ${product.name}`);
       return;
     }
     addToCart(product);
@@ -307,7 +311,7 @@ export function SalesView() {
 
     const quantity = Math.min(parsed, stock);
     if (parsed > stock) {
-      toast.error("Not enough stock");
+      toast.error(`Not enough stock. Available: ${stock}.`);
     }
     setCart((prev) =>
       prev.map((row) => (row.productId === productId ? { ...row, quantity } : row)),
@@ -357,7 +361,7 @@ export function SalesView() {
           discount: item.discount,
         })),
         discount: cartDiscount,
-        branchId: isAdmin ? (workingBranchId ?? undefined) : undefined,
+        branchId: (isAdmin ? workingBranchId : myBranchId) ?? undefined,
       });
       setCart([]);
       clearCartDiscount();
@@ -396,34 +400,53 @@ export function SalesView() {
 
   async function onPay() {
     if (!canCheckout) return;
+    const saleBranchId = (isAdmin ? workingBranchId : myBranchId) ?? undefined;
+    if (!saleBranchId) {
+      toast.error("Select a branch before completing this sale");
+      return;
+    }
+    const oversold = cart.find((item) => {
+      const available = catalog.find((p) => p.id === item.productId)?.stockQuantity ?? 0;
+      return item.quantity > available;
+    });
+    if (oversold) {
+      const available = catalog.find((p) => p.id === oversold.productId)?.stockQuantity ?? 0;
+      toast.error(`Not enough stock for ${oversold.name}. Available: ${available}.`);
+      return;
+    }
+    const saleInput = {
+      customerId: customer?.id as Id<"customers"> | undefined,
+      customerName: customer?.name,
+      items: cart.map((item) => ({
+        productId: item.productId as Id<"products">,
+        quantity: item.quantity,
+        discount: item.discount,
+      })),
+      discount: cartDiscount,
+      paymentMethod: "cash" as const,
+      branchId: saleBranchId,
+    };
     try {
-      if (!dexieAvailable) {
-        if (!online) {
-          toast.error("Local storage unavailable — cannot complete sale offline");
-          return;
-        }
-        const result = await completeSaleRemote({
-          customerId: customer?.id as Id<"customers"> | undefined,
-          customerName: customer?.name,
-          items: cart.map((item) => ({
-            productId: item.productId as Id<"products">,
-            quantity: item.quantity,
-            discount: item.discount,
-          })),
-          discount: cartDiscount,
-          paymentMethod: "cash",
-          branchId: isAdmin ? (workingBranchId ?? undefined) : undefined,
-        });
+      if (online) {
+        const result = await completeSaleRemote(saleInput);
         setCart([]);
         clearCartDiscount();
         setCustomer(null);
         setCustomerQuery("");
         setCheckoutOpen(false);
+        await refreshLocal();
         toast.success(`Sale complete · ${result.invoiceNumber}`);
         await triggerPrint(result.receiptPayload as ReceiptPayload);
         return;
       }
-
+      if (isAdmin && myBranchId && saleBranchId !== myBranchId) {
+        toast.error("Connect to the internet to sell from another branch.");
+        return;
+      }
+      if (!dexieAvailable) {
+        toast.error("Local storage unavailable — cannot complete sale offline");
+        return;
+      }
       const result = await completeSaleLocally({
         items: cart,
         discount: cartDiscount,
@@ -431,6 +454,7 @@ export function SalesView() {
         customerId: customer?.id,
         customerName: customer?.name,
         customerPhone: customer?.phone,
+        branchId: saleBranchId,
       });
       setCart([]);
       clearCartDiscount();
@@ -438,15 +462,8 @@ export function SalesView() {
       setCustomerQuery("");
       setCheckoutOpen(false);
       await refreshLocal();
-      toast.success(
-        online
-          ? `Sale complete · ${result.invoiceNumber}`
-          : `Sale saved offline · ${result.invoiceNumber}`,
-      );
+      toast.success(`Sale saved offline · ${result.invoiceNumber}`);
       await triggerPrint(result.receiptPayload);
-      if (online) {
-        void flushOutbox();
-      }
     } catch (error) {
       showError(error, "Payment failed");
     }

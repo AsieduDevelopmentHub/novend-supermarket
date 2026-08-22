@@ -53,8 +53,10 @@ export type NovendOfflineDb = Dexie & {
 let dbInstance: NovendOfflineDb | null = null;
 let dbFailed = false;
 let boundOrganizationId: string | null = null;
+let boundUserId: string | null = null;
 
 const ORG_STORAGE_KEY = "novend.offlineOrganizationId";
+const USER_STORAGE_KEY = "novend.offlineUserId";
 
 function readStoredOrganizationId(): string | undefined {
   if (boundOrganizationId) return boundOrganizationId;
@@ -68,18 +70,40 @@ function readStoredOrganizationId(): string | undefined {
   return undefined;
 }
 
-/** Bind IndexedDB to the session organization. Switching orgs closes the previous replica. */
-export function bindOfflineOrganization(organizationId: string) {
+function readStoredUserId(): string | undefined {
+  if (boundUserId) return boundUserId;
+  if (typeof window === "undefined") return undefined;
+  try {
+    const stored = window.localStorage.getItem(USER_STORAGE_KEY);
+    if (stored) return stored;
+  } catch {
+    /* private mode */
+  }
+  return undefined;
+}
+
+function replicaDbName(organizationId?: string, userId?: string) {
+  const org = organizationId ?? "anon";
+  return userId ? `novend-offline-${org}-${userId}` : `novend-offline-${org}`;
+}
+
+/** Bind IndexedDB to the session organization + user so cashiers don't share an admin replica. */
+export function bindOfflineOrganization(organizationId: string, userId?: string) {
   boundOrganizationId = organizationId;
   dbFailed = false;
   if (typeof window !== "undefined") {
     try {
       window.localStorage.setItem(ORG_STORAGE_KEY, organizationId);
+      if (userId) {
+        boundUserId = userId;
+        window.localStorage.setItem(USER_STORAGE_KEY, userId);
+      }
     } catch {
       /* private mode / quota */
     }
   }
-  const expectedName = `novend-offline-${organizationId}`;
+  if (userId) boundUserId = userId;
+  const expectedName = replicaDbName(organizationId, userId ?? readStoredUserId());
   if (dbInstance && dbInstance.name !== expectedName) {
     dbInstance.close();
     dbInstance = null;
@@ -89,9 +113,11 @@ export function bindOfflineOrganization(organizationId: string) {
 /** Drop the session org binding (sign-out). Does not delete the org replica. */
 export function unbindOfflineOrganization() {
   boundOrganizationId = null;
+  boundUserId = null;
   if (typeof window !== "undefined") {
     try {
       window.localStorage.removeItem(ORG_STORAGE_KEY);
+      window.localStorage.removeItem(USER_STORAGE_KEY);
     } catch {
       /* ignore */
     }
@@ -102,9 +128,8 @@ export function unbindOfflineOrganization() {
   }
 }
 
-export function createOfflineDb(organizationId?: string): NovendOfflineDb {
-  const suffix = organizationId ? `-${organizationId}` : "anon";
-  const db = new Dexie(`novend-offline-${suffix}`) as NovendOfflineDb;
+export function createOfflineDb(organizationId?: string, userId?: string): NovendOfflineDb {
+  const db = new Dexie(replicaDbName(organizationId, userId)) as NovendOfflineDb;
   db.version(1).stores({
     meta: "key",
     products: "id, name, sku, status, categoryId",
@@ -209,14 +234,15 @@ export async function getOfflineDb(): Promise<PrincellenOfflineDb | null> {
 
   try {
     const organizationId = readStoredOrganizationId();
-    const expectedName = `novend-offline-${organizationId ?? "anon"}`;
+    const userId = readStoredUserId();
+    const expectedName = replicaDbName(organizationId, userId);
     if (dbInstance && dbInstance.name !== expectedName) {
       dbInstance.close();
       dbInstance = null;
     }
     if (dbInstance) return dbInstance;
 
-    const db = createOfflineDb(organizationId);
+    const db = createOfflineDb(organizationId, userId);
     await db.open();
     dbInstance = db;
     return db;

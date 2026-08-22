@@ -1,4 +1,4 @@
-import { getOfflineDb } from "./db";
+import { getMeta, getOfflineDb, META_KEYS } from "./db";
 import type { MirroredCategory, MirroredCustomer, MirroredProduct } from "./types";
 
 export type MirroredProductRow = MirroredProduct & {
@@ -221,6 +221,15 @@ export async function listLocalOrders(filters: LocalOrderFilters = {}) {
     })),
   ];
 
+  const role = await getMeta(db, META_KEYS.profileRole);
+  const sessionUserId = await getMeta(db, META_KEYS.profileUserId);
+  const sessionBranchId = await getMeta(db, META_KEYS.profileBranchId);
+  if (role === "cashier") {
+    rows = rows.filter((r) => !sessionUserId || r.cashierId === sessionUserId);
+  } else if (role === "manager" && sessionBranchId) {
+    rows = rows.filter((r) => !r.branchId || r.branchId === sessionBranchId);
+  }
+
   if (filters.branchId) {
     rows = rows.filter((r) => !r.branchId || r.branchId === filters.branchId);
   }
@@ -346,6 +355,11 @@ export async function listMirroredBranches(includeInactive = false) {
   try {
     let rows = await db.branches.toArray();
     if (!includeInactive) rows = rows.filter((row) => row.status === "active");
+    const role = await getMeta(db, META_KEYS.profileRole);
+    const sessionBranchId = await getMeta(db, META_KEYS.profileBranchId);
+    if (role && role !== "administrator" && sessionBranchId) {
+      rows = rows.filter((row) => row.id === sessionBranchId);
+    }
     return rows.sort((a, b) => a.name.localeCompare(b.name));
   } catch {
     return [];

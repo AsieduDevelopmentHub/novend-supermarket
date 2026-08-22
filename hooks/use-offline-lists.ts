@@ -592,7 +592,7 @@ export function useBranchesList(includeInactive = false) {
   return mappedLocal ?? remote;
 }
 
-export function useUsersList(search: string) {
+export function useUsersList(search: string, enabled = true) {
   const { online, serveLocal, ready } = useMirrorListGate();
   const local = useMirrorRows(() => listMirroredUsers(search), [search]);
   const mappedLocal = local?.map((row) => ({
@@ -607,11 +607,12 @@ export function useUsersList(search: string) {
     lastDevice: row.lastDevice ?? null,
   }));
   const replicaEmpty = local !== null && local.length === 0;
-  const useRemote = online && ready && (!serveLocal || replicaEmpty);
+  const useRemote = enabled && online && ready && (!serveLocal || replicaEmpty);
   const remote = useQuery(
     api.users.list,
     useRemote ? { search: search || undefined } : "skip",
   );
+  if (!enabled) return mappedLocal;
   if (serveLocal && mappedLocal && mappedLocal.length > 0) return mappedLocal;
   if (online && remote !== undefined) return remote;
   return mappedLocal ?? remote;

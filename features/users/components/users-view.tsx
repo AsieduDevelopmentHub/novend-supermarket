@@ -57,7 +57,7 @@ export function UsersView() {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<Id<"profiles"> | null>(null);
   const [creating, setCreating] = useState(false);
-  const users = useUsersList(search);
+  const users = useUsersList(search, canManageUsers);
   const branches = useBranchesList(false);
   const updateProfile = useMutation(api.users.updateProfile);
   const createUserAccount = useAction(api.users.createUserAccount);

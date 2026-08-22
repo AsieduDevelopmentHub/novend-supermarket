@@ -139,7 +139,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       return;
     }
     if ("organizationId" in user && user.organizationId) {
-      bindOfflineOrganization(String(user.organizationId));
+      bindOfflineOrganization(String(user.organizationId), String(user.userId));
     }
     const next: ShellProfile = {
       userId: String(user.userId),
