@@ -1,0 +1,67 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { MarketingSitePage } from "@/features/marketing/components/marketing-site-page";
+import { sitePages } from "@/features/marketing/site-content";
+import { APP_BRAND } from "@/constants/app";
+
+export const metadata: Metadata = {
+  title: "Help Center",
+  description: `Get help with ${APP_BRAND} sales, inventory, devices, and plans.`,
+};
+
+export default function HelpCenterPage() {
+  const page = sitePages.help;
+
+  return (
+    <MarketingSitePage badge={page.badge} title={page.title} subtitle={page.subtitle}>
+      <div className="space-y-8">
+        {page.categories.map((category) => (
+          <section key={category.title} className="landing-shadow-card overflow-hidden rounded-3xl border border-slate-200/80 bg-white px-4 sm:px-6">
+            <h2 className="text-[#111827] border-b border-slate-100 py-5 text-lg font-semibold tracking-tight">
+              {category.title}
+            </h2>
+            <Accordion type="single" collapsible className="w-full">
+              {category.items.map((item, index) => (
+                <AccordionItem
+                  key={item.q}
+                  value={`${category.title}-${index}`}
+                  className="border-slate-100 last:border-b-0"
+                >
+                  <AccordionTrigger className="text-[#111827] py-5 text-left text-base font-medium hover:no-underline">
+                    {item.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-slate-600 pb-5 text-sm leading-relaxed">
+                    {item.a}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </section>
+        ))}
+      </div>
+
+      <aside className="landing-shadow-card mt-10 rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8">
+        <h2 className="text-[#111827] text-xl font-semibold tracking-tight">
+          {page.supportCta.title}
+        </h2>
+        <p className="text-slate-600 mt-2 text-sm leading-relaxed">{page.supportCta.detail}</p>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Button asChild>
+            <a href={page.supportCta.mailto}>Contact Support</a>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/docs">Browse documentation</Link>
+          </Button>
+        </div>
+        <p className="text-slate-500 mt-4 text-xs">{page.supportCta.email}</p>
+      </aside>
+    </MarketingSitePage>
+  );
+}

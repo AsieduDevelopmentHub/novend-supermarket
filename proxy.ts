@@ -15,6 +15,9 @@ const isPublicRoute = createRouteMatcher([
   "/signup",
   "/billing/callback",
   "/api/auth(.*)",
+  "/docs(.*)",
+  "/privacy",
+  "/terms",
 ]);
 const isPlatformRoute = createRouteMatcher(["/platform(.*)"]);
 const isAdminOnly = createRouteMatcher(["/branches(.*)"]);
