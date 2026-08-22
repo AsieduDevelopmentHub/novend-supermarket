@@ -270,13 +270,25 @@ export function useCategoriesList() {
 export function useMirroredProduct(productId: string | null, branchId?: Id<"branches"> | null) {
   const { lastSyncAt } = useOfflineStatus();
   const [product, setProduct] = useState<MirroredProductRow | null | undefined>(undefined);
+  const [resolvedId, setResolvedId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!productId) return;
+    if (!productId) {
+      setProduct(null);
+      setResolvedId(null);
+      return;
+    }
+
+    setProduct(undefined);
+    setResolvedId(null);
+
     let cancelled = false;
     const load = () => {
       void getMirroredProduct(productId, branchId ?? null).then((row) => {
-        if (!cancelled) setProduct(row);
+        if (!cancelled) {
+          setProduct(row);
+          setResolvedId(productId);
+        }
       });
     };
     load();
@@ -288,6 +300,7 @@ export function useMirroredProduct(productId: string | null, branchId?: Id<"bran
   }, [productId, branchId, lastSyncAt]);
 
   if (!productId) return null;
+  if (resolvedId !== productId) return undefined;
   return product;
 }
 

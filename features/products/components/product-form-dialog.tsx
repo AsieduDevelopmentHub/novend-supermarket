@@ -73,36 +73,42 @@ export function ProductFormDialog({ open, onOpenChange, productId }: Props) {
   const online = useConnectivity();
   const categories = useCategoriesList();
   const mirrored = useMirroredProduct(open ? (productId as string | null) : null);
+  const mirroredRow =
+    mirrored && productId && mirrored.id === productId ? mirrored : mirrored === undefined ? undefined : null;
+
   const remoteProduct = useQuery(
     api.products.getProduct,
-    open && productId && online && mirrored === null ? { id: productId } : "skip",
+    open && productId && online && mirroredRow === null ? { id: productId } : "skip",
   );
 
-  const mappedLocal: ProductDetails | null =
-    mirrored == null
-      ? null
-      : {
-          _id: mirrored.id as Id<"products">,
-          _creationTime: mirrored.updatedAt,
-          name: mirrored.name,
-          sku: mirrored.sku,
-          barcode: mirrored.barcode,
-          categoryId: mirrored.categoryId as Id<"categories">,
-          sellingPrice: mirrored.sellingPrice,
-          costPrice: mirrored.costPrice,
-          stockQuantity: mirrored.stockQuantity,
-          unit: mirrored.unit,
-          lowStockThreshold: mirrored.lowStockThreshold,
-          tracksExpiry: mirrored.tracksExpiry,
-          expiryAlertDays: mirrored.expiryAlertDays ?? undefined,
-          status: mirrored.status === "inactive" ? "inactive" : "active",
-          imageUrl: mirrored.imageUrl,
+  const mappedLocal: ProductDetails | null | undefined =
+    mirroredRow === undefined
+      ? undefined
+      : mirroredRow === null
+        ? null
+        : {
+          _id: mirroredRow.id as Id<"products">,
+          _creationTime: mirroredRow.updatedAt,
+          name: mirroredRow.name,
+          sku: mirroredRow.sku,
+          barcode: mirroredRow.barcode,
+          categoryId: mirroredRow.categoryId as Id<"categories">,
+          sellingPrice: mirroredRow.sellingPrice,
+          costPrice: mirroredRow.costPrice,
+          stockQuantity: mirroredRow.stockQuantity,
+          unit: mirroredRow.unit,
+          lowStockThreshold: mirroredRow.lowStockThreshold,
+          tracksExpiry: mirroredRow.tracksExpiry,
+          expiryAlertDays: mirroredRow.expiryAlertDays ?? undefined,
+          status: mirroredRow.status === "inactive" ? "inactive" : "active",
+          imageUrl: mirroredRow.imageUrl,
         };
 
-  const product = mappedLocal ?? (remoteProduct as ProductDetails | null | undefined);
+  const product = mappedLocal === undefined ? undefined : (mappedLocal ?? (remoteProduct as ProductDetails | null | undefined));
   const localReady = !productId || mirrored !== undefined;
-  const waitingRemote = Boolean(productId && mirrored === null && online && remoteProduct === undefined);
-  const ready = open && categories !== undefined && localReady && !waitingRemote;
+  const waitingRemote = Boolean(productId && mirroredRow === null && online && remoteProduct === undefined);
+  const editDataReady = !productId || product !== undefined;
+  const ready = open && categories !== undefined && localReady && !waitingRemote && editDataReady;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -114,7 +120,7 @@ export function ProductFormDialog({ open, onOpenChange, productId }: Props) {
           <LoadingState label="Loading form…" />
         ) : (
           <ProductFormBody
-            key={`${productId ?? "new"}-${product?._creationTime ?? "create"}`}
+            key={productId ?? "new"}
             productId={productId}
             initialProduct={(product as ProductDetails | null) ?? null}
             categories={categories ?? []}

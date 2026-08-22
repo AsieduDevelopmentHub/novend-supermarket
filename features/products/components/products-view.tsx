@@ -353,7 +353,14 @@ export function ProductsView() {
             onConfirm={confirmArchive}
           />
 
-          <ProductFormDialog open={open} onOpenChange={setOpen} productId={editingId} />
+          <ProductFormDialog
+            open={open}
+            onOpenChange={(next) => {
+              setOpen(next);
+              if (!next) setEditingId(null);
+            }}
+            productId={editingId}
+          />
         </>
       ) : null}
     </div>
