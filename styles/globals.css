@@ -2397,3 +2397,73 @@ button.landing-feature-frame {
     animation: none !important;
   }
 }
+
+/* —— Section 6: Pricing & plans —— */
+.landing-price-carousel {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-top: 0.25rem;
+  padding-bottom: 0.75rem;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.landing-price-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .landing-price-carousel {
+    display: grid;
+    overflow: visible;
+    padding-top: 0.75rem; /* room for overhanging plan badges */
+    padding-bottom: 0;
+    scroll-snap-type: none;
+  }
+}
+
+.landing-price-card-v2:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 24px 48px -22px rgba(15, 23, 42, 0.18),
+    0 10px 20px -12px rgba(56, 189, 248, 0.16);
+}
+
+.landing-price-card-featured:hover {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 28px 56px -20px rgba(56, 189, 248, 0.35),
+    0 12px 24px -12px rgba(15, 23, 42, 0.12);
+}
+
+.landing-price-card-lifetime:hover {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 24px 48px -22px rgba(180, 83, 9, 0.22),
+    0 10px 20px -12px rgba(15, 23, 42, 0.1);
+}
+
+.landing-capacity-fill {
+  width: 0%;
+  transition: none;
+}
+
+.landing-capacity-fill-on {
+  width: var(--capacity, 0%);
+  transition: width 0.9s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-price-card-v2:hover {
+    transform: none;
+  }
+
+  .landing-capacity-fill-on {
+    transition: none;
+    width: var(--capacity, 0%);
+  }
+}

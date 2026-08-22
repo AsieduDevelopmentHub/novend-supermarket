@@ -2,6 +2,46 @@ import { APP_BRAND, APP_TAGLINE } from "@/constants/app";
 
 export const LANDING_CONTACT_EMAIL = "asiedudev.hub@gmail.com";
 
+/** Build a mailto URL with subject + body for sales outreach. */
+export function buildSalesMailto(options: {
+  subject: string;
+  body: string;
+}): string {
+  const params = new URLSearchParams({
+    subject: options.subject,
+    body: options.body,
+  });
+  return `mailto:${LANDING_CONTACT_EMAIL}?${params.toString()}`;
+}
+
+export const ENTERPRISE_SALES_MAILTO = buildSalesMailto({
+  subject: "Novend Enterprise Plan Inquiry",
+  body: [
+    "Hello Novend Sales Team,",
+    "",
+    "I am interested in the Novend Enterprise plan for my organization.",
+    "",
+    "Please find my details below:",
+    "",
+    "Business / organization name:",
+    "Industry (pharmacy, supermarket, wholesale, retail chain, other):",
+    "Number of branches / locations:",
+    "Approximate products / SKUs:",
+    "Number of users / cashiers:",
+    "Preferred billing (Monthly / Yearly):",
+    "Current POS or inventory system (if any):",
+    "Go-live timeline:",
+    "Additional requirements:",
+    "",
+    "Please share Enterprise pricing, onboarding, and next steps.",
+    "",
+    "Thank you,",
+    "Full name:",
+    "Phone / WhatsApp:",
+    "Email:",
+  ].join("\n"),
+});
+
 export const landingCopy = {
   brand: APP_BRAND,
   tagline: APP_TAGLINE,
@@ -330,7 +370,7 @@ export const landingCopy = {
       },
     ],
     metrics: [
-      { label: "Industries Supported", value: "10+" },
+      { label: "Industries Supported", value: "20+" },
       { label: "Offline Availability", value: "100%" },
       { label: "Deployment Options", value: "Desktop · Web · Mobile Ready" },
     ],
@@ -342,10 +382,88 @@ export const landingCopy = {
       "The same dashboard your team uses every day — KPIs, trends, categories, and recent sales in one view.",
   },
   pricing: {
-    title: "Simple pricing that grows with you",
+    badge: "Simple Commercial Pricing",
+    title: "Start Small. Scale Without Changing Software.",
     subtitle:
-      "Pay monthly or yearly, or own a lifetime licence. Every plan includes offline checkout, receipts, and reports.",
-    badge: "14-day free trial",
+      "Every Novend plan includes the complete offline-first POS, barcode support, receipt printing, inventory management, and cloud synchronization. Upgrade only as your business grows.",
+    trialNote: "14-day free trial",
+    cards: {
+      basic: {
+        badge: "Starter",
+        description:
+          "Perfect for provision shops, boutiques, salons, and small retail businesses.",
+        included: [
+          "Offline POS",
+          "Inventory",
+          "Barcode",
+          "Receipt Printing",
+          "Reports",
+          "Analytics",
+        ],
+        cta: "Start Free Trial",
+        href: "/signup",
+      },
+      pro: {
+        badge: "Most Popular",
+        description:
+          "Built for supermarkets, pharmacies, electronics stores, and growing wholesalers.",
+        additional: [
+          "Wholesale Inventory",
+          "Branch Transfers",
+          "Multi-Branch Management",
+          "Advanced Analytics",
+          "Priority Support",
+        ],
+        cta: "Start Pro Trial",
+        href: "/signup",
+      },
+      enterprise: {
+        badge: "Custom",
+        description:
+          "Designed for distributors, retail chains, and organizations operating at enterprise scale.",
+        cta: "Contact Sales",
+        href: ENTERPRISE_SALES_MAILTO,
+      },
+      lifetime: {
+        badge: "One-Time License",
+        description:
+          "Own Novend permanently with unlimited operational capacity and 1.5 years of updates included.",
+        includes: [
+          "Unlimited Products",
+          "Unlimited Users",
+          "Unlimited Branches",
+          "Unlimited Devices",
+          "1 GB Cloud Backup",
+          "1.5 Years Updates",
+        ],
+        cta: "Buy Lifetime",
+        href: "/signup",
+      },
+    },
+    includedEveryPlan: [
+      "Offline POS",
+      "Barcode Scanner",
+      "Receipt Printing",
+      "Inventory",
+      "Customers",
+      "Suppliers",
+      "Returns",
+      "Analytics",
+    ],
+    trust: [
+      {
+        title: "14-Day Free Trial",
+        detail: "No card required",
+      },
+      {
+        title: "Offline-First Always",
+        detail: "Keep selling without internet",
+      },
+      {
+        title: "Upgrade Anytime",
+        detail: "Your data stays intact",
+      },
+    ],
   },
   faq: {
     eyebrow: "FAQ",

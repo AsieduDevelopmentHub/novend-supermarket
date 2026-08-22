@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { LANDING_CONTACT_EMAIL, landingCopy } from "@/features/marketing/content";
+import { ENTERPRISE_SALES_MAILTO, landingCopy } from "@/features/marketing/content";
 
 export function LandingCta() {
   return (
@@ -29,9 +29,7 @@ export function LandingCta() {
             variant="outline"
             className="landing-shadow-cta-outline h-11 w-full px-6 text-[15px] font-semibold transition-[box-shadow,transform] hover:-translate-y-0.5 sm:w-auto"
           >
-            <a href={`mailto:${LANDING_CONTACT_EMAIL}?subject=Novend%20sales`}>
-              {landingCopy.cta.secondary}
-            </a>
+            <a href={ENTERPRISE_SALES_MAILTO}>{landingCopy.cta.secondary}</a>
           </Button>
         </div>
       </div>
