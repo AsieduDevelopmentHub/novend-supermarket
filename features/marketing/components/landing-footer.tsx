@@ -8,8 +8,8 @@ export function LandingFooter() {
 
   return (
     <footer className="relative overflow-hidden bg-[#111827] text-slate-300">
-      <div className="relative z-10 mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr] lg:px-8">
-        <div>
+      <div className="relative z-10 mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:grid-cols-5 lg:px-8">
+        <div className="lg:col-span-2">
           <Link href="/" className="inline-flex items-center gap-2.5">
             <Image
               src={BRANDING.brandmark}
@@ -26,28 +26,15 @@ export function LandingFooter() {
             {landingCopy.footer.description}
           </p>
         </div>
+        <FooterColumn title="Product" links={landingCopy.footer.product} />
+        <FooterColumn title="Resources" links={landingCopy.footer.resources} />
         <div>
-          <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Product</p>
+          <FooterColumn title="Company" links={landingCopy.footer.company} />
+          <p className="mt-6 text-xs font-semibold tracking-wider text-slate-500 uppercase">
+            Socials
+          </p>
           <ul className="mt-3 space-y-2 text-sm">
-            {landingCopy.footer.product.map((item) => (
-              <li key={item.href}>
-                {item.href.startsWith("/") ? (
-                  <Link href={item.href} className="hover:text-white">
-                    {item.label}
-                  </Link>
-                ) : (
-                  <a href={item.href} className="hover:text-white">
-                    {item.label}
-                  </a>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Company</p>
-          <ul className="mt-3 space-y-2 text-sm">
-            {landingCopy.footer.company.map((item) => (
+            {landingCopy.footer.socials.map((item) => (
               <li key={item.href}>
                 <a href={item.href} className="hover:text-white">
                   {item.label}
@@ -70,12 +57,35 @@ export function LandingFooter() {
           <p className="text-slate-500">{landingCopy.footer.builtBy}</p>
         </div>
       </div>
-      <p
-        className="pointer-events-none absolute right-0 bottom-[-0.35em] left-0 select-none text-center text-[18vw] leading-none font-bold tracking-tight text-white/[0.04]"
-        aria-hidden
-      >
-        NOVEND
-      </p>
     </footer>
+  );
+}
+
+function FooterColumn({
+  title,
+  links,
+}: {
+  title: string;
+  links: ReadonlyArray<{ href: string; label: string }>;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">{title}</p>
+      <ul className="mt-3 space-y-2 text-sm">
+        {links.map((item) => (
+          <li key={item.href + item.label}>
+            {item.href.startsWith("/") ? (
+              <Link href={item.href} className="hover:text-white">
+                {item.label}
+              </Link>
+            ) : (
+              <a href={item.href} className="hover:text-white">
+                {item.label}
+              </a>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

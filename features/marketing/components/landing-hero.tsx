@@ -1,12 +1,9 @@
 import Link from "next/link";
+import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { landingCopy } from "@/features/marketing/content";
-import { LandingPosStage } from "@/features/marketing/components/landing-pos-stage";
+import { LandingDashboardStage } from "@/features/marketing/components/landing-dashboard-stage";
 
-/**
- * Hero layout mirrored from Vital-Go:
- * soft upper blue wash → white sheet blend → organic blobs behind product.
- */
 export function LandingHero() {
   return (
     <section className="landing-hero relative isolate overflow-hidden px-4 sm:px-6 lg:px-8">
@@ -16,7 +13,7 @@ export function LandingHero() {
         <div className="landing-hero-accent-blob" />
       </div>
 
-      <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 pt-8 pb-12 sm:gap-12 sm:pt-10 sm:pb-16 lg:grid-cols-[0.95fr_1.15fr] lg:gap-12 lg:pt-14 lg:pb-24">
+      <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 pt-8 pb-12 sm:gap-12 sm:pt-10 sm:pb-16 lg:grid-cols-[0.95fr_1.15fr] lg:gap-12 lg:pt-14 lg:pb-20">
         <div data-hero-copy>
           <p className="text-primary mb-3 text-sm font-semibold tracking-wide sm:mb-4">
             {landingCopy.hero.eyebrow}
@@ -41,9 +38,20 @@ export function LandingHero() {
               variant="outline"
               className="landing-shadow-cta-outline h-11 w-full px-6 text-[15px] font-semibold transition-[box-shadow,transform] hover:-translate-y-0.5 sm:w-auto"
             >
-              <a href="#contact">{landingCopy.hero.secondaryCta}</a>
+              <a href="#analytics">{landingCopy.hero.secondaryCta}</a>
             </Button>
           </div>
+          <ul className="mt-6 flex flex-col gap-2 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
+            {landingCopy.hero.trustBadges.map((badge) => (
+              <li
+                key={badge}
+                className="text-muted-foreground flex items-center gap-2 text-sm font-medium"
+              >
+                <CheckCircle2 className="text-primary h-4 w-4 shrink-0" aria-hidden />
+                {badge}
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div data-hero-visual className="relative mx-auto w-full max-w-[380px] lg:max-w-none">
@@ -53,8 +61,8 @@ export function LandingHero() {
             <span className="landing-hero-aura landing-hero-aura-c" />
             <span className="landing-hero-aura landing-hero-aura-d" />
           </div>
-          <div className="landing-perspective relative z-10 mx-auto w-full pt-2 sm:pt-6">
-            <LandingPosStage />
+          <div className="landing-perspective relative z-10 mx-auto w-full pt-2 sm:pt-4">
+            <LandingDashboardStage />
           </div>
         </div>
       </div>

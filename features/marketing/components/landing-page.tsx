@@ -10,17 +10,19 @@ import {
 } from "@/features/marketing/hooks/use-landing-motion";
 import { LandingNav } from "@/features/marketing/components/landing-nav";
 import { LandingHero } from "@/features/marketing/components/landing-hero";
+import { LandingTrustedStrip } from "@/features/marketing/components/landing-trusted-strip";
 import { LandingJourney } from "@/features/marketing/components/landing-journey";
 import { LandingArchitecture } from "@/features/marketing/components/landing-architecture";
+import { LandingFeatures } from "@/features/marketing/components/landing-features";
 import { LandingIndustries } from "@/features/marketing/components/landing-industries";
-import { LandingWhy } from "@/features/marketing/components/landing-why";
+import { LandingAnalyticsShowcase } from "@/features/marketing/components/landing-analytics-showcase";
 import { LandingPricing } from "@/features/marketing/components/landing-pricing";
 import { LandingFaq } from "@/features/marketing/components/landing-faq";
 import { LandingCta } from "@/features/marketing/components/landing-cta";
 import { LandingFooter } from "@/features/marketing/components/landing-footer";
 
 /**
- * Web-only SaaS landing — product DNA shared with login/app UI.
+ * Web-only SaaS landing V2 — dashboard screenshot as signature visual.
  * Electron detects `novendDesktop` and leaves for /dashboard.
  */
 export function LandingPage() {
@@ -50,16 +52,18 @@ export function LandingPage() {
   return (
     <div
       ref={scrollRef}
-      className="bg-background text-foreground h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain"
+      className="bg-[#F8FAFC] text-foreground h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain"
     >
       <div ref={pageRef}>
         <LandingNav scrollRootRef={scrollRef} />
         <main>
           <LandingHero />
+          <LandingTrustedStrip />
           <LandingJourney />
           <LandingArchitecture />
+          <LandingFeatures />
           <LandingIndustries />
-          <LandingWhy />
+          <LandingAnalyticsShowcase />
           <LandingPricing />
           <LandingFaq />
           <LandingCta />

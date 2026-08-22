@@ -274,14 +274,7 @@ export function useMirroredProduct(productId: string | null, branchId?: Id<"bran
   const [resolvedId, setResolvedId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!productId) {
-      setProduct(null);
-      setResolvedId(null);
-      return;
-    }
-
-    setProduct(undefined);
-    setResolvedId(null);
+    if (!productId) return;
 
     let cancelled = false;
     const load = () => {

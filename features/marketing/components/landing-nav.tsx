@@ -15,7 +15,7 @@ type Props = {
   scrollRootRef: RefObject<HTMLElement | null>;
 };
 
-/** Product-aligned sticky nav — same CTA language as login. */
+/** Floating glass nav — transparent until 40px scroll. */
 export function LandingNav({ scrollRootRef }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const { isAuthenticated } = useConvexAuth();
@@ -26,8 +26,9 @@ export function LandingNav({ scrollRootRef }: Props) {
     const root = scrollRootRef.current;
     if (!root) return;
     function onScroll() {
-      setScrolled((root?.scrollTop ?? 0) > 12);
+      setScrolled((root?.scrollTop ?? 0) > 40);
     }
+    onScroll();
     root.addEventListener("scroll", onScroll, { passive: true });
     return () => root.removeEventListener("scroll", onScroll);
   }, [scrollRootRef]);
@@ -36,8 +37,10 @@ export function LandingNav({ scrollRootRef }: Props) {
     <header className="pointer-events-none sticky top-0 z-40 px-4 pt-4 sm:px-6 lg:px-8">
       <div
         className={cn(
-          "pointer-events-auto mx-auto flex max-w-6xl items-center justify-between gap-3 transition-all",
-          scrolled && "drop-shadow-md",
+          "pointer-events-auto mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-2xl px-3 py-2 transition-all duration-300",
+          scrolled
+            ? "landing-nav-glass border-border border shadow-sm backdrop-blur-xl"
+            : "border border-transparent bg-transparent",
         )}
       >
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
@@ -55,14 +58,14 @@ export function LandingNav({ scrollRootRef }: Props) {
         </Link>
 
         <nav
-          className="landing-shadow-nav border-border bg-card/95 hidden items-center gap-0.5 rounded-xl border px-1.5 py-1 backdrop-blur-md md:flex"
+          className="hidden items-center gap-0.5 md:flex"
           aria-label="Primary"
         >
           {landingCopy.nav.map((item) => (
             <a
               key={item.href}
               href={item.href}
-              className="text-foreground/80 hover:text-foreground hover:bg-muted rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
+              className="text-foreground/80 hover:text-foreground hover:bg-muted/80 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
             >
               {item.label}
             </a>
@@ -76,15 +79,14 @@ export function LandingNav({ scrollRootRef }: Props) {
             size="sm"
             className="hidden h-9 font-semibold sm:inline-flex"
           >
-            <Link href="/signup">Start trial</Link>
+            <Link href={workspaceHref}>Sign In</Link>
           </Button>
           <Button
             asChild
-            variant="outline"
             size="sm"
-            className="landing-shadow-cta-outline h-9 shrink-0 font-semibold transition-[box-shadow,transform] hover:-translate-y-0.5"
+            className="landing-shadow-cta-primary h-9 shrink-0 font-semibold transition-[box-shadow,transform] hover:-translate-y-0.5"
           >
-            <Link href={workspaceHref}>{isAuthenticated ? "Open workspace" : "Login"}</Link>
+            <Link href="/signup">Get Started</Link>
           </Button>
         </div>
       </div>

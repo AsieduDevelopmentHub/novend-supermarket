@@ -7,7 +7,7 @@ export function LandingCta() {
     <section id="contact" className="scroll-mt-24 px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
       <div
         data-reveal
-        className="landing-cta-band landing-shadow-band border-border bg-card mx-auto max-w-6xl overflow-hidden rounded-2xl border px-5 py-12 text-center sm:px-12 sm:py-16"
+        className="landing-cta-mesh landing-shadow-band border-border relative mx-auto max-w-6xl overflow-hidden rounded-[1.5rem] border px-5 py-12 text-center sm:px-12 sm:py-16"
       >
         <h2 className="text-foreground text-2xl font-semibold tracking-tight text-balance sm:text-4xl">
           {landingCopy.cta.title}

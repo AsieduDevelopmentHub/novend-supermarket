@@ -6,18 +6,23 @@ export const landingCopy = {
   brand: APP_BRAND,
   tagline: APP_TAGLINE,
   hero: {
-    eyebrow: "Commercial offline-first POS",
-    headline: "The Offline-First POS Built for Growing Businesses",
+    eyebrow: "Offline-first POS",
+    headline: "The Offline-First POS Built for Modern Retail.",
     subhead:
-      "Sell faster, manage smarter, and keep your supermarket, pharmacy, or wholesale yard running—even without internet. Sync with confidence when the network returns.",
-    primaryCta: "Start free trial",
-    secondaryCta: "Book a Demo",
+      "Sell, manage inventory, track branches, and run your business—even without internet.",
+    primaryCta: "Start Free Trial",
+    secondaryCta: "Watch Demo",
+    trustBadges: ["Offline First", "Multi-Branch", "Works on Desktop, Mobile & Web"],
+  },
+  trustedBy: {
+    title: "Trusted by businesses across Ghana",
+    industries: ["Supermarkets", "Pharmacies", "Wholesale", "Electronics", "Fashion", "Cosmetics"],
   },
   architecture: {
-    eyebrow: "How your data moves",
-    title: "Built to keep selling when the network does not",
+    eyebrow: "Offline architecture",
+    title: "Your Business Never Waits for Internet",
     subtitle:
-      "A clear path from the counter to your business view — without asking you to learn the stack.",
+      "Instant checkout, local analytics, automatic sync, and background backup — without learning the stack.",
     flow: [
       { id: "device", label: "Device", detail: "The till where your team sells and receives stock." },
       {
@@ -26,162 +31,164 @@ export const landingCopy = {
         detail: "Sales and inventory stay on the terminal while you work offline.",
       },
       {
-        id: "cloud",
-        label: "Cloud sync",
+        id: "sync",
+        label: "Sync engine",
         detail: "When you reconnect, committed work catches up automatically.",
       },
       {
         id: "dashboard",
-        label: "Business dashboard",
+        label: "Cloud dashboard",
         detail: "Branches, stock, and sales roll up into one clear picture.",
       },
+    ],
+    benefits: [
+      "Instant checkout",
+      "Local analytics",
+      "Automatic sync",
+      "Background backup",
     ],
   },
   journey: {
     eyebrow: "How Novend works",
-    title: "One operational path — from supplier to synced sales",
+    title: "From supplier to synced sales",
     subtitle:
-      "The same workflow your team runs in the product: receive, warehouse, transfer, sell, store locally, then sync.",
+      "One operational path your team already understands — receive, warehouse, transfer, sell, store locally, then sync.",
     steps: [
       {
         id: "receive",
         step: "01",
-        title: "Receive stock from suppliers",
+        title: "Receive Stock",
         detail:
           "Deliveries land with a recorded business reason — cartons and crates enter wholesale inventory cleanly.",
       },
       {
         id: "warehouse",
         step: "02",
-        title: "Store in wholesale inventory",
+        title: "Wholesale Inventory",
         detail:
           "Warehouse stock stays honest and attributable — ready to issue when branches need refill.",
       },
       {
         id: "transfer",
         step: "03",
-        title: "Transfer to branches",
+        title: "Transfer to Branches",
         detail:
-          "Move stock from the warehouse to East Legon retail, Kumasi wholesale, or any branch in your organization.",
+          "Move stock from the warehouse to any branch in your organization with full traceability.",
       },
       {
         id: "sell",
         step: "04",
-        title: "Sell through POS",
+        title: "Sell with POS",
         detail:
           "Scan barcodes, adjust quantities, take MoMo or cash, and print a receipt — even mid-rush offline.",
       },
       {
         id: "local",
         step: "05",
-        title: "Automatic local storage",
+        title: "Save Locally",
         detail:
           "Every completed sale and inventory change is stored on the device first so the till never waits on the network.",
       },
       {
         id: "sync",
         step: "06",
-        title: "Cloud synchronization when online",
+        title: "Sync to Cloud",
         detail:
           "Queued work syncs to the cloud, then your business dashboard reflects what actually moved.",
       },
     ],
   },
-  industriesIntro: {
-    title: "Built for Ghanaian commerce — ready to grow beyond it",
-    subtitle:
-      "Provision shops, pharmacies, electronics counters, fashion boutiques, and multi-branch retailers share one system.",
-  },
-  industries: [
-    "Provision shops",
-    "Pharmacies",
-    "Supermarkets",
-    "Wholesale distributors",
-    "Electronics stores",
-    "Fashion boutiques",
-    "Hardware stores",
-    "Mini-marts",
-    "Beauty & cosmetics",
-    "Agro & farm supply",
-    "Phone accessory shops",
-    "Bookshops & stationery",
-  ],
-  why: {
-    eyebrow: "Security & trust",
-    title: "Product controls that protect the till and the business",
-    subtitle:
-      "Trust comes from architecture you can operate — offline resilience, clear roles, and sync you can explain to your team.",
+  features: {
+    eyebrow: "Features",
+    title: "Everything a modern store needs",
+    subtitle: "Six core capabilities — built for real counters, not slide decks.",
     cards: [
       {
-        title: "Offline-first architecture",
-        detail: "Checkout and operational stock stay available on the terminal when the network drops.",
+        title: "Offline POS",
+        detail: "Checkout, receipts, and held sales keep running when the network drops.",
       },
       {
-        title: "Local data ownership",
-        detail: "The device holds a local database; you are not blocked waiting on the cloud to sell.",
+        title: "Inventory",
+        detail: "Branch stock, low-stock alerts, expiry tracking, and full audit history.",
       },
       {
-        title: "Automatic synchronization",
-        detail: "Queued work pushes to the cloud the moment connectivity returns.",
+        title: "Barcode Scanner",
+        detail: "USB scanners and camera capture — products found in milliseconds.",
       },
       {
-        title: "Role-based security",
-        detail: "Cashiers, managers, and admins inherit least privilege — never accidental admin powers.",
+        title: "Branch Management",
+        detail: "Warehouse to branch transfers with organization-wide visibility.",
       },
       {
-        title: "Multi-branch ready",
-        detail: "Warehouse and branch stock stay aligned under one organization.",
+        title: "Reports",
+        detail: "Daily sales, branch performance, and exportable business summaries.",
       },
       {
-        title: "Desktop & web",
-        detail: "Dedicated desktop terminals plus a web app for flexible access — same Novend experience.",
+        title: "Analytics",
+        detail: "KPI cards, revenue trends, and category breakdowns managers trust.",
       },
     ],
-    ghanaNote:
-      "From neighborhood provision shops to pharmacy counters and wholesale distributors — Novend speaks Ghanaian retail without locking you into a single market.",
+  },
+  industriesIntro: {
+    title: "Built for how you actually sell",
+    subtitle: "From provision shops to pharmacies and wholesale yards — one system, many formats.",
+  },
+  industries: [
+    { name: "Pharmacy", hint: "Expiry tracking & fast checkout" },
+    { name: "Supermarket", hint: "High-volume barcode sales" },
+    { name: "Wholesale", hint: "Warehouse & branch transfers" },
+    { name: "Boutique", hint: "Variants & clean receipts" },
+    { name: "Electronics", hint: "SKU-heavy catalog" },
+    { name: "Convenience Store", hint: "Quick sales offline" },
+  ],
+  analytics: {
+    eyebrow: "Analytics",
+    title: "See your business clearly",
+    subtitle:
+      "The same dashboard your team uses every day — KPIs, trends, categories, and recent sales in one view.",
   },
   pricing: {
     title: "Simple pricing that grows with you",
     subtitle:
-      "Pay monthly or yearly, or own a lifetime licence that sits above every subscription. Every plan includes offline checkout, receipts and reports.",
+      "Pay monthly or yearly, or own a lifetime licence. Every plan includes offline checkout, receipts, and reports.",
     badge: "14-day free trial",
   },
   faq: {
-    eyebrow: "Questions & answers",
-    title: "A few important things to know about Novend.",
+    eyebrow: "FAQ",
+    title: "Questions & answers",
     items: [
       {
-        q: "Who is Novend designed for?",
-        a: "Retailers, pharmacies, wholesalers, electronics and fashion shops, and multi-branch operators who need a reliable till — especially where connectivity is uneven.",
-      },
-      {
         q: "Does Novend work offline?",
-        a: "Yes. Checkout and the local database run on the device. When you reconnect, committed work syncs to the cloud automatically.",
+        a: "Yes. Checkout and your local database run on the device. When you reconnect, committed work syncs to the cloud automatically.",
       },
       {
-        q: "Is there a desktop app?",
-        a: "Yes. Desktop builds for Windows, macOS, and Linux open straight to login — not the marketing site.",
+        q: "Can I use multiple branches?",
+        a: "Yes. Move warehouse stock to branches, filter reports by location, and manage staff per branch.",
       },
       {
-        q: "Can I sign up myself?",
-        a: "Yes. Create an account, set up your business, and start a 14-day Pro trial. Staff logins are still created by your administrator.",
+        q: "Can I migrate my inventory?",
+        a: "Yes. Import products, set opening stock, and start selling. Your team can receive and adjust stock with full history.",
       },
       {
-        q: "How does billing work?",
-        a: "Pay monthly or yearly from Settings → Billing with Paystack (card or mobile money). Enterprise is the same checkout as Basic and Pro. Lifetime is a one-time licence priced above a year of every plan.",
+        q: "Do I need internet?",
+        a: "Only for initial setup and sync. Day-to-day selling works offline; the network catches up when it returns.",
+      },
+      {
+        q: "Is there a desktop app, or mobile app?",
+        a: "Yes. Dedicated desktop builds for Windows, macOS, and Linux plus a web app for phones and tablets — same Novend experience.",
       },
     ],
   },
   cta: {
-    title: "Open the same product your team will run.",
+    title: "Ready to Modernize Your Store?",
     subtitle:
-      "Offline-first checkout, inventory, and cloud sync — built for Ghanaian commerce, ready for growth.",
-    primary: "Start free trial",
+      "Offline-first checkout, inventory, and cloud sync — built for real businesses, ready to grow.",
+    primary: "Start Free Trial",
     secondary: "Contact Sales",
   },
   nav: [
-    { href: "#journey", label: "How it works" },
-    { href: "#architecture", label: "Architecture" },
+    { href: "#features", label: "Features" },
+    { href: "#industries", label: "Industries" },
     { href: "#pricing", label: "Pricing" },
     { href: "#faq", label: "FAQ" },
   ],
@@ -189,16 +196,22 @@ export const landingCopy = {
     description:
       "Commercial offline-first Point of Sale for independent businesses — desktop, web, and cloud sync.",
     product: [
-      { href: "#journey", label: "How it works" },
+      { href: "#features", label: "Features" },
       { href: "#pricing", label: "Pricing" },
-      { href: "/signup", label: "Start trial" },
-      { href: "/login", label: "Login" },
+      { href: "#journey", label: "Desktop" },
+      { href: "#faq", label: "Updates" },
+    ],
+    resources: [
+      { href: "#architecture", label: "Documentation" },
+      { href: "#faq", label: "Help Center" },
+      { href: "#contact", label: "Contact" },
     ],
     company: [
       { href: "#about", label: "About" },
-      { href: "#faq", label: "FAQ" },
-      { href: "#contact", label: "Contact" },
+      { href: "#privacy", label: "Privacy" },
+      { href: "#terms", label: "Terms" },
     ],
+    socials: [{ href: `mailto:${LANDING_CONTACT_EMAIL}`, label: "Email" }],
     builtBy: "Built by Asiedu Development Hub",
   },
 } as const;

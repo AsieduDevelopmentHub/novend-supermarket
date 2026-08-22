@@ -1,9 +1,6 @@
 import { landingCopy } from "@/features/marketing/content";
 
-const ROW_TOP = landingCopy.industries.filter((_, i) => i % 2 === 0);
-const ROW_BOTTOM = landingCopy.industries.filter((_, i) => i % 2 === 1);
-
-/** Dual-row infinite client marquee — top ← left, bottom → right. */
+/** Industry grid with hover hints. */
 export function LandingIndustries() {
   return (
     <section
@@ -15,49 +12,29 @@ export function LandingIndustries() {
           <h2 className="text-foreground text-3xl font-semibold tracking-tight sm:text-4xl">
             {landingCopy.industriesIntro.title}
           </h2>
-          <p className="text-muted-foreground mt-3 text-base text-pretty sm:text-lg">
+          <p className="text-muted-foreground mt-4 text-base text-pretty sm:text-lg">
             {landingCopy.industriesIntro.subtitle}
           </p>
         </div>
 
-        <ul className="sr-only">
-          {landingCopy.industries.map((name) => (
-            <li key={name}>{name}</li>
+        <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+          {landingCopy.industries.map((item) => (
+            <li
+              key={item.name}
+              data-depth-card
+              className="landing-shadow-card group border-border bg-background rounded-[1.25rem] border p-6 transition-[box-shadow,transform] duration-300 hover:-translate-y-1"
+            >
+              <h3 className="text-foreground text-lg font-semibold">{item.name}</h3>
+              <p className="text-muted-foreground mt-2 text-sm opacity-80 transition-opacity group-hover:opacity-100">
+                {item.hint}
+              </p>
+              <p className="text-primary mt-4 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100">
+                See how Novend fits this business →
+              </p>
+            </li>
           ))}
         </ul>
-
-        {/* Custom track length (52rem), centered */}
-        <div
-          data-reveal
-          className="landing-marquee-shell mx-auto mt-12 max-w-[52rem]"
-          aria-hidden
-        >
-          <MarqueeRow items={ROW_TOP} direction="left" />
-          <MarqueeRow items={ROW_BOTTOM} direction="right" />
-        </div>
       </div>
     </section>
-  );
-}
-
-function MarqueeRow({
-  items,
-  direction,
-}: {
-  items: readonly string[];
-  direction: "left" | "right";
-}) {
-  const loop = [...items, ...items, ...items];
-
-  return (
-    <div className="landing-marquee-row" data-direction={direction}>
-      <ul className="landing-marquee-track">
-        {loop.map((name, index) => (
-          <li key={`${direction}-${name}-${index}`} className="landing-marquee-chip">
-            {name}
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }

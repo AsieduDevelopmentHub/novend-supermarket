@@ -1,4 +1,6 @@
 import { type ReactNode } from "react";
+import Image from "next/image";
+import { BRANDING } from "@/constants/branding";
 import { landingCopy } from "@/features/marketing/content";
 
 /** Operational journey — alternating step + visual (no sticky pin). */
@@ -123,34 +125,13 @@ function JourneyVisual({ id }: { id: string }) {
     case "sell":
       return (
         <Panel className="overflow-hidden p-0">
-          <div className="bg-[#111827] px-5 py-4 text-white">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] tracking-wide text-slate-400 uppercase">Current Sale</p>
-              <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
-                Offline ready
-              </span>
-            </div>
-            <p className="text-primary mt-3 text-2xl font-semibold tracking-tight tabular-nums">
-              GH₵ 2,450.00
-            </p>
-          </div>
-          <div className="space-y-3 p-5">
-            <div
-              data-scan-line
-              className="border-primary/40 bg-primary/10 flex items-center justify-between rounded-lg border border-dashed px-3 py-2"
-            >
-              <span className="text-primary text-xs font-semibold">Barcode scan · SKU-88421</span>
-              <span className="text-primary text-xs font-semibold tabular-nums">+145.00</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <span className="bg-secondary text-secondary-foreground rounded-md py-2 text-center text-xs font-semibold">
-                Hold
-              </span>
-              <span className="bg-primary text-primary-foreground rounded-md py-2 text-center text-xs font-semibold">
-                Pay
-              </span>
-            </div>
-          </div>
+          <Image
+            src={BRANDING.dashboardHero}
+            alt="Novend dashboard during checkout workflow"
+            width={640}
+            height={400}
+            className="h-auto w-full object-cover object-left-top"
+          />
         </Panel>
       );
     case "local":
