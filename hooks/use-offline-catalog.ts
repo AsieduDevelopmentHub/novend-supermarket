@@ -67,7 +67,6 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
 
   useEffect(() => {
     if (online) {
-      setLocal(null);
       return;
     }
     let cancelled = false;

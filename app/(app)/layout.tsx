@@ -111,7 +111,6 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   // Only force login while online — offline refresh must use the cached session.
   useEffect(() => {
     if (!isLoading && !isAuthenticated && online) {
-      setCachedProfile(null);
       router.replace("/login");
       multiBranchReady.current = false;
     }
