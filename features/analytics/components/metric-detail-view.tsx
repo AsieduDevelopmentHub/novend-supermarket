@@ -17,6 +17,8 @@ import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { ArrowLeft } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useOfflineAnalyticsDetails } from "@/hooks/use-offline-analytics-details";
+import type { AnalyticsDetailMetric } from "@/lib/offline/analytics-engine";
 
 const METRICS = [
   "revenue",
@@ -30,7 +32,7 @@ const METRICS = [
   "expenseCount",
   "products",
   "branches",
-] as const;
+] as const satisfies readonly AnalyticsDetailMetric[];
 
 type AnalyticsMetric = (typeof METRICS)[number];
 
@@ -68,6 +70,12 @@ function formatCell(column: string, value: string) {
   return value;
 }
 
+type DetailPayload = {
+  title: string;
+  columns: string[];
+  rows: Array<{ id: string; href: string; cells: string[] }>;
+};
+
 export function AnalyticsMetricDetailView({ metric }: { metric: string }) {
   const online = useConnectivity();
   const params = useSearchParams();
@@ -82,49 +90,42 @@ export function AnalyticsMetricDetailView({ metric }: { metric: string }) {
     return { startDate: startOfDay(startDateObj), endDate: endOfDay(endDateObj) };
   }, [start, end]);
 
-  const details = useQuery(
+  const metricKey = isMetric(metric) ? metric : null;
+
+  const remoteDetails = useQuery(
     api.analytics.details,
-    online && range && isMetric(metric)
+    online && range && metricKey
       ? {
-          metric,
+          metric: metricKey,
           ...range,
           branchId: branch ? (branch as Id<"branches">) : undefined,
         }
       : "skip",
   );
 
-  if (!isMetric(metric) || !range) {
+  const { details: localDetails, loading: localLoading } = useOfflineAnalyticsDetails(
+    metricKey ?? "revenue",
+    range,
+    branch,
+    !online && Boolean(metricKey),
+  );
+
+  if (!metricKey || !range) {
     return <ErrorState message="Choose a valid metric and date range from Analytics." />;
   }
 
-  if (!online) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Local records"
-          description={`${start} → ${end}`}
-          actions={
-            <Button asChild variant="outline">
-              <Link href="/analytics">
-                <ArrowLeft className="h-4 w-4" />
-                Analytics
-              </Link>
-            </Button>
-          }
-        />
-        <EmptyState
-          title="Open Analytics for this range"
-          description="The summary on Analytics is available on this device. Row-level tables need a connection."
-        />
-      </div>
-    );
-  }
+  const details: DetailPayload | undefined = online
+    ? remoteDetails
+    : localLoading
+      ? undefined
+      : localDetails ?? undefined;
+  const loading = online ? remoteDetails === undefined : localLoading;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={details?.title ?? "Metric detail"}
-        description={`${start} → ${end}`}
+        description={`${start} → ${end}${!online ? " · Offline records on this device" : ""}`}
         actions={
           <Button asChild variant="outline">
             <Link href="/analytics">
@@ -134,9 +135,9 @@ export function AnalyticsMetricDetailView({ metric }: { metric: string }) {
           </Button>
         }
       />
-      {details === undefined ? (
+      {loading ? (
         <LoadingState label="Loading records…" variant="table" />
-      ) : details.rows.length === 0 ? (
+      ) : !details || details.rows.length === 0 ? (
         <EmptyState title="No records in this range" />
       ) : (
         <Card>

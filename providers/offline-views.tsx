@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { DashboardView } from "@/features/dashboard/components/dashboard-view";
 import { SalesView } from "@/features/sales/components/sales-view";
 import { OrdersView } from "@/features/orders/components/orders-view";
@@ -13,6 +13,7 @@ import { ReportDayDetailView } from "@/features/reports/components/day-detail-vi
 import { SettingsView } from "@/features/settings/components/settings-view";
 import { UsersView } from "@/features/users/components/users-view";
 import { AnalyticsView } from "@/features/analytics/components/analytics-view";
+import { AnalyticsMetricDetailView } from "@/features/analytics/components/metric-detail-view";
 import { BranchesView } from "@/features/branches/components/branches-view";
 import { ReturnsView } from "@/features/returns/components/returns-view";
 import { ReturnDetailView } from "@/features/returns/components/return-detail-view";
@@ -23,6 +24,7 @@ import { CustomerDetailView } from "@/features/customers/components/customer-det
 import { ProductDetailView } from "@/features/products/components/product-detail-view";
 import { UserDetailView } from "@/features/users/components/user-detail-view";
 import { OfflineUnavailable } from "@/components/offline/offline-unavailable";
+import { LoadingState } from "@/components/feedback/loading-state";
 import { Id } from "@/convex/_generated/dataModel";
 
 const SHELL_VIEWS: Record<string, () => ReactNode> = {
@@ -87,6 +89,16 @@ export function resolveOfflineView(path: string): ReactNode {
   }
   if (path.startsWith("/reports/day")) {
     return <ReportDayDetailView />;
+  }
+  if (path.startsWith("/analytics/")) {
+    const metric = path.slice("/analytics/".length).split("/")[0];
+    if (metric) {
+      return (
+        <Suspense fallback={<LoadingState label="Loading…" variant="table" />}>
+          <AnalyticsMetricDetailView metric={metric} />
+        </Suspense>
+      );
+    }
   }
   if (path.startsWith("/users/")) {
     const userId = path.slice("/users/".length);
