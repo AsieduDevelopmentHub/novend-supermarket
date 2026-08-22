@@ -1678,3 +1678,423 @@
     top: auto !important;
   }
 }
+
+/* —— Section 3: Offline architecture (trust) —— */
+.landing-arch-section {
+  padding-block: 5.5rem;
+}
+
+@media (min-width: 640px) {
+  .landing-arch-section {
+    padding-block: 7rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-arch-section {
+    padding-block: 8.75rem; /* ~140px */
+  }
+}
+
+.landing-arch-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 1024px) {
+  .landing-arch-flow {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0;
+  }
+}
+
+.landing-arch-flow-item {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .landing-arch-flow-item {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .landing-arch-flow-item:last-child {
+    flex: 1 1 0;
+  }
+}
+
+.landing-arch-flow-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 55%),
+    rgba(17, 24, 39, 0.6);
+  padding: 1.25rem 1.25rem 1.35rem;
+  transform: translateZ(0);
+  transition:
+    border-color 0.35s ease,
+    box-shadow 0.35s ease,
+    background 0.35s ease;
+}
+
+.landing-arch-flow-card-active {
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 0 0 1px rgba(56, 189, 248, 0.12),
+    0 24px 48px -16px rgba(0, 0, 0, 0.5),
+    0 0 36px -12px rgba(56, 189, 248, 0.35);
+}
+
+.landing-arch-flow-card-lit {
+  border-color: rgba(56, 189, 248, 0.55);
+  background:
+    linear-gradient(165deg, rgba(56, 189, 248, 0.14) 0%, rgba(255, 255, 255, 0.03) 60%),
+    rgba(17, 24, 39, 0.7);
+}
+
+.landing-arch-flow-visual {
+  position: relative;
+  height: 5.5rem;
+  margin-bottom: 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(56, 189, 248, 0.12), transparent 55%),
+    rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.landing-arch-scene {
+  position: relative;
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  transition: color 0.35s ease;
+}
+
+.landing-arch-scene-active,
+.landing-arch-scene-lit {
+  color: #7dd3fc;
+}
+
+.landing-arch-scene-icon {
+  position: absolute;
+  opacity: 0.85;
+}
+
+.landing-arch-scene-icon-lg {
+  width: 2rem;
+  height: 2rem;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -46%);
+}
+
+.landing-arch-scene-icon-md {
+  width: 1.15rem;
+  height: 1.15rem;
+  left: 18%;
+  top: 62%;
+  opacity: 0.65;
+}
+
+.landing-arch-scene-icon-sm {
+  width: 1rem;
+  height: 1rem;
+  right: 18%;
+  top: 28%;
+  opacity: 0.55;
+}
+
+.landing-arch-scene-badge {
+  position: absolute;
+  right: 14%;
+  bottom: 18%;
+  width: 0.95rem;
+  height: 0.95rem;
+  color: #38bdf8;
+  opacity: 0.9;
+}
+
+.landing-arch-particles {
+  position: absolute;
+  inset: 18% 28%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(56, 189, 248, 0.55),
+    transparent
+  );
+  opacity: 0;
+  transform: scaleX(0.4);
+}
+
+.landing-arch-particles-on {
+  animation: landing-arch-flow-particle 2s ease-in-out infinite;
+}
+
+.landing-arch-pulse-ring {
+  position: absolute;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  opacity: 0;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.landing-arch-pulse-ring-on {
+  animation: landing-arch-pulse 2.4s ease-out infinite;
+}
+
+.landing-arch-progress {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 14%;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.landing-arch-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 0%;
+  background: linear-gradient(90deg, #38bdf8, #7dd3fc);
+  border-radius: inherit;
+}
+
+.landing-arch-progress-on::after {
+  animation: landing-arch-progress-fill 2.5s ease-in-out forwards;
+}
+
+.landing-arch-spin {
+  animation: landing-arch-spin 2.2s linear infinite;
+}
+
+.landing-arch-chart-bars {
+  position: absolute;
+  right: 16%;
+  bottom: 16%;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 1.35rem;
+}
+
+.landing-arch-chart-bars i {
+  display: block;
+  width: 4px;
+  border-radius: 2px;
+  background: rgba(56, 189, 248, 0.35);
+}
+
+.landing-arch-chart-bars i:nth-child(1) {
+  height: 35%;
+}
+.landing-arch-chart-bars i:nth-child(2) {
+  height: 60%;
+}
+.landing-arch-chart-bars i:nth-child(3) {
+  height: 45%;
+}
+.landing-arch-chart-bars i:nth-child(4) {
+  height: 80%;
+}
+
+.landing-arch-scene-lit .landing-arch-chart-bars i {
+  background: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.45);
+}
+
+.landing-arch-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  padding: 0.85rem 0;
+  color: #94a3b8;
+}
+
+@media (min-width: 1024px) {
+  .landing-arch-connector {
+    flex-direction: row;
+    width: 3.25rem;
+    min-width: 3.25rem;
+    padding: 0 0.4rem;
+    align-self: center;
+  }
+}
+
+.landing-arch-connector-line {
+  width: 2.5px;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: rgba(203, 213, 225, 0.75);
+  transition:
+    background 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+@media (min-width: 1024px) {
+  .landing-arch-connector-line {
+    width: 1.35rem;
+    height: 2.5px;
+  }
+}
+
+.landing-arch-connector-chevron {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  stroke-width: 2.5;
+  color: #cbd5e1;
+  transition: color 0.35s ease, filter 0.35s ease;
+}
+
+.landing-arch-connector-chevron-desktop {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .landing-arch-connector-chevron-mobile {
+    display: none;
+  }
+
+  .landing-arch-connector-chevron-desktop {
+    display: block;
+  }
+}
+
+.landing-arch-connector-active {
+  color: #38bdf8;
+}
+
+.landing-arch-connector-active .landing-arch-connector-line {
+  background: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.55);
+}
+
+.landing-arch-connector-active .landing-arch-connector-chevron {
+  color: #7dd3fc;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.45));
+}
+
+.landing-arch-status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #64748b;
+  flex-shrink: 0;
+}
+
+.landing-arch-status-dot-idle {
+  background: #94a3b8;
+}
+
+.landing-arch-status-dot-info {
+  background: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.18);
+}
+
+.landing-arch-status-dot-warn {
+  background: #fbbf24;
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.16);
+}
+
+.landing-arch-status-dot-ok {
+  background: #34d399;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.16);
+}
+
+.landing-arch-kpi {
+  transition: border-color 0.25s ease, transform 0.25s ease;
+}
+
+.landing-arch-kpi:hover {
+  border-color: rgba(56, 189, 248, 0.28);
+  transform: translateY(-2px);
+}
+
+@keyframes landing-arch-flow-particle {
+  0% {
+    opacity: 0;
+    transform: translateX(-30%) scaleX(0.35);
+  }
+  40% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(30%) scaleX(0.8);
+  }
+}
+
+@keyframes landing-arch-pulse {
+  0% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.45);
+  }
+}
+
+@keyframes landing-arch-progress-fill {
+  from {
+    width: 8%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes landing-arch-spin {
+  from {
+    transform: translate(-50%, -46%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -46%) rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-arch-particles-on,
+  .landing-arch-pulse-ring-on,
+  .landing-arch-progress-on::after,
+  .landing-arch-spin {
+    animation: none !important;
+  }
+
+  .landing-arch-progress-on::after {
+    width: 100%;
+  }
+
+  .landing-arch-kpi:hover {
+    transform: none;
+  }
+}
