@@ -39,7 +39,7 @@ export function LandingCta() {
               variant="outline"
               className="landing-shadow-cta-outline h-11 w-full border-primary/40 bg-white/80 px-6 text-[15px] font-semibold text-[#111827] transition-[box-shadow,transform] hover:-translate-y-0.5 active:translate-y-0 sm:w-auto"
             >
-              <a href={cta.secondaryHref}>{cta.secondary}</a>
+              <Link href={cta.secondaryHref}>{cta.secondary}</Link>
             </Button>
           </div>
 

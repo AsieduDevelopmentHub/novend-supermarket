@@ -41,7 +41,12 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
     pathname === "/login" ||
     pathname === "/signup" ||
     pathname.startsWith("/onboarding");
-  const skipSplash = isMarketingLanding || isAuthRoute;
+  const isPublicSitePage =
+    pathname === "/download" ||
+    pathname.startsWith("/docs") ||
+    pathname === "/privacy" ||
+    pathname === "/terms";
+  const skipSplash = isMarketingLanding || isAuthRoute || isPublicSitePage;
 
   useEffect(() => {
     startedAt.current = performance.now();

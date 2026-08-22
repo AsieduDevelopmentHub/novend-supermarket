@@ -54,7 +54,7 @@ export function LandingHero() {
                 variant="outline"
                 className="h-11 w-full border-primary/40 px-6 text-[15px] font-semibold text-[#111827] sm:w-auto"
               >
-                <a href={hero.secondaryHref}>{hero.secondaryCta}</a>
+                <Link href={hero.secondaryHref}>{hero.secondaryCta}</Link>
               </Button>
             </div>
 

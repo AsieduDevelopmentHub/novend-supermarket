@@ -16,6 +16,7 @@ const isPublicRoute = createRouteMatcher([
   "/billing/callback",
   "/api/auth(.*)",
   "/docs(.*)",
+  "/download",
   "/privacy",
   "/terms",
 ]);

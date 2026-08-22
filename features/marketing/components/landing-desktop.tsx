@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Monitor } from "lucide-react";
+import { MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { landingCopy } from "@/features/marketing/content";
 
-/** Desktop App anchor target for nav / hero secondary CTA. */
+/** Apps & downloads promo — anchors nav / hero secondary CTA to #desktop. */
 export function LandingDesktop() {
   const { desktop } = landingCopy;
 
@@ -17,7 +17,7 @@ export function LandingDesktop() {
         className="mx-auto flex max-w-4xl flex-col items-center gap-6 rounded-3xl border border-slate-200/80 bg-white px-6 py-10 text-center sm:px-10 sm:py-12 lg:flex-row lg:text-left"
       >
         <div className="bg-primary/12 text-primary flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl">
-          <Monitor className="h-7 w-7" aria-hidden />
+          <MonitorSmartphone className="h-7 w-7" aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">

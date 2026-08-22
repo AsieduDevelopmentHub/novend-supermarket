@@ -10,11 +10,13 @@ import { Mail, User } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
+import { ROUTES } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 
 export function SignupForm({ compact = false }: { compact?: boolean }) {
@@ -44,6 +46,7 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
@@ -54,6 +57,10 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!acceptedLegal) {
+      toast.error("Please accept the Terms of Service and Privacy Policy to continue.");
+      return;
+    }
     setPending(true);
     try {
       const formData = new FormData();
@@ -144,7 +151,47 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
           />
         </div>
 
-        <Button type="submit" className="h-11 w-full text-[15px] font-semibold" disabled={pending}>
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="accept-legal"
+            checked={acceptedLegal}
+            onCheckedChange={(value) => setAcceptedLegal(value === true)}
+            className="mt-0.5"
+            aria-describedby="accept-legal-hint"
+          />
+          <div className="space-y-1">
+            <Label htmlFor="accept-legal" className="text-sm leading-relaxed font-normal">
+              I agree to the{" "}
+              <Link
+                href={ROUTES.terms}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary font-medium hover:underline"
+              >
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link
+                href={ROUTES.privacy}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary font-medium hover:underline"
+              >
+                Privacy Policy
+              </Link>
+              .
+            </Label>
+            <p id="accept-legal-hint" className="text-muted-foreground text-xs leading-relaxed">
+              Required before creating an account.
+            </p>
+          </div>
+        </div>
+
+        <Button
+          type="submit"
+          className="h-11 w-full text-[15px] font-semibold"
+          disabled={pending || !acceptedLegal}
+        >
           {pending ? "Creating account…" : "Start free trial"}
         </Button>
       </form>

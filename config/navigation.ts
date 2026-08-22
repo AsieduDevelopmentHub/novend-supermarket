@@ -226,4 +226,7 @@ export const ROUTES = {
   onboarding: "/onboarding",
   dashboard: "/dashboard",
   platform: "/platform",
+  download: "/download",
+  privacy: "/privacy",
+  terms: "/terms",
 } as const;

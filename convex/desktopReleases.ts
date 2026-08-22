@@ -160,6 +160,28 @@ export const listRecent = query({
   },
 });
 
+/** Public changelog strip for the download page — no installer URLs. */
+export const listPublicRecent = query({
+  args: { channel: v.optional(channelValidator), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const channel = args.channel ?? "stable";
+    const limit = Math.min(Math.max(args.limit ?? 5, 1), 20);
+    const rows = await ctx.db
+      .query("desktopReleases")
+      .withIndex("by_channel_releasedAt", (q) => q.eq("channel", channel))
+      .order("desc")
+      .take(limit);
+    return rows.map((row) => ({
+      version: row.version,
+      tag: row.tag,
+      channel: row.channel,
+      notes: row.notes,
+      releasedAt: row.releasedAt,
+      mandatory: row.mandatory,
+    }));
+  },
+});
+
 function assetScore(fileName: string, platform: Platform, preferredArch: string): number {
   const lower = fileName.toLowerCase();
   let score = 0;

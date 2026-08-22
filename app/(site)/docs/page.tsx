@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, CircleHelp, Newspaper } from "lucide-react";
+import { CircleHelp, Download, Newspaper } from "lucide-react";
 import { MarketingSitePage } from "@/features/marketing/components/marketing-site-page";
 import { sitePages } from "@/features/marketing/site-content";
 import { APP_BRAND } from "@/constants/app";
@@ -12,6 +12,12 @@ export const metadata: Metadata = {
 
 const QUICK_LINKS = [
   {
+    href: "/download",
+    title: "Download",
+    detail: "Desktop installers synced from Convex, plus mobile coming soon.",
+    icon: Download,
+  },
+  {
     href: "/docs/help",
     title: "Help Center",
     detail: "Troubleshooting for sales, stock, devices, and plans.",
@@ -22,12 +28,6 @@ const QUICK_LINKS = [
     title: "Release Notes",
     detail: "See what shipped in the latest Novend versions.",
     icon: Newspaper,
-  },
-  {
-    href: "/#features",
-    title: "Product tour",
-    detail: "Browse the complete business platform on the landing page.",
-    icon: BookOpen,
   },
 ] as const;
 

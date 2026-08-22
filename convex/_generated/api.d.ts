@@ -44,6 +44,7 @@ import type * as shared_multiBranchBootstrap from "../shared/multiBranchBootstra
 import type * as shared_paystack from "../shared/paystack.js";
 import type * as shared_permissions from "../shared/permissions.js";
 import type * as shared_plans from "../shared/plans.js";
+import type * as shared_presence from "../shared/presence.js";
 import type * as shared_provisionOrganization from "../shared/provisionOrganization.js";
 import type * as shared_returns from "../shared/returns.js";
 import type * as shared_subscriptions from "../shared/subscriptions.js";
@@ -95,6 +96,7 @@ declare const fullApi: ApiFromModules<{
   "shared/paystack": typeof shared_paystack;
   "shared/permissions": typeof shared_permissions;
   "shared/plans": typeof shared_plans;
+  "shared/presence": typeof shared_presence;
   "shared/provisionOrganization": typeof shared_provisionOrganization;
   "shared/returns": typeof shared_returns;
   "shared/subscriptions": typeof shared_subscriptions;

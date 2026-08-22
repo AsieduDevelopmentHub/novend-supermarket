@@ -171,11 +171,17 @@ export function LandingNav({ scrollRootRef }: Props) {
                 <Menu className="h-4 w-4" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[min(100%,20rem)]">
-              <SheetHeader>
+            <SheetContent
+              side="right"
+              className="flex h-dvh w-[min(100%,20rem)] flex-col gap-0 overflow-hidden p-0"
+            >
+              <SheetHeader className="shrink-0 border-b border-border px-6 py-4 pr-12 text-left">
                 <SheetTitle className="text-left">{landingCopy.brand}</SheetTitle>
               </SheetHeader>
-              <nav className="mt-6 flex flex-col gap-1" aria-label="Mobile">
+              <nav
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4"
+                aria-label="Mobile"
+              >
                 <NavHref
                   href={nav.features.href}
                   className="text-foreground rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
@@ -190,7 +196,7 @@ export function LandingNav({ scrollRootRef }: Props) {
                   <NavHref
                     key={item.label}
                     href={item.href}
-                    className="text-foreground rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                    className="text-foreground block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
                     onClick={() => setMenuOpen(false)}
                   >
                     {item.label}
@@ -198,7 +204,7 @@ export function LandingNav({ scrollRootRef }: Props) {
                 ))}
                 <NavHref
                   href={nav.pricing.href}
-                  className="text-foreground mt-2 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                  className="text-foreground mt-2 block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
                   onClick={() => setMenuOpen(false)}
                 >
                   {nav.pricing.label}
@@ -210,7 +216,7 @@ export function LandingNav({ scrollRootRef }: Props) {
                   <NavHref
                     key={item.label}
                     href={item.href}
-                    className="text-foreground rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                    className="text-foreground block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
                     onClick={() => setMenuOpen(false)}
                   >
                     {item.label}
@@ -218,19 +224,19 @@ export function LandingNav({ scrollRootRef }: Props) {
                 ))}
                 <NavHref
                   href={nav.desktop.href}
-                  className="text-foreground mt-2 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                  className="text-foreground mt-2 block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
                   onClick={() => setMenuOpen(false)}
                 >
                   {nav.desktop.label}
                 </NavHref>
               </nav>
-              <div className="mt-6 flex flex-col gap-2">
-                <Button asChild variant="outline">
+              <div className="shrink-0 space-y-2 border-t border-border bg-card px-4 py-4">
+                <Button asChild variant="outline" className="w-full">
                   <Link href={signInHref} onClick={() => setMenuOpen(false)}>
                     Sign In
                   </Link>
                 </Button>
-                <Button asChild>
+                <Button asChild className="w-full">
                   <Link href="/signup" onClick={() => setMenuOpen(false)}>
                     {landingCopy.navTrialCta}
                   </Link>

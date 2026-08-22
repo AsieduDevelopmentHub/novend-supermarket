@@ -79,8 +79,8 @@ export const landingCopy = {
     subhead:
       "Sell, manage inventory, transfer stock between branches, and sync automatically when internet returns. Built for supermarkets, pharmacies, wholesalers, and modern retail businesses.",
     primaryCta: "Start Free Trial",
-    secondaryCta: "Download Desktop App",
-    secondaryHref: "/#desktop",
+    secondaryCta: "Download App",
+    secondaryHref: "/download",
     trustChips: [
       { id: "offline", label: "Offline First" },
       { id: "branches", label: "Multi-Branch" },
@@ -512,18 +512,18 @@ export const landingCopy = {
     subtitle:
       "Start your 14-day free trial and experience the complete offline-first commercial POS built for modern retail.",
     primary: "Start Free Trial",
-    secondary: "Download Desktop App",
-    secondaryHref: "/#desktop",
+    secondary: "Download App",
+    secondaryHref: "/download",
     chips: ["No Card Required", "Setup in Minutes", "Works Offline"],
   },
   desktop: {
     id: "desktop",
-    badge: "Desktop App",
-    title: "Run Novend on your counter PC",
+    badge: "Apps & Downloads",
+    title: "Run Novend on every counter — and soon every pocket",
     detail:
-      "Install the desktop app for Windows and macOS — offline-ready, barcode and printer friendly, with the same cloud sync as the web app.",
-    cta: "View release notes",
-    href: "/docs/releases",
+      "Install the desktop app for Windows, macOS, and Linux today. Use the web app anywhere. Mobile (iOS & Android via Capacitor) will publish on the same download page.",
+    cta: "Go to downloads",
+    href: "/download",
   },
   nav: {
     features: { href: "/#features", label: "Features" },
@@ -545,21 +545,22 @@ export const landingCopy = {
         { href: "/docs", label: "Docs" },
         { href: "/docs/help", label: "Help" },
         { href: "/docs/releases", label: "Releases" },
+        { href: "/download", label: "Download" },
       ],
     },
-    desktop: { href: "/#desktop", label: "Desktop App" },
+    desktop: { href: "/download", label: "Download" },
   },
   navTrialCta: "Get Started",
   footer: {
     brandTitle: "Novend by Asiedu Development Hub",
     description:
       "Offline-first commercial POS built for supermarkets, pharmacies, wholesalers, boutiques, electronics stores, and modern retail businesses.",
-    badges: ["Offline First", "Multi-Branch", "Desktop & Web"],
+    badges: ["Offline First", "Multi-Branch", "Desktop, Web & Mobile"],
     product: [
       { href: "/#features", label: "Features" },
       { href: "/#industries", label: "Industries" },
       { href: "/#pricing", label: "Pricing" },
-      { href: "/#desktop", label: "Desktop App" },
+      { href: "/download", label: "Download" },
       { href: "/docs/releases", label: "Release Notes" },
     ],
     resources: [
