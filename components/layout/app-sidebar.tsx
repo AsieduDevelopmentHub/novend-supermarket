@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation } from "convex/react";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, LogOut, Menu, Shield } from "lucide-react";
-import { navForRole, type AppRole } from "@/config/navigation";
+import type { AppRole } from "@/config/navigation";
+import { SidebarNavTree, SidebarSettingsLink } from "@/components/layout/sidebar-nav-tree";
 import { APP_BRAND } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { cn } from "@/lib/utils";
@@ -30,8 +31,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SyncStatusChip } from "@/components/offline/sync-status-chip";
-import { useConnectivity } from "@/hooks/use-connectivity";
-import { useOfflineNavigation } from "@/providers/offline-navigation";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
 
 const SIDEBAR_COLLAPSED_KEY = "novend.sidebarCollapsed";
@@ -97,57 +96,6 @@ function NavTooltip({
       <TooltipTrigger asChild>{children}</TooltipTrigger>
       <TooltipContent side="right">{label}</TooltipContent>
     </Tooltip>
-  );
-}
-
-function NavLinks({
-  role,
-  onNavigate,
-  collapsed,
-}: {
-  role: AppRole;
-  onNavigate?: () => void;
-  collapsed?: boolean;
-}) {
-  const pathname = usePathname();
-  const online = useConnectivity();
-  const { navigate, activePath } = useOfflineNavigation();
-  const currentPath = activePath ?? pathname;
-  const items = navForRole(role);
-
-  return (
-    <nav className={cn("flex flex-1 flex-col gap-1", collapsed ? "px-2" : "px-3")}>
-      {items.map((item) => {
-        const active = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
-        const Icon = item.icon;
-        return (
-          <NavTooltip key={item.href} label={item.title} enabled={Boolean(collapsed)}>
-            <Link
-              href={item.href}
-              onClick={(event) => {
-                onNavigate?.();
-                if (online || item.href === currentPath) return;
-
-                // Soft RSC navigations fail offline and blank the shell. Keep the
-                // authenticated layout mounted and swap feature views client-side.
-                event.preventDefault();
-                navigate(item.href);
-              }}
-              className={cn(
-                "flex items-center rounded-full py-2 text-sm font-medium transition-colors",
-                collapsed ? "justify-center px-0" : "gap-3 px-3",
-                active
-                  ? "bg-white/10 text-white ring-1 ring-[#38bdf8]/45"
-                  : "text-sidebar-foreground/80 hover:bg-white/5 hover:text-white",
-              )}
-            >
-              <Icon className={cn("h-4 w-4 shrink-0", active ? "text-[#38bdf8]" : null)} />
-              {collapsed ? <span className="sr-only">{item.title}</span> : <span>{item.title}</span>}
-            </Link>
-          </NavTooltip>
-        );
-      })}
-    </nav>
   );
 }
 
@@ -293,8 +241,8 @@ function SidebarBody({
     <div className="bg-sidebar text-sidebar-foreground flex h-full flex-col">
       <SidebarBrand businessName={businessName} collapsed={collapsed} onToggle={onToggle} />
       <div className={cn("h-px bg-white/10", collapsed ? "mx-2" : "mx-4")} />
-      <div className="flex-1 overflow-y-auto py-4">
-        <NavLinks role={user.role} onNavigate={onNavigate} collapsed={collapsed} />
+      <div className="min-h-0 flex-1 overflow-y-auto py-4">
+        <SidebarNavTree role={user.role} onNavigate={onNavigate} collapsed={collapsed} />
         {user.isPlatformAdmin ? (
           <div className={cn("pt-3", collapsed ? "px-2" : "px-3")}>
             <NavTooltip label="Platform" enabled={Boolean(collapsed)}>
@@ -313,6 +261,7 @@ function SidebarBody({
           </div>
         ) : null}
       </div>
+      <SidebarSettingsLink role={user.role} collapsed={collapsed} onNavigate={onNavigate} />
       <SyncStatusChip collapsed={collapsed} />
       <SidebarUser user={user} collapsed={collapsed} />
     </div>

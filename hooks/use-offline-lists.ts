@@ -116,6 +116,7 @@ export function useProductsList(options: {
       void listMirroredProducts({
         search: options.search || undefined,
         includeInactive: options.includeInactive,
+        branchId: options.branchId ?? null,
       }).then((rows) => {
         if (cancelled || !rows) return;
         setLocal(rows.map((r) => mapProduct(r, options.canViewCost)));
@@ -131,16 +132,16 @@ export function useProductsList(options: {
     options.search,
     options.includeInactive,
     options.canViewCost,
+    options.branchId,
     remote,
     lastSyncAt,
   ]);
 
-  const picked = pickReplicaList({ local, remote: remote as ProductListRow[] | undefined, online });
-  if (picked.source === "remote" && remote !== undefined) {
+  if (online && remote !== undefined) {
     return { products: remote, loading: false, source: "remote" as const };
   }
-  if (picked.rows) {
-    return { products: picked.rows, loading: false, source: "local" as const };
+  if (local != null) {
+    return { products: local, loading: false, source: "local" as const };
   }
   return {
     products: [] as ProductListRow[],
@@ -193,6 +194,7 @@ export function useInventoryList(options: {
       void listMirroredProducts({
         search: options.search || undefined,
         categoryId: options.categoryId,
+        branchId: options.branchId ?? null,
       }).then((rows) => {
         if (cancelled || !rows) return;
         setLocal(
@@ -228,13 +230,13 @@ export function useInventoryList(options: {
       cancelled = true;
       unsub();
     };
-  }, [options.search, options.categoryId, remote, lastSyncAt]);
-  const picked = pickReplicaList({ local, remote: remote as InventoryRow[] | undefined, online });
-  if (picked.source === "remote" && remote !== undefined) {
+  }, [options.search, options.categoryId, options.branchId, remote, lastSyncAt]);
+
+  if (online && remote !== undefined) {
     return { rows: remote, loading: false, source: "remote" as const };
   }
-  if (picked.rows) {
-    return { rows: picked.rows, loading: false, source: "local" as const };
+  if (local != null) {
+    return { rows: local, loading: false, source: "local" as const };
   }
   return { rows: undefined, loading: true, source: "local" as const };
 }
@@ -265,26 +267,25 @@ export function useCategoriesList() {
   return local ?? remote;
 }
 
-export function useMirroredProduct(productId: string | null) {
+export function useMirroredProduct(productId: string | null, branchId?: Id<"branches"> | null) {
   const { lastSyncAt } = useOfflineStatus();
   const [product, setProduct] = useState<MirroredProductRow | null | undefined>(undefined);
 
   useEffect(() => {
     if (!productId) return;
     let cancelled = false;
-    void getMirroredProduct(productId).then((row) => {
-      if (!cancelled) setProduct(row);
-    });
-    const unsub = subscribeReplicaChanged(() => {
-      void getMirroredProduct(productId).then((row) => {
+    const load = () => {
+      void getMirroredProduct(productId, branchId ?? null).then((row) => {
         if (!cancelled) setProduct(row);
       });
-    });
+    };
+    load();
+    const unsub = subscribeReplicaChanged(load);
     return () => {
       cancelled = true;
       unsub();
     };
-  }, [productId, lastSyncAt]);
+  }, [productId, branchId, lastSyncAt]);
 
   if (!productId) return null;
   return product;

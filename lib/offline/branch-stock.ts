@@ -1,6 +1,13 @@
 import { getMeta, META_KEYS, type NovendOfflineDb } from "./db";
 import type { MirroredBranchStock, MirroredProduct } from "./types";
 
+export type MirroredStockFields = {
+  stockQuantity: number;
+  sellableQuantity: number;
+  isExpiring?: boolean;
+  isExpired?: boolean;
+};
+
 export function branchStockId(branchId: string, productId: string): string {
   return `${branchId}:${productId}`;
 }
@@ -14,12 +21,120 @@ export function sellableFromBranchStock(
   return stock.sellableQuantity ?? stock.quantity;
 }
 
+/** Mirrors Convex resolveBranchFilter for offline list/detail queries. */
+export async function resolveMirrorBranchFilter(
+  db: NovendOfflineDb,
+  requestedBranchId?: string | null,
+): Promise<string | null> {
+  const role = await getMeta(db, META_KEYS.profileRole);
+  if (role === "administrator") {
+    return requestedBranchId ?? null;
+  }
+  const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
+  return requestedBranchId ?? profileBranchId ?? null;
+}
+
 export async function resolveCatalogBranchId(
   db: NovendOfflineDb,
   branchId?: string | null,
 ): Promise<string | null> {
   if (branchId) return branchId;
   return (await getMeta(db, META_KEYS.profileBranchId)) ?? null;
+}
+
+type AggregatedBranchStock = {
+  quantity: number;
+  sellableQuantity: number;
+  isExpiring?: boolean;
+};
+
+export function stockFieldsFromAggregate(
+  product: MirroredProduct,
+  stock: AggregatedBranchStock | MirroredBranchStock | undefined,
+  legacyFallback: boolean,
+): MirroredStockFields {
+  if (stock) {
+    const sellable = product.tracksExpiry
+      ? stock.sellableQuantity
+      : (stock.sellableQuantity ?? stock.quantity);
+    const stockQuantity = product.tracksExpiry ? sellable : stock.quantity;
+    return {
+      stockQuantity,
+      sellableQuantity: sellable,
+      isExpiring: stock.isExpiring ?? product.isExpiring,
+      isExpired: product.isExpired,
+    };
+  }
+  if (legacyFallback) {
+    const sellable = product.sellableQuantity ?? product.stockQuantity;
+    return {
+      stockQuantity: product.tracksExpiry ? sellable : product.stockQuantity,
+      sellableQuantity: sellable,
+      isExpiring: product.isExpiring,
+      isExpired: product.isExpired,
+    };
+  }
+  return {
+    stockQuantity: 0,
+    sellableQuantity: 0,
+    isExpiring: product.isExpiring,
+    isExpired: product.isExpired,
+  };
+}
+
+export async function branchStockMapOrgWide(
+  db: NovendOfflineDb,
+): Promise<Map<string, AggregatedBranchStock>> {
+  const rows = await db.branchStock.toArray();
+  const map = new Map<string, AggregatedBranchStock>();
+  for (const row of rows) {
+    const current = map.get(row.productId) ?? {
+      quantity: 0,
+      sellableQuantity: 0,
+      isExpiring: false,
+    };
+    current.quantity += row.quantity;
+    current.sellableQuantity += row.sellableQuantity ?? row.quantity;
+    current.isExpiring = current.isExpiring || Boolean(row.isExpiring);
+    map.set(row.productId, current);
+  }
+  return map;
+}
+
+export async function resolveMirroredProductStock(
+  db: NovendOfflineDb,
+  product: MirroredProduct,
+  branchFilter: string | null,
+  stockByProduct?: Map<string, MirroredBranchStock | AggregatedBranchStock>,
+): Promise<MirroredStockFields> {
+  const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
+  const stock =
+    stockByProduct?.get(product.id) ??
+    (branchFilter
+      ? ((await db.branchStock.get(branchStockId(branchFilter, product.id))) ?? undefined)
+      : undefined);
+
+  if (stock) {
+    return stockFieldsFromAggregate(product, stock, false);
+  }
+
+  if (!branchFilter) {
+    const rows = await db.branchStock.where("productId").equals(product.id).toArray();
+    if (rows.length > 0) {
+      const aggregated = rows.reduce<AggregatedBranchStock>(
+        (acc, row) => ({
+          quantity: acc.quantity + row.quantity,
+          sellableQuantity: acc.sellableQuantity + (row.sellableQuantity ?? row.quantity),
+          isExpiring: acc.isExpiring || Boolean(row.isExpiring),
+        }),
+        { quantity: 0, sellableQuantity: 0, isExpiring: false },
+      );
+      return stockFieldsFromAggregate(product, aggregated, false);
+    }
+  }
+
+  const legacy = Boolean(branchFilter && profileBranchId && profileBranchId === branchFilter);
+  return stockFieldsFromAggregate(product, undefined, legacy);
 }
 
 export async function getSellableQuantity(

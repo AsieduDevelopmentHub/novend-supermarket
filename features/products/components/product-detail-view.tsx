@@ -42,22 +42,27 @@ import { toast } from "sonner";
 import { ProductFormDialog } from "./product-form-dialog";
 
 export function ProductDetailView({ productId }: { productId: Id<"products"> }) {
-  const { canManageProducts, canViewCost } = usePermissions();
+  const { canManageProducts, canViewCost, isAdmin, branchId: myBranchId } = usePermissions();
   const online = useConnectivity();
-  const remote = useQuery(api.products.getProduct, online ? { id: productId } : "skip");
+  const branchScope =
+    isAdmin ? undefined : (myBranchId ?? undefined);
+  const remote = useQuery(
+    api.products.getProduct,
+    online ? { id: productId, branchId: branchScope } : "skip",
+  );
   const lots = useQuery(api.inventory.listLots, online ? { productId } : "skip");
   const [local, setLocal] = useState<Awaited<ReturnType<typeof getMirroredProduct>> | undefined>(
     undefined,
   );
   useEffect(() => {
     let cancelled = false;
-    void getMirroredProduct(productId).then((row) => {
+    void getMirroredProduct(productId, branchScope ?? null).then((row) => {
       if (!cancelled) setLocal(row);
     });
     return () => {
       cancelled = true;
     };
-  }, [productId]);
+  }, [productId, branchScope]);
   const archiveProduct = useMutation(api.products.archiveProduct);
   const adjustStock = useMutation(api.inventory.adjustStock);
   const writeOffExpired = useMutation(api.inventory.writeOffExpired);

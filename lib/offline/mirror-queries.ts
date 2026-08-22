@@ -1,13 +1,54 @@
 import { getMeta, getOfflineDb, META_KEYS } from "./db";
 import { productMatchesQuery } from "./barcode-lookup";
+import {
+  branchStockMapForBranch,
+  branchStockMapOrgWide,
+  resolveMirrorBranchFilter,
+  resolveMirroredProductStock,
+} from "./branch-stock";
 import type { MirroredCategory, MirroredCustomer, MirroredProduct } from "./types";
 
 export type MirroredProductRow = MirroredProduct & {
   isLowStock: boolean;
 };
 
-function availableQty(p: MirroredProduct) {
-  return p.tracksExpiry ? (p.sellableQuantity ?? 0) : (p.sellableQuantity ?? p.stockQuantity);
+async function mapMirroredProductRows(
+  products: MirroredProduct[],
+  branchId?: string | null,
+): Promise<MirroredProductRow[]> {
+  const db = await getOfflineDb();
+  if (!db) {
+    return products.map((p) => ({
+      ...p,
+      isLowStock: (p.sellableQuantity ?? p.stockQuantity) <= p.lowStockThreshold,
+      isExpired: p.isExpired ?? false,
+      isExpiring: p.isExpiring ?? false,
+    }));
+  }
+
+  const branchFilter = await resolveMirrorBranchFilter(db, branchId);
+  const stockByProduct = branchFilter
+    ? await branchStockMapForBranch(db, branchFilter)
+    : await branchStockMapOrgWide(db);
+
+  return Promise.all(
+    products.map(async (product) => {
+      const resolved = await resolveMirroredProductStock(
+        db,
+        product,
+        branchFilter,
+        stockByProduct,
+      );
+      return {
+        ...product,
+        stockQuantity: resolved.stockQuantity,
+        sellableQuantity: resolved.sellableQuantity,
+        isExpiring: resolved.isExpiring ?? false,
+        isExpired: resolved.isExpired ?? false,
+        isLowStock: resolved.stockQuantity <= product.lowStockThreshold,
+      };
+    }),
+  );
 }
 
 /** Active (or all non-archived) products from the Dexie mirror. */
@@ -15,6 +56,7 @@ export async function listMirroredProducts(options?: {
   search?: string;
   includeInactive?: boolean;
   categoryId?: string;
+  branchId?: string | null;
 }): Promise<MirroredProductRow[] | null> {
   const db = await getOfflineDb();
   if (!db) return null;
@@ -34,27 +76,23 @@ export async function listMirroredProducts(options?: {
     products = products.filter((p) => productMatchesQuery(p, options.search!));
   }
 
-  return products
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((p) => ({
-      ...p,
-      isLowStock: availableQty(p) <= p.lowStockThreshold,
-      isExpired: p.isExpired ?? false,
-      isExpiring: p.isExpiring ?? false,
-    }));
+  const rows = await mapMirroredProductRows(
+    products.sort((a, b) => a.name.localeCompare(b.name)),
+    options?.branchId,
+  );
+  return rows;
 }
 
-export async function getMirroredProduct(id: string): Promise<MirroredProductRow | null> {
+export async function getMirroredProduct(
+  id: string,
+  branchId?: string | null,
+): Promise<MirroredProductRow | null> {
   const db = await getOfflineDb();
   if (!db) return null;
   const product = await db.products.get(id);
   if (!product) return null;
-  return {
-    ...product,
-    isLowStock: availableQty(product) <= product.lowStockThreshold,
-    isExpired: product.isExpired ?? false,
-    isExpiring: product.isExpiring ?? false,
-  };
+  const [row] = await mapMirroredProductRows([product], branchId);
+  return row ?? null;
 }
 
 export async function listMirroredCategories(): Promise<MirroredCategory[] | null> {

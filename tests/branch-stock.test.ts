@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { branchStockId, sellableFromBranchStock } from "@/lib/offline/branch-stock";
+import { branchStockId, sellableFromBranchStock, stockFieldsFromAggregate } from "@/lib/offline/branch-stock";
 import type { MirroredBranchStock, MirroredProduct } from "@/lib/offline/types";
 
 describe("branch stock mirror", () => {
@@ -31,5 +31,31 @@ describe("branch stock mirror", () => {
       updatedAt: 0,
     } satisfies MirroredBranchStock;
     expect(sellableFromBranchStock(stock, product)).toBe(7);
+  });
+
+  it("aggregates org-wide stock from branch rows", () => {
+    const product = {
+      tracksExpiry: false,
+      stockQuantity: 0,
+      sellableQuantity: 0,
+      lowStockThreshold: 2,
+    } as MirroredProduct;
+    const fields = stockFieldsFromAggregate(
+      product,
+      { quantity: 5, sellableQuantity: 5, isExpiring: false },
+      false,
+    );
+    expect(fields.stockQuantity).toBe(5);
+  });
+
+  it("uses legacy product quantities when profile branch has no branchStock row", () => {
+    const product = {
+      tracksExpiry: false,
+      stockQuantity: 12,
+      sellableQuantity: 12,
+      lowStockThreshold: 2,
+    } as MirroredProduct;
+    const fields = stockFieldsFromAggregate(product, undefined, true);
+    expect(fields.stockQuantity).toBe(12);
   });
 });
