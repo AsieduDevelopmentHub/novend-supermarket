@@ -114,6 +114,14 @@ export function SyncCenterDialog() {
   const [discardTarget, setDiscardTarget] = useState<OutboxRow | null>(null);
   const [discardPending, setDiscardPending] = useState(false);
   const [tab, setTab] = useState("waiting");
+  const [tabSessionOpen, setTabSessionOpen] = useState(false);
+
+  if (syncCenterOpen !== tabSessionOpen) {
+    setTabSessionOpen(syncCenterOpen);
+    if (syncCenterOpen) {
+      setTab(failedCount > 0 ? "conflicts" : "waiting");
+    }
+  }
 
   const reload = useCallback(async () => {
     const [open, synced] = await Promise.all([listOpenOutbox(), listRecentSyncedOutbox()]);
@@ -125,16 +133,18 @@ export function SyncCenterDialog() {
 
   useEffect(() => {
     if (!syncCenterOpen) return;
-    void reload();
-    return subscribeReplicaChanged(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) void reload();
+    });
+    const unsub = subscribeReplicaChanged(() => {
       void reload();
     });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [syncCenterOpen, reload]);
-
-  useEffect(() => {
-    if (!syncCenterOpen) return;
-    setTab(failedCount > 0 ? "conflicts" : "waiting");
-  }, [syncCenterOpen, failedCount]);
 
   async function syncNow() {
     if (!online) {

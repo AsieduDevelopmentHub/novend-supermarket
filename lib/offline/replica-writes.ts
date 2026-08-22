@@ -280,6 +280,7 @@ export async function queueUpsertProduct(
     if (clash) throw new Error(BARCODE_ALREADY_ASSIGNED);
   }
   const stockQuantity = payload.stockQuantity;
+  const { imageBlob, ...rest } = payload;
   await db.products.put({
     id: localId,
     name: payload.name,
@@ -302,18 +303,17 @@ export async function queueUpsertProduct(
     isExpiring: existing?.isExpiring ?? false,
     updatedAt: Date.now(),
   });
-  if (payload.imageBlob) {
+  if (imageBlob) {
     await putProductImage({
       productId: localId,
-      blob: payload.imageBlob,
-      mimeType: payload.imageBlob.type || "image/jpeg",
+      blob: imageBlob,
+      mimeType: imageBlob.type || "image/jpeg",
     });
   }
-  const { imageBlob: _imageBlob, ...rest } = payload;
   await enqueueOutbox(db, "upsert_product", {
     ...rest,
     localId,
-    hasLocalImage: Boolean(payload.imageBlob) || payload.hasLocalImage,
+    hasLocalImage: Boolean(imageBlob) || payload.hasLocalImage,
   } satisfies UpsertProductPayload);
   return localId;
 }

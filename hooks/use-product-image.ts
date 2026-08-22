@@ -13,23 +13,21 @@ export function useProductImageSrc(
   const [src, setSrc] = useState<string | null>(fallback);
 
   useEffect(() => {
-    if (!productId) {
-      setSrc(fallback);
-      return;
-    }
+    if (!productId) return;
     let cancelled = false;
     const load = () => {
       void resolveProductImageSrc(productId, remoteUrl, { thumbnail: true }).then((next) => {
         if (!cancelled) setSrc(next);
       });
     };
-    load();
+    queueMicrotask(load);
     const unsub = subscribeReplicaChanged(load);
     return () => {
       cancelled = true;
       unsub();
     };
-  }, [productId, remoteUrl, fallback]);
+  }, [productId, remoteUrl]);
 
+  if (!productId) return fallback;
   return src;
 }
