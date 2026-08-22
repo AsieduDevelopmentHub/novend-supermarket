@@ -8,11 +8,11 @@ const STEP_ALT: Record<(typeof landingCopy.journey.steps)[number]["id"], string>
   warehouse: "Novend wholesale warehouse with stock quantities and valuation",
   transfer: "Issue warehouse stock to a branch in Novend",
   sell: "Novend POS checkout with barcode-ready product grid and cart",
-  local: "Novend local database backup on this terminal",
+  local: "Novend orders list showing completed sales saved on this device",
   sync: "Novend sync center showing recent uploads to the cloud",
 };
 
-/** Alternating steps in a sticky stack — each card pins and layers until scroll completes. */
+/** Alternating sticky steps — open editorial layout, no stacked cards. */
 export function LandingJourney() {
   return (
     <section
@@ -45,22 +45,25 @@ export function LandingJourney() {
               className={`landing-journey-stack-item${isLast ? " landing-journey-stack-item-last" : ""}`}
             >
               <article
-                className="landing-journey-stack-card"
+                className="landing-journey-stack-panel"
                 style={{
                   zIndex: index + 1,
                   top: `calc(var(--landing-stack-base-top) + ${index} * var(--landing-stack-step-offset))`,
                 }}
               >
                 <div
-                  className={`grid items-center gap-8 lg:grid-cols-2 lg:gap-12 xl:gap-14 ${
+                  className={`grid items-center gap-8 lg:grid-cols-2 lg:gap-14 xl:gap-16 ${
                     reverse ? "lg:[&>*:first-child]:order-2" : ""
                   }`}
                 >
-                  <div data-reveal className="max-w-lg">
-                    <p className="text-primary text-xs font-bold tracking-[0.18em] uppercase">
-                      Step {stepNumber} · {step.railLabel}
-                    </p>
-                    <h3 className="text-[#111827] mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+                  <div data-reveal className="landing-journey-copy max-w-lg">
+                    <div className="landing-journey-step-meta">
+                      <span className="landing-journey-step-index" aria-hidden>
+                        {stepNumber}
+                      </span>
+                      <span className="landing-journey-step-rail">{step.railLabel}</span>
+                    </div>
+                    <h3 className="text-[#111827] mt-5 text-2xl font-semibold tracking-tight sm:text-3xl">
                       {step.title}
                     </h3>
                     <p className="text-slate-600 mt-4 text-base leading-relaxed">{step.detail}</p>

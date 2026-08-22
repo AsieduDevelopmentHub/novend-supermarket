@@ -55,6 +55,6 @@ export const JOURNEY_STEP_SCREENS = {
   warehouse: MARKETING_UI_SCREENS.inventoryWholesale,
   transfer: MARKETING_UI_SCREENS.inventoryWholesaleIssueModal,
   sell: MARKETING_UI_SCREENS.salesPos,
-  local: MARKETING_UI_SCREENS.settingsLocalBackup,
+  local: MARKETING_UI_SCREENS.salesOrders,
   sync: MARKETING_UI_SCREENS.syncRecent,
 } as const;
