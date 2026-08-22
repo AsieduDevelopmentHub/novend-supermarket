@@ -2136,7 +2136,7 @@
   border-radius: 1.5rem;
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: #0f172a;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9; /* match marketing UI screenshots */
   transition:
     transform 0.35s ease,
     box-shadow 0.35s ease;
@@ -2164,10 +2164,9 @@ button.landing-feature-frame {
 .landing-feature-shot {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   object-position: top center;
   display: block;
-  background: #0f172a;
 }
 
 .landing-feature-frame-charts::after {
@@ -2208,7 +2207,7 @@ button.landing-feature-frame {
   border-radius: 1rem;
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: #0f172a;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
   min-height: 0;
 }
 
