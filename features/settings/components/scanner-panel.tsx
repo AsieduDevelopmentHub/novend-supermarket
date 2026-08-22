@@ -177,17 +177,7 @@ export function ScannerPanel() {
         </Alert>
       ) : null}
 
-      {!isDesktopApp && connection !== "listening" ? (
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>Browser scanning</AlertTitle>
-          <AlertDescription>
-            In the web app, plug in a USB scanner that types like a keyboard, or use the barcode
-            icon on Sales to scan with your camera. Discover Devices does not require the desktop
-            app.
-          </AlertDescription>
-        </Alert>
-      ) : isDesktopApp && !isDesktopOnline && connection !== "listening" ? (
+      {isDesktopApp && !isDesktopOnline && connection !== "listening" ? (
         <Alert>
           <Info className="h-4 w-4" />
           <AlertTitle>Desktop connection starting</AlertTitle>

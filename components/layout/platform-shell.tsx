@@ -13,8 +13,7 @@ import { BRANDING } from "@/constants/branding";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { clearOfflineSession } from "@/lib/offline/session";
-import { clearShellProfile } from "@/lib/offline/shell-profile";
+import { signOutAndRedirect } from "@/lib/auth/sign-out";
 
 const NAV = [
   { href: "/platform", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -125,12 +124,16 @@ function PlatformNav({ pathname, className }: { pathname: string; className?: st
 function PlatformSession({ name, email }: { name: string; email: string | null }) {
   const { signOut } = useAuthActions();
   const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
 
   async function onSignOut() {
-    clearOfflineSession();
-    await clearShellProfile();
-    await signOut();
-    router.replace("/login");
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOutAndRedirect({ signOut, router });
+    } catch {
+      setSigningOut(false);
+    }
   }
 
   return (
@@ -142,11 +145,12 @@ function PlatformSession({ name, email }: { name: string; email: string | null }
       <Button
         type="button"
         variant="outline"
+        disabled={signingOut}
         className="w-full justify-start bg-transparent text-white hover:bg-white/10 hover:text-white"
         onClick={() => void onSignOut()}
       >
         <LogOut className="h-4 w-4" />
-        Sign out
+        {signingOut ? "Signing out…" : "Sign out"}
       </Button>
     </div>
   );

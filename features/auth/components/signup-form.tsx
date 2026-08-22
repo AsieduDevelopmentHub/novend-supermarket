@@ -1,9 +1,10 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useConvexAuth } from "convex/react";
 import Image from "next/image";
 import { Mail, User } from "lucide-react";
 import { toast } from "sonner";
@@ -38,11 +39,18 @@ export function SignupForm({ compact = false }: { compact?: boolean }) {
 
 function ConfiguredSignupForm({ compact }: { compact: boolean }) {
   const { signIn } = useAuthActions();
+  const { isAuthenticated } = useConvexAuth();
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void router.refresh();
+    router.replace("/onboarding");
+  }, [isAuthenticated, router]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -55,10 +63,9 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
       formData.set("flow", "signUp");
       await signIn("password", formData);
       toast.success("Account created");
-      router.replace("/onboarding");
+      void router.refresh();
     } catch (error) {
       showError(error, "Could not create account. Try a different email.");
-    } finally {
       setPending(false);
     }
   }

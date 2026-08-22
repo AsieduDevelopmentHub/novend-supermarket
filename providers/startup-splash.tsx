@@ -37,6 +37,11 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
   const [visible, setVisible] = useState(true);
   const [offlineReady, setOfflineReady] = useState(false);
   const isMarketingLanding = pathname === "/";
+  const isAuthRoute =
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname.startsWith("/onboarding");
+  const skipSplash = isMarketingLanding || isAuthRoute;
 
   useEffect(() => {
     startedAt.current = performance.now();
@@ -78,7 +83,7 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      {!isMarketingLanding && visible ? (
+      {!skipSplash && visible ? (
         <AppSplash label="Starting Novend POS…" exiting={exiting} />
       ) : null}
     </>

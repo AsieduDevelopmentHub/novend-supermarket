@@ -78,6 +78,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 
   useEffect(() => {
     if (!isAuthenticated || me === undefined || me === null) return;
+    void router.refresh();
     router.replace(postLoginPath(me));
   }, [isAuthenticated, me, router]);
 
@@ -114,8 +115,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         /* non-fatal */
       }
       toast.success("Welcome");
-      const session = await convex.query(api.users.me, {});
-      router.replace(postLoginPath(session));
+      void router.refresh();
     } catch (error) {
       const raw = error instanceof Error ? error.message : "";
       if (raw.toLowerCase().includes("auth provider discovery")) {
@@ -134,7 +134,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         }
         showError(error, "Sign in failed. Check your email and password.");
       }
-    } finally {
       setPending(false);
     }
   }

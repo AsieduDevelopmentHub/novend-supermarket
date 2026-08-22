@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation } from "convex/react";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
@@ -32,8 +32,7 @@ import {
 import { SyncStatusChip } from "@/components/offline/sync-status-chip";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
-import { clearOfflineSession } from "@/lib/offline/session";
-import { clearShellProfile } from "@/lib/offline/shell-profile";
+import { signOutAndRedirect } from "@/lib/auth/sign-out";
 
 const SIDEBAR_COLLAPSED_KEY = "novend.sidebarCollapsed";
 
@@ -200,7 +199,9 @@ function SidebarBrand({
 
 function SidebarUser({ user, collapsed }: { user: ShellUser; collapsed?: boolean }) {
   const { signOut } = useAuthActions();
+  const router = useRouter();
   const clearPresence = useMutation(api.users.clearPresence);
+  const [signingOut, setSigningOut] = useState(false);
   const initials = user.name
     .split(" ")
     .map((part) => part[0])
@@ -209,14 +210,17 @@ function SidebarUser({ user, collapsed }: { user: ShellUser; collapsed?: boolean
     .toUpperCase();
 
   async function onSignOut() {
+    if (signingOut) return;
+    setSigningOut(true);
     try {
-      await clearPresence({});
+      await signOutAndRedirect({
+        signOut,
+        router,
+        clearPresence: () => clearPresence({}),
+      });
     } catch {
-      // Presence clear is best-effort before ending the session.
+      setSigningOut(false);
     }
-    clearOfflineSession();
-    await clearShellProfile();
-    await signOut();
   }
 
   return (
@@ -263,9 +267,9 @@ function SidebarUser({ user, collapsed }: { user: ShellUser; collapsed?: boolean
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => void onSignOut()}>
+          <DropdownMenuItem disabled={signingOut} onClick={() => void onSignOut()}>
             <LogOut className="mr-2 h-4 w-4" />
-            Sign out
+            {signingOut ? "Signing out…" : "Sign out"}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
