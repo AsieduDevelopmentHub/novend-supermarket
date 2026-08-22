@@ -6,9 +6,11 @@ import {
 import { ConvexHttpClient } from "convex/browser";
 import { NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
+import { postLoginPath } from "@/lib/auth/post-login-path";
 
 const isLoginPage = createRouteMatcher(["/login", "/signup"]);
 const isPublicRoute = createRouteMatcher([
+  "/",
   "/login",
   "/signup",
   "/billing/callback",
@@ -17,10 +19,6 @@ const isPublicRoute = createRouteMatcher([
 const isPlatformRoute = createRouteMatcher(["/platform(.*)"]);
 const isAdminOnly = createRouteMatcher(["/branches(.*)"]);
 const isAdminOrManager = createRouteMatcher(["/analytics(.*)", "/users(.*)"]);
-
-function isLandingPath(pathname: string) {
-  return pathname === "/";
-}
 
 function buildCsp(nonce: string) {
   const isDev = process.env.NODE_ENV === "development";
@@ -63,14 +61,19 @@ function withSecurityHeaders(response: NextResponse, nonce: string) {
   return response;
 }
 
-async function roleForToken(token: string | undefined) {
+async function sessionForToken(token: string | undefined) {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!token || !convexUrl) return null;
   try {
     const client = new ConvexHttpClient(convexUrl);
     client.setAuth(token);
     const me = await client.query(api.users.me, {});
-    return me?.role ?? null;
+    if (!me) return null;
+    return {
+      role: me.role ?? null,
+      isPlatformAdmin: Boolean(me.isPlatformAdmin),
+      needsOnboarding: Boolean(me.needsOnboarding || me.needsProfile),
+    };
   } catch {
     return null;
   }
@@ -84,17 +87,12 @@ export default convexAuthNextjsMiddleware(
 
     const authenticated = await convexAuth.isAuthenticated();
 
-    const pathname = request.nextUrl.pathname;
-
-    if (isLandingPath(pathname) && authenticated) {
-      return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);
-    }
-
     if (isLoginPage(request) && authenticated) {
-      return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);
+      const session = await sessionForToken(await convexAuth.getToken());
+      return withSecurityHeaders(nextjsMiddlewareRedirect(request, postLoginPath(session)), nonce);
     }
 
-    if (!isPublicRoute(request) && !isLandingPath(pathname) && !authenticated) {
+    if (!isPublicRoute(request) && !authenticated) {
       return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/login"), nonce);
     }
 
@@ -103,11 +101,15 @@ export default convexAuthNextjsMiddleware(
       !isPlatformRoute(request) &&
       (isAdminOnly(request) || isAdminOrManager(request))
     ) {
-      const role = await roleForToken(await convexAuth.getToken());
-      if (isAdminOnly(request) && role !== "administrator") {
+      const session = await sessionForToken(await convexAuth.getToken());
+      if (isAdminOnly(request) && session?.role !== "administrator") {
         return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);
       }
-      if (isAdminOrManager(request) && role !== "administrator" && role !== "manager") {
+      if (
+        isAdminOrManager(request) &&
+        session?.role !== "administrator" &&
+        session?.role !== "manager"
+      ) {
         return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);
       }
     }

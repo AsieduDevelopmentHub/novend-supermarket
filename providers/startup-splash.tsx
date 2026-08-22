@@ -1,6 +1,7 @@
 "use client";
 
 import { useConvexAuth } from "convex/react";
+import { usePathname } from "next/navigation";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { AppSplash } from "@/features/auth/components/app-splash";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -28,12 +29,14 @@ export function StartupSplash({ children }: { children: ReactNode }) {
 }
 
 function AuthStartupSplash({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const { isLoading } = useConvexAuth();
   const online = useConnectivity();
   const startedAt = useRef(0);
   const [exiting, setExiting] = useState(false);
   const [visible, setVisible] = useState(true);
   const [offlineReady, setOfflineReady] = useState(false);
+  const isMarketingLanding = pathname === "/";
 
   useEffect(() => {
     startedAt.current = performance.now();
@@ -75,7 +78,9 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      {visible ? <AppSplash label="Starting Novend POS…" exiting={exiting} /> : null}
+      {!isMarketingLanding && visible ? (
+        <AppSplash label="Starting Novend POS…" exiting={exiting} />
+      ) : null}
     </>
   );
 }

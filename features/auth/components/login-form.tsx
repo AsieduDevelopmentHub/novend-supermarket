@@ -19,6 +19,7 @@ import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
+import { postLoginPath } from "@/lib/auth/post-login-path";
 
 const REMEMBER_KEY = "novend.login.rememberEmail";
 
@@ -73,11 +74,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     return () => window.clearTimeout(timer);
   }, []);
 
+  const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
+
   useEffect(() => {
-    if (isAuthenticated) {
-      router.replace("/dashboard");
-    }
-  }, [isAuthenticated, router]);
+    if (!isAuthenticated || me === undefined || me === null) return;
+    router.replace(postLoginPath(me));
+  }, [isAuthenticated, me, router]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -114,7 +116,8 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         /* non-fatal */
       }
       toast.success("Welcome");
-      router.replace("/dashboard");
+      const session = await convex.query(api.users.me, {});
+      router.replace(postLoginPath(session));
     } catch (error) {
       const raw = error instanceof Error ? error.message : "";
       if (raw.toLowerCase().includes("auth provider discovery")) {

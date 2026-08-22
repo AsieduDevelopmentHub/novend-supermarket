@@ -3,10 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, type RefObject } from "react";
+import { useConvexAuth, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { BRANDING } from "@/constants/branding";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { landingCopy } from "@/features/marketing/content";
+import { postLoginPath } from "@/lib/auth/post-login-path";
 
 type Props = {
   scrollRootRef: RefObject<HTMLElement | null>;
@@ -15,6 +18,9 @@ type Props = {
 /** Product-aligned sticky nav — same CTA language as login. */
 export function LandingNav({ scrollRootRef }: Props) {
   const [scrolled, setScrolled] = useState(false);
+  const { isAuthenticated } = useConvexAuth();
+  const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
+  const workspaceHref = isAuthenticated && me != null ? postLoginPath(me) : "/login";
 
   useEffect(() => {
     const root = scrollRootRef.current;
@@ -78,7 +84,7 @@ export function LandingNav({ scrollRootRef }: Props) {
             size="sm"
             className="landing-shadow-cta-outline h-9 shrink-0 font-semibold transition-[box-shadow,transform] hover:-translate-y-0.5"
           >
-            <Link href="/login">Login</Link>
+            <Link href={workspaceHref}>{isAuthenticated ? "Open workspace" : "Login"}</Link>
           </Button>
         </div>
       </div>
