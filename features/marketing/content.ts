@@ -567,25 +567,49 @@ export const landingCopy = {
   ],
   navTrialCta: "Start Free Trial",
   footer: {
+    brandTitle: "Novend by Asiedu Development Hub",
     description:
-      "Commercial offline-first Point of Sale for independent businesses — desktop, web, and cloud sync.",
+      "Offline-first commercial POS built for supermarkets, pharmacies, wholesalers, boutiques, electronics stores, and modern retail businesses.",
+    badges: ["Offline First", "Multi-Branch", "Desktop & Web"],
     product: [
       { href: "#features", label: "Features" },
+      { href: "#industries", label: "Industries" },
       { href: "#pricing", label: "Pricing" },
-      { href: "#journey", label: "Desktop" },
-      { href: "#faq", label: "Updates" },
+      { href: "#journey", label: "Desktop App" },
+      { href: "/docs/releases", label: "Release Notes" },
     ],
     resources: [
-      { href: "#architecture", label: "Documentation" },
-      { href: "#faq", label: "Help Center" },
-      { href: "#contact", label: "Contact" },
+      { href: "/docs", label: "Documentation" },
+      { href: "/docs/help", label: "Help Center" },
+      { href: "#contact", label: "Contact Support" },
     ],
-    company: [
-      { href: "#about", label: "About" },
-      { href: "#privacy", label: "Privacy" },
-      { href: "#terms", label: "Terms" },
+    legal: [
+      { href: "/privacy", label: "Privacy Policy" },
+      { href: "/terms", label: "Terms of Service" },
     ],
-    socials: [{ href: `mailto:${LANDING_CONTACT_EMAIL}`, label: "Email" }],
-    builtBy: "Built by Asiedu Development Hub",
+    contact: {
+      title: "Get in Touch",
+      email: {
+        label: "Email",
+        value: LANDING_CONTACT_EMAIL,
+        href: `mailto:${LANDING_CONTACT_EMAIL}`,
+      },
+      international: {
+        label: "WhatsApp & Calls",
+        value: "+44 7868 178108",
+        href: "https://wa.me/447868178108",
+      },
+      local: {
+        label: "Local Support",
+        value: "+233 55 525 7482",
+        href: "tel:+233555257482",
+      },
+      location: {
+        label: "Location",
+        value: "Sunyani, Bono Region, Ghana",
+      },
+    },
+    copyright: "Novend. All rights reserved.",
+    builtBy: "Designed & developed by Asiedu Development Hub",
   },
 } as const;
