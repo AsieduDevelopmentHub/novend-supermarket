@@ -27,6 +27,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { formatCurrency, roundMoney } from "@/lib/currency";
+import { formatDateTime } from "@/lib/date";
 import { Minus, Package, Plus, ScanBarcode, ShoppingCart, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -79,7 +80,14 @@ type HeldRow = {
   remoteId?: Id<"heldSales">;
   label: string;
   total: number;
+  heldAt: number;
+  holdRef: string;
 };
+
+function formatHoldRef(id: string) {
+  const normalized = id.replace(/^lhold_/, "");
+  return normalized.slice(-6).toUpperCase() || id.slice(-6).toUpperCase();
+}
 
 export function SalesView() {
   const { isAdmin, branchId: myBranchId, branchName } = usePermissions();
@@ -180,8 +188,10 @@ export function SalesView() {
       key: `local-${sale.id}`,
       source: "local",
       localId: sale.id,
-      label: sale.label || sale.customerName || "Held cart (device)",
+      label: sale.label || sale.customerName || "Held cart",
       total: sale.total,
+      heldAt: sale.heldAt,
+      holdRef: formatHoldRef(sale.id),
     }));
     const remoteRows: HeldRow[] =
       remoteHeld?.map((sale) => ({
@@ -190,8 +200,10 @@ export function SalesView() {
         remoteId: sale._id,
         label: sale.label || sale.customerName || "Held cart",
         total: sale.total,
+        heldAt: sale.heldAt,
+        holdRef: formatHoldRef(String(sale._id)),
       })) ?? [];
-    return [...localRows, ...remoteRows];
+    return [...localRows, ...remoteRows].sort((a, b) => b.heldAt - a.heldAt);
   }, [localHeld, remoteHeld]);
 
   function addToCart(product: {
@@ -671,13 +683,21 @@ export function SalesView() {
               <CardContent className="space-y-2">
                 {heldRows.map((sale) => (
                   <div key={sale.key} className="flex items-center justify-between gap-3 text-sm">
-                    <span>
-                      {sale.label} · {formatCurrency(sale.total)}
-                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        {sale.label}
+                        <span className="text-muted-foreground font-normal"> · #{sale.holdRef}</span>
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {formatDateTime(sale.heldAt)} · {formatCurrency(sale.total)}
+                        {sale.source === "local" ? " · This device" : null}
+                      </p>
+                    </div>
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
+                      className="shrink-0"
                       onClick={() => void onResume(sale)}
                     >
                       Resume

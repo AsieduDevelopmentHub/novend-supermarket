@@ -21,9 +21,10 @@ import {
   listUnsyncedLocalReturns,
   returnedQtyBySaleItem,
 } from "@/lib/offline/returns-repository";
-import { ArrowLeft, Printer, Undo2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, Printer, Undo2 } from "lucide-react";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useAppNavigation } from "@/hooks/use-app-navigation";
 
 type OrderDetail = {
   id: string;
@@ -220,8 +221,10 @@ async function loadMirroredOrder(saleId: string): Promise<OrderDetail | null> {
   if (!db) return null;
   const sale = await db.orders.get(saleId);
   if (!sale) return null;
-  const items = await db.orderItems.where("orderId").equals(saleId).toArray();
-  const localReturns = await db.localReturns.where("saleId").equals(saleId).toArray();
+  const [items, mirroredReturns] = await Promise.all([
+    db.orderItems.where("orderId").equals(saleId).toArray(),
+    db.returns.where("saleId").equals(saleId).toArray(),
+  ]);
   const base: OrderDetail = {
     id: sale.id,
     invoiceNumber: sale.invoiceNumber,
@@ -247,17 +250,17 @@ async function loadMirroredOrder(saleId: string): Promise<OrderDetail | null> {
     refundedAmount: sale.refundedAmount ?? 0,
     remainingRefundable: Math.max(0, sale.total - (sale.refundedAmount ?? 0)),
     canReturn: items.some((item) => item.quantity - item.returnedQuantity > 0),
-    returns: localReturns
-      .filter((row) => row.syncStatus === "synced")
+    returns: mirroredReturns
       .map((row) => ({
         id: row.id,
         returnNumber: row.returnNumber,
         refundAmount: row.refundAmount,
-        reason: row.reason,
-        notes: row.notes ?? null,
+        reason: row.reason ?? "—",
+        notes: null,
         itemCount: row.itemCount,
         completedAt: row.completedAt,
-      })),
+      }))
+      .sort((a, b) => b.completedAt - a.completedAt),
     receiptPayload: null,
   };
   return overlayPendingReturns(base);
@@ -490,18 +493,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
           </CardHeader>
           <CardContent className="space-y-2">
             {order.returns.map((row) => (
-              <div
-                key={row.id}
-                className="border-border flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm"
-              >
-                <div>
-                  <p className="font-medium">{row.returnNumber}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {formatDateTime(row.completedAt)} · {row.reason} · {row.itemCount} items
-                  </p>
-                </div>
-                <p className="font-semibold">{formatCurrency(row.refundAmount)}</p>
-              </div>
+              <OrderReturnRow key={row.id} row={row} />
             ))}
           </CardContent>
         </Card>
@@ -540,6 +532,44 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
           setRefreshKey((value) => value + 1);
         }}
       />
+    </div>
+  );
+}
+
+function OrderReturnRow({
+  row,
+}: {
+  row: OrderDetail["returns"][number];
+}) {
+  const { navigate } = useAppNavigation();
+
+  function openReturn() {
+    navigate(`/returns/${row.id}`);
+  }
+
+  return (
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={openReturn}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openReturn();
+        }
+      }}
+      className="border-border hover:bg-muted/40 focus-visible:bg-muted/40 flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors focus-visible:outline-none"
+    >
+      <div className="min-w-0">
+        <p className="font-medium">{row.returnNumber}</p>
+        <p className="text-muted-foreground text-xs">
+          {formatDateTime(row.completedAt)} · {row.reason} · {row.itemCount} items
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <p className="font-semibold">{formatCurrency(row.refundAmount)}</p>
+        <ChevronRight className="text-muted-foreground h-4 w-4" aria-hidden />
+      </div>
     </div>
   );
 }
