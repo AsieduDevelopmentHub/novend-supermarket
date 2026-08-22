@@ -1283,7 +1283,7 @@
     #ffffff;
 }
 
-/* CTA laptop + phone — empty shells (no dashboard composite) */
+/* CTA laptop + phone — filled mockup with transparent plate */
 .landing-cta-devices-frame {
   position: relative;
   width: 100%;
@@ -1295,7 +1295,7 @@
   position: relative;
   z-index: 1;
   display: block;
-  filter: drop-shadow(0 18px 28px rgba(15, 23, 42, 0.14));
+  filter: drop-shadow(0 16px 26px rgba(15, 23, 42, 0.12));
 }
 
 .landing-pos-frame {

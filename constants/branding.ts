@@ -1,5 +1,5 @@
 /** Bump when replacing files under /public/marketing so Next Image + browsers refetch. */
-const MARKETING_ASSET_VERSION = "20260822c";
+const MARKETING_ASSET_VERSION = "20260822d";
 
 function marketingAsset(path: string): string {
   return `${path}?v=${MARKETING_ASSET_VERSION}`;
