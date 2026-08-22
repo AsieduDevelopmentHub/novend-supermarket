@@ -61,7 +61,7 @@ export const JOURNEY_STEP_SCREENS = {
 
 /** Feature showcase — one real screen (or split pair) per capability block. */
 export const FEATURE_BLOCK_SCREENS = {
-  checkout: MARKETING_UI_SCREENS.salesPos,
+  checkout: "/marketing/ui/sales-pos.jpg",
   inventory: MARKETING_UI_SCREENS.inventoryStock,
   wholesale: MARKETING_UI_SCREENS.inventoryWholesale,
   analytics: MARKETING_UI_SCREENS.businessAnalyticsOverview,
@@ -72,12 +72,12 @@ export const FEATURE_BLOCK_SCREENS = {
   reports: MARKETING_UI_SCREENS.businessReports,
 } as const;
 
-/** Industry selector — real UI tailored per retail vertical. */
+/** Industry selector — vertical-specific POS sale screenshots. */
 export const INDUSTRY_SHOWCASE_SCREENS = {
-  pharmacy: MARKETING_UI_SCREENS.inventoryProductDetailExpiry,
-  supermarket: MARKETING_UI_SCREENS.salesPos,
-  wholesale: MARKETING_UI_SCREENS.inventoryWholesale,
-  fashion: MARKETING_UI_SCREENS.inventoryProducts,
-  electronics: MARKETING_UI_SCREENS.inventoryProductDetail,
-  convenience: MARKETING_UI_SCREENS.inventoryStock,
+  pharmacy: "/marketing/ui/sale-pharmacy.jpg",
+  supermarket: "/marketing/ui/sale-supermarket.jpg",
+  wholesale: "/marketing/ui/sale-wholesale.jpg",
+  fashion: "/marketing/ui/sale-fashion.jpg",
+  electronics: "/marketing/ui/sale-electronics.jpg",
+  convenience: "/marketing/ui/sale-convenience.jpg",
 } as const;

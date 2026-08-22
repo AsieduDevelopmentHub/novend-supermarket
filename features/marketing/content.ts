@@ -530,12 +530,12 @@ export const landingCopy = {
     industries: {
       label: "Industries",
       items: [
-        { href: "/#industries", label: "Pharmacy" },
-        { href: "/#industries", label: "Supermarket" },
-        { href: "/#industries", label: "Wholesale" },
-        { href: "/#industries", label: "Fashion" },
-        { href: "/#industries", label: "Electronics" },
-        { href: "/#industries", label: "Convenience" },
+        { href: "/#industry-pharmacy", label: "Pharmacy" },
+        { href: "/#industry-supermarket", label: "Supermarket" },
+        { href: "/#industry-wholesale", label: "Wholesale" },
+        { href: "/#industry-fashion", label: "Fashion" },
+        { href: "/#industry-electronics", label: "Electronics" },
+        { href: "/#industry-convenience", label: "Convenience" },
       ],
     },
     pricing: { href: "/#pricing", label: "Pricing" },

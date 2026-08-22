@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { ArrowRight, Check } from "lucide-react";
 import { INDUSTRY_SHOWCASE_SCREENS } from "@/constants/marketing-ui-screens";
@@ -10,13 +10,24 @@ import { cn } from "@/lib/utils";
 
 type IndustryId = (typeof landingCopy.industries.items)[number]["id"];
 
+const INDUSTRY_IDS = new Set(
+  landingCopy.industries.items.map((item) => item.id),
+);
+
+function parseIndustryHash(hash: string): IndustryId | null {
+  const raw = hash.replace(/^#/, "");
+  if (!raw.startsWith("industry-")) return null;
+  const id = raw.slice("industry-".length);
+  return INDUSTRY_IDS.has(id as IndustryId) ? (id as IndustryId) : null;
+}
+
 const SCREEN_ALT: Record<IndustryId, string> = {
-  pharmacy: "Novend pharmacy inventory with expiry and batch detail",
+  pharmacy: "Novend pharmacy POS sale screen with medicine catalog and cart",
   supermarket: "Novend supermarket POS with product grid and cart",
-  wholesale: "Novend wholesale warehouse with branch stock",
-  fashion: "Novend product catalog suited to fashion variants",
-  electronics: "Novend product detail for high-value electronics SKUs",
-  convenience: "Novend stock view with low-stock visibility for convenience stores",
+  wholesale: "Novend wholesale POS with pack pricing and bulk cart",
+  fashion: "Novend fashion boutique POS with apparel catalog",
+  electronics: "Novend electronics store POS with high-value SKUs",
+  convenience: "Novend convenience store POS with quick-scan checkout",
 };
 
 /** V3 industries — icon tabs + copy/bullets left + screenshot right. */
@@ -25,6 +36,32 @@ export function LandingIndustries() {
   const [activeId, setActiveId] = useState<IndustryId>(industries.items[0]!.id);
   const active = industries.items.find((item) => item.id === activeId) ?? industries.items[0]!;
   const screen = INDUSTRY_SHOWCASE_SCREENS[active.id];
+
+  useEffect(() => {
+    const applyHash = () => {
+      const id = parseIndustryHash(window.location.hash);
+      if (!id) return;
+      setActiveId(id);
+      requestAnimationFrame(() => {
+        document.getElementById("industries")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    };
+
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
+  }, []);
+
+  function selectIndustry(id: IndustryId) {
+    setActiveId(id);
+    const nextHash = `#industry-${id}`;
+    if (window.location.hash !== nextHash) {
+      window.history.replaceState(null, "", nextHash);
+    }
+  }
 
   return (
     <section
@@ -55,10 +92,11 @@ export function LandingIndustries() {
             return (
               <button
                 key={item.id}
+                id={`industry-${item.id}`}
                 type="button"
                 role="tab"
                 aria-selected={selected}
-                onClick={() => setActiveId(item.id)}
+                onClick={() => selectIndustry(item.id)}
                 className={cn(
                   "shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition-[background-color,border-color,color,box-shadow] duration-300",
                   selected
@@ -116,8 +154,7 @@ export function LandingIndustries() {
                     alt={SCREEN_ALT[active.id]}
                     width={1920}
                     height={1080}
-                    quality={100}
-                    unoptimized
+                    quality={90}
                     className="landing-industry-shot"
                     sizes="(max-width: 1024px) 100vw, 560px"
                     draggable={false}
