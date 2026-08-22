@@ -1,6 +1,6 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
-/* Novend POS tokens — Onyx + Candy Blue brand */
+/* Novend POS tokens â€” Onyx + Candy Blue brand */
 :root {
   --background: #f8fafc;
   --foreground: #111827;
@@ -786,7 +786,7 @@
   }
 }
 
-/* —— SaaS marketing landing (product DNA shared with login / app) —— */
+/* â€”â€” SaaS marketing landing (product DNA shared with login / app) â€”â€” */
 
 [data-reveal] {
   opacity: 0;
@@ -840,7 +840,7 @@
   opacity: 0.35;
 }
 
-/* Vital-Go hero structure — Novend Candy Blue / Cloud White */
+/* Vital-Go hero structure â€” Novend Candy Blue / Cloud White */
 .landing-hero {
   background: #ffffff;
   padding-bottom: 0;
@@ -853,7 +853,7 @@
   pointer-events: none;
 }
 
-/* Soft upper blue wash (Vital-Go: #E9F3FE → #DDECFC → #EAF4FE) */
+/* Soft upper blue wash (Vital-Go: #E9F3FE â†’ #DDECFC â†’ #EAF4FE) */
 .landing-hero-wash-sheet {
   position: absolute;
   left: -5%;
@@ -864,8 +864,8 @@
 }
 
 /*
- * Large white sheet overlapping from mid-hero downward —
- * this is the “bottom border that blends” with the top wash.
+ * Large white sheet overlapping from mid-hero downward â€”
+ * this is the â€œbottom border that blendsâ€ with the top wash.
  * Vital-Go: absolute top-[26%] bg-[#FBFDFF]
  */
 .landing-hero-white-sheet {
@@ -1174,7 +1174,7 @@
   background: #f8fafc;
 }
 
-/* —— Landing elevation system —— */
+/* â€”â€” Landing elevation system â€”â€” */
 .landing-shadow-cta-primary {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.35) inset,
@@ -1313,7 +1313,7 @@
   background: #ffffff;
 }
 
-/* ── Landing V2 — Header + Hero ─────────────────────────────────────────── */
+/* â”€â”€ Landing V2 â€” Header + Hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .landing-v2-nav-glass {
   background: rgba(248, 250, 252, 0.92);
@@ -1555,409 +1555,167 @@
   }
 }
 
+
 /* ── Landing Journey V2 — sticky scrollytelling ─────────────────────────── */
 
 .landing-journey-v2-sticky {
   position: sticky;
-  top: 6rem;
+  top: 5.5rem;
   align-self: start;
-  height: calc(100vh - 8rem);
-  display: flex;
-  align-items: center;
 }
 
 .landing-journey-v2-stage {
   width: 100%;
-  perspective: 1200px;
 }
 
-.landing-journey-v2-stage-frame,
-.landing-journey-v2-mobile-stage .landing-journey-v2-stage-frame {
+.landing-journey-v2-stage-frame {
   position: relative;
   overflow: hidden;
   border-radius: 1.5rem;
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   background: #ffffff;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 28px 64px -28px rgba(15, 23, 42, 0.22);
-  aspect-ratio: 16 / 10;
-  transform: rotateY(-6deg) rotateX(4deg);
-  transform-origin: center center;
-}
-
-.landing-journey-v2-mobile-stage .landing-journey-v2-stage-frame {
-  transform: none;
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 16px 40px -20px rgba(15, 23, 42, 0.14);
+  aspect-ratio: 16 / 9;
 }
 
 .landing-journey-v2-screen {
   position: absolute;
   inset: 0;
   opacity: 0;
-  transform: scale(0.97) translateY(8px);
-  transition:
-    opacity 0.65s ease,
-    transform 0.65s ease;
+  transition: opacity 0.5s ease;
   pointer-events: none;
 }
 
 .landing-journey-v2-screen-active {
   opacity: 1;
-  transform: scale(1) translateY(0);
   pointer-events: auto;
 }
 
 .landing-journey-v2-steps {
   position: relative;
+  margin: 0;
+  padding: 0;
 }
 
-.landing-journey-v2-step-row {
+.landing-journey-v2-step {
   display: grid;
-  grid-template-columns: 2.5rem 1fr;
-  gap: 1rem;
+  grid-template-columns: 1.75rem 1fr;
+  gap: 0 1.25rem;
+  padding-bottom: 2.5rem;
 }
 
-.landing-journey-v2-step-rail {
-  position: relative;
+.landing-journey-v2-step:last-child {
+  padding-bottom: 0;
+}
+
+.landing-journey-v2-step-marker {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 0.35rem;
-}
-
-.landing-journey-v2-rail-line {
-  flex: 1;
-  width: 1px;
-  min-height: 4rem;
-  margin-top: 0.35rem;
-  background: rgba(148, 163, 184, 0.45);
+  padding-top: 0.2rem;
 }
 
 .landing-journey-v2-rail-dot {
   width: 0.625rem;
   height: 0.625rem;
   border-radius: 9999px;
-  border: 2px solid rgba(148, 163, 184, 0.55);
+  border: 2px solid #cbd5e1;
   background: #f8fafc;
   flex-shrink: 0;
   transition:
-    border-color 0.35s ease,
-    background 0.35s ease,
-    transform 0.35s ease;
+    border-color 0.3s ease,
+    background 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
-.landing-journey-v2-rail-dot-active,
+.landing-journey-v2-rail-dot-active {
+  border-color: #38bdf8;
+  background: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15);
+}
+
 .landing-journey-v2-rail-dot-complete {
   border-color: #38bdf8;
   background: #38bdf8;
 }
 
-.landing-journey-v2-rail-dot-active {
-  transform: scale(1.15);
-}
-
-.landing-journey-v2-step-rail .landing-journey-v2-rail-label {
-  position: absolute;
-  left: 1.35rem;
-  top: -0.1rem;
-  white-space: nowrap;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: rgba(100, 116, 139, 0.85);
-  opacity: 0;
-  transform: translateX(-4px);
-  transition:
-    opacity 0.35s ease,
-    transform 0.35s ease,
-    color 0.35s ease;
-}
-
-.landing-journey-v2-step-active .landing-journey-v2-rail-label {
-  opacity: 1;
-  transform: translateX(0);
-  color: #111827;
-}
-
-.landing-journey-v2-step-body {
-  position: relative;
-  min-width: 0;
-  padding-left: 0.75rem;
-}
-
-.landing-journey-v2-step {
-  position: relative;
-  min-height: 88vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding-block: 3rem;
-  transform-origin: left center;
-  transition:
-    opacity 0.55s ease,
-    transform 0.55s ease;
-}
-
-.landing-journey-v2-step-accent {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 3px;
-  height: 0;
-  border-radius: 9999px;
-  background: #38bdf8;
-  transition: height 0.45s ease;
-}
-
-.landing-journey-v2-step-active {
-  opacity: 1;
-  transform: scale(1) translateY(0);
-}
-
-.landing-journey-v2-step-active .landing-journey-v2-step-accent {
-  height: 3.5rem;
-}
-
-.landing-journey-v2-step-active h3 {
-  transform: translateY(-4px);
-  transition: transform 0.45s ease;
-}
-
-.landing-journey-v2-step-past {
-  opacity: 0.4;
-  transform: scale(0.98) translateY(-12px);
-}
-
-.landing-journey-v2-step-upcoming {
-  opacity: 0.25;
-  transform: translateY(8px);
-}
-
-.landing-journey-v2-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.landing-journey-v2-box {
-  position: absolute;
-  border-radius: 0.5rem;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 8px 20px -10px rgba(15, 23, 42, 0.25);
-  animation: landing-journey-slide-in 2.4s ease-in-out infinite alternate;
-}
-
-.landing-journey-v2-box-a {
-  width: 18%;
-  height: 14%;
-  left: 8%;
-  bottom: 18%;
-  animation-delay: 0s;
-}
-
-.landing-journey-v2-box-b {
-  width: 16%;
-  height: 12%;
-  left: 22%;
-  bottom: 24%;
-  animation-delay: -0.8s;
-}
-
-.landing-journey-v2-box-c {
-  width: 14%;
-  height: 11%;
-  left: 14%;
-  bottom: 10%;
-  animation-delay: -1.6s;
-}
-
-@keyframes landing-journey-slide-in {
-  0% {
-    transform: translateX(-12px);
-    opacity: 0.5;
-  }
-  100% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.landing-journey-v2-glow {
-  position: absolute;
-  inset: 18% 12%;
-  border-radius: 1rem;
-  background: radial-gradient(ellipse at center, rgba(56, 189, 248, 0.18), transparent 70%);
-  animation: landing-journey-pulse 2.8s ease-in-out infinite;
-}
-
-@keyframes landing-journey-pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 0.85;
-  }
-}
-
-.landing-journey-v2-arrow {
-  position: absolute;
-  top: 42%;
-  left: 28%;
-  width: 44%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #38bdf8, transparent);
-  animation: landing-journey-arrow 2.2s ease-in-out infinite;
-}
-
-@keyframes landing-journey-arrow {
-  0% {
-    transform: translateX(-8%);
-    opacity: 0.3;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(8%);
-    opacity: 0.3;
-  }
-}
-
-.landing-journey-v2-scan-line {
-  position: absolute;
-  left: 8%;
-  right: 32%;
-  height: 2px;
-  background: #38bdf8;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.65);
-  animation: landing-journey-scan 2s ease-in-out infinite;
-}
-
-@keyframes landing-journey-scan {
-  0% {
-    top: 22%;
-    opacity: 0;
-  }
-  15% {
-    opacity: 1;
-  }
-  85% {
-    opacity: 1;
-  }
-  100% {
-    top: 68%;
-    opacity: 0;
-  }
-}
-
-.landing-journey-v2-stream {
-  position: absolute;
+.landing-journey-v2-rail-line {
   width: 2px;
-  height: 28%;
-  background: linear-gradient(180deg, transparent, #38bdf8, transparent);
-  animation: landing-journey-stream 1.8s ease-in-out infinite;
-}
-
-.landing-journey-v2-stream-a {
-  left: 72%;
-  top: 18%;
-}
-
-.landing-journey-v2-stream-b {
-  left: 78%;
-  top: 24%;
-  animation-delay: -0.5s;
-}
-
-.landing-journey-v2-stream-c {
-  left: 84%;
-  top: 20%;
-  animation-delay: -1s;
-}
-
-@keyframes landing-journey-stream {
-  0% {
-    transform: translateY(-20%);
-    opacity: 0;
-  }
-  40% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(40%);
-    opacity: 0;
-  }
-}
-
-.landing-journey-v2-sync-line {
-  position: absolute;
-  top: 55%;
-  left: 20%;
-  width: 60%;
-  height: 2px;
-  background: linear-gradient(90deg, #111827, #38bdf8);
-  transform-origin: left center;
-  animation: landing-journey-sync-line 2.4s ease-in-out infinite;
-}
-
-.landing-journey-v2-sync-pulse {
-  position: absolute;
-  top: 52%;
-  right: 16%;
-  width: 0.75rem;
-  height: 0.75rem;
+  flex: 1;
+  min-height: 1.5rem;
+  margin-top: 0.35rem;
   border-radius: 9999px;
-  background: #38bdf8;
-  box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.45);
-  animation: landing-journey-sync-pulse 2.4s ease-in-out infinite;
+  background: #e2e8f0;
 }
 
-@keyframes landing-journey-sync-line {
-  0% {
-    transform: scaleX(0.2);
-    opacity: 0.3;
+.landing-journey-v2-rail-line-complete {
+  background: rgba(56, 189, 248, 0.45);
+}
+
+.landing-journey-v2-step-content {
+  min-width: 0;
+  border-left: 2px solid transparent;
+  padding-left: 0.25rem;
+  transition:
+    border-color 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.landing-journey-v2-step-active .landing-journey-v2-step-content {
+  border-left-color: #38bdf8;
+  padding-left: 1rem;
+}
+
+.landing-journey-v2-mobile-stage .landing-journey-v2-stage-frame {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -12px rgba(15, 23, 42, 0.12);
+}
+
+@media (min-width: 1024px) {
+  .landing-journey-v2-step {
+    min-height: 72vh;
+    align-content: center;
+    padding-bottom: 0;
   }
-  50% {
-    transform: scaleX(1);
+
+  .landing-journey-v2-step-upcoming .landing-journey-v2-step-content,
+  .landing-journey-v2-step-complete .landing-journey-v2-step-content {
+    opacity: 0.55;
+  }
+
+  .landing-journey-v2-step-active .landing-journey-v2-step-content {
     opacity: 1;
   }
-  100% {
-    transform: scaleX(1);
-    opacity: 0.5;
+
+  .landing-journey-v2-step-upcoming h3,
+  .landing-journey-v2-step-complete h3 {
+    font-size: 1.375rem;
   }
 }
 
-@keyframes landing-journey-sync-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.45);
+@media (max-width: 1023px) {
+  .landing-journey-v2-step {
+    grid-template-columns: 1.25rem 1fr;
+    gap: 0 0.875rem;
+    padding-bottom: 2rem;
   }
-  70% {
-    box-shadow: 0 0 0 10px rgba(56, 189, 248, 0);
+
+  .landing-journey-v2-step-active .landing-journey-v2-step-content {
+    padding-left: 0.75rem;
   }
-  100% {
-    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+
+  .landing-journey-v2-rail-line {
+    min-height: 1rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .landing-journey-v2-screen,
-  .landing-journey-v2-step,
   .landing-journey-v2-rail-dot,
-  .landing-journey-v2-box,
-  .landing-journey-v2-glow,
-  .landing-journey-v2-arrow,
-  .landing-journey-v2-scan-line,
-  .landing-journey-v2-stream,
-  .landing-journey-v2-sync-line,
-  .landing-journey-v2-sync-pulse {
-    animation: none !important;
+  .landing-journey-v2-step-content {
     transition: none !important;
-  }
-
-  .landing-journey-v2-step-past,
-  .landing-journey-v2-step-upcoming {
-    opacity: 0.75;
-    transform: none;
   }
 }
