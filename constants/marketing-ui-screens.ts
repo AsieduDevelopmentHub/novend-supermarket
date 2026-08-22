@@ -46,6 +46,7 @@ export const MARKETING_UI_SCREENS = {
   settingsHardwareBarcodeScanner: "/marketing/ui/settings-hardware-barcode-scanner.png",
   settingsDesktopUpdates: "/marketing/ui/settings-desktop-updates.png",
   settingsLocalBackup: "/marketing/ui/settings-local-backup.png",
+  syncRecent: "/marketing/ui/sync-recent.png",
 } as const;
 
 /** Journey scrollytelling — one real screen per workflow step. */
@@ -55,5 +56,5 @@ export const JOURNEY_STEP_SCREENS = {
   transfer: MARKETING_UI_SCREENS.inventoryWholesaleIssueModal,
   sell: MARKETING_UI_SCREENS.salesPos,
   local: MARKETING_UI_SCREENS.settingsLocalBackup,
-  sync: MARKETING_UI_SCREENS.dashboard,
+  sync: MARKETING_UI_SCREENS.syncRecent,
 } as const;
