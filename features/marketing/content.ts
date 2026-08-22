@@ -6,13 +6,19 @@ export const landingCopy = {
   brand: APP_BRAND,
   tagline: APP_TAGLINE,
   hero: {
-    eyebrow: "Offline-first POS",
-    headline: "The Offline-First POS Built for Modern Retail.",
+    badge: "Commercial Offline-First POS",
+    headline: "The POS That Keeps Your Business Selling — Even Offline.",
     subhead:
-      "Sell, manage inventory, track branches, and run your business—even without internet.",
-    primaryCta: "Start Free Trial",
-    secondaryCta: "Watch Demo",
-    trustBadges: ["Offline First", "Multi-Branch", "Works on Desktop, Mobile & Web"],
+      "Sell, manage inventory, transfer stock between branches, and sync automatically when internet returns. Built for supermarkets, pharmacies, wholesalers, and modern retail businesses.",
+    primaryCta: "Start 14-Day Free Trial",
+    secondaryCta: "Watch Product Demo",
+    trustBadges: ["Offline First", "Desktop + Web", "Multi-Branch", "Barcode Ready"],
+    metrics: [
+      { value: "Offline", label: "Always Ready" },
+      { value: "Multi-Branch", label: "Up to Enterprise Scale" },
+      { value: "Barcode", label: "Camera + Hardware" },
+      { value: "Sync", label: "Automatic Cloud Backup" },
+    ],
   },
   trustedBy: {
     title: "Trusted by businesses across Ghana",
@@ -188,10 +194,12 @@ export const landingCopy = {
   },
   nav: [
     { href: "#features", label: "Features" },
+    { href: "#journey", label: "How it Works" },
     { href: "#industries", label: "Industries" },
     { href: "#pricing", label: "Pricing" },
     { href: "#faq", label: "FAQ" },
   ],
+  navTrialCta: "Start Free Trial",
   footer: {
     description:
       "Commercial offline-first Point of Sale for independent businesses — desktop, web, and cloud sync.",

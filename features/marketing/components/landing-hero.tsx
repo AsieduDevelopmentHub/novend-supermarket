@@ -1,68 +1,97 @@
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import {
+  Cloud,
+  Monitor,
+  ScanBarcode,
+  Store,
+  WifiOff,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { landingCopy } from "@/features/marketing/content";
-import { LandingDashboardStage } from "@/features/marketing/components/landing-dashboard-stage";
+import { LandingHeroProductStage } from "@/features/marketing/components/landing-hero-product-stage";
 
+const TRUST_ICONS = [WifiOff, Monitor, Store, ScanBarcode] as const;
+const METRIC_ICONS = [WifiOff, Store, ScanBarcode, Cloud] as const;
+
+/** V2 hero — 100vh canvas, 6/6 split, dashboard product stage. */
 export function LandingHero() {
   return (
-    <section className="landing-hero relative isolate overflow-hidden px-4 sm:px-6 lg:px-8">
-      <div className="landing-hero-layers" aria-hidden>
-        <div className="landing-hero-wash-sheet" />
-        <div className="landing-hero-white-sheet" />
-        <div className="landing-hero-accent-blob" />
-      </div>
+    <section className="landing-v2-hero relative isolate min-h-dvh lg:min-h-screen">
+      <div className="landing-v2-hero-mesh" aria-hidden />
 
-      <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 pt-8 pb-12 sm:gap-12 sm:pt-10 sm:pb-16 lg:grid-cols-[0.95fr_1.15fr] lg:gap-12 lg:pt-14 lg:pb-20">
-        <div data-hero-copy>
-          <p className="text-primary mb-3 text-sm font-semibold tracking-wide sm:mb-4">
-            {landingCopy.hero.eyebrow}
-          </p>
-          <h1 className="text-foreground max-w-xl text-[2rem] leading-tight font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3rem] lg:leading-[1.12]">
-            {landingCopy.hero.headline}
-          </h1>
-          <p className="text-muted-foreground mt-4 max-w-lg text-base leading-relaxed text-pretty sm:mt-5 sm:text-lg">
-            {landingCopy.hero.subhead}
-          </p>
-          <div className="mt-7 flex w-full flex-col gap-3 sm:mt-9 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-            <Button
-              asChild
-              size="lg"
-              className="landing-shadow-cta-primary h-11 w-full px-6 text-[15px] font-semibold transition-[box-shadow,transform] hover:-translate-y-0.5 sm:w-auto"
-            >
-              <Link href="/signup">{landingCopy.hero.primaryCta}</Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="landing-shadow-cta-outline h-11 w-full px-6 text-[15px] font-semibold transition-[box-shadow,transform] hover:-translate-y-0.5 sm:w-auto"
-            >
-              <a href="#analytics">{landingCopy.hero.secondaryCta}</a>
-            </Button>
+      <div className="relative z-10 mx-auto flex min-h-dvh max-w-7xl flex-col justify-center px-4 pt-24 pb-16 sm:px-6 lg:min-h-screen lg:px-8 lg:pt-28 lg:pb-20">
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-10 xl:gap-14">
+          {/* Product stage first on tablet/mobile for visual impact */}
+          <div
+            data-hero-visual
+            className="order-1 lg:order-2 flex items-center justify-center"
+          >
+            <LandingHeroProductStage />
           </div>
-          <ul className="mt-6 flex flex-col gap-2 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
-            {landingCopy.hero.trustBadges.map((badge) => (
-              <li
-                key={badge}
-                className="text-muted-foreground flex items-center gap-2 text-sm font-medium"
+
+          <div data-hero-copy className="order-2 lg:order-1 max-w-[560px]">
+            <p className="text-primary inline-flex items-center rounded-full border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-3 py-1 text-[13px] font-semibold tracking-wide">
+              {landingCopy.hero.badge}
+            </p>
+
+            <h1 className="text-[#111827] mt-5 text-[2rem] leading-[1.08] font-semibold tracking-tight text-balance sm:text-5xl lg:text-[4rem] lg:leading-[1.06] xl:text-[4.5rem]">
+              {landingCopy.hero.headline}
+            </h1>
+
+            <p className="text-slate-600 mt-5 text-base leading-relaxed text-pretty sm:text-lg lg:text-xl">
+              {landingCopy.hero.subhead}
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <Button
+                asChild
+                size="lg"
+                className="h-11 w-full px-6 text-[15px] font-semibold sm:w-auto"
               >
-                <CheckCircle2 className="text-primary h-4 w-4 shrink-0" aria-hidden />
-                {badge}
-              </li>
-            ))}
-          </ul>
-        </div>
+                <Link href="/signup">{landingCopy.hero.primaryCta}</Link>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="h-11 w-full px-6 text-[15px] font-semibold sm:w-auto"
+              >
+                <a href="#analytics">{landingCopy.hero.secondaryCta}</a>
+              </Button>
+            </div>
 
-        <div data-hero-visual className="relative mx-auto w-full max-w-[380px] lg:max-w-none">
-          <div className="landing-hero-visual-aura hidden sm:block" aria-hidden>
-            <span className="landing-hero-aura landing-hero-aura-a" />
-            <span className="landing-hero-aura landing-hero-aura-b" />
-            <span className="landing-hero-aura landing-hero-aura-c" />
-            <span className="landing-hero-aura landing-hero-aura-d" />
-          </div>
-          <div className="landing-perspective relative z-10 mx-auto w-full pt-2 sm:pt-4">
-            <LandingDashboardStage />
+            <ul className="mt-6 flex flex-wrap gap-2">
+              {landingCopy.hero.trustBadges.map((label, index) => {
+                const Icon = TRUST_ICONS[index] ?? WifiOff;
+                return (
+                  <li
+                    key={label}
+                    className="border-border bg-card text-slate-700 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm"
+                  >
+                    <Icon className="text-primary h-3.5 w-3.5 shrink-0" aria-hidden />
+                    {label}
+                  </li>
+                );
+              })}
+            </ul>
+
+            <ul className="mt-8 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {landingCopy.hero.metrics.map((metric, index) => {
+                const Icon = METRIC_ICONS[index] ?? Cloud;
+                return (
+                  <li
+                    key={metric.value}
+                    className="border-border bg-card rounded-xl border p-3 shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    <Icon className="text-primary mb-2 h-4 w-4" aria-hidden />
+                    <p className="text-[#111827] text-xs font-semibold">{metric.value}</p>
+                    <p className="text-muted-foreground mt-0.5 text-[10px] leading-snug">
+                      {metric.label}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </div>
       </div>

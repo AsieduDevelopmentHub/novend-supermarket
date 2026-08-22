@@ -3,10 +3,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, type RefObject } from "react";
+import { Menu } from "lucide-react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { BRANDING } from "@/constants/branding";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { landingCopy } from "@/features/marketing/content";
 import { postLoginPath } from "@/lib/auth/post-login-path";
@@ -15,31 +23,30 @@ type Props = {
   scrollRootRef: RefObject<HTMLElement | null>;
 };
 
-/** Floating glass nav — transparent until 40px scroll. */
+/** Floating pill nav — transparent until 40px scroll, then glass (Linear / Stripe style). */
 export function LandingNav({ scrollRootRef }: Props) {
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { isAuthenticated } = useConvexAuth();
   const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
-  const workspaceHref = isAuthenticated && me != null ? postLoginPath(me) : "/login";
+  const signInHref = isAuthenticated && me != null ? postLoginPath(me) : "/login";
 
   useEffect(() => {
     const root = scrollRootRef.current;
     if (!root) return;
-    function onScroll() {
-      setScrolled((root?.scrollTop ?? 0) > 40);
-    }
+    const onScroll = () => setScrolled((root.scrollTop ?? 0) > 40);
     onScroll();
     root.addEventListener("scroll", onScroll, { passive: true });
     return () => root.removeEventListener("scroll", onScroll);
   }, [scrollRootRef]);
 
   return (
-    <header className="pointer-events-none sticky top-0 z-40 px-4 pt-4 sm:px-6 lg:px-8">
+    <header className="pointer-events-none fixed inset-x-0 top-0 z-50 px-4 pt-4 sm:px-6">
       <div
         className={cn(
-          "pointer-events-auto mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-2xl px-3 py-2 transition-all duration-300",
+          "pointer-events-auto mx-auto flex w-full max-w-[92%] items-center justify-between gap-3 px-3 py-2.5 transition-all duration-300 md:px-5",
           scrolled
-            ? "landing-nav-glass border-border border shadow-sm backdrop-blur-xl"
+            ? "landing-v2-nav-glass rounded-full border border-slate-200/80 shadow-[0_8px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl"
             : "border border-transparent bg-transparent",
         )}
       >
@@ -47,25 +54,22 @@ export function LandingNav({ scrollRootRef }: Props) {
           <Image
             src={BRANDING.brandmark}
             alt=""
-            width={36}
-            height={36}
-            className="h-9 w-9 object-contain"
+            width={32}
+            height={32}
+            className="h-8 w-8 object-contain"
             priority
           />
-          <span className="text-foreground text-sm font-semibold tracking-tight">
+          <span className="text-[#111827] text-sm font-semibold tracking-tight">
             {landingCopy.brand}
           </span>
         </Link>
 
-        <nav
-          className="hidden items-center gap-0.5 md:flex"
-          aria-label="Primary"
-        >
+        <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
           {landingCopy.nav.map((item) => (
             <a
               key={item.href}
               href={item.href}
-              className="text-foreground/80 hover:text-foreground hover:bg-muted/80 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
+              className="text-slate-600 hover:text-[#111827] rounded-full px-3.5 py-2 text-sm font-medium transition-colors"
             >
               {item.label}
             </a>
@@ -77,17 +81,56 @@ export function LandingNav({ scrollRootRef }: Props) {
             asChild
             variant="ghost"
             size="sm"
-            className="hidden h-9 font-semibold sm:inline-flex"
+            className="hidden h-9 text-sm font-semibold sm:inline-flex"
           >
-            <Link href={workspaceHref}>Sign In</Link>
+            <Link href={signInHref}>Sign In</Link>
           </Button>
-          <Button
-            asChild
-            size="sm"
-            className="landing-shadow-cta-primary h-9 shrink-0 font-semibold transition-[box-shadow,transform] hover:-translate-y-0.5"
-          >
-            <Link href="/signup">Get Started</Link>
+          <Button asChild size="sm" className="hidden h-9 text-sm font-semibold sm:inline-flex">
+            <Link href="/signup">{landingCopy.navTrialCta}</Link>
           </Button>
+
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 lg:hidden"
+                aria-label="Open menu"
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[min(100%,20rem)]">
+              <SheetHeader>
+                <SheetTitle className="text-left">{landingCopy.brand}</SheetTitle>
+              </SheetHeader>
+              <nav className="mt-6 flex flex-col gap-1" aria-label="Mobile">
+                {landingCopy.nav.map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className="text-foreground rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </nav>
+              <div className="mt-6 flex flex-col gap-2">
+                <Button asChild variant="outline">
+                  <Link href={signInHref} onClick={() => setMenuOpen(false)}>
+                    Sign In
+                  </Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/signup" onClick={() => setMenuOpen(false)}>
+                    {landingCopy.navTrialCta}
+                  </Link>
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>
