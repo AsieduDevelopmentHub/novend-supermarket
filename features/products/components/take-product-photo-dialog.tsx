@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -70,7 +70,7 @@ async function openCameraStream(): Promise<MediaStream> {
 
 /**
  * Webcam capture for product images (Electron + PWA).
- * Starts only after an explicit user click so the browser/OS permission prompt can open.
+ * Opens after an explicit tap on Take photo; camera starts automatically.
  */
 export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -114,27 +114,40 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
     onOpenChange(next);
   }
 
-  async function startCamera() {
+  const startCamera = useCallback(async () => {
     setStarting(true);
     setError(null);
     setReady(false);
     stopStream();
 
+    const video = videoRef.current;
+    if (!video) {
+      setError("Unable to start the camera. Please try again.");
+      setStarting(false);
+      return;
+    }
+
     try {
       const stream = await openCameraStream();
       streamRef.current = stream;
-      const video = videoRef.current;
-      if (video) {
-        video.srcObject = stream;
-        await video.play();
-      }
+      video.srcObject = stream;
+      await video.play();
       setReady(true);
     } catch (err) {
+      stopStream();
       setError(cameraErrorMessage(err));
     } finally {
       setStarting(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => {
+      void startCamera();
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [open, session, startCamera]);
 
   async function onSnap() {
     const video = videoRef.current;
@@ -170,45 +183,31 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
             playsInline
             muted
           />
-          {!ready ? (
-            <div className="absolute inset-0 grid place-items-center gap-3 p-4 text-center">
-              {error ? (
-                <>
-                  <p className="text-muted-foreground text-sm">{error}</p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void startCamera()}
-                    disabled={starting}
-                  >
-                    {starting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Camera className="mr-2 h-4 w-4" />
-                    )}
-                    Try again
-                  </Button>
-                  <p className="text-muted-foreground text-xs">
-                    If the prompt never appears, open site settings and set Camera to Allow, then
-                    retry.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-muted-foreground text-sm">
-                    Allow camera access when prompted, then capture the product photo.
-                  </p>
-                  <Button type="button" onClick={() => void startCamera()} disabled={starting}>
-                    {starting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Camera className="mr-2 h-4 w-4" />
-                    )}
-                    {starting ? "Opening camera…" : "Allow camera & start"}
-                  </Button>
-                </>
-              )}
+          {error ? (
+            <div className="absolute inset-0 grid place-items-center gap-3 bg-muted p-4 text-center">
+              <p className="text-muted-foreground text-sm">{error}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void startCamera()}
+                disabled={starting}
+              >
+                {starting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Camera className="mr-2 h-4 w-4" />
+                )}
+                Try again
+              </Button>
+              <p className="text-muted-foreground text-xs">
+                If the prompt never appears, open site settings and set Camera to Allow, then retry.
+              </p>
+            </div>
+          ) : null}
+          {starting && !ready ? (
+            <div className="absolute inset-0 grid place-items-center bg-muted/80">
+              <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
             </div>
           ) : null}
         </div>
