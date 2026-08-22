@@ -55,52 +55,52 @@ export const landingCopy = {
     ],
   },
   journey: {
-    eyebrow: "How Novend works",
-    title: "From supplier to synced sales",
+    badge: "Business Workflow",
+    title: "One Platform. Every Business Operation.",
     subtitle:
-      "One operational path your team already understands — receive, warehouse, transfer, sell, store locally, then sync.",
+      "From receiving supplier stock to selling at the checkout, Novend keeps every operation synchronized locally and securely backed up to the cloud when you're online.",
     steps: [
       {
         id: "receive",
-        step: "01",
-        title: "Receive Stock",
+        railLabel: "Receive Stock",
+        title: "Receive Inventory from Suppliers",
         detail:
-          "Deliveries land with a recorded business reason — cartons and crates enter wholesale inventory cleanly.",
+          "Record supplier deliveries, update purchase costs, and organize products before they reach the sales floor.",
       },
       {
         id: "warehouse",
-        step: "02",
-        title: "Wholesale Inventory",
+        railLabel: "Warehouse",
+        title: "Organize Your Central Warehouse",
         detail:
-          "Warehouse stock stays honest and attributable — ready to issue when branches need refill.",
+          "Manage your wholesale inventory separately from branch stock while keeping accurate quantities and valuation.",
       },
       {
         id: "transfer",
-        step: "03",
-        title: "Transfer to Branches",
+        railLabel: "Branch Transfer",
+        title: "Restock Branches in Seconds",
         detail:
-          "Move stock from the warehouse to any branch in your organization with full traceability.",
+          "Move inventory between branches with complete tracking, approval history, and real-time stock updates.",
       },
       {
         id: "sell",
-        step: "04",
-        title: "Sell with POS",
+        railLabel: "Checkout",
+        title: "Fast Checkout with Barcode Support",
         detail:
-          "Scan barcodes, adjust quantities, take MoMo or cash, and print a receipt — even mid-rush offline.",
+          "Scan products, apply discounts, print receipts, and complete sales instantly—even without internet.",
       },
       {
         id: "local",
-        step: "05",
-        title: "Save Locally",
+        railLabel: "Local Save",
+        title: "Every Sale Is Saved Instantly",
         detail:
-          "Every completed sale and inventory change is stored on the device first so the till never waits on the network.",
+          "Novend writes every transaction directly to the local database, ensuring uninterrupted business during outages or poor connectivity.",
       },
       {
         id: "sync",
-        step: "06",
-        title: "Sync to Cloud",
+        railLabel: "Cloud Sync",
+        title: "Automatically Sync When Online",
         detail:
-          "Queued work syncs to the cloud, then your business dashboard reflects what actually moved.",
+          "As soon as internet becomes available, Novend securely synchronizes your changes to the cloud without interrupting your business.",
       },
     ],
   },

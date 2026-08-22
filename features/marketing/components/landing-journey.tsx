@@ -1,228 +1,116 @@
-import { type ReactNode } from "react";
-import Image from "next/image";
-import { BRANDING } from "@/constants/branding";
-import { landingCopy } from "@/features/marketing/content";
+"use client";
 
-/** Operational journey — alternating step + visual (no sticky pin). */
-export function LandingJourney() {
+import { useRef, type RefObject } from "react";
+import Image from "next/image";
+import { cn } from "@/lib/utils";
+import { JOURNEY_STEP_SCREENS } from "@/constants/marketing-ui-screens";
+import { landingCopy } from "@/features/marketing/content";
+import { useLandingJourneyScroll } from "@/features/marketing/hooks/use-landing-journey-scroll";
+import { LandingJourneyStage } from "@/features/marketing/components/landing-journey-stage";
+
+type Props = {
+  scrollRootRef: RefObject<HTMLElement | null>;
+};
+
+const STEP_ALT: Record<(typeof landingCopy.journey.steps)[number]["id"], string> = {
+  receive: "Record supplier purchase in Novend wholesale inventory",
+  warehouse: "Novend wholesale warehouse with stock quantities and valuation",
+  transfer: "Issue warehouse stock to a branch in Novend",
+  sell: "Novend POS checkout with barcode-ready product grid and cart",
+  local: "Novend local database backup on this terminal",
+  sync: "Novend cloud dashboard after automatic synchronization",
+};
+
+/** Sticky scrollytelling — supplier delivery through cloud sync. */
+export function LandingJourney({ scrollRootRef }: Props) {
+  const stepRefs = useRef<(HTMLElement | null)[]>([]);
+  const activeIndex = useLandingJourneyScroll(stepRefs, scrollRootRef);
+  const stepIds = landingCopy.journey.steps.map((step) => step.id);
+
   return (
     <section
       id="journey"
-      className="landing-journey scroll-mt-24 border-t border-border bg-white px-4 py-16 sm:px-6 sm:py-24 lg:px-8"
+      className="landing-journey-v2 scroll-mt-24 border-t border-border bg-[#F8FAFC] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
     >
-      <div className="mx-auto max-w-6xl">
-        <div data-reveal className="mx-auto max-w-2xl text-center">
-          <p className="text-primary text-sm font-semibold tracking-wide">
-            {landingCopy.journey.eyebrow}
+      <div className="mx-auto max-w-7xl">
+        <header className="mx-auto max-w-[620px]">
+          <p className="text-primary text-[13px] font-semibold tracking-wide">
+            {landingCopy.journey.badge}
           </p>
-          <h2 className="text-foreground mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="text-[#111827] mt-4 text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
             {landingCopy.journey.title}
           </h2>
-          <p className="text-muted-foreground mt-4 text-base text-pretty sm:text-lg">
+          <p className="text-slate-600 mt-4 text-base leading-relaxed text-pretty sm:text-lg">
             {landingCopy.journey.subtitle}
           </p>
-        </div>
+        </header>
 
-        <div className="mt-12 space-y-14 sm:mt-16 sm:space-y-20 lg:space-y-28">
-          {landingCopy.journey.steps.map((step, index) => {
-            const reverse = index % 2 === 1;
-            return (
-              <article
-                key={step.id}
-                className={`grid items-center gap-8 lg:grid-cols-2 lg:gap-16 ${
-                  reverse ? "lg:[&>*:first-child]:order-2" : ""
-                }`}
-              >
-                <div data-reveal>
-                  <p className="text-primary text-xs font-bold tracking-[0.18em] uppercase">
-                    Step {step.step}
-                  </p>
-                  <h3 className="text-foreground mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-                    {step.title}
-                  </h3>
-                  <p className="text-muted-foreground mt-4 max-w-md text-base leading-relaxed">
-                    {step.detail}
-                  </p>
-                </div>
-                <div data-depth-panel className="landing-depth-preserve">
-                  <JourneyVisual id={step.id} />
-                </div>
-              </article>
-            );
-          })}
+        <div className="mt-16 lg:mt-20 lg:grid lg:grid-cols-2 lg:gap-14 xl:gap-20">
+          <div className="landing-journey-v2-sticky hidden lg:block">
+            <LandingJourneyStage activeIndex={activeIndex} stepIds={stepIds} />
+          </div>
+
+          <div className="landing-journey-v2-steps">
+            <div>
+              {landingCopy.journey.steps.map((step, index) => {
+                const state =
+                  index === activeIndex ? "active" : index < activeIndex ? "past" : "upcoming";
+                const isLast = index === landingCopy.journey.steps.length - 1;
+
+                return (
+                  <article
+                    key={step.id}
+                    ref={(node) => {
+                      stepRefs.current[index] = node;
+                    }}
+                    className={cn("landing-journey-v2-step", `landing-journey-v2-step-${state}`)}
+                    aria-current={index === activeIndex ? "step" : undefined}
+                  >
+                    <div className="landing-journey-v2-step-row">
+                      <div className="landing-journey-v2-step-rail" aria-hidden>
+                        <span
+                          className={cn(
+                            "landing-journey-v2-rail-dot",
+                            index === activeIndex && "landing-journey-v2-rail-dot-active",
+                            index < activeIndex && "landing-journey-v2-rail-dot-complete",
+                          )}
+                        />
+                        {!isLast ? <span className="landing-journey-v2-rail-line" /> : null}
+                        <span className="landing-journey-v2-rail-label">{step.railLabel}</span>
+                      </div>
+
+                      <div className="landing-journey-v2-step-body">
+                        <div className="landing-journey-v2-mobile-stage mb-8 lg:hidden">
+                          <div className="landing-journey-v2-stage-frame">
+                            <Image
+                              src={JOURNEY_STEP_SCREENS[step.id]}
+                              alt={STEP_ALT[step.id]}
+                              width={1280}
+                              height={800}
+                              loading="lazy"
+                              className="h-full w-full object-cover object-left-top"
+                              sizes="90vw"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="landing-journey-v2-step-accent" aria-hidden />
+
+                        <h3 className="text-[#111827] text-2xl font-semibold tracking-tight sm:text-3xl">
+                          {step.title}
+                        </h3>
+                        <p className="text-slate-600 mt-4 max-w-lg text-base leading-relaxed">
+                          {step.detail}
+                        </p>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </section>
-  );
-}
-
-function JourneyVisual({ id }: { id: string }) {
-  switch (id) {
-    case "receive":
-      return (
-        <Panel>
-          <FlowHeader from="Supplier" to="Receive desk" />
-          <div data-inventory-stack className="landing-journey-stack relative mt-8 h-36">
-            <div data-inventory-box className="landing-journey-box landing-journey-box-a">
-              <span>GRN-2041</span>
-              <strong>Rice 50kg × 40</strong>
-            </div>
-            <div data-inventory-box className="landing-journey-box landing-journey-box-b">
-              <span>GRN-2041</span>
-              <strong>Oil 5L × 60</strong>
-            </div>
-            <div data-inventory-box className="landing-journey-box landing-journey-box-c">
-              <span>Reason</span>
-              <strong>Supplier delivery</strong>
-            </div>
-          </div>
-        </Panel>
-      );
-    case "warehouse":
-      return (
-        <Panel>
-          <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-            Wholesale inventory
-          </p>
-          <p className="text-foreground mt-2 text-2xl font-semibold tracking-tight">2,140 units</p>
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            {["Rice 50kg", "Oil 5L", "Indomie", "Soap carton"].map((sku) => (
-              <div key={sku} className="border-border rounded-xl border bg-background px-3 py-3">
-                <p className="text-foreground text-sm font-medium">{sku}</p>
-                <p className="text-muted-foreground mt-1 text-xs">In warehouse</p>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      );
-    case "transfer":
-      return (
-        <Panel>
-          <p className="text-muted-foreground text-[10px] tracking-wide uppercase">Branch transfer</p>
-          <div className="mt-4 grid grid-cols-1 items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
-            <div className="rounded-xl bg-[#111827] px-3 py-4 text-white">
-              <p className="text-[10px] text-slate-400 uppercase">Warehouse</p>
-              <p className="mt-1 text-sm font-semibold">−200 units</p>
-            </div>
-            <div className="landing-transfer-rail hidden sm:block" aria-hidden>
-              <span data-transfer-dot />
-              <span data-transfer-dot />
-              <span data-transfer-dot />
-            </div>
-            <div className="space-y-2">
-              <div className="border-border rounded-lg border bg-background px-3 py-2">
-                <p className="text-muted-foreground text-[10px]">East Legon</p>
-                <p className="text-foreground text-sm font-semibold">+120</p>
-              </div>
-              <div className="border-border rounded-lg border bg-background px-3 py-2">
-                <p className="text-muted-foreground text-[10px]">Kumasi</p>
-                <p className="text-foreground text-sm font-semibold">+80</p>
-              </div>
-            </div>
-          </div>
-        </Panel>
-      );
-    case "sell":
-      return (
-        <Panel className="overflow-hidden p-0">
-          <Image
-            src={BRANDING.dashboardHero}
-            alt="Novend dashboard during checkout workflow"
-            width={640}
-            height={400}
-            className="h-auto w-full object-cover object-left-top"
-          />
-        </Panel>
-      );
-    case "local":
-      return (
-        <Panel>
-          <p className="text-muted-foreground text-[10px] tracking-wide uppercase">On this device</p>
-          <p className="text-foreground mt-2 text-lg font-semibold">Local database</p>
-          <ul className="mt-5 space-y-2">
-            {[
-              { label: "Sale NV-10482", state: "Stored" },
-              { label: "Receive GRN-2041", state: "Stored" },
-              { label: "Transfer TR-91", state: "Stored" },
-            ].map((row) => (
-              <li
-                key={row.label}
-                className="border-border flex items-center justify-between rounded-lg border bg-background px-3 py-2.5 text-sm"
-              >
-                <span className="text-foreground font-medium">{row.label}</span>
-                <span className="text-primary text-xs font-semibold">{row.state}</span>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      );
-    case "sync":
-      return (
-        <Panel>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl bg-[#111827] px-4 py-4 text-white">
-              <p className="text-[10px] tracking-wide text-slate-400 uppercase">Outbox</p>
-              <ul className="mt-3 space-y-2 text-xs">
-                <li className="flex justify-between gap-2">
-                  <span className="text-slate-300">Sale NV-10482</span>
-                  <span className="text-primary">Syncing…</span>
-                </li>
-                <li className="flex justify-between gap-2">
-                  <span className="text-slate-300">Receive GRN-2041</span>
-                  <span className="text-amber-300">Queued</span>
-                </li>
-              </ul>
-            </div>
-            <div className="border-border rounded-xl border bg-background px-4 py-4">
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">Cloud</p>
-              <p className="text-foreground mt-2 text-sm font-semibold">Synced to business view</p>
-              <svg className="mt-4 h-14 w-full" viewBox="0 0 160 56" aria-hidden>
-                <path
-                  d="M0 44 L20 40 L40 42 L60 28 L80 32 L100 18 L120 22 L160 8"
-                  fill="none"
-                  stroke="#0EA5E9"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <p className="text-muted-foreground mt-1 text-xs">Dashboard updated</p>
-            </div>
-          </div>
-        </Panel>
-      );
-    default:
-      return null;
-  }
-}
-
-function Panel({
-  children,
-  className = "p-6",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`border-border bg-card landing-shadow-panel rounded-2xl border ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
-
-function FlowHeader({ from, to }: { from: string; to: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <div>
-        <p className="text-muted-foreground text-[10px] tracking-wide uppercase">{from}</p>
-        <p className="text-foreground text-sm font-semibold">Achimota Distributors</p>
-      </div>
-      <span className="text-muted-foreground text-xs">→</span>
-      <div className="text-right">
-        <p className="text-muted-foreground text-[10px] tracking-wide uppercase">{to}</p>
-        <p className="text-foreground text-sm font-semibold">Wholesale</p>
-      </div>
-    </div>
   );
 }

@@ -59,7 +59,7 @@ export function LandingPage() {
         <main>
           <LandingHero />
           <LandingTrustedStrip />
-          <LandingJourney />
+          <LandingJourney scrollRootRef={scrollRef} />
           <LandingArchitecture />
           <LandingFeatures />
           <LandingIndustries />
