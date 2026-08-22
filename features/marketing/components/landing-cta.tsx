@@ -4,7 +4,7 @@ import { BRANDING } from "@/constants/branding";
 import { Button } from "@/components/ui/button";
 import { landingCopy } from "@/features/marketing/content";
 
-/** V3 final CTA — dual CTAs + reference laptop & mobile device mock. */
+/** Final CTA — previous laptop + phone device image. */
 export function LandingCta() {
   const { cta } = landingCopy;
 
@@ -15,7 +15,7 @@ export function LandingCta() {
     >
       <div
         data-reveal
-        className="landing-cta-mesh landing-shadow-band border-border relative mx-auto grid max-w-6xl overflow-hidden rounded-[1.5rem] border lg:grid-cols-2 lg:items-center"
+        className="border-border relative mx-auto grid max-w-6xl overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-[#F8FAFC] lg:grid-cols-2 lg:items-center"
       >
         <div className="px-5 py-12 text-center sm:px-12 sm:py-16 lg:text-left">
           <h2 className="text-[#111827] text-2xl font-semibold tracking-tight text-balance sm:text-4xl">
@@ -47,7 +47,7 @@ export function LandingCta() {
             {cta.chips.map((chip) => (
               <li
                 key={chip}
-                className="rounded-full border border-slate-200/90 bg-white/75 px-3 py-1.5 text-xs font-semibold tracking-wide text-slate-700 backdrop-blur-sm"
+                className="rounded-full border border-slate-200/90 bg-white px-3 py-1.5 text-xs font-semibold tracking-wide text-slate-700"
               >
                 {chip}
               </li>
@@ -55,13 +55,13 @@ export function LandingCta() {
           </ul>
         </div>
 
-        <div className="relative flex min-h-[220px] items-center justify-center px-6 pb-10 pt-2 sm:px-10 lg:min-h-[320px] lg:pb-12">
+        <div className="relative flex min-h-[240px] items-center justify-center px-4 pb-8 pt-2 sm:px-8 lg:min-h-[340px] lg:pb-10">
           <Image
             src={BRANDING.landingCtaDevices}
             alt="Novend on laptop and mobile"
-            width={1280}
-            height={720}
-            className="h-auto w-full max-w-lg object-contain drop-shadow-[0_24px_48px_rgba(15,23,42,0.2)]"
+            width={1536}
+            height={1024}
+            className="h-auto w-full max-w-lg object-contain"
             sizes="(max-width: 1024px) 90vw, 480px"
           />
         </div>

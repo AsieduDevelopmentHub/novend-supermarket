@@ -15,9 +15,7 @@ export function LandingHero() {
   const { hero } = landingCopy;
 
   return (
-    <section className="landing-v2-hero relative isolate min-h-dvh lg:min-h-screen">
-      <div className="landing-v2-hero-mesh" aria-hidden />
-
+    <section className="landing-v2-hero relative isolate min-h-dvh bg-white lg:min-h-screen">
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-7xl flex-col justify-center px-4 pt-24 pb-16 sm:px-6 lg:min-h-screen lg:px-8 lg:pt-28 lg:pb-20">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-10 xl:gap-14">
           <div

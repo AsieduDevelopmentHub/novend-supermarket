@@ -126,6 +126,23 @@ export const landingCopy = {
           "When you reconnect, sales and stock changes sync to the cloud automatically.",
       },
     ],
+    diagramLabels: [
+      {
+        id: "warehouse",
+        title: "Warehouse",
+        detail: "Central stock & receiving",
+      },
+      {
+        id: "branch",
+        title: "Branch",
+        detail: "Store-level inventory",
+      },
+      {
+        id: "pos",
+        title: "POS Counter",
+        detail: "Sell offline & sync later",
+      },
+    ],
   },
   architecture: {
     badge: "Built for the Real World",
