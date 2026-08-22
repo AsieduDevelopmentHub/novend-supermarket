@@ -25,5 +25,10 @@ export {
   isCameraBarcodeSupported,
   createBarcodeDetector,
   openBarcodeCameraStream,
+  listVideoInputDevices,
+  startCameraBarcodeScanning,
   cameraErrorMessage,
+  scannerInitErrorMessage,
+  type DetectedBarcode,
+  type CameraScannerSession,
 } from "./barcode-camera";

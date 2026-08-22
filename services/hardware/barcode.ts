@@ -29,6 +29,7 @@ export const BARCODE_HID_CAPTURE_MS = 18_000;
 
 export function listAvailableBarcodeProviders(): BarcodeProviderKind[] {
   const providers: BarcodeProviderKind[] = ["hid"];
+  // Camera uses getUserMedia + native or ZXing — not gated on BarcodeDetector alone.
   if (isCameraBarcodeSupported()) providers.push("camera");
   return providers;
 }
