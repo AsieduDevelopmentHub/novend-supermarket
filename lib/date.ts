@@ -94,12 +94,15 @@ export function formatPresence(args: {
   lastSeenAt?: number | null;
   lastLoginAt?: number | null;
 }) {
-  const lastSeenAt = args.lastSeenAt ?? 0;
+  const clearedSeen = args.lastSeenAt === 0;
+  const seenAt =
+    !clearedSeen && args.lastSeenAt != null && args.lastSeenAt > 0 ? args.lastSeenAt : null;
   const online =
-    args.presence === "online" || (lastSeenAt > 0 && Date.now() - lastSeenAt <= ONLINE_MS);
+    args.presence === "online" ||
+    (seenAt !== null && Date.now() - seenAt <= ONLINE_MS);
   if (online) return { online: true, label: "Online" };
-  const stamp = args.lastSeenAt || args.lastLoginAt;
-  if (!stamp) return { online: false, label: "Never seen" };
+  const stamp = seenAt ?? (clearedSeen ? null : args.lastLoginAt ?? null);
+  if (!stamp || stamp <= 0) return { online: false, label: "Never seen" };
   const age = Date.now() - stamp;
   if (age < 24 * 60 * 60 * 1000) {
     return { online: false, label: `Last active ${formatRelative(stamp)}` };

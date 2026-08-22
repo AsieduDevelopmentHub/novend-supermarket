@@ -26,7 +26,8 @@ import {
 import type { MirroredCustomer } from "@/lib/offline/types";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
-import { pickReplicaList } from "@/lib/offline/list-preference";
+import { pickLiveListWhenOnline, pickReplicaList } from "@/lib/offline/list-preference";
+import { presenceFromLastSeenAt, sortUsersByPresence } from "@/lib/presence";
 
 type ProductListRow = {
   id: Id<"products">;
@@ -599,25 +600,29 @@ export function useBranchesList(includeInactive = false) {
 export function useUsersList(search: string, enabled = true) {
   const { online, ready } = useMirrorListGate();
   const local = useMirrorRows(() => listMirroredUsers(search), [search]);
-  const mappedLocal = local?.map((row) => ({
-    ...row,
-    id: row.id as Id<"profiles">,
-    branchId: (row.branchId as Id<"branches"> | null) ?? null,
-    role: row.role as "administrator" | "manager" | "cashier",
-    status: (row.status === "inactive" ? "inactive" : "active") as "active" | "inactive",
-    presence: row.presence ?? ("offline" as const),
-    lastSeenAt: row.lastSeenAt ?? null,
-    lastLoginAt: row.lastLoginAt ?? null,
-    lastDevice: row.lastDevice ?? null,
-  }));
+  const mappedLocal = local?.map((row) => {
+    const { lastSeenAt, presence } = presenceFromLastSeenAt(row.lastSeenAt);
+    return {
+      ...row,
+      id: row.id as Id<"profiles">,
+      branchId: (row.branchId as Id<"branches"> | null) ?? null,
+      role: row.role as "administrator" | "manager" | "cashier",
+      status: (row.status === "inactive" ? "inactive" : "active") as "active" | "inactive",
+      presence,
+      lastSeenAt,
+      lastLoginAt: row.lastLoginAt ?? null,
+      lastDevice: row.lastDevice ?? null,
+    };
+  });
   const remote = useQuery(
     api.users.list,
     enabled && online && ready ? { search: search || undefined } : "skip",
   );
   if (!enabled) return mappedLocal;
-  if (mappedLocal && mappedLocal.length > 0) return mappedLocal;
-  if (online && remote !== undefined) return remote;
-  return mappedLocal ?? remote;
+  const picked = pickLiveListWhenOnline({ local: mappedLocal, remote, online });
+  if (!picked) return undefined;
+  if (!online) return sortUsersByPresence(picked);
+  return picked;
 }
 
 export function useReturnsList(options: {

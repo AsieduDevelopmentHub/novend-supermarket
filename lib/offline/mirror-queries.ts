@@ -7,6 +7,7 @@ import {
   resolveMirroredProductStock,
 } from "./branch-stock";
 import type { MirroredCategory, MirroredCustomer, MirroredProduct } from "./types";
+import { presenceFromLastSeenAt, sortUsersByPresence } from "@/lib/presence";
 
 export type MirroredProductRow = MirroredProduct & {
   isLowStock: boolean;
@@ -429,7 +430,12 @@ export async function listMirroredUsers(search?: string) {
           (row.phone?.includes(q) ?? false),
       );
     }
-    return rows.sort((a, b) => a.name.localeCompare(b.name));
+    const now = Date.now();
+    const enriched = rows.map((row) => {
+      const { lastSeenAt, presence } = presenceFromLastSeenAt(row.lastSeenAt, now);
+      return { ...row, lastSeenAt, presence };
+    });
+    return sortUsersByPresence(enriched, now);
   } catch {
     return [];
   }

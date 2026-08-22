@@ -317,9 +317,19 @@ export function UsersView() {
                         </Avatar>
                         <span className="truncate">{user.name}</span>
                       </Link>
-                      <Badge variant={user.presence === "online" ? "success" : "secondary"}>
-                        {user.presence === "online" ? "Online" : "Offline"}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        {(() => {
+                          const presence = formatPresence(user);
+                          return (
+                            <>
+                              <Badge variant={presence.online ? "success" : "secondary"}>
+                                {presence.online ? "Online" : "Offline"}
+                              </Badge>
+                              <p className="text-muted-foreground text-xs">{presence.label}</p>
+                            </>
+                          );
+                        })()}
+                      </div>
                     </div>
                     <p className="text-muted-foreground text-xs capitalize">
                       {user.role} · {user.branch}

@@ -27,8 +27,7 @@ import {
   resolveLicense,
 } from "./shared/entitlements";
 import { limitReachedMessage } from "./shared/plans";
-
-const ONLINE_WINDOW_MS = 2 * 60 * 1000;
+import { presenceFromLastSeenAt } from "./shared/presence";
 
 export const me = query({
   args: {},
@@ -162,8 +161,7 @@ export const list = query({
 
     let rows = await Promise.all(
       profiles.map(async (profile) => {
-        const lastSeenAt = profile.lastSeenAt ?? null;
-        const isOnline = lastSeenAt !== null && now - lastSeenAt <= ONLINE_WINDOW_MS;
+        const { lastSeenAt, presence } = presenceFromLastSeenAt(profile.lastSeenAt, now);
         const imageUrl = profile.imageStorageId
           ? await ctx.storage.getUrl(profile.imageStorageId)
           : null;
@@ -183,7 +181,7 @@ export const list = query({
           lastSeenAt,
           lastLoginAt: profile.lastLoginAt ?? null,
           lastDevice: profile.lastDevice ?? null,
-          presence: (isOnline ? "online" : "offline") as "online" | "offline",
+          presence,
         };
       }),
     );
@@ -223,8 +221,7 @@ export const get = query({
     const user = await ctx.db.get(profile.userId);
     const branchDoc = profile.branchId ? await ctx.db.get(profile.branchId) : null;
     const now = Date.now();
-    const lastSeenAt = profile.lastSeenAt ?? null;
-    const isOnline = lastSeenAt !== null && now - lastSeenAt <= ONLINE_WINDOW_MS;
+    const { lastSeenAt, presence } = presenceFromLastSeenAt(profile.lastSeenAt, now);
     const imageUrl = profile.imageStorageId
       ? await ctx.storage.getUrl(profile.imageStorageId)
       : null;
@@ -242,7 +239,7 @@ export const get = query({
       lastSeenAt,
       lastLoginAt: profile.lastLoginAt ?? null,
       lastDevice: profile.lastDevice ?? null,
-      presence: (isOnline ? "online" : "offline") as "online" | "offline",
+      presence,
     };
   },
 });
@@ -467,11 +464,9 @@ export const heartbeat = mutation({
 export const clearPresence = mutation({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) return;
-    const profile = await getProfileByUserId(ctx, userId);
-    if (!profile) return;
-    await ctx.db.patch(profile._id, { lastSeenAt: 0 });
+    await requireSessionIgnoringLicense(ctx);
+    // Presence is derived from lastSeenAt and the client heartbeat window.
+    // Sign-out stops heartbeats; do not zero lastSeenAt or last login timestamps.
   },
 });
 

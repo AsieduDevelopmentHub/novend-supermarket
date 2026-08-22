@@ -31,12 +31,13 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
-import { formatDateTime } from "@/lib/date";
+import { formatDateTime, formatPresence } from "@/lib/date";
 import { showError } from "@/lib/errors";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { listMirroredUsers } from "@/lib/offline/mirror-queries";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import type { AppRole } from "@/config/navigation";
 import { ArrowLeft, KeyRound, Pencil, UserX, UserCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -50,15 +51,21 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
     undefined,
   );
   useEffect(() => {
+    if (online) return;
     let cancelled = false;
-    void listMirroredUsers().then((rows) => {
-      if (cancelled) return;
-      setLocalUser(rows.find((row) => row.id === profileId) ?? null);
-    });
+    const load = () => {
+      void listMirroredUsers().then((rows) => {
+        if (cancelled) return;
+        setLocalUser(rows.find((row) => row.id === profileId) ?? null);
+      });
+    };
+    load();
+    const unsub = subscribeReplicaChanged(load);
     return () => {
       cancelled = true;
+      unsub();
     };
-  }, [profileId]);
+  }, [online, profileId]);
   const user = remote ?? localUser;
   const updateProfile = useMutation(api.users.updateProfile);
   const resetUserPassword = useAction(api.users.resetUserPassword);
@@ -89,6 +96,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
   }
 
   const profile = user;
+  const presence = formatPresence(profile);
 
   const initials = profile.name
     .split(" ")
@@ -258,16 +266,18 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
           </div>
           <div>
             <p className="text-muted-foreground">Presence</p>
-            <Badge
-              variant={profile.presence === "online" ? "success" : "secondary"}
-              className="mt-1"
-            >
-              {profile.presence === "online" ? "Online" : "Offline"}
+            <Badge variant={presence.online ? "success" : "secondary"} className="mt-1">
+              {presence.online ? "Online" : "Offline"}
             </Badge>
+            <p className="text-muted-foreground mt-1 text-xs">{presence.label}</p>
           </div>
           <Field
             label="Last seen"
-            value={profile.lastSeenAt ? formatDateTime(profile.lastSeenAt) : "—"}
+            value={
+              profile.lastSeenAt && profile.lastSeenAt > 0
+                ? formatDateTime(profile.lastSeenAt)
+                : "—"
+            }
           />
         </CardContent>
       </Card>

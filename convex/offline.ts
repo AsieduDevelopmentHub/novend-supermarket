@@ -4,6 +4,7 @@ import { requireBranchId, canViewCostPrice, isAdmin } from "./shared/permissions
 import { loadPrintSnapshot } from "./settings";
 import { stockMapForBranch } from "./shared/branchStock";
 import { deriveExpiryListFields, lotSummaries } from "./shared/lots";
+import { presenceFromLastSeenAt } from "./shared/presence";
 
 /**
  * Compact catalog snapshot for Dexie offline mirror.
@@ -410,28 +411,35 @@ export const getSnapshot = query({
           branchName: row.branchId ? (branchNameById.get(row.branchId) ?? null) : null,
         }));
 
-      staff = profiles
-        .filter((p) =>
-          profile.role === "manager"
-            ? p.branchId === profile.branchId && (p.role === "cashier" || p._id === profile._id)
-            : true,
-        )
-        .map((p) => ({
-          id: p._id as string,
-          userId: p.userId as string,
-          name: p.name,
-          role: p.role,
-          branch: p.branchId ? (branchNameById.get(p.branchId) ?? p.branch ?? "") : (p.branch ?? ""),
-          branchId: (p.branchId as string | undefined) ?? null,
-          phone: p.phone ?? null,
-          status: p.status,
-          email: null,
-          imageUrl: null,
-          presence: "offline" as const,
-          lastSeenAt: p.lastSeenAt ?? null,
-          lastLoginAt: p.lastLoginAt ?? null,
-          lastDevice: p.lastDevice ?? null,
-        }));
+      const filteredProfiles = profiles.filter((p) =>
+        profile.role === "manager"
+          ? p.branchId === profile.branchId && (p.role === "cashier" || p._id === profile._id)
+          : true,
+      );
+      staff = await Promise.all(
+        filteredProfiles.map(async (p) => {
+          const { lastSeenAt, presence } = presenceFromLastSeenAt(p.lastSeenAt, now);
+          const imageUrl = p.imageStorageId ? await ctx.storage.getUrl(p.imageStorageId) : null;
+          return {
+            id: p._id as string,
+            userId: p.userId as string,
+            name: p.name,
+            role: p.role,
+            branch: p.branchId
+              ? (branchNameById.get(p.branchId) ?? p.branch ?? "")
+              : (p.branch ?? ""),
+            branchId: (p.branchId as string | undefined) ?? null,
+            phone: p.phone ?? null,
+            status: p.status,
+            email: null,
+            imageUrl,
+            presence,
+            lastSeenAt,
+            lastLoginAt: p.lastLoginAt ?? null,
+            lastDevice: p.lastDevice ?? null,
+          };
+        }),
+      );
       const authUsers = await Promise.all(
         staff.map((row) => ctx.db.get(row.userId as Id<"users">)),
       );

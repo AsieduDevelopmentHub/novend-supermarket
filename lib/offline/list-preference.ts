@@ -20,3 +20,17 @@ export function pickReplicaList<T>(args: {
   if (args.local != null) return { rows: args.local, source: "local", loading: false };
   return { rows: undefined, source: "local", loading: true };
 }
+
+/**
+ * Prefer live Convex when online (presence, heartbeats, admin edits).
+ * Dexie is used offline or while the first remote payload loads.
+ */
+export function pickLiveListWhenOnline<T>(args: {
+  local: T[] | null | undefined;
+  remote: T[] | undefined;
+  online: boolean;
+}): T[] | null | undefined {
+  if (!args.online) return args.local ?? undefined;
+  if (args.remote !== undefined) return args.remote;
+  return args.local ?? undefined;
+}

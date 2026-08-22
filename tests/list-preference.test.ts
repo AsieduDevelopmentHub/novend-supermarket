@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickReplicaList } from "@/lib/offline/list-preference";
+import { pickLiveListWhenOnline, pickReplicaList } from "@/lib/offline/list-preference";
 
 describe("pickReplicaList", () => {
   it("uses Dexie rows while offline", () => {
@@ -16,5 +16,27 @@ describe("pickReplicaList", () => {
   it("falls back to live Convex when Dexie is still empty", () => {
     const picked = pickReplicaList({ local: [], remote: [{ id: "srv" }], online: true });
     expect(picked).toEqual({ rows: [{ id: "srv" }], source: "remote", loading: false });
+  });
+});
+
+describe("pickLiveListWhenOnline", () => {
+  it("prefers live Convex when online", () => {
+    expect(
+      pickLiveListWhenOnline({
+        local: [{ id: "local" }],
+        remote: [{ id: "live" }],
+        online: true,
+      }),
+    ).toEqual([{ id: "live" }]);
+  });
+
+  it("uses Dexie offline", () => {
+    expect(
+      pickLiveListWhenOnline({
+        local: [{ id: "local" }],
+        remote: [{ id: "live" }],
+        online: false,
+      }),
+    ).toEqual([{ id: "local" }]);
   });
 });
