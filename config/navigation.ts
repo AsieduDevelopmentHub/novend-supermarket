@@ -20,6 +20,22 @@ export type AppRole = "administrator" | "manager" | "cashier";
 
 export type NavGroupId = "overview" | "sales" | "inventory" | "business" | "administration";
 
+/** Collapsible sidebar sections (Overview is always visible as a fixed link). */
+export const NAV_ACCORDION_GROUP_IDS = [
+  "sales",
+  "inventory",
+  "business",
+  "administration",
+] as const;
+
+export type NavAccordionGroupId = (typeof NAV_ACCORDION_GROUP_IDS)[number];
+
+export const DEFAULT_NAV_ACCORDION_GROUP: NavAccordionGroupId = "sales";
+
+export function isNavAccordionGroup(id: NavGroupId): id is NavAccordionGroupId {
+  return (NAV_ACCORDION_GROUP_IDS as readonly NavGroupId[]).includes(id);
+}
+
 export type NavItem = {
   title: string;
   href: string;
@@ -46,7 +62,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     id: "overview",
     label: "Overview",
-    defaultExpanded: true,
+    defaultExpanded: false,
     items: [
       {
         title: "Dashboard",
@@ -90,7 +106,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     id: "inventory",
     label: "Inventory",
-    defaultExpanded: true,
+    defaultExpanded: false,
     items: [
       {
         title: "Products",
@@ -164,11 +180,15 @@ export const NAV_ITEMS: NavItem[] = [...NAV_GROUPS.flatMap((group) => group.item
 export function defaultNavGroupExpanded(): Record<NavGroupId, boolean> {
   return NAV_GROUPS.reduce(
     (acc, group) => {
-      acc[group.id] = group.defaultExpanded;
+      acc[group.id] = group.id === DEFAULT_NAV_ACCORDION_GROUP;
       return acc;
     },
     {} as Record<NavGroupId, boolean>,
   );
+}
+
+export function defaultActiveAccordionGroup(): NavAccordionGroupId {
+  return DEFAULT_NAV_ACCORDION_GROUP;
 }
 
 export function navGroupsForRole(role: AppRole): NavGroup[] {

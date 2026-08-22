@@ -2,59 +2,101 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import {
-  defaultNavGroupExpanded,
+  DEFAULT_NAV_ACCORDION_GROUP,
+  isNavAccordionGroup,
+  NAV_ACCORDION_GROUP_IDS,
+  type NavAccordionGroupId,
   type NavGroupId,
 } from "@/config/navigation";
 
-const STORAGE_KEY = "novend.navGroupsExpanded";
-const CHANGE_EVENT = "novend-nav-groups-expanded";
-const DEFAULT_EXPANDED = defaultNavGroupExpanded();
-const SERVER_SNAPSHOT = DEFAULT_EXPANDED;
+const STORAGE_KEY = "novend.navActiveGroup";
+const LEGACY_STORAGE_KEY = "novend.navGroupsExpanded";
+const CHANGE_EVENT = "novend-nav-active-group";
 
 let cachedRaw: string | null = null;
-let cachedSnapshot: Record<NavGroupId, boolean> = DEFAULT_EXPANDED;
+let cachedActive: NavAccordionGroupId = DEFAULT_NAV_ACCORDION_GROUP;
 
-function normalizeExpanded(
-  parsed?: Partial<Record<NavGroupId, boolean>>,
-): Record<NavGroupId, boolean> {
-  return { ...DEFAULT_EXPANDED, ...parsed };
+function parseActiveGroup(raw: string | null): NavAccordionGroupId {
+  if (!raw) return DEFAULT_NAV_ACCORDION_GROUP;
+
+  if (isNavAccordionGroup(raw as NavGroupId)) {
+    return raw as NavAccordionGroupId;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (typeof parsed === "string" && isNavAccordionGroup(parsed as NavGroupId)) {
+      return parsed as NavAccordionGroupId;
+    }
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "active" in parsed &&
+      typeof (parsed as { active: unknown }).active === "string" &&
+      isNavAccordionGroup((parsed as { active: NavGroupId }).active)
+    ) {
+      return (parsed as { active: NavAccordionGroupId }).active;
+    }
+    if (parsed && typeof parsed === "object") {
+      const legacy = parsed as Partial<Record<NavGroupId, boolean>>;
+      for (const id of NAV_ACCORDION_GROUP_IDS) {
+        if (legacy[id]) return id;
+      }
+    }
+  } catch {
+    /* ignore malformed storage */
+  }
+
+  return DEFAULT_NAV_ACCORDION_GROUP;
 }
 
-function readExpanded(): Record<NavGroupId, boolean> {
-  if (typeof window === "undefined") return SERVER_SNAPSHOT;
+function readLegacyActiveGroup(): NavAccordionGroupId | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (!legacyRaw) return null;
+    return parseActiveGroup(legacyRaw);
+  } catch {
+    return null;
+  }
+}
+
+function readActiveGroup(): NavAccordionGroupId {
+  if (typeof window === "undefined") return DEFAULT_NAV_ACCORDION_GROUP;
 
   let raw: string | null = null;
   try {
     raw = window.localStorage.getItem(STORAGE_KEY);
   } catch {
-    return cachedSnapshot;
+    return cachedActive;
+  }
+
+  if (!raw) {
+    const legacy = readLegacyActiveGroup();
+    if (legacy) {
+      writeActiveGroup(legacy);
+      return legacy;
+    }
+    cachedRaw = null;
+    cachedActive = DEFAULT_NAV_ACCORDION_GROUP;
+    return cachedActive;
   }
 
   if (raw === cachedRaw) {
-    return cachedSnapshot;
+    return cachedActive;
   }
 
   cachedRaw = raw;
-  if (!raw) {
-    cachedSnapshot = DEFAULT_EXPANDED;
-    return cachedSnapshot;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as Partial<Record<NavGroupId, boolean>>;
-    cachedSnapshot = normalizeExpanded(parsed);
-  } catch {
-    cachedSnapshot = DEFAULT_EXPANDED;
-  }
-  return cachedSnapshot;
+  cachedActive = parseActiveGroup(raw);
+  return cachedActive;
 }
 
-function writeExpanded(next: Record<NavGroupId, boolean>) {
-  const normalized = normalizeExpanded(next);
-  cachedSnapshot = normalized;
-  cachedRaw = JSON.stringify(normalized);
+function writeActiveGroup(next: NavAccordionGroupId) {
+  cachedActive = next;
+  cachedRaw = next;
   try {
-    window.localStorage.setItem(STORAGE_KEY, cachedRaw);
+    window.localStorage.setItem(STORAGE_KEY, next);
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch {
     /* ignore quota / privacy errors */
   }
@@ -71,20 +113,28 @@ function subscribe(onStoreChange: () => void) {
 }
 
 export function useNavTreeState() {
-  const expanded = useSyncExternalStore(subscribe, readExpanded, () => SERVER_SNAPSHOT);
+  const activeGroup = useSyncExternalStore(
+    subscribe,
+    readActiveGroup,
+    () => DEFAULT_NAV_ACCORDION_GROUP,
+  );
 
   const toggleGroup = useCallback((id: NavGroupId) => {
-    const current = readExpanded();
-    writeExpanded({ ...current, [id]: !current[id] });
+    if (!isNavAccordionGroup(id)) return;
+    if (readActiveGroup() === id) return;
+    writeActiveGroup(id);
   }, []);
 
   const expandGroup = useCallback((id: NavGroupId) => {
-    const current = readExpanded();
-    if (current[id]) return;
-    writeExpanded({ ...current, [id]: true });
+    if (!isNavAccordionGroup(id)) return;
+    if (readActiveGroup() === id) return;
+    writeActiveGroup(id);
   }, []);
 
-  const isExpanded = useCallback((id: NavGroupId) => expanded[id], [expanded]);
+  const isExpanded = useCallback(
+    (id: NavGroupId) => isNavAccordionGroup(id) && activeGroup === id,
+    [activeGroup],
+  );
 
-  return { isExpanded, toggleGroup, expandGroup };
+  return { isExpanded, toggleGroup, expandGroup, activeGroup };
 }

@@ -35,11 +35,11 @@ describe("navigation tree", () => {
     expect(navGroupsForRole("cashier").flatMap((g) => g.items)).not.toContainEqual(SETTINGS_ITEM);
   });
 
-  it("defaults overview, sales, and inventory to expanded", () => {
+  it("defaults to sales as the only expanded accordion group", () => {
     const defaults = defaultNavGroupExpanded();
-    expect(defaults.overview).toBe(true);
+    expect(defaults.overview).toBe(false);
     expect(defaults.sales).toBe(true);
-    expect(defaults.inventory).toBe(true);
+    expect(defaults.inventory).toBe(false);
     expect(defaults.business).toBe(false);
     expect(defaults.administration).toBe(false);
   });
