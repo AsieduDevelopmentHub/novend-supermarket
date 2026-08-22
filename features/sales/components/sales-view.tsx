@@ -43,6 +43,7 @@ import {
   completeSaleLocally,
   holdSaleLocally,
   listLocalHeldSales,
+  mirrorCompletedSale,
   resumeLocalHeldSale,
 } from "@/lib/offline/sales-repository";
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
@@ -429,6 +430,28 @@ export function SalesView() {
     try {
       if (online) {
         const result = await completeSaleRemote(saleInput);
+        const receipt = result.receiptPayload as ReceiptPayload;
+        await mirrorCompletedSale({
+          saleId: String(result.saleId),
+          invoiceNumber: result.invoiceNumber,
+          customerId: customer?.id,
+          customerName: customer?.name ?? receipt.customerName ?? "Walk-in Customer",
+          itemCount: receipt.itemCount ?? cartItemCount,
+          subtotal: receipt.subtotal ?? subtotal,
+          discount: receipt.discount ?? cartDiscount,
+          total: result.total,
+          paymentMethod: "cash",
+          completedAt: receipt.completedAt ?? Date.now(),
+          branchId: saleBranchId,
+          items: cart.map((item) => ({
+            productId: item.productId,
+            productName: item.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discount: item.discount,
+            lineTotal: roundMoney(item.unitPrice * item.quantity - item.discount),
+          })),
+        });
         setCart([]);
         clearCartDiscount();
         setCustomer(null);

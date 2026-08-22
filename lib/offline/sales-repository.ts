@@ -8,10 +8,13 @@ import {
   type PrincellenOfflineDb,
 } from "./db";
 import { enqueueCompleteSale } from "./outbox";
+import { notifyReplicaChanged } from "./replica-events";
 import type {
   CompleteSaleOutboxPayload,
   LocalHeldSale,
   LocalSale,
+  MirroredOrder,
+  MirroredOrderItem,
   PrintSnapshot,
   LocalSaleItem,
 } from "./types";
@@ -416,4 +419,81 @@ export async function listPendingLocalSales() {
   const db = await getOfflineDb();
   if (!db) return [];
   return db.localSales.where("syncStatus").equals("pending").toArray();
+}
+
+/** Write a server-completed sale into Dexie so Orders updates without waiting for a snapshot. */
+export async function mirrorCompletedSale(input: {
+  saleId: string;
+  invoiceNumber: string;
+  customerId?: string | null;
+  customerName: string;
+  cashierId?: string | null;
+  cashierName?: string;
+  itemCount: number;
+  subtotal: number;
+  discount: number;
+  total: number;
+  paymentMethod: "cash" | "card" | "mobile_money";
+  completedAt: number;
+  branchId?: string | null;
+  branchName?: string | null;
+  items: Array<{
+    productId: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    discount: number;
+    lineTotal: number;
+  }>;
+}): Promise<void> {
+  const db = await getOfflineDb();
+  if (!db) return;
+  const cashierId = input.cashierId ?? (await getMeta(db, META_KEYS.profileUserId)) ?? null;
+  const cashierName =
+    input.cashierName ?? (await getMeta(db, META_KEYS.profileName)) ?? "Cashier";
+  const branchId = input.branchId ?? (await getMeta(db, META_KEYS.profileBranchId)) ?? null;
+  const branchName =
+    input.branchName ?? (await getMeta(db, META_KEYS.profileBranchName)) ?? null;
+
+  const order: MirroredOrder = {
+    id: input.saleId,
+    invoiceNumber: input.invoiceNumber,
+    customerId: input.customerId ?? null,
+    customerName: input.customerName,
+    cashierId,
+    cashierName,
+    itemCount: input.itemCount,
+    subtotal: input.subtotal,
+    discount: input.discount,
+    total: input.total,
+    paymentMethod: input.paymentMethod,
+    status: "completed",
+    completedAt: input.completedAt,
+    branchId,
+    branchName,
+    refundedAmount: 0,
+  };
+  const items: MirroredOrderItem[] = input.items.map((item, index) => ({
+    id: `${input.saleId}:${item.productId}:${index}`,
+    orderId: input.saleId,
+    productId: item.productId,
+    productName: item.productName,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+    discount: item.discount,
+    lineTotal: item.lineTotal,
+    returnedQuantity: 0,
+  }));
+
+  await db.transaction("rw", [db.orders, db.orderItems], async () => {
+    await db.orders.put(order);
+    const existing = await db.orderItems.where("orderId").equals(input.saleId).toArray();
+    for (const row of existing) {
+      await db.orderItems.delete(row.id);
+    }
+    if (items.length > 0) {
+      await db.orderItems.bulkPut(items);
+    }
+  });
+  notifyReplicaChanged();
 }

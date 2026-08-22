@@ -362,11 +362,9 @@ export type OrdersListOptions = {
 };
 
 export function useOrdersList(options: OrdersListOptions) {
-  const { online, serveLocal, ready, lastSyncAt } = useMirrorListGate();
+  const { online, ready, lastSyncAt } = useMirrorListGate();
   const [local, setLocal] = useState<Awaited<ReturnType<typeof listLocalOrders>>>(null);
-  const replicaEmpty = local !== null && local.length === 0;
-  const useLocal = serveLocal && !replicaEmpty;
-  const useRemote = online && ready && !useLocal;
+  const useRemote = online && ready;
   const remote = useQuery(
     api.sales.listOrders,
     useRemote
@@ -386,21 +384,26 @@ export function useOrdersList(options: OrdersListOptions) {
 
   useEffect(() => {
     let cancelled = false;
-    void listLocalOrders({
-      search: options.search || undefined,
-      branchId: options.branchId,
-      cashierId: options.cashierId,
-      startDate: options.startDate,
-      endDate: options.endDate,
-      minTotal: options.minTotal,
-      maxTotal: options.maxTotal,
-      paymentMethod: options.paymentMethod,
-      returnStatus: options.returnStatus,
-    }).then((rows) => {
-      if (!cancelled) setLocal(rows);
-    });
+    const load = () => {
+      void listLocalOrders({
+        search: options.search || undefined,
+        branchId: options.branchId,
+        cashierId: options.cashierId,
+        startDate: options.startDate,
+        endDate: options.endDate,
+        minTotal: options.minTotal,
+        maxTotal: options.maxTotal,
+        paymentMethod: options.paymentMethod,
+        returnStatus: options.returnStatus,
+      }).then((rows) => {
+        if (!cancelled) setLocal(rows);
+      });
+    };
+    load();
+    const unsub = subscribeReplicaChanged(load);
     return () => {
       cancelled = true;
+      unsub();
     };
   }, [
     options.search,
@@ -414,7 +417,6 @@ export function useOrdersList(options: OrdersListOptions) {
     options.returnStatus,
     remote,
     lastSyncAt,
-    useLocal,
   ]);
 
   function mapLocalRow(o: NonNullable<Awaited<ReturnType<typeof listLocalOrders>>>[number]) {
@@ -456,7 +458,7 @@ export function useOrdersList(options: OrdersListOptions) {
     };
   }
 
-  if ((useLocal || !online) && local !== null) {
+  if (!online && local !== null) {
     return {
       orders: local.map(mapLocalRow),
       loading: false,
