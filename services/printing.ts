@@ -8,6 +8,7 @@ import {
 import { formatCurrency } from "@/lib/currency";
 import { sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 import { formatDateTime } from "@/lib/date";
+import { brandedDocumentName } from "@/lib/export-filenames";
 import { probePrintBridge, sendToPrintBridge } from "./print/bridge";
 import { buildEscPosReceipt, escPosToBase64 } from "./print/escpos";
 import {
@@ -105,7 +106,7 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
   const logo = t.showLogo
     ? `<img class="logo" src="${origin}/branding/brandmark.png" alt="" />`
     : "";
-  const printTitle = [b.tradeName, payload.invoiceNumber].filter(Boolean).join(" · ");
+  const printTitle = brandedDocumentName("Receipt", payload.invoiceNumber);
 
   // Avoid @page size: Nmm — Chromium often opens a blank preview with custom page sizes.
   return `<!DOCTYPE html>

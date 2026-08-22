@@ -6,9 +6,9 @@ import { Toaster as SonnerToaster, toast } from "sonner";
 /**
  * App-wide notifications.
  *
- * Bottom-left keeps the till (cart, sale complete) clear. An X dismisses on
- * desktop; swipe still works on mobile. Repeating toasts should pass a stable
- * `id` so they replace instead of stacking. Clicking a toast dismisses it.
+ * Top-right is the global default. An X dismisses on desktop; swipe still
+ * works on mobile. Repeating toasts should pass a stable `id` so they replace
+ * instead of stacking. Clicking a toast dismisses it.
  */
 export function Toaster() {
   return (
@@ -16,7 +16,7 @@ export function Toaster() {
       <SonnerToaster
         closeButton
         richColors
-        position="bottom-left"
+        position="top-right"
         visibleToasts={3}
         duration={4000}
         gap={8}

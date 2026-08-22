@@ -8,7 +8,7 @@ import {
   META_KEYS,
   REPLICA_SCHEMA_VERSION,
   setMeta,
-  type PrincellenOfflineDb,
+  type NovendOfflineDb,
 } from "./db";
 import { getLastSnapshotAt, SNAPSHOT_PULL_TTL_MS } from "./freshness";
 import { cacheProductImages } from "./image-cache";
@@ -96,7 +96,7 @@ export async function pullOfflineSnapshot(
 }
 
 export async function applySnapshot(
-  db: PrincellenOfflineDb,
+  db: NovendOfflineDb,
   snapshot: {
     products: MirroredProduct[];
     categories: MirroredCategory[];

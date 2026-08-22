@@ -5,7 +5,7 @@ import {
   META_KEYS,
   newClientId,
   nextProvisionalInvoice,
-  type PrincellenOfflineDb,
+  type NovendOfflineDb,
 } from "./db";
 import { enqueueCompleteSale } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
@@ -31,7 +31,7 @@ function roundMoney(n: number) {
   return Math.round(n * 100) / 100;
 }
 
-async function loadPrintSnapshot(db: PrincellenOfflineDb): Promise<PrintSnapshot> {
+async function loadPrintSnapshot(db: NovendOfflineDb): Promise<PrintSnapshot> {
   const raw = await getMeta(db, META_KEYS.printSnapshot);
   if (raw) {
     try {

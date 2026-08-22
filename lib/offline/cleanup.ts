@@ -1,4 +1,4 @@
-import type { PrincellenOfflineDb } from "./db";
+import type { NovendOfflineDb } from "./db";
 import { getMeta, META_KEYS, setMeta } from "./db";
 
 const DEFAULT_SYNCED_OUTBOX_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -9,7 +9,7 @@ const DEFAULT_SYNCED_SALE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
  * Keeps IndexedDB lean during long offline / multi-day operation.
  */
 export async function cleanupStaleOfflineRecords(
-  db: PrincellenOfflineDb,
+  db: NovendOfflineDb,
   options?: {
     syncedOutboxMaxAgeMs?: number;
     syncedSaleMaxAgeMs?: number;
@@ -63,7 +63,7 @@ export async function cleanupStaleOfflineRecords(
 }
 
 /** Recover rows left in `syncing` after a crash / tab kill. */
-export async function recoverInterruptedSync(db: PrincellenOfflineDb): Promise<number> {
+export async function recoverInterruptedSync(db: NovendOfflineDb): Promise<number> {
   const stuck = await db.outbox.where("status").equals("syncing").toArray();
   if (stuck.length === 0) return 0;
   const now = Date.now();
@@ -79,7 +79,7 @@ export async function recoverInterruptedSync(db: PrincellenOfflineDb): Promise<n
 }
 
 export async function recordSyncDiagnostics(
-  db: PrincellenOfflineDb,
+  db: NovendOfflineDb,
   stats: { processed: number; failed: number; error?: string | null },
 ) {
   const now = Date.now();

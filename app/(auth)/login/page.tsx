@@ -3,7 +3,7 @@ import { LoginBrandPanel } from "@/features/auth/components/login-brand-panel";
 import { LoginAtmosphere } from "@/features/auth/components/login-atmosphere";
 
 /**
- * Login — Princellen mobile pattern (hero + overlapping sheet) + desktop split card.
+ * Login — mobile hero + overlapping sheet, desktop split card.
  */
 export default function LoginPage() {
   return (

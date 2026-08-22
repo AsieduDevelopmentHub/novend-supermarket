@@ -1,12 +1,12 @@
 /**
  * Runtime detection for the Electron desktop shell.
- * The preload script exposes `window.novendDesktop` (and a Princellen alias).
+ * The preload script exposes `window.novendDesktop`.
  */
-import type { PrincellenDesktopBridge } from "@/types/desktop";
+import type { NovendDesktopBridge } from "@/types/desktop";
 
-export function getDesktopBridge(): PrincellenDesktopBridge | null {
+export function getDesktopBridge(): NovendDesktopBridge | null {
   if (typeof window === "undefined") return null;
-  return window.novendDesktop ?? window.princellenDesktop ?? null;
+  return window.novendDesktop ?? null;
 }
 
 /** True when running inside the Novend POS desktop app. */

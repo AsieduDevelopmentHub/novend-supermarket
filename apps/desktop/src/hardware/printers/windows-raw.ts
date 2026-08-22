@@ -45,7 +45,7 @@ public class RawPrinter {
   public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, int dwCount, out int dwWritten);
   public static bool Send(string printer, byte[] bytes) {
     IntPtr h; if (!OpenPrinter(printer, out h, IntPtr.Zero)) return false;
-    var di = new DOCINFOA(); di.pDocName = "PrincellenReceipt"; di.pDataType = "RAW";
+    var di = new DOCINFOA(); di.pDocName = "NovendReceipt"; di.pDataType = "RAW";
     if (!StartDocPrinter(h, 1, di)) { ClosePrinter(h); return false; }
     StartPagePrinter(h);
     IntPtr p = Marshal.AllocCoTaskMem(bytes.Length);

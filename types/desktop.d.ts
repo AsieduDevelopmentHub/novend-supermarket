@@ -1,6 +1,6 @@
 /** Ambient types for the Electron preload bridge exposed on window. */
 
-export type PrincellenDesktopRuntime = {
+export type NovendDesktopRuntime = {
   ok: true;
   runtime: "electron";
   version: string;
@@ -9,7 +9,7 @@ export type PrincellenDesktopRuntime = {
   packaged: boolean;
 };
 
-export type PrincellenDesktopPrintRequest = {
+export type NovendDesktopPrintRequest = {
   escposBase64: string;
   invoiceNumber: string;
   copies: number;
@@ -21,12 +21,12 @@ export type PrincellenDesktopPrintRequest = {
   openCashDrawer?: boolean;
 };
 
-export type PrincellenDesktopPrintResult = {
+export type NovendDesktopPrintResult = {
   ok: boolean;
   message: string;
 };
 
-export type PrincellenDesktopDiscoverResult = {
+export type NovendDesktopDiscoverResult = {
   ok: boolean;
   version: string;
   platform: string;
@@ -53,7 +53,7 @@ export type PrincellenDesktopDiscoverResult = {
   } | null;
 };
 
-export type PrincellenDesktopUpdateState =
+export type NovendDesktopUpdateState =
   | "idle"
   | "disabled"
   | "checking"
@@ -63,8 +63,8 @@ export type PrincellenDesktopUpdateState =
   | "ready"
   | "error";
 
-export type PrincellenDesktopUpdateStatus = {
-  state: PrincellenDesktopUpdateState;
+export type NovendDesktopUpdateStatus = {
+  state: NovendDesktopUpdateState;
   currentVersion: string;
   availableVersion: string | null;
   releaseNotes: string | null;
@@ -77,32 +77,31 @@ export type PrincellenDesktopUpdateStatus = {
   canInstall: boolean;
 };
 
-export type PrincellenDesktopInstallUpdateResult = {
+export type NovendDesktopInstallUpdateResult = {
   ok: boolean;
   message: string;
 };
 
-export type PrincellenDesktopBridge = {
-  getRuntime: () => Promise<PrincellenDesktopRuntime>;
+export type NovendDesktopBridge = {
+  getRuntime: () => Promise<NovendDesktopRuntime>;
   getCapabilities: () => Promise<{
     ok: boolean;
     capabilities: Array<{ kind: string; available: boolean; reason?: string }>;
   }>;
-  discoverDevices: () => Promise<PrincellenDesktopDiscoverResult>;
-  print: (request: PrincellenDesktopPrintRequest) => Promise<PrincellenDesktopPrintResult>;
+  discoverDevices: () => Promise<NovendDesktopDiscoverResult>;
+  print: (request: NovendDesktopPrintRequest) => Promise<NovendDesktopPrintResult>;
   testPrint: (
-    partial?: Partial<PrincellenDesktopPrintRequest>,
-  ) => Promise<PrincellenDesktopPrintResult>;
-  getUpdateStatus: () => Promise<PrincellenDesktopUpdateStatus>;
-  checkForUpdates: () => Promise<PrincellenDesktopUpdateStatus>;
-  installUpdate: () => Promise<PrincellenDesktopInstallUpdateResult>;
-  onUpdateStatus: (listener: (status: PrincellenDesktopUpdateStatus) => void) => () => void;
+    partial?: Partial<NovendDesktopPrintRequest>,
+  ) => Promise<NovendDesktopPrintResult>;
+  getUpdateStatus: () => Promise<NovendDesktopUpdateStatus>;
+  checkForUpdates: () => Promise<NovendDesktopUpdateStatus>;
+  installUpdate: () => Promise<NovendDesktopInstallUpdateResult>;
+  onUpdateStatus: (listener: (status: NovendDesktopUpdateStatus) => void) => () => void;
 };
 
 declare global {
   interface Window {
-    princellenDesktop?: PrincellenDesktopBridge;
-    novendDesktop?: PrincellenDesktopBridge;
+    novendDesktop?: NovendDesktopBridge;
   }
 }
 

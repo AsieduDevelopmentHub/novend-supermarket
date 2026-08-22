@@ -32,6 +32,7 @@ import { expenseCategoryLabel, type ExpenseCategory } from "../constants";
 import { ExpenseFormDialog, type ExpenseRow } from "./expense-form-dialog";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { Download, Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { brandedCsvName } from "@/lib/export-filenames";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import {
@@ -185,7 +186,7 @@ export function AnalyticsView() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `analytics-${applied.start}-to-${applied.end}.csv`;
+    a.download = brandedCsvName("Analytics", `${applied.start}-to-${applied.end}`);
     a.click();
     URL.revokeObjectURL(url);
     toast.success("CSV exported");

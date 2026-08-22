@@ -1,4 +1,4 @@
-import { getOfflineDb, type PrincellenOfflineDb } from "./db";
+import { getOfflineDb, type NovendOfflineDb } from "./db";
 import { notifyReplicaChanged } from "./replica-events";
 import type {
   CompleteSaleOutboxPayload,
@@ -25,7 +25,7 @@ function isMirrorOnly() {
 }
 
 export async function enqueueCompleteSale(
-  db: PrincellenOfflineDb,
+  db: NovendOfflineDb,
   clientOperationId: string,
   payload: CompleteSaleOutboxPayload,
 ): Promise<OutboxRow> {
@@ -46,7 +46,7 @@ export async function enqueueCompleteSale(
 }
 
 export async function enqueueProcessReturn(
-  db: PrincellenOfflineDb,
+  db: NovendOfflineDb,
   clientOperationId: string,
   payload: ProcessReturnOutboxPayload,
 ): Promise<OutboxRow> {
@@ -66,7 +66,7 @@ export async function enqueueProcessReturn(
   return row;
 }
 
-export async function listPendingOutbox(db: PrincellenOfflineDb): Promise<OutboxRow[]> {
+export async function listPendingOutbox(db: NovendOfflineDb): Promise<OutboxRow[]> {
   try {
     return await db.outbox
       .where("[status+createdAt]")
@@ -79,7 +79,7 @@ export async function listPendingOutbox(db: PrincellenOfflineDb): Promise<Outbox
 }
 
 export async function claimOutboxRow(
-  db: PrincellenOfflineDb,
+  db: NovendOfflineDb,
   id: string,
 ): Promise<OutboxRow | null> {
   const row = await db.outbox.get(id);
@@ -94,7 +94,7 @@ export async function claimOutboxRow(
   return next;
 }
 
-export async function markOutboxSynced(db: PrincellenOfflineDb, id: string) {
+export async function markOutboxSynced(db: NovendOfflineDb, id: string) {
   const row = await db.outbox.get(id);
   if (!row) return;
   await db.outbox.put({
@@ -105,7 +105,7 @@ export async function markOutboxSynced(db: PrincellenOfflineDb, id: string) {
   });
 }
 
-export async function markOutboxFailed(db: PrincellenOfflineDb, id: string, error: string) {
+export async function markOutboxFailed(db: NovendOfflineDb, id: string, error: string) {
   const row = await db.outbox.get(id);
   if (!row) return;
   await db.outbox.put({
@@ -116,7 +116,7 @@ export async function markOutboxFailed(db: PrincellenOfflineDb, id: string, erro
   });
 }
 
-export async function markOutboxPending(db: PrincellenOfflineDb, id: string, error?: string) {
+export async function markOutboxPending(db: NovendOfflineDb, id: string, error?: string) {
   const row = await db.outbox.get(id);
   if (!row) return;
   await db.outbox.put({
@@ -128,7 +128,7 @@ export async function markOutboxPending(db: PrincellenOfflineDb, id: string, err
 }
 
 export async function enqueueOutbox(
-  db: PrincellenOfflineDb,
+  db: NovendOfflineDb,
   type: OutboxOpType,
   payload: unknown,
   clientOperationId = newClientId("op"),
@@ -152,7 +152,7 @@ export async function enqueueOutbox(
 }
 
 export async function replaceIdInPendingOutbox(
-  db: PrincellenOfflineDb,
+  db: NovendOfflineDb,
   fromId: string,
   toId: string,
 ) {
@@ -179,7 +179,7 @@ export async function countOutboxByStatus() {
   return { pending, failed, syncing };
 }
 
-export async function retryFailedOutbox(db: PrincellenOfflineDb, id: string) {
+export async function retryFailedOutbox(db: NovendOfflineDb, id: string) {
   await markOutboxPending(db, id);
 }
 

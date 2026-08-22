@@ -1,5 +1,5 @@
 import type { ReceiptPayload } from "@/features/receipts/types";
-import { getMeta, getOfflineDb, META_KEYS, newClientId, type PrincellenOfflineDb } from "./db";
+import { getMeta, getOfflineDb, META_KEYS, newClientId, type NovendOfflineDb } from "./db";
 import { enqueueProcessReturn } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
 import { estimateReturnRefund, roundMoney } from "@/lib/sales/returns";
@@ -16,7 +16,7 @@ export type LocalReturnLineInput = {
   quantity: number;
 };
 
-async function loadPrintSnapshot(db: PrincellenOfflineDb): Promise<PrintSnapshot> {
+async function loadPrintSnapshot(db: NovendOfflineDb): Promise<PrintSnapshot> {
   const raw = await getMeta(db, META_KEYS.printSnapshot);
   if (raw) {
     try {

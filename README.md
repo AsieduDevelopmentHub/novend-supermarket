@@ -1,7 +1,7 @@
 # Novend POS
 
 Commercial offline-first Point of Sale and business management platform
-(Nova + Vend). Multi-tenant productization of the Princellen POS architecture.
+(Nova + Vend). Multi-tenant POS for independent businesses.
 
 See `overview.md` for product vision and `docs/PROJECT_CONSTITUTION.md` for
 engineering authority.

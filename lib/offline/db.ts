@@ -24,7 +24,6 @@ import type {
   ProductImageCache,
 } from "./types";
 
-export type PrincellenOfflineDb = NovendOfflineDb;
 export type NovendOfflineDb = Dexie & {
   meta: EntityTable<OfflineMeta, "key">;
   products: EntityTable<MirroredProduct, "id">;
@@ -254,7 +253,7 @@ export function createOfflineDb(organizationId?: string, userId?: string): Noven
 }
 
 /** Opens IndexedDB; returns null if unavailable (private mode / blocked). */
-export async function getOfflineDb(): Promise<PrincellenOfflineDb | null> {
+export async function getOfflineDb(): Promise<NovendOfflineDb | null> {
   if (dbFailed) return null;
 
   try {
@@ -311,16 +310,16 @@ export const META_KEYS = {
 /** Bump when Dexie adds replica tables so TTL snapshot skips cannot leave new stores empty. */
 export const REPLICA_SCHEMA_VERSION = "7";
 
-export async function getMeta(db: PrincellenOfflineDb, key: string): Promise<string | null> {
+export async function getMeta(db: NovendOfflineDb, key: string): Promise<string | null> {
   const row = await db.meta.get(key);
   return row?.value ?? null;
 }
 
-export async function setMeta(db: PrincellenOfflineDb, key: string, value: string) {
+export async function setMeta(db: NovendOfflineDb, key: string, value: string) {
   await db.meta.put({ key, value });
 }
 
-export async function ensureDeviceId(db: PrincellenOfflineDb): Promise<string> {
+export async function ensureDeviceId(db: NovendOfflineDb): Promise<string> {
   const existing = await getMeta(db, META_KEYS.deviceId);
   if (existing) return existing;
   const id =
@@ -331,7 +330,7 @@ export async function ensureDeviceId(db: PrincellenOfflineDb): Promise<string> {
   return id;
 }
 
-export async function nextProvisionalInvoice(db: PrincellenOfflineDb): Promise<string> {
+export async function nextProvisionalInvoice(db: NovendOfflineDb): Promise<string> {
   const deviceId = await ensureDeviceId(db);
   const short = deviceId.replace(/-/g, "").slice(0, 6).toUpperCase();
   const raw = await getMeta(db, META_KEYS.invoiceSeq);

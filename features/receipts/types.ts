@@ -1,5 +1,5 @@
 export type ReceiptBusiness = {
-  /** Organization title (e.g. Princellen…) — never replaced by branch. */
+  /** Organization title (e.g. East Legon Pharmacy) — never replaced by branch. */
   tradeName: string;
   legalName: string;
   /** Branch line under the org header when present. */

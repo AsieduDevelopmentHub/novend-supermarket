@@ -1,3 +1,4 @@
+import { brandedDocumentName } from "@/lib/export-filenames";
 import { getOfflineDb } from "./db";
 
 const BACKUP_VERSION = 1;
@@ -56,7 +57,7 @@ function downloadJson(filename: string, payload: unknown) {
 export async function downloadOfflineBackup() {
   const payload = await exportOfflineBackup();
   const stamp = new Date(payload.exportedAt).toISOString().slice(0, 10);
-  downloadJson(`novend-offline-backup-${stamp}.json`, payload);
+  downloadJson(brandedDocumentName("Offline-Backup", stamp, "json"), payload);
   return payload;
 }
 

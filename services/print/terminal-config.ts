@@ -35,6 +35,7 @@ export const DEFAULT_TERMINAL_PRINTER_CONFIG: TerminalPrinterConfig = {
 };
 
 const STORAGE_KEY = "novend.terminal.printer";
+/** Pre-rebrand localStorage key — read-only migration from early Novend builds. */
 const LEGACY_STORAGE_KEY = "princellen.terminal.printer";
 
 export function loadTerminalPrinterConfig(): TerminalPrinterConfig {
@@ -79,6 +80,7 @@ export function loadTerminalPrinterConfig(): TerminalPrinterConfig {
 export function saveTerminalPrinterConfig(config: TerminalPrinterConfig) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  window.localStorage.removeItem(LEGACY_STORAGE_KEY);
 }
 
 export type PrintResult = {

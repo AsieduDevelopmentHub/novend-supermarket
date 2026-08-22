@@ -7,12 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { getDesktopBridge } from "@/lib/desktop";
-import type { PrincellenDesktopUpdateStatus } from "@/types/desktop";
+import type { NovendDesktopUpdateStatus } from "@/types/desktop";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { Download, Loader2, RefreshCw, Rocket } from "lucide-react";
 
-const EMPTY_STATUS: PrincellenDesktopUpdateStatus = {
+const EMPTY_STATUS: NovendDesktopUpdateStatus = {
   state: "idle",
   currentVersion: "—",
   availableVersion: null,
@@ -34,7 +34,7 @@ function formatCheckedAt(timestamp: number | null): string {
   }).format(new Date(timestamp));
 }
 
-function statusLabel(status: PrincellenDesktopUpdateStatus): string {
+function statusLabel(status: NovendDesktopUpdateStatus): string {
   switch (status.state) {
     case "checking":
       return "Checking for updates…";
@@ -61,7 +61,7 @@ function statusLabel(status: PrincellenDesktopUpdateStatus): string {
   }
 }
 
-function statusBadge(status: PrincellenDesktopUpdateStatus): {
+function statusBadge(status: NovendDesktopUpdateStatus): {
   label: string;
   variant: "default" | "secondary" | "destructive" | "outline";
 } {
@@ -84,7 +84,7 @@ function statusBadge(status: PrincellenDesktopUpdateStatus): {
 
 /** Desktop-only: check, review, and install Electron updates from Settings. */
 export function UpdatesPanel() {
-  const [status, setStatus] = useState<PrincellenDesktopUpdateStatus>(EMPTY_STATUS);
+  const [status, setStatus] = useState<NovendDesktopUpdateStatus>(EMPTY_STATUS);
   const [checking, setChecking] = useState(false);
   const [installing, setInstalling] = useState(false);
 
