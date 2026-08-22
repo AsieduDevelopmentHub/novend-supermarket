@@ -559,11 +559,16 @@ export const landingCopy = {
   },
   nav: [
     { href: "/#journey", label: "How it Works" },
-    { href: "/#architecture", label: "Offline" },
     { href: "/#features", label: "Features" },
     { href: "/#industries", label: "Industries" },
     { href: "/#pricing", label: "Pricing" },
-    { href: "/#faq", label: "FAQ" },
+    { href: "/docs", label: "Docs" },
+  ],
+  navResources: [
+    { href: "/docs/help", label: "Help Center" },
+    { href: "/docs/releases", label: "Release Notes" },
+    { href: "/privacy", label: "Privacy" },
+    { href: "/terms", label: "Terms" },
   ],
   navTrialCta: "Start Free Trial",
   footer: {

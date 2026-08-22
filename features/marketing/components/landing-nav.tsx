@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useState, type ReactNode, type RefObject } from "react";
 import { Menu } from "lucide-react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -22,6 +22,32 @@ import { postLoginPath } from "@/lib/auth/post-login-path";
 type Props = {
   scrollRootRef: RefObject<HTMLElement | null>;
 };
+
+function NavHref({
+  href,
+  className,
+  onClick,
+  children,
+}: {
+  href: string;
+  className?: string;
+  onClick?: () => void;
+  children: ReactNode;
+}) {
+  const isHash = href.includes("#");
+  if (isHash) {
+    return (
+      <a href={href} className={className} onClick={onClick}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={className} onClick={onClick}>
+      {children}
+    </Link>
+  );
+}
 
 /** Floating pill nav — transparent until 40px scroll, then glass (Linear / Stripe style). */
 export function LandingNav({ scrollRootRef }: Props) {
@@ -66,17 +92,25 @@ export function LandingNav({ scrollRootRef }: Props) {
 
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
           {landingCopy.nav.map((item) => (
-            <a
+            <NavHref
               key={item.href}
               href={item.href}
               className="text-slate-600 hover:text-[#111827] rounded-full px-3.5 py-2 text-sm font-medium transition-colors"
             >
               {item.label}
-            </a>
+            </NavHref>
           ))}
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="hidden h-9 text-sm font-semibold sm:inline-flex"
+          >
+            <Link href="/docs/help">Help</Link>
+          </Button>
           <Button
             asChild
             variant="ghost"
@@ -106,15 +140,31 @@ export function LandingNav({ scrollRootRef }: Props) {
                 <SheetTitle className="text-left">{landingCopy.brand}</SheetTitle>
               </SheetHeader>
               <nav className="mt-6 flex flex-col gap-1" aria-label="Mobile">
+                <p className="text-muted-foreground px-3 pb-1 text-[11px] font-semibold tracking-[0.14em] uppercase">
+                  Product
+                </p>
                 {landingCopy.nav.map((item) => (
-                  <a
+                  <NavHref
                     key={item.href}
                     href={item.href}
                     className="text-foreground rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
                     onClick={() => setMenuOpen(false)}
                   >
                     {item.label}
-                  </a>
+                  </NavHref>
+                ))}
+                <p className="text-muted-foreground mt-4 px-3 pb-1 text-[11px] font-semibold tracking-[0.14em] uppercase">
+                  Resources
+                </p>
+                {landingCopy.navResources.map((item) => (
+                  <NavHref
+                    key={item.href}
+                    href={item.href}
+                    className="text-foreground rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {item.label}
+                  </NavHref>
                 ))}
               </nav>
               <div className="mt-6 flex flex-col gap-2">
