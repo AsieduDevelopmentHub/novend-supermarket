@@ -16,19 +16,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  BARCODE_HID_CAPTURE_MS,
   discoverScanners,
   getScannerConnectionState,
   loadTerminalScannerConfig,
+  playScanSuccessBeep,
   probeScannerBridge,
+  rememberLastScan,
   saveTerminalScannerConfig,
   type DiscoveredScanner,
   type TerminalScannerConfig,
 } from "@/services/hardware";
+import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
+import { ScanBarcodeCameraDialog } from "@/components/hardware/scan-barcode-camera-dialog";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { formatOperatingSystem } from "@/lib/desktop";
 import { cn } from "@/lib/utils";
-import { Loader2, RefreshCw, ScanBarcode, CheckCircle2, Info } from "lucide-react";
+import { Loader2, RefreshCw, ScanBarcode, CheckCircle2, Info, Camera } from "lucide-react";
 
 type BridgeSnapshot = {
   state: "unknown" | "online" | "offline";
@@ -47,16 +52,38 @@ async function readBridgeSnapshot(): Promise<BridgeSnapshot> {
   };
 }
 
-/** Desktop-only: configure barcode scanners for this terminal. */
+/** Per-terminal barcode scanner: HID wedge, USB discovery, camera test. */
 export function ScannerPanel() {
   const [config, setConfig] = useState<TerminalScannerConfig>(() => loadTerminalScannerConfig());
   const [bridge, setBridge] = useState<BridgeSnapshot>(INITIAL_BRIDGE);
   const [discovered, setDiscovered] = useState<DiscoveredScanner[]>([]);
   const [pending, setPending] = useState(false);
   const [discovering, setDiscovering] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   const isDesktopOnline = bridge.state === "online";
-  const connection = getScannerConnectionState(config, isDesktopOnline);
+  const connection = getScannerConnectionState(config, isDesktopOnline, listening);
+
+  useBarcodeScanner(
+    (code) => {
+      if (!listening) return;
+      rememberLastScan(code, config);
+      setConfig(loadTerminalScannerConfig());
+      setListening(false);
+      playScanSuccessBeep();
+      toast.success(`Scanned ${code}`);
+    },
+    {
+      enabled: listening,
+      allowInInputs: true,
+      timeoutMs: BARCODE_HID_CAPTURE_MS,
+      onTimeout: () => {
+        setListening(false);
+        toast.message("Scanner test timed out");
+      },
+    },
+  );
 
   function patch(partial: Partial<TerminalScannerConfig>) {
     setConfig((prev) => ({ ...prev, ...partial }));
@@ -113,7 +140,15 @@ export function ScannerPanel() {
 
   return (
     <div className="space-y-4">
-      {connection === "connected" ? (
+      {connection === "listening" ? (
+        <Alert>
+          <ScanBarcode className="h-4 w-4" />
+          <AlertTitle>Listening</AlertTitle>
+          <AlertDescription>
+            Scan a barcode now. Listening stops after the first scan or 18 seconds.
+          </AlertDescription>
+        </Alert>
+      ) : connection === "connected" ? (
         <Alert>
           <CheckCircle2 className="h-4 w-4" />
           <AlertTitle>Scanner ready</AlertTitle>
@@ -153,15 +188,18 @@ export function ScannerPanel() {
               variant="outline"
               className={cn(
                 connection === "connected" && "border-emerald-500/40 text-emerald-700",
+                connection === "listening" && "border-teal-500/40 text-teal-700",
                 connection === "disabled" && "text-muted-foreground",
                 connection === "not_connected" && "border-amber-500/40 text-amber-700",
               )}
             >
               {connection === "connected"
                 ? "Connected"
-                : connection === "disabled"
-                  ? "Disabled"
-                  : "Not connected"}
+                : connection === "listening"
+                  ? "Listening"
+                  : connection === "disabled"
+                    ? "Disabled"
+                    : "Not connected"}
             </Badge>
           </div>
         </CardHeader>
@@ -249,6 +287,32 @@ export function ScannerPanel() {
             </ul>
           ) : null}
 
+          {config.lastDetectedCode ? (
+            <p className="text-muted-foreground text-xs">
+              Last detected: <span className="text-foreground font-medium">{config.lastDetectedCode}</span>
+              {config.lastDetectedAt
+                ? ` · ${new Date(config.lastDetectedAt).toLocaleString()}`
+                : null}
+            </p>
+          ) : null}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setListening(true)}
+              disabled={!config.enabled || listening}
+            >
+              <ScanBarcode className="mr-2 h-4 w-4" />
+              {listening ? "Listening…" : "Test scanner"}
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setCameraOpen(true)}>
+              <Camera className="mr-2 h-4 w-4" />
+              Test camera
+            </Button>
+          </div>
+
           <div className="flex justify-end">
             <Button type="button" onClick={onSave} disabled={pending}>
               {pending ? "Saving…" : "Save scanner"}
@@ -256,6 +320,16 @@ export function ScannerPanel() {
           </div>
         </CardContent>
       </Card>
+      <ScanBarcodeCameraDialog
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        onDetect={(code) => {
+          rememberLastScan(code, config);
+          setConfig(loadTerminalScannerConfig());
+          playScanSuccessBeep();
+          toast.success(`Camera scanned ${code}`);
+        }}
+      />
     </div>
   );
 }

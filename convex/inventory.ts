@@ -27,7 +27,7 @@ import {
   writeOffExpiredLots,
 } from "./shared/lots";
 import { writeAuditLog } from "./shared/audit";
-import { sanitizeOptionalText, TEXT_LIMITS } from "./shared/validation";
+import { sanitizeOptionalText, productMatchesLookup, TEXT_LIMITS } from "./shared/validation";
 
 export const list = query({
   args: {
@@ -61,9 +61,8 @@ export const list = query({
       products = products.filter((p) => p.categoryId === args.categoryId);
     }
     if (args.search?.trim()) {
-      const q = args.search.trim().toLowerCase();
-      products = products.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q),
+      products = products.filter((p) =>
+        productMatchesLookup({ name: p.name, sku: p.sku, barcode: p.barcode }, args.search!),
       );
     }
 
@@ -84,6 +83,7 @@ export const list = query({
             id: product._id,
             name: product.name,
             sku: product.sku,
+            barcode: product.barcode,
             categoryId: product.categoryId,
             categoryName: categoryMap.get(product.categoryId) ?? "Uncategorized",
             stockQuantity,

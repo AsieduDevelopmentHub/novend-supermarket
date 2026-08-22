@@ -156,6 +156,7 @@ export function SettingsView() {
               { value: "updates" as const, label: "Updates", long: "Desktop updates" },
             ] as const)
           : ([
+              { value: "scanner" as const, label: "Scanner", long: "Barcode scanner" },
               { value: "desktop" as const, label: "Desktop", long: "Download desktop app" },
             ] as const)),
         { value: "backup" as const, label: "Backup", long: "Local backup" },
@@ -273,9 +274,6 @@ export function SettingsView() {
             <TabsContent value="printer" className="mt-0">
               <PrinterPanel />
             </TabsContent>
-            <TabsContent value="scanner" className="mt-0">
-              <ScannerPanel />
-            </TabsContent>
             <TabsContent value="futureDevices" className="mt-0">
               <FutureDevicesPanel />
             </TabsContent>
@@ -288,6 +286,10 @@ export function SettingsView() {
             <DesktopDownloadPanel />
           </TabsContent>
         )}
+
+        <TabsContent value="scanner" className="mt-0">
+          <ScannerPanel />
+        </TabsContent>
 
         <TabsContent value="backup" className="mt-0">
           <LocalBackupPanel />

@@ -7,6 +7,8 @@ export type TerminalScannerConfig = {
   deviceId: string;
   /** Human-readable label for the selected device. */
   deviceLabel: string;
+  lastDetectedCode?: string;
+  lastDetectedAt?: number;
 };
 
 export const DEFAULT_TERMINAL_SCANNER_CONFIG: TerminalScannerConfig = {
@@ -33,6 +35,10 @@ export function loadTerminalScannerConfig(): TerminalScannerConfig {
         typeof parsed.deviceLabel === "string" && parsed.deviceLabel.trim()
           ? parsed.deviceLabel
           : DEFAULT_TERMINAL_SCANNER_CONFIG.deviceLabel,
+      lastDetectedCode:
+        typeof parsed.lastDetectedCode === "string" ? parsed.lastDetectedCode : undefined,
+      lastDetectedAt:
+        typeof parsed.lastDetectedAt === "number" ? parsed.lastDetectedAt : undefined,
     };
   } catch {
     return { ...DEFAULT_TERMINAL_SCANNER_CONFIG };

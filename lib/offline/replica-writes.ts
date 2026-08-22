@@ -2,6 +2,7 @@ import { getMeta, getOfflineDb, META_KEYS, newClientId } from "./db";
 import { enqueueOutbox } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
 import { putProductImage } from "./image-cache";
+import { BARCODE_ALREADY_ASSIGNED, barcodesEqual, normalizeBarcodeInput } from "./barcode-lookup";
 import type {
   AdjustStockPayload,
   CreateCategoryPayload,
@@ -268,11 +269,22 @@ export async function queueUpsertProduct(
   const localId = payload.serverId ?? payload.localId ?? newClientId("local");
   const category = await db.categories.get(payload.categoryId);
   const existing = await db.products.get(localId);
+  const barcode = payload.barcode ? normalizeBarcodeInput(payload.barcode) : undefined;
+  if (barcode && !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(barcode)) {
+    throw new Error("Barcode may only contain letters, numbers, dots, hyphens, and underscores");
+  }
+  if (barcode) {
+    const clash = (await db.products.toArray()).find(
+      (row) => row.id !== localId && barcodesEqual(row.barcode, barcode),
+    );
+    if (clash) throw new Error(BARCODE_ALREADY_ASSIGNED);
+  }
   const stockQuantity = payload.stockQuantity;
   await db.products.put({
     id: localId,
     name: payload.name,
     sku: payload.sku,
+    barcode: barcode || null,
     categoryId: payload.categoryId,
     categoryName: category?.name ?? existing?.categoryName ?? "Uncategorized",
     sellingPrice: payload.sellingPrice,

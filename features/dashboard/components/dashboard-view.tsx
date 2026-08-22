@@ -16,7 +16,6 @@ import { BranchFilter } from "@/components/filters/branch-filter";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
-import { formatDateTime } from "@/lib/date";
 import {
   Area,
   AreaChart,
@@ -252,18 +251,15 @@ export function DashboardView() {
   }
 
   const showOps = data.role === "administrator" || data.role === "manager";
-  const offlineNote =
-    data.source === "cache"
-      ? `Showing last synced dashboard${data.cachedAt ? ` · ${formatDateTime(data.cachedAt)}` : ""}`
-      : data.source === "local"
-        ? "Showing offline activity from this device"
-        : null;
+  const offlineNote = !online
+    ? "Showing this device's replica. Figures update as you sell and restock."
+    : null;
 
   return (
     <div className="min-w-0 space-y-6">
       {offlineNote ? (
         <p className="text-muted-foreground border-border bg-muted/40 rounded-lg border px-3 py-2 text-sm">
-          {offlineNote}. Figures refresh when you reconnect.
+          {offlineNote}
         </p>
       ) : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

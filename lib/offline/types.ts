@@ -25,6 +25,7 @@ export type MirroredProduct = {
   id: string;
   name: string;
   sku: string;
+  barcode?: string | null;
   categoryId: string;
   categoryName: string;
   sellingPrice: number;
@@ -233,6 +234,7 @@ export type MirroredWholesaleStock = {
   productId: string;
   name: string;
   sku: string;
+  barcode?: string | null;
   unit: string;
   costPrice: number;
   quantity: number;
@@ -432,6 +434,7 @@ export type UpsertProductPayload = {
   serverId?: string;
   name: string;
   sku: string;
+  barcode?: string;
   categoryId: string;
   costPrice: number;
   sellingPrice: number;

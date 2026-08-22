@@ -1,6 +1,6 @@
 # Hardware architecture
 
-Version: 1.0.0
+Version: 1.1.0
 
 ## Purpose
 
@@ -38,13 +38,17 @@ discovery without changing the Settings tree structure.
 
 ```text
 Barcode service (services/hardware)
- ├── Electron HID / keyboard wedge (current)
- └── Mobile camera scanner (future)
+ ├── HID / keyboard wedge (Electron + browser)
+ └── Camera (Barcode Detection API — desktop, web, PWA)
 ```
 
-- Terminal preference: `novend.terminal.scanner` in localStorage
-- POS uses `useBarcodeScanner` + offline Dexie SKU lookup
-- One match → cart; many → selection dialog; none → “Product not found”
+- Optional `products.barcode`, unique per organization. Empty is allowed.
+- Terminal preference: `novend.terminal.scanner` in localStorage (enable, device, last scan)
+- Settings → Hardware → Barcode Scanner: enable, discover USB (desktop), test HID, test camera
+- POS sales: always-on HID. One Dexie match → cart; many → picker; none → “Product not found”
+- Product create/edit: HID listens only after **Scan barcode** (≈18s) or **Use camera**
+- Products, inventory, and wholesale search fields accept HID + camera and filter the Dexie replica
+- Scan lookup never calls Convex — `findLocalProductsByBarcode` uses the Dexie barcode/SKU index
 
 ## Product images
 

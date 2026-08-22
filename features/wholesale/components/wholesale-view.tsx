@@ -7,6 +7,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BarcodeSearchField } from "@/components/hardware/barcode-search-field";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -207,11 +208,10 @@ export function WholesaleView() {
         </Card>
       </div>
 
-      <Input
+      <BarcodeSearchField
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search warehouse stock…"
-        className="max-w-md"
+        onChange={setSearch}
+        placeholder="Search warehouse stock or scan barcode…"
       />
 
       <Card>

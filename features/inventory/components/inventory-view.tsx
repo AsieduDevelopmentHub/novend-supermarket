@@ -7,6 +7,7 @@ import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
+import { BarcodeSearchField } from "@/components/hardware/barcode-search-field";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,9 @@ import { ArrowLeftRight, Boxes, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { ProductImage } from "@/components/media/product-image";
+import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
+import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
+import { isBarcodeScanningEnabled } from "@/services/hardware";
 import {
   persistBusinessWrite,
   queuedSaveMessage,
@@ -116,6 +120,25 @@ function InventoryViewInner() {
   const selected = useMemo(
     () => visibleRows?.find((row) => row.id === adjustId) ?? null,
     [visibleRows, adjustId],
+  );
+
+  useBarcodeScanner(
+    (code) => {
+      if (!transferOpen) return;
+      void findLocalProductsByBarcode(code).then((matches) => {
+        if (matches.length === 1) {
+          setTransferProductId(matches[0]!.id as Id<"products">);
+          toast.success(`Selected ${matches[0]!.name}`);
+          return;
+        }
+        if (matches.length === 0) {
+          toast.error("Product not found");
+          return;
+        }
+        setSearch(code);
+      });
+    },
+    { enabled: transferOpen && isBarcodeScanningEnabled(), allowInInputs: true },
   );
 
   async function onAdjust(event: FormEvent) {
@@ -240,11 +263,11 @@ function InventoryViewInner() {
       />
 
       <div className="space-y-3">
-        <Input
+        <BarcodeSearchField
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search inventory…"
-          className="max-w-md"
+          onChange={setSearch}
+          placeholder="Search inventory or scan barcode…"
+          listenHid={!adjustId && !transferOpen}
         />
         <CollapsibleFilters
           activeCount={

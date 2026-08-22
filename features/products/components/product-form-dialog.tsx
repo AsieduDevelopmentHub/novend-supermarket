@@ -33,6 +33,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { TakeProductPhotoDialog } from "@/features/products/components/take-product-photo-dialog";
+import { ProductBarcodeField } from "@/features/products/components/product-barcode-field";
 import { ProductImage } from "@/components/media/product-image";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCategoriesList, useMirroredProduct } from "@/hooks/use-offline-lists";
@@ -54,6 +55,7 @@ type ProductDetails = {
   _creationTime: number;
   name: string;
   sku: string;
+  barcode?: string | null;
   categoryId: Id<"categories">;
   sellingPrice: number;
   costPrice?: number;
@@ -84,6 +86,7 @@ export function ProductFormDialog({ open, onOpenChange, productId }: Props) {
           _creationTime: mirrored.updatedAt,
           name: mirrored.name,
           sku: mirrored.sku,
+          barcode: mirrored.barcode,
           categoryId: mirrored.categoryId as Id<"categories">,
           sellingPrice: mirrored.sellingPrice,
           costPrice: mirrored.costPrice,
@@ -149,6 +152,7 @@ function ProductFormBody({
   const [name, setName] = useState(initialProduct?.name ?? "");
   const [sku, setSku] = useState(initialProduct?.sku ?? "");
   const [skuTouched, setSkuTouched] = useState(!!initialProduct);
+  const [barcode, setBarcode] = useState(initialProduct?.barcode ?? "");
   const [categoryId, setCategoryId] = useState(initialCategoryId);
   const [newCategory, setNewCategory] = useState("");
   const [showNewCategory, setShowNewCategory] = useState(false);
@@ -243,6 +247,7 @@ function ProductFormBody({
                 id: productId,
                 name,
                 sku,
+                barcode: barcode.trim(),
                 categoryId: categoryId as Id<"categories">,
                 costPrice: Number(costPrice),
                 sellingPrice: Number(sellingPrice),
@@ -257,6 +262,7 @@ function ProductFormBody({
             : createProduct({
                 name,
                 sku,
+                barcode: barcode.trim(),
                 categoryId: categoryId as Id<"categories">,
                 costPrice: Number(costPrice),
                 sellingPrice: Number(sellingPrice),
@@ -274,6 +280,7 @@ function ProductFormBody({
             serverId: productId ?? undefined,
             name,
             sku,
+            barcode: barcode.trim(),
             categoryId,
             costPrice: Number(costPrice),
             sellingPrice: Number(sellingPrice),
@@ -323,6 +330,7 @@ function ProductFormBody({
             Generated from the product name. Edit if you need a custom code.
           </p>
         </div>
+        <ProductBarcodeField value={barcode} onChange={setBarcode} />
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <Label>Category</Label>

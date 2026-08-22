@@ -274,6 +274,7 @@ export default defineSchema({
     organizationId: v.id("organizations"),
     name: v.string(),
     sku: v.string(),
+    barcode: v.optional(v.string()),
     categoryId: v.id("categories"),
     costPrice: v.number(),
     sellingPrice: v.number(),
@@ -288,6 +289,7 @@ export default defineSchema({
   })
     .index("by_organization", ["organizationId"])
     .index("by_organization_sku", ["organizationId", "sku"])
+    .index("by_organization_barcode", ["organizationId", "barcode"])
     .index("by_organization_status", ["organizationId", "status"])
     .index("by_sku", ["sku"])
     .index("by_category", ["categoryId"])

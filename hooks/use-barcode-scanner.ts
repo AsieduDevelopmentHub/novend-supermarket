@@ -16,6 +16,9 @@ type UseBarcodeScannerOptions = {
    * POS search fields usually want scans while focused — set allowInInputs.
    */
   allowInInputs?: boolean;
+  /** Stop listening after this many ms (product form one-shot capture). */
+  timeoutMs?: number;
+  onTimeout?: () => void;
 };
 
 /**
@@ -27,15 +30,27 @@ export function useBarcodeScanner(
   onScan: BarcodeScanHandler,
   options: UseBarcodeScannerOptions = {},
 ) {
-  const { enabled = true, minLength = 4, interKeyTimeoutMs = 80, allowInInputs = true } = options;
+  const {
+    enabled = true,
+    minLength = 4,
+    interKeyTimeoutMs = 80,
+    allowInInputs = true,
+    timeoutMs,
+    onTimeout,
+  } = options;
 
   const bufferRef = useRef("");
   const lastKeyAtRef = useRef(0);
   const onScanRef = useRef(onScan);
+  const onTimeoutRef = useRef(onTimeout);
 
   useEffect(() => {
     onScanRef.current = onScan;
   }, [onScan]);
+
+  useEffect(() => {
+    onTimeoutRef.current = onTimeout;
+  }, [onTimeout]);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
@@ -83,4 +98,13 @@ export function useBarcodeScanner(
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [enabled, minLength, interKeyTimeoutMs, allowInInputs]);
+
+  useEffect(() => {
+    if (!enabled || !timeoutMs || typeof window === "undefined") return;
+    const timer = window.setTimeout(() => {
+      bufferRef.current = "";
+      onTimeoutRef.current?.();
+    }, timeoutMs);
+    return () => window.clearTimeout(timer);
+  }, [enabled, timeoutMs]);
 }

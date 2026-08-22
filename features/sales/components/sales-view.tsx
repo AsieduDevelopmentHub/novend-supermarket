@@ -49,7 +49,7 @@ import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
 import type { LocalHeldSale } from "@/lib/offline/types";
 import { cn } from "@/lib/utils";
 import { ProductImage } from "@/components/media/product-image";
-import { isBarcodeScanningEnabled } from "@/services/hardware";
+import { isBarcodeScanningEnabled, playScanSuccessBeep } from "@/services/hardware";
 import {
   BarcodeMatchDialog,
   type BarcodeMatchProduct,
@@ -237,6 +237,7 @@ export function SalesView() {
       return;
     }
     addToCart(product);
+    playScanSuccessBeep();
     toast.success(`Added ${product.name}`);
   }
 
@@ -246,7 +247,9 @@ export function SalesView() {
       void (async () => {
         const localMatches = await findLocalProductsByBarcode(code);
         const catalogMatches = catalog.filter(
-          (p) => p.sku.toLowerCase() === code.trim().toLowerCase(),
+          (p) =>
+            p.sku.toLowerCase() === code.trim().toLowerCase() ||
+            (p.barcode?.trim().toLowerCase() ?? "") === code.trim().toLowerCase(),
         );
         const byId = new Map<string, BarcodeMatchProduct>();
         for (const product of [...localMatches, ...catalogMatches]) {

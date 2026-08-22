@@ -1,4 +1,5 @@
 import { getMeta, getOfflineDb, META_KEYS } from "./db";
+import { productMatchesQuery } from "./barcode-lookup";
 import type { MirroredCategory, MirroredCustomer, MirroredProduct } from "./types";
 
 export type MirroredProductRow = MirroredProduct & {
@@ -30,10 +31,7 @@ export async function listMirroredProducts(options?: {
   }
 
   if (options?.search?.trim()) {
-    const q = options.search.trim().toLowerCase();
-    products = products.filter(
-      (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q),
-    );
+    products = products.filter((p) => productMatchesQuery(p, options.search!));
   }
 
   return products
@@ -319,9 +317,16 @@ export async function listMirroredWholesaleStock(search?: string) {
   const db = await getOfflineDb();
   if (!db) return [];
   let rows = await db.wholesaleStock.toArray();
+  const products = await db.products.toArray();
+  const barcodeByProduct = new Map(products.map((p) => [p.id, p.barcode ?? null]));
+  const withBarcode = rows.map((row) => ({
+    ...row,
+    barcode: row.barcode ?? barcodeByProduct.get(row.productId) ?? null,
+  }));
   if (search?.trim()) {
-    const q = search.trim().toLowerCase();
-    rows = rows.filter((row) => row.name.toLowerCase().includes(q) || row.sku.toLowerCase().includes(q));
+    rows = withBarcode.filter((row) => productMatchesQuery(row, search));
+  } else {
+    rows = withBarcode;
   }
   return rows
     .map((row) => ({ ...row, value: row.quantity * row.costPrice }))

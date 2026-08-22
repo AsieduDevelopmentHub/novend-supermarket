@@ -80,6 +80,7 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
           id: productId,
           name: local.name,
           sku: local.sku,
+          barcode: local.barcode,
           categoryName: local.categoryName,
           sellingPrice: local.sellingPrice,
           costPrice: local.costPrice,
@@ -179,7 +180,7 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
     <div className="space-y-6">
       <PageHeader
         title={product.name}
-        description={product.sku}
+        description={product.barcode ? `${product.sku} · ${product.barcode}` : product.sku}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">

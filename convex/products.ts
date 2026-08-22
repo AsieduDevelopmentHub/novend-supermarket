@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import {
   assertBranchAccess,
   canManageCatalog,
@@ -12,11 +13,36 @@ import {
   assertPositiveMoney,
   assertStoredImage,
   roundMoney,
+  productMatchesLookup,
+  sanitizeBarcode,
   sanitizeOptionalText,
   sanitizeSku,
   sanitizeText,
   TEXT_LIMITS,
 } from "./shared/validation";
+
+const BARCODE_TAKEN =
+  "This barcode is already assigned to another product in your organization.";
+
+async function assertUniqueBarcode(
+  ctx: MutationCtx,
+  organizationId: Id<"organizations">,
+  barcode: string | undefined,
+  excludeId?: Id<"products">,
+) {
+  if (!barcode) return;
+  const products = await ctx.db
+    .query("products")
+    .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+    .collect();
+  const clash = products.find(
+    (p) =>
+      p._id !== excludeId &&
+      Boolean(p.barcode) &&
+      p.barcode!.toLowerCase() === barcode.toLowerCase(),
+  );
+  if (clash) throw new Error(BARCODE_TAKEN);
+}
 import { writeAuditLog } from "./shared/audit";
 import { ensureBranchStockRow, stockMapForBranch, stockMapOrgWide } from "./shared/branchStock";
 import {
@@ -60,9 +86,8 @@ export const listProducts = query({
       products = products.filter((p) => p.categoryId === args.categoryId);
     }
     if (args.search?.trim()) {
-      const q = args.search.trim().toLowerCase();
-      products = products.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q),
+      products = products.filter((p) =>
+        productMatchesLookup({ name: p.name, sku: p.sku, barcode: p.barcode }, args.search!),
       );
     }
 
@@ -90,6 +115,7 @@ export const listProducts = query({
             id: product._id,
             name: product.name,
             sku: product.sku,
+            barcode: product.barcode,
             categoryId: product.categoryId,
             categoryName: categoryMap.get(product.categoryId) ?? "Uncategorized",
             sellingPrice: product.sellingPrice,
@@ -166,6 +192,7 @@ export const createProduct = mutation({
   args: {
     name: v.string(),
     sku: v.string(),
+    barcode: v.optional(v.string()),
     categoryId: v.id("categories"),
     costPrice: v.number(),
     sellingPrice: v.number(),
@@ -190,6 +217,7 @@ export const createProduct = mutation({
 
     const name = sanitizeText(args.name, "Product name", TEXT_LIMITS.name);
     const sku = sanitizeSku(args.sku);
+    const barcode = sanitizeBarcode(args.barcode);
     assertPositiveMoney(args.costPrice, "cost price");
     assertPositiveMoney(args.sellingPrice, "selling price");
     if (!Number.isFinite(args.stockQuantity) || args.stockQuantity < 0) {
@@ -222,6 +250,7 @@ export const createProduct = mutation({
       )
       .unique();
     if (existingSku) throw new Error("SKU already exists");
+    await assertUniqueBarcode(ctx, organizationId, barcode);
 
     const category = await ctx.db.get(args.categoryId);
     if (!category || !category.isActive || category.organizationId !== organizationId) {
@@ -243,6 +272,7 @@ export const createProduct = mutation({
       organizationId,
       name,
       sku,
+      barcode,
       categoryId: args.categoryId,
       costPrice: roundMoney(args.costPrice),
       sellingPrice: roundMoney(args.sellingPrice),
@@ -308,6 +338,7 @@ export const updateProduct = mutation({
     id: v.id("products"),
     name: v.string(),
     sku: v.string(),
+    barcode: v.optional(v.string()),
     categoryId: v.id("categories"),
     costPrice: v.number(),
     sellingPrice: v.number(),
@@ -329,6 +360,7 @@ export const updateProduct = mutation({
 
     const name = sanitizeText(args.name, "Product name", TEXT_LIMITS.name);
     const sku = sanitizeSku(args.sku);
+    const barcode = sanitizeBarcode(args.barcode);
     assertPositiveMoney(args.costPrice, "cost price");
     assertPositiveMoney(args.sellingPrice, "selling price");
 
@@ -341,6 +373,7 @@ export const updateProduct = mutation({
     if (existingSku && existingSku._id !== args.id) {
       throw new Error("SKU already exists");
     }
+    await assertUniqueBarcode(ctx, organizationId, barcode, args.id);
 
     const category = await ctx.db.get(args.categoryId);
     if (!category || category.organizationId !== organizationId) throw new Error("Invalid category");
@@ -397,6 +430,7 @@ export const updateProduct = mutation({
     await ctx.db.patch(args.id, {
       name,
       sku,
+      barcode,
       categoryId: args.categoryId,
       costPrice: roundMoney(args.costPrice),
       sellingPrice: roundMoney(args.sellingPrice),

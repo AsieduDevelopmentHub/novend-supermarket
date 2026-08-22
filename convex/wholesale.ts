@@ -6,6 +6,7 @@ import { applyBranchStockChange } from "./shared/branchStock";
 import { increaseLot, productTracksExpiry } from "./shared/lots";
 import { writeAuditLog } from "./shared/audit";
 import {
+  productMatchesLookup,
   assertPositiveMoney,
   roundMoney,
   sanitizeOptionalText,
@@ -142,6 +143,7 @@ export const listStock = query({
         productId: row.productId,
         name: product?.name ?? "Unknown",
         sku: product?.sku ?? "",
+        barcode: product?.barcode,
         unit: product?.unit ?? "",
         costPrice: product?.costPrice ?? 0,
         quantity: row.quantity,
@@ -150,9 +152,8 @@ export const listStock = query({
       };
     });
     if (args.search?.trim()) {
-      const q = args.search.trim().toLowerCase();
-      mapped = mapped.filter(
-        (row) => row.name.toLowerCase().includes(q) || row.sku.toLowerCase().includes(q),
+      mapped = mapped.filter((row) =>
+        productMatchesLookup({ name: row.name, sku: row.sku, barcode: row.barcode }, args.search!),
       );
     }
     return mapped.sort((a, b) => a.name.localeCompare(b.name));

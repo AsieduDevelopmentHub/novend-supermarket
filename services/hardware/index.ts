@@ -11,8 +11,19 @@ export {
   isBarcodeScanningEnabled,
   getScannerConnectionState,
   getActiveBarcodeProviderKind,
+  listAvailableBarcodeProviders,
+  rememberLastScan,
+  playScanSuccessBeep,
+  BARCODE_HID_CAPTURE_MS,
   type DiscoveredScanner,
   type ScannerDiscoveryResult,
   type ScannerConnectionState,
   type BarcodeProviderKind,
 } from "./barcode";
+
+export {
+  isCameraBarcodeSupported,
+  createBarcodeDetector,
+  openBarcodeCameraStream,
+  cameraErrorMessage,
+} from "./barcode-camera";

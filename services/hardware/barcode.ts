@@ -1,6 +1,8 @@
 import { getDesktopBridge, isDesktopRuntime } from "@/lib/desktop";
+import { isCameraBarcodeSupported } from "./barcode-camera";
 import {
   loadTerminalScannerConfig,
+  saveTerminalScannerConfig,
   type TerminalScannerConfig,
 } from "./terminal-scanner-config";
 
@@ -17,13 +19,22 @@ export type ScannerDiscoveryResult = {
   bridgeOnline: boolean;
 };
 
-export type ScannerConnectionState = "connected" | "not_connected" | "disabled";
+export type ScannerConnectionState = "connected" | "not_connected" | "disabled" | "listening";
 
-/** Shared barcode provider contract — Electron HID now; mobile camera later. */
-export type BarcodeProviderKind = "electron_hid" | "mobile_camera";
+/** Shared barcode providers — HID wedge + camera (desktop, web, PWA). */
+export type BarcodeProviderKind = "hid" | "camera";
+
+/** Timed HID capture on product create / settings test. */
+export const BARCODE_HID_CAPTURE_MS = 18_000;
+
+export function listAvailableBarcodeProviders(): BarcodeProviderKind[] {
+  const providers: BarcodeProviderKind[] = ["hid"];
+  if (isCameraBarcodeSupported()) providers.push("camera");
+  return providers;
+}
 
 export function getActiveBarcodeProviderKind(): BarcodeProviderKind {
-  return isDesktopRuntime() ? "electron_hid" : "electron_hid";
+  return isDesktopRuntime() ? "hid" : "hid";
 }
 
 export function isBarcodeScanningEnabled(config = loadTerminalScannerConfig()): boolean {
@@ -32,12 +43,43 @@ export function isBarcodeScanningEnabled(config = loadTerminalScannerConfig()): 
 
 export function getScannerConnectionState(
   config: TerminalScannerConfig = loadTerminalScannerConfig(),
-  bridgeOnline: boolean,
+  _bridgeOnline: boolean,
+  listening = false,
 ): ScannerConnectionState {
   if (!config.enabled) return "disabled";
-  if (!bridgeOnline && isDesktopRuntime()) return "not_connected";
-  if (!config.deviceId.trim()) return "not_connected";
+  if (listening) return "listening";
+  // Keyboard-wedge HID works in the renderer and in the browser — no native bridge required.
   return "connected";
+}
+
+export function rememberLastScan(code: string, config = loadTerminalScannerConfig()) {
+  saveTerminalScannerConfig({
+    ...config,
+    lastDetectedCode: code,
+    lastDetectedAt: Date.now(),
+  });
+}
+
+/** Short POS confirmation beep after a successful scan. */
+export function playScanSuccessBeep() {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioCtx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gain.gain.value = 0.07;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.09);
+    window.setTimeout(() => void ctx.close(), 200);
+  } catch {
+    /* ignore autoplay / missing audio */
+  }
 }
 
 /** Ask the desktop shell to list scanner adapters / devices. */
@@ -45,9 +87,15 @@ export async function discoverScanners(): Promise<ScannerDiscoveryResult> {
   const desktop = getDesktopBridge();
   if (!desktop?.discoverDevices) {
     return {
-      ok: false,
-      message: "Open Settings in the Novend POS desktop app to discover scanners",
-      scanners: [],
+      ok: true,
+      message: "USB HID scanners type like a keyboard. Camera scanning is also available.",
+      scanners: [
+        {
+          id: "hid-keyboard",
+          label: "Keyboard HID scanner (wedge)",
+          mode: "hid_keyboard",
+        },
+      ],
       bridgeOnline: false,
     };
   }

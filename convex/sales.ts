@@ -8,7 +8,7 @@ import {
   assertBranchAccess,
   getProfileByUserId,
 } from "./shared/permissions";
-import { assertPositiveMoney, roundMoney } from "./shared/validation";
+import { assertPositiveMoney, productMatchesLookup, roundMoney } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
 import { Id } from "./_generated/dataModel";
 import { loadPrintSnapshot } from "./settings";
@@ -63,9 +63,8 @@ export const catalog = query({
       return expiry.sellableQuantity > 0;
     });
     if (args.search?.trim()) {
-      const q = args.search.trim().toLowerCase();
-      products = products.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q),
+      products = products.filter((p) =>
+        productMatchesLookup({ name: p.name, sku: p.sku, barcode: p.barcode }, args.search!),
       );
     }
     return await Promise.all(
@@ -76,6 +75,7 @@ export const catalog = query({
           id: product._id,
           name: product.name,
           sku: product.sku,
+          barcode: product.barcode,
           sellingPrice: product.sellingPrice,
           stockQuantity: expiry.sellableQuantity,
           unit: product.unit,

@@ -76,6 +76,7 @@ export const getSnapshot = query({
           id: product._id as string,
           name: product.name,
           sku: product.sku,
+          barcode: product.barcode ?? null,
           categoryId: product.categoryId as string,
           categoryName: categoryMap.get(product.categoryId) ?? "Uncategorized",
           sellingPrice: product.sellingPrice,

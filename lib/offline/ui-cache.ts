@@ -81,7 +81,7 @@ export async function loadPrintSnapshotMeta(): Promise<PrintSnapshot | null> {
   }
 }
 
-/** Build a usable dashboard from Dexie when no remote cache exists. */
+/** Build the dashboard from Dexie products, mirrored orders, and unsynced local sales. */
 export async function buildLocalDashboardSummary(
   role: AppRole,
   branchId?: string,
@@ -98,13 +98,17 @@ export async function buildLocalDashboardSummary(
     return emptyDashboard(role, now);
   }
 
-  const [products, customers, sales, items, localReturns] = await Promise.all([
-    db.products.toArray(),
-    db.customers.toArray(),
-    db.localSales.orderBy("completedAt").reverse().toArray(),
-    db.localSaleItems.toArray(),
-    db.localReturns.toArray(),
-  ]);
+  const [products, customers, localSales, items, localReturns, mirroredOrders, orderItems, mirroredReturns] =
+    await Promise.all([
+      db.products.toArray(),
+      db.customers.toArray(),
+      db.localSales.orderBy("completedAt").reverse().toArray(),
+      db.localSaleItems.toArray(),
+      db.localReturns.toArray(),
+      db.orders.toArray(),
+      db.orderItems.toArray(),
+      db.returns.toArray(),
+    ]);
 
   const activeProducts = products.filter((p) => p.status === "active");
   const lowStock = activeProducts
@@ -122,12 +126,28 @@ export async function buildLocalDashboardSummary(
     }));
   const expiringCount = activeProducts.filter((p) => p.isExpired || p.isExpiring).length;
 
-  const branchSales = branchId ? sales.filter((s) => s.branchId === branchId) : sales;
+  const mirroredIds = new Set(mirroredOrders.map((o) => o.id));
+  const unsyncedLocal = localSales.filter(
+    (s) =>
+      (s.syncStatus === "pending" || s.syncStatus === "failed") &&
+      !(s.serverSaleId && mirroredIds.has(s.serverSaleId)),
+  );
+  const combinedSales = [...mirroredOrders, ...unsyncedLocal];
+  const branchSales = branchId
+    ? combinedSales.filter((s) => s.branchId === branchId)
+    : combinedSales;
   const scopedSales = showOps
     ? branchSales.filter((s) => s.completedAt >= since7)
     : branchSales.filter((s) => s.completedAt >= sinceToday);
 
-  const scopedReturns = localReturns.filter((row) =>
+  const unsyncedReturns = localReturns.filter(
+    (row) => row.syncStatus === "pending" || row.syncStatus === "failed",
+  );
+  const combinedReturns = [...mirroredReturns, ...unsyncedReturns];
+  const branchReturns = branchId
+    ? combinedReturns.filter((row) => !("branchId" in row) || row.branchId == null || row.branchId === branchId)
+    : combinedReturns;
+  const scopedReturns = branchReturns.filter((row) =>
     showOps ? row.completedAt >= since7 : row.completedAt >= sinceToday,
   );
   const refunds = scopedReturns.reduce((sum, row) => sum + row.refundAmount, 0);
@@ -141,18 +161,25 @@ export async function buildLocalDashboardSummary(
     string,
     { id: string; name: string; total: number; quantity: number }
   >();
-  const saleIds = new Set(scopedSales.map((s) => s.id));
+  const scopedMirroredIds = new Set(
+    scopedSales.filter((s) => mirroredIds.has(s.id)).map((s) => s.id),
+  );
+  const scopedLocalIds = new Set(
+    scopedSales.filter((s) => !mirroredIds.has(s.id)).map((s) => s.id),
+  );
+  const addProductTotal = (productId: string, name: string, total: number, quantity: number) => {
+    const current = productTotals.get(productId) ?? { id: productId, name, total: 0, quantity: 0 };
+    current.total += total;
+    current.quantity += quantity;
+    productTotals.set(productId, current);
+  };
+  for (const item of orderItems) {
+    if (!scopedMirroredIds.has(item.orderId)) continue;
+    addProductTotal(item.productId, item.productName, item.lineTotal, item.quantity);
+  }
   for (const item of items) {
-    if (!saleIds.has(item.localSaleId)) continue;
-    const current = productTotals.get(item.productId) ?? {
-      id: item.productId,
-      name: item.productName,
-      total: 0,
-      quantity: 0,
-    };
-    current.total += item.lineTotal;
-    current.quantity += item.quantity;
-    productTotals.set(item.productId, current);
+    if (!scopedLocalIds.has(item.localSaleId)) continue;
+    addProductTotal(item.productId, item.productName, item.lineTotal, item.quantity);
   }
 
   const topProducts = [...productTotals.values()].sort((a, b) => b.total - a.total).slice(0, 5);
@@ -174,8 +201,13 @@ export async function buildLocalDashboardSummary(
 
   const categoryTotals = new Map<string, number>();
   const productCategory = new Map(activeProducts.map((p) => [p.id, p.categoryName]));
+  for (const item of orderItems) {
+    if (!scopedMirroredIds.has(item.orderId)) continue;
+    const name = productCategory.get(item.productId) ?? "Other";
+    categoryTotals.set(name, (categoryTotals.get(name) ?? 0) + item.lineTotal);
+  }
   for (const item of items) {
-    if (!saleIds.has(item.localSaleId)) continue;
+    if (!scopedLocalIds.has(item.localSaleId)) continue;
     const name = productCategory.get(item.productId) ?? "Other";
     categoryTotals.set(name, (categoryTotals.get(name) ?? 0) + item.lineTotal);
   }
@@ -196,14 +228,17 @@ export async function buildLocalDashboardSummary(
     },
     lowStock: lowStock.slice(0, 8),
     topProducts,
-    recentSales: sales.slice(0, 8).map((s) => ({
-      id: s.id,
-      invoiceNumber: s.invoiceNumber,
-      customerName: s.customerName,
-      itemCount: s.itemCount,
-      total: s.total,
-      completedAt: s.completedAt,
-    })),
+    recentSales: [...combinedSales]
+      .sort((a, b) => b.completedAt - a.completedAt)
+      .slice(0, 8)
+      .map((s) => ({
+        id: s.id,
+        invoiceNumber: s.invoiceNumber,
+        customerName: s.customerName,
+        itemCount: s.itemCount,
+        total: s.total,
+        completedAt: s.completedAt,
+      })),
     salesTrend: [...trendMap.entries()].map(([date, total]) => ({ date, total })),
     salesByCategory: showOps
       ? [...categoryTotals.entries()].map(([name, total]) => ({ name, total }))

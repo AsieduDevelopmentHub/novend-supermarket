@@ -32,6 +32,7 @@ type ProductListRow = {
   id: Id<"products">;
   name: string;
   sku: string;
+  barcode?: string | null;
   categoryName: string;
   sellingPrice: number;
   costPrice?: number;
@@ -49,6 +50,7 @@ function mapProduct(row: MirroredProductRow, canViewCost: boolean): ProductListR
     id: row.id as Id<"products">,
     name: row.name,
     sku: row.sku,
+    barcode: row.barcode,
     categoryName: row.categoryName,
     sellingPrice: row.sellingPrice,
     costPrice: canViewCost ? row.costPrice : undefined,

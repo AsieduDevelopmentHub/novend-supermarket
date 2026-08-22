@@ -140,6 +140,7 @@ export type QueuedMutators = {
   createProduct: (args: {
     name: string;
     sku: string;
+    barcode?: string;
     categoryId: Id<"categories">;
     costPrice: number;
     sellingPrice: number;
@@ -157,6 +158,7 @@ export type QueuedMutators = {
     id: Id<"products">;
     name: string;
     sku: string;
+    barcode?: string;
     categoryId: Id<"categories">;
     costPrice: number;
     sellingPrice: number;
@@ -437,6 +439,7 @@ export async function drainOutbox(options: {
               id: payload.serverId as Id<"products">,
               name: payload.name,
               sku: payload.sku,
+              barcode: payload.barcode,
               categoryId,
               costPrice: payload.costPrice,
               sellingPrice: payload.sellingPrice,
@@ -453,6 +456,7 @@ export async function drainOutbox(options: {
             const createdId = await options.mutators.createProduct({
               name: payload.name,
               sku: payload.sku,
+              barcode: payload.barcode,
               categoryId,
               costPrice: payload.costPrice,
               sellingPrice: payload.sellingPrice,

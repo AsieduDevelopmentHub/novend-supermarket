@@ -7,7 +7,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
 import { PlanLimitNotice } from "@/features/billing/components/plan-limit-notice";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { BarcodeSearchField } from "@/components/hardware/barcode-search-field";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -113,11 +113,11 @@ export function ProductsView() {
       <PlanLimitNotice resource="products" />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <Input
+        <BarcodeSearchField
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search products…"
-          className="max-w-md"
+          onChange={setSearch}
+          placeholder="Search products or scan barcode…"
+          listenHid={!open}
         />
         {isAdmin ? (
           <BranchFilter
@@ -192,7 +192,10 @@ export function ProductsView() {
                             </div>
                             <div>
                               <p className="font-medium">{product.name}</p>
-                              <p className="text-muted-foreground text-xs">{product.sku}</p>
+                              <p className="text-muted-foreground text-xs">
+                                {product.sku}
+                                {product.barcode ? ` · ${product.barcode}` : ""}
+                              </p>
                             </div>
                           </div>
                         </td>

@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.2.0
+Version: 2.3.0
 
 ## Purpose
 
@@ -37,6 +37,10 @@ Convex (when online)
 5. Product photos live in IndexedDB (`productImages`) as blobs plus thumbnails.
    The UI reads local blobs first and falls back to the cloud URL only when the
    replica has no photo yet.
+6. The dashboard is built only from Dexie (`buildLocalDashboardSummary`). It
+   never calls Convex `dashboard.summary`. Restock, sales, and returns refresh it
+   via `replica-changed`.
+7. Barcode scans look up `products.barcode` (then SKU) in Dexie only.
 
 ## Local writes
 

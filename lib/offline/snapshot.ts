@@ -13,6 +13,7 @@ import {
 import { getLastSnapshotAt, SNAPSHOT_PULL_TTL_MS } from "./freshness";
 import { cacheProductImages } from "./image-cache";
 import { notifyReplicaChanged } from "./replica-events";
+import { productMatchesBarcode, productMatchesQuery } from "./barcode-lookup";
 import { saveShellProfile } from "./shell-profile";
 import type {
   MirroredBranch,
@@ -224,10 +225,7 @@ export async function listLocalCatalogProducts(search?: string) {
   if (!db) return null;
   let products = await db.products.filter((p) => p.status === "active").toArray();
   if (search?.trim()) {
-    const q = search.trim().toLowerCase();
-    products = products.filter(
-      (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q),
-    );
+    products = products.filter((p) => productMatchesQuery(p, search));
   }
   return products
     .filter((p) => (p.sellableQuantity ?? p.stockQuantity) > 0)
@@ -237,6 +235,7 @@ export async function listLocalCatalogProducts(search?: string) {
       id: p.id,
       name: p.name,
       sku: p.sku,
+      barcode: p.barcode ?? null,
       sellingPrice: p.sellingPrice,
       stockQuantity: p.sellableQuantity ?? p.stockQuantity,
       unit: p.unit,
@@ -245,31 +244,31 @@ export async function listLocalCatalogProducts(search?: string) {
     }));
 }
 
-/** Exact SKU match for barcode / keyboard-wedge scanners. */
+/** Exact SKU or dedicated barcode match for scanners. */
 export async function findLocalProductBySku(sku: string) {
   const matches = await findLocalProductsByBarcode(sku);
   return matches[0] ?? null;
 }
 
 /**
- * Offline barcode lookup — returns every active product whose SKU matches the
- * scanned code (exact, case-insensitive). Multiple rows support future barcode
- * aliases and rare catalog duplicates; the sales UI shows a picker when needed.
+ * Offline barcode lookup — Dexie only. Matches dedicated barcode first, then SKU.
+ * Multiple rows support rare catalog duplicates; the sales UI shows a picker.
  */
 export async function findLocalProductsByBarcode(code: string) {
   const db = await getOfflineDb();
   if (!db) return [];
-  const normalized = code.trim().toLowerCase();
+  const normalized = code.trim();
   if (!normalized) return [];
 
   const products = await db.products
-    .filter((p) => p.status === "active" && p.sku.toLowerCase() === normalized)
+    .filter((p) => p.status === "active" && productMatchesBarcode(p, normalized))
     .toArray();
 
   return products.map((product) => ({
     id: product.id,
     name: product.name,
     sku: product.sku,
+    barcode: product.barcode ?? null,
     sellingPrice: product.sellingPrice,
     stockQuantity: product.sellableQuantity ?? product.stockQuantity,
     unit: product.unit,

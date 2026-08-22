@@ -8,6 +8,7 @@ export const nonNegativeInt = v.number();
 export const TEXT_LIMITS = {
   name: 120,
   sku: 64,
+  barcode: 80,
   unit: 32,
   phone: 40,
   email: 254,
@@ -108,6 +109,31 @@ export function sanitizeSku(value: string): string {
     throw new Error("SKU may only contain letters, numbers, dots, hyphens, and underscores");
   }
   return sku;
+}
+
+/** Empty barcode is allowed. Unique-per-org is enforced by the caller. */
+export function sanitizeBarcode(value: string | undefined | null): string | undefined {
+  if (value == null) return undefined;
+  const barcode = sanitizeText(value, "Barcode", TEXT_LIMITS.barcode, {
+    required: false,
+    allowEmpty: true,
+  });
+  if (!barcode) return undefined;
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(barcode)) {
+    throw new Error("Barcode may only contain letters, numbers, dots, hyphens, and underscores");
+  }
+  return barcode;
+}
+
+export function productMatchesLookup(
+  product: { name: string; sku: string; barcode?: string },
+  search: string,
+): boolean {
+  const q = search.trim().toLowerCase();
+  if (!q) return true;
+  if (product.name.toLowerCase().includes(q)) return true;
+  if (product.sku.toLowerCase().includes(q)) return true;
+  return (product.barcode ?? "").toLowerCase().includes(q);
 }
 
 type MutationLike = Pick<GenericMutationCtx<DataModel>, "db" | "storage">;

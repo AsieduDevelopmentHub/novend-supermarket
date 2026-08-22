@@ -14,6 +14,7 @@ export type CatalogProduct = {
   id: string;
   name: string;
   sku: string;
+  barcode?: string | null;
   sellingPrice: number;
   stockQuantity: number;
   unit: string;
@@ -87,6 +88,7 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
         id: p.id as string,
         name: p.name,
         sku: p.sku,
+        barcode: p.barcode,
         sellingPrice: p.sellingPrice,
         stockQuantity: p.stockQuantity,
         unit: p.unit,
