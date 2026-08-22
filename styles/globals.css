@@ -1410,7 +1410,6 @@
   width: 100%;
   height: 100%;
   transform-style: preserve-3d;
-  transition: transform 0.15s ease-out;
 }
 
 .landing-v2-stage {
@@ -1420,7 +1419,6 @@
   /* Image already has 3/4 perspective — keep stage tilt subtle */
   transform: rotateY(-4deg) rotateX(2deg) translateZ(0);
   transform-style: preserve-3d;
-  animation: landing-v2-stage-float 10s ease-in-out infinite;
 }
 
 /* Realistic POS shell — transparent PNG, glow baked into the asset */
@@ -1437,6 +1435,9 @@
 .landing-v2-device-main {
   position: relative;
   z-index: 2;
+  transform-origin: 50% 70%;
+  animation: landing-v2-device-float 5.2s ease-in-out infinite;
+  will-change: transform;
 }
 
 .landing-v2-device-img {
@@ -1467,8 +1468,8 @@
       transparent 74%
     );
   filter: blur(14px);
-  transform: skewX(-12deg) rotate(-2deg) scaleY(0.55);
   transform-origin: center bottom;
+  animation: landing-v2-device-shadow-float 5.2s ease-in-out infinite;
 }
 
 .landing-how-float {
@@ -1503,13 +1504,25 @@
   }
 }
 
-@keyframes landing-v2-stage-float {
+@keyframes landing-v2-device-float {
   0%,
   100% {
-    transform: rotateY(-4deg) rotateX(2deg) translateY(0);
+    transform: translate3d(0, 0, 0) rotate(-0.8deg);
   }
   50% {
-    transform: rotateY(-4deg) rotateX(2deg) translateY(-2px);
+    transform: translate3d(0, -16px, 0) rotate(0.9deg);
+  }
+}
+
+@keyframes landing-v2-device-shadow-float {
+  0%,
+  100% {
+    opacity: 0.95;
+    transform: skewX(-12deg) rotate(-2deg) scaleY(0.55) scaleX(1) translateY(0);
+  }
+  50% {
+    opacity: 0.58;
+    transform: skewX(-12deg) rotate(-2deg) scaleY(0.46) scaleX(0.9) translateY(4px);
   }
 }
 
@@ -1520,12 +1533,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .landing-v2-hero-mesh,
-  .landing-v2-stage {
+  .landing-v2-device-main,
+  .landing-v2-device-shadow {
     animation: none;
-  }
-
-  .landing-v2-parallax {
-    transition: none;
   }
 }
 
