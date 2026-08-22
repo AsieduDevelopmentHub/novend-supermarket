@@ -3,11 +3,17 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode, type RefObject } from "react";
-import { Menu } from "lucide-react";
+import { ChevronDown, Menu } from "lucide-react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { BRANDING } from "@/constants/branding";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -49,13 +55,17 @@ function NavHref({
   );
 }
 
-/** Floating pill nav — transparent until 40px scroll, then glass (Linear / Stripe style). */
+const linkClass =
+  "text-slate-600 hover:text-[#111827] rounded-full px-3.5 py-2 text-sm font-medium transition-colors";
+
+/** Floating pill nav — Features, Industries/Resources dropdowns, Get Started. */
 export function LandingNav({ scrollRootRef }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { isAuthenticated } = useConvexAuth();
   const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
   const signInHref = isAuthenticated && me != null ? postLoginPath(me) : "/login";
+  const { nav } = landingCopy;
 
   useEffect(() => {
     const root = scrollRootRef.current;
@@ -85,32 +95,58 @@ export function LandingNav({ scrollRootRef }: Props) {
             className="h-8 w-8 object-contain"
             priority
           />
-          <span className="text-[#111827] text-sm font-semibold tracking-tight">
+          <span className="text-[#111827] text-sm font-semibold tracking-tight lowercase">
             {landingCopy.brand}
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
-          {landingCopy.nav.map((item) => (
-            <NavHref
-              key={item.href}
-              href={item.href}
-              className="text-slate-600 hover:text-[#111827] rounded-full px-3.5 py-2 text-sm font-medium transition-colors"
+        <nav className="hidden items-center gap-0.5 lg:flex" aria-label="Primary">
+          <NavHref href={nav.features.href} className={linkClass}>
+            {nav.features.label}
+          </NavHref>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(linkClass, "inline-flex items-center gap-1 outline-none")}
             >
-              {item.label}
-            </NavHref>
-          ))}
+              {nav.industries.label}
+              <ChevronDown className="h-3.5 w-3.5 opacity-70" aria-hidden />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-[11rem]">
+              {nav.industries.items.map((item) => (
+                <DropdownMenuItem key={item.label} asChild>
+                  <NavHref href={item.href}>{item.label}</NavHref>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <NavHref href={nav.pricing.href} className={linkClass}>
+            {nav.pricing.label}
+          </NavHref>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(linkClass, "inline-flex items-center gap-1 outline-none")}
+            >
+              {nav.resources.label}
+              <ChevronDown className="h-3.5 w-3.5 opacity-70" aria-hidden />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-[11rem]">
+              {nav.resources.items.map((item) => (
+                <DropdownMenuItem key={item.label} asChild>
+                  <NavHref href={item.href}>{item.label}</NavHref>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <NavHref href={nav.desktop.href} className={linkClass}>
+            {nav.desktop.label}
+          </NavHref>
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="hidden h-9 text-sm font-semibold sm:inline-flex"
-          >
-            <Link href="/docs/help">Help</Link>
-          </Button>
           <Button
             asChild
             variant="ghost"
@@ -140,12 +176,19 @@ export function LandingNav({ scrollRootRef }: Props) {
                 <SheetTitle className="text-left">{landingCopy.brand}</SheetTitle>
               </SheetHeader>
               <nav className="mt-6 flex flex-col gap-1" aria-label="Mobile">
-                <p className="text-muted-foreground px-3 pb-1 text-[11px] font-semibold tracking-[0.14em] uppercase">
-                  Product
+                <NavHref
+                  href={nav.features.href}
+                  className="text-foreground rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {nav.features.label}
+                </NavHref>
+                <p className="text-muted-foreground mt-3 px-3 pb-1 text-[11px] font-semibold tracking-[0.14em] uppercase">
+                  {nav.industries.label}
                 </p>
-                {landingCopy.nav.map((item) => (
+                {nav.industries.items.map((item) => (
                   <NavHref
-                    key={item.href}
+                    key={item.label}
                     href={item.href}
                     className="text-foreground rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
                     onClick={() => setMenuOpen(false)}
@@ -153,12 +196,19 @@ export function LandingNav({ scrollRootRef }: Props) {
                     {item.label}
                   </NavHref>
                 ))}
-                <p className="text-muted-foreground mt-4 px-3 pb-1 text-[11px] font-semibold tracking-[0.14em] uppercase">
-                  Resources
+                <NavHref
+                  href={nav.pricing.href}
+                  className="text-foreground mt-2 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {nav.pricing.label}
+                </NavHref>
+                <p className="text-muted-foreground mt-3 px-3 pb-1 text-[11px] font-semibold tracking-[0.14em] uppercase">
+                  {nav.resources.label}
                 </p>
-                {landingCopy.navResources.map((item) => (
+                {nav.resources.items.map((item) => (
                   <NavHref
-                    key={item.href}
+                    key={item.label}
                     href={item.href}
                     className="text-foreground rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
                     onClick={() => setMenuOpen(false)}
@@ -166,6 +216,13 @@ export function LandingNav({ scrollRootRef }: Props) {
                     {item.label}
                   </NavHref>
                 ))}
+                <NavHref
+                  href={nav.desktop.href}
+                  className="text-foreground mt-2 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {nav.desktop.label}
+                </NavHref>
               </nav>
               <div className="mt-6 flex flex-col gap-2">
                 <Button asChild variant="outline">

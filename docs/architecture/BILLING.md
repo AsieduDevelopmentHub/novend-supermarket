@@ -39,14 +39,14 @@ licence so a terminal keeps selling offline, but it never decides access.
 
 | Plan | Monthly | Yearly | Products | Users | Branches | Devices | Cloud backup |
 |---|---|---|---|---|---|---|---|
-| Basic | GH₵149 | GH₵1,490 | 500 | 3 | 1 | 3 | 250 MB |
-| Pro (Most Popular) | GH₵299 | GH₵2,990 | 5,000 | 15 | 5 | 15 | 500 MB |
-| Enterprise | From GH₵599 | From GH₵5,990 | ∞ | ∞ | ∞ | ∞ | Custom |
+| Basic | GH₵200 | GH₵2,000 | 500 | 3 | 1 | 3 | 250 MB |
+| Pro (Most Popular) | GH₵400 | GH₵4,000 | 5,000 | 15 | 5 | 15 | 500 MB |
+| Enterprise | From GH₵750 | From GH₵7,500 | ∞ | ∞ | ∞ | ∞ | Custom |
 | Lifetime | — | GH₵7,990 one-time | ∞ | ∞ | ∞ | ∞ | 1 GB |
 
 Lifetime sits above every subscription: the one-time price is higher than a year of
 Basic, Pro, or Enterprise because it includes every entitlement permanently. The
-licence does not expire; **1.5 years of updates and premium support** are included
+licence does not expire; **1 year of updates and premium support** are included
 with the purchase. Recurring plans are never sold on a lifetime cycle. Enterprise
 is self-serve, same checkout as Basic and Pro — published as a starting price.
 Enterprise cloud backup is **quoted per organization** (whole GB, or no cap).

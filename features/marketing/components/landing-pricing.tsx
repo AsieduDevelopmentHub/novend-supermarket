@@ -1,21 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import {
-  Boxes,
-  CloudOff,
-  FileBarChart,
-  Package,
-  Printer,
-  RefreshCw,
-  ScanBarcode,
-  ShieldCheck,
-  ShoppingCart,
-  Truck,
-  Users,
-  Zap,
-} from "lucide-react";
+import { useState } from "react";
+import { BadgeCheck, Ban, RefreshCw, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { landingCopy } from "@/features/marketing/content";
 import {
@@ -59,38 +46,12 @@ function planPriceDisplay(plan: PlanDefinition, cycle: BillingCycle) {
   };
 }
 
-const CAPACITY_METRICS = [
-  { key: "products" as const, label: "Products" },
-  { key: "users" as const, label: "Users" },
-  { key: "devices" as const, label: "Devices" },
-];
-
-const INCLUDED_ICONS = [
-  ShoppingCart,
-  ScanBarcode,
-  Printer,
-  Boxes,
-  Users,
-  Truck,
-  RefreshCw,
-  FileBarChart,
-] as const;
-
-const TRUST_ICONS = [ShieldCheck, CloudOff, Zap] as const;
+const TRUST_ICONS = [BadgeCheck, Ban, ShieldCheck, RefreshCw] as const;
 
 function limitLabel(value: number | null, kind: "count" | "bytes"): string {
   if (value === null) return "Unlimited";
   if (kind === "bytes") return formatPlanBytes(value);
   return value.toLocaleString();
-}
-
-function capacityRatioFor(
-  key: "products" | "users" | "devices",
-  value: number | null,
-): number {
-  if (value === null) return 1;
-  const max = key === "products" ? 5000 : 15;
-  return Math.min(1, Math.max(0.1, value / max));
 }
 
 function planFeatureLines(key: PlanKey): string[] {
@@ -129,7 +90,7 @@ function planBadge(key: PlanKey): string {
   return landingCopy.pricing.cards[key].badge;
 }
 
-/** Section 6 — conversion pricing rebuilt for growth-focused SaaS UX. */
+/** V3 pricing — 4 plans, Pro featured, Lifetime gold, trust row under cards. */
 export function LandingPricing() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const copy = landingCopy.pricing;
@@ -137,11 +98,13 @@ export function LandingPricing() {
   return (
     <section
       id="pricing"
-      className="landing-pricing-v2 scroll-mt-24 border-t border-border bg-[#F8FAFC] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
+      className="landing-pricing-v2 scroll-mt-24 border-t border-border bg-white px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
         <header data-reveal className="mx-auto max-w-[700px] text-center">
-          <p className="text-primary text-[13px] font-semibold tracking-wide">{copy.badge}</p>
+          <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
+            {copy.badge}
+          </p>
           <h2 className="text-[#111827] mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
             {copy.title}
           </h2>
@@ -154,37 +117,15 @@ export function LandingPricing() {
 
         <PricingCards cycle={cycle} />
 
-        <CapacityComparison />
-
-        <div data-reveal className="mt-14 text-center sm:mt-16">
-          <h3 className="text-[#111827] text-xl font-semibold tracking-tight sm:text-2xl">
-            Included in Every Novend Plan
-          </h3>
-          <ul className="mt-6 flex flex-wrap justify-center gap-2.5 sm:gap-3">
-            {copy.includedEveryPlan.map((item, index) => {
-              const Icon = INCLUDED_ICONS[index] ?? Package;
-              return (
-                <li
-                  key={item}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm"
-                >
-                  <Icon className="text-primary h-4 w-4" aria-hidden />
-                  {item}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-
         <ul
           data-reveal
-          className="mt-12 grid gap-4 border-t border-slate-200/80 pt-10 sm:mt-14 sm:grid-cols-3 sm:gap-6"
+          className="mt-12 grid gap-4 border-t border-slate-200/80 pt-10 sm:mt-14 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4"
         >
           {copy.trust.map((item, index) => {
             const Icon = TRUST_ICONS[index] ?? ShieldCheck;
             return (
               <li key={item.title} className="flex items-start gap-3 sm:justify-center">
-                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700">
+                <span className="bg-primary/10 text-primary mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full">
                   <Icon className="h-4 w-4" aria-hidden />
                 </span>
                 <div>
@@ -212,7 +153,7 @@ function BillingToggle({
       <div
         role="group"
         aria-label="Billing cycle"
-        className="inline-flex rounded-full border border-slate-200 bg-white p-1 shadow-sm"
+        className="inline-flex rounded-full border border-slate-200 bg-[#F8FAFC] p-1 shadow-sm"
       >
         {(["monthly", "yearly"] as const).map((option) => (
           <button
@@ -291,11 +232,11 @@ function PricingCards({ cycle }: { cycle: BillingCycle }) {
           <li
             key={key}
             className={cn(
-              "landing-price-card-v2 group relative flex min-w-[82%] snap-center flex-col rounded-3xl border bg-white p-6 transition-[transform,box-shadow,border-color] duration-300 sm:min-w-0 sm:p-7",
+              "landing-price-card-v2 group relative flex min-w-[82%] snap-center flex-col rounded-3xl border bg-[#F8FAFC] p-6 transition-[transform,box-shadow,border-color] duration-300 sm:min-w-0 sm:bg-white sm:p-7",
               mobileOrderClass,
               isFeatured &&
-                "landing-price-card-featured border-primary/45 shadow-[0_24px_48px_-28px_rgba(56,189,248,0.55)] sm:z-10 xl:-translate-y-2",
-              isGold && "landing-price-card-lifetime border-amber-300/70",
+                "landing-price-card-featured border-primary/45 bg-white shadow-[0_24px_48px_-28px_rgba(56,189,248,0.55)] sm:z-10 xl:-translate-y-2",
+              isGold && "landing-price-card-lifetime border-amber-300/70 bg-white",
               !isFeatured && !isGold && "border-slate-200/90 shadow-sm",
             )}
           >
@@ -353,7 +294,7 @@ function PricingCards({ cycle }: { cycle: BillingCycle }) {
             <div className="mt-7">
               <Button
                 asChild
-                variant={isFeatured ? "default" : "secondary"}
+                variant={isFeatured ? "default" : "outline"}
                 className={cn(
                   "h-11 w-full font-semibold",
                   isFeatured && "landing-shadow-cta-primary",
@@ -372,75 +313,5 @@ function PricingCards({ cycle }: { cycle: BillingCycle }) {
         );
       })}
     </ul>
-  );
-}
-
-function CapacityComparison() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(false);
-
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) setActive(true);
-      },
-      { threshold: 0.3 },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      data-reveal
-      className="landing-shadow-card mt-12 rounded-3xl border border-slate-200/80 bg-white p-5 sm:mt-14 sm:p-8"
-    >
-      <h3 className="text-[#111827] text-lg font-semibold tracking-tight sm:text-xl">
-        Visual Capacity Comparison
-      </h3>
-      <p className="text-slate-500 mt-1 text-sm">
-        See how capacity grows as you move from Basic to Enterprise.
-      </p>
-
-      <div className="mt-6 space-y-6">
-        {CAPACITY_METRICS.map((metric) => (
-          <div key={metric.key}>
-            <p className="text-[#111827] text-sm font-semibold">{metric.label}</p>
-            <ul className="mt-3 space-y-2.5">
-              {(["basic", "pro", "enterprise"] as const).map((key) => {
-                const plan = PLAN_CATALOG[key];
-                const value = plan.limits[metric.key];
-                const ratio = capacityRatioFor(metric.key, value);
-                return (
-                  <li key={key} className="grid grid-cols-[5.5rem_1fr_auto] items-center gap-3">
-                    <span className="text-xs font-medium text-slate-500">{plan.name}</span>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className={cn(
-                          "landing-capacity-fill h-full rounded-full",
-                          key === "pro" ? "bg-primary" : "bg-slate-400",
-                          active && "landing-capacity-fill-on",
-                        )}
-                        style={
-                          {
-                            "--capacity": `${Math.round(ratio * 100)}%`,
-                          } as CSSProperties
-                        }
-                      />
-                    </div>
-                    <span className="min-w-[4.5rem] text-right text-xs font-semibold tabular-nums text-slate-700">
-                      {limitLabel(value, "count")}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }

@@ -6,6 +6,10 @@ export const BRANDING = {
   loginHero: "/branding/login_hero.png",
   /** Real product dashboard — landing hero & analytics showcase. */
   dashboardHero: "/marketing/dashboard.png",
+  /** V3 landing device / diagram marketing assets (from ui_reference). */
+  landingHeroMonitor: "/marketing/v3/hero-monitor.png",
+  landingHowItWorks: "/marketing/v3/how-it-works-diagram.png",
+  landingCtaDevices: "/marketing/v3/cta-devices.png",
 } as const;
 
 export const BRAND_TAGLINE = "Smart POS. Strong business.";

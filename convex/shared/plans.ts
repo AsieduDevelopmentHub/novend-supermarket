@@ -59,7 +59,7 @@ export const GIBIBYTE = 1024 * 1024 * 1024;
 export const GB_IN_BYTES = GIBIBYTE;
 
 /** Updates and premium support included with a lifetime licence. */
-export const LIFETIME_UPDATES_YEARS = 1.5;
+export const LIFETIME_UPDATES_YEARS = 1;
 
 export function formatPlanBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
@@ -75,8 +75,8 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     name: "Basic",
     tagline: "Everything a single shop needs to sell and track stock.",
     audience: "Small retail businesses",
-    monthlyPrice: 149,
-    yearlyPrice: 1490,
+    monthlyPrice: 200,
+    yearlyPrice: 2000,
     oneTimePrice: null,
     priceFrom: false,
     variableBackup: false,
@@ -109,8 +109,8 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     name: "Pro",
     tagline: "Wholesale, branches and analytics for growing businesses.",
     audience: "Supermarkets, pharmacies and wholesalers",
-    monthlyPrice: 299,
-    yearlyPrice: 2990,
+    monthlyPrice: 400,
+    yearlyPrice: 4000,
     oneTimePrice: null,
     priceFrom: false,
     variableBackup: false,
@@ -139,8 +139,8 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     name: "Enterprise",
     tagline: "Unlimited scale with dedicated onboarding and support.",
     audience: "Multi-branch groups and distributors",
-    monthlyPrice: 599,
-    yearlyPrice: 5990,
+    monthlyPrice: 750,
+    yearlyPrice: 7500,
     oneTimePrice: null,
     priceFrom: true,
     variableBackup: true,
@@ -188,7 +188,7 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     features: [
       "Everything in Enterprise",
       "Permanent commercial licence",
-      `${LIFETIME_UPDATES_YEARS} years of updates and premium support`,
+      `${LIFETIME_UPDATES_YEARS} year of updates and premium support`,
       "Offline operations",
       "Cloud sync",
     ],

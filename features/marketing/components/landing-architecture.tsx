@@ -12,8 +12,11 @@ import {
   Package,
   Receipt,
   RefreshCw,
+  Shield,
   ShoppingCart,
+  Split,
   Tablet,
+  WifiOff,
 } from "lucide-react";
 import { landingCopy } from "@/features/marketing/content";
 import {
@@ -31,10 +34,10 @@ const FLOW_VISUALS = {
 } as const;
 
 const GUARANTEE_ICONS = {
-  selling: Receipt,
-  ownership: Database,
+  selling: WifiOff,
+  ownership: Shield,
   backup: CloudUpload,
-  branches: Building2,
+  branches: Split,
 } as const;
 
 /** Section 3 — offline trust & differentiation on Novend Onyx. */
@@ -51,7 +54,9 @@ export function LandingArchitecture() {
     >
       <div className="mx-auto max-w-6xl">
         <header data-reveal className="mx-auto max-w-[680px] text-center">
-          <p className="text-[#38BDF8] text-[13px] font-semibold tracking-wide">{copy.badge}</p>
+          <p className="text-[#38BDF8] text-[13px] font-semibold tracking-[0.14em] uppercase">
+            {copy.badge}
+          </p>
           <h2
             id="architecture-heading"
             className="mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-[2.75rem] lg:leading-tight"
@@ -139,25 +144,6 @@ export function LandingArchitecture() {
             );
           })}
         </ul>
-
-        <dl
-          data-reveal
-          className="landing-arch-metrics mt-10 grid gap-3 sm:mt-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4"
-        >
-          {copy.metrics.map((metric) => (
-            <div
-              key={metric.label}
-              className="rounded-xl border border-white/10 bg-black/20 px-4 py-4 text-center sm:text-left"
-            >
-              <dt className="text-[11px] font-semibold tracking-[0.14em] text-slate-400 uppercase">
-                {metric.label}
-              </dt>
-              <dd className="mt-1.5 text-lg font-semibold tracking-tight text-white sm:text-xl">
-                {metric.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
       </div>
     </section>
   );

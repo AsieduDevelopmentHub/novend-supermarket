@@ -19,7 +19,7 @@ const SCREEN_ALT: Record<IndustryId, string> = {
   convenience: "Novend stock view with low-stock visibility for convenience stores",
 };
 
-/** Section 5 — interactive industry showcase (pills + dynamic product panel). */
+/** V3 industries — icon tabs + copy/bullets left + screenshot right. */
 export function LandingIndustries() {
   const { industries } = landingCopy;
   const [activeId, setActiveId] = useState<IndustryId>(industries.items[0]!.id);
@@ -29,11 +29,13 @@ export function LandingIndustries() {
   return (
     <section
       id="industries"
-      className="landing-industries-showcase scroll-mt-24 border-t border-border bg-[#F8FAFC] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
+      className="scroll-mt-24 border-t border-border bg-[#F8FAFC] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
         <header data-reveal className="mx-auto max-w-[700px] text-center">
-          <p className="text-primary text-[13px] font-semibold tracking-wide">{industries.badge}</p>
+          <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
+            {industries.badge}
+          </p>
           <h2 className="text-[#111827] mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
             {industries.title}
           </h2>
@@ -44,7 +46,7 @@ export function LandingIndustries() {
 
         <div
           data-reveal
-          className="landing-industry-pills mt-10 flex gap-2 overflow-x-auto pb-2 sm:mt-12 sm:flex-wrap sm:justify-center sm:overflow-visible sm:pb-0"
+          className="mt-10 flex gap-2 overflow-x-auto pb-2 sm:mt-12 sm:flex-wrap sm:justify-center sm:overflow-visible sm:pb-0"
           role="tablist"
           aria-label="Select an industry"
         >
@@ -72,10 +74,37 @@ export function LandingIndustries() {
 
         <div
           data-reveal
-          className="landing-industry-panel landing-shadow-card mt-8 overflow-hidden rounded-3xl border border-slate-200/80 bg-white sm:mt-10"
+          className="landing-shadow-card mt-8 overflow-hidden rounded-3xl border border-slate-200/80 bg-white sm:mt-10"
         >
           <div className="grid lg:grid-cols-2">
-            <div className="order-1 border-b border-slate-100 bg-[#0f172a] p-3 sm:p-4 lg:border-r lg:border-b-0">
+            <div
+              key={`copy-${active.id}`}
+              className="order-2 flex flex-col justify-center p-6 sm:p-8 lg:order-1 lg:p-10"
+            >
+              <h3 className="text-[#111827] text-2xl font-semibold tracking-tight sm:text-3xl">
+                {active.title}
+              </h3>
+              <p className="text-slate-600 mt-4 text-base leading-relaxed">{active.detail}</p>
+              <ul className="mt-6 space-y-2.5">
+                {active.capabilities.map((capability) => (
+                  <li key={capability} className="flex items-start gap-2.5 text-sm text-slate-700">
+                    <span className="bg-primary/12 text-primary mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full">
+                      <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+                    </span>
+                    {capability}
+                  </li>
+                ))}
+              </ul>
+              <a
+                href="#how-it-works"
+                className="bg-primary text-primary-foreground mt-8 inline-flex w-fit items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-90"
+              >
+                {active.cta}
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </a>
+            </div>
+
+            <div className="order-1 border-b border-slate-100 bg-[#0f172a] p-3 sm:p-4 lg:order-2 lg:border-b-0 lg:border-l">
               <div key={active.id} className="landing-industry-visual">
                 <ExpandableScreenshot
                   src={screen}
@@ -94,59 +123,10 @@ export function LandingIndustries() {
                     draggable={false}
                   />
                 </ExpandableScreenshot>
-
-                <dl className="landing-industry-kpis">
-                  {active.kpis.map((kpi) => (
-                    <div key={kpi.label} className="landing-industry-kpi">
-                      <dt>{kpi.label}</dt>
-                      <dd>{kpi.value}</dd>
-                    </div>
-                  ))}
-                </dl>
               </div>
-            </div>
-
-            <div key={`copy-${active.id}`} className="landing-industry-copy order-2 flex flex-col justify-center p-6 sm:p-8 lg:p-10">
-              <h3 className="text-[#111827] text-2xl font-semibold tracking-tight sm:text-3xl">
-                {active.title}
-              </h3>
-              <p className="text-slate-600 mt-4 text-base leading-relaxed">{active.detail}</p>
-              <ul className="mt-6 grid gap-2.5 sm:grid-cols-2">
-                {active.capabilities.map((capability) => (
-                  <li key={capability} className="flex items-start gap-2.5 text-sm text-slate-700">
-                    <span className="bg-primary/12 text-primary mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full">
-                      <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden />
-                    </span>
-                    {capability}
-                  </li>
-                ))}
-              </ul>
-              <a
-                href="#journey"
-                className="text-primary mt-8 inline-flex items-center gap-1.5 text-sm font-semibold transition-opacity hover:opacity-80"
-              >
-                {active.cta}
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </a>
             </div>
           </div>
         </div>
-
-        <ul data-reveal className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-3 sm:gap-5">
-          {industries.metrics.map((metric) => (
-            <li
-              key={metric.label}
-              className="landing-shadow-card rounded-2xl border border-slate-200/80 bg-white px-5 py-5 text-center sm:text-left"
-            >
-              <p className="text-[11px] font-semibold tracking-[0.14em] text-slate-500 uppercase">
-                {metric.label}
-              </p>
-              <p className="text-[#111827] mt-2 text-lg font-semibold tracking-tight sm:text-xl">
-                {metric.value}
-              </p>
-            </li>
-          ))}
-        </ul>
       </div>
     </section>
   );

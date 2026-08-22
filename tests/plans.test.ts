@@ -119,7 +119,7 @@ describe("plan catalog", () => {
     expect(resolvePlan("lifetime").limits.backupBytes).toBe(1024 * 1024 * 1024);
     expect(resolvePlan("lifetime").oneTimePrice).toBe(7990);
     expect(resolvePlan("pro").featured).toBe(true);
-    expect(resolvePlan("lifetime").features.some((feature) => feature.includes("1.5 years"))).toBe(
+    expect(resolvePlan("lifetime").features.some((feature) => feature.includes("1 year"))).toBe(
       true,
     );
     expect(planLimitLines(resolvePlan("basic"))).toEqual([

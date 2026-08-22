@@ -11,17 +11,18 @@ import {
 import { LandingNav } from "@/features/marketing/components/landing-nav";
 import { LandingHero } from "@/features/marketing/components/landing-hero";
 import { LandingTrustedStrip } from "@/features/marketing/components/landing-trusted-strip";
-import { LandingJourney } from "@/features/marketing/components/landing-journey";
+import { LandingHowItWorks } from "@/features/marketing/components/landing-how-it-works";
 import { LandingArchitecture } from "@/features/marketing/components/landing-architecture";
 import { LandingFeatures } from "@/features/marketing/components/landing-features";
 import { LandingIndustries } from "@/features/marketing/components/landing-industries";
 import { LandingPricing } from "@/features/marketing/components/landing-pricing";
 import { LandingFaq } from "@/features/marketing/components/landing-faq";
 import { LandingCta } from "@/features/marketing/components/landing-cta";
+import { LandingDesktop } from "@/features/marketing/components/landing-desktop";
 import { LandingFooter } from "@/features/marketing/components/landing-footer";
 
 /**
- * Web-only SaaS landing V2 — dashboard screenshot as signature visual.
+ * Web-only SaaS landing V3 — reference layout with Novend brand tokens.
  * Electron detects `novendDesktop` and leaves for /dashboard.
  */
 export function LandingPage() {
@@ -58,13 +59,14 @@ export function LandingPage() {
         <main>
           <LandingHero />
           <LandingTrustedStrip />
-          <LandingJourney />
+          <LandingHowItWorks />
           <LandingArchitecture />
           <LandingFeatures />
           <LandingIndustries />
           <LandingPricing />
           <LandingFaq />
           <LandingCta />
+          <LandingDesktop />
         </main>
         <LandingFooter />
       </div>
