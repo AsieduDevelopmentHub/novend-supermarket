@@ -7,8 +7,7 @@ export const BRANDING = {
   /** Real product dashboard — landing hero & analytics showcase. */
   dashboardHero: "/marketing/dashboard.png",
   /** V3 landing device / diagram marketing assets (from ui_reference). */
-  landingHeroMonitor: "/marketing/v3/hero-monitor.png",
-  landingHeroShell: "/marketing/v3/hero-shell-empty-no-bg.png",
+  landingHeroMonitor: "/marketing/v3/hero-shell-empty-no-bg.png",
   landingHowItWorks: "/marketing/v3/how-it-works-diagram.png",
   landingCtaDevices: "/marketing/v3/cta-devices.png",
 } as const;

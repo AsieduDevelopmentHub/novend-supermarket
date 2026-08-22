@@ -69,9 +69,7 @@ def fill_mask_with_image(base: Image.Image, mask: np.ndarray, ui: Image.Image) -
 
 
 def composite_hero() -> None:
-    # Transparent shell with built-in Candy Blue base glow — do not chroma-key
-    # (keying would strip the intentional perimeter light).
-    shell = Image.open(V3 / "hero-shell-empty-no-bg.png").convert("RGBA")
+    shell = chroma_key(Image.open(V3 / "hero-shell-empty.png"))
     mask = black_screen_mask(shell)
     # Keep only the largest contiguous horizontal band (the panel), drop stand shadows
     # Restrict to upper 72% of image so stand base isn't included
@@ -110,8 +108,15 @@ def composite_cta() -> None:
 
 
 def main() -> None:
-    composite_hero()
-    composite_cta()
+    import sys
+
+    # CTA composite is fragile — only run when explicitly requested.
+    # Default: hero only, so we don't overwrite the laptop/phone asset.
+    target = sys.argv[1] if len(sys.argv) > 1 else "hero"
+    if target in ("hero", "all"):
+        composite_hero()
+    if target in ("cta", "all"):
+        composite_cta()
 
 
 if __name__ == "__main__":
