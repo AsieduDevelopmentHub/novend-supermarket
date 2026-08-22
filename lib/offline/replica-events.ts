@@ -5,6 +5,8 @@ const EVENT = "novend:replica-changed";
 export type ReplicaChangedDetail = {
   /** When true, the offline provider should force-pull a Convex snapshot. */
   pull?: boolean;
+  /** When true, drain the outbox in the background (do not block the UI). */
+  flush?: boolean;
 };
 
 export function notifyReplicaChanged(detail: ReplicaChangedDetail = {}) {

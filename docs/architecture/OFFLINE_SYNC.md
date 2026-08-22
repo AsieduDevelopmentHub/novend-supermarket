@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.1.0
+Version: 2.2.0
 
 ## Purpose
 
@@ -32,9 +32,17 @@ Convex (when online)
    used as a freshness shortcut, never as a gate to open the page.
 3. Writes apply locally, then enqueue an outbox event (`upsert_supplier`,
    `record_wholesale_purchase`, `complete_sale`, …).
-4. `OfflineProvider` drains the outbox when the network returns. Server
-   validation wins; failed business conflicts stay on the device for the cashier
-   to retry or discard.
+4. `OfflineProvider` drains the outbox in the background. Forms return as soon as
+   Dexie succeeds — loading spinners never wait on Convex.
+5. Product photos live in IndexedDB (`productImages`) as blobs plus thumbnails.
+   The UI reads local blobs first and falls back to the cloud URL only when the
+   replica has no photo yet.
+
+## Local writes
+
+`persistBusinessWrite` always applies the Dexie + outbox path, then asks the
+provider to flush while online. Branch create/update and product create (including
+photos) use that path. Returns always call `processReturnLocally`.
 
 ## Startup
 

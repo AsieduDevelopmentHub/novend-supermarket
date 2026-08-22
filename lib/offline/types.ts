@@ -16,7 +16,8 @@ export type OutboxOpType =
   | "update_profile"
   | "create_user"
   | "upsert_product"
-  | "create_category";
+  | "create_category"
+  | "upsert_branch";
 
 export type LocalSaleSyncStatus = "pending" | "synced" | "failed";
 
@@ -317,7 +318,9 @@ export type MirroredReturn = {
 export type ProductImageCache = {
   id: string;
   blob: Blob;
+  thumbnailBlob?: Blob;
   mimeType: string;
+  sourceUrl?: string | null;
   updatedAt: number;
 };
 
@@ -412,6 +415,16 @@ export type CreateUserPayload = {
 export type CreateCategoryPayload = {
   localId: string;
   name: string;
+};
+
+export type UpsertBranchPayload = {
+  localId: string;
+  serverId?: string;
+  name: string;
+  code: string;
+  address?: string;
+  phone?: string;
+  status?: "active" | "inactive";
 };
 
 export type UpsertProductPayload = {

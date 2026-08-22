@@ -28,7 +28,6 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { formatCurrency, roundMoney } from "@/lib/currency";
 import { Minus, Package, Plus, ShoppingCart, UserRound, X } from "lucide-react";
-import Image from "next/image";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { printReceipt, loadTerminalPrinterConfig, probePrintBridge } from "@/services/printing";
@@ -49,6 +48,7 @@ import {
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
 import type { LocalHeldSale } from "@/lib/offline/types";
 import { cn } from "@/lib/utils";
+import { ProductImage } from "@/components/media/product-image";
 import { isBarcodeScanningEnabled } from "@/services/hardware";
 import {
   BarcodeMatchDialog,
@@ -609,7 +609,7 @@ export function SalesView() {
             <EmptyState icon={Package} title="No products available" />
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
-              {catalog.map((product, index) => (
+              {catalog.map((product) => (
                 <button
                   key={product.id}
                   type="button"
@@ -617,19 +617,15 @@ export function SalesView() {
                   className="border-border hover:border-primary bg-card rounded-xl border p-2 text-left shadow-sm transition sm:p-3"
                 >
                   <div className="bg-muted relative mb-2 aspect-square overflow-hidden rounded-lg sm:mb-3 sm:aspect-[4/3]">
-                    {product.imageUrl ? (
-                      <Image
-                        src={product.imageUrl}
-                        alt={product.name}
-                        fill
-                        priority={index === 0}
-                        className="object-cover"
-                        sizes="(max-width: 640px) 50vw, 240px"
-                        unoptimized
-                      />
-                    ) : (
-                      <Package className="text-muted-foreground absolute inset-0 m-auto h-7 w-7 sm:h-8 sm:w-8" />
-                    )}
+                    <ProductImage
+                      productId={product.id}
+                      remoteUrl={product.imageUrl}
+                      alt={product.name}
+                      sizes="(max-width: 640px) 50vw, 240px"
+                      fallback={
+                        <Package className="text-muted-foreground absolute inset-0 m-auto h-7 w-7 sm:h-8 sm:w-8" />
+                      }
+                    />
                   </div>
                   <p className="line-clamp-2 text-sm font-medium leading-tight">{product.name}</p>
                   <p className="text-primary mt-1 text-sm font-semibold">

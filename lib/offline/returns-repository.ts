@@ -1,6 +1,7 @@
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { getMeta, getOfflineDb, META_KEYS, newClientId, type PrincellenOfflineDb } from "./db";
 import { enqueueProcessReturn } from "./outbox";
+import { notifyReplicaChanged } from "./replica-events";
 import { estimateReturnRefund, roundMoney } from "@/lib/sales/returns";
 import type { LocalReturn, LocalReturnItem, PrintSnapshot } from "./types";
 
@@ -203,6 +204,7 @@ export async function processReturnLocally(input: {
     },
   );
 
+  notifyReplicaChanged({ flush: true });
   return { returnNumber, receiptPayload, clientOperationId };
 }
 

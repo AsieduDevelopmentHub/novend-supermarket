@@ -1,7 +1,7 @@
-import { isConnectivityError } from "@/lib/errors";
 import { getMeta, getOfflineDb, META_KEYS, newClientId } from "./db";
-import { enqueueOutbox, withMirrorOnly } from "./outbox";
+import { enqueueOutbox } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
+import { putProductImage } from "./image-cache";
 import type {
   AdjustStockPayload,
   CreateCategoryPayload,
@@ -10,6 +10,7 @@ import type {
   RecordWholesalePurchasePayload,
   RemoveExpensePayload,
   TransferStockPayload,
+  UpsertBranchPayload,
   UpsertCustomerPayload,
   UpsertProductPayload,
   UpsertSupplierPayload,
@@ -18,28 +19,19 @@ import type {
 
 const QUEUED_TOAST = "Saved on this device. We'll sync when you're back online.";
 
+/**
+ * Write Dexie immediately and return. Cloud sync is background work.
+ * `remote` is unused — kept so call sites stay explicit about the Convex mutation.
+ */
 export async function persistBusinessWrite(args: {
   online: boolean;
   remote: () => Promise<unknown>;
   local: () => Promise<unknown>;
 }): Promise<"remote" | "queued"> {
-  if (args.online) {
-    try {
-      await args.remote();
-      try {
-        await withMirrorOnly(args.local);
-      } catch {
-        /* Dexie may be empty or behind; snapshot pull will catch up. */
-      }
-      notifyReplicaChanged({ pull: true });
-      return "remote";
-    } catch (error) {
-      if (!isConnectivityError(error)) throw error;
-    }
-  }
+  void args.remote;
   await args.local();
-  notifyReplicaChanged();
-  return "queued";
+  notifyReplicaChanged({ flush: args.online });
+  return args.online ? "remote" : "queued";
 }
 
 export function queuedSaveMessage(kind: "remote" | "queued", live: string) {
@@ -299,11 +291,10 @@ export async function queueUpsertProduct(
     updatedAt: Date.now(),
   });
   if (payload.imageBlob) {
-    await db.productImages.put({
-      id: localId,
+    await putProductImage({
+      productId: localId,
       blob: payload.imageBlob,
       mimeType: payload.imageBlob.type || "image/jpeg",
-      updatedAt: Date.now(),
     });
   }
   const { imageBlob: _imageBlob, ...rest } = payload;
@@ -312,5 +303,31 @@ export async function queueUpsertProduct(
     localId,
     hasLocalImage: Boolean(payload.imageBlob) || payload.hasLocalImage,
   } satisfies UpsertProductPayload);
+  return localId;
+}
+
+export async function queueUpsertBranch(
+  payload: Omit<UpsertBranchPayload, "localId"> & { localId?: string },
+) {
+  const db = await getOfflineDb();
+  if (!db) throw new Error("Local storage is not available on this device.");
+  const code = payload.code.trim().toUpperCase().replace(/\s+/g, "_");
+  const localId = payload.serverId ?? payload.localId ?? newClientId("local");
+  const clash = (await db.branches.toArray()).find((row) => row.code === code && row.id !== localId);
+  if (clash) throw new Error("Branch code already exists");
+  await db.branches.put({
+    id: localId,
+    name: payload.name.trim(),
+    code,
+    address: payload.address?.trim() || null,
+    phone: payload.phone?.trim() || null,
+    status: payload.status ?? "active",
+  });
+  await enqueueOutbox(db, "upsert_branch", {
+    ...payload,
+    localId,
+    code,
+    status: payload.status ?? "active",
+  } satisfies UpsertBranchPayload);
   return localId;
 }

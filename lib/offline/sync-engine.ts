@@ -20,6 +20,7 @@ import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
 import { markLocalReturnFailed, markLocalReturnSynced } from "./returns-repository";
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
 import { isSyncBusinessConflict } from "./sync-errors";
+import { rekeyProductImage } from "./image-cache";
 import type {
   AdjustStockPayload,
   CreateCategoryPayload,
@@ -32,6 +33,7 @@ import type {
   UpsertCustomerPayload,
   UpsertProductPayload,
   UpsertSupplierPayload,
+  UpsertBranchPayload,
   WholesaleTransferPayload,
 } from "./types";
 
@@ -150,7 +152,7 @@ export type QueuedMutators = {
     tracksExpiry?: boolean;
     expiryAlertDays?: number;
     expiryDate?: string;
-  }) => Promise<unknown>;
+  }) => Promise<string | { toString(): string }>;
   updateProduct: (args: {
     id: Id<"products">;
     name: string;
@@ -166,6 +168,20 @@ export type QueuedMutators = {
     tracksExpiry?: boolean;
     expiryAlertDays?: number;
     openingExpiryDate?: string;
+  }) => Promise<unknown>;
+  createBranch: (args: {
+    name: string;
+    code: string;
+    address?: string;
+    phone?: string;
+  }) => Promise<string | { toString(): string }>;
+  updateBranch: (args: {
+    id: Id<"branches">;
+    name: string;
+    code: string;
+    address?: string;
+    phone?: string;
+    status: "active" | "inactive";
   }) => Promise<unknown>;
 };
 
@@ -434,7 +450,7 @@ export async function drainOutbox(options: {
               openingExpiryDate: payload.expiryDate,
             });
           } else {
-            await options.mutators.createProduct({
+            const createdId = await options.mutators.createProduct({
               name: payload.name,
               sku: payload.sku,
               categoryId,
@@ -451,11 +467,37 @@ export async function drainOutbox(options: {
               expiryDate: payload.expiryDate,
             });
             if (payload.localId.startsWith("local_")) {
+              await rekeyProductImage(payload.localId, String(createdId));
               await db.products.delete(payload.localId);
             }
           }
           await markOutboxSynced(db, claimed.id);
           await pullOfflineSnapshot(options.convex, { force: true });
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "upsert_branch") {
+          const payload = JSON.parse(claimed.payloadJson) as UpsertBranchPayload;
+          if (payload.serverId && !payload.serverId.startsWith("local_")) {
+            await options.mutators.updateBranch({
+              id: payload.serverId as Id<"branches">,
+              name: payload.name,
+              code: payload.code,
+              address: payload.address,
+              phone: payload.phone,
+              status: payload.status ?? "active",
+            });
+          } else {
+            const id = await options.mutators.createBranch({
+              name: payload.name,
+              code: payload.code,
+              address: payload.address,
+              phone: payload.phone,
+            });
+            await replaceIdInPendingOutbox(db, payload.localId, String(id));
+            await db.branches.delete(payload.localId);
+            await pullOfflineSnapshot(options.convex, { force: true });
+          }
+          await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;
         } else {

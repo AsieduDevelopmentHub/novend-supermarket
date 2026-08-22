@@ -33,6 +33,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { TakeProductPhotoDialog } from "@/features/products/components/take-product-photo-dialog";
+import { ProductImage } from "@/components/media/product-image";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCategoriesList, useMirroredProduct } from "@/hooks/use-offline-lists";
 import {
@@ -143,7 +144,6 @@ function ProductFormBody({
   const createProduct = useMutation(api.products.createProduct);
   const updateProduct = useMutation(api.products.updateProduct);
   const createCategory = useMutation(api.categories.create);
-  const generateUploadUrl = useMutation(api.products.generateUploadUrl);
   const online = useConnectivity();
 
   const [name, setName] = useState(initialProduct?.name ?? "");
@@ -179,8 +179,6 @@ function ProductFormBody({
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
-
-  const displayImage = previewUrl ?? initialProduct?.imageUrl ?? null;
 
   function onNameChange(value: string) {
     setName(value);
@@ -225,20 +223,6 @@ function ProductFormBody({
     }
   }
 
-  async function uploadImage(): Promise<Id<"_storage"> | undefined> {
-    if (!file) return undefined;
-    await assertValidImageFile(file);
-    const uploadUrl = await generateUploadUrl({});
-    const result = await fetch(uploadUrl, {
-      method: "POST",
-      headers: { "Content-Type": file.type },
-      body: file,
-    });
-    if (!result.ok) throw new Error("Image upload failed");
-    const json = (await result.json()) as { storageId: Id<"_storage"> };
-    return json.storageId;
-  }
-
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!categoryId) {
@@ -251,7 +235,6 @@ function ProductFormBody({
     }
     setPending(true);
     try {
-      const imageStorageId = online ? await uploadImage() : undefined;
       const kind = await persistBusinessWrite({
         online,
         remote: () =>
@@ -267,7 +250,6 @@ function ProductFormBody({
                 lowStockThreshold: Number(lowStockThreshold),
                 status,
                 description,
-                imageStorageId,
                 tracksExpiry,
                 expiryAlertDays: tracksExpiry ? Number(expiryAlertDays) : undefined,
                 openingExpiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
@@ -283,7 +265,6 @@ function ProductFormBody({
                 lowStockThreshold: Number(lowStockThreshold),
                 status,
                 description,
-                imageStorageId,
                 tracksExpiry,
                 expiryAlertDays: tracksExpiry ? Number(expiryAlertDays) : undefined,
                 expiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
@@ -304,7 +285,6 @@ function ProductFormBody({
             tracksExpiry,
             expiryAlertDays: tracksExpiry ? Number(expiryAlertDays) : undefined,
             expiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
-            imageStorageId,
             imageBlob: file ?? undefined,
             hasLocalImage: Boolean(file),
           }),
@@ -515,14 +495,30 @@ function ProductFormBody({
       <div className="space-y-3">
         <Label>Product Image</Label>
         <div className="border-border bg-muted/30 relative flex min-h-48 flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed p-4 text-center">
-          {displayImage ? (
+          {previewUrl ? (
             <Image
-              src={displayImage}
+              src={previewUrl}
               alt={name || "Product preview"}
               fill
               className="object-cover"
               sizes="320px"
               unoptimized
+            />
+          ) : productId ? (
+            <ProductImage
+              productId={productId}
+              remoteUrl={initialProduct?.imageUrl}
+              alt={name || "Product preview"}
+              sizes="320px"
+              fallback={
+                <>
+                  <ImagePlus className="text-muted-foreground mb-2 h-8 w-8" />
+                  <p className="text-sm font-medium">Add a product photo</p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    JPG, PNG, or WebP · compressed for offline sync · max 2 MB
+                  </p>
+                </>
+              }
             />
           ) : (
             <>

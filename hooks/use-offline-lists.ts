@@ -26,6 +26,7 @@ import {
 import type { MirroredCustomer } from "@/lib/offline/types";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
+import { pickReplicaList } from "@/lib/offline/list-preference";
 
 type ProductListRow = {
   id: Id<"products">;
@@ -132,14 +133,12 @@ export function useProductsList(options: {
     lastSyncAt,
   ]);
 
-  if (online && remote !== undefined) {
+  const picked = pickReplicaList({ local, remote: remote as ProductListRow[] | undefined, online });
+  if (picked.source === "remote" && remote !== undefined) {
     return { products: remote, loading: false, source: "remote" as const };
   }
-  if (local !== null) {
-    return { products: local, loading: false, source: "local" as const };
-  }
-  if (remote !== undefined) {
-    return { products: remote, loading: false, source: "remote" as const };
+  if (picked.rows) {
+    return { products: picked.rows, loading: false, source: "local" as const };
   }
   return {
     products: [] as ProductListRow[],
@@ -228,14 +227,12 @@ export function useInventoryList(options: {
       unsub();
     };
   }, [options.search, options.categoryId, remote, lastSyncAt]);
-  if (online && remote !== undefined) {
+  const picked = pickReplicaList({ local, remote: remote as InventoryRow[] | undefined, online });
+  if (picked.source === "remote" && remote !== undefined) {
     return { rows: remote, loading: false, source: "remote" as const };
   }
-  if (local !== null) {
-    return { rows: local, loading: false, source: "local" as const };
-  }
-  if (remote !== undefined) {
-    return { rows: remote, loading: false, source: "remote" as const };
+  if (picked.rows) {
+    return { rows: picked.rows, loading: false, source: "local" as const };
   }
   return { rows: undefined, loading: true, source: "local" as const };
 }
@@ -261,9 +258,9 @@ export function useCategoriesList() {
     };
   }, [remote, lastSyncAt]);
 
+  if (local && local.length > 0) return local;
   if (online && remote !== undefined) return remote;
-  if (local !== null) return local;
-  return remote;
+  return local ?? remote;
 }
 
 export function useMirroredProduct(productId: string | null) {
@@ -336,14 +333,13 @@ export function useCustomersList(options: { search: string; includeInactive: boo
       lastInvoiceNumber: c.lastInvoiceNumber ?? null,
     }));
 
-  if (online && remote !== undefined) {
+  const mappedLocal = local ? mapLocal(local) : null;
+  const picked = pickReplicaList({ local: mappedLocal, remote, online });
+  if (picked.source === "remote" && remote !== undefined) {
     return { customers: remote, loading: false, source: "remote" as const };
   }
-  if (local !== null) {
-    return { customers: mapLocal(local), loading: false, source: "local" as const };
-  }
-  if (remote !== undefined) {
-    return { customers: remote, loading: false, source: "remote" as const };
+  if (picked.rows) {
+    return { customers: picked.rows, loading: false, source: "local" as const };
   }
   return { customers: undefined, loading: true, source: "local" as const };
 }
@@ -517,24 +513,23 @@ export function useSuppliersList(options: { search: string; includeInactive: boo
     () => listMirroredSuppliers({ search: options.search, includeInactive: options.includeInactive }),
     [options.search, options.includeInactive],
   );
-  if (online && remote !== undefined) {
-    return {
-      suppliers: remote.map((row) => ({
-        id: String(row._id),
-        name: row.name,
-        contactName: row.contactName ?? null,
-        phone: row.phone ?? null,
-        email: row.email ?? null,
-        address: row.address ?? null,
-        notes: row.notes ?? null,
-        status: row.status,
-        createdAt: row.createdAt,
-      })),
-      loading: false,
-    };
-  }
-  if (local) return { suppliers: local, loading: false };
-  return { suppliers: [] as Awaited<ReturnType<typeof listMirroredSuppliers>>, loading: remote === undefined && local === null };
+  const mappedRemote = remote?.map((row) => ({
+    id: String(row._id),
+    name: row.name,
+    contactName: row.contactName ?? null,
+    phone: row.phone ?? null,
+    email: row.email ?? null,
+    address: row.address ?? null,
+    notes: row.notes ?? null,
+    status: row.status,
+    createdAt: row.createdAt,
+  }));
+  const picked = pickReplicaList({ local, remote: mappedRemote, online });
+  if (picked.rows) return { suppliers: picked.rows, loading: false };
+  return {
+    suppliers: [] as Awaited<ReturnType<typeof listMirroredSuppliers>>,
+    loading: true,
+  };
 }
 
 export function useWholesaleLists(search: string) {
@@ -561,10 +556,10 @@ export function useWholesaleLists(search: string) {
   }, [lastSyncAt, localStock]);
 
   return {
-    stock: online ? (stock ?? localStock) : localStock,
-    summary: online ? (summary ?? localSummary) : localSummary,
-    purchases: online ? (purchases ?? localPurchases) : localPurchases,
-    transfers: online ? (transfers ?? localTransfers) : localTransfers,
+    stock: !online || (localStock && localStock.length > 0) ? localStock : (stock ?? localStock),
+    summary: !online || localSummary ? localSummary : (summary ?? localSummary),
+    purchases: !online || (localPurchases && localPurchases.length > 0) ? localPurchases : (purchases ?? localPurchases),
+    transfers: !online || (localTransfers && localTransfers.length > 0) ? localTransfers : (transfers ?? localTransfers),
   };
 }
 
@@ -580,6 +575,7 @@ export function useBranchesList(includeInactive = false) {
     status: row.status,
   }));
   const remote = useQuery(api.branches.list, online && ready ? { includeInactive } : "skip");
+  if (mappedLocal && mappedLocal.length > 0) return mappedLocal;
   if (online && remote !== undefined) return remote;
   return mappedLocal ?? remote;
 }
@@ -603,6 +599,7 @@ export function useUsersList(search: string, enabled = true) {
     enabled && online && ready ? { search: search || undefined } : "skip",
   );
   if (!enabled) return mappedLocal;
+  if (mappedLocal && mappedLocal.length > 0) return mappedLocal;
   if (online && remote !== undefined) return remote;
   return mappedLocal ?? remote;
 }
@@ -640,6 +637,7 @@ export function useReturnsList(options: {
         }
       : "skip",
   );
+  if (local && local.length > 0) return local;
   if (online && remote !== undefined) return remote;
   return local ?? remote;
 }

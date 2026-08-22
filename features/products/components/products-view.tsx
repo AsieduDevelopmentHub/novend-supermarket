@@ -15,7 +15,6 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { formatCurrency } from "@/lib/currency";
 import { Download, Eye, Package, Pencil, Plus, Trash2 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -26,6 +25,7 @@ import { exportCsvStub } from "@/services";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useProductsList } from "@/hooks/use-offline-lists";
+import { ProductImage } from "@/components/media/product-image";
 
 export function ProductsView() {
   const {
@@ -182,18 +182,13 @@ export function ProductsView() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="bg-muted relative h-10 w-10 overflow-hidden rounded-md">
-                              {product.imageUrl ? (
-                                <Image
-                                  src={product.imageUrl}
-                                  alt={product.name}
-                                  fill
-                                  className="object-cover"
-                                  sizes="40px"
-                                  unoptimized
-                                />
-                              ) : (
-                                <Package className="text-muted-foreground m-auto h-5 w-5" />
-                              )}
+                              <ProductImage
+                                productId={product.id}
+                                remoteUrl={product.imageUrl}
+                                alt={product.name}
+                                sizes="40px"
+                                fallback={<Package className="text-muted-foreground m-auto h-5 w-5" />}
+                              />
                             </div>
                             <div>
                               <p className="font-medium">{product.name}</p>
@@ -272,18 +267,13 @@ export function ProductsView() {
                   <div key={product.id} className="border-border rounded-xl border p-3">
                     <div className="flex gap-3">
                       <div className="bg-muted relative h-14 w-14 shrink-0 overflow-hidden rounded-md">
-                        {product.imageUrl ? (
-                          <Image
-                            src={product.imageUrl}
-                            alt={product.name}
-                            fill
-                            className="object-cover"
-                            sizes="56px"
-                            unoptimized
-                          />
-                        ) : (
-                          <Package className="text-muted-foreground m-auto h-5 w-5" />
-                        )}
+                        <ProductImage
+                          productId={product.id}
+                          remoteUrl={product.imageUrl}
+                          alt={product.name}
+                          sizes="56px"
+                          fallback={<Package className="text-muted-foreground m-auto h-5 w-5" />}
+                        />
                       </div>
                       <div className="min-w-0 flex-1">
                         <Link

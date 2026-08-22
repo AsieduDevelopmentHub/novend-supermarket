@@ -37,9 +37,9 @@ import { useCategoriesList, useInventoryList, useBranchesList } from "@/hooks/us
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
 import { formatExpiryDate } from "@/lib/expiry";
 import { ArrowLeftRight, Boxes, Eye } from "lucide-react";
-import Image from "next/image";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import { ProductImage } from "@/components/media/product-image";
 import {
   persistBusinessWrite,
   queuedSaveMessage,
@@ -320,16 +320,12 @@ function InventoryViewInner() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="bg-muted relative h-9 w-9 overflow-hidden rounded-md">
-                              {row.imageUrl ? (
-                                <Image
-                                  src={row.imageUrl}
-                                  alt={row.name}
-                                  fill
-                                  className="object-cover"
-                                  sizes="36px"
-                                  unoptimized
-                                />
-                              ) : null}
+                              <ProductImage
+                                productId={row.id}
+                                remoteUrl={row.imageUrl}
+                                alt={row.name}
+                                sizes="36px"
+                              />
                             </div>
                             <span className="font-medium">{row.name}</span>
                           </div>

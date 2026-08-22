@@ -71,6 +71,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const createProduct = useMutation(api.products.createProduct);
   const updateProduct = useMutation(api.products.updateProduct);
   const generateUploadUrl = useMutation(api.products.generateUploadUrl);
+  const createBranch = useMutation(api.branches.create);
+  const updateBranch = useMutation(api.branches.update);
   const [status, setStatus] = useState<OfflineStatus>(emptyStatus);
   const [syncCenterOpen, setSyncCenterOpen] = useState(false);
   const pullingRef = useRef(false);
@@ -216,6 +218,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
           generateUploadUrl: () => generateUploadUrl({}),
           createProduct: (args) => createProduct(args),
           updateProduct: (args) => updateProduct(args),
+          createBranch: (args) => createBranch(args),
+          updateBranch: (args) => updateBranch(args),
         },
         convex: { query: convex.query.bind(convex) },
       });
@@ -254,6 +258,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     createProduct,
     updateProduct,
     generateUploadUrl,
+    createBranch,
+    updateBranch,
     convex,
     refreshStatus,
   ]);
@@ -270,9 +276,10 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     return subscribeReplicaChanged((detail) => {
       setStatus((prev) => ({ ...prev, lastSyncAt: Date.now() }));
       if (detail.pull) void pullSnapshot({ force: true });
+      if (detail.flush) void flushOutbox();
       void refreshStatus();
     });
-  }, [pullSnapshot, refreshStatus]);
+  }, [pullSnapshot, flushOutbox, refreshStatus]);
 
   useEffect(() => {
     void (async () => {

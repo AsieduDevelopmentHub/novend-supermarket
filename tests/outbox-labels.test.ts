@@ -30,4 +30,8 @@ describe("describeOutboxEvent", () => {
   it("falls back for unknown types", () => {
     expect(outboxOpLabel("not_a_real_op")).toBe("Sync event");
   });
+
+  it("labels a branch", () => {
+    expect(outboxOpLabel("upsert_branch")).toBe("Branch");
+  });
 });

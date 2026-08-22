@@ -7,6 +7,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { canServeListsFromMirror } from "@/lib/offline/freshness";
 import { listLocalCatalogProducts, searchLocalCustomers } from "@/lib/offline/snapshot";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
+import { pickReplicaList } from "@/lib/offline/list-preference";
 import { useOfflineStatus } from "@/providers/offline-provider";
 
 export type CatalogProduct = {
@@ -78,8 +79,9 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
     };
   }, [search, lastSyncAt, remote]);
 
-  // Online: prefer remote so catalog stays current after product CRUD.
-  if (online && remote !== undefined) {
+  // Dexie first so newly created products appear in POS immediately.
+  const picked = pickReplicaList({ local, remote: remote as CatalogProduct[] | undefined, online });
+  if (picked.source === "remote" && remote !== undefined) {
     return {
       products: remote.map((p) => ({
         id: p.id as string,
@@ -96,28 +98,8 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
       refreshLocal,
     };
   }
-  if (local && local.length > 0) {
-    return { products: local, source: "local" as const, loading: false, refreshLocal };
-  }
-  if (remote !== undefined) {
-    return {
-      products: remote.map((p) => ({
-        id: p.id as string,
-        name: p.name,
-        sku: p.sku,
-        sellingPrice: p.sellingPrice,
-        stockQuantity: p.stockQuantity,
-        unit: p.unit,
-        imageUrl: p.imageUrl,
-        isExpiring: p.isExpiring,
-      })),
-      source: "remote" as const,
-      loading: false,
-      refreshLocal,
-    };
-  }
-  if (local) {
-    return { products: local, source: "local" as const, loading: false, refreshLocal };
+  if (picked.rows) {
+    return { products: picked.rows, source: "local" as const, loading: false, refreshLocal };
   }
   return {
     products: [] as CatalogProduct[],

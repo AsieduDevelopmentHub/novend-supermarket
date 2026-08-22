@@ -1,9 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
 import {
   Dialog,
   DialogContent,
@@ -70,7 +67,6 @@ export function ReturnOrderDialog({
   onCompleted,
 }: Props) {
   const online = useConnectivity();
-  const processReturn = useMutation(api.returns.processReturn);
   const [qtyByItem, setQtyByItem] = useState<Record<string, number>>({});
   const [reason, setReason] = useState<string>("");
   const [notes, setNotes] = useState("");
@@ -141,49 +137,36 @@ export function ReturnOrderDialog({
     }
     setPending(true);
     try {
-      if (online && !saleId.startsWith("lsale_")) {
-        const result = await processReturn({
-          saleId: saleId as Id<"sales">,
-          items: selected.map((row) => ({
-            saleItemId: row.item.id as Id<"saleItems">,
-            quantity: row.quantity,
-          })),
-          reason,
-          notes: notes.trim() || undefined,
-        });
-        toast.success(`Return ${result.returnNumber} processed`);
-        onCompleted({
-          returnNumber: result.returnNumber,
-          receiptPayload: result.receiptPayload as ReceiptPayload,
-        });
-      } else {
-        const result = await processReturnLocally({
-          saleId,
-          invoiceNumber,
-          saleTotal,
-          saleSubtotal,
-          saleDiscount,
-          alreadyRefunded,
-          remainingQty,
-          reason,
-          notes: notes.trim() || undefined,
-          items: selected.map((row) => ({
-            saleItemId: row.item.id,
-            productId: row.item.productId,
-            productName: row.item.productName,
-            soldQty: row.item.quantity,
-            remainingQty: row.item.remainingQuantity,
-            lineTotal: row.item.lineTotal,
-            unitPrice: row.item.unitPrice,
-            quantity: row.quantity,
-          })),
-        });
-        toast.success(`Return ${result.returnNumber} saved on this device`);
-        onCompleted({
-          returnNumber: result.returnNumber,
-          receiptPayload: result.receiptPayload,
-        });
-      }
+      const result = await processReturnLocally({
+        saleId,
+        invoiceNumber,
+        saleTotal,
+        saleSubtotal,
+        saleDiscount,
+        alreadyRefunded,
+        remainingQty,
+        reason,
+        notes: notes.trim() || undefined,
+        items: selected.map((row) => ({
+          saleItemId: row.item.id,
+          productId: row.item.productId,
+          productName: row.item.productName,
+          soldQty: row.item.quantity,
+          remainingQty: row.item.remainingQuantity,
+          lineTotal: row.item.lineTotal,
+          unitPrice: row.item.unitPrice,
+          quantity: row.quantity,
+        })),
+      });
+      toast.success(
+        online
+          ? `Return ${result.returnNumber} processed`
+          : `Return ${result.returnNumber} saved on this device`,
+      );
+      onCompleted({
+        returnNumber: result.returnNumber,
+        receiptPayload: result.receiptPayload,
+      });
       setQtyByItem({});
       setReason("");
       setNotes("");

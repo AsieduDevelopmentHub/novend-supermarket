@@ -32,12 +32,15 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { Building2, Eye, Pencil, Plus } from "lucide-react";
+import { persistBusinessWrite, queuedSaveMessage, queueUpsertBranch } from "@/lib/offline/replica-writes";
+import { useConnectivity } from "@/hooks/use-connectivity";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 
 export function BranchesView() {
   const { canManageBranches } = usePermissions();
   const branches = useBranchesList(true);
+  const online = useConnectivity();
   const createBranch = useMutation(api.branches.create);
   const updateBranch = useMutation(api.branches.update);
 
@@ -92,13 +95,24 @@ export function BranchesView() {
     event.preventDefault();
     setPending(true);
     try {
-      await createBranch({
-        name,
-        code,
-        address: address || undefined,
-        phone: phone || undefined,
+      const kind = await persistBusinessWrite({
+        online,
+        remote: () =>
+          createBranch({
+            name,
+            code,
+            address: address || undefined,
+            phone: phone || undefined,
+          }),
+        local: () =>
+          queueUpsertBranch({
+            name,
+            code,
+            address: address || undefined,
+            phone: phone || undefined,
+          }),
       });
-      toast.success("Branch created");
+      toast.success(queuedSaveMessage(kind, "Branch created"));
       setCreating(false);
       resetForm();
     } catch (error) {
@@ -113,15 +127,28 @@ export function BranchesView() {
     if (!editingId) return;
     setPending(true);
     try {
-      await updateBranch({
-        id: editingId,
-        name,
-        code,
-        address: address || undefined,
-        phone: phone || undefined,
-        status,
+      const kind = await persistBusinessWrite({
+        online,
+        remote: () =>
+          updateBranch({
+            id: editingId,
+            name,
+            code,
+            address: address || undefined,
+            phone: phone || undefined,
+            status,
+          }),
+        local: () =>
+          queueUpsertBranch({
+            serverId: editingId,
+            name,
+            code,
+            address: address || undefined,
+            phone: phone || undefined,
+            status,
+          }),
       });
-      toast.success("Branch updated");
+      toast.success(queuedSaveMessage(kind, "Branch updated"));
       setEditingId(null);
     } catch (error) {
       showError(error, "Update failed");

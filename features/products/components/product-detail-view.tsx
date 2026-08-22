@@ -3,7 +3,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
-import Image from "next/image";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
@@ -38,6 +37,7 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { getMirroredProduct } from "@/lib/offline/mirror-queries";
 import { persistBusinessWrite, queuedSaveMessage, queueAdjustStock } from "@/lib/offline/replica-writes";
 import { ArrowLeft, Package, Pencil, PackagePlus, Trash2 } from "lucide-react";
+import { ProductImage } from "@/components/media/product-image";
 import { toast } from "sonner";
 import { ProductFormDialog } from "./product-form-dialog";
 
@@ -225,18 +225,13 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
         <Card>
           <CardContent className="p-4">
             <div className="bg-muted relative aspect-square overflow-hidden rounded-xl">
-              {product.imageUrl ? (
-                <Image
-                  src={product.imageUrl}
-                  alt={product.name}
-                  fill
-                  className="object-cover"
-                  sizes="280px"
-                  unoptimized
-                />
-              ) : (
-                <Package className="text-muted-foreground absolute inset-0 m-auto h-12 w-12" />
-              )}
+              <ProductImage
+                productId={product._id}
+                remoteUrl={product.imageUrl}
+                alt={product.name}
+                sizes="280px"
+                fallback={<Package className="text-muted-foreground absolute inset-0 m-auto h-12 w-12" />}
+              />
             </div>
           </CardContent>
         </Card>

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/currency";
-import Image from "next/image";
+import { ProductImage } from "@/components/media/product-image";
 
 export type BarcodeMatchProduct = {
   id: string;
@@ -49,16 +49,7 @@ export function BarcodeMatchDialog({ open, code, products, onOpenChange, onSelec
                 onClick={() => onSelect(product)}
               >
                 <div className="bg-muted relative h-10 w-10 shrink-0 overflow-hidden rounded-md">
-                  {product.imageUrl ? (
-                    <Image
-                      src={product.imageUrl}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="40px"
-                      unoptimized
-                    />
-                  ) : null}
+                  <ProductImage productId={product.id} remoteUrl={product.imageUrl} alt="" sizes="40px" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{product.name}</p>

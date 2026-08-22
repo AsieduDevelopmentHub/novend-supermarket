@@ -15,6 +15,7 @@ const OP_LABELS: Record<OutboxOpType, string> = {
   create_user: "User account",
   upsert_product: "Product",
   create_category: "Category",
+  upsert_branch: "Branch",
 };
 
 export function outboxOpLabel(type: OutboxOpType | string) {
@@ -69,8 +70,8 @@ export function describeOutboxEvent(row: OutboxRow): { title: string; detail: st
     const sku = text(payload.sku);
     return { title, detail: [name, sku].filter(Boolean).join(" · ") || title };
   }
-  if (row.type === "create_category" || row.type === "create_user") {
-    return { title, detail: text(payload.name) ?? title };
+  if (row.type === "create_category" || row.type === "create_user" || row.type === "upsert_branch") {
+    return { title, detail: text(payload.name) ?? text(payload.code) ?? title };
   }
   if (row.type === "record_wholesale_purchase") {
     return { title, detail: text(payload.invoiceNumber) ?? "Purchase waiting to upload" };
