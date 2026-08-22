@@ -44,6 +44,30 @@ export const ENTERPRISE_SALES_MAILTO = buildSalesMailto({
   ].join("\n"),
 });
 
+/** General Contact Sales — not plan-specific (final CTA / general outreach). */
+export const GENERAL_SALES_MAILTO = buildSalesMailto({
+  subject: "Novend Sales Inquiry",
+  body: [
+    "Hello Novend Sales Team,",
+    "",
+    "I would like to learn more about Novend for my business.",
+    "",
+    "Please find my details below:",
+    "",
+    "Business / organization name:",
+    "Industry:",
+    "What I need help with (demo, pricing, onboarding, other):",
+    "Preferred plan interest (Basic / Pro / Enterprise / Lifetime / not sure):",
+    "Number of branches / locations:",
+    "Preferred contact method (email / phone / WhatsApp):",
+    "",
+    "Thank you,",
+    "Full name:",
+    "Phone / WhatsApp:",
+    "Email:",
+  ].join("\n"),
+});
+
 export const landingCopy = {
   brand: APP_BRAND,
   tagline: APP_TAGLINE,
@@ -467,38 +491,71 @@ export const landingCopy = {
       },
     ],
   },
+  trust: {
+    badge: "Trusted Business Infrastructure",
+    title: "Everything You Need to Start with Confidence",
+    subtitle:
+      "Novend is built for real business operations with offline-first reliability, automatic cloud synchronization, secure data ownership, and seamless upgrades as your business grows.",
+    cards: [
+      {
+        id: "offline",
+        title: "Offline-First Always",
+        detail:
+          "Every sale, inventory update, customer, and receipt continues working without internet.",
+      },
+      {
+        id: "data",
+        title: "Your Data Belongs to You",
+        detail:
+          "Business data is stored locally first and securely synchronized to the cloud when connected.",
+      },
+      {
+        id: "upgrade",
+        title: "Upgrade Without Losing Data",
+        detail:
+          "Move from Basic to Pro or Enterprise without migrating or rebuilding your system.",
+      },
+      {
+        id: "support",
+        title: "Commercial Support",
+        detail:
+          "Get onboarding assistance, updates, and priority support for growing businesses.",
+      },
+    ],
+  },
   faq: {
-    eyebrow: "FAQ",
-    title: "Questions & answers",
+    badge: "FAQ",
+    title: "Questions business owners ask before they start",
     items: [
       {
-        q: "Does Novend work offline?",
-        a: "Yes. Checkout and your local database run on the device. When you reconnect, committed work syncs to the cloud automatically.",
+        q: "Does Novend work without internet?",
+        a: "Yes. Every core business operation runs locally and automatically synchronizes when internet returns.",
       },
       {
-        q: "Can I use multiple branches?",
-        a: "Yes. Move warehouse stock to branches, filter reports by location, and manage staff per branch.",
+        q: "Can I upgrade my plan later?",
+        a: "Absolutely. Your products, customers, branches, and sales remain intact during upgrades.",
       },
       {
-        q: "Can I migrate my inventory?",
-        a: "Yes. Import products, set opening stock, and start selling. Your team can receive and adjust stock with full history.",
+        q: "Can I import my existing inventory?",
+        a: "Yes. Novend supports importing products and inventory through Excel and CSV.",
       },
       {
-        q: "Do I need internet?",
-        a: "Only for initial setup and sync. Day-to-day selling works offline; the network catches up when it returns.",
+        q: "Does Novend support barcode scanners and receipt printers?",
+        a: "Yes. Camera scanning, hardware barcode scanners, and thermal receipt printing are supported across the platform.",
       },
       {
-        q: "Is there a desktop app, or mobile app?",
-        a: "Yes. Dedicated desktop builds for Windows, macOS, and Linux plus a web app for phones and tablets — same Novend experience.",
+        q: "Which businesses is Novend designed for?",
+        a: "Supermarkets, pharmacies, wholesalers, boutiques, electronics stores, convenience shops, and many other retail businesses.",
       },
     ],
   },
   cta: {
-    title: "Ready to Modernize Your Store?",
+    title: "Ready to Modernize Your Business?",
     subtitle:
-      "Offline-first checkout, inventory, and cloud sync — built for real businesses, ready to grow.",
+      "Start your 14-day free trial and experience the complete offline-first commercial POS built for modern retail.",
     primary: "Start Free Trial",
     secondary: "Contact Sales",
+    chips: ["No Card Required", "Setup in Minutes", "Works Offline"],
   },
   nav: [
     { href: "#journey", label: "How it Works" },

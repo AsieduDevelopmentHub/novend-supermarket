@@ -969,6 +969,29 @@
     radial-gradient(ellipse 80% 60% at 20% 20%, rgba(56, 189, 248, 0.18), transparent 55%),
     radial-gradient(ellipse 70% 50% at 80% 80%, rgba(56, 189, 248, 0.12), transparent 50%),
     #ffffff;
+  background-size: 120% 120%, 120% 120%, auto;
+  animation: landing-cta-mesh-drift 28s ease-in-out infinite alternate;
+}
+
+@keyframes landing-cta-mesh-drift {
+  from {
+    background-position:
+      0% 20%,
+      100% 80%,
+      0 0;
+  }
+  to {
+    background-position:
+      18% 28%,
+      82% 72%,
+      0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-cta-mesh {
+    animation: none;
+  }
 }
 
 .landing-feature-card:hover {
