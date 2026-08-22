@@ -2,16 +2,18 @@ import { APP_BRAND, APP_TAGLINE } from "@/constants/app";
 
 export const LANDING_CONTACT_EMAIL = "asiedudev.hub@gmail.com";
 
-/** Build a mailto URL with subject + body for sales outreach. */
+/** Build a mailto URL with subject + body for sales outreach.
+ * Uses encodeURIComponent (%20) — URLSearchParams uses +, which many mail clients show literally.
+ */
 export function buildSalesMailto(options: {
   subject: string;
   body: string;
 }): string {
-  const params = new URLSearchParams({
-    subject: options.subject,
-    body: options.body,
-  });
-  return `mailto:${LANDING_CONTACT_EMAIL}?${params.toString()}`;
+  return (
+    `mailto:${LANDING_CONTACT_EMAIL}` +
+    `?subject=${encodeURIComponent(options.subject)}` +
+    `&body=${encodeURIComponent(options.body)}`
+  );
 }
 
 export const ENTERPRISE_SALES_MAILTO = buildSalesMailto({
