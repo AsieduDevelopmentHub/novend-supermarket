@@ -55,6 +55,29 @@ export const JOURNEY_STEP_SCREENS = {
   warehouse: MARKETING_UI_SCREENS.inventoryWholesale,
   transfer: MARKETING_UI_SCREENS.inventoryWholesaleIssueModal,
   sell: MARKETING_UI_SCREENS.salesPos,
-  local: MARKETING_UI_SCREENS.salesOrders,
+  local: MARKETING_UI_SCREENS.inventoryStock,
   sync: MARKETING_UI_SCREENS.syncRecent,
+} as const;
+
+/** Feature showcase — one real screen (or split pair) per capability block. */
+export const FEATURE_BLOCK_SCREENS = {
+  checkout: MARKETING_UI_SCREENS.salesPos,
+  inventory: MARKETING_UI_SCREENS.inventoryStock,
+  wholesale: MARKETING_UI_SCREENS.inventoryWholesale,
+  analytics: MARKETING_UI_SCREENS.businessAnalyticsOverview,
+  relationships: {
+    primary: MARKETING_UI_SCREENS.salesCustomerDetail,
+    secondary: MARKETING_UI_SCREENS.inventorySuppliers,
+  },
+  reports: MARKETING_UI_SCREENS.businessReports,
+} as const;
+
+/** Industry selector — real UI tailored per retail vertical. */
+export const INDUSTRY_SHOWCASE_SCREENS = {
+  pharmacy: MARKETING_UI_SCREENS.inventoryProductDetailExpiry,
+  supermarket: MARKETING_UI_SCREENS.salesPos,
+  wholesale: MARKETING_UI_SCREENS.inventoryWholesale,
+  fashion: MARKETING_UI_SCREENS.inventoryProducts,
+  electronics: MARKETING_UI_SCREENS.inventoryProductDetail,
+  convenience: MARKETING_UI_SCREENS.inventoryStock,
 } as const;

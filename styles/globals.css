@@ -1642,6 +1642,13 @@
   aspect-ratio: 16 / 9;
 }
 
+.landing-journey-panel-frame > .landing-expandable-shot {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+}
+
 .landing-journey-v2-shot {
   position: absolute;
   inset: 0;
@@ -2096,5 +2103,297 @@
 
   .landing-arch-kpi:hover {
     transform: none;
+  }
+}
+
+/* —— Section 4: Product capabilities showcase —— */
+.landing-feature-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #0f172a;
+  aspect-ratio: 16 / 10;
+  transition:
+    transform 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.landing-feature-frame:hover,
+.landing-expandable-shot:hover .landing-feature-frame,
+button.landing-feature-frame:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 28px 56px -20px rgba(15, 23, 42, 0.2),
+    0 12px 24px -12px rgba(56, 189, 248, 0.18);
+}
+
+button.landing-feature-frame {
+  /* button reset for expandable frame */
+  appearance: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+}
+
+.landing-feature-shot {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: top center;
+  display: block;
+  background: #0f172a;
+}
+
+.landing-feature-frame-charts::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(56, 189, 248, 0.12) 48%,
+    transparent 62%
+  );
+  transform: translateX(-120%);
+  animation: landing-feature-chart-sweep 2.4s ease-out 0.35s 1 both;
+}
+
+.landing-feature-frame-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  aspect-ratio: auto;
+  gap: 0.65rem;
+  padding: 0.65rem;
+  background: #f8fafc;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+@media (min-width: 640px) {
+  .landing-feature-frame-split {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.landing-feature-split-pane {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #0f172a;
+  aspect-ratio: 16 / 10;
+  min-height: 0;
+}
+
+.landing-feature-split-label {
+  position: absolute;
+  z-index: 2;
+  top: 0.65rem;
+  left: 0.65rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(17, 24, 39, 0.72);
+  padding: 0.2rem 0.5rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #e2e8f0;
+  backdrop-filter: blur(6px);
+}
+
+.landing-feature-export-chip {
+  position: absolute;
+  z-index: 2;
+  right: 0.85rem;
+  bottom: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  max-width: calc(100% - 1.5rem);
+  pointer-events: none;
+}
+
+.landing-feature-export-chip span {
+  border-radius: 0.45rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.94);
+  padding: 0.28rem 0.55rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #111827;
+  box-shadow: 0 8px 18px -12px rgba(15, 23, 42, 0.35);
+}
+
+.landing-expandable-hint {
+  position: absolute;
+  z-index: 3;
+  right: 0.75rem;
+  top: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(15, 23, 42, 0.72);
+  padding: 0.3rem 0.65rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #f8fafc;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+
+.landing-expandable-shot:hover .landing-expandable-hint,
+.landing-expandable-shot:focus-visible .landing-expandable-hint {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.landing-expandable-shot:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 3px;
+}
+
+.landing-screenshot-lightbox [data-slot],
+.landing-screenshot-lightbox button.absolute {
+  color: #f8fafc;
+}
+
+@keyframes landing-feature-chart-sweep {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(120%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-feature-frame:hover,
+  button.landing-feature-frame:hover {
+    transform: none;
+  }
+
+  .landing-feature-frame-charts::after {
+    animation: none;
+    opacity: 0;
+  }
+
+  .landing-expandable-hint {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* —— Section 5: Industry showcase —— */
+.landing-industry-pills {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.landing-industry-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.landing-industry-shot-frame {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0f172a;
+  aspect-ratio: 16 / 10;
+}
+
+.landing-industry-shot {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: top center;
+  display: block;
+  background: #0f172a;
+}
+
+.landing-industry-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  animation: landing-industry-enter 380ms ease both;
+}
+
+.landing-industry-copy {
+  animation: landing-industry-enter 380ms ease both;
+}
+
+.landing-industry-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.landing-industry-kpi {
+  border-radius: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.65rem 0.7rem;
+}
+
+.landing-industry-kpi dt {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.landing-industry-kpi dd {
+  margin-top: 0.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #f8fafc;
+  font-variant-numeric: tabular-nums;
+  animation: landing-industry-kpi 420ms ease both;
+}
+
+@keyframes landing-industry-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes landing-industry-kpi {
+  from {
+    opacity: 0.35;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-industry-visual,
+  .landing-industry-copy,
+  .landing-industry-kpi dd {
+    animation: none !important;
   }
 }

@@ -17,6 +17,6 @@ export const JOURNEY_STEP_FRAME: Record<JourneyStepId, JourneyStepFrame> = {
   warehouse: { fit: "cover", objectPosition: "50% 12%" },
   transfer: { fit: "contain" },
   sell: { fit: "cover", objectPosition: "38% 50%" },
-  local: { fit: "cover", objectPosition: "50% 22%" },
+  local: { fit: "cover", objectPosition: "50% 14%" },
   sync: { fit: "contain" },
 };

@@ -15,7 +15,6 @@ import { LandingJourney } from "@/features/marketing/components/landing-journey"
 import { LandingArchitecture } from "@/features/marketing/components/landing-architecture";
 import { LandingFeatures } from "@/features/marketing/components/landing-features";
 import { LandingIndustries } from "@/features/marketing/components/landing-industries";
-import { LandingAnalyticsShowcase } from "@/features/marketing/components/landing-analytics-showcase";
 import { LandingPricing } from "@/features/marketing/components/landing-pricing";
 import { LandingFaq } from "@/features/marketing/components/landing-faq";
 import { LandingCta } from "@/features/marketing/components/landing-cta";
@@ -63,7 +62,6 @@ export function LandingPage() {
           <LandingArchitecture />
           <LandingFeatures />
           <LandingIndustries />
-          <LandingAnalyticsShowcase />
           <LandingPricing />
           <LandingFaq />
           <LandingCta />

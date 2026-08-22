@@ -144,48 +144,197 @@ export const landingCopy = {
     ],
   },
   features: {
-    eyebrow: "Features",
-    title: "Everything a modern store needs",
-    subtitle: "Six core capabilities — built for real counters, not slide decks.",
-    cards: [
+    badge: "Complete Business Platform",
+    title: "Everything You Need to Run a Modern Store",
+    subtitle:
+      "From checkout and barcode scanning to wholesale inventory and multi-branch management, Novend brings every business operation into one beautifully connected platform.",
+    blocks: [
       {
-        title: "Offline POS",
-        detail: "Checkout, receipts, and held sales keep running when the network drops.",
+        id: "checkout",
+        title: "Smart Checkout Built for Speed",
+        detail:
+          "Complete sales in seconds using barcode scanning, discounts, multiple payment methods, and instant receipt printing—even while offline.",
+        bullets: ["Barcode ready", "Split payments", "Hold & resume sales", "Offline checkout"],
       },
       {
-        title: "Inventory",
-        detail: "Branch stock, low-stock alerts, expiry tracking, and full audit history.",
+        id: "inventory",
+        title: "Inventory Without Guesswork",
+        detail:
+          "Track stock movement, valuation, adjustments, batches, and low-stock alerts from one centralized inventory system.",
+        bullets: ["Stock adjustments", "Low stock alerts", "SKU & barcode", "Product images"],
       },
       {
-        title: "Barcode Scanner",
-        detail: "USB scanners and camera capture — products found in milliseconds.",
+        id: "wholesale",
+        title: "One Warehouse. Multiple Branches.",
+        detail:
+          "Separate wholesale inventory from branch stock while maintaining complete transfer history and accurate quantities.",
+        bullets: [
+          "Wholesale storage",
+          "Branch transfers",
+          "Transfer history",
+          "Quantity tracking",
+        ],
       },
       {
-        title: "Branch Management",
-        detail: "Warehouse to branch transfers with organization-wide visibility.",
+        id: "analytics",
+        title: "See Your Business at a Glance",
+        detail:
+          "Monitor revenue, profit, inventory value, customer growth, and best-selling products through beautiful real-time dashboards.",
+        bullets: [
+          "Revenue insights",
+          "Profit tracking",
+          "Category performance",
+          "Best sellers",
+        ],
       },
       {
-        title: "Reports",
-        detail: "Daily sales, branch performance, and exportable business summaries.",
+        id: "relationships",
+        title: "Build Stronger Customer & Supplier Relationships",
+        detail:
+          "Keep complete customer histories, supplier records, outstanding balances, and purchase activity in one connected system.",
+        bullets: [
+          "Customer history",
+          "Supplier management",
+          "Outstanding balances",
+          "Notes & contacts",
+        ],
       },
       {
-        title: "Analytics",
-        detail: "KPI cards, revenue trends, and category breakdowns managers trust.",
+        id: "reports",
+        title: "Professional Reports in One Click",
+        detail:
+          "Generate printable sales, inventory, returns, expenses, and branch reports for smarter business decisions.",
+        bullets: ["PDF exports", "Excel exports", "Inventory reports", "Branch reports"],
       },
     ],
   },
-  industriesIntro: {
-    title: "Built for how you actually sell",
-    subtitle: "From provision shops to pharmacies and wholesale yards — one system, many formats.",
+  industries: {
+    badge: "Built for Every Retail Business",
+    title: "One Platform. Designed for Every Type of Store.",
+    subtitle:
+      "Whether you manage a neighborhood pharmacy, a supermarket, a wholesale warehouse, or a fashion boutique, Novend adapts to the way your business operates.",
+    items: [
+      {
+        id: "pharmacy",
+        pill: "Pharmacy",
+        title: "Pharmacy & Medical Stores",
+        detail:
+          "Dispense with confidence using batch tracking, expiry alerts, and barcode-ready checkout built for regulated inventory.",
+        capabilities: [
+          "Batch & expiry tracking",
+          "Barcode dispensing",
+          "Supplier restocking",
+          "Sales history",
+        ],
+        cta: "See Pharmacy Workflow",
+        kpis: [
+          { label: "Near expiry", value: "12" },
+          { label: "SKUs tracked", value: "840" },
+          { label: "Today’s scripts", value: "64" },
+        ],
+      },
+      {
+        id: "supermarket",
+        pill: "Supermarket",
+        title: "Supermarkets & Grocery",
+        detail:
+          "Keep high-volume counters moving with fast barcode checkout, category browsing, and receipts that print the moment payment clears.",
+        capabilities: [
+          "Fast barcode checkout",
+          "Category browsing",
+          "Hold & resume sales",
+          "Instant receipts",
+        ],
+        cta: "See Supermarket Workflow",
+        kpis: [
+          { label: "Avg. checkout", value: "18s" },
+          { label: "Categories", value: "36" },
+          { label: "Open carts", value: "4" },
+        ],
+      },
+      {
+        id: "wholesale",
+        pill: "Wholesale",
+        title: "Wholesale & Distribution",
+        detail:
+          "Run a central warehouse, issue stock to branches, and keep supplier deliveries and bulk quantities accurate in one workflow.",
+        capabilities: [
+          "Wholesale storage",
+          "Branch transfers",
+          "Supplier deliveries",
+          "Bulk quantities",
+        ],
+        cta: "See Wholesale Workflow",
+        kpis: [
+          { label: "Warehouse SKUs", value: "2.1k" },
+          { label: "Open transfers", value: "7" },
+          { label: "Branches", value: "5" },
+        ],
+      },
+      {
+        id: "fashion",
+        pill: "Fashion",
+        title: "Fashion & Apparel",
+        detail:
+          "Sell by size and color with product imagery, variation stock, and clean receipts tailored to boutique and apparel counters.",
+        capabilities: [
+          "Size & color variants",
+          "Product imagery",
+          "Stock by variation",
+          "Boutique-ready receipts",
+        ],
+        cta: "See Fashion Workflow",
+        kpis: [
+          { label: "Variants", value: "318" },
+          { label: "Low stock", value: "9" },
+          { label: "Looks sold", value: "27" },
+        ],
+      },
+      {
+        id: "electronics",
+        pill: "Electronics",
+        title: "Electronics & High-Value Goods",
+        detail:
+          "Track serials and SKUs carefully, protect high-value inventory, and keep warranty-relevant product detail close to every sale.",
+        capabilities: [
+          "Serial / SKU control",
+          "High-value inventory",
+          "Product detail records",
+          "Precise stock counts",
+        ],
+        cta: "See Electronics Workflow",
+        kpis: [
+          { label: "Active SKUs", value: "1.4k" },
+          { label: "High value", value: "86" },
+          { label: "Adjustments", value: "3" },
+        ],
+      },
+      {
+        id: "convenience",
+        pill: "Convenience",
+        title: "Convenience & Neighborhood Stores",
+        detail:
+          "Keep a lean catalog, scan quickly, and stay selling through outages with low-stock alerts that protect everyday essentials.",
+        capabilities: [
+          "Quick barcode checkout",
+          "Lean product catalog",
+          "Low-stock alerts",
+          "Offline-ready till",
+        ],
+        cta: "See Convenience Workflow",
+        kpis: [
+          { label: "Catalog size", value: "220" },
+          { label: "Low stock", value: "14" },
+          { label: "Sales today", value: "91" },
+        ],
+      },
+    ],
+    metrics: [
+      { label: "Industries Supported", value: "10+" },
+      { label: "Offline Availability", value: "100%" },
+      { label: "Deployment Options", value: "Desktop · Web · Mobile Ready" },
+    ],
   },
-  industries: [
-    { name: "Pharmacy", hint: "Expiry tracking & fast checkout" },
-    { name: "Supermarket", hint: "High-volume barcode sales" },
-    { name: "Wholesale", hint: "Warehouse & branch transfers" },
-    { name: "Boutique", hint: "Variants & clean receipts" },
-    { name: "Electronics", hint: "SKU-heavy catalog" },
-    { name: "Convenience Store", hint: "Quick sales offline" },
-  ],
   analytics: {
     eyebrow: "Analytics",
     title: "See your business clearly",
@@ -235,6 +384,7 @@ export const landingCopy = {
     { href: "#journey", label: "How it Works" },
     { href: "#architecture", label: "Offline" },
     { href: "#features", label: "Features" },
+    { href: "#industries", label: "Industries" },
     { href: "#pricing", label: "Pricing" },
     { href: "#faq", label: "FAQ" },
   ],

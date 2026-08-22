@@ -8,7 +8,7 @@ const STEP_ALT: Record<(typeof landingCopy.journey.steps)[number]["id"], string>
   warehouse: "Novend wholesale warehouse with stock quantities and valuation",
   transfer: "Issue warehouse stock to a branch in Novend",
   sell: "Novend POS checkout with barcode-ready product grid and cart",
-  local: "Novend orders list showing completed sales saved on this device",
+  local: "Novend inventory stock levels saved and visible on this device",
   sync: "Novend sync center showing recent uploads to the cloud",
 };
 
