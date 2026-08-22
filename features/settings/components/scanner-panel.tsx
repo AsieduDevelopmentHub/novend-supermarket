@@ -31,9 +31,9 @@ import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { ScanBarcodeCameraDialog } from "@/components/hardware/scan-barcode-camera-dialog";
 import { toast } from "sonner";
 import { showError, toUserMessage } from "@/lib/errors";
-import { formatOperatingSystem } from "@/lib/desktop";
+import { formatOperatingSystem, isDesktopRuntime } from "@/lib/desktop";
 import { cn } from "@/lib/utils";
-import { Loader2, RefreshCw, ScanBarcode, CheckCircle2, Info, Camera } from "lucide-react";
+import { Loader2, RefreshCw, ScanBarcode, CheckCircle2, Info } from "lucide-react";
 
 type BridgeSnapshot = {
   state: "unknown" | "online" | "offline";
@@ -63,6 +63,7 @@ export function ScannerPanel() {
   const [cameraOpen, setCameraOpen] = useState(false);
 
   const isDesktopOnline = bridge.state === "online";
+  const isDesktopApp = isDesktopRuntime();
   const connection = getScannerConnectionState(config, isDesktopOnline, listening);
 
   useBarcodeScanner(
@@ -104,23 +105,27 @@ export function ScannerPanel() {
     try {
       const snapshot = await readBridgeSnapshot();
       setBridge(snapshot);
-      if (snapshot.state !== "online") {
-        toast.error("Hardware bridge unavailable. Restart the app and try again.");
-        return;
-      }
+
       const result = await discoverScanners();
       setDiscovered(result.scanners);
+
       if (!result.ok) {
-        toast.error(result.message ? toUserMessage(result.message, "Could not find scanners") : "Could not find scanners");
+        const fallback = isDesktopApp
+          ? "Could not find scanners. Restart Novend POS and try again."
+          : "Could not refresh the scanner list. Try again.";
+        toast.error(
+          result.message ? toUserMessage(result.message, fallback) : fallback,
+        );
         return;
       }
-      toast.success(result.message || "Devices refreshed");
+
+      toast.success(result.message || "Scanner list updated");
       if (result.scanners.length === 1 && !config.deviceId) {
         const only = result.scanners[0]!;
         patch({ deviceId: only.id, deviceLabel: only.label });
       }
     } catch (error) {
-      showError(error, "Discover failed");
+      showError(error, "Could not refresh scanners");
     } finally {
       setDiscovering(false);
     }
@@ -154,8 +159,9 @@ export function ScannerPanel() {
           <AlertTitle>Scanner ready</AlertTitle>
           <AlertDescription>
             HID keyboard-wedge scans are enabled for POS. Selected: {config.deviceLabel || "—"}
-            {bridge.version ? ` · Desktop ${bridge.version}` : null}
-            {bridge.platform ? ` · ${formatOperatingSystem(bridge.platform)}` : null}
+            {isDesktopApp && bridge.version ? ` · Desktop ${bridge.version}` : null}
+            {isDesktopApp && bridge.platform ? ` · ${formatOperatingSystem(bridge.platform)}` : null}
+            {!isDesktopApp ? " · Browser mode — use Sales to scan with camera or a USB wedge." : null}
           </AlertDescription>
         </Alert>
       ) : connection === "disabled" ? (
@@ -164,25 +170,44 @@ export function ScannerPanel() {
           <AlertTitle>Scanner disabled</AlertTitle>
           <AlertDescription>
             Enable the barcode scanner below to add products by scanning on the sales screen.
+            {!isDesktopApp
+              ? " You can also use the barcode icon on Sales to scan with your camera."
+              : null}
           </AlertDescription>
         </Alert>
-      ) : (
+      ) : null}
+
+      {!isDesktopApp && connection !== "listening" ? (
         <Alert>
           <Info className="h-4 w-4" />
-          <AlertTitle>Not connected</AlertTitle>
+          <AlertTitle>Browser scanning</AlertTitle>
           <AlertDescription>
-            The desktop hardware bridge is offline or no scanner is selected. Restart Novend POS
-            and click Discover Devices.
+            In the web app, plug in a USB scanner that types like a keyboard, or use the barcode
+            icon on Sales to scan with your camera. Discover Devices does not require the desktop
+            app.
           </AlertDescription>
         </Alert>
-      )}
+      ) : isDesktopApp && !isDesktopOnline && connection !== "listening" ? (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Desktop connection starting</AlertTitle>
+          <AlertDescription>
+            USB scanner discovery works best after Novend POS has fully started. Keyboard-wedge
+            scanning still works on the sales screen.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle className="text-base">Connection status</CardTitle>
-              <CardDescription>Per-terminal barcode scanner for this desktop install.</CardDescription>
+              <CardDescription>
+                {isDesktopApp
+                  ? "Barcode scanner settings for this Novend POS terminal."
+                  : "Barcode scanner settings for this browser or PWA session."}
+              </CardDescription>
             </div>
             <Badge
               variant="outline"
@@ -233,8 +258,9 @@ export function ScannerPanel() {
               Discover Devices
             </Button>
             <p className="text-muted-foreground text-xs">
-              USB HID scanners that type like a keyboard appear here. Dedicated USB/serial adapters
-              will plug into the same discovery list later.
+              {isDesktopApp
+                ? "Lists USB HID scanners and keyboard-wedge devices connected to this terminal."
+                : "In the browser, this selects keyboard-wedge mode. Use the barcode icon on Sales for camera scanning."}
             </p>
           </div>
 
@@ -308,7 +334,7 @@ export function ScannerPanel() {
               {listening ? "Listening…" : "Test scanner"}
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={() => setCameraOpen(true)}>
-              <Camera className="mr-2 h-4 w-4" />
+              <ScanBarcode className="mr-2 h-4 w-4" />
               Test camera
             </Button>
           </div>

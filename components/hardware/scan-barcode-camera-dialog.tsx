@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,7 @@ import {
   startCameraBarcodeScanning,
   type CameraScannerSession,
 } from "@/services/hardware";
-import { Camera, Loader2 } from "lucide-react";
+import { Loader2, ScanBarcode } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -35,8 +35,7 @@ type Props = {
 };
 
 /**
- * Camera barcode reader. Opens only after an explicit click.
- * Uses native Barcode Detection when available; ZXing fallback for Electron.
+ * Camera barcode reader. Opens after an explicit tap; camera starts automatically.
  */
 export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -91,7 +90,7 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
     onOpenChange(next);
   }
 
-  async function startScanner(deviceId?: string) {
+  const startScanner = useCallback(async (deviceId?: string) => {
     setStarting(true);
     setError(null);
     setReady(false);
@@ -122,7 +121,8 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
           playScanSuccessBeep();
           window.setTimeout(() => {
             onDetect(code);
-            handleOpenChange(false);
+            stopScanner();
+            onOpenChange(false);
           }, 350);
         },
       });
@@ -141,7 +141,15 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
     } finally {
       setStarting(false);
     }
-  }
+  }, [onDetect, onOpenChange, supported]);
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => {
+      void startScanner();
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [open, session, startScanner]);
 
   async function switchCamera(nextDeviceId: string) {
     if (!nextDeviceId || nextDeviceId === selectedDeviceId) return;
@@ -153,7 +161,7 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg" key={session}>
         <DialogHeader>
-          <DialogTitle>Scan with camera</DialogTitle>
+          <DialogTitle>Scan barcode</DialogTitle>
         </DialogHeader>
 
         {devices.length > 1 && ready ? (
@@ -176,42 +184,28 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
 
         <div className="bg-muted relative aspect-video overflow-hidden rounded-lg">
           <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
-          {!ready && !starting ? (
+          {error ? (
             <div className="absolute inset-0 grid place-items-center gap-3 bg-muted p-4 text-center">
-              {error ? (
-                <>
-                  <p className="text-muted-foreground text-sm">{error}</p>
-                  {supported ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void startScanner(selectedDeviceId || undefined)}
-                      disabled={starting}
-                    >
-                      <Camera className="mr-2 h-4 w-4" />
-                      Try again
-                    </Button>
-                  ) : null}
-                </>
-              ) : (
-                <>
-                  <p className="text-muted-foreground text-sm">
-                    Point the camera at a barcode. Detection stops automatically.
-                  </p>
-                  <Button
-                    type="button"
-                    onClick={() => void startScanner(selectedDeviceId || undefined)}
-                    disabled={starting}
-                  >
-                    <Camera className="mr-2 h-4 w-4" />
-                    Allow camera & start
-                  </Button>
-                </>
-              )}
+              <p className="text-muted-foreground text-sm">{error}</p>
+              {supported ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void startScanner(selectedDeviceId || undefined)}
+                  disabled={starting}
+                >
+                  {starting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <ScanBarcode className="mr-2 h-4 w-4" />
+                  )}
+                  Try again
+                </Button>
+              ) : null}
             </div>
           ) : null}
-          {starting ? (
+          {starting && !ready ? (
             <div className="absolute inset-0 grid place-items-center bg-muted/80">
               <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
             </div>
@@ -244,6 +238,10 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
             </>
           ) : null}
         </div>
+
+        <p className="text-muted-foreground text-center text-xs">
+          Point the camera at a barcode. Scanning stops when a code is detected.
+        </p>
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>

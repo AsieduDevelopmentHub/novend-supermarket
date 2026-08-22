@@ -27,7 +27,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { formatCurrency, roundMoney } from "@/lib/currency";
-import { Minus, Package, Plus, ShoppingCart, UserRound, X } from "lucide-react";
+import { Minus, Package, Plus, ScanBarcode, ShoppingCart, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { printReceipt, loadTerminalPrinterConfig, probePrintBridge } from "@/services/printing";
@@ -49,7 +49,8 @@ import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
 import type { LocalHeldSale } from "@/lib/offline/types";
 import { cn } from "@/lib/utils";
 import { ProductImage } from "@/components/media/product-image";
-import { isBarcodeScanningEnabled, playScanSuccessBeep } from "@/services/hardware";
+import { isBarcodeScanningEnabled, playScanSuccessBeep, shouldShowCameraBarcodeButton } from "@/services/hardware";
+import { ScanBarcodeCameraDialog } from "@/components/hardware/scan-barcode-camera-dialog";
 import {
   BarcodeMatchDialog,
   type BarcodeMatchProduct,
@@ -103,6 +104,8 @@ export function SalesView() {
     code: string;
     products: BarcodeMatchProduct[];
   } | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const showCameraScan = shouldShowCameraBarcodeButton();
 
   const branches = useQuery(api.branches.list, isAdmin ? {} : "skip");
   const workingBranchId = isAdmin
@@ -241,44 +244,45 @@ export function SalesView() {
     toast.success(`Added ${product.name}`);
   }
 
-  useBarcodeScanner(
-    (code) => {
-      if (!isBarcodeScanningEnabled()) return;
-      void (async () => {
-        const localMatches = await findLocalProductsByBarcode(
-          code,
-          workingBranchId ?? myBranchId ?? undefined,
-        );
-        const catalogMatches = catalog.filter(
-          (p) =>
-            p.sku.toLowerCase() === code.trim().toLowerCase() ||
-            (p.barcode?.trim().toLowerCase() ?? "") === code.trim().toLowerCase(),
-        );
-        const byId = new Map<string, BarcodeMatchProduct>();
-        for (const product of [...localMatches, ...catalogMatches]) {
-          byId.set(product.id, {
-            id: product.id,
-            name: product.name,
-            sku: product.sku,
-            sellingPrice: product.sellingPrice,
-            stockQuantity: product.stockQuantity,
-            imageUrl: product.imageUrl,
-          });
-        }
-        const matches = [...byId.values()];
-        if (matches.length === 0) {
-          toast.error("Product not found");
-          return;
-        }
-        if (matches.length === 1) {
-          addScannedProduct(matches[0]!);
-          return;
-        }
-        setBarcodeMatches({ code, products: matches });
-      })();
-    },
-    { enabled: true, allowInInputs: true },
-  );
+  function handleBarcodeScan(code: string) {
+    void (async () => {
+      const localMatches = await findLocalProductsByBarcode(
+        code,
+        workingBranchId ?? myBranchId ?? undefined,
+      );
+      const catalogMatches = catalog.filter(
+        (p) =>
+          p.sku.toLowerCase() === code.trim().toLowerCase() ||
+          (p.barcode?.trim().toLowerCase() ?? "") === code.trim().toLowerCase(),
+      );
+      const byId = new Map<string, BarcodeMatchProduct>();
+      for (const product of [...localMatches, ...catalogMatches]) {
+        byId.set(product.id, {
+          id: product.id,
+          name: product.name,
+          sku: product.sku,
+          sellingPrice: product.sellingPrice,
+          stockQuantity: product.stockQuantity,
+          imageUrl: product.imageUrl,
+        });
+      }
+      const matches = [...byId.values()];
+      if (matches.length === 0) {
+        toast.error("Product not found");
+        return;
+      }
+      if (matches.length === 1) {
+        addScannedProduct(matches[0]!);
+        return;
+      }
+      setBarcodeMatches({ code, products: matches });
+    })();
+  }
+
+  useBarcodeScanner(handleBarcodeScan, {
+    enabled: isBarcodeScanningEnabled(),
+    allowInInputs: true,
+  });
 
   function setCartQuantity(productId: string, raw: string) {
     setQtyDrafts((prev) => ({ ...prev, [productId]: raw }));
@@ -583,12 +587,25 @@ export function SalesView() {
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <div className="min-w-0 space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products…"
-              className="max-w-lg"
-            />
+            <div className="flex max-w-lg flex-1 gap-2">
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search products…"
+                className="min-w-0 flex-1"
+              />
+              {showCameraScan ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Scan barcode"
+                  onClick={() => setCameraOpen(true)}
+                >
+                  <ScanBarcode className="h-4 w-4" />
+                </Button>
+              ) : null}
+            </div>
             {isAdmin ? (
               <BranchFilter
                 branches={branches}
@@ -813,6 +830,11 @@ export function SalesView() {
           setBarcodeMatches(null);
           addScannedProduct(product);
         }}
+      />
+      <ScanBarcodeCameraDialog
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        onDetect={handleBarcodeScan}
       />
 
       <Dialog open={quickOpen} onOpenChange={setQuickOpen}>

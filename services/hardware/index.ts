@@ -9,6 +9,8 @@ export {
   discoverScanners,
   probeScannerBridge,
   isBarcodeScanningEnabled,
+  isHardwareBarcodeScannerActive,
+  shouldShowCameraBarcodeButton,
   getScannerConnectionState,
   getActiveBarcodeProviderKind,
   listAvailableBarcodeProviders,

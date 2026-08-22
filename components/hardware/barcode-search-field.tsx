@@ -1,12 +1,15 @@
 "use client";
 
-import { Camera } from "lucide-react";
+import { ScanBarcode } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScanBarcodeCameraDialog } from "@/components/hardware/scan-barcode-camera-dialog";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
-import { isBarcodeScanningEnabled } from "@/services/hardware";
+import {
+  isHardwareBarcodeScannerActive,
+  shouldShowCameraBarcodeButton,
+} from "@/services/hardware";
 
 type Props = {
   value: string;
@@ -19,8 +22,7 @@ type Props = {
 };
 
 /**
- * Search field that also accepts HID scans and optional camera capture.
- * Parents decide what to do with the value (filter lists from Dexie).
+ * Search field that accepts HID scans in the background and optional camera capture.
  */
 export function BarcodeSearchField({
   value,
@@ -31,13 +33,15 @@ export function BarcodeSearchField({
   listenHid = true,
 }: Props) {
   const [cameraOpen, setCameraOpen] = useState(false);
+  const showCamera = shouldShowCameraBarcodeButton();
+  const hidActive = isHardwareBarcodeScannerActive();
 
   useBarcodeScanner(
     (code) => {
       onChange(code);
     },
     {
-      enabled: listenHid && isBarcodeScanningEnabled(),
+      enabled: listenHid && hidActive,
       allowInInputs: true,
     },
   );
@@ -50,16 +54,19 @@ export function BarcodeSearchField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete="off"
+        className={showCamera ? undefined : "flex-1"}
       />
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        aria-label="Scan barcode with camera"
-        onClick={() => setCameraOpen(true)}
-      >
-        <Camera className="h-4 w-4" />
-      </Button>
+      {showCamera ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label="Scan barcode"
+          onClick={() => setCameraOpen(true)}
+        >
+          <ScanBarcode className="h-4 w-4" />
+        </Button>
+      ) : null}
       <ScanBarcodeCameraDialog
         open={cameraOpen}
         onOpenChange={setCameraOpen}

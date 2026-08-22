@@ -1,13 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, ScanBarcode } from "lucide-react";
+import { ScanBarcode } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ScanBarcodeCameraDialog } from "@/components/hardware/scan-barcode-camera-dialog";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
-import { BARCODE_HID_CAPTURE_MS } from "@/services/hardware";
+import {
+  BARCODE_HID_CAPTURE_MS,
+  isHardwareBarcodeScannerActive,
+  shouldShowCameraBarcodeButton,
+} from "@/services/hardware";
 import { toast } from "sonner";
 
 type Props = {
@@ -16,11 +20,14 @@ type Props = {
 };
 
 /**
- * Optional barcode assignment. HID listening is one-shot after "Scan barcode".
+ * Optional barcode assignment. HID listens in the background when configured;
+ * otherwise opens the camera scanner via the barcode icon.
  */
 export function ProductBarcodeField({ value, onChange }: Props) {
   const [listening, setListening] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const hidActive = isHardwareBarcodeScannerActive();
+  const showCamera = shouldShowCameraBarcodeButton();
 
   useBarcodeScanner(
     (code) => {
@@ -29,7 +36,7 @@ export function ProductBarcodeField({ value, onChange }: Props) {
       toast.success("Barcode captured");
     },
     {
-      enabled: listening,
+      enabled: listening && hidActive,
       allowInInputs: true,
       timeoutMs: BARCODE_HID_CAPTURE_MS,
       onTimeout: () => {
@@ -38,6 +45,11 @@ export function ProductBarcodeField({ value, onChange }: Props) {
       },
     },
   );
+
+  function onCameraDetect(code: string) {
+    onChange(code);
+    toast.success("Barcode captured");
+  }
 
   return (
     <div className="border-border space-y-3 rounded-lg border p-3">
@@ -55,21 +67,25 @@ export function ProductBarcodeField({ value, onChange }: Props) {
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant={listening ? "default" : "outline"}
-          size="sm"
-          onClick={() => setListening((v) => !v)}
-        >
-          <ScanBarcode className="mr-2 h-4 w-4" />
-          {listening ? "Listening…" : "Scan barcode"}
-        </Button>
-        <Button type="button" variant="outline" size="sm" onClick={() => setCameraOpen(true)}>
-          <Camera className="mr-2 h-4 w-4" />
-          Use camera
-        </Button>
+        {hidActive ? (
+          <Button
+            type="button"
+            variant={listening ? "default" : "outline"}
+            size="sm"
+            onClick={() => setListening((v) => !v)}
+          >
+            <ScanBarcode className="mr-2 h-4 w-4" />
+            {listening ? "Listening…" : "Scan barcode"}
+          </Button>
+        ) : null}
+        {showCamera ? (
+          <Button type="button" variant="outline" size="sm" onClick={() => setCameraOpen(true)}>
+            <ScanBarcode className="mr-2 h-4 w-4" />
+            Scan barcode
+          </Button>
+        ) : null}
       </div>
-      {listening ? (
+      {listening && hidActive ? (
         <p className="text-muted-foreground text-xs" aria-live="polite">
           Point the USB scanner at a barcode. Listening stops after the first scan or 18 seconds.
         </p>
@@ -77,10 +93,7 @@ export function ProductBarcodeField({ value, onChange }: Props) {
       <ScanBarcodeCameraDialog
         open={cameraOpen}
         onOpenChange={setCameraOpen}
-        onDetect={(code) => {
-          onChange(code);
-          toast.success("Barcode captured");
-        }}
+        onDetect={onCameraDetect}
       />
     </div>
   );

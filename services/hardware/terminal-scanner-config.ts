@@ -1,5 +1,7 @@
 /** Per-terminal barcode scanner settings (device-local — not synced to Convex). */
 
+import { isDesktopRuntime } from "@/lib/desktop";
+
 export type TerminalScannerConfig = {
   /** When false, POS ignores keyboard-wedge and native scan events. */
   enabled: boolean;
@@ -20,10 +22,17 @@ export const DEFAULT_TERMINAL_SCANNER_CONFIG: TerminalScannerConfig = {
 const STORAGE_KEY = "novend.terminal.scanner";
 
 export function loadTerminalScannerConfig(): TerminalScannerConfig {
-  if (typeof window === "undefined") return { ...DEFAULT_TERMINAL_SCANNER_CONFIG };
+  if (typeof window === "undefined") {
+    return { ...DEFAULT_TERMINAL_SCANNER_CONFIG, enabled: false };
+  }
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_TERMINAL_SCANNER_CONFIG };
+    if (!raw) {
+      return {
+        ...DEFAULT_TERMINAL_SCANNER_CONFIG,
+        enabled: isDesktopRuntime(),
+      };
+    }
     const parsed = JSON.parse(raw) as Partial<TerminalScannerConfig>;
     return {
       enabled: parsed.enabled !== false,

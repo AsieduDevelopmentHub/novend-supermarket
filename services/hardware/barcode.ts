@@ -42,6 +42,17 @@ export function isBarcodeScanningEnabled(config = loadTerminalScannerConfig()): 
   return config.enabled;
 }
 
+/** Hardware wedge/USB scanner is active — POS listens in the background (no camera button). */
+export function isHardwareBarcodeScannerActive(config = loadTerminalScannerConfig()): boolean {
+  return config.enabled;
+}
+
+/** Camera scan button for web/PWA when no hardware scanner is configured. */
+export function shouldShowCameraBarcodeButton(): boolean {
+  if (!isCameraBarcodeSupported()) return false;
+  return !isHardwareBarcodeScannerActive();
+}
+
 export function getScannerConnectionState(
   config: TerminalScannerConfig = loadTerminalScannerConfig(),
   _bridgeOnline: boolean,
