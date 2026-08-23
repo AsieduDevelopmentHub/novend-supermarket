@@ -2,6 +2,8 @@
 export const MARKETING_UI_SCREENS = {
   authLogin: "/marketing/ui/auth-login.png",
   authLoginAlt: "/marketing/ui/auth-login-alt.png",
+  authSignup: "/marketing/ui/auth-signup.png",
+  businessOnboarding: "/marketing/ui/business-onboarding.png",
   dashboard: "/marketing/ui/dashboard.png",
   salesPos: "/marketing/ui/sales-pos.png",
   salesPosReceiptModal: "/marketing/ui/sales-pos-receipt-modal.png",
@@ -81,3 +83,178 @@ export const INDUSTRY_SHOWCASE_SCREENS = {
   electronics: "/marketing/ui/sale-electronics.jpg",
   convenience: "/marketing/ui/sale-convenience.jpg",
 } as const;
+
+export type DocsDemoShot = {
+  src: string;
+  alt: string;
+  caption: string;
+};
+
+/** Documentation guide — real product screens paired with each docs section. */
+export const DOCS_SECTION_DEMOS: Record<string, readonly DocsDemoShot[]> = {
+  "getting-started": [
+    {
+      src: MARKETING_UI_SCREENS.authSignup,
+      alt: "Novend create account signup screen",
+      caption: "Create your account and accept Terms & Privacy",
+    },
+    {
+      src: MARKETING_UI_SCREENS.businessOnboarding,
+      alt: "Novend business onboarding — create your organization",
+      caption: "Set up your business name and details",
+    },
+    {
+      src: MARKETING_UI_SCREENS.dashboard,
+      alt: "Novend dashboard with sales KPIs",
+      caption: "Land on your dashboard after onboarding",
+    },
+    {
+      src: MARKETING_UI_SCREENS.authLogin,
+      alt: "Novend sign-in screen",
+      caption: "Sign back in anytime to your workspace",
+    },
+  ],
+  sales: [
+    {
+      src: "/marketing/ui/sales-pos.jpg",
+      alt: "Novend POS checkout with product grid and cart",
+      caption: "Sell with barcode search and a live cart",
+    },
+    {
+      src: MARKETING_UI_SCREENS.salesPosReceiptModal,
+      alt: "Novend receipt modal after checkout",
+      caption: "Immutable receipt after payment",
+    },
+    {
+      src: MARKETING_UI_SCREENS.salesOrders,
+      alt: "Novend orders list",
+      caption: "Review and reprint from Orders",
+    },
+  ],
+  inventory: [
+    {
+      src: MARKETING_UI_SCREENS.inventoryProducts,
+      alt: "Novend product catalog",
+      caption: "Products, SKUs, and pricing",
+    },
+    {
+      src: MARKETING_UI_SCREENS.inventoryStock,
+      alt: "Novend branch stock table",
+      caption: "Branch stock with low-stock visibility",
+    },
+    {
+      src: MARKETING_UI_SCREENS.inventoryWholesale,
+      alt: "Novend wholesale warehouse inventory",
+      caption: "Wholesale storage separate from the floor",
+    },
+  ],
+  transfers: [
+    {
+      src: MARKETING_UI_SCREENS.inventoryTransferStockModal,
+      alt: "Novend transfer stock modal",
+      caption: "Transfer stock between branches",
+    },
+    {
+      src: MARKETING_UI_SCREENS.inventoryWholesaleIssueModal,
+      alt: "Novend wholesale issue to branch modal",
+      caption: "Issue warehouse stock to a branch",
+    },
+    {
+      src: MARKETING_UI_SCREENS.inventoryAdjustStockModal,
+      alt: "Novend adjust stock modal",
+      caption: "Adjust quantities with a clear reason",
+    },
+  ],
+  offline: [
+    {
+      src: MARKETING_UI_SCREENS.syncRecent,
+      alt: "Novend recent sync activity",
+      caption: "See what synced after you reconnect",
+    },
+    {
+      src: MARKETING_UI_SCREENS.settingsLocalBackup,
+      alt: "Novend local backup settings",
+      caption: "Local backup options on device",
+    },
+  ],
+  hardware: [
+    {
+      src: MARKETING_UI_SCREENS.settingsHardwareBarcodeScanner,
+      alt: "Novend barcode scanner settings",
+      caption: "Configure barcode scanning",
+    },
+    {
+      src: MARKETING_UI_SCREENS.settingsHardwarePrinter,
+      alt: "Novend receipt printer settings",
+      caption: "Connect a thermal receipt printer",
+    },
+    {
+      src: MARKETING_UI_SCREENS.settingsActivatedDevices,
+      alt: "Novend activated devices list",
+      caption: "Manage activated selling devices",
+    },
+  ],
+  customers: [
+    {
+      src: MARKETING_UI_SCREENS.salesCustomerDetail,
+      alt: "Novend customer profile",
+      caption: "Customer history and balances",
+    },
+    {
+      src: MARKETING_UI_SCREENS.inventorySuppliers,
+      alt: "Novend suppliers directory",
+      caption: "Supplier records in one place",
+    },
+    {
+      src: MARKETING_UI_SCREENS.salesReturns,
+      alt: "Novend returns list",
+      caption: "Returns against completed sales",
+    },
+  ],
+  analytics: [
+    {
+      src: MARKETING_UI_SCREENS.businessAnalyticsOverview,
+      alt: "Novend analytics overview dashboard",
+      caption: "Revenue and performance at a glance",
+    },
+    {
+      src: MARKETING_UI_SCREENS.businessReports,
+      alt: "Novend business reports",
+      caption: "Exportable business reports",
+    },
+    {
+      src: MARKETING_UI_SCREENS.businessAnalyticsPnl,
+      alt: "Novend profit and loss analytics",
+      caption: "Profit and loss insights",
+    },
+  ],
+  admin: [
+    {
+      src: MARKETING_UI_SCREENS.administrationUsers,
+      alt: "Novend users administration",
+      caption: "Invite and role-manage your team",
+    },
+    {
+      src: MARKETING_UI_SCREENS.administrationBranches,
+      alt: "Novend branches list",
+      caption: "Open and manage branches",
+    },
+    {
+      src: MARKETING_UI_SCREENS.settingsBillingPlan,
+      alt: "Novend billing plan settings",
+      caption: "Plans, capacity, and upgrades",
+    },
+  ],
+  security: [
+    {
+      src: MARKETING_UI_SCREENS.settingsProfile,
+      alt: "Novend user profile settings",
+      caption: "Keep your profile and access current",
+    },
+    {
+      src: MARKETING_UI_SCREENS.settingsBusinessProfile,
+      alt: "Novend business profile settings",
+      caption: "Organization profile and defaults",
+    },
+  ],
+};
