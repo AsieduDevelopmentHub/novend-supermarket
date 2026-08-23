@@ -61,6 +61,19 @@ export const GB_IN_BYTES = GIBIBYTE;
 /** Updates and premium support included with a lifetime licence. */
 export const LIFETIME_UPDATES_YEARS = 1;
 
+/** Yearly price bills 10 months (two months free). Used by every recurring plan. */
+export const YEARLY_MONTHS_BILLED = 10;
+
+export function yearlyPriceFromMonthly(monthly: number): number {
+  return monthly * YEARLY_MONTHS_BILLED;
+}
+
+/** Catalog display: starting prices use a + so they are not read as a fixed rate. */
+export function formatPlanPriceLabel(amount: number, priceFrom = false): string {
+  const formatted = `GH₵${amount.toLocaleString("en-GH")}`;
+  return priceFrom ? `${formatted}+` : formatted;
+}
+
 export function formatPlanBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
   if (bytes >= GIBIBYTE && bytes % GIBIBYTE === 0) return `${bytes / GIBIBYTE} GB`;
@@ -76,7 +89,7 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     tagline: "Everything a single shop needs to sell and track stock.",
     audience: "Small retail businesses",
     monthlyPrice: 200,
-    yearlyPrice: 2000,
+    yearlyPrice: yearlyPriceFromMonthly(200),
     oneTimePrice: null,
     priceFrom: false,
     variableBackup: false,
@@ -109,8 +122,8 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     name: "Pro",
     tagline: "Wholesale, branches and analytics for growing businesses.",
     audience: "Supermarkets, pharmacies and wholesalers",
-    monthlyPrice: 400,
-    yearlyPrice: 4000,
+    monthlyPrice: 450,
+    yearlyPrice: yearlyPriceFromMonthly(450),
     oneTimePrice: null,
     priceFrom: false,
     variableBackup: false,
@@ -140,7 +153,7 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     tagline: "Unlimited scale with dedicated onboarding and support.",
     audience: "Multi-branch groups and distributors",
     monthlyPrice: 750,
-    yearlyPrice: 7500,
+    yearlyPrice: yearlyPriceFromMonthly(750),
     oneTimePrice: null,
     priceFrom: true,
     variableBackup: true,

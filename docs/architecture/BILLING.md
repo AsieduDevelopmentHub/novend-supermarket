@@ -41,15 +41,16 @@ licence so a terminal keeps selling offline, but it never decides access.
 | Plan | Monthly | Yearly | Products | Users | Branches | Devices | Cloud backup |
 |---|---|---|---|---|---|---|---|
 | Basic | GH₵200 | GH₵2,000 | 500 | 3 | 1 | 3 | 250 MB |
-| Pro (Most Popular) | GH₵400 | GH₵4,000 | 5,000 | 15 | 5 | 15 | 500 MB |
-| Enterprise | From GH₵750 | From GH₵7,500 | ∞ | ∞ | ∞ | ∞ | Custom |
+| Pro (Most Popular) | GH₵450 | GH₵4,500 | 5,000 | 15 | 5 | 15 | 500 MB |
+| Enterprise | GH₵750+ | GH₵7,500+ | ∞ | ∞ | ∞ | ∞ | Custom |
 | Lifetime | — | GH₵7,990 one-time | ∞ | ∞ | ∞ | ∞ | 1 GB |
 
 Lifetime sits above every subscription: the one-time price is higher than a year of
 Basic, Pro, or Enterprise because it includes every entitlement permanently. The
 licence does not expire; **1 year of updates and premium support** are included
 with the purchase. Recurring plans are never sold on a lifetime cycle. Enterprise
-is self-serve, same checkout as Basic and Pro — published as a starting price.
+is self-serve, same checkout as Basic and Pro — published as **GH₵750+** (a starting
+price, not a fixed rate). Yearly recurring prices are **10 × monthly** (two months free).
 Enterprise cloud backup is **quoted per organization** (whole GB, or no cap).
 The catalog never publishes a fixed Enterprise storage size. A Novend platform
 administrator sets `organizations.backupLimitBytes` from the licence panel.

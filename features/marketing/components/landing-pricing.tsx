@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { landingCopy } from "@/features/marketing/content";
 import {
   formatPlanBytes,
+  formatPlanPriceLabel,
   PLAN_CATALOG,
   priceForCycle,
   type PlanDefinition,
@@ -40,7 +41,7 @@ function planPriceDisplay(plan: PlanDefinition, cycle: BillingCycle) {
   }
 
   return {
-    amount: `${plan.priceFrom ? "From " : ""}GH₵${price.toLocaleString()}`,
+    amount: formatPlanPriceLabel(price, plan.priceFrom),
     suffix: cycle === "monthly" ? "/ month" : "/ year",
     savings: cycle === "yearly" ? yearlySavings(plan) : null,
   };

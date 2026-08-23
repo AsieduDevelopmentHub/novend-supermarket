@@ -317,8 +317,10 @@ function PlanCard({
 
         <div>
           <p className="text-2xl font-semibold tracking-tight">
-            {plan.priceFrom ? <span className="text-muted-foreground text-sm">From </span> : null}
             {amount === null ? "Custom" : formatCurrency(amount)}
+            {amount !== null && plan.priceFrom ? (
+              <span className="text-muted-foreground text-lg font-semibold">+</span>
+            ) : null}
           </p>
           <p className="text-muted-foreground text-xs">{amount === null ? "Talk to us" : suffix}</p>
         </div>

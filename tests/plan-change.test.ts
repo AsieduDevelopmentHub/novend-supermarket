@@ -72,8 +72,8 @@ describe("computePlanChangePreview", () => {
     expect(preview.keepPeriod).toBe(true);
     expect(preview.chargeToday).toBe(true);
     expect(preview.amountDueToday).toBeGreaterThan(0);
-    expect(preview.amountDueToday).toBeLessThan(400);
-    expect(preview.nextBillingAmount).toBe(400);
+    expect(preview.amountDueToday).toBeLessThan(450);
+    expect(preview.nextBillingAmount).toBe(450);
     expect(preview.nextBillingDate).toBe(SEP_23);
   });
 
@@ -121,7 +121,7 @@ describe("computePlanChangePreview", () => {
     });
     expect(preview.intent).toBe("upgrade");
     expect(preview.currentPlanKey).toBe("pro");
-    expect(preview.currentPrice).toBe(400);
+    expect(preview.currentPrice).toBe(450);
   });
 
   it("treats trial conversion as a full-price purchase, not a downgrade schedule", () => {

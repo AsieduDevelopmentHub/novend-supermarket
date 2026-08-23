@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   PLAN_KEYS,
   PLAN_LIST,
+  YEARLY_MONTHS_BILLED,
+  formatPlanPriceLabel,
   isPlanKey,
   limitReachedMessage,
   planLimitLines,
@@ -10,6 +12,7 @@ import {
   priceForCycle,
   resolvePlan,
   supportsCycle,
+  yearlyPriceFromMonthly,
 } from "@/convex/shared/plans";
 
 describe("plan catalog", () => {
@@ -19,9 +22,11 @@ describe("plan catalog", () => {
     expect([...sortOrders].sort((a, b) => a - b)).toEqual(sortOrders);
   });
 
-  it("prices yearly below twelve months so the discount is real", () => {
+  it("prices yearly as ten months (two months free) on every recurring plan", () => {
     for (const plan of PLAN_LIST) {
       if (plan.monthlyPrice === null || plan.yearlyPrice === null) continue;
+      expect(plan.yearlyPrice).toBe(yearlyPriceFromMonthly(plan.monthlyPrice));
+      expect(plan.yearlyPrice).toBe(plan.monthlyPrice * YEARLY_MONTHS_BILLED);
       expect(plan.yearlyPrice).toBeLessThan(plan.monthlyPrice * 12);
     }
   });
@@ -116,6 +121,10 @@ describe("plan catalog", () => {
     expect(resolvePlan("enterprise").limits.backupBytes).toBeNull();
     expect(resolvePlan("enterprise").variableBackup).toBe(true);
     expect(resolvePlan("enterprise").priceFrom).toBe(true);
+    expect(resolvePlan("pro").monthlyPrice).toBe(450);
+    expect(resolvePlan("pro").yearlyPrice).toBe(4500);
+    expect(formatPlanPriceLabel(750, true)).toBe("GH₵750+");
+    expect(formatPlanPriceLabel(450, false)).toBe("GH₵450");
     expect(resolvePlan("lifetime").limits.backupBytes).toBe(1024 * 1024 * 1024);
     expect(resolvePlan("lifetime").oneTimePrice).toBe(7990);
     expect(resolvePlan("pro").featured).toBe(true);
