@@ -37,6 +37,15 @@ import type {
   WholesaleTransferPayload,
 } from "./types";
 
+function isLocalId(id: string | undefined | null): boolean {
+  return !id || id.startsWith("local_");
+}
+
+function optionalText(value: string | undefined | null): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 export type CompleteSaleMutator = (args: {
   customerId?: Id<"customers">;
   customerName?: string;
@@ -417,7 +426,18 @@ export async function drainOutbox(options: {
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "upsert_product") {
           const payload = JSON.parse(claimed.payloadJson) as UpsertProductPayload;
+          if (isLocalId(payload.categoryId)) {
+            await markOutboxPending(
+              db,
+              claimed.id,
+              "Waiting for the category to finish syncing.",
+            );
+            continue;
+          }
           let imageStorageId = payload.imageStorageId as Id<"_storage"> | undefined;
+          if (imageStorageId && isLocalId(imageStorageId)) {
+            imageStorageId = undefined;
+          }
           if (payload.hasLocalImage && !imageStorageId) {
             const cached = await db.productImages.get(payload.localId);
             if (cached) {
@@ -434,29 +454,30 @@ export async function drainOutbox(options: {
             }
           }
           const categoryId = payload.categoryId as Id<"categories">;
+          const barcode = optionalText(payload.barcode);
+          const description = optionalText(payload.description);
           if (payload.serverId && !payload.serverId.startsWith("local_")) {
             await options.mutators.updateProduct({
               id: payload.serverId as Id<"products">,
               name: payload.name,
               sku: payload.sku,
-              barcode: payload.barcode,
               categoryId,
               costPrice: payload.costPrice,
               sellingPrice: payload.sellingPrice,
               unit: payload.unit,
               lowStockThreshold: payload.lowStockThreshold,
               status: payload.status,
-              description: payload.description,
-              imageStorageId,
               tracksExpiry: payload.tracksExpiry,
               expiryAlertDays: payload.expiryAlertDays,
-              openingExpiryDate: payload.expiryDate,
+              openingExpiryDate: optionalText(payload.expiryDate),
+              ...(barcode ? { barcode } : {}),
+              ...(description ? { description } : {}),
+              ...(imageStorageId ? { imageStorageId } : {}),
             });
           } else {
             const createdId = await options.mutators.createProduct({
               name: payload.name,
               sku: payload.sku,
-              barcode: payload.barcode,
               categoryId,
               costPrice: payload.costPrice,
               sellingPrice: payload.sellingPrice,
@@ -464,11 +485,12 @@ export async function drainOutbox(options: {
               unit: payload.unit,
               lowStockThreshold: payload.lowStockThreshold,
               status: payload.status,
-              description: payload.description,
-              imageStorageId,
               tracksExpiry: payload.tracksExpiry,
               expiryAlertDays: payload.expiryAlertDays,
-              expiryDate: payload.expiryDate,
+              expiryDate: optionalText(payload.expiryDate),
+              ...(barcode ? { barcode } : {}),
+              ...(description ? { description } : {}),
+              ...(imageStorageId ? { imageStorageId } : {}),
             });
             if (payload.localId.startsWith("local_")) {
               await rekeyProductImage(payload.localId, String(createdId));

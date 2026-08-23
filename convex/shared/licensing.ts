@@ -70,6 +70,7 @@ export type SubscriptionSnapshot = {
   isLifetime: boolean;
   expiresAt?: number | null;
   graceUntil?: number | null;
+  cancelAtPeriodEnd?: boolean;
 };
 
 const READ_ONLY_SUSPENDED =
@@ -121,7 +122,19 @@ export function deriveAccess(
   const graceUntil = subscription.graceUntil ?? (expiresAt ? expiresAt + GRACE_PERIOD_MS : null);
   const lapsed = expiresAt !== null && now > expiresAt;
 
-  if (subscription.status === "cancelled" || subscription.status === "expired" || lapsed) {
+  // A Paystack disable (or cancel-at-period-end) must not lock POS while the
+  // current paid period is still running.
+  if (subscription.status === "cancelled" && !lapsed) {
+    return {
+      state: "active",
+      canRead: true,
+      canWrite: true,
+      reason: "This plan ends at the close of the current period. POS stays available until then.",
+      expiresAt,
+    };
+  }
+
+  if (subscription.status === "expired" || lapsed) {
     if (graceUntil !== null && now <= graceUntil) {
       return {
         state: "grace",

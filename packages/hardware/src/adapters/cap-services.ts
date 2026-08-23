@@ -306,14 +306,18 @@ export async function getBiometricPrefs(): Promise<{
   enabled: boolean;
   requireOnLaunch: boolean;
 }> {
-  const [enabled, requireOnLaunch] = await Promise.all([
-    Preferences.get({ key: BIOMETRIC_ENABLED_KEY }),
-    Preferences.get({ key: BIOMETRIC_REQUIRE_LAUNCH_KEY }),
-  ]);
-  return {
-    enabled: enabled.value === "true",
-    requireOnLaunch: requireOnLaunch.value === "true",
-  };
+  try {
+    const [enabled, requireOnLaunch] = await Promise.all([
+      Preferences.get({ key: BIOMETRIC_ENABLED_KEY }),
+      Preferences.get({ key: BIOMETRIC_REQUIRE_LAUNCH_KEY }),
+    ]);
+    return {
+      enabled: enabled.value === "true",
+      requireOnLaunch: requireOnLaunch.value === "true",
+    };
+  } catch {
+    return { enabled: false, requireOnLaunch: false };
+  }
 }
 
 export async function setBiometricEnabled(enabled: boolean): Promise<HardwareResult> {

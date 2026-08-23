@@ -130,7 +130,7 @@ export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): strin
     lower.includes("validator") ||
     lower.includes("invalid_argument")
   ) {
-    return "Some details look invalid. Check the form and try again.";
+    return "This change could not sync. Open the record, check the details, and save again.";
   }
   if (lower.includes("rate limit") || lower.includes("too many requests")) {
     return "Too many attempts. Please wait a moment and try again.";

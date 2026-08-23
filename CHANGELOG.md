@@ -10,6 +10,12 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 - Subscription plan changes are now a lifecycle on one subscription: upgrades take effect after a prorated payment; downgrades are scheduled for the end of the paid period with no charge today.
 
+### Fixed
+
+- Cancelling a subscription no longer locks POS during the period already paid for.
+- Product sync no longer fails Convex validation on empty optional fields or a category that has not finished syncing.
+- Capacitor no longer stays on “Preparing workspace / Checking device security” when biometric plugins hang.
+
 ---
 
 ## v0.3.2 — 2026-08-23

@@ -34,6 +34,24 @@ function parseDeepLink(url: string): string | null {
 
 type Gate = "checking" | "locked" | "open";
 
+const GATE_TIMEOUT_MS = 2500;
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return await new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error("timeout")), ms);
+    void promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        window.clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 /**
  * Capacitor-only: biometric launch gate + deep link routing + soft update check.
  * All native access goes through `@novend/hardware` (no Capacitor imports here).
@@ -50,20 +68,27 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
 
     let cancelled = false;
     let removeListener: (() => Promise<void>) | null = null;
+    const failOpen = window.setTimeout(() => {
+      if (!cancelled) setGate((current) => (current === "checking" ? "open" : current));
+    }, GATE_TIMEOUT_MS);
 
     void (async () => {
-      const prefs = await Hardware.biometrics.getPrefs();
-      if (!prefs.enabled || !prefs.requireOnLaunch) {
+      try {
+        const prefs = await withTimeout(Hardware.biometrics.getPrefs(), GATE_TIMEOUT_MS);
+        if (!prefs.enabled || !prefs.requireOnLaunch) {
+          if (!cancelled) setGate("open");
+          return;
+        }
+        const token = await withTimeout(Hardware.biometrics.readUnlockToken(), GATE_TIMEOUT_MS);
+        if (!token.data) {
+          if (!cancelled) setGate("open");
+          return;
+        }
+        const auth = await Hardware.biometrics.authenticate("Unlock Novend POS");
+        if (!cancelled) setGate(auth.ok ? "open" : "locked");
+      } catch {
         if (!cancelled) setGate("open");
-        return;
       }
-      const token = await Hardware.biometrics.readUnlockToken();
-      if (!token.data) {
-        if (!cancelled) setGate("open");
-        return;
-      }
-      const auth = await Hardware.biometrics.authenticate("Unlock Novend POS");
-      if (!cancelled) setGate(auth.ok ? "open" : "locked");
     })();
 
     void (async () => {
@@ -91,6 +116,7 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(failOpen);
       void removeListener?.();
     };
   }, [router]);

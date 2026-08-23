@@ -76,7 +76,8 @@ Two rules follow from this table and must not be broken:
 1. **A business never loses its data.** Every state except `disabled` keeps full
    read access, so receipts and reports stay available while payment is sorted out.
 2. **Selling never stops for a payment problem alone.** A failed charge moves the
-   business to `grace`, not to read-only.
+   business to `grace`, not to read-only. Cancelling a subscription also leaves
+   POS (sales, products, inventory) writable until the paid period ends.
 
 # Enforcement
 

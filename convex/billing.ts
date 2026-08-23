@@ -1288,8 +1288,10 @@ export const disableGatewaySubscription = internalMutation({
     if (subscription.gatewaySubscriptionCode !== args.gatewaySubscriptionCode) return;
     if (subscription.scheduledChange) return;
     const now = Date.now();
+    const periodStillPaid = Boolean(subscription.expiresAt && now < subscription.expiresAt);
     await ctx.db.patch(subscription._id, {
-      status: "cancelled",
+      // Keep the paid period writable. Only mark the row cancelled once it lapses.
+      status: periodStillPaid ? subscription.status : "cancelled",
       cancelAtPeriodEnd: true,
       cancelledAt: now,
       nextBillingDate: undefined,

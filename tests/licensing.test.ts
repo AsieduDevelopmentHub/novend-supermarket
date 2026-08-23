@@ -70,6 +70,18 @@ describe("deriveAccess — subscription lifecycle", () => {
     expect(access.canWrite).toBe(false);
   });
 
+  it("keeps POS writable after a cancel while the paid period is still running", () => {
+    const expiresAt = NOW + 20 * DAY;
+    const access = deriveAccess(
+      "active",
+      subscription({ status: "cancelled", expiresAt, cancelAtPeriodEnd: true }),
+      NOW,
+    );
+    expect(access.state).toBe("active");
+    expect(access.canWrite).toBe(true);
+    expect(access.reason).toMatch(/current period/i);
+  });
+
   it("keeps a past_due subscription writable so payment can be fixed", () => {
     const access = deriveAccess("active", subscription({ status: "past_due" }), NOW);
     expect(access.state).toBe("grace");

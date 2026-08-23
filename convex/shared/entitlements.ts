@@ -37,6 +37,7 @@ function toSnapshot(subscription: Doc<"subscriptions"> | null): SubscriptionSnap
     isLifetime: subscription.isLifetime,
     expiresAt: subscription.expiresAt ?? null,
     graceUntil: subscription.graceUntil ?? null,
+    cancelAtPeriodEnd: subscription.cancelAtPeriodEnd ?? false,
   };
 }
 

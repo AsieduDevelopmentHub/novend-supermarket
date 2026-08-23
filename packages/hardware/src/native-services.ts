@@ -34,8 +34,12 @@ export const biometrics = {
   },
   getPrefs: async () => {
     if (!isCapacitor()) return { enabled: false, requireOnLaunch: false };
-    const mod = await capServices();
-    return mod.getBiometricPrefs();
+    try {
+      const mod = await capServices();
+      return await mod.getBiometricPrefs();
+    } catch {
+      return { enabled: false, requireOnLaunch: false };
+    }
   },
   setEnabled: async (enabled: boolean) => {
     if (!isCapacitor()) return unsupported();
