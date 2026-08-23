@@ -4,6 +4,18 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.1 — 2026-08-23
+
+### Fixed
+
+- Android release CI: make `gradlew` executable before assemble.
+- Capacitor status strip / sticky titles so system icons stay readable and page titles no longer scroll away.
+- About shows hosted app version plus native shell version/build.
+- Sign out available on Capacitor More (header action + footer button).
+- Compact header action icons on remaining list and detail screens.
+
+---
+
 ## v0.3.0 — 2026-08-23
 
 ### Added
