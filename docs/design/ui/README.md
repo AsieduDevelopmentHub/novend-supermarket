@@ -11,11 +11,11 @@ docs/design/ui/<file>
 
 | File | Shows |
 |------|--------|
-| `novend_Landing_full_screen.png` | Public landing page |
-| `desktop_fullpage.png` | Desktop / wide POS shell |
+| `desktop_fullpage.png` | Public landing page (full scroll capture) |
 | `mobile_fullpage.png` | Phone-sized web layout |
 | `hero-shell-empty-no-bg.png` | Marketing hero device shell |
 | `ui_reference.png` | Design reference board |
+| `novend_Landing_full_screen.png` | Older landing capture (prefer `desktop_fullpage.png`) |
 
 ## Auth & setup
 

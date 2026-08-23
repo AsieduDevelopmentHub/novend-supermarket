@@ -7,7 +7,7 @@ fashion, electronics, and convenience businesses.
 Built by [Asiedu Development Hub](https://github.com/asiedudev).
 
 <p align="center">
-  <img src="docs/design/ui/novend_Landing_full_screen.png" alt="Novend marketing landing page" width="920" />
+  <img src="docs/design/ui/desktop_fullpage.png" alt="Novend marketing landing page" width="920" />
 </p>
 
 See [`overview.md`](./overview.md) for product vision and
@@ -17,9 +17,9 @@ the running app.
 
 ## Product tour
 
-| Desktop app | Mobile / tablet web |
+| App dashboard | Mobile / tablet web |
 |-------------|---------------------|
-| <img src="docs/design/ui/desktop_fullpage.png" alt="Novend desktop POS shell" width="440" /> | <img src="docs/design/ui/mobile_fullpage.png" alt="Novend on a phone" width="220" /> |
+| <img src="docs/design/ui/dashboard.png" alt="Novend dashboard" width="440" /> | <img src="docs/design/ui/mobile_fullpage.png" alt="Novend on a phone" width="220" /> |
 
 ### Get started
 

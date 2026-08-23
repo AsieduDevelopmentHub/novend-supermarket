@@ -17,7 +17,7 @@ Operational and product context for Novend POS. Read alongside the Constitution.
 Novend is the commercial evolution of Princellen POS: one codebase serving many
 independent businesses rather than one dedicated wholesaler.
 
-![Landing](design/ui/novend_Landing_full_screen.png)
+![Landing](design/ui/desktop_fullpage.png)
 
 ![Sales POS](design/ui/sales-pos.jpg)
 
@@ -31,10 +31,10 @@ organizations.
 
 | Flow | Capture |
 |------|---------|
+| Landing | [`design/ui/desktop_fullpage.png`](./design/ui/desktop_fullpage.png) |
 | Sign up | [`design/ui/auth-signup.png`](./design/ui/auth-signup.png) |
 | Onboarding | [`design/ui/business-onboarding.png`](./design/ui/business-onboarding.png) |
 | Dashboard | [`design/ui/dashboard.png`](./design/ui/dashboard.png) |
-| Desktop shell | [`design/ui/desktop_fullpage.png`](./design/ui/desktop_fullpage.png) |
 | Mobile shell | [`design/ui/mobile_fullpage.png`](./design/ui/mobile_fullpage.png) |
 
 Index: [`design/ui/README.md`](./design/ui/README.md).
