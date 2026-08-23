@@ -162,6 +162,9 @@ export function BranchesView() {
       <PageHeader
         title="Branches"
         description="Manage store locations and codes used for stock and sales."
+        compactActions={[
+          { key: "add", label: "Add branch", icon: Plus, onClick: openCreate },
+        ]}
         actions={
           <Button type="button" onClick={openCreate}>
             <Plus className="h-4 w-4" />

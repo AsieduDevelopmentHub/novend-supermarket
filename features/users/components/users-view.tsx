@@ -185,6 +185,9 @@ export function UsersView() {
             ? "Manage cashiers assigned to your branch."
             : "Create accounts and monitor who is online."
         }
+        compactActions={[
+          { key: "add", label: "Add User", icon: Plus, onClick: openCreate },
+        ]}
         actions={
           <Button type="button" onClick={openCreate}>
             <Plus className="h-4 w-4" />

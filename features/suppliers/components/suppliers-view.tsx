@@ -139,6 +139,17 @@ export function SuppliersView() {
       <PageHeader
         title="Suppliers"
         description="Companies you buy wholesale stock from."
+        compactActions={[
+          {
+            key: "add",
+            label: "Add supplier",
+            icon: Plus,
+            onClick: () => {
+              reset();
+              setOpen(true);
+            },
+          },
+        ]}
         actions={
           <Button
             type="button"

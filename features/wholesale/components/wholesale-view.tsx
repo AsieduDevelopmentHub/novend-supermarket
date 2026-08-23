@@ -35,7 +35,7 @@ import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
-import { ArrowRightLeft, Plus, Warehouse } from "lucide-react";
+import { ArrowRightLeft, Plus, Truck, Warehouse } from "lucide-react";
 import Link from "next/link";
 
 export function WholesaleView() {
@@ -169,6 +169,21 @@ export function WholesaleView() {
       <PageHeader
         title="Wholesale inventory"
         description="Stock bought from suppliers sits here until it is issued to a branch."
+        compactActions={[
+          { key: "suppliers", label: "Suppliers", icon: Truck, href: "/suppliers" },
+          {
+            key: "issue",
+            label: "Issue to branch",
+            icon: ArrowRightLeft,
+            onClick: () => setIssueOpen(true),
+          },
+          {
+            key: "buy",
+            label: "Record purchase",
+            icon: Plus,
+            onClick: () => setBuyOpen(true),
+          },
+        ]}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" asChild>

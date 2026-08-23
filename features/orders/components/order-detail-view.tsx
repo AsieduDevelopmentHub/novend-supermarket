@@ -377,6 +377,29 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
       <PageHeader
         title={order.invoiceNumber}
         description={formatDateTime(order.completedAt)}
+        compactActions={[
+          { key: "back", label: "Orders", icon: ArrowLeft, href: "/orders" },
+          ...(order.receiptPayload
+            ? [
+                {
+                  key: "receipt",
+                  label: "Receipt",
+                  icon: Printer,
+                  onClick: () => setPreviewOpen(true),
+                } as const,
+              ]
+            : []),
+          ...(canProcessReturns && order.canReturn
+            ? [
+                {
+                  key: "return",
+                  label: "Return",
+                  icon: Undo2,
+                  onClick: () => setReturnOpen(true),
+                } as const,
+              ]
+            : []),
+        ]}
         actions={
           <div className="flex gap-2">
             <Button asChild variant="outline">

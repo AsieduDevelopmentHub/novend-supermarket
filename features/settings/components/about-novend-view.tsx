@@ -10,7 +10,7 @@ import { useOfflineStatus } from "@/providers/offline-provider";
 import { usePermissions } from "@/hooks/use-permissions";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
 import { estimateBackupSize } from "@/lib/offline/backup";
-import { APP_BRAND } from "@/constants/app";
+import { APP_BRAND, APP_NAME, APP_VERSION } from "@/constants/app";
 import { Info } from "lucide-react";
 
 export function AboutNovendView() {
@@ -36,6 +36,13 @@ export function AboutNovendView() {
     })();
   }, []);
 
+  const shellVersion = info?.version?.trim() || null;
+  const shellBuild = info?.build?.trim() || null;
+  const platform = getPlatform();
+  const displayVersion = shellVersion || APP_VERSION;
+  const versionsMatch =
+    !shellVersion || shellVersion === APP_VERSION || shellVersion.replace(/^v/, "") === APP_VERSION;
+
   return (
     <div className="mx-auto max-w-lg space-y-4">
       <PageHeader
@@ -50,12 +57,29 @@ export function AboutNovendView() {
             Application
           </CardTitle>
           <CardDescription>
-            Version {info?.version ?? "—"} · Build {info?.build ?? "—"}
+            {APP_NAME} · v{displayVersion}
+            {shellBuild ? ` · build ${shellBuild}` : null}
           </CardDescription>
         </CardHeader>
         <CardContent className="text-muted-foreground space-y-2 text-sm">
-          <p>Platform: {getPlatform()}</p>
-          <p>Package: {info?.id ?? "—"}</p>
+          <p>
+            App version: <span className="text-foreground font-medium">v{APP_VERSION}</span>
+          </p>
+          <p>
+            Native shell:{" "}
+            <span className="text-foreground font-medium">
+              {shellVersion ? `v${shellVersion}` : "Web / browser"}
+              {shellBuild ? ` (${shellBuild})` : ""}
+            </span>
+          </p>
+          {!versionsMatch ? (
+            <p className="text-amber-700 dark:text-amber-400 text-xs">
+              Shell build differs from the hosted app version — update the Android/iOS app when a
+              newer release is available.
+            </p>
+          ) : null}
+          <p>Platform: {platform}</p>
+          <p>Package: {info?.id ?? "com.novend.pos"}</p>
           <p>Organization: {orgName || "—"}</p>
           <p>Branch: {branchName || "—"}</p>
           <p>Role: {role || "—"}</p>

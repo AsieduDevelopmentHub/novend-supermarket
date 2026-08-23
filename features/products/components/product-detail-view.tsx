@@ -36,7 +36,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { getMirroredProduct } from "@/lib/offline/mirror-queries";
 import { persistBusinessWrite, queuedSaveMessage, queueAdjustStock } from "@/lib/offline/replica-writes";
-import { ArrowLeft, Package, Pencil, PackagePlus, Trash2 } from "lucide-react";
+import { ArrowLeft, Package, Pencil, PackagePlus, Trash2, Warehouse } from "lucide-react";
 import { ProductImage } from "@/components/media/product-image";
 import { toast } from "sonner";
 import { ProductFormDialog } from "./product-form-dialog";
@@ -186,6 +186,32 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
       <PageHeader
         title={product.name}
         description={product.barcode ? `${product.sku} · ${product.barcode}` : product.sku}
+        compactActions={[
+          { key: "back", label: "Products", icon: ArrowLeft, href: "/products" },
+          { key: "inventory", label: "Inventory", icon: Warehouse, href: "/inventory" },
+          ...(canManageProducts && !isArchived
+            ? [
+                {
+                  key: "edit",
+                  label: "Edit",
+                  icon: Pencil,
+                  onClick: () => setEditOpen(true),
+                },
+                {
+                  key: "restock",
+                  label: "Restock",
+                  icon: PackagePlus,
+                  onClick: () => {
+                    setQuantityChange("0");
+                    setReason("receive");
+                    setNote("");
+                    setExpiryDate("");
+                    setRestockOpen(true);
+                  },
+                },
+              ]
+            : []),
+        ]}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">

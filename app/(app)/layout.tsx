@@ -316,12 +316,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             )}
           >
             {nativeShell ? null : <AppSidebar user={shellUser} />}
-            <div
-              className={cn(
-                "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
-                nativeShell && "native-shell-top",
-              )}
-            >
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              {nativeShell ? <div className="native-status-bar" aria-hidden /> : null}
               {nativeShell ? null : (
                 <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 lg:hidden">
                   <MobileSidebar user={shellUser} />
@@ -341,8 +337,10 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
               <SyncStatusBanner />
               <main
                 className={cn(
-                  "min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain",
-                  nativeShell ? "px-[var(--mobile-page-pad)] pb-5 pt-0" : "px-4 py-6 lg:px-8",
+                  "min-h-0 min-w-0 flex-1 overscroll-y-contain",
+                  nativeShell
+                    ? "overflow-x-clip overflow-y-auto px-[var(--mobile-page-pad)] pb-5 pt-0"
+                    : "overflow-x-hidden overflow-y-auto px-4 py-6 lg:px-8",
                   nativeShell && "pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]",
                 )}
               >

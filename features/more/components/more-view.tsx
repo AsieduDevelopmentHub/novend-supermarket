@@ -1,12 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { usePermissions } from "@/hooks/use-permissions";
 import { moreSectionsForRole } from "@/config/mobile-navigation";
 import { PageHeader } from "@/components/layout/primitives";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/feedback/loading-state";
-import { ChevronRight, CreditCard, HelpCircle, Info } from "lucide-react";
+import { signOutAndRedirect } from "@/lib/auth/sign-out";
+import { ChevronRight, CreditCard, HelpCircle, Info, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const EXTRA_SYSTEM = [
@@ -19,7 +24,10 @@ const EXTRA_SYSTEM = [
  * Capacitor More menu — grouped cards for destinations outside the bottom tabs.
  */
 export function MoreView() {
+  const router = useRouter();
+  const { signOut } = useAuthActions();
   const { role, isLoading } = usePermissions();
+  const [signingOut, setSigningOut] = useState(false);
 
   if (isLoading || !role) {
     return <LoadingState label="Loading…" />;
@@ -27,11 +35,42 @@ export function MoreView() {
 
   const sections = moreSectionsForRole(role);
 
+  async function handleSignOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOutAndRedirect({ signOut, router });
+    } finally {
+      setSigningOut(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-lg space-y-5 pb-4">
       <PageHeader
         title="More"
         description="Everything else for your role, grouped for quick access."
+        compactActions={[
+          {
+            key: "logout",
+            label: "Sign out",
+            icon: LogOut,
+            onClick: () => void handleSignOut(),
+            disabled: signingOut,
+          },
+        ]}
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11"
+            disabled={signingOut}
+            onClick={() => void handleSignOut()}
+          >
+            <LogOut className="h-4 w-4" />
+            {signingOut ? "Signing out…" : "Sign out"}
+          </Button>
+        }
       />
 
       {sections.map((section) => (
@@ -90,6 +129,17 @@ export function MoreView() {
           </CardContent>
         </Card>
       ))}
+
+      <Button
+        type="button"
+        variant="destructive"
+        className="min-h-12 w-full"
+        disabled={signingOut}
+        onClick={() => void handleSignOut()}
+      >
+        <LogOut className="h-4 w-4" />
+        {signingOut ? "Signing out…" : "Sign out"}
+      </Button>
     </div>
   );
 }

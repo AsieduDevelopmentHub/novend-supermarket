@@ -41,7 +41,7 @@ export function PageHeader({
   useEffect(() => {
     if (!nativeShell) return;
     const node = toolbarRef.current;
-    if (!node || !actions) {
+    if (!node || (!actions && !description)) {
       queueMicrotask(() => setToolbarAway(false));
       return;
     }
@@ -53,14 +53,13 @@ export function PageHeader({
       },
       {
         root: scrollRoot instanceof Element ? scrollRoot : null,
-        // Account for sticky title bar so icons appear as CTAs tuck under it.
-        rootMargin: "-52px 0px 0px 0px",
+        rootMargin: "-56px 0px 0px 0px",
         threshold: 0,
       },
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [nativeShell, actions, title]);
+  }, [nativeShell, actions, description, title]);
 
   if (!nativeShell) {
     return (
@@ -81,21 +80,26 @@ export function PageHeader({
     );
   }
 
-  const showCompact = Boolean(toolbarAway && compactActions && compactActions.length > 0);
+  const showCompact = Boolean(
+    toolbarAway && compactActions && compactActions.length > 0,
+  );
 
   return (
     <div className={cn("mb-4", className)}>
       <header className="native-page-header sticky top-0 z-20">
-        <div className="flex min-h-11 items-center gap-2">
+        <div className="flex min-h-11 w-full items-center gap-2">
           <h1 className="text-foreground min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">
             {title}
           </h1>
           {showCompact ? (
-            <div className="flex shrink-0 items-center gap-0.5" role="toolbar" aria-label={`${title} actions`}>
+            <div
+              className="flex shrink-0 items-center gap-0.5"
+              role="toolbar"
+              aria-label={`${title} actions`}
+            >
               {compactActions!.map((action) => {
                 const Icon = action.icon;
-                const classNameBtn =
-                  "text-foreground h-9 w-9 shrink-0 touch-target rounded-full";
+                const btnClass = "text-foreground h-9 w-9 shrink-0 touch-target rounded-full";
                 if (action.href) {
                   return (
                     <Button
@@ -104,7 +108,7 @@ export function PageHeader({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className={classNameBtn}
+                      className={btnClass}
                       disabled={action.disabled}
                     >
                       <Link href={action.href} aria-label={action.label} title={action.label}>
@@ -119,7 +123,7 @@ export function PageHeader({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className={classNameBtn}
+                    className={btnClass}
                     aria-label={action.label}
                     title={action.label}
                     disabled={action.disabled}

@@ -165,25 +165,44 @@
   --mobile-touch: 2.75rem;
   /* Fallback when WebView reports 0 inset (common with remote server.url). */
   --native-status-pad: max(env(safe-area-inset-top, 0px), 1.75rem);
+  --native-header-row: 2.75rem;
 }
 
-/* Keep system status bar (battery/time) clear of app chrome. */
-.native-shell .native-shell-top {
-  padding-top: var(--native-status-pad);
-  background-color: var(--background);
+/* Solid status strip — light background so system icons stay dark/readable. */
+.native-shell .native-status-bar {
+  height: var(--native-status-pad);
+  flex-shrink: 0;
+  background-color: #ffffff;
+}
+
+.native-shell.dark .native-status-bar,
+.dark .native-shell .native-status-bar {
+  background-color: #0b1f33;
 }
 
 /*
- * Sticky in-page title — short, opaque bar. CTAs live in the scrollable toolbar
- * below; compact icons appear once that toolbar scrolls away (see PageHeader).
+ * Sticky in-page title inside main (overflow-x-clip so sticky works).
+ * Solid white so it matches the status strip / dark system icons.
  */
 .native-shell .native-page-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   margin-left: calc(-1 * var(--mobile-page-pad));
   margin-right: calc(-1 * var(--mobile-page-pad));
-  padding: 0.375rem var(--mobile-page-pad);
+  height: var(--native-header-row);
+  display: flex;
+  align-items: center;
+  padding-left: var(--mobile-page-pad);
+  padding-right: var(--mobile-page-pad);
   border-bottom: 1px solid var(--border);
-  background-color: var(--background);
-  backdrop-filter: none;
+  background-color: #ffffff;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+}
+
+.native-shell.dark .native-page-header,
+.dark .native-shell .native-page-header {
+  background-color: #0b1f33;
 }
 
 .native-shell .touch-target {
