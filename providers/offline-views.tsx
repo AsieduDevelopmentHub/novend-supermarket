@@ -27,12 +27,10 @@ import { PlatformOverviewView } from "@/features/platform/components/platform-ov
 import { PlatformView } from "@/features/platform/components/platform-view";
 import { PlatformReleasesView } from "@/features/platform/components/platform-releases-view";
 import { PlatformOrgDetailView } from "@/features/platform/components/platform-org-detail-view";
-import {
-  PlatformCostsView,
-  PlatformHealthView,
-  PlatformRevenueView,
-  PlatformSubscriptionsView,
-} from "@/features/platform/components/platform-placeholder-pages";
+import { PlatformRevenueView } from "@/features/platform/components/platform-revenue-view";
+import { PlatformCostsView } from "@/features/platform/components/platform-costs-view";
+import { PlatformSubscriptionsView } from "@/features/platform/components/platform-subscriptions-view";
+import { PlatformHealthView } from "@/features/platform/components/platform-health-view";
 import { OfflineUnavailable } from "@/components/offline/offline-unavailable";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Id } from "@/convex/_generated/dataModel";

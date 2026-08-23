@@ -27,6 +27,7 @@ import type * as mobileReleases from "../mobileReleases.js";
 import type * as offline from "../offline.js";
 import type * as organizations from "../organizations.js";
 import type * as platform from "../platform.js";
+import type * as platformAnalytics from "../platformAnalytics.js";
 import type * as products from "../products.js";
 import type * as profiles from "../profiles.js";
 import type * as reports from "../reports.js";
@@ -80,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   offline: typeof offline;
   organizations: typeof organizations;
   platform: typeof platform;
+  platformAnalytics: typeof platformAnalytics;
   products: typeof products;
   profiles: typeof profiles;
   reports: typeof reports;

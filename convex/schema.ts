@@ -17,6 +17,18 @@ export const expenseCategoryValidator = v.union(
   v.literal("misc"),
 );
 
+/** Platform-owner operating cost categories (Novend SaaS, not tenant POS expenses). */
+export const platformCostCategoryValidator = v.union(
+  v.literal("hosting"),
+  v.literal("convex"),
+  v.literal("vercel"),
+  v.literal("domains"),
+  v.literal("sms"),
+  v.literal("email"),
+  v.literal("infrastructure"),
+  v.literal("misc"),
+);
+
 export const planKeyValidator = v.union(
   v.literal("basic"),
   v.literal("pro"),
@@ -219,6 +231,19 @@ export default defineSchema({
     userId: v.id("users"),
     createdAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  /** Novend platform operating costs (hosting, Convex, etc.) — not tenant expenses. */
+  platformOperatingCosts: defineTable({
+    amount: v.number(),
+    currency: v.string(),
+    category: platformCostCategoryValidator,
+    occurredAt: v.number(),
+    description: v.optional(v.string()),
+    recordedBy: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_occurredAt", ["occurredAt"])
+    .index("by_category", ["category"]),
 
   branches: defineTable({
     organizationId: v.id("organizations"),
