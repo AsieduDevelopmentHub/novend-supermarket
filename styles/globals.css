@@ -1,7 +1,12 @@
 ﻿@import "tailwindcss";
 
+/* Class-based dark only — never follow OS prefers-color-scheme. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Novend POS tokens â€” Onyx + Candy Blue brand */
-:root {
+:root,
+.marketing-forced-light {
+  color-scheme: light;
   --background: #f8fafc;
   --foreground: #111827;
   --card: #ffffff;
@@ -51,6 +56,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: #020617;
   --foreground: #f8fafc;
   --card: #0f172a;

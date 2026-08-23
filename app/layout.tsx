@@ -42,10 +42,11 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    // Match app background so Android/iOS status bar icons stay dark/readable.
+    // Browser chrome hint only; in-app appearance follows the `.dark` class (not OS).
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0B1F33" },
   ],
+  colorScheme: "light dark",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

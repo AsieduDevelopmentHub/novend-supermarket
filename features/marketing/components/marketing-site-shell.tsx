@@ -11,7 +11,7 @@ export function MarketingSiteShell({ children }: { children: ReactNode }) {
   return (
     <div
       ref={scrollRef}
-      className="bg-[#F8FAFC] text-foreground h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain"
+      className="marketing-forced-light bg-[#F8FAFC] text-foreground h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain"
     >
       <LandingNav scrollRootRef={scrollRef} />
       <main className="min-h-[70dvh] pt-24 pb-4 sm:pt-28">{children}</main>
