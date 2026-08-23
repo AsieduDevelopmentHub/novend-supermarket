@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   // Allow LAN devices to use HMR when opening the app via local IP.
   allowedDevOrigins: ["192.168.1.202", "127.0.0.1", "localhost"],
   images: {
+    // Next 16 requires an explicit allowlist for <Image quality={…}>.
+    qualities: [75, 90, 100],
     // Marketing PNGs change often during design iteration — don't hold them long.
     minimumCacheTTL: 60,
     localPatterns: [
