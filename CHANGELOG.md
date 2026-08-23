@@ -4,6 +4,22 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.0 — 2026-08-23
+
+### Added
+
+- Capacitor Android shell with bottom-nav POS UX, hardware abstraction, and native install path.
+- Product Release CI builds desktop installers and an Android APK, then publishes metadata to Convex.
+- Public `/download` page and install prompts read live desktop and mobile releases from Convex.
+- Compact Capacitor page headers with scroll-aware action icons and status-bar safe area.
+
+### Changed
+
+- Landing nav: single Download link; mobile menu uses a one-at-a-time accordion.
+- Install prompt prefers native downloads when a release exists; PWA only on mobile/iOS without one.
+
+---
+
 ## v0.2.0 — 2026-08-21
 
 ### Added
