@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,8 +12,15 @@ import { Button } from "@/components/ui/button";
 import { ReceiptDocument } from "@/features/receipts/components/receipt-document";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { printReceipt, normalizeReceiptPayload } from "@/services/printing";
+import { buildReceiptPdfBytes, buildReceiptShareText } from "@/services/receipts/share";
+import {
+  Hardware,
+  filesystemSaveFailedMessage,
+  isCapacitor,
+  shareFailedMessage,
+} from "@novend/hardware";
 import { toast } from "sonner";
-import { Printer } from "lucide-react";
+import { FileDown, Printer, Share2 } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -22,20 +30,67 @@ type Props = {
 
 export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
   const normalized = payload ? normalizeReceiptPayload(payload) : null;
+  const mobile = isCapacitor();
+  const [busy, setBusy] = useState<"print" | "share" | "pdf" | null>(null);
 
   async function onPrint() {
     if (!normalized) return;
-    const result = await printReceipt(normalized);
-    if (!result.printed) {
-      toast.error("Could not print the receipt. Check the print agent or browser permissions.");
-      return;
+    setBusy("print");
+    try {
+      const result = await printReceipt(normalized);
+      if (!result.printed) {
+        toast.error("Could not print the receipt. Check printer settings or try again.");
+        return;
+      }
+      if (result.reason === "native") {
+        toast.success(
+          result.copies && result.copies > 1
+            ? `Receipt sent to printer (${result.copies} copies)`
+            : "Receipt sent to printer",
+        );
+      }
+    } finally {
+      setBusy(null);
     }
-    if (result.reason === "native") {
-      toast.success(
-        result.copies && result.copies > 1
-          ? `Receipt sent to printer (${result.copies} copies)`
-          : "Receipt sent to printer",
+  }
+
+  async function onShare() {
+    if (!normalized) return;
+    setBusy("share");
+    try {
+      const text = buildReceiptShareText(normalized);
+      const result = await Hardware.share.shareReceipt(
+        text,
+        `Receipt ${normalized.invoiceNumber}`,
       );
+      if (!result.ok && result.message !== "Cancelled") {
+        toast.error(result.message || shareFailedMessage());
+        return;
+      }
+      if (result.ok) toast.success("Receipt shared");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function onSavePdf() {
+    if (!normalized) return;
+    setBusy("pdf");
+    try {
+      const bytes = await buildReceiptPdfBytes(normalized);
+      const result = await Hardware.filesystem.savePDF(
+        bytes,
+        `receipt-${normalized.invoiceNumber}.pdf`,
+      );
+      if (!result.ok) {
+        toast.error(result.message || filesystemSaveFailedMessage());
+        return;
+      }
+      toast.success("Receipt PDF saved on this device");
+    } catch {
+      toast.error(filesystemSaveFailedMessage());
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -56,10 +111,40 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          <Button type="button" disabled={!normalized} onClick={() => void onPrint()}>
-            <Printer className="h-4 w-4" />
-            Print receipt
-          </Button>
+          <div className="flex flex-wrap justify-end gap-2">
+            {mobile ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!normalized || busy !== null}
+                  onClick={() => void onShare()}
+                >
+                  <Share2 className="h-4 w-4" />
+                  {busy === "share" ? "Sharing…" : "Share"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!normalized || busy !== null}
+                  onClick={() => void onSavePdf()}
+                >
+                  <FileDown className="h-4 w-4" />
+                  {busy === "pdf" ? "Saving…" : "Save PDF"}
+                </Button>
+              </>
+            ) : null}
+            {!mobile ? (
+              <Button
+                type="button"
+                disabled={!normalized || busy !== null}
+                onClick={() => void onPrint()}
+              >
+                <Printer className="h-4 w-4" />
+                {busy === "print" ? "Printing…" : "Print receipt"}
+              </Button>
+            ) : null}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

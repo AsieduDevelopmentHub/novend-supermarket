@@ -1,4 +1,4 @@
-import { getDesktopBridge, isDesktopRuntime } from "@/lib/desktop";
+import { Hardware, getElectronBridge, isCapacitor, isElectron } from "@novend/hardware";
 import { isCameraBarcodeSupported } from "./barcode-camera";
 import {
   loadTerminalScannerConfig,
@@ -27,15 +27,22 @@ export type BarcodeProviderKind = "hid" | "camera";
 /** Timed HID capture on product create / settings test. */
 export const BARCODE_HID_CAPTURE_MS = 18_000;
 
+const HID_FALLBACK_SCANNERS: DiscoveredScanner[] = [
+  {
+    id: "hid-keyboard",
+    label: "Keyboard HID scanner (wedge)",
+    mode: "hid_keyboard",
+  },
+];
+
 export function listAvailableBarcodeProviders(): BarcodeProviderKind[] {
   const providers: BarcodeProviderKind[] = ["hid"];
-  // Camera uses getUserMedia + native or ZXing — not gated on BarcodeDetector alone.
   if (isCameraBarcodeSupported()) providers.push("camera");
   return providers;
 }
 
 export function getActiveBarcodeProviderKind(): BarcodeProviderKind {
-  return isDesktopRuntime() ? "hid" : "hid";
+  return "hid";
 }
 
 export function isBarcodeScanningEnabled(config = loadTerminalScannerConfig()): boolean {
@@ -47,8 +54,9 @@ export function isHardwareBarcodeScannerActive(config = loadTerminalScannerConfi
   return config.enabled;
 }
 
-/** Camera scan button for web/PWA when no hardware scanner is configured. */
+/** Camera scan button — native on Capacitor; web/PWA when no HID scanner is configured. */
 export function shouldShowCameraBarcodeButton(): boolean {
+  if (isCapacitor()) return true;
   if (!isCameraBarcodeSupported()) return false;
   return !isHardwareBarcodeScannerActive();
 }
@@ -60,7 +68,6 @@ export function getScannerConnectionState(
 ): ScannerConnectionState {
   if (!config.enabled) return "disabled";
   if (listening) return "listening";
-  // Keyboard-wedge HID works in the renderer and in the browser — no native bridge required.
   return "connected";
 }
 
@@ -76,7 +83,9 @@ export function rememberLastScan(code: string, config = loadTerminalScannerConfi
 export function playScanSuccessBeep() {
   if (typeof window === "undefined") return;
   try {
-    const AudioCtx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const AudioCtx =
+      window.AudioContext ||
+      (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
     const osc = ctx.createOscillator();
@@ -94,64 +103,64 @@ export function playScanSuccessBeep() {
   }
 }
 
+type DiscoverPayload = {
+  devices?: Array<{
+    id: string;
+    kind: string;
+    label: string;
+    meta?: Record<string, unknown>;
+  }>;
+};
+
 /** Ask the desktop shell to list scanner adapters / devices. */
 export async function discoverScanners(): Promise<ScannerDiscoveryResult> {
-  const desktop = getDesktopBridge();
-  if (!desktop?.discoverDevices) {
+  if (!isElectron()) {
     return {
       ok: true,
       message: "USB HID scanners type like a keyboard. Camera scanning is also available.",
-      scanners: [
-        {
-          id: "hid-keyboard",
-          label: "Keyboard HID scanner (wedge)",
-          mode: "hid_keyboard",
-        },
-      ],
+      scanners: HID_FALLBACK_SCANNERS,
       bridgeOnline: false,
     };
   }
 
-  try {
-    const result = await desktop.discoverDevices();
-    const scanners = (result.devices ?? [])
-      .filter((device) => device.kind === "scanner")
-      .map((device) => ({
-        id: device.id,
-        label: device.label,
-        mode: typeof device.meta?.mode === "string" ? device.meta.mode : "unknown",
-      }));
+  const result = await Hardware.barcode.discover();
+  const payload = (result.data ?? {}) as DiscoverPayload;
+  const scanners = (payload.devices ?? [])
+    .filter((device) => device.kind === "scanner")
+    .map((device) => ({
+      id: device.id,
+      label: device.label,
+      mode: typeof device.meta?.mode === "string" ? device.meta.mode : "unknown",
+    }));
 
-    if (!result.ok) {
-      return {
-        ok: false,
-        message: result.message || "Discover failed",
-        scanners,
-        bridgeOnline: true,
-      };
-    }
-
+  if (!result.ok) {
     return {
-      ok: true,
-      message:
-        scanners.length > 0
-          ? `Found ${scanners.length} scanner(s)`
-          : "No scanners found — HID keyboard wedge is still available in POS",
+      ok: false,
+      message: result.message || "Discover failed",
       scanners,
       bridgeOnline: true,
     };
-  } catch {
-    return {
-      ok: false,
-      message: "Desktop hardware bridge failed during scanner discovery",
-      scanners: [],
-      bridgeOnline: false,
-    };
   }
+
+  return {
+    ok: true,
+    message:
+      scanners.length > 0
+        ? `Found ${scanners.length} scanner(s)`
+        : "No scanners found — HID keyboard wedge is still available in POS",
+    scanners,
+    bridgeOnline: true,
+  };
 }
 
-export async function probeScannerBridge(): Promise<{ ok: boolean; version?: string; platform?: string }> {
-  const desktop = getDesktopBridge();
+export async function probeScannerBridge(): Promise<{
+  ok: boolean;
+  version?: string;
+  platform?: string;
+}> {
+  const desktop = getElectronBridge<{
+    getRuntime: () => Promise<{ version: string; platform: string }>;
+  }>();
   if (!desktop?.getRuntime) return { ok: false };
   try {
     const runtime = await desktop.getRuntime();

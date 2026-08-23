@@ -5,12 +5,9 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import {
-  Dialog,
-  DialogContent,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
+import { ResponsiveFormSurface } from "@/components/layout/responsive-form-surface";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +25,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { generateSkuFromName } from "@/lib/sku";
 import { DEFAULT_EXPIRY_ALERT_DAYS } from "@/lib/expiry";
 import { assertValidImageFile, compressProductImage, IMAGE_ACCEPT } from "@/lib/uploads/image";
-import { Camera, ImagePlus, Upload } from "lucide-react";
+import { Camera, ImagePlus, Images, Upload } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -43,6 +40,12 @@ import {
   queueCreateCategory,
   queueUpsertProduct,
 } from "@/lib/offline/replica-writes";
+import {
+  Hardware,
+  cameraCaptureFailedMessage,
+  isCapacitor,
+  permissionNeedMessage,
+} from "@novend/hardware";
 
 type Props = {
   open: boolean;
@@ -111,29 +114,29 @@ export function ProductFormDialog({ open, onOpenChange, productId }: Props) {
   const ready = open && categories !== undefined && localReady && !waitingRemote && editDataReady;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{productId ? "Edit Product" : "Add Product"}</DialogTitle>
-        </DialogHeader>
-        {!ready ? (
-          <LoadingState label="Loading form…" />
-        ) : (
-          <ProductFormBody
-            key={productId ?? "new"}
-            productId={productId}
-            initialProduct={(product as ProductDetails | null) ?? null}
-            categories={categories ?? []}
-            initialCategoryId={
-              ((product as ProductDetails | null)?.categoryId as string | undefined) ??
-              categories?.[0]?._id ??
-              ""
-            }
-            onOpenChange={onOpenChange}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+    <ResponsiveFormSurface
+      open={open}
+      onOpenChange={onOpenChange}
+      title={productId ? "Edit Product" : "Add Product"}
+      dialogClassName="max-w-3xl"
+    >
+      {!ready ? (
+        <LoadingState label="Loading form…" />
+      ) : (
+        <ProductFormBody
+          key={productId ?? "new"}
+          productId={productId}
+          initialProduct={(product as ProductDetails | null) ?? null}
+          categories={categories ?? []}
+          initialCategoryId={
+            ((product as ProductDetails | null)?.categoryId as string | undefined) ??
+            categories?.[0]?._id ??
+            ""
+          }
+          onOpenChange={onOpenChange}
+        />
+      )}
+    </ResponsiveFormSurface>
   );
 }
 
@@ -231,6 +234,45 @@ function ProductFormBody({
     } catch (error) {
       showError(error, "Invalid image file");
     }
+  }
+
+  async function applyHardwarePhoto(
+    action: "capture" | "gallery",
+  ): Promise<void> {
+    toast.message(
+      action === "capture" ? permissionNeedMessage("camera") : permissionNeedMessage("photos"),
+    );
+    const result =
+      action === "capture"
+        ? await Hardware.camera.capturePhoto()
+        : await Hardware.camera.pickFromGallery();
+    if (!result.ok) {
+      if (result.message === "Cancelled") return;
+      toast.error(result.message || cameraCaptureFailedMessage());
+      return;
+    }
+    const next = result.data?.file;
+    if (!next) {
+      toast.error(cameraCaptureFailedMessage());
+      return;
+    }
+    await applyImageFile(next);
+  }
+
+  async function onTakePhoto() {
+    if (isCapacitor()) {
+      await applyHardwarePhoto("capture");
+      return;
+    }
+    setCameraOpen(true);
+  }
+
+  async function onChooseGallery() {
+    if (isCapacitor()) {
+      await applyHardwarePhoto("gallery");
+      return;
+    }
+    document.getElementById("image")?.click();
   }
 
   async function onSubmit(event: FormEvent) {
@@ -545,16 +587,31 @@ function ProductFormBody({
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" asChild>
-            <label htmlFor="image" className="cursor-pointer">
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Image
-            </label>
-          </Button>
-          <Button type="button" variant="outline" onClick={() => setCameraOpen(true)}>
-            <Camera className="mr-2 h-4 w-4" />
-            Take Photo
-          </Button>
+          {isCapacitor() ? (
+            <>
+              <Button type="button" variant="outline" onClick={() => void onTakePhoto()}>
+                <Camera className="mr-2 h-4 w-4" />
+                Take Photo
+              </Button>
+              <Button type="button" variant="outline" onClick={() => void onChooseGallery()}>
+                <Images className="mr-2 h-4 w-4" />
+                Choose Gallery
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="outline" asChild>
+                <label htmlFor="image" className="cursor-pointer">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Image
+                </label>
+              </Button>
+              <Button type="button" variant="outline" onClick={() => void onTakePhoto()}>
+                <Camera className="mr-2 h-4 w-4" />
+                Take Photo
+              </Button>
+            </>
+          )}
           <Input
             id="image"
             type="file"

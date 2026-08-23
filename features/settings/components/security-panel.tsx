@@ -8,13 +8,17 @@ import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { LoadingState } from "@/components/feedback/loading-state";
+import { BiometricSecurityCard } from "@/features/settings/components/biometric-security-card";
+import { NotificationsSettingsCard } from "@/features/settings/components/notifications-settings-card";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useNativeShell } from "@/hooks/use-native-shell";
 import { useCurrentUser } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 
 export function SecurityPanel() {
   const online = useConnectivity();
+  const nativeShell = useNativeShell();
   const remote = useQuery(api.users.me, online ? {} : "skip");
   const { user: cachedUser, isLoading: cacheLoading } = useCurrentUser();
   const me = remote ?? cachedUser;
@@ -35,6 +39,12 @@ export function SecurityPanel() {
 
   return (
     <div className="grid max-w-2xl gap-6">
+      {nativeShell ? (
+        <>
+          <BiometricSecurityCard />
+          <NotificationsSettingsCard />
+        </>
+      ) : null}
       <PasswordForm readOnly={!online} />
     </div>
   );

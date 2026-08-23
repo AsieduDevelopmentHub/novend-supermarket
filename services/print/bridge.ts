@@ -1,5 +1,8 @@
-import { getDesktopBridge, isDesktopRuntime } from "@/lib/desktop";
+import { Hardware, getElectronBridge, isElectron } from "@novend/hardware";
 import type { BridgePrintRequest, TerminalPrinterConfig } from "./terminal-config";
+
+// Re-export for callers that imported isDesktopRuntime from the print bridge.
+export { isElectron as isDesktopRuntime } from "@novend/hardware";
 
 export type BridgeStatus = {
   ok: boolean;
@@ -36,12 +39,12 @@ export type PrinterDiscoveryResult = {
   } | null;
 };
 
-export { isDesktopRuntime };
-
 /** Probe native desktop hardware bridge. Browser always returns offline. */
 export async function probePrintBridge(): Promise<BridgeStatus> {
-  const desktop = getDesktopBridge();
-  if (!desktop) {
+  const desktop = getElectronBridge<{
+    getRuntime: () => Promise<{ version: string; platform: string }>;
+  }>();
+  if (!desktop || !isElectron()) {
     return {
       ok: false,
       runtime: "browser",
@@ -68,95 +71,74 @@ export async function probePrintBridge(): Promise<BridgeStatus> {
 
 /** Ask the desktop shell to enumerate printers on this machine. */
 export async function discoverPrinters(): Promise<PrinterDiscoveryResult> {
-  const desktop = getDesktopBridge();
-  if (!desktop) {
+  const result = await Hardware.printer.discoverPrinters();
+  if (!result.ok || !result.data) {
     return {
       ok: false,
-      message: "Open Settings in the Novend POS desktop app to discover printers",
+      message: result.message || "Open Settings in the Novend POS desktop app to discover printers",
       windowsPrinters: [],
       suggested: null,
     };
   }
-  try {
-    const result = await desktop.discoverDevices();
-    if (!result.ok) {
-      return {
-        ok: false,
-        message: result.message || "Discover failed",
-        windowsPrinters: [],
-        suggested: null,
-      };
-    }
-    return {
-      ok: true,
-      version: result.version,
-      platform: result.platform,
-      message: result.message,
-      windowsPrinters: Array.isArray(result.windowsPrinters) ? result.windowsPrinters : [],
-      suggested: result.suggested ?? null,
-    };
-  } catch {
-    return {
-      ok: false,
-      message: "Desktop hardware bridge failed during discovery",
-      windowsPrinters: [],
-      suggested: null,
-    };
-  }
+
+  const windowsPrinters: DiscoveredWindowsPrinter[] = result.data.printers.map((p) => ({
+    name: p.name,
+    driverName: p.driverName ?? "",
+    portName: p.portName ?? "",
+    isDefault: Boolean(p.isDefault),
+    networkHost: p.networkHost ?? null,
+    networkPort: p.networkPort ?? null,
+  }));
+
+  const suggested = result.data.suggested
+    ? {
+        connectionType:
+          result.data.suggested.connectionType === "bluetooth"
+            ? ("auto" as const)
+            : result.data.suggested.connectionType,
+        windowsPrinterName: result.data.suggested.windowsPrinterName,
+        printerHost: result.data.suggested.printerHost,
+        printerPort: result.data.suggested.printerPort,
+      }
+    : null;
+
+  return {
+    ok: true,
+    version: result.data.version,
+    platform: result.data.platform,
+    message: result.message,
+    windowsPrinters,
+    suggested,
+  };
 }
 
 /** Send raw ESC/POS to the desktop main process for silent printing. */
 export async function sendToPrintBridge(
   request: BridgePrintRequest,
 ): Promise<{ ok: boolean; message?: string }> {
-  const desktop = getDesktopBridge();
-  if (!desktop) {
-    return { ok: false, message: "Desktop bridge not available" };
-  }
-  try {
-    const result = await desktop.print({
-      escposBase64: request.escposBase64,
-      invoiceNumber: request.invoiceNumber,
-      copies: request.copies,
-      connectionType: request.connectionType,
-      printerHost: request.printerHost,
-      printerPort: request.printerPort,
-      windowsPrinterName: request.windowsPrinterName,
-      paperWidthMm: request.paperWidthMm,
-      openCashDrawer: request.openCashDrawer,
-    });
-    return { ok: result.ok, message: result.message };
-  } catch (error) {
-    return {
-      ok: false,
-      message: error instanceof Error ? error.message : "Print failed",
-    };
-  }
+  return Hardware.printer.printReceipt({
+    escposBase64: request.escposBase64,
+    invoiceNumber: request.invoiceNumber,
+    copies: request.copies,
+    connectionType: request.connectionType,
+    printerHost: request.printerHost,
+    printerPort: request.printerPort,
+    windowsPrinterName: request.windowsPrinterName,
+    paperWidthMm: request.paperWidthMm,
+    openCashDrawer: request.openCashDrawer,
+  });
 }
 
 /** Run a test print through the desktop shell. */
 export async function testDesktopPrint(
   config: TerminalPrinterConfig,
 ): Promise<{ ok: boolean; message?: string }> {
-  const desktop = getDesktopBridge();
-  if (!desktop) {
-    return { ok: false, message: "Desktop bridge not available" };
-  }
-  try {
-    const result = await desktop.testPrint({
-      connectionType: config.connectionType,
-      printerHost: config.printerHost,
-      printerPort: config.printerPort,
-      windowsPrinterName: config.windowsPrinterName,
-      paperWidthMm:
-        config.paperWidthMm === 58 || config.paperWidthMm === 80 ? config.paperWidthMm : 80,
-      copies: 1,
-    });
-    return { ok: result.ok, message: result.message };
-  } catch (error) {
-    return {
-      ok: false,
-      message: error instanceof Error ? error.message : "Test print failed",
-    };
-  }
+  return Hardware.printer.testPrint({
+    connectionType: config.connectionType,
+    printerHost: config.printerHost,
+    printerPort: config.printerPort,
+    windowsPrinterName: config.windowsPrinterName,
+    paperWidthMm:
+      config.paperWidthMm === 58 || config.paperWidthMm === 80 ? config.paperWidthMm : 80,
+  });
 }

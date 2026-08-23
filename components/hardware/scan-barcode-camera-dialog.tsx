@@ -26,6 +26,12 @@ import {
   startCameraBarcodeScanning,
   type CameraScannerSession,
 } from "@/services/hardware";
+import {
+  Hardware,
+  barcodeScanFailedMessage,
+  isCapacitor,
+  permissionNeedMessage,
+} from "@novend/hardware";
 import { Loader2, ScanBarcode } from "lucide-react";
 
 type Props = {
@@ -35,7 +41,8 @@ type Props = {
 };
 
 /**
- * Camera barcode reader. Opens after an explicit tap; camera starts automatically.
+ * Camera barcode reader. On Capacitor, opens the native full-screen scanner.
+ * On web / Electron, uses getUserMedia + BarcodeDetector / ZXing.
  */
 export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -48,7 +55,8 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [detectBox, setDetectBox] = useState<DOMRectReadOnly | null>(null);
   const [successCode, setSuccessCode] = useState<string | null>(null);
-  const supported = isCameraBarcodeSupported();
+  const native = isCapacitor();
+  const supported = native || isCameraBarcodeSupported();
 
   function stopScanner() {
     try {
@@ -90,58 +98,96 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
     onOpenChange(next);
   }
 
-  const startScanner = useCallback(async (deviceId?: string) => {
+  const runNativeScan = useCallback(async () => {
     setStarting(true);
     setError(null);
-    setReady(false);
-    setDetectBox(null);
     setSuccessCode(null);
-    stopScanner();
-
-    if (!supported) {
-      setError("Camera barcode scanning is not supported on this device.");
-      setStarting(false);
-      return;
-    }
-
-    const video = videoRef.current;
-    if (!video) {
-      setError("Unable to start the camera. Please try again.");
-      setStarting(false);
-      return;
-    }
-
     try {
-      const scanner = await startCameraBarcodeScanning({
-        video,
-        deviceId: deviceId || undefined,
-        onDetect: (code, box) => {
-          setDetectBox(box ?? null);
-          setSuccessCode(code);
-          playScanSuccessBeep();
-          window.setTimeout(() => {
-            onDetect(code);
-            stopScanner();
-            onOpenChange(false);
-          }, 350);
-        },
-      });
-      scannerRef.current = scanner;
-
-      const inputs = await listVideoInputDevices();
-      setDevices(inputs);
-      const activeId = scanner.deviceId || deviceId || "";
-      if (activeId) setSelectedDeviceId(activeId);
-
-      setReady(true);
-    } catch (err) {
-      stopScanner();
-      const message = cameraErrorMessage(err);
-      setError(message.includes("Allow camera") ? message : scannerInitErrorMessage(err));
+      const result = await Hardware.barcode.scan();
+      if (!result.ok) {
+        if (result.message === "Cancelled") {
+          onOpenChange(false);
+          return;
+        }
+        setError(result.message || barcodeScanFailedMessage());
+        return;
+      }
+      const code = result.data?.value?.trim();
+      if (!code) {
+        setError(barcodeScanFailedMessage());
+        return;
+      }
+      setSuccessCode(code);
+      playScanSuccessBeep();
+      onDetect(code);
+      onOpenChange(false);
+    } catch {
+      setError(barcodeScanFailedMessage());
     } finally {
       setStarting(false);
     }
-  }, [onDetect, onOpenChange, supported]);
+  }, [onDetect, onOpenChange]);
+
+  const startScanner = useCallback(
+    async (deviceId?: string) => {
+      if (native) {
+        await runNativeScan();
+        return;
+      }
+
+      setStarting(true);
+      setError(null);
+      setReady(false);
+      setDetectBox(null);
+      setSuccessCode(null);
+      stopScanner();
+
+      if (!supported) {
+        setError(permissionNeedMessage("camera"));
+        setStarting(false);
+        return;
+      }
+
+      const video = videoRef.current;
+      if (!video) {
+        setError("Unable to start the camera. Please try again.");
+        setStarting(false);
+        return;
+      }
+
+      try {
+        const scanner = await startCameraBarcodeScanning({
+          video,
+          deviceId: deviceId || undefined,
+          onDetect: (code, box) => {
+            setDetectBox(box ?? null);
+            setSuccessCode(code);
+            playScanSuccessBeep();
+            window.setTimeout(() => {
+              onDetect(code);
+              stopScanner();
+              onOpenChange(false);
+            }, 350);
+          },
+        });
+        scannerRef.current = scanner;
+
+        const inputs = await listVideoInputDevices();
+        setDevices(inputs);
+        const activeId = scanner.deviceId || deviceId || "";
+        if (activeId) setSelectedDeviceId(activeId);
+
+        setReady(true);
+      } catch (err) {
+        stopScanner();
+        const message = cameraErrorMessage(err);
+        setError(message.includes("Allow camera") ? message : scannerInitErrorMessage(err));
+      } finally {
+        setStarting(false);
+      }
+    },
+    [native, onDetect, onOpenChange, runNativeScan, supported],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -155,6 +201,36 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
     if (!nextDeviceId || nextDeviceId === selectedDeviceId) return;
     setSelectedDeviceId(nextDeviceId);
     await startScanner(nextDeviceId);
+  }
+
+  if (native) {
+    return (
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="max-w-sm" key={session}>
+          <DialogHeader>
+            <DialogTitle>Scan barcode</DialogTitle>
+          </DialogHeader>
+          <div className="grid place-items-center gap-3 py-6 text-center">
+            {starting ? <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" /> : null}
+            {error ? <p className="text-muted-foreground text-sm">{error}</p> : null}
+            {!error && starting ? (
+              <p className="text-muted-foreground text-sm">Opening the camera scanner…</p>
+            ) : null}
+            {error ? (
+              <Button type="button" variant="outline" size="sm" onClick={() => void runNativeScan()}>
+                <ScanBarcode className="mr-2 h-4 w-4" />
+                Try again
+              </Button>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (

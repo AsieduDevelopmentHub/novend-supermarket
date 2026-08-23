@@ -1,17 +1,18 @@
 /**
  * Runtime detection for the Electron desktop shell.
+ * Prefer `@novend/hardware` platform helpers for new code.
  * The preload script exposes `window.novendDesktop`.
  */
+import { getElectronBridge, isElectron } from "@novend/hardware";
 import type { NovendDesktopBridge } from "@/types/desktop";
 
 export function getDesktopBridge(): NovendDesktopBridge | null {
-  if (typeof window === "undefined") return null;
-  return window.novendDesktop ?? null;
+  return getElectronBridge<NovendDesktopBridge>();
 }
 
 /** True when running inside the Novend POS desktop app. */
 export function isDesktopRuntime(): boolean {
-  return getDesktopBridge() != null;
+  return isElectron();
 }
 
 const OS_LABELS: Record<string, string> = {

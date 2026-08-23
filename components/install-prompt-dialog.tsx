@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { APP_NAME } from "@/constants/app";
 import { useDesktopRuntime } from "@/hooks/use-desktop-runtime";
+import { useNativeShell } from "@/hooks/use-native-shell";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import {
   detectBrowserDesktopTarget,
@@ -107,6 +108,7 @@ class InstallPromptErrorBoundary extends Component<{ children: ReactNode }, { fa
 
 function InstallPromptDialogInner() {
   const isDesktopShell = useDesktopRuntime();
+  const nativeShell = useNativeShell();
   const promptKind = useSyncExternalStore(subscribeNoop, getPromptKindSnapshot, () => null);
   const desktopTarget = useSyncExternalStore(subscribeNoop, getBrowserTargetSnapshot, () => null);
   const { canPrompt, promptInstall } = usePwaInstall();
@@ -120,7 +122,7 @@ function InstallPromptDialogInner() {
   );
 
   useEffect(() => {
-    if (isDesktopShell || isStandaloneWebApp() || !promptKind) return;
+    if (isDesktopShell || nativeShell || isStandaloneWebApp() || !promptKind) return;
     if (promptKind === "desktop" && !desktopTarget) return;
     if (readShowCount(promptKind) >= MAX_SHOWS) return;
 
@@ -131,9 +133,9 @@ function InstallPromptDialogInner() {
     }, SHOW_DELAY_MS);
 
     return () => window.clearTimeout(timer);
-  }, [isDesktopShell, promptKind, desktopTarget]);
+  }, [isDesktopShell, nativeShell, promptKind, desktopTarget]);
 
-  if (isDesktopShell || !promptKind) return null;
+  if (isDesktopShell || nativeShell || !promptKind) return null;
 
   function dismiss() {
     setOpen(false);

@@ -44,6 +44,7 @@ export async function putProductImage(args: {
   blob: Blob;
   mimeType?: string;
   sourceUrl?: string | null;
+  localFilePath?: string | null;
 }) {
   const db = await getOfflineDb();
   if (!db) return;
@@ -54,6 +55,7 @@ export async function putProductImage(args: {
     thumbnailBlob,
     mimeType: args.mimeType || args.blob.type || "image/jpeg",
     sourceUrl: args.sourceUrl ?? null,
+    localFilePath: args.localFilePath ?? null,
     updatedAt: Date.now(),
   };
   await db.productImages.put(row);

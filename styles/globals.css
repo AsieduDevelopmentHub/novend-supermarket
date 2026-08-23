@@ -158,6 +158,29 @@
   }
 }
 
+/* Capacitor / native shell — mobile spacing & touch targets */
+.native-shell {
+  --mobile-page-pad: 1.25rem;
+  --mobile-radius: 1.25rem;
+  --mobile-touch: 2.75rem;
+}
+
+.native-shell .touch-target {
+  min-height: var(--mobile-touch);
+  min-width: var(--mobile-touch);
+}
+
+.native-shell button:not([class*="h-"]):not([class*="size-"]),
+.native-shell [role="button"]:not([class*="h-"]):not([class*="size-"]) {
+  min-height: 3rem;
+}
+
+@layer utilities {
+  .mobile-card {
+    border-radius: 1.25rem;
+  }
+}
+
 @keyframes splash-in {
   from {
     opacity: 0;

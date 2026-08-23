@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { AppSidebar, MobileSidebar } from "@/components/layout/app-sidebar";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { NativeAppServices } from "@/components/layout/native-app-services";
 import { PlatformShell } from "@/components/layout/platform-shell";
 import { ErrorState } from "@/components/feedback/error-state";
 import { AppSplash } from "@/features/auth/components/app-splash";
@@ -22,10 +24,12 @@ import { InstallPromptDialog } from "@/components/install-prompt-dialog";
 import { OfflineProvider } from "@/providers/offline-provider";
 import { OfflineNavigationProvider, OfflineOutlet } from "@/providers/offline-navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useNativeShell } from "@/hooks/use-native-shell";
 import { loadShellProfile, saveShellProfile, type ShellProfile } from "@/lib/offline/shell-profile";
 import { markOfflineSession, readOfflineSession } from "@/lib/offline/session";
 import { bindOfflineOrganization } from "@/lib/offline/db";
 import { toUserMessage } from "@/lib/errors";
+import { cn } from "@/lib/utils";
 
 const OFFLINE_AUTH_BUDGET_MS = 2000;
 
@@ -55,6 +59,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isAuthenticated, isLoading } = useConvexAuth();
   const online = useConnectivity();
+  const nativeShell = useNativeShell();
   const user = useQuery(api.users.me, isAuthenticated && online ? {} : "skip");
   const ensureProfile = useMutation(api.profiles.ensureProfile);
   const heartbeat = useMutation(api.users.heartbeat);
@@ -301,35 +306,64 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       };
 
   return (
-    <OfflineProvider>
-      <OfflineNavigationProvider>
-        <div className="bg-background flex h-dvh max-h-dvh overflow-hidden overscroll-none">
-          <AppSidebar user={shellUser} />
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 lg:hidden">
-              <MobileSidebar user={shellUser} />
-              <Image
-                src={BRANDING.brandmark}
-                alt=""
-                width={32}
-                height={32}
-                className="h-8 w-8 shrink-0 object-contain"
-              />
-              <p className="truncate text-base font-semibold">
-                {shellUser.organizationName?.trim() || APP_BRAND}
-              </p>
-            </header>
-            <LicenseBanner />
-            <SyncStatusBanner />
-            <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-4 py-6 lg:px-8">
-              <OfflineOutlet>{children}</OfflineOutlet>
-            </main>
+    <NativeAppServices>
+      <OfflineProvider>
+        <OfflineNavigationProvider>
+          <div
+            className={cn(
+              "bg-background flex h-dvh max-h-dvh overflow-hidden overscroll-none",
+              nativeShell && "native-shell",
+            )}
+          >
+            {nativeShell ? null : <AppSidebar user={shellUser} />}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              {nativeShell ? (
+                <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-5">
+                  <Image
+                    src={BRANDING.brandmark}
+                    alt=""
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 shrink-0 object-contain"
+                  />
+                  <p className="truncate text-base font-semibold">
+                    {shellUser.organizationName?.trim() || APP_BRAND}
+                  </p>
+                </header>
+              ) : (
+                <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 lg:hidden">
+                  <MobileSidebar user={shellUser} />
+                  <Image
+                    src={BRANDING.brandmark}
+                    alt=""
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 shrink-0 object-contain"
+                  />
+                  <p className="truncate text-base font-semibold">
+                    {shellUser.organizationName?.trim() || APP_BRAND}
+                  </p>
+                </header>
+              )}
+              <LicenseBanner />
+              <SyncStatusBanner />
+              <main
+                className={cn(
+                  "min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain",
+                  nativeShell ? "px-5 py-5" : "px-4 py-6 lg:px-8",
+                  nativeShell && "pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]",
+                )}
+              >
+                <OfflineOutlet>{children}</OfflineOutlet>
+              </main>
+            </div>
+            {nativeShell ? <MobileBottomNav /> : null}
           </div>
-        </div>
-        <SyncCenterDialog />
-        <InstallPromptDialog />
-        <DeviceActivationGate enabled={Boolean(liveReady)} />
-      </OfflineNavigationProvider>
-    </OfflineProvider>
+          <SyncCenterDialog />
+          <InstallPromptDialog />
+          <DeviceActivationGate enabled={Boolean(liveReady)} />
+        </OfflineNavigationProvider>
+      </OfflineProvider>
+    </NativeAppServices>
   );
 }

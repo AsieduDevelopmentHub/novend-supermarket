@@ -34,11 +34,16 @@ import { showError } from "@/lib/errors";
 import { printReceipt, loadTerminalPrinterConfig, probePrintBridge } from "@/services/printing";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { ReceiptPreviewDialog } from "@/features/receipts/components/receipt-preview-dialog";
+import { SaleCompletedDialog } from "@/features/receipts/components/sale-completed-dialog";
+import { isCapacitor } from "@novend/hardware";
 import { useSalesCatalog, useSalesCustomerSearch } from "@/hooks/use-offline-catalog";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useNativeShell } from "@/hooks/use-native-shell";
 import { getMeta, getOfflineDb, META_KEYS } from "@/lib/offline/db";
+import { cn } from "@/lib/utils";
+import { triggerLightHaptic } from "@/lib/haptics";
 import {
   completeSaleLocally,
   holdSaleLocally,
@@ -48,7 +53,6 @@ import {
 } from "@/lib/offline/sales-repository";
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
 import type { LocalHeldSale } from "@/lib/offline/types";
-import { cn } from "@/lib/utils";
 import { ProductImage } from "@/components/media/product-image";
 import { isBarcodeScanningEnabled, playScanSuccessBeep, shouldShowCameraBarcodeButton } from "@/services/hardware";
 import { ScanBarcodeCameraDialog } from "@/components/hardware/scan-barcode-camera-dialog";
@@ -91,6 +95,7 @@ function formatHoldRef(id: string) {
 
 export function SalesView() {
   const { isAdmin, branchId: myBranchId, branchName } = usePermissions();
+  const nativeShell = useNativeShell();
   const [search, setSearch] = useState("");
   const [branchOverride, setBranchOverride] = useState<Id<"branches"> | "all" | null>(null);
   const [customerQuery, setCustomerQuery] = useState("");
@@ -103,7 +108,9 @@ export function SalesView() {
   const [discountField, setDiscountField] = useState(0);
   const [lastReceipt, setLastReceipt] = useState<ReceiptPayload | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [saleCompleteOpen, setSaleCompleteOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutSnap, setCheckoutSnap] = useState<number | string | null>(0.55);
   const [localHeld, setLocalHeld] = useState<LocalHeldSale[]>([]);
   const [cashierId, setCashierId] = useState<string | null>(null);
   /** Draft qty strings while editing — empty allowed until blur. */
@@ -397,6 +404,10 @@ export function SalesView() {
 
   async function triggerPrint(payload: ReceiptPayload) {
     setLastReceipt(payload);
+    if (isCapacitor()) {
+      setSaleCompleteOpen(true);
+      return;
+    }
     const printMode =
       posPrefs?.receiptPrintMode ?? (posPrefs?.autoPrintReceipt ? "automatic" : "manual");
     if (printMode === "never") {
@@ -416,6 +427,15 @@ export function SalesView() {
           return;
         }
       }
+    }
+    setPreviewOpen(true);
+  }
+
+  function openLastReceipt() {
+    if (!lastReceipt) return;
+    if (isCapacitor()) {
+      setSaleCompleteOpen(true);
+      return;
     }
     setPreviewOpen(true);
   }
@@ -593,7 +613,12 @@ export function SalesView() {
   }
 
   return (
-    <div className="space-y-6 pb-24 xl:pb-0">
+    <div
+      className={cn(
+        "space-y-6 xl:pb-0",
+        nativeShell ? "pb-[calc(8.5rem+env(safe-area-inset-bottom,0px))]" : "pb-24",
+      )}
+    >
       <PageHeader title="Sales" description="Create a new wholesale or retail sale." />
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
@@ -604,13 +629,14 @@ export function SalesView() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search products…"
-                className="min-w-0 flex-1"
+                className="min-h-12 min-w-0 flex-1 md:min-h-9"
               />
               {showCameraScan ? (
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
+                  className="size-12 shrink-0 md:size-9"
                   aria-label="Scan barcode"
                   onClick={() => setCameraOpen(true)}
                 >
@@ -747,17 +773,28 @@ export function SalesView() {
               onDiscountField={setDiscountField}
               onHold={() => void onHold()}
               onPay={() => void onPay()}
-              onReprint={() => setPreviewOpen(true)}
+              onReprint={openLastReceipt}
             />
           </CardContent>
         </Card>
       </div>
 
-      <div className="border-border bg-card/95 supports-[backdrop-filter]:bg-card/80 fixed inset-x-0 bottom-0 z-30 border-t px-4 py-3 backdrop-blur xl:hidden">
+      <div
+        className={cn(
+          "border-border bg-card/95 supports-[backdrop-filter]:bg-card/80 fixed inset-x-0 z-30 border-t px-4 py-3 backdrop-blur xl:hidden",
+          nativeShell
+            ? "bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))]"
+            : "bottom-0",
+        )}
+      >
         <button
           type="button"
-          className="flex w-full items-center gap-3 text-left"
-          onClick={() => setCheckoutOpen(true)}
+          className="flex w-full min-h-12 items-center gap-3 text-left"
+          onClick={() => {
+            void triggerLightHaptic();
+            setCheckoutSnap(0.55);
+            setCheckoutOpen(true);
+          }}
           aria-label={
             cartItemCount > 0
               ? `Open cart, ${cartItemCount} items, ${formatCurrency(total)}`
@@ -788,8 +825,15 @@ export function SalesView() {
         </button>
       </div>
 
-      <Drawer open={checkoutOpen} onOpenChange={setCheckoutOpen}>
-        <DrawerContent className="max-h-[92dvh] xl:hidden">
+      <Drawer
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        snapPoints={nativeShell ? [0.38, 0.58, 0.92] : undefined}
+        activeSnapPoint={nativeShell ? checkoutSnap : undefined}
+        setActiveSnapPoint={nativeShell ? setCheckoutSnap : undefined}
+        shouldScaleBackground={false}
+      >
+        <DrawerContent className="max-h-[92dvh] rounded-t-[22px] xl:hidden">
           <DrawerHeader className="border-border border-b text-left">
             <DrawerTitle className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" aria-hidden />
@@ -827,7 +871,7 @@ export function SalesView() {
               onDiscountField={setDiscountField}
               onHold={() => void onHold()}
               onPay={() => void onPay()}
-              onReprint={() => setPreviewOpen(true)}
+              onReprint={openLastReceipt}
             />
           </div>
         </DrawerContent>
@@ -836,6 +880,11 @@ export function SalesView() {
       <ReceiptPreviewDialog
         open={previewOpen}
         onOpenChange={setPreviewOpen}
+        payload={lastReceipt}
+      />
+      <SaleCompletedDialog
+        open={saleCompleteOpen}
+        onOpenChange={setSaleCompleteOpen}
         payload={lastReceipt}
       />
 

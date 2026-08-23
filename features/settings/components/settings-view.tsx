@@ -24,6 +24,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useDesktopRuntime } from "@/hooks/use-desktop-runtime";
+import { useNativeShell } from "@/hooks/use-native-shell";
 import { ReceiptDocument } from "@/features/receipts/components/receipt-document";
 import { SAMPLE_RECEIPT_PAYLOAD } from "@/features/receipts/types";
 import type { ReceiptBusiness, ReceiptTemplateConfig } from "@/features/receipts/types";
@@ -36,6 +37,7 @@ import { BranchReceiptPanel } from "./branch-receipt-panel";
 import { ProfilePanel } from "./profile-panel";
 import { PrinterPanel } from "./printer-panel";
 import { ScannerPanel } from "./scanner-panel";
+import { MobileHardwarePanel } from "./mobile-hardware-panel";
 import { FutureDevicesPanel } from "./future-devices-panel";
 import { UpdatesPanel } from "./updates-panel";
 import { DesktopDownloadPanel } from "./desktop-download-panel";
@@ -54,6 +56,7 @@ import {
   Store,
   UserRound,
   Wrench,
+  Camera,
 } from "lucide-react";
 import { BillingPanel } from "@/features/billing/components/billing-panel";
 import { DevicesPanel } from "@/features/billing/components/devices-panel";
@@ -67,6 +70,7 @@ type SettingsTab =
   | "branchReceipt"
   | "printer"
   | "scanner"
+  | "mobileHardware"
   | "futureDevices"
   | "updates"
   | "desktop"
@@ -78,6 +82,7 @@ export function SettingsView() {
   const { isAdmin, isManager, isLoading: permissionsLoading } = usePermissions();
   const online = useConnectivity();
   const isDesktop = useDesktopRuntime();
+  const onMobileShell = useNativeShell();
   const remoteBusiness = useQuery(api.settings.getBusiness, online && isAdmin ? {} : "skip");
   const remoteTemplate = useQuery(api.settings.getReceiptTemplate, online && isAdmin ? {} : "skip");
   const [cachedPrint, setCachedPrint] = useState<{
@@ -155,15 +160,23 @@ export function SettingsView() {
               },
               { value: "updates" as const, label: "Updates", long: "Desktop updates" },
             ] as const)
-          : ([
-              { value: "scanner" as const, label: "Scanner", long: "Barcode scanner" },
-              { value: "desktop" as const, label: "Desktop", long: "Download desktop app" },
-            ] as const)),
+          : onMobileShell
+            ? ([
+                {
+                  value: "mobileHardware" as const,
+                  label: "Hardware",
+                  long: "Camera, photos & sharing",
+                },
+              ] as const)
+            : ([
+                { value: "scanner" as const, label: "Scanner", long: "Barcode scanner" },
+                { value: "desktop" as const, label: "Desktop", long: "Download desktop app" },
+              ] as const)),
         { value: "backup" as const, label: "Backup", long: "Local backup" },
         { value: "appearance" as const, label: "Appearance", long: "Appearance" },
         { value: "security" as const, label: "Security", long: "Security" },
       ] as const,
-    [isAdmin, isManager, isDesktop],
+    [isAdmin, isManager, isDesktop, onMobileShell],
   );
 
   // Banners and limit prompts deep-link here with `?section=billing|devices`.
@@ -274,15 +287,21 @@ export function SettingsView() {
               <UpdatesPanel />
             </TabsContent>
           </>
+        ) : onMobileShell ? (
+          <TabsContent value="mobileHardware" className="mt-0">
+            <MobileHardwarePanel />
+          </TabsContent>
         ) : (
           <TabsContent value="desktop" className="mt-0">
             <DesktopDownloadPanel />
           </TabsContent>
         )}
 
-        <TabsContent value="scanner" className="mt-0">
-          <ScannerPanel />
-        </TabsContent>
+        {!onMobileShell ? (
+          <TabsContent value="scanner" className="mt-0">
+            <ScannerPanel />
+          </TabsContent>
+        ) : null}
 
         <TabsContent value="backup" className="mt-0">
           <LocalBackupPanel />
@@ -310,6 +329,7 @@ const SETTINGS_ICONS: Record<SettingsTab, typeof UserRound> = {
   branchReceipt: Store,
   printer: Monitor,
   scanner: ScanBarcode,
+  mobileHardware: Camera,
   futureDevices: Wrench,
   updates: Download,
   desktop: Download,
@@ -318,7 +338,7 @@ const SETTINGS_ICONS: Record<SettingsTab, typeof UserRound> = {
   security: Shield,
 };
 
-const HARDWARE_TABS: SettingsTab[] = ["printer", "scanner", "futureDevices"];
+const HARDWARE_TABS: SettingsTab[] = ["printer", "scanner", "mobileHardware", "futureDevices"];
 
 function SettingsTreeNav({
   sections,

@@ -334,6 +334,8 @@ export type ProductImageCache = {
   thumbnailBlob?: Blob;
   mimeType: string;
   sourceUrl?: string | null;
+  /** Durable Capacitor filesystem URI when the capture was persisted locally */
+  localFilePath?: string | null;
   updatedAt: number;
 };
 

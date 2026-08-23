@@ -5,6 +5,18 @@ export function isMobileBrowser(userAgent = typeof navigator !== "undefined" ? n
   return /Android|iPhone|iPod|Mobile/i.test(userAgent);
 }
 
+/** Capacitor WebView — not a mobile browser tab and not a PWA install target. */
+export function isCapacitorWebView(): boolean {
+  if (typeof window === "undefined") return false;
+  const win = window as Window & {
+    androidBridge?: unknown;
+    webkit?: { messageHandlers?: { bridge?: unknown } };
+    Capacitor?: { isNativePlatform?: () => boolean };
+  };
+  if (win.androidBridge || win.webkit?.messageHandlers?.bridge) return true;
+  return Boolean(win.Capacitor?.isNativePlatform?.());
+}
+
 /** True when the web app is already installed (standalone / home screen). */
 export function isStandaloneWebApp() {
   if (typeof window === "undefined") return false;
@@ -23,6 +35,7 @@ export type InstallPromptKind = "desktop" | "mobile";
 export function resolveInstallPromptKind(
   userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "",
 ): InstallPromptKind | null {
+  if (isCapacitorWebView()) return null;
   if (isStandaloneWebApp()) return null;
   if (isMobileBrowser(userAgent)) return "mobile";
   return "desktop";

@@ -5,6 +5,8 @@
  * lacks that API even with a working camera — we fall back to bundled ZXing.
  */
 
+import { isElectron } from "@novend/hardware";
+
 export const CAMERA_BARCODE_FORMATS = [
   "ean_13",
   "ean_8",
@@ -50,8 +52,7 @@ function isBrowser(): boolean {
 }
 
 function isDesktopShell(): boolean {
-  if (!isBrowser()) return false;
-  return Boolean((window as Window & { novendDesktop?: unknown }).novendDesktop);
+  return isElectron();
 }
 
 function hasGetUserMedia(): boolean {

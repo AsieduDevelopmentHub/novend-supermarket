@@ -14,7 +14,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { formatCurrency } from "@/lib/currency";
-import { Download, Eye, Package, Pencil, Plus, Trash2 } from "lucide-react";
+import { Download, Eye, MoreVertical, Package, Pencil, Plus, Trash2, Warehouse } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -27,6 +27,14 @@ import { BranchFilter } from "@/components/filters/branch-filter";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useProductsList } from "@/hooks/use-offline-lists";
 import { ProductImage } from "@/components/media/product-image";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { triggerLightHaptic } from "@/lib/haptics";
+import { useRouter } from "next/navigation";
 
 export function ProductsView() {
   const {
@@ -37,6 +45,7 @@ export function ProductsView() {
     branchName,
   } = usePermissions();
   const online = useConnectivity();
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<Id<"products"> | null>(null);
@@ -268,29 +277,95 @@ export function ProductsView() {
 
               <div className="space-y-3 p-3 md:hidden">
                 {rows.map((product) => (
-                  <div key={product.id} className="border-border rounded-xl border p-3">
+                  <div
+                    key={product.id}
+                    className="border-border rounded-[20px] border p-3"
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      void triggerLightHaptic();
+                    }}
+                  >
                     <div className="flex gap-3">
-                      <div className="bg-muted relative h-14 w-14 shrink-0 overflow-hidden rounded-md">
+                      <div className="bg-muted relative h-16 w-16 shrink-0 overflow-hidden rounded-[14px]">
                         <ProductImage
                           productId={product.id}
                           remoteUrl={product.imageUrl}
                           alt={product.name}
-                          sizes="56px"
+                          sizes="64px"
                           fallback={<Package className="text-muted-foreground m-auto h-5 w-5" />}
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <Link
-                          href={`/products/${product.id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {product.name}
-                        </Link>
-                        <p className="text-muted-foreground text-xs">{product.categoryName}</p>
-                        <p className="mt-1 text-sm font-semibold">
-                          {formatCurrency(product.sellingPrice)}
-                        </p>
-                        <div className="mt-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <Link
+                              href={`/products/${product.id}`}
+                              className="block truncate font-medium hover:underline"
+                            >
+                              {product.name}
+                            </Link>
+                            <p className="text-muted-foreground mt-0.5 text-xs">
+                              SKU {product.sku}
+                              {product.categoryName ? ` · ${product.categoryName}` : ""}
+                            </p>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="size-11 shrink-0"
+                                aria-label="Product actions"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem asChild>
+                                <Link href={`/products/${product.id}`}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  View details
+                                </Link>
+                              </DropdownMenuItem>
+                              {canManageProducts ? (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setEditingId(product.id);
+                                      setOpen(true);
+                                    }}
+                                  >
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => router.push(`/inventory?q=${encodeURIComponent(product.sku)}`)}
+                                  >
+                                    <Warehouse className="mr-2 h-4 w-4" />
+                                    Adjust stock
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() =>
+                                      setArchiveTarget({ id: product.id, name: product.name })
+                                    }
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </>
+                              ) : null}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold">
+                            {formatCurrency(product.sellingPrice)}
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            Stock {product.stockQuantity}
+                          </p>
                           <StockStatusBadges
                             isLowStock={product.isLowStock}
                             isExpired={product.isExpired}
@@ -298,36 +373,6 @@ export function ProductsView() {
                           />
                         </div>
                       </div>
-                    </div>
-                    <div
-                      className={`mt-3 grid gap-2 ${canManageProducts ? "grid-cols-3" : "grid-cols-1"}`}
-                    >
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/products/${product.id}`}>View</Link>
-                      </Button>
-                      {canManageProducts ? (
-                        <>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingId(product.id);
-                              setOpen(true);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setArchiveTarget({ id: product.id, name: product.name })}
-                          >
-                            Delete
-                          </Button>
-                        </>
-                      ) : null}
                     </div>
                   </div>
                 ))}

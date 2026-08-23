@@ -254,70 +254,113 @@ export function DashboardView() {
 
   return (
     <div className="min-w-0 space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">
-            {showOps ? "Business performance overview" : "Your sales activity today"}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-2">
-          {isAdmin && online ? (
-            <BranchFilter
-              branches={branches}
-              value={branchFilter}
-              onChange={setBranchFilter}
-              allowAll
-            />
-          ) : isManager && branchName ? (
-            <BranchFilter
-              branches={branches}
-              value={myBranchId}
-              onChange={() => undefined}
-              lockedLabel={branchName}
-            />
-          ) : null}
-          <Button asChild variant="outline">
-            <Link href="/inventory">Inventory</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/sales">New Sale</Link>
-          </Button>
+      <div className="sticky top-0 z-10 -mx-1 space-y-3 bg-background/95 px-1 pb-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:static md:mx-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight md:text-2xl">Dashboard</h1>
+            <p className="text-muted-foreground text-sm">
+              {showOps ? "Business performance overview" : "Your sales activity today"}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            {isAdmin && online ? (
+              <BranchFilter
+                branches={branches}
+                value={branchFilter}
+                onChange={setBranchFilter}
+                allowAll
+              />
+            ) : isManager && branchName ? (
+              <BranchFilter
+                branches={branches}
+                value={myBranchId}
+                onChange={() => undefined}
+                lockedLabel={branchName}
+              />
+            ) : null}
+            <Button asChild variant="outline" className="hidden sm:inline-flex">
+              <Link href="/inventory">Inventory</Link>
+            </Button>
+            <Button asChild className="min-h-12 flex-1 sm:min-h-9 sm:flex-none">
+              <Link href="/sales">New Sale</Link>
+            </Button>
+          </div>
         </div>
       </div>
 
-      <Grid cols={5}>
-        <KpiCard
-          title={showOps ? "Total Sales" : "Today's Sales"}
-          value={formatCurrency(data.kpis.revenue)}
-          icon={Wallet}
-          href="/orders"
-        />
-        <KpiCard
-          title={showOps ? "Total Orders" : "Today's Orders"}
-          value={formatNumber(data.kpis.orders)}
-          icon={ShoppingBag}
-          href="/orders"
-        />
-        <KpiCard
-          title={showOps ? "Total Customers" : "Items Sold"}
-          value={formatNumber(showOps ? (data.kpis.customersEstimate ?? 0) : data.kpis.itemsSold)}
-          icon={showOps ? Users : Package}
-          href={showOps ? "/customers" : "/orders"}
-        />
-        <KpiCard
-          title="Low Stock Items"
-          value={formatNumber(data.kpis.lowStockCount)}
-          icon={AlertTriangle}
-          href="/inventory?filter=low"
-        />
-        <KpiCard
-          title="Expiring / Expired"
-          value={formatNumber(data.kpis.expiringCount ?? 0)}
-          icon={CalendarClock}
-          href="/inventory?filter=expiry"
-        />
-      </Grid>
+      {/* Mobile: swipeable KPI carousel · Desktop: grid */}
+      <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 md:hidden">
+        {[
+          {
+            title: showOps ? "Total Sales" : "Today's Sales",
+            value: formatCurrency(data.kpis.revenue),
+            icon: Wallet,
+            href: "/orders",
+          },
+          {
+            title: showOps ? "Total Orders" : "Today's Orders",
+            value: formatNumber(data.kpis.orders),
+            icon: ShoppingBag,
+            href: "/orders",
+          },
+          {
+            title: showOps ? "Total Customers" : "Items Sold",
+            value: formatNumber(showOps ? (data.kpis.customersEstimate ?? 0) : data.kpis.itemsSold),
+            icon: showOps ? Users : Package,
+            href: showOps ? "/customers" : "/orders",
+          },
+          {
+            title: "Low Stock Items",
+            value: formatNumber(data.kpis.lowStockCount),
+            icon: AlertTriangle,
+            href: "/inventory?filter=low",
+          },
+          {
+            title: "Expiring / Expired",
+            value: formatNumber(data.kpis.expiringCount ?? 0),
+            icon: CalendarClock,
+            href: "/inventory?filter=expiry",
+          },
+        ].map((kpi) => (
+          <div key={kpi.title} className="w-[78%] max-w-xs shrink-0 snap-center">
+            <KpiCard title={kpi.title} value={kpi.value} icon={kpi.icon} href={kpi.href} />
+          </div>
+        ))}
+      </div>
+      <div className="hidden md:block">
+        <Grid cols={5}>
+          <KpiCard
+            title={showOps ? "Total Sales" : "Today's Sales"}
+            value={formatCurrency(data.kpis.revenue)}
+            icon={Wallet}
+            href="/orders"
+          />
+          <KpiCard
+            title={showOps ? "Total Orders" : "Today's Orders"}
+            value={formatNumber(data.kpis.orders)}
+            icon={ShoppingBag}
+            href="/orders"
+          />
+          <KpiCard
+            title={showOps ? "Total Customers" : "Items Sold"}
+            value={formatNumber(showOps ? (data.kpis.customersEstimate ?? 0) : data.kpis.itemsSold)}
+            icon={showOps ? Users : Package}
+            href={showOps ? "/customers" : "/orders"}
+          />
+          <KpiCard
+            title="Low Stock Items"
+            value={formatNumber(data.kpis.lowStockCount)}
+            icon={AlertTriangle}
+            href="/inventory?filter=low"
+          />
+          <KpiCard
+            title="Expiring / Expired"
+            value={formatNumber(data.kpis.expiringCount ?? 0)}
+            icon={CalendarClock}
+            href="/inventory?filter=expiry"
+          />
+        </Grid>
+      </div>
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-3">
         <Card className="min-w-0 overflow-hidden xl:col-span-2">

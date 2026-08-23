@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@novend/hardware": ["./packages/hardware/src/index.ts"],
+      "@novend/hardware/*": ["./packages/hardware/src/*"]
     }
   },
   "include": [

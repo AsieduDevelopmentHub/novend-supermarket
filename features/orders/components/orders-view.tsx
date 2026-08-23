@@ -36,7 +36,73 @@ import {
   type PaymentFilter,
   type ReturnStatusFilter,
 } from "@/features/orders/constants";
-import { Eye, ShoppingBag } from "lucide-react";
+import { Eye, ChevronDown, ChevronUp, ShoppingBag } from "lucide-react";
+
+type OrderListRow = {
+  id: string;
+  invoiceNumber: string;
+  completedAt: number;
+  customerName: string;
+  cashierName: string;
+  branchName?: string | null;
+  paymentMethod: string;
+  itemCount: number;
+  total: number;
+  refundedAmount?: number;
+};
+
+function OrderMobileCard({ order }: { order: OrderListRow }) {
+  const [expanded, setExpanded] = useState(false);
+  const returned = "refundedAmount" in order && Number(order.refundedAmount) > 0;
+
+  return (
+    <Card className="overflow-hidden rounded-[20px]">
+      <CardContent className="space-y-2 p-4">
+        <button
+          type="button"
+          className="flex w-full items-start justify-between gap-2 text-left"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+        >
+          <div className="min-w-0">
+            <p className="font-semibold">{order.invoiceNumber}</p>
+            <p className="text-muted-foreground text-xs">{formatDateTime(order.completedAt)}</p>
+            <p className="mt-1 truncate text-sm">{order.customerName}</p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <div className="flex flex-wrap justify-end gap-1">
+              <Badge variant="success">Completed</Badge>
+              {returned ? <Badge variant="warning">Returned</Badge> : null}
+            </div>
+            <p className="text-sm font-semibold">{formatCurrency(order.total)}</p>
+            {expanded ? (
+              <ChevronUp className="text-muted-foreground h-4 w-4" />
+            ) : (
+              <ChevronDown className="text-muted-foreground h-4 w-4" />
+            )}
+          </div>
+        </button>
+        {expanded ? (
+          <div className="border-border space-y-3 border-t pt-3">
+            <p className="text-muted-foreground text-xs">
+              {order.branchName ? `${order.branchName} · ` : ""}
+              Cashier: {order.cashierName}
+            </p>
+            <p className="text-muted-foreground text-xs capitalize">
+              {order.paymentMethod.replace("_", " ")} · {order.itemCount} items
+            </p>
+            <Button asChild size="sm" variant="outline" className="min-h-11 w-full">
+              <Link href={`/orders/${order.id}`}>
+                <Eye className="h-4 w-4" />
+                View details · Print / Share
+              </Link>
+            </Button>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
 
 export function OrdersView() {
   const { isAdmin, isManager, isCashier, branchId: myBranchId, branchName } = usePermissions();
@@ -375,41 +441,7 @@ export function OrdersView() {
 
           <div className="space-y-3 md:hidden">
             {orders.map((order) => (
-              <Card key={order.id}>
-                <CardContent className="space-y-2 p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-semibold">{order.invoiceNumber}</p>
-                      <p className="text-muted-foreground text-xs">
-                        {formatDateTime(order.completedAt)}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap justify-end gap-1">
-                      <Badge variant="success">Completed</Badge>
-                      {"refundedAmount" in order && Number(order.refundedAmount) > 0 ? (
-                        <Badge variant="warning">Returned</Badge>
-                      ) : null}
-                    </div>
-                  </div>
-                  <p className="text-sm">{order.customerName}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {order.branchName ? `${order.branchName} · ` : ""}
-                    Cashier: {order.cashierName}
-                  </p>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground capitalize">
-                      {order.paymentMethod.replace("_", " ")} · {order.itemCount} items
-                    </span>
-                    <span className="font-semibold">{formatCurrency(order.total)}</span>
-                  </div>
-                  <Button asChild size="sm" variant="outline" className="w-full">
-                    <Link href={`/orders/${order.id}`}>
-                      <Eye className="h-4 w-4" />
-                      View details
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
+              <OrderMobileCard key={order.id} order={order} />
             ))}
           </div>
         </>
