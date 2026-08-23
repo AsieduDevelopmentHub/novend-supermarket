@@ -34,6 +34,14 @@ function ghText(args) {
 function classifyAsset(name) {
   const lower = name.toLowerCase();
   if (lower.endsWith(".yml") || lower.endsWith(".yaml")) return null;
+  // Mobile artifacts share the same GitHub Release; mobile publish owns them.
+  if (
+    lower.endsWith(".apk") ||
+    lower.endsWith(".aab") ||
+    lower.endsWith(".ipa")
+  ) {
+    return null;
+  }
 
   const classifiedLower = lower.endsWith(".blockmap")
     ? lower.slice(0, -".blockmap".length)
