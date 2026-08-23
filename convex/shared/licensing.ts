@@ -233,6 +233,8 @@ export type LicenseSnapshot = {
   limits: Record<LimitResource, number | null>;
   features: string[];
   issuedAt: number;
+  scheduledPlan?: PlanKey | null;
+  scheduledEffectiveAt?: number | null;
 };
 
 /**

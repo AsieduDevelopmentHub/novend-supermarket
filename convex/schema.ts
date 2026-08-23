@@ -66,6 +66,29 @@ export const paymentGatewayValidator = v.union(
   v.literal("manual"),
 );
 
+export const scheduledChangeValidator = v.object({
+  type: v.literal("downgrade"),
+  targetPlanKey: planKeyValidator,
+  targetCycle: billingCycleValidator,
+  effectiveAt: v.number(),
+  createdAt: v.number(),
+  status: v.literal("scheduled"),
+});
+
+/** Distinguishes billing-history rows. A scheduled downgrade is not a payment. */
+export const billingEventKindValidator = v.union(
+  v.literal("purchase"),
+  v.literal("renewal"),
+  v.literal("upgrade"),
+  v.literal("payment"),
+  v.literal("refund"),
+  v.literal("credit"),
+  v.literal("failed"),
+  v.literal("scheduled_downgrade"),
+  v.literal("scheduled_downgrade_cancelled"),
+  v.literal("scheduled_downgrade_applied"),
+);
+
 export const inventoryReasonValidator = v.union(
   v.literal("sale"),
   v.literal("receive"),
@@ -172,6 +195,11 @@ export default defineSchema({
     gatewaySubscriptionCode: v.optional(v.string()),
     gatewayEmailToken: v.optional(v.string()),
     gatewayPlanCode: v.optional(v.string()),
+    /**
+     * Future plan transition. Status stays `active` on the current plan until
+     * `effectiveAt` — do not overload `status` with "downgrade_pending".
+     */
+    scheduledChange: v.optional(scheduledChangeValidator),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -219,6 +247,7 @@ export default defineSchema({
       v.literal("refunded"),
     ),
     description: v.string(),
+    kind: v.optional(billingEventKindValidator),
     paidAt: v.optional(v.number()),
     initiatedBy: v.optional(v.id("users")),
     metadata: v.optional(v.string()),

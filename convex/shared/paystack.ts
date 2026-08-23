@@ -225,6 +225,36 @@ export async function disableSubscription(args: {
   });
 }
 
+export async function enableSubscription(args: {
+  code: string;
+  token: string;
+}): Promise<{ status?: string }> {
+  return await paystackFetch<{ status?: string }>("/subscription/enable", {
+    method: "POST",
+    body: { code: args.code, token: args.token },
+  });
+}
+
+/**
+ * Create a Paystack subscription that first charges on `startDate`.
+ * Used after a prorated upgrade or scheduled downgrade so the next renewal
+ * uses the new plan without charging today.
+ */
+export async function createGatewaySubscription(args: {
+  customer: string;
+  plan: string;
+  startDate: string;
+}): Promise<PaystackSubscription> {
+  return await paystackFetch<PaystackSubscription>("/subscription", {
+    method: "POST",
+    body: {
+      customer: args.customer,
+      plan: args.plan,
+      start_date: args.startDate,
+    },
+  });
+}
+
 /**
  * Paystack signs webhooks with HMAC-SHA512 over the raw request body using the
  * secret key. Compared in constant time to avoid leaking the digest.

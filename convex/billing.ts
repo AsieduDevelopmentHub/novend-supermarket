@@ -10,7 +10,12 @@ import {
 } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
-import { billingCycleValidator, planKeyValidator, paymentGatewayValidator } from "./schema";
+import {
+  billingCycleValidator,
+  billingEventKindValidator,
+  planKeyValidator,
+  paymentGatewayValidator,
+} from "./schema";
 import { requireSessionIgnoringLicense, requirePlatformAdmin } from "./shared/permissions";
 import { writeAuditLog } from "./shared/audit";
 import {
@@ -24,27 +29,69 @@ import {
   DEFAULT_PLAN_KEY,
   PLAN_CATALOG,
   PLAN_LIST,
-  RESOURCE_LABELS,
   parseCustomBackupGb,
   planChangeKind,
   priceForCycle,
   supportsCycle,
-  usageExceedsLimits,
   type BillingCycle,
+  type LimitResource,
   type PlanKey,
 } from "./shared/plans";
+import {
+  computePlanChangePreview,
+  scheduledChangeEquals,
+  type PlanChangePreview,
+  type ScheduledChangeSnapshot,
+} from "./shared/planChange";
 import {
   activeProviderId,
   getBillingProvider,
   type BillingProviderId,
 } from "./shared/billingProvider";
-import { buildReference, ensureRecurringPlan, isPaystackConfigured } from "./shared/paystack";
+import {
+  buildReference,
+  createGatewaySubscription,
+  disableSubscription,
+  ensureRecurringPlan,
+  isPaystackConfigured,
+} from "./shared/paystack";
 import {
   activateSubscription,
+  applyScheduledDowngrade,
+  clearScheduledChange,
   ensurePlanCatalogRows,
   periodEnd,
   startTrial as startTrialForOrganization,
 } from "./shared/subscriptions";
+import type { AccessState } from "./shared/licensing";
+
+const PENDING_CHECKOUT_WINDOW_MS = 30 * 60 * 1000;
+
+function asScheduledChange(
+  value: Doc<"subscriptions">["scheduledChange"],
+): ScheduledChangeSnapshot | null {
+  if (!value || value.status !== "scheduled") return null;
+  return {
+    type: "downgrade",
+    targetPlanKey: value.targetPlanKey,
+    targetCycle: value.targetCycle,
+    effectiveAt: value.effectiveAt,
+    createdAt: value.createdAt,
+    status: "scheduled",
+  };
+}
+
+function usageFromCounts(
+  usage: Awaited<ReturnType<typeof countUsage>>,
+): Partial<Record<LimitResource, number>> {
+  return {
+    products: usage.products,
+    users: usage.users,
+    branches: usage.branches,
+    devices: usage.devices,
+    backupBytes: usage.backupBytes,
+  };
+}
 
 /** Keeps the `plans` table aligned with the code catalog. */
 export const ensurePlanCatalog = internalMutation({
@@ -87,6 +134,8 @@ export const licenseSnapshot = query({
             cancelAtPeriodEnd: license.subscription.cancelAtPeriodEnd ?? false,
           }
         : null,
+      scheduledPlan: asScheduledChange(license.subscription?.scheduledChange)?.targetPlanKey ?? null,
+      scheduledEffectiveAt: asScheduledChange(license.subscription?.scheduledChange)?.effectiveAt ?? null,
       issuedAt: Date.now(),
     };
   },
@@ -153,6 +202,7 @@ export const overview = query({
             currency: license.subscription.currency,
             paymentGateway: license.subscription.paymentGateway,
             cancelAtPeriodEnd: license.subscription.cancelAtPeriodEnd ?? false,
+            scheduledChange: asScheduledChange(license.subscription.scheduledChange),
           }
         : null,
       usage: metrics,
@@ -180,6 +230,7 @@ export const history = query({
       reference: row.reference,
       status: row.status,
       description: row.description,
+      kind: row.kind ?? null,
       planKey: row.planKey ?? null,
       billingCycle: row.billingCycle ?? null,
       paidAt: row.paidAt ?? null,
@@ -229,17 +280,33 @@ export const checkoutContext = internalQuery({
       throw new Error("Only administrators can manage billing");
     }
     const license = await resolveLicense(ctx, session.organization);
-    if (planChangeKind(license.planKey, args.planKey) === "downgrade") {
-      const usage = await countUsage(ctx, session.organizationId);
-      const excess = usageExceedsLimits(usage, PLAN_CATALOG[args.planKey].limits);
-      if (excess.length > 0) {
-        throw new Error(
-          `Cannot switch to ${PLAN_CATALOG[args.planKey].name} while usage exceeds that plan. ${excess
-            .map((row) => `${RESOURCE_LABELS[row.resource]} ${row.used}/${row.limit}`)
-            .join("; ")}. Existing records are kept — reduce usage first.`,
-        );
-      }
-    }
+    const usage = await countUsage(ctx, session.organizationId);
+    const subscription = license.subscription;
+    const preview = computePlanChangePreview({
+      currentPlanKey: license.planKey,
+      targetPlanKey: args.planKey,
+      targetCycle: args.cycle,
+      now: Date.now(),
+      accessState: license.access.state,
+      currentCycle: subscription?.billingCycle ?? null,
+      startsAt: subscription?.startsAt ?? null,
+      expiresAt: subscription?.expiresAt ?? null,
+      isLifetime: subscription?.isLifetime ?? false,
+      scheduled: asScheduledChange(subscription?.scheduledChange),
+      usage: usageFromCounts(usage),
+    });
+    const recent = await ctx.db
+      .query("billingHistory")
+      .withIndex("by_organization_createdAt", (q) => q.eq("organizationId", session.organizationId))
+      .order("desc")
+      .take(20);
+    const pendingCheckout = recent.find(
+      (row) =>
+        row.status === "pending" &&
+        row.planKey === args.planKey &&
+        row.billingCycle === args.cycle &&
+        Date.now() - row.createdAt < PENDING_CHECKOUT_WINDOW_MS,
+    );
     const planRow = await ctx.db
       .query("plans")
       .withIndex("by_key", (q) => q.eq("key", args.planKey))
@@ -250,6 +317,13 @@ export const checkoutContext = internalQuery({
       currency: session.organization.currency || "GHS",
       email: session.user.email ?? null,
       userId: session.userId,
+      accessState: license.access.state as AccessState,
+      currentPlanKey: license.planKey,
+      gatewayCustomerCode: subscription?.gatewayCustomerCode ?? null,
+      gatewaySubscriptionCode: subscription?.gatewaySubscriptionCode ?? null,
+      gatewayEmailToken: subscription?.gatewayEmailToken ?? null,
+      pendingReference: pendingCheckout?.reference ?? null,
+      preview,
       gatewayPlanCode:
         args.cycle === "monthly"
           ? (planRow?.gatewayMonthlyPlanCode ?? null)
@@ -257,6 +331,36 @@ export const checkoutContext = internalQuery({
             ? (planRow?.gatewayYearlyPlanCode ?? null)
             : null,
     };
+  },
+});
+
+/** Backend-authored preview shown before any charge or schedule. */
+export const previewPlanChange = query({
+  args: { planKey: planKeyValidator, cycle: billingCycleValidator },
+  handler: async (ctx, args): Promise<PlanChangePreview> => {
+    const { organization, profile } = await requireSessionIgnoringLicense(ctx);
+    if (profile.role !== "administrator") {
+      throw new Error("Only administrators can manage billing");
+    }
+    const plan = PLAN_CATALOG[args.planKey];
+    if (!supportsCycle(plan, args.cycle)) {
+      throw new Error(`The ${plan.name} plan is not sold on a ${args.cycle} cycle.`);
+    }
+    const license = await resolveLicense(ctx, organization);
+    const usage = await countUsage(ctx, organization._id);
+    return computePlanChangePreview({
+      currentPlanKey: license.planKey,
+      targetPlanKey: args.planKey,
+      targetCycle: args.cycle,
+      now: Date.now(),
+      accessState: license.access.state,
+      currentCycle: license.subscription?.billingCycle ?? null,
+      startsAt: license.subscription?.startsAt ?? null,
+      expiresAt: license.subscription?.expiresAt ?? null,
+      isLifetime: license.subscription?.isLifetime ?? false,
+      scheduled: asScheduledChange(license.subscription?.scheduledChange),
+      usage: usageFromCounts(usage),
+    });
   },
 });
 
@@ -280,6 +384,8 @@ export const recordCheckoutAttempt = internalMutation({
     currency: v.string(),
     gateway: paymentGatewayValidator,
     description: v.string(),
+    kind: v.optional(billingEventKindValidator),
+    metadata: v.optional(v.string()),
     initiatedBy: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
@@ -294,6 +400,8 @@ export const recordCheckoutAttempt = internalMutation({
       reference: args.reference,
       status: "pending",
       description: args.description,
+      kind: args.kind,
+      metadata: args.metadata,
       initiatedBy: args.initiatedBy,
       createdAt: now,
       updatedAt: now,
@@ -319,6 +427,7 @@ export const applySuccessfulPayment = internalMutation({
     gatewaySubscriptionCode: v.optional(v.string()),
     gatewayEmailToken: v.optional(v.string()),
     gatewayPlanCode: v.optional(v.string()),
+    keepPeriod: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const record = await ctx.db
@@ -358,11 +467,23 @@ export const applySuccessfulPayment = internalMutation({
         reference: args.reference,
         status: "success",
         description: `${PLAN_CATALOG[planKey].name} — ${cycle}`,
+        kind: args.keepPeriod ? "upgrade" : "purchase",
         paidAt: args.paidAt ?? now,
         createdAt: now,
         updatedAt: now,
       });
     }
+
+    let keepPeriod = args.keepPeriod === true;
+    if (record?.metadata) {
+      try {
+        const parsed = JSON.parse(record.metadata) as { keepPeriod?: boolean };
+        if (parsed.keepPeriod === true) keepPeriod = true;
+      } catch {
+        /* ignore malformed metadata */
+      }
+    }
+    if (record?.kind === "upgrade") keepPeriod = true;
 
     const subscriptionId = await activateSubscription(ctx, {
       organizationId,
@@ -376,6 +497,11 @@ export const applySuccessfulPayment = internalMutation({
       gatewayEmailToken: args.gatewayEmailToken,
       gatewayPlanCode: args.gatewayPlanCode,
       startsAt: args.paidAt ?? now,
+      keepPeriod,
+    });
+
+    await ctx.scheduler.runAfter(0, internal.billing.syncGatewayRecurring, {
+      organizationId,
     });
 
     if (record) {
@@ -411,7 +537,11 @@ export const startCheckout = action({
   handler: async (
     ctx,
     args,
-  ): Promise<{ kind: "redirect"; url: string; reference: string } | { kind: "activated" }> => {
+  ): Promise<
+    | { kind: "redirect"; url: string; reference: string }
+    | { kind: "activated" }
+    | { kind: "cancelled_schedule" }
+  > => {
     const plan = PLAN_CATALOG[args.planKey];
     if (!supportsCycle(plan, args.cycle)) {
       throw new Error(`The ${plan.name} plan is not sold on a ${args.cycle} cycle.`);
@@ -419,15 +549,49 @@ export const startCheckout = action({
     if (!plan.selfServe) {
       throw new Error(`The ${plan.name} plan is not available for self-service checkout.`);
     }
-    const amount = priceForCycle(plan, args.cycle);
-    if (amount === null) throw new Error("This plan has no price for that cycle.");
 
     const context = await ctx.runQuery(internal.billing.checkoutContext, {
       planKey: args.planKey,
       cycle: args.cycle,
     });
+    const preview = context.preview;
+
+    if (preview.intent === "downgrade") {
+      throw new Error("Downgrades are scheduled for the end of the current period. No payment is due today.");
+    }
+    if (preview.intent === "same") {
+      throw new Error("You are already on this plan.");
+    }
+    if (preview.intent === "cancel_scheduled") {
+      await ctx.runMutation(internal.billing.cancelScheduledChangeRecord, {
+        organizationId: context.organizationId,
+        actorId: context.userId,
+      });
+      return { kind: "cancelled_schedule" };
+    }
+    if (context.pendingReference) {
+      throw new Error("Your payment is being verified. Finish that checkout or wait a few minutes and try again.");
+    }
     if (!context.email) {
       throw new Error("Add an email address to your account before starting a payment.");
+    }
+
+    const amount = preview.amountDueToday;
+    const keepPeriod = preview.keepPeriod;
+    const eventKind = preview.intent === "upgrade" ? "upgrade" : "purchase";
+
+    if (amount <= 0) {
+      await ctx.runMutation(internal.billing.applySuccessfulPayment, {
+        reference: buildReference("NVD"),
+        organizationId: context.organizationId,
+        planKey: args.planKey,
+        cycle: args.cycle,
+        amount: 0,
+        currency: context.currency,
+        gateway: "none",
+        keepPeriod,
+      });
+      return { kind: "activated" };
     }
 
     const providerId: BillingProviderId = activeProviderId();
@@ -442,17 +606,30 @@ export const startCheckout = action({
       amount,
       currency: context.currency,
       gateway: providerId === "paystack" ? "paystack" : "manual",
-      description: `${plan.name} — ${args.cycle === "lifetime" ? "one-time licence" : args.cycle}`,
+      description:
+        eventKind === "upgrade"
+          ? `Upgrade to ${plan.name}`
+          : `${plan.name} — ${args.cycle === "lifetime" ? "one-time licence" : args.cycle}`,
+      kind: eventKind,
+      metadata: JSON.stringify({ keepPeriod, intent: preview.intent }),
       initiatedBy: context.userId,
     });
 
     const siteUrl = process.env.NOVEND_SITE_URL ?? process.env.SITE_URL ?? "http://localhost:3000";
-    let gatewayPlanCode = context.gatewayPlanCode ?? undefined;
-    if (providerId === "paystack" && (args.cycle === "monthly" || args.cycle === "yearly")) {
+    // Recurring plan codes ignore initialize `amount`. Prorated upgrades are one-time.
+    let gatewayPlanCode: string | undefined;
+    if (
+      providerId === "paystack" &&
+      !keepPeriod &&
+      (args.cycle === "monthly" || args.cycle === "yearly")
+    ) {
+      gatewayPlanCode = context.gatewayPlanCode ?? undefined;
+      const catalogPrice = priceForCycle(plan, args.cycle);
+      if (catalogPrice === null) throw new Error("This plan has no price for that cycle.");
       const ensuredCode = await ensureRecurringPlan({
         existingCode: gatewayPlanCode,
         name: `Novend ${plan.name} (${args.cycle === "yearly" ? "Yearly" : "Monthly"})`,
-        amount,
+        amount: catalogPrice,
         interval: args.cycle === "yearly" ? "annually" : "monthly",
         currency: context.currency,
         description: plan.tagline,
@@ -466,37 +643,47 @@ export const startCheckout = action({
       gatewayPlanCode = ensuredCode;
     }
 
-    const result = await provider.createSubscription({
-      email: context.email,
-      planKey: args.planKey,
-      cycle: args.cycle,
-      amount,
-      currency: context.currency,
-      reference,
-      callbackUrl: `${siteUrl.replace(/\/$/, "")}/billing/callback`,
-      planCode: gatewayPlanCode,
-      metadata: {
-        organizationId: context.organizationId,
-        organizationName: context.organizationName,
-        planKey: args.planKey,
-        cycle: args.cycle,
-      },
-    });
-
-    if (result.kind === "activated") {
-      await ctx.runMutation(internal.billing.applySuccessfulPayment, {
-        reference,
-        organizationId: context.organizationId,
+    try {
+      const result = await provider.createSubscription({
+        email: context.email,
         planKey: args.planKey,
         cycle: args.cycle,
         amount,
         currency: context.currency,
-        gateway: "manual",
+        reference,
+        callbackUrl: `${siteUrl.replace(/\/$/, "")}/billing/callback`,
+        planCode: gatewayPlanCode,
+        metadata: {
+          organizationId: context.organizationId,
+          organizationName: context.organizationName,
+          planKey: args.planKey,
+          cycle: args.cycle,
+          keepPeriod,
+        },
       });
-      return { kind: "activated" };
-    }
 
-    return { kind: "redirect", url: result.url, reference: result.reference };
+      if (result.kind === "activated") {
+        await ctx.runMutation(internal.billing.applySuccessfulPayment, {
+          reference,
+          organizationId: context.organizationId,
+          planKey: args.planKey,
+          cycle: args.cycle,
+          amount,
+          currency: context.currency,
+          gateway: "manual",
+          keepPeriod,
+        });
+        return { kind: "activated" };
+      }
+
+      return { kind: "redirect", url: result.url, reference: result.reference };
+    } catch {
+      await ctx.runMutation(internal.billing.markPaymentStatus, {
+        reference,
+        status: "failed",
+      });
+      throw new Error("Payment could not be completed. Please try again.");
+    }
   },
 });
 
@@ -588,6 +775,335 @@ export const cancelSubscription = action({
   },
 });
 
+export const scheduleDowngradeRecord = internalMutation({
+  args: {
+    organizationId: v.id("organizations"),
+    targetPlanKey: planKeyValidator,
+    targetCycle: billingCycleValidator,
+    actorId: v.optional(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    const organization = await ctx.db.get(args.organizationId);
+    if (!organization) throw new Error("Organization not found");
+    const license = await resolveLicense(ctx, organization);
+    const subscription = license.subscription;
+    if (!subscription || subscription.isLifetime) {
+      throw new Error("There is no paid period to schedule a downgrade against.");
+    }
+    if (!subscription.expiresAt || subscription.expiresAt <= Date.now()) {
+      throw new Error("Subscribe to this plan instead — the current period has already ended.");
+    }
+    if (planChangeKind(license.planKey, args.targetPlanKey) !== "downgrade") {
+      throw new Error("That plan is not a downgrade from the current plan.");
+    }
+    const target = PLAN_CATALOG[args.targetPlanKey];
+    if (!supportsCycle(target, args.targetCycle)) {
+      throw new Error(`The ${target.name} plan is not sold on a ${args.targetCycle} cycle.`);
+    }
+
+    const existing = asScheduledChange(subscription.scheduledChange);
+    const effectiveAt = subscription.expiresAt;
+    if (scheduledChangeEquals(existing, args.targetPlanKey, args.targetCycle, effectiveAt)) {
+      return {
+        alreadyScheduled: true as const,
+        effectiveAt,
+        targetPlanKey: args.targetPlanKey,
+        gatewayCustomerCode: subscription.gatewayCustomerCode ?? null,
+        gatewaySubscriptionCode: subscription.gatewaySubscriptionCode ?? null,
+        gatewayEmailToken: subscription.gatewayEmailToken ?? null,
+      };
+    }
+
+    const now = Date.now();
+    const scheduled: ScheduledChangeSnapshot = {
+      type: "downgrade",
+      targetPlanKey: args.targetPlanKey,
+      targetCycle: args.targetCycle,
+      effectiveAt,
+      createdAt: now,
+      status: "scheduled",
+    };
+    await ctx.db.patch(subscription._id, {
+      scheduledChange: scheduled,
+      cancelAtPeriodEnd: false,
+      cancelledAt: undefined,
+      nextBillingDate: effectiveAt,
+      updatedAt: now,
+    });
+
+    await ctx.db.insert("billingHistory", {
+      organizationId: args.organizationId,
+      subscriptionId: subscription._id,
+      planKey: args.targetPlanKey,
+      billingCycle: args.targetCycle,
+      amount: 0,
+      currency: subscription.currency,
+      gateway: "none",
+      reference: buildReference("NVD"),
+      status: "success",
+      kind: "scheduled_downgrade",
+      description: `Downgrade to ${target.name} scheduled`,
+      initiatedBy: args.actorId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await writeAuditLog(ctx, {
+      organizationId: args.organizationId,
+      actorId: args.actorId,
+      action: "billing_downgrade_scheduled",
+      entityType: "subscriptions",
+      entityId: subscription._id,
+      metadata: { targetPlanKey: args.targetPlanKey, effectiveAt },
+    });
+    return {
+      alreadyScheduled: false as const,
+      effectiveAt,
+      targetPlanKey: args.targetPlanKey,
+      gatewayCustomerCode: subscription.gatewayCustomerCode ?? null,
+      gatewaySubscriptionCode: subscription.gatewaySubscriptionCode ?? null,
+      gatewayEmailToken: subscription.gatewayEmailToken ?? null,
+    };
+  },
+});
+
+export const cancelScheduledChangeRecord = internalMutation({
+  args: {
+    organizationId: v.id("organizations"),
+    actorId: v.optional(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    const organization = await ctx.db.get(args.organizationId);
+    if (!organization) throw new Error("Organization not found");
+    const subscription = await getActiveSubscription(ctx, organization);
+    const scheduled = asScheduledChange(subscription?.scheduledChange);
+    if (!subscription || !scheduled) {
+      return { cancelled: false as const, currentPlanKey: organization.planKey ?? null };
+    }
+    await clearScheduledChange(ctx, subscription._id);
+    const now = Date.now();
+    await ctx.db.insert("billingHistory", {
+      organizationId: args.organizationId,
+      subscriptionId: subscription._id,
+      planKey: scheduled.targetPlanKey,
+      billingCycle: scheduled.targetCycle,
+      amount: 0,
+      currency: subscription.currency,
+      gateway: "none",
+      reference: buildReference("NVD"),
+      status: "success",
+      kind: "scheduled_downgrade_cancelled",
+      description: "Scheduled downgrade cancelled",
+      initiatedBy: args.actorId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await writeAuditLog(ctx, {
+      organizationId: args.organizationId,
+      actorId: args.actorId,
+      action: "billing_downgrade_cancelled",
+      entityType: "subscriptions",
+      entityId: subscription._id,
+      metadata: { targetPlanKey: scheduled.targetPlanKey },
+    });
+    return {
+      cancelled: true as const,
+      currentPlanKey: subscription.planKey,
+      currentPlanName: PLAN_CATALOG[subscription.planKey].name,
+    };
+  },
+});
+
+export const scheduleDowngrade = action({
+  args: { planKey: planKeyValidator, cycle: billingCycleValidator },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ effectiveAt: number; targetPlanKey: PlanKey; alreadyScheduled: boolean }> => {
+    const context = await ctx.runQuery(internal.billing.checkoutContext, {
+      planKey: args.planKey,
+      cycle: args.cycle,
+    });
+    if (context.preview.intent !== "downgrade") {
+      throw new Error("This plan change is not a scheduled downgrade.");
+    }
+    const result = await ctx.runMutation(internal.billing.scheduleDowngradeRecord, {
+      organizationId: context.organizationId,
+      targetPlanKey: args.planKey,
+      targetCycle: args.cycle,
+      actorId: context.userId,
+    });
+    await ctx.scheduler.runAfter(0, internal.billing.syncGatewayRecurring, {
+      organizationId: context.organizationId,
+    });
+    return {
+      effectiveAt: result.effectiveAt,
+      targetPlanKey: result.targetPlanKey,
+      alreadyScheduled: result.alreadyScheduled,
+    };
+  },
+});
+
+export const cancelScheduledChange = action({
+  args: {},
+  handler: async (
+    ctx,
+  ): Promise<{ cancelled: boolean; currentPlanName: string | null }> => {
+    const context = await ctx.runQuery(internal.billing.checkoutContext, {
+      planKey: DEFAULT_PLAN_KEY,
+      cycle: "lifetime",
+    });
+    const result = await ctx.runMutation(internal.billing.cancelScheduledChangeRecord, {
+      organizationId: context.organizationId,
+      actorId: context.userId,
+    });
+    await ctx.scheduler.runAfter(0, internal.billing.syncGatewayRecurring, {
+      organizationId: context.organizationId,
+    });
+    return {
+      cancelled: result.cancelled,
+      currentPlanName: result.currentPlanName ?? null,
+    };
+  },
+});
+
+export const applyDueScheduledChanges = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const subscriptions = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_status", (q) => q.eq("status", "active"))
+      .collect();
+    let applied = 0;
+    for (const subscription of subscriptions) {
+      const change = asScheduledChange(subscription.scheduledChange);
+      if (!change || now < change.effectiveAt) continue;
+      const result = await applyScheduledDowngrade(ctx, subscription.organizationId, now);
+      if (!result.applied) continue;
+      await ctx.db.insert("billingHistory", {
+        organizationId: subscription.organizationId,
+        subscriptionId: subscription._id,
+        planKey: result.targetPlanKey,
+        billingCycle: change.targetCycle,
+        amount: 0,
+        currency: subscription.currency,
+        gateway: "none",
+        reference: buildReference("NVD"),
+        status: "success",
+        kind: "scheduled_downgrade_applied",
+        description: `${PLAN_CATALOG[result.targetPlanKey!].name} started`,
+        createdAt: now,
+        updatedAt: now,
+      });
+      applied += 1;
+    }
+    return { applied };
+  },
+});
+
+export const loadRecurringAlignment = internalQuery({
+  args: { organizationId: v.id("organizations") },
+  handler: async (ctx, args) => {
+    const organization = await ctx.db.get(args.organizationId);
+    if (!organization) return null;
+    const subscription = await getActiveSubscription(ctx, organization);
+    if (!subscription || subscription.isLifetime) return null;
+    const scheduled = asScheduledChange(subscription.scheduledChange);
+    const desiredPlanKey = scheduled?.targetPlanKey ?? subscription.planKey;
+    const desiredCycle = scheduled?.targetCycle ?? subscription.billingCycle;
+    if (desiredCycle === "lifetime") return null;
+    const planRow = await ctx.db
+      .query("plans")
+      .withIndex("by_key", (q) => q.eq("key", desiredPlanKey))
+      .unique();
+    return {
+      customerCode: subscription.gatewayCustomerCode ?? null,
+      currentSubscriptionCode: subscription.gatewaySubscriptionCode ?? null,
+      currentEmailToken: subscription.gatewayEmailToken ?? null,
+      currentPlanCode: subscription.gatewayPlanCode ?? null,
+      desiredPlanKey,
+      desiredCycle,
+      desiredPlanCode:
+        desiredCycle === "yearly"
+          ? (planRow?.gatewayYearlyPlanCode ?? null)
+          : (planRow?.gatewayMonthlyPlanCode ?? null),
+      startAt: scheduled?.effectiveAt ?? subscription.expiresAt ?? null,
+    };
+  },
+});
+
+export const storeAlignedGatewaySubscription = internalMutation({
+  args: {
+    organizationId: v.id("organizations"),
+    gatewaySubscriptionCode: v.string(),
+    gatewayEmailToken: v.optional(v.string()),
+    gatewayCustomerCode: v.optional(v.string()),
+    gatewayPlanCode: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const organization = await ctx.db.get(args.organizationId);
+    if (!organization) return;
+    const subscription = await getActiveSubscription(ctx, organization);
+    if (!subscription) return;
+    await ctx.db.patch(subscription._id, {
+      gatewaySubscriptionCode: args.gatewaySubscriptionCode,
+      gatewayEmailToken: args.gatewayEmailToken ?? subscription.gatewayEmailToken,
+      gatewayCustomerCode: args.gatewayCustomerCode ?? subscription.gatewayCustomerCode,
+      gatewayPlanCode: args.gatewayPlanCode ?? subscription.gatewayPlanCode,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
+ * Aligns the Paystack recurring subscription with the current or scheduled plan
+ * so the next automatic charge uses the right amount. Local Convex state is
+ * already the source of truth if this fails.
+ */
+export const syncGatewayRecurring = internalAction({
+  args: { organizationId: v.id("organizations") },
+  handler: async (ctx, args): Promise<void> => {
+    if (!isPaystackConfigured()) return;
+    const alignment = await ctx.runQuery(internal.billing.loadRecurringAlignment, {
+      organizationId: args.organizationId,
+    });
+    if (!alignment || !alignment.customerCode || !alignment.desiredPlanCode || !alignment.startAt) {
+      return;
+    }
+    if (alignment.currentPlanCode === alignment.desiredPlanCode && !alignment.currentSubscriptionCode) {
+      return;
+    }
+    if (alignment.currentPlanCode === alignment.desiredPlanCode) return;
+
+    try {
+      const created = await createGatewaySubscription({
+        customer: alignment.customerCode,
+        plan: alignment.desiredPlanCode,
+        startDate: new Date(alignment.startAt).toISOString(),
+      });
+      await ctx.runMutation(internal.billing.storeAlignedGatewaySubscription, {
+        organizationId: args.organizationId,
+        gatewaySubscriptionCode: created.subscription_code,
+        gatewayEmailToken: created.email_token,
+        gatewayCustomerCode: created.customer?.customer_code,
+        gatewayPlanCode: created.plan?.plan_code ?? alignment.desiredPlanCode,
+      });
+      if (
+        alignment.currentSubscriptionCode &&
+        alignment.currentEmailToken &&
+        alignment.currentSubscriptionCode !== created.subscription_code
+      ) {
+        await disableSubscription({
+          code: alignment.currentSubscriptionCode,
+          token: alignment.currentEmailToken,
+        });
+      }
+    } catch {
+      /* Local schedule/upgrade already committed; retry on the next maintenance run. */
+    }
+  },
+});
+
 // ---------------------------------------------------------------------------
 // Webhook handling
 // ---------------------------------------------------------------------------
@@ -676,12 +1192,18 @@ export const applyGatewayRenewal = internalMutation({
     if (!subscription) return { applied: false as const };
 
     const paidAt = args.paidAt ?? Date.now();
+    const due = asScheduledChange(subscription.scheduledChange);
+    if (due && paidAt >= due.effectiveAt) {
+      await applyScheduledDowngrade(ctx, subscription.organizationId, paidAt);
+    }
+
+    const live = (await ctx.db.get(subscription._id)) ?? subscription;
     const nextEnd = periodEnd(
-      Math.max(paidAt, subscription.expiresAt ?? paidAt),
-      subscription.billingCycle,
+      Math.max(paidAt, live.expiresAt ?? paidAt),
+      live.billingCycle,
     );
 
-    await ctx.db.patch(subscription._id, {
+    await ctx.db.patch(live._id, {
       status: "active",
       expiresAt: nextEnd,
       nextBillingDate: nextEnd,
@@ -701,14 +1223,15 @@ export const applyGatewayRenewal = internalMutation({
       await ctx.db.insert("billingHistory", {
         organizationId: subscription.organizationId,
         subscriptionId: subscription._id,
-        planKey: subscription.planKey,
-        billingCycle: subscription.billingCycle,
+        planKey: live.planKey,
+        billingCycle: live.billingCycle,
         amount: args.amount,
         currency: args.currency,
         gateway: "paystack",
         reference: args.reference,
         status: "success",
-        description: `${PLAN_CATALOG[subscription.planKey].name} renewal`,
+        kind: "renewal",
+        description: `${PLAN_CATALOG[live.planKey].name} renewal`,
         paidAt,
         createdAt: now,
         updatedAt: now,
@@ -761,6 +1284,9 @@ export const disableGatewaySubscription = internalMutation({
       )
       .unique();
     if (!subscription || subscription.isLifetime) return;
+    // Stale disable after we rotated to a new Paystack subscription.
+    if (subscription.gatewaySubscriptionCode !== args.gatewaySubscriptionCode) return;
+    if (subscription.scheduledChange) return;
     const now = Date.now();
     await ctx.db.patch(subscription._id, {
       status: "cancelled",
@@ -845,6 +1371,7 @@ export const dailyMaintenance = internalAction({
     if (isPaystackConfigured()) {
       await ctx.runAction(internal.billing.syncGatewayPlansInternal, {});
     }
+    await ctx.runMutation(internal.billing.applyDueScheduledChanges, {});
     await ctx.runMutation(internal.billing.expireLapsedSubscriptions, {});
     await ctx.runMutation(internal.billing.expireTrials, {});
   },

@@ -1,6 +1,6 @@
 # Billing, Plans & Activation
 
-Version: 1.2.0
+Version: 1.3.0
 
 Novend is sold as a subscription with a lifetime licence option. This document is
 the reference for how entitlements are defined, enforced and paid for.
@@ -26,6 +26,7 @@ licence so a terminal keeps selling offline, but it never decides access.
 | `convex/shared/entitlements.ts` | Database-backed licence resolution, usage counting, capacity checks |
 | `convex/shared/subscriptions.ts` | Activation, trials, plan-catalog sync |
 | `convex/shared/billingPeriod.ts` | Period arithmetic for monthly/yearly cycles |
+| `convex/shared/planChange.ts` | Upgrade proration and scheduled-downgrade preview |
 | `convex/shared/provisionOrganization.ts` | Tenant bootstrap (trial or assigned plan) |
 | `convex/shared/paystack.ts` | Paystack REST client and webhook signature verification |
 | `convex/shared/billingProvider.ts` | Gateway abstraction (`manual`, `paystack`) |
@@ -107,9 +108,33 @@ the first payment creates a subscription, and Paystack deducts again each month
 or year until the customer cancels. Lifetime has no plan code — it is a single
 charge and never renews.
 
-Because the plan owns the amount, `startCheckout` updates the Paystack plan to
-the current catalog price before opening checkout. `billing:syncGatewayPlansInternal`
-does the same for every recurring plan.
+Plan changes are **state transitions on one subscription row**, not a cancel-and-
+rebuy. Upgrades are immediate after a confirmed payment. Downgrades are always
+scheduled for `expiresAt` and never charge today.
+
+**Upgrade.** `previewPlanChange` is the only amount the UI may show. Mid-cycle
+the customer pays `remaining(new) − unused(current)` and keeps the current
+period. Paystack initialize for that charge is a one-time amount (no plan code),
+so the gateway cannot ignore the prorated figure. After the webhook activates
+the new plan, `syncGatewayRecurring` points the next renewal at the new catalog
+price.
+
+**Downgrade.** `scheduleDowngrade` writes `scheduledChange` and a zero-amount
+history row (`kind: scheduled_downgrade`). The organization stays on the current
+plan until `effectiveAt`. Over-limit usage is a warning, never a delete, and
+does not block the schedule. `cancelScheduledChange` removes the pending change
+with no payment. Choosing the current plan again while a downgrade is scheduled
+is the same cancel. Choosing a higher plan cancels the schedule and prorates
+from the **current** plan, not the scheduled one.
+
+**At period end.** `applyDueScheduledChanges` (daily cron) and
+`applyGatewayRenewal` (webhook) apply the target plan, clear `scheduledChange`,
+and leave existing records intact. Create-path limits then use the new plan.
+
+Because a full-price recurring plan owns the amount, `startCheckout` updates the
+Paystack plan to the current catalog price before **new** (non-prorated)
+checkout. `billing:syncGatewayPlansInternal` does the same for every recurring
+plan.
 
 Money flows in three steps:
 
@@ -148,8 +173,9 @@ problem. Past the TTL the device falls back to read-only until it reconnects.
 # Scheduled work
 
 `convex/crons.ts` runs `billing.dailyMaintenance` once a day: sync the plan
-catalog, push catalog prices onto Paystack recurring plans, expire subscriptions
-whose grace window closed, and expire finished trials.
+catalog, push catalog prices onto Paystack recurring plans, apply due scheduled
+downgrades, expire subscriptions whose grace window closed, and expire finished
+trials.
 
 # Deployment
 

@@ -37,6 +37,14 @@ export type CachedBillingOverview = {
     currency: string;
     paymentGateway: string;
     cancelAtPeriodEnd: boolean;
+    scheduledChange?: {
+      type: "downgrade";
+      targetPlanKey: string;
+      targetCycle: string;
+      effectiveAt: number;
+      createdAt: number;
+      status: "scheduled";
+    } | null;
   } | null;
   usage: Array<{
     resource: string;
@@ -59,6 +67,7 @@ export type CachedBillingHistoryRow = {
   reference: string;
   status: string;
   description: string;
+  kind?: string | null;
   planKey: string | null;
   billingCycle: string | null;
   paidAt: number | null;

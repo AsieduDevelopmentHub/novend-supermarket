@@ -76,6 +76,7 @@ export function useBillingHistoryData() {
         reference: row.reference,
         status: row.status,
         description: row.description,
+        kind: row.kind,
         planKey: row.planKey,
         billingCycle: row.billingCycle,
         paidAt: row.paidAt,

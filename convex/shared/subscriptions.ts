@@ -3,7 +3,8 @@ import type { MutationCtx } from "../_generated/server";
 import { writeAuditLog } from "./audit";
 import { getActiveSubscription } from "./entitlements";
 import { GRACE_PERIOD_MS, TRIAL_PERIOD_MS } from "./licensing";
-import { PLAN_CATALOG, PLAN_LIST, type BillingCycle, type PlanKey } from "./plans";
+import { PLAN_CATALOG, PLAN_LIST, priceForCycle, type BillingCycle, type PlanKey } from "./plans";
+import type { ScheduledChangeSnapshot } from "./planChange";
 import { periodEnd } from "./billingPeriod";
 
 export { periodEnd };
@@ -66,6 +67,8 @@ export type ActivationArgs = {
   gatewayPlanCode?: string;
   startsAt?: number;
   actorId?: Id<"users">;
+  /** Mid-cycle upgrade: keep the paid period and only change the plan. */
+  keepPeriod?: boolean;
 };
 
 /**
@@ -85,8 +88,15 @@ export async function activateSubscription(
   const now = args.startsAt ?? Date.now();
   const plan = PLAN_CATALOG[args.planKey];
   const isLifetime = plan.isLifetime || args.cycle === "lifetime";
-  const expiresAt = isLifetime ? undefined : periodEnd(now, args.cycle);
   const existing = await getActiveSubscription(ctx, organization);
+  const keepPeriod = Boolean(args.keepPeriod && existing && !isLifetime && existing.expiresAt);
+  const periodStart = keepPeriod ? existing!.startsAt : now;
+  const expiresAt = isLifetime
+    ? undefined
+    : keepPeriod
+      ? existing!.expiresAt
+      : periodEnd(now, args.cycle);
+  const catalogAmount = priceForCycle(plan, args.cycle) ?? args.amount;
   const planId = await planRowId(ctx, args.planKey);
 
   const fields = {
@@ -95,19 +105,20 @@ export async function activateSubscription(
     status: "active" as const,
     billingCycle: args.cycle,
     isLifetime,
-    startsAt: now,
+    startsAt: periodStart,
     expiresAt,
     nextBillingDate: expiresAt,
     graceUntil: expiresAt ? expiresAt + GRACE_PERIOD_MS : undefined,
     cancelAtPeriodEnd: false,
     cancelledAt: undefined,
-    amount: args.amount,
+    scheduledChange: undefined,
+    amount: keepPeriod ? catalogAmount : args.amount,
     currency: args.currency,
     paymentGateway: args.gateway,
-    gatewayCustomerCode: args.gatewayCustomerCode,
-    gatewaySubscriptionCode: args.gatewaySubscriptionCode,
-    gatewayEmailToken: args.gatewayEmailToken,
-    gatewayPlanCode: args.gatewayPlanCode,
+    gatewayCustomerCode: args.gatewayCustomerCode ?? existing?.gatewayCustomerCode,
+    gatewaySubscriptionCode: args.gatewaySubscriptionCode ?? existing?.gatewaySubscriptionCode,
+    gatewayEmailToken: args.gatewayEmailToken ?? existing?.gatewayEmailToken,
+    gatewayPlanCode: args.gatewayPlanCode ?? existing?.gatewayPlanCode,
     updatedAt: now,
   };
 
@@ -145,10 +156,72 @@ export async function activateSubscription(
       gateway: args.gateway,
       amount: args.amount,
       expiresAt: expiresAt ?? null,
+      keepPeriod,
     },
   });
 
   return subscriptionId;
+}
+
+export async function clearScheduledChange(
+  ctx: MutationCtx,
+  subscriptionId: Id<"subscriptions">,
+): Promise<void> {
+  await ctx.db.patch(subscriptionId, {
+    scheduledChange: undefined,
+    updatedAt: Date.now(),
+  });
+}
+
+/**
+ * Applies a due scheduled downgrade. Existing records are never deleted —
+ * only the current plan pointer changes, so create-path limits start applying.
+ */
+export async function applyScheduledDowngrade(
+  ctx: MutationCtx,
+  organizationId: Id<"organizations">,
+  now = Date.now(),
+): Promise<{ applied: boolean; targetPlanKey?: PlanKey }> {
+  const organization = await ctx.db.get(organizationId);
+  if (!organization) return { applied: false };
+  const subscription = await getActiveSubscription(ctx, organization);
+  const change = subscription?.scheduledChange as ScheduledChangeSnapshot | undefined;
+  if (!subscription || !change || change.status !== "scheduled") {
+    return { applied: false };
+  }
+  if (now < change.effectiveAt) return { applied: false };
+
+  const plan = PLAN_CATALOG[change.targetPlanKey];
+  const planId = await planRowId(ctx, change.targetPlanKey);
+  const amount = priceForCycle(plan, change.targetCycle) ?? subscription.amount;
+
+  await ctx.db.patch(subscription._id, {
+    planKey: change.targetPlanKey,
+    planId,
+    billingCycle: change.targetCycle,
+    isLifetime: plan.isLifetime,
+    amount,
+    scheduledChange: undefined,
+    updatedAt: now,
+  });
+  await ctx.db.patch(organizationId, {
+    planKey: change.targetPlanKey,
+    activePlanId: planId,
+    plan: change.targetPlanKey,
+    updatedAt: now,
+  });
+  await writeAuditLog(ctx, {
+    organizationId,
+    action: "billing_scheduled_downgrade_applied",
+    entityType: "subscriptions",
+    entityId: subscription._id,
+    metadata: {
+      fromPlanKey: subscription.planKey,
+      targetPlanKey: change.targetPlanKey,
+      effectiveAt: change.effectiveAt,
+    },
+  });
+  return { applied: true, targetPlanKey: change.targetPlanKey };
 }
 
 /** Puts a freshly provisioned organization on a time-limited trial. */

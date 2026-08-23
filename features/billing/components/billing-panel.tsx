@@ -21,7 +21,8 @@ import { PlansGrid } from "./plans-grid";
 import { BillingHistoryTable } from "./billing-history-table";
 import { CloudBackupPanel } from "./cloud-backup-panel";
 import type { AccessState, UsageMetric } from "@/convex/shared/licensing";
-import type { PlanKey } from "@/convex/shared/plans";
+import { PLAN_CATALOG, type PlanKey } from "@/convex/shared/plans";
+import type { ScheduledChangeSnapshot } from "@/convex/shared/planChange";
 
 const ACCESS_BADGE: Record<
   AccessState,
@@ -53,8 +54,10 @@ export function BillingPanel() {
   const online = useConnectivity();
   const { data: overview, loading, source } = useBillingOverviewData();
   const cancelSubscription = useAction(api.billing.cancelSubscription);
+  const cancelScheduledChange = useAction(api.billing.cancelScheduledChange);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [cancellingSchedule, setCancellingSchedule] = useState(false);
 
   if (loading) {
     return <LoadingState label="Loading billing…" variant="form" />;
@@ -72,8 +75,14 @@ export function BillingPanel() {
   const accessState = isAccessState(overview.access.state) ? overview.access.state : "active";
   const badge = ACCESS_BADGE[accessState];
   const subscription = overview.subscription;
+  const scheduledChange = (subscription?.scheduledChange ??
+    null) as ScheduledChangeSnapshot | null;
   const canCancel = Boolean(
-    online && subscription && !subscription.isLifetime && !subscription.cancelAtPeriodEnd,
+    online &&
+      subscription &&
+      !subscription.isLifetime &&
+      !subscription.cancelAtPeriodEnd &&
+      !scheduledChange,
   );
 
   async function onCancel() {
@@ -97,6 +106,26 @@ export function BillingPanel() {
     }
   }
 
+  async function onCancelSchedule() {
+    if (!online) {
+      toast.error("Connect to the internet to cancel a scheduled downgrade.");
+      return;
+    }
+    setCancellingSchedule(true);
+    try {
+      const result = await cancelScheduledChange({});
+      toast.success(
+        result.currentPlanName
+          ? `Your downgrade has been cancelled. Your ${result.currentPlanName} plan remains active.`
+          : "Your scheduled downgrade has been cancelled.",
+      );
+    } catch (error) {
+      showError(error, "Could not cancel the scheduled downgrade");
+    } finally {
+      setCancellingSchedule(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {!online || source === "cache" ? (
@@ -104,7 +133,8 @@ export function BillingPanel() {
           <WifiOff className="h-4 w-4" aria-hidden />
           <AlertTitle>Using your last confirmed subscription</AlertTitle>
           <AlertDescription>
-            Plan, limits, and history stay available offline. Connect to pay, upgrade, or renew.
+            Plan, limits, scheduled changes, and history stay available offline. Connect to pay,
+            upgrade, or schedule a change.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -151,6 +181,49 @@ export function BillingPanel() {
         </CardContent>
       </Card>
 
+      {scheduledChange ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              Downgrade scheduled
+              <Badge variant="warning">Upcoming</Badge>
+            </CardTitle>
+            <CardDescription>
+              You stay on {overview.plan.name} until the current paid period ends. You are not on{" "}
+              {PLAN_CATALOG[scheduledChange.targetPlanKey].name} yet.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <Detail
+              label="Current plan"
+              value={`${overview.plan.name} · active until ${formatDate(subscription?.expiresAt ?? null)}`}
+            />
+            <Detail
+              label="Upcoming plan"
+              value={`${PLAN_CATALOG[scheduledChange.targetPlanKey].name} · starts ${formatDate(scheduledChange.effectiveAt)}`}
+            />
+            <Detail
+              label="Next payment"
+              value={formatCurrency(
+                scheduledChange.targetCycle === "yearly"
+                  ? (PLAN_CATALOG[scheduledChange.targetPlanKey].yearlyPrice ?? 0)
+                  : (PLAN_CATALOG[scheduledChange.targetPlanKey].monthlyPrice ?? 0),
+              )}
+            />
+            <div className="flex items-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!online || cancellingSchedule}
+                onClick={() => void onCancelSchedule()}
+              >
+                {cancellingSchedule ? "Cancelling…" : "Cancel scheduled downgrade"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <section className="space-y-3">
         <div>
           <h3 className="text-base font-semibold">Usage</h3>
@@ -165,9 +238,9 @@ export function BillingPanel() {
         currentPlanKey={overview.planKey as PlanKey}
         currentCycle={(subscription?.billingCycle as "monthly" | "yearly" | "lifetime") ?? null}
         accessState={accessState}
-        usage={overview.usage as UsageMetric[]}
         online={online}
         onlinePaymentsEnabled={overview.onlinePaymentsEnabled}
+        scheduledChange={scheduledChange}
       />
 
       <CloudBackupPanel />

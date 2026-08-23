@@ -62,6 +62,7 @@ export function BillingHistoryTable() {
           <thead className="bg-muted/50 text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">Date</th>
+              <th className="px-4 py-3 font-medium">Type</th>
               <th className="px-4 py-3 font-medium">Description</th>
               <th className="px-4 py-3 font-medium">Reference</th>
               <th className="px-4 py-3 text-right font-medium">Amount</th>
@@ -73,6 +74,9 @@ export function BillingHistoryTable() {
               <tr key={row.id} className="border-border border-t">
                 <td className="text-muted-foreground px-4 py-3 whitespace-nowrap">
                   {formatDate(row.paidAt ?? row.createdAt)}
+                </td>
+                <td className="px-4 py-3 capitalize">
+                  {(row.kind ?? "payment").replaceAll("_", " ")}
                 </td>
                 <td className="px-4 py-3">{row.description}</td>
                 <td className="text-muted-foreground px-4 py-3 font-mono text-xs">

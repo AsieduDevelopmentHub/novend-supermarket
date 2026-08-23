@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAction } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { Check, Loader2, Sparkles, WifiOff } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -15,84 +15,72 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatNumber } from "@/lib/currency";
-import { formatBytes } from "@/lib/bytes";
+import { formatCurrency } from "@/lib/currency";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import {
-  PLAN_CATALOG,
   PLAN_LIST,
-  RESOURCE_LABELS,
   planChangeKind,
   planLimitLines,
-  usageExceedsLimits,
   type BillingCycle,
-  type LimitResource,
   type PlanDefinition,
   type PlanKey,
-  type PlanUsageExcess,
 } from "@/convex/shared/plans";
-import type { AccessState, UsageMetric } from "@/convex/shared/licensing";
+import type { AccessState } from "@/convex/shared/licensing";
+import type { ScheduledChangeSnapshot } from "@/convex/shared/planChange";
+import { PlanChangeDialog } from "./plan-change-dialog";
 
 type Props = {
   currentPlanKey: PlanKey;
   currentCycle: BillingCycle | null;
   accessState: AccessState;
-  usage: UsageMetric[];
   online: boolean;
   onlinePaymentsEnabled: boolean;
+  scheduledChange?: ScheduledChangeSnapshot | null;
   disabled?: boolean;
 };
 
-function usedByResource(usage: UsageMetric[]): Partial<Record<LimitResource, number>> {
-  const used: Partial<Record<LimitResource, number>> = {};
-  for (const metric of usage) {
-    used[metric.resource] = metric.used;
-  }
-  return used;
+function formatDate(value: number | null) {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("en-GH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function actionLabel(
   plan: PlanDefinition,
   currentPlanKey: PlanKey,
   accessState: AccessState,
+  scheduledChange?: ScheduledChangeSnapshot | null,
 ): string {
   const kind = planChangeKind(currentPlanKey, plan.key);
   if (plan.isLifetime) return "Buy lifetime licence";
   if (kind === "same") {
+    if (scheduledChange) return `Keep ${plan.name}`;
     if (accessState === "trial") return "Pay now";
     if (accessState === "grace" || accessState === "expired") return "Renew now";
     return "Current plan";
   }
   if (kind === "upgrade") return `Upgrade to ${plan.name}`;
+  if (scheduledChange?.targetPlanKey === plan.key) return "Downgrade scheduled";
   return `Downgrade to ${plan.name}`;
-}
-
-function formatExcess(row: PlanUsageExcess): string {
-  const label = RESOURCE_LABELS[row.resource];
-  const used =
-    row.resource === "backupBytes" ? formatBytes(row.used) : formatNumber(row.used);
-  const limit =
-    row.resource === "backupBytes" ? formatBytes(row.limit) : formatNumber(row.limit);
-  const reduce =
-    row.resource === "backupBytes" ? formatBytes(row.reduceBy) : formatNumber(row.reduceBy);
-  return `${label}: ${used} / ${limit} — reduce by ${reduce}`;
 }
 
 /**
  * Plan comparison and self-service checkout.
  *
- * Pay Now stays available during trial. Downgrades that exceed the target
- * limits are blocked in the UI (no data is deleted). Payment itself needs
- * a connection; the rest of Billing stays usable offline.
+ * Upgrades open a backend-authored proration preview, then Paystack.
+ * Downgrades are scheduled for period end with no charge today.
  */
 export function PlansGrid({
   currentPlanKey,
   currentCycle,
   accessState,
-  usage,
   online,
   onlinePaymentsEnabled,
+  scheduledChange = null,
   disabled = false,
 }: Props) {
   const [cycle, setCycle] = useState<Exclude<BillingCycle, "lifetime">>(
@@ -100,21 +88,48 @@ export function PlansGrid({
   );
   const [pendingPlan, setPendingPlan] = useState<PlanKey | null>(null);
   const [offlineOpen, setOfflineOpen] = useState(false);
-  const [excess, setExcess] = useState<PlanUsageExcess[] | null>(null);
+  const [dialogPlan, setDialogPlan] = useState<PlanDefinition | null>(null);
   const startCheckout = useAction(api.billing.startCheckout);
+  const scheduleDowngrade = useAction(api.billing.scheduleDowngrade);
 
-  async function startPayment(plan: PlanDefinition) {
-    const chosenCycle: BillingCycle = plan.isLifetime ? "lifetime" : cycle;
-    setPendingPlan(plan.key);
+  const dialogCycle: BillingCycle = dialogPlan?.isLifetime ? "lifetime" : cycle;
+  const preview = useQuery(
+    api.billing.previewPlanChange,
+    dialogPlan && online ? { planKey: dialogPlan.key, cycle: dialogCycle } : "skip",
+  );
+
+  async function confirmChange() {
+    if (!dialogPlan || !preview) return;
+    const chosenCycle: BillingCycle = dialogPlan.isLifetime ? "lifetime" : cycle;
+    setPendingPlan(dialogPlan.key);
     try {
-      const result = await startCheckout({ planKey: plan.key, cycle: chosenCycle });
+      if (preview.intent === "downgrade") {
+        const result = await scheduleDowngrade({
+          planKey: dialogPlan.key,
+          cycle: chosenCycle,
+        });
+        toast.success(
+          `Your downgrade is scheduled for ${formatDate(result.effectiveAt)}.`,
+        );
+        setDialogPlan(null);
+        return;
+      }
+      const result = await startCheckout({ planKey: dialogPlan.key, cycle: chosenCycle });
+      if (result.kind === "cancelled_schedule") {
+        toast.success(
+          `Your scheduled downgrade has been cancelled. Your ${preview.currentPlanName} plan remains active.`,
+        );
+        setDialogPlan(null);
+        return;
+      }
       if (result.kind === "redirect") {
         window.location.assign(result.url);
         return;
       }
-      toast.success(`${plan.name} activated`);
+      toast.success("Your subscription has been updated.");
+      setDialogPlan(null);
     } catch (error) {
-      showError(error, "Could not start checkout");
+      showError(error, "Could not update the subscription");
     } finally {
       setPendingPlan(null);
     }
@@ -126,17 +141,10 @@ export function PlansGrid({
       return;
     }
     const kind = planChangeKind(currentPlanKey, plan.key);
-    if (kind === "same" && accessState === "active" && !plan.isLifetime) {
+    if (kind === "same" && accessState === "active" && !plan.isLifetime && !scheduledChange) {
       return;
     }
-    if (kind === "downgrade") {
-      const over = usageExceedsLimits(usedByResource(usage), PLAN_CATALOG[plan.key].limits);
-      if (over.length > 0) {
-        setExcess(over);
-        return;
-      }
-    }
-    void startPayment(plan);
+    setDialogPlan(plan);
   }
 
   return (
@@ -145,7 +153,8 @@ export function PlansGrid({
         <div>
           <h3 className="text-base font-semibold">Available plans</h3>
           <p className="text-muted-foreground text-sm">
-            Prices are in Ghana cedis. Subscribe or change plan at any time — including during trial.
+            Upgrades take effect after payment. Downgrades wait until the period you already paid
+            for ends.
           </p>
         </div>
         <div
@@ -179,14 +188,18 @@ export function PlansGrid({
         {PLAN_LIST.map((plan) => {
           const kind = planChangeKind(currentPlanKey, plan.key);
           const isCurrentPaid =
-            kind === "same" && accessState === "active" && !plan.isLifetime;
+            kind === "same" && accessState === "active" && !plan.isLifetime && !scheduledChange;
           return (
             <PlanCard
               key={plan.key}
               plan={plan}
               cycle={cycle}
               isCurrent={kind === "same"}
-              label={actionLabel(plan, currentPlanKey, accessState)}
+              scheduled={scheduledChange?.targetPlanKey === plan.key}
+              scheduledDate={
+                scheduledChange?.targetPlanKey === plan.key ? scheduledChange.effectiveAt : null
+              }
+              label={actionLabel(plan, currentPlanKey, accessState, scheduledChange)}
               pending={pendingPlan === plan.key}
               disabled={disabled || pendingPlan !== null || isCurrentPaid}
               onlinePaymentsEnabled={onlinePaymentsEnabled}
@@ -195,6 +208,17 @@ export function PlansGrid({
           );
         })}
       </div>
+
+      <PlanChangeDialog
+        open={Boolean(dialogPlan)}
+        preview={preview ?? null}
+        loading={Boolean(dialogPlan && preview === undefined)}
+        pending={pendingPlan !== null}
+        onOpenChange={(open) => {
+          if (!open) setDialogPlan(null);
+        }}
+        onConfirm={() => void confirmChange()}
+      />
 
       <Dialog open={offlineOpen} onOpenChange={setOfflineOpen}>
         <DialogContent>
@@ -205,8 +229,8 @@ export function PlansGrid({
             </DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-sm">
-            Connect to the internet to continue with payment. Your current plan and limits stay
-            available in the meantime.
+            You&apos;re offline. Connect to the internet to continue with payment. Your current
+            plan, limits, and any scheduled change stay available.
           </p>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOfflineOpen(false)}>
@@ -223,32 +247,6 @@ export function PlansGrid({
               }}
             >
               Try again
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={Boolean(excess)} onOpenChange={(open) => !open && setExcess(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Usage exceeds the lower plan</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground text-sm">
-            Novend will not delete products, users, devices, or backups. Reduce usage first, or keep
-            your current plan.
-          </p>
-          {excess ? (
-            <ul className="space-y-2 text-sm">
-              {excess.map((row) => (
-                <li key={row.resource} className="bg-muted/40 rounded-lg px-3 py-2">
-                  {formatExcess(row)}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setExcess(null)}>
-              Keep current plan
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -271,6 +269,8 @@ function PlanCard({
   plan,
   cycle,
   isCurrent,
+  scheduled,
+  scheduledDate,
   label,
   pending,
   disabled,
@@ -280,6 +280,8 @@ function PlanCard({
   plan: PlanDefinition;
   cycle: Exclude<BillingCycle, "lifetime">;
   isCurrent: boolean;
+  scheduled: boolean;
+  scheduledDate: number | null;
   label: string;
   pending: boolean;
   disabled: boolean;
@@ -301,7 +303,8 @@ function PlanCard({
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <h4 className="text-base font-semibold">{plan.name}</h4>
             {isCurrent ? <Badge variant="success">Current</Badge> : null}
-            {!isCurrent && plan.featured ? (
+            {scheduled ? <Badge variant="warning">Starts {formatDate(scheduledDate)}</Badge> : null}
+            {!isCurrent && !scheduled && plan.featured ? (
               <Badge className="gap-1">
                 <Sparkles className="h-3 w-3" aria-hidden />
                 Most Popular
@@ -344,7 +347,7 @@ function PlanCard({
           {pending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" aria-hidden />
-              Opening checkout…
+              Working…
             </>
           ) : (
             label

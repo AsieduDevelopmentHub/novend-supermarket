@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.0
+Version: 2.4.1
 
 ## Purpose
 
@@ -117,7 +117,8 @@ instead of a remote `server.url` load. See `CAPACITOR_MOBILE.md`.
 ## Billing (offline-aware)
 
 Settings → Billing renders from Dexie (`billingOverview`, `billingHistory`,
-`licenseSnapshot`). Pay / Subscribe / Upgrade / Renew require a connection and
-must not hide the rest of the billing page or lock the POS. Downgrades that
-exceed the target plan limits are rejected in Convex; existing records are never
-deleted. The last valid licence snapshot keeps selling while offline.
+`licenseSnapshot`), including any scheduled downgrade. Pay / Subscribe / Upgrade
+/ Renew / Schedule require a connection and must not hide the rest of the
+billing page or lock the POS. Downgrades never delete existing records; over-
+limit usage is a warning and create-path limits apply after the effective date.
+The last valid licence snapshot keeps selling while offline.

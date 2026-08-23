@@ -4,6 +4,14 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## Unreleased
+
+### Changed
+
+- Subscription plan changes are now a lifecycle on one subscription: upgrades take effect after a prorated payment; downgrades are scheduled for the end of the paid period with no charge today.
+
+---
+
 ## v0.3.2 — 2026-08-23
 
 ### Fixed

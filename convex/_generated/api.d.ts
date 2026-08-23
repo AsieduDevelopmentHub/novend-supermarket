@@ -45,6 +45,7 @@ import type * as shared_lots from "../shared/lots.js";
 import type * as shared_multiBranchBootstrap from "../shared/multiBranchBootstrap.js";
 import type * as shared_paystack from "../shared/paystack.js";
 import type * as shared_permissions from "../shared/permissions.js";
+import type * as shared_planChange from "../shared/planChange.js";
 import type * as shared_plans from "../shared/plans.js";
 import type * as shared_presence from "../shared/presence.js";
 import type * as shared_provisionOrganization from "../shared/provisionOrganization.js";
@@ -99,6 +100,7 @@ declare const fullApi: ApiFromModules<{
   "shared/multiBranchBootstrap": typeof shared_multiBranchBootstrap;
   "shared/paystack": typeof shared_paystack;
   "shared/permissions": typeof shared_permissions;
+  "shared/planChange": typeof shared_planChange;
   "shared/plans": typeof shared_plans;
   "shared/presence": typeof shared_presence;
   "shared/provisionOrganization": typeof shared_provisionOrganization;
