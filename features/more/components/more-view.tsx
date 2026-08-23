@@ -8,7 +8,6 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { moreSectionsForRole } from "@/config/mobile-navigation";
 import { PageHeader } from "@/components/layout/primitives";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
 import { ChevronRight, CreditCard, HelpCircle, Info, LogOut } from "lucide-react";
@@ -34,6 +33,7 @@ export function MoreView() {
   }
 
   const sections = moreSectionsForRole(role);
+  const hasSystemSection = sections.some((section) => section.id === "system");
 
   async function handleSignOut() {
     if (signingOut) return;
@@ -45,32 +45,33 @@ export function MoreView() {
     }
   }
 
+  function renderSignOutRow() {
+    return (
+      <button
+        type="button"
+        disabled={signingOut}
+        onClick={() => void handleSignOut()}
+        className={cn(
+          "flex min-h-12 w-full items-center gap-3 rounded-[16px] px-3 py-2.5 text-left transition-colors",
+          "text-destructive hover:bg-destructive/10 active:bg-destructive/15",
+          "disabled:pointer-events-none disabled:opacity-60",
+        )}
+      >
+        <span className="bg-destructive/10 text-destructive flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]">
+          <LogOut className="h-5 w-5" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+          {signingOut ? "Signing out…" : "Sign out"}
+        </span>
+      </button>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-lg space-y-5 pb-4">
       <PageHeader
         title="More"
         description="Everything else for your role, grouped for quick access."
-        compactActions={[
-          {
-            key: "logout",
-            label: "Sign out",
-            icon: LogOut,
-            onClick: () => void handleSignOut(),
-            disabled: signingOut,
-          },
-        ]}
-        actions={
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            disabled={signingOut}
-            onClick={() => void handleSignOut()}
-          >
-            <LogOut className="h-4 w-4" />
-            {signingOut ? "Signing out…" : "Sign out"}
-          </Button>
-        }
       />
 
       {sections.map((section) => (
@@ -100,8 +101,9 @@ export function MoreView() {
                 </Link>
               );
             })}
-            {section.id === "system"
-              ? EXTRA_SYSTEM.map((item) => {
+            {section.id === "system" ? (
+              <>
+                {EXTRA_SYSTEM.map((item) => {
                   const Icon = item.icon;
                   return (
                     <Link
@@ -124,22 +126,45 @@ export function MoreView() {
                       />
                     </Link>
                   );
-                })
-              : null}
+                })}
+                {renderSignOutRow()}
+              </>
+            ) : null}
           </CardContent>
         </Card>
       ))}
 
-      <Button
-        type="button"
-        variant="destructive"
-        className="min-h-12 w-full"
-        disabled={signingOut}
-        onClick={() => void handleSignOut()}
-      >
-        <LogOut className="h-4 w-4" />
-        {signingOut ? "Signing out…" : "Sign out"}
-      </Button>
+      {!hasSystemSection ? (
+        <Card className="overflow-hidden rounded-[20px]">
+          <CardHeader className="px-4 py-3">
+            <CardTitle className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+              System
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 px-2 pb-3">
+            {EXTRA_SYSTEM.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex min-h-12 items-center gap-3 rounded-[16px] px-3 py-2.5 transition-colors",
+                    "hover:bg-muted/80 active:bg-muted",
+                  )}
+                >
+                  <span className="bg-accent text-accent-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]">
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.title}</span>
+                  <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden />
+                </Link>
+              );
+            })}
+            {renderSignOutRow()}
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

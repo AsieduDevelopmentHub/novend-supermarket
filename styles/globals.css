@@ -181,23 +181,26 @@
 }
 
 /*
- * Sticky in-page title inside main (overflow-x-clip so sticky works).
- * Solid white so it matches the status strip / dark system icons.
+ * Title bar lives outside <main> (see #native-page-header-host) so it never scrolls.
  */
+.native-shell .native-page-header-host {
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--border);
+  min-height: var(--native-header-row);
+}
+
+.native-shell.dark .native-page-header-host,
+.dark .native-shell .native-page-header-host {
+  background-color: #0b1f33;
+}
+
 .native-shell .native-page-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  margin-left: calc(-1 * var(--mobile-page-pad));
-  margin-right: calc(-1 * var(--mobile-page-pad));
   height: var(--native-header-row);
   display: flex;
   align-items: center;
   padding-left: var(--mobile-page-pad);
   padding-right: var(--mobile-page-pad);
-  border-bottom: 1px solid var(--border);
   background-color: #ffffff;
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
 }
 
 .native-shell.dark .native-page-header,

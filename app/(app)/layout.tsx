@@ -335,11 +335,14 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
               )}
               <LicenseBanner />
               <SyncStatusBanner />
+              {nativeShell ? (
+                <div id="native-page-header-host" className="native-page-header-host shrink-0" />
+              ) : null}
               <main
                 className={cn(
                   "min-h-0 min-w-0 flex-1 overscroll-y-contain",
                   nativeShell
-                    ? "overflow-x-clip overflow-y-auto px-[var(--mobile-page-pad)] pb-5 pt-0"
+                    ? "overflow-x-clip overflow-y-auto px-[var(--mobile-page-pad)] pb-5 pt-3"
                     : "overflow-x-hidden overflow-y-auto px-4 py-6 lg:px-8",
                   nativeShell && "pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]",
                 )}
