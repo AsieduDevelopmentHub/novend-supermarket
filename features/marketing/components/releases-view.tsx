@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MarketingSitePage } from "@/features/marketing/components/marketing-site-page";
+import { sanitizeReleaseNoteLines } from "@/features/marketing/lib/sanitize-release-notes";
 import { sitePages } from "@/features/marketing/site-content";
 
 function formatReleasedAt(timestamp: number | undefined) {
@@ -14,15 +15,7 @@ function formatReleasedAt(timestamp: number | undefined) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(timestamp));
 }
 
-function noteLines(notes: string | undefined): string[] {
-  if (!notes?.trim()) return [];
-  return notes
-    .split(/\r?\n/)
-    .map((line) => line.replace(/^[-*•]\s+/, "").trim())
-    .filter(Boolean);
-}
-
-/** Release notes synced from the same Convex feed as /download. */
+/** Release notes from the same live feed as Downloads. */
 export function ReleasesView() {
   const page = sitePages.releases;
   const recent = useQuery(api.desktopReleases.listPublicRecent, {
@@ -34,7 +27,7 @@ export function ReleasesView() {
     <MarketingSitePage badge={page.badge} title={page.title} subtitle={page.subtitle}>
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-4">
         <p className="text-slate-600 text-sm leading-relaxed">
-          These notes sync from the live Convex release feed — the same source as{" "}
+          These notes update automatically from the same release feed as{" "}
           <Link href="/download" className="text-primary font-medium hover:underline">
             Downloads
           </Link>
@@ -48,14 +41,14 @@ export function ReleasesView() {
       {recent === undefined ? (
         <div className="text-slate-600 flex items-center gap-2 text-sm">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          Loading releases from Convex…
+          Loading release notes…
         </div>
       ) : recent.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center">
           <p className="text-[#111827] text-base font-semibold">No published releases yet</p>
           <p className="text-slate-600 mx-auto mt-2 max-w-md text-sm leading-relaxed">
-            When a stable desktop release is published to this environment, version notes will
-            appear here automatically — matching the Download page.
+            When a new version is published, notes will appear here automatically — matching the
+            Download page.
           </p>
           <Button asChild className="mt-5" size="sm">
             <Link href="/download">Check downloads</Link>
@@ -64,7 +57,7 @@ export function ReleasesView() {
       ) : (
         <ol className="space-y-5">
           {recent.map((entry) => {
-            const highlights = noteLines(entry.notes);
+            const highlights = sanitizeReleaseNoteLines(entry.notes);
             return (
               <li
                 key={entry.tag}

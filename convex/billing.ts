@@ -888,7 +888,7 @@ export const syncGatewayPlansInternal = internalAction({
   args: {},
   handler: async (ctx): Promise<{ synced: string[] }> => {
     if (!isPaystackConfigured()) {
-      throw new Error("Set PAYSTACK_SECRET_KEY in the Convex deployment first.");
+      throw new Error("Online payments are not configured. Ask your administrator to finish payment setup.");
     }
     await ctx.runMutation(internal.billing.ensurePlanCatalog, {});
     const existing = await ctx.runQuery(internal.billing.storedGatewayPlanCodes, {});

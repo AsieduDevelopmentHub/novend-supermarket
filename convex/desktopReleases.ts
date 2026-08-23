@@ -224,25 +224,25 @@ const INSTALLER_KIND_META: Record<
   windows: {
     platform: "win32",
     label: "Windows",
-    description: "NSIS installer (.exe) for Windows 10/11",
+    description: "Installer for Windows 10 and 11",
     match: (fileName) => fileName.toLowerCase().endsWith(".exe"),
   },
   macos: {
     platform: "darwin",
     label: "macOS",
-    description: "Disk image (.dmg) for macOS",
+    description: "Installer for Mac computers",
     match: (fileName) => fileName.toLowerCase().endsWith(".dmg"),
   },
   "linux-deb": {
     platform: "linux",
-    label: "Linux (Debian)",
-    description: "Debian / Ubuntu package (.deb)",
+    label: "Linux (Ubuntu / Debian)",
+    description: "Package for Ubuntu, Debian, and similar systems",
     match: (fileName) => fileName.toLowerCase().endsWith(".deb"),
   },
   "linux-appimage": {
     platform: "linux",
-    label: "Linux (AppImage)",
-    description: "Portable bundle (.AppImage) for most distros",
+    label: "Linux (portable)",
+    description: "Portable app that runs on most Linux systems",
     match: (fileName) => fileName.toLowerCase().endsWith(".appimage"),
   },
 };

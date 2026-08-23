@@ -32,7 +32,7 @@ export function CheckoutReturnView({ reference }: { reference: string | null }) 
       .then((result) => {
         if (!result.paid) {
           setPhase("failed");
-          setMessage("Paystack has not confirmed this payment. Nothing was charged.");
+          setMessage("Payment has not been confirmed yet. Nothing was charged.");
           return;
         }
         setPhase("success");

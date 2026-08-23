@@ -521,7 +521,7 @@ export const landingCopy = {
     badge: "Apps & Downloads",
     title: "Run Novend on every counter — and soon every pocket",
     detail:
-      "Install the desktop app for Windows, macOS, and Linux today. Use the web app anywhere. Mobile (iOS & Android via Capacitor) will publish on the same download page.",
+      "Install the desktop app for Windows, macOS, and Linux today. Use the web app anywhere. Mobile apps for iPhone, iPad, and Android will appear on the same download page when ready.",
     cta: "Go to downloads",
     href: "/download",
   },

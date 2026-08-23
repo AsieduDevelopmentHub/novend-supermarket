@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { MarketingSitePage } from "@/features/marketing/components/marketing-site-page";
 import { APP_NAME } from "@/constants/app";
 import { detectBrowserDesktopTarget, type BrowserDesktopTarget } from "@/lib/desktop";
+import { sanitizeReleaseNoteLines } from "@/features/marketing/lib/sanitize-release-notes";
 import { cn } from "@/lib/utils";
 
 let cachedBrowserTarget: BrowserDesktopTarget | null | undefined;
@@ -63,19 +64,19 @@ function isSuggested(
 const MOBILE_PLATFORMS = [
   {
     id: "ios",
-    label: "iOS",
-    detail: "Native iPhone and iPad app via Capacitor — coming soon.",
+    label: "iPhone & iPad",
+    detail: "Native apps for Apple devices — coming soon.",
     icon: Apple,
   },
   {
     id: "android",
     label: "Android",
-    detail: "Native Android tablets and phones via Capacitor — coming soon.",
+    detail: "Native apps for phones and tablets — coming soon.",
     icon: Smartphone,
   },
 ] as const;
 
-/** Public download hub — Convex-synced desktop installers + future mobile slots. */
+/** Public download hub — live desktop installers + upcoming mobile slots. */
 export function DownloadView() {
   const target = useSyncExternalStore(subscribeNoop, getBrowserTargetSnapshot, () => null);
   const preferredArch = target?.arch ?? "x64";
@@ -91,12 +92,16 @@ export function DownloadView() {
   const installers = useMemo(() => offer?.installers ?? [], [offer]);
   const releasedLabel = formatReleasedAt(offer?.releasedAt);
   const loading = offer === undefined;
+  const offerHighlights = useMemo(
+    () => sanitizeReleaseNoteLines(offer?.notes),
+    [offer?.notes],
+  );
 
   return (
     <MarketingSitePage
       badge="Downloads"
       title={`Download ${APP_NAME}`}
-      subtitle="Install Novend on the counter PC you use today, run in the browser anywhere, and watch this page for mobile apps as Capacitor builds ship."
+      subtitle="Install Novend on the counter PC you use today, run it in the browser anywhere, and check back here for mobile apps as they become available."
       maxWidthClassName="max-w-5xl"
       meta={
         offer
@@ -126,14 +131,14 @@ export function DownloadView() {
           {loading ? (
             <div className="text-slate-600 mt-8 flex items-center gap-2 text-sm">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              Syncing latest release from Novend…
+              Checking for the latest version…
             </div>
           ) : offer === null || installers.length === 0 ? (
             <div className="mt-8 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-6">
               <p className="text-[#111827] text-sm font-semibold">No desktop installers yet</p>
               <p className="text-slate-600 mt-1.5 text-sm leading-relaxed">
-                A stable release hasn&apos;t been published to this environment. You can still use the
-                web app now, and installers will appear here automatically after the next publish.
+                A desktop release hasn&apos;t been published yet. You can still use the
+                web app now, and installers will appear here automatically after the next update.
               </p>
               <Button asChild className="mt-4" size="sm">
                 <Link href="/signup">Start free trial on the web</Link>
@@ -182,14 +187,22 @@ export function DownloadView() {
             </ul>
           )}
 
-          {offer?.notes ? (
+          {offerHighlights.length > 0 ? (
             <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
               <p className="text-[#111827] text-xs font-semibold tracking-wide uppercase">
                 What&apos;s in this release
               </p>
-              <p className="text-slate-600 mt-2 whitespace-pre-wrap text-sm leading-relaxed">
-                {offer.notes}
-              </p>
+              <ul className="mt-3 space-y-2">
+                {offerHighlights.map((line) => (
+                  <li key={line} className="flex gap-2.5 text-sm text-slate-600">
+                    <span
+                      className="bg-primary mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                      aria-hidden
+                    />
+                    {line}
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
         </section>
@@ -202,7 +215,7 @@ export function DownloadView() {
             <div>
               <h2 className="text-[#111827] text-xl font-semibold tracking-tight">Mobile</h2>
               <p className="text-slate-600 text-sm">
-                Capacitor-powered iOS and Android builds will publish here alongside desktop.
+                iPhone, iPad, and Android apps will publish here alongside desktop.
               </p>
             </div>
           </div>
@@ -259,7 +272,7 @@ export function DownloadView() {
             <div>
               <h2 className="text-[#111827] text-lg font-semibold tracking-tight">Recent updates</h2>
               <p className="text-slate-600 mt-1 text-sm">
-                Synced from the live Convex release feed.
+                Updated automatically whenever we publish a new version.
               </p>
             </div>
             <Link
@@ -274,38 +287,49 @@ export function DownloadView() {
             <p className="text-slate-600 mt-4 text-sm">Loading release history…</p>
           ) : recent.length === 0 ? (
             <p className="text-slate-600 mt-4 text-sm">
-              No published releases in this environment yet.
+              No published releases yet.
             </p>
           ) : (
             <ul className="mt-5 space-y-3">
-              {recent.map((entry) => (
-                <li
-                  key={entry.tag}
-                  className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[#111827] text-sm font-semibold">{entry.tag}</p>
-                    <Badge variant="secondary" className="text-xs">
-                      {entry.channel}
-                    </Badge>
-                    {entry.mandatory ? (
-                      <Badge variant="outline" className="text-xs">
-                        Mandatory
+              {recent.map((entry) => {
+                const highlights = sanitizeReleaseNoteLines(entry.notes);
+                return (
+                  <li
+                    key={entry.tag}
+                    className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[#111827] text-sm font-semibold">{entry.tag}</p>
+                      <Badge variant="secondary" className="text-xs">
+                        {entry.channel}
                       </Badge>
-                    ) : null}
-                    <span className="text-slate-500 text-xs">
-                      {formatReleasedAt(entry.releasedAt)}
-                    </span>
-                  </div>
-                  {entry.notes ? (
-                    <p className="text-slate-600 mt-2 whitespace-pre-wrap text-sm leading-relaxed">
-                      {entry.notes}
-                    </p>
-                  ) : (
-                    <p className="text-slate-500 mt-2 text-sm">No release notes attached.</p>
-                  )}
-                </li>
-              ))}
+                      {entry.mandatory ? (
+                        <Badge variant="outline" className="text-xs">
+                          Mandatory
+                        </Badge>
+                      ) : null}
+                      <span className="text-slate-500 text-xs">
+                        {formatReleasedAt(entry.releasedAt)}
+                      </span>
+                    </div>
+                    {highlights.length > 0 ? (
+                      <ul className="mt-3 space-y-1.5">
+                        {highlights.slice(0, 4).map((line) => (
+                          <li key={line} className="flex gap-2 text-sm text-slate-600">
+                            <span
+                              className="bg-primary mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                              aria-hidden
+                            />
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-slate-500 mt-2 text-sm">No release notes attached.</p>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

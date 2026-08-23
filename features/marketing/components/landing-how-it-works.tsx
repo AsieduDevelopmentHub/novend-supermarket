@@ -22,11 +22,11 @@ const DIAGRAM_ICONS = {
   pos: ShoppingCart,
 } as const;
 
-/** Floating chip positions over the isometric diagram (percent of visual). */
+/** Floating chip positions over the isometric diagram — desktop / tablet only. */
 const FLOAT_POS: Record<(typeof landingCopy.howItWorks.diagramLabels)[number]["id"], string> = {
-  warehouse: "left-[8%] top-[10%]",
-  branch: "right-[6%] top-[38%]",
-  pos: "left-[10%] bottom-[12%]",
+  warehouse: "left-[4%] top-[6%] lg:left-[8%] lg:top-[10%]",
+  branch: "right-[3%] top-[34%] lg:right-[6%] lg:top-[38%]",
+  pos: "left-[4%] bottom-[8%] lg:left-[10%] lg:bottom-[12%]",
 };
 
 /** V3 how-it-works — steps + diagram with floating Warehouse / Branch / POS labels. */
@@ -88,22 +88,23 @@ export function LandingHowItWorks() {
                 sizes="(max-width: 1024px) 90vw, 520px"
               />
 
+              {/* Overlay floats only from sm up — avoid covering the diagram core on phones */}
               {howItWorks.diagramLabels.map((label) => {
                 const Icon = DIAGRAM_ICONS[label.id] ?? Store;
                 return (
                   <div
                     key={label.id}
-                    className={`landing-how-float absolute z-10 ${FLOAT_POS[label.id]}`}
+                    className={`landing-how-float absolute z-10 hidden sm:block ${FLOAT_POS[label.id]}`}
                   >
-                    <div className="inline-flex max-w-[11.5rem] items-center gap-2 rounded-full border border-slate-200/90 bg-white/95 px-3 py-2 shadow-[0_12px_28px_-14px_rgba(15,23,42,0.45)] backdrop-blur-sm">
-                      <span className="bg-primary text-primary-foreground flex h-7 w-7 shrink-0 items-center justify-center rounded-full">
-                        <Icon className="h-3.5 w-3.5" aria-hidden />
+                    <div className="inline-flex max-w-[10.5rem] items-center gap-2 rounded-full border border-slate-200/90 bg-white/95 px-2.5 py-1.5 shadow-[0_12px_28px_-14px_rgba(15,23,42,0.45)] backdrop-blur-sm md:max-w-[11.5rem] md:px-3 md:py-2">
+                      <span className="bg-primary text-primary-foreground flex h-6 w-6 shrink-0 items-center justify-center rounded-full md:h-7 md:w-7">
+                        <Icon className="h-3 w-3 md:h-3.5 md:w-3.5" aria-hidden />
                       </span>
                       <div className="min-w-0 pr-0.5">
-                        <p className="text-[#111827] text-xs font-semibold tracking-tight">
+                        <p className="text-[#111827] text-[11px] font-semibold tracking-tight md:text-xs">
                           {label.title}
                         </p>
-                        <p className="text-slate-500 truncate text-[10px] leading-tight">
+                        <p className="text-slate-500 truncate text-[9px] leading-tight md:text-[10px]">
                           {label.detail}
                         </p>
                       </div>
@@ -112,6 +113,28 @@ export function LandingHowItWorks() {
                 );
               })}
             </div>
+
+            {/* Mobile: labels sit under the diagram so the core stays clear */}
+            <ul className="mt-4 flex flex-wrap justify-center gap-2 sm:hidden">
+              {howItWorks.diagramLabels.map((label) => {
+                const Icon = DIAGRAM_ICONS[label.id] ?? Store;
+                return (
+                  <li key={label.id}>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white px-3 py-2 shadow-[0_8px_20px_-12px_rgba(15,23,42,0.35)]">
+                      <span className="bg-primary text-primary-foreground flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
+                        <Icon className="h-3 w-3" aria-hidden />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[#111827] text-xs font-semibold tracking-tight">
+                          {label.title}
+                        </p>
+                        <p className="text-slate-500 text-[10px] leading-tight">{label.detail}</p>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </div>
       </div>

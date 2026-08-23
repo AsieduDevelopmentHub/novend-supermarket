@@ -14,7 +14,7 @@ const QUICK_LINKS = [
   {
     href: "/download",
     title: "Download",
-    detail: "Desktop installers synced from Convex, plus mobile coming soon.",
+    detail: "Desktop installers and upcoming mobile apps.",
     icon: Download,
   },
   {

@@ -56,7 +56,7 @@ function isSuggested(
   return true;
 }
 
-/** Web-only: pick Windows / macOS / Linux installers from the Convex release feed. */
+/** Web-only: pick Windows / macOS / Linux installers from the live release feed. */
 export function DesktopDownloadPanel() {
   const target = useSyncExternalStore(subscribeNoop, getBrowserTargetSnapshot, () => null);
   const preferredArch = target?.arch ?? "x64";

@@ -1,6 +1,6 @@
 # Routing
 
-Version: 1.3.0
+Version: 1.3.1
 
 ## Public vs authenticated entry
 
@@ -8,7 +8,7 @@ Version: 1.3.0
 /                    Public SaaS landing (web only)
 /login               Authentication
 /signup              Account creation (requires Terms + Privacy acceptance)
-/download            Public app downloads (Convex-synced releases)
+/download            Public app downloads (live release feed)
 /docs, /privacy…     Public marketing site pages
 /(app)/*             Authenticated POS shell
 ```
@@ -18,13 +18,13 @@ users. Login and Get Started CTAs go to `/login` or `/signup`. After sign-in,
 platform administrators go to `/platform`; other users go to `/dashboard` (or
 `/onboarding` when they still need a business).
 
-**Downloads:** `/download` lists the latest stable desktop installers from
-Convex (`desktopReleases`) and reserves slots for future Capacitor mobile
-builds. Marketing “Download” CTAs should point here — not only to `/#desktop`.
+**Downloads:** `/download` lists the latest stable desktop installers from the
+live release registry and reserves slots for future mobile builds. Marketing
+“Download” CTAs should point here — not only to `/#desktop`.
 
-**Electron:** Boots to `/dashboard` via `offline-boot.html` — never the landing
-page. The landing client also redirects if `window.novendDesktop` is present.
-See `docs/architecture/DESKTOP_PLATFORM.md`.
+**Desktop app:** Boots to `/dashboard` via `offline-boot.html` — never the
+landing page. The landing client also redirects if `window.novendDesktop` is
+present. See `docs/architecture/DESKTOP_PLATFORM.md`.
 
 ## Route groups
 
@@ -67,7 +67,7 @@ Navigation: `config/navigation.ts` (permission-aware). Marketing copy:
   `/onboarding` (needs a business), or `/dashboard`
 - Authenticated without profile → `/onboarding`
 - Inactive organization or profile → blocked message
-- `/users` — administrator or manager (proxy + Convex)
+- `/users` — administrator or manager (proxy + server auth)
 
 ## MVP stubs
 

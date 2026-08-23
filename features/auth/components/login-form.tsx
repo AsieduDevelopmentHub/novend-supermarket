@@ -29,12 +29,10 @@ export function LoginForm({ compact = false }: { compact?: boolean }) {
   if (!configured) {
     return (
       <div className="w-full max-w-sm space-y-3 text-center">
-        <h1 className="text-xl font-semibold">Connect Convex</h1>
+        <h1 className="text-xl font-semibold">Service not ready</h1>
         <p className="text-muted-foreground text-sm">
-          Run <code className="bg-muted rounded px-1">npx convex dev</code>, copy the deployment URL
-          into <code className="bg-muted rounded px-1">.env.local</code> as{" "}
-          <code className="bg-muted rounded px-1">NEXT_PUBLIC_CONVEX_URL</code>, then restart the
-          Next.js server.
+          Novend isn&apos;t connected to its cloud service yet. Ask your administrator to finish
+          setup, then refresh this page.
         </p>
       </div>
     );

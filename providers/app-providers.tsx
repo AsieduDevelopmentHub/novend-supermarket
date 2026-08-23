@@ -26,12 +26,9 @@ function MissingConvexConfig({ children }: { children: ReactNode }) {
       <AppearanceBootstrap>
         <div className="bg-background min-h-screen">
           <div className="border-warning/30 bg-accent text-accent-foreground border-b px-4 py-3 text-sm">
-            Convex is not configured. Set{" "}
-            <code className="bg-card rounded px-1">NEXT_PUBLIC_CONVEX_URL</code> in{" "}
-            <code className="bg-card rounded px-1">.env.local</code> after running{" "}
-            <code className="bg-card rounded px-1">npx convex dev</code>.{" "}
+            Novend isn&apos;t fully configured for this environment yet.{" "}
             <Link href="/login" className="font-medium underline">
-              Continue to login UI
+              Continue to sign in
             </Link>
           </div>
           {children}

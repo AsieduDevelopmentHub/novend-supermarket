@@ -60,7 +60,7 @@ export const sitePages = {
           "Keep selling when the network drops, then reconcile automatically with cloud authority.",
         items: [
           "Operational actions save on the device first so the counter stays responsive",
-          "Pending changes upload when connectivity returns; Convex remains the source of truth",
+          "Pending changes upload when connectivity returns; the Novend cloud keeps the official business record",
           "Watch sync status in the app shell — resolve conflicts through supported workflows, not edits to completed sales",
           "Cloud backup protects committed business data across devices and branches",
           "Multi-branch operations stay isolated per organization and location",
@@ -77,7 +77,7 @@ export const sitePages = {
           "Activate devices within your plan’s device limit from Settings",
           "Prefer the desktop app for dedicated counters that need printers and offline reliability",
           "Web and tablet browsers work well for flexible or secondary tills",
-          "Mobile apps (iOS/Android via Capacitor) will appear on the Download page when published",
+          "Mobile apps for iPhone, iPad, and Android will appear on the Download page when published",
         ],
       },
       {
@@ -165,7 +165,7 @@ export const sitePages = {
         items: [
           {
             q: "Where do I download the desktop app?",
-            a: "Open /download. Installers for Windows, macOS, and Linux sync from the latest Convex release. The page also shows upcoming iOS and Android (Capacitor) slots and a link to the web app.",
+            a: "Open the Download page from the website menu. Installers for Windows, macOS, and Linux update automatically when we publish a new version. The page also shows upcoming iPhone, iPad, and Android apps, plus a link to use Novend in the browser.",
           },
           {
             q: "How do I add another device?",
@@ -177,7 +177,7 @@ export const sitePages = {
           },
           {
             q: "When will mobile apps be available?",
-            a: "iOS and Android builds are planned via Capacitor and will publish on the Download page next to desktop installers. Until then, use the responsive web app or desktop clients.",
+            a: "iPhone, iPad, and Android apps are on the roadmap and will appear on the Download page next to desktop installers. Until then, use the web app on a phone or tablet, or install the desktop app on a counter PC.",
           },
         ],
       },
@@ -232,7 +232,7 @@ export const sitePages = {
     badge: "Release Notes",
     title: "What’s new in Novend",
     subtitle:
-      "Live product updates from the same Convex release feed that powers Downloads — desktop today, mobile (Capacitor) when published.",
+      "Live product updates from the same release feed that powers Downloads — desktop today, mobile apps when published.",
     entries: [] as Array<{
       version: string;
       date: string;
@@ -258,7 +258,7 @@ export const sitePages = {
       {
         title: "2. Scope of this Policy",
         paragraphs: [
-          "This Policy covers information processed through novendpos.com (and related domains), the Novend web application, desktop applications, and future Capacitor-based mobile apps that connect to the same Novend backend.",
+          "This Policy covers information processed through novendpos.com (and related domains), the Novend web application, desktop applications, and future mobile apps that connect to the same Novend service.",
           "It does not cover third-party websites or services that we do not control, even if linked from Novend. Those services have their own privacy practices.",
         ],
       },
@@ -288,7 +288,7 @@ export const sitePages = {
         title: "5. Local-first storage, offline use, and cloud sync",
         paragraphs: [
           "Novend is designed so operational data can be stored on your device first, allowing sales to continue without internet connectivity.",
-          "When connectivity is available, committed changes synchronize to Novend cloud services (including Convex-hosted backends) so you can access dashboards, backups, multi-device workflows, and organization-wide reports.",
+          "When connectivity is available, committed changes synchronize to Novend cloud services so you can access dashboards, backups, multi-device workflows, and organization-wide reports.",
           "Because offline devices may hold pending changes, you should treat POS devices as sensitive business equipment: lock screens, control physical access, and deactivate lost devices through your administrator where possible.",
           "You remain responsible for the accuracy of business records you enter and for deciding which staff may access which branches and capabilities inside your organization.",
         ],
@@ -297,7 +297,7 @@ export const sitePages = {
         title: "6. Sharing and processors",
         paragraphs: [
           "We share information with infrastructure, authentication, analytics (if enabled), and payment providers strictly as needed to operate Novend under appropriate agreements.",
-          "Desktop and mobile installers may be delivered via release hosting (for example GitHub Releases) and redirected through our Convex download endpoints. Download metadata (version, channel, release notes) may be stored in our systems.",
+          "Desktop and mobile installers may be delivered through our secure download channels. Version details and release notes may be stored in our systems so the Download page stays up to date.",
           "We may disclose information if required by applicable law, regulation, legal process, or to protect the rights, safety, and integrity of the Service, our users, or the public.",
           "Organization administrators control which staff can access business data inside their Novend workspace. We do not grant other Novend customers access to your organization data.",
           "If we engage in a merger, acquisition, or asset transfer, information may transfer as part of that transaction subject to continued confidentiality commitments where required.",
@@ -367,7 +367,7 @@ export const sitePages = {
         title: "2. The Service",
         paragraphs: [
           "Novend provides commercial Point of Sale, inventory, wholesale, analytics, reporting, multi-branch, offline-capable sync, and related business tools.",
-          "Clients may include web browsers, desktop applications for Windows, macOS, and Linux, and future Capacitor-based mobile apps. Feature availability can vary by client and plan.",
+          "Clients may include web browsers, desktop applications for Windows, macOS, and Linux, and future mobile apps for phones and tablets. Feature availability can vary by device and plan.",
           "We may modify, add, or remove features to improve the Service, address security, or reflect plan entitlements. We will not remove core paid capabilities without a commercially reasonable notice where practical.",
           "Beta or preview features may be unstable and are provided as-is.",
         ],
@@ -376,7 +376,7 @@ export const sitePages = {
         title: "3. Accounts, organizations, and responsibilities",
         paragraphs: [
           "You are responsible for safeguarding login credentials and for activity under your organization’s account, including actions by cashiers and managers you invite.",
-          "Administrators must assign roles appropriately. Cashiers must not be granted capabilities outside their role. Permissions are enforced in our backend; circumventing access controls is prohibited.",
+          "Administrators must assign roles appropriately. Cashiers must not be granted capabilities outside their role. Permissions are enforced by Novend; circumventing access controls is prohibited.",
           "You are responsible for the legality, accuracy, and tax treatment of products, prices, receipts, discounts, and business records you create in Novend.",
           "You must not use Novend to store or process data unlawfully, including unlawful customer data collection at the point of sale.",
           "Notify us promptly of suspected unauthorized access or credential compromise.",
@@ -405,7 +405,7 @@ export const sitePages = {
         title: "6. Data, offline operation, and backups",
         paragraphs: [
           "Novend supports offline operation. You acknowledge that local device storage, timely sync, and device security are part of normal use.",
-          "Convex-hosted cloud systems are the authority for committed synchronized business state. Local caches and outboxes are operational aids, not a substitute for proper device care.",
+          "The Novend cloud is the authority for committed synchronized business state. On-device storage helps you keep selling offline, but it is not a substitute for proper device care and timely sync.",
           "We work to protect synchronized data with commercially reasonable measures, but you should maintain operational practices: control staff access, keep devices updated from official channels, and export or back up critical records according to your own compliance needs.",
           "Our Privacy Policy describes how we process personal data and is incorporated by reference.",
         ],
@@ -415,7 +415,7 @@ export const sitePages = {
         paragraphs: [
           "Desktop (and future mobile) installers made available on the Download page or in-product update channels are licensed for use with your valid Novend account and plan — not for redistribution.",
           "You agree to install security and mandatory updates when prompted. Outdated clients may be restricted from connecting if they pose a risk.",
-          "Release metadata and download redirects may be served through our backend (including Convex). Availability of a specific platform build depends on publication status.",
+          "Release details and download links may be served through our cloud service. Availability of a specific platform build depends on whether that version has been published.",
         ],
       },
       {

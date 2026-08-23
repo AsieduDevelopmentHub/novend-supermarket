@@ -35,9 +35,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (!configured) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
-        <h1 className="text-xl font-semibold">Convex required</h1>
+        <h1 className="text-xl font-semibold">Service unavailable</h1>
         <p className="text-muted-foreground max-w-md text-sm">
-          Configure <code>NEXT_PUBLIC_CONVEX_URL</code> to use the authenticated app shell.
+          Novend isn&apos;t connected to its cloud service in this environment. Contact your
+          administrator, then try again.
         </p>
         <Button asChild>
           <Link href="/login">Open login</Link>

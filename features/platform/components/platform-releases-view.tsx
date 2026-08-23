@@ -28,14 +28,14 @@ export function PlatformReleasesView() {
     <div className="space-y-6">
       <PageHeader
         title="Desktop releases"
-        description="Installers discovered through Convex. GitHub stays private; apps download via short-lived redirects."
+        description="Published installers available for download. Release hosting stays private; apps download through short-lived secure links."
       />
 
       {releases.length === 0 ? (
         <EmptyState
           icon={Package}
-          title="No desktop releases in Convex yet"
-          description="Push a v* tag. CI uploads installers to GitHub Releases, then publishes metadata here. Convex redirects downloads via DESKTOP_RELEASE_GITHUB_TOKEN (private repo read). Verify with pnpm desktop:verify-github-token."
+          title="No desktop releases yet"
+          description="After the next version is published, installers and notes will appear here automatically for download."
         />
       ) : (
         releases.map((release) => (

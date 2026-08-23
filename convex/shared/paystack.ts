@@ -20,7 +20,7 @@ export function getPaystackSecretKey(): string {
   const key = process.env.PAYSTACK_SECRET_KEY;
   if (!key) {
     throw new Error(
-      "Online payments are not configured. Set PAYSTACK_SECRET_KEY in the Convex deployment.",
+      "Online payments are not configured. Ask your administrator to finish payment setup.",
     );
   }
   return key;
