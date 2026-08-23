@@ -369,11 +369,17 @@ export const updateOwnAppearance = mutation({
     fontSize: v.union(v.literal("sm"), v.literal("md"), v.literal("lg")),
   },
   handler: async (ctx, args) => {
-    const { userId, profile } = await requireRoleIgnoringLicense(ctx, [
-      "administrator",
-      "manager",
-      "cashier",
-    ]);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthenticated");
+
+    const profile = await getProfileByUserId(ctx, userId);
+    if (!profile) {
+      // Platform-only Super Admins have no tenant profile — device theme still works via localStorage.
+      const platformAdmin = await getPlatformAdmin(ctx, userId);
+      if (platformAdmin) return null;
+      throw new Error("Forbidden");
+    }
+
     await ctx.db.patch(profile._id, {
       appearanceTheme: args.theme,
       appearanceFontSize: args.fontSize,

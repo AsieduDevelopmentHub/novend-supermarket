@@ -31,6 +31,8 @@ import { PlatformRevenueView } from "@/features/platform/components/platform-rev
 import { PlatformCostsView } from "@/features/platform/components/platform-costs-view";
 import { PlatformSubscriptionsView } from "@/features/platform/components/platform-subscriptions-view";
 import { PlatformHealthView } from "@/features/platform/components/platform-health-view";
+import { PlatformPaymentDetailView } from "@/features/platform/components/platform-payment-detail-view";
+import { PlatformReleaseDetailView } from "@/features/platform/components/platform-release-detail-view";
 import { OfflineUnavailable } from "@/components/offline/offline-unavailable";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Id } from "@/convex/_generated/dataModel";
@@ -122,6 +124,18 @@ export function resolveOfflineView(path: string): ReactNode {
     }
     return <UsersView />;
   }
+  if (path.startsWith("/platform/payments/")) {
+    const paymentId = path.slice("/platform/payments/".length);
+    if (paymentId && !paymentId.includes("/")) {
+      return <PlatformPaymentDetailView paymentId={paymentId} />;
+    }
+  }
+  if (path.startsWith("/platform/releases/")) {
+    const version = decodeURIComponent(path.slice("/platform/releases/".length));
+    if (version && !version.includes("/")) {
+      return <PlatformReleaseDetailView version={version} />;
+    }
+  }
   if (path.startsWith("/platform/")) {
     const rest = path.slice("/platform/".length);
     if (
@@ -134,6 +148,7 @@ export function resolveOfflineView(path: string): ReactNode {
         "costs",
         "subscriptions",
         "health",
+        "payments",
       ].includes(rest)
     ) {
       return <PlatformOrgDetailView organizationId={rest} />;

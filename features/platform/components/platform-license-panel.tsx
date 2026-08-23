@@ -31,6 +31,7 @@ import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { showError } from "@/lib/errors";
 import { PlanUsageGrid } from "@/features/billing/components/plan-usage-grid";
+import { useConnectivity } from "@/hooks/use-connectivity";
 
 const ORGANIZATION_STATUSES = [
   { value: "active", label: "Active", hint: "Full access" },
@@ -61,7 +62,11 @@ export function PlatformLicensePanel({
   organizationId: Id<"organizations">;
   status: OrganizationStatus | "inactive";
 }) {
-  const license = useQuery(api.billing.organizationLicense, { organizationId });
+  const online = useConnectivity();
+  const license = useQuery(
+    api.billing.organizationLicense,
+    online ? { organizationId } : "skip",
+  );
   const assignPlan = useMutation(api.billing.assignPlan);
   const startTrial = useMutation(api.billing.startTrial);
   const resetActivation = useMutation(api.billing.resetActivation);
@@ -74,6 +79,20 @@ export function PlatformLicensePanel({
   const [pending, setPending] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
 
+  if (!online && license === undefined) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Licence</CardTitle>
+          <CardDescription>
+            Licence and billing controls need a connection. Status badge above reflects the last
+            cached organization status.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
   if (license === undefined) return <LoadingState label="Loading licence…" variant="form" />;
   if (license === null) return null;
 
@@ -81,6 +100,10 @@ export function PlatformLicensePanel({
   const cycleAllowed = selectedPlan ? supportsCycle(selectedPlan, cycle) : false;
 
   async function run(label: string, work: () => Promise<unknown>) {
+    if (!online) {
+      toast.error("Licence and status changes require a connection");
+      return;
+    }
     setPending(true);
     try {
       await work();
@@ -124,7 +147,7 @@ export function PlatformLicensePanel({
             <EnterpriseBackupQuota
               key={organizationId}
               currentBytes={license.backupLimitBytes}
-              disabled={pending}
+              disabled={pending || !online}
               onSave={(backupLimitGb) =>
                 void run(
                   backupLimitGb === null
@@ -145,6 +168,7 @@ export function PlatformLicensePanel({
               <Label htmlFor="license-status">Account status</Label>
               <Select
                 value={normalizeStatus(status)}
+                disabled={pending || !online}
                 onValueChange={(value) =>
                   void run("Status updated", () =>
                     setStatus({ organizationId, status: value as OrganizationStatus }),
@@ -169,7 +193,7 @@ export function PlatformLicensePanel({
                 type="button"
                 variant="outline"
                 className="w-full"
-                disabled={pending}
+                disabled={pending || !online}
                 onClick={() => setConfirmReset(true)}
               >
                 Reset activation
@@ -229,7 +253,7 @@ export function PlatformLicensePanel({
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                disabled={pending || !cycleAllowed}
+                disabled={pending || !online || !cycleAllowed}
                 onClick={() =>
                   void run("Plan assigned", () =>
                     assignPlan({ organizationId, planKey, cycle, note: note.trim() || undefined }),
@@ -241,7 +265,7 @@ export function PlatformLicensePanel({
               <Button
                 type="button"
                 variant="outline"
-                disabled={pending}
+                disabled={pending || !online}
                 onClick={() =>
                   void run("Trial started", () => startTrial({ organizationId, planKey }))
                 }

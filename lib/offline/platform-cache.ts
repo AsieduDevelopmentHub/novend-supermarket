@@ -205,3 +205,177 @@ export async function loadPlatformOrgDetail(
     `${META_KEYS.platformOrgDetail}:${organizationId}`,
   );
 }
+
+export type PlatformRevenueRange = "today" | "7d" | "30d" | "12m";
+
+export type PlatformRevenueCache = {
+  range: PlatformRevenueRange;
+  payload: unknown;
+  cachedAt: number;
+};
+
+export type PlatformSubscriptionsCache = {
+  rows: unknown[];
+  cachedAt: number;
+};
+
+export type PlatformOperatingCostRow = {
+  id: string;
+  amount: number;
+  currency: string;
+  category: string;
+  occurredAt: number;
+  description: string | null;
+  createdAt: number;
+  /** Local-only draft waiting to sync. */
+  pending?: boolean;
+};
+
+export type PlatformOperatingCostsCache = {
+  rows: PlatformOperatingCostRow[];
+  cachedAt: number;
+};
+
+export type PlatformHealthCache = {
+  payload: unknown;
+  cachedAt: number;
+};
+
+export type PlatformPaymentCache = {
+  paymentId: string;
+  payload: unknown;
+  cachedAt: number;
+};
+
+export type PlatformReleaseBundleCache = {
+  version: string;
+  payload: unknown;
+  cachedAt: number;
+};
+
+export type PlatformCostDraftCreate = {
+  id: string;
+  op: "create";
+  amount: number;
+  category: string;
+  occurredAt: number;
+  description?: string;
+  currency?: string;
+  createdAt: number;
+};
+
+export type PlatformCostDraftRemove = {
+  id: string;
+  op: "remove";
+  costId: string;
+  createdAt: number;
+};
+
+export type PlatformCostDraft = PlatformCostDraftCreate | PlatformCostDraftRemove;
+
+export async function savePlatformRevenue(
+  range: PlatformRevenueRange,
+  payload: unknown,
+) {
+  await writeJsonMeta(`${META_KEYS.platformRevenue}:${range}`, {
+    range,
+    payload,
+    cachedAt: Date.now(),
+  } satisfies PlatformRevenueCache);
+}
+
+export async function loadPlatformRevenue(
+  range: PlatformRevenueRange,
+): Promise<PlatformRevenueCache | null> {
+  return readJsonMeta<PlatformRevenueCache>(`${META_KEYS.platformRevenue}:${range}`);
+}
+
+export async function savePlatformSubscriptions(rows: unknown[]) {
+  await writeJsonMeta(META_KEYS.platformSubscriptions, {
+    rows,
+    cachedAt: Date.now(),
+  } satisfies PlatformSubscriptionsCache);
+}
+
+export async function loadPlatformSubscriptions(): Promise<PlatformSubscriptionsCache | null> {
+  return readJsonMeta<PlatformSubscriptionsCache>(META_KEYS.platformSubscriptions);
+}
+
+export async function savePlatformOperatingCosts(rows: PlatformOperatingCostRow[]) {
+  await writeJsonMeta(META_KEYS.platformOperatingCosts, {
+    rows,
+    cachedAt: Date.now(),
+  } satisfies PlatformOperatingCostsCache);
+}
+
+export async function loadPlatformOperatingCosts(): Promise<PlatformOperatingCostsCache | null> {
+  return readJsonMeta<PlatformOperatingCostsCache>(META_KEYS.platformOperatingCosts);
+}
+
+export async function savePlatformHealth(payload: unknown) {
+  await writeJsonMeta(META_KEYS.platformHealth, {
+    payload,
+    cachedAt: Date.now(),
+  } satisfies PlatformHealthCache);
+}
+
+export async function loadPlatformHealth(): Promise<PlatformHealthCache | null> {
+  return readJsonMeta<PlatformHealthCache>(META_KEYS.platformHealth);
+}
+
+export async function savePlatformPayment(paymentId: string, payload: unknown) {
+  await writeJsonMeta(`${META_KEYS.platformPaymentDetail}:${paymentId}`, {
+    paymentId,
+    payload,
+    cachedAt: Date.now(),
+  } satisfies PlatformPaymentCache);
+}
+
+export async function loadPlatformPayment(
+  paymentId: string,
+): Promise<PlatformPaymentCache | null> {
+  return readJsonMeta<PlatformPaymentCache>(
+    `${META_KEYS.platformPaymentDetail}:${paymentId}`,
+  );
+}
+
+export async function savePlatformReleaseBundle(version: string, payload: unknown) {
+  await writeJsonMeta(`${META_KEYS.platformReleaseDetail}:${version}`, {
+    version,
+    payload,
+    cachedAt: Date.now(),
+  } satisfies PlatformReleaseBundleCache);
+}
+
+export async function loadPlatformReleaseBundle(
+  version: string,
+): Promise<PlatformReleaseBundleCache | null> {
+  return readJsonMeta<PlatformReleaseBundleCache>(
+    `${META_KEYS.platformReleaseDetail}:${version}`,
+  );
+}
+
+export async function loadPlatformCostDraftQueue(): Promise<PlatformCostDraft[]> {
+  const row = await readJsonMeta<{ drafts: PlatformCostDraft[] }>(
+    META_KEYS.platformCostDraftQueue,
+  );
+  return row?.drafts ?? [];
+}
+
+export async function savePlatformCostDraftQueue(drafts: PlatformCostDraft[]) {
+  await writeJsonMeta(META_KEYS.platformCostDraftQueue, { drafts });
+}
+
+export async function enqueuePlatformCostDraft(draft: PlatformCostDraft) {
+  const drafts = await loadPlatformCostDraftQueue();
+  drafts.push(draft);
+  await savePlatformCostDraftQueue(drafts);
+  return drafts;
+}
+
+export async function dequeuePlatformCostDraft(draftId: string) {
+  const drafts = await loadPlatformCostDraftQueue();
+  const next = drafts.filter((row) => row.id !== draftId);
+  await savePlatformCostDraftQueue(next);
+  return next;
+}

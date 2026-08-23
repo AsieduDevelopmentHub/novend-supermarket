@@ -160,6 +160,40 @@ export const listRecent = query({
   },
 });
 
+/** Platform console — single desktop release by version. */
+export const getForPlatform = query({
+  args: { version: v.string() },
+  handler: async (ctx, args) => {
+    await requirePlatformAdmin(ctx);
+    const version = args.version.trim().replace(/^v/, "");
+    const row = await ctx.db
+      .query("desktopReleases")
+      .withIndex("by_version", (q) => q.eq("version", version))
+      .unique();
+    if (!row) {
+      const tagged = await ctx.db
+        .query("desktopReleases")
+        .withIndex("by_version", (q) => q.eq("version", `v${version}`))
+        .unique();
+      if (!tagged) return null;
+      return {
+        ...tagged,
+        assets: tagged.assets.map((asset) => ({
+          ...asset,
+          downloadUrl: assetDownloadUrl(tagged.version, asset.fileName),
+        })),
+      };
+    }
+    return {
+      ...row,
+      assets: row.assets.map((asset) => ({
+        ...asset,
+        downloadUrl: assetDownloadUrl(row.version, asset.fileName),
+      })),
+    };
+  },
+});
+
 /** Public changelog strip for the download page — no installer URLs. */
 export const listPublicRecent = query({
   args: { channel: v.optional(channelValidator), limit: v.optional(v.number()) },

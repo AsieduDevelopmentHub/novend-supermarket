@@ -2,18 +2,37 @@
 
 import type { ComponentType } from "react";
 import Link from "next/link";
-import { Building2, GitBranch, Package, ShoppingBag, Users } from "lucide-react";
+import {
+  Building2,
+  CreditCard,
+  GitBranch,
+  Package,
+  ShoppingBag,
+  TrendingUp,
+  Users,
+  Wallet,
+  MonitorSmartphone,
+} from "lucide-react";
 import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
+import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
-import { usePlatformOverviewData } from "@/hooks/use-platform-offline-data";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import {
+  usePlatformHealthData,
+  usePlatformOverviewData,
+  usePlatformRevenueData,
+} from "@/hooks/use-platform-offline-data";
 
 export function PlatformOverviewView() {
+  const online = useConnectivity();
   const { data: overview, loading } = usePlatformOverviewData();
+  const { data: revenue } = usePlatformRevenueData("30d");
+  const { data: health } = usePlatformHealthData();
 
   if (loading || !overview) {
     return <LoadingState label="Loading platform overview…" />;
@@ -23,7 +42,7 @@ export function PlatformOverviewView() {
     <div className="space-y-6">
       <PageHeader
         title="Platform overview"
-        description="Tenants, usage, and desktop builds for Novend."
+        description="Tenants, SaaS revenue, and product distribution for Novend."
         actions={
           <Button asChild>
             <Link href="/platform/organizations">Manage organizations</Link>
@@ -31,11 +50,71 @@ export function PlatformOverviewView() {
         }
       />
 
+      {!online ? (
+        <p className="text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 text-sm">
+          Showing cached Super Admin data while offline.
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap gap-2">
+        <Button asChild size="sm" variant="outline">
+          <Link href="/platform/revenue">
+            <TrendingUp className="h-4 w-4" />
+            Revenue
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/platform/subscriptions">
+            <CreditCard className="h-4 w-4" />
+            Subscriptions
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/platform/organizations">
+            <Building2 className="h-4 w-4" />
+            Organizations
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/platform/releases">
+            <Package className="h-4 w-4" />
+            Downloads
+          </Link>
+        </Button>
+      </div>
+
+      <Grid cols={4}>
+        <Kpi
+          title="MRR"
+          value={revenue ? formatCurrency(revenue.mrr) : "—"}
+          hint="Monthly recurring"
+          icon={TrendingUp}
+        />
+        <Kpi
+          title="ARR"
+          value={revenue ? formatCurrency(revenue.arr) : "—"}
+          hint="MRR × 12"
+          icon={Wallet}
+        />
+        <Kpi
+          title="Trials"
+          value={String(overview.trialOrganizations)}
+          hint={`${overview.activeOrganizations} active orgs`}
+          icon={Building2}
+        />
+        <Kpi
+          title="Active devices"
+          value={health ? String(health.devices.active) : "—"}
+          hint={health ? `${health.devices.seenLast24h} seen in 24h` : undefined}
+          icon={MonitorSmartphone}
+        />
+      </Grid>
+
       <Grid cols={4}>
         <Kpi
           title="Organizations"
           value={String(overview.organizationCount)}
-          hint={`${overview.activeOrganizations} active · ${overview.suspendedOrganizations} suspended`}
+          hint={`${overview.suspendedOrganizations} suspended`}
           icon={Building2}
         />
         <Kpi title="Staff accounts" value={String(overview.userCount)} icon={Users} />

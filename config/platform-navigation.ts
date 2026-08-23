@@ -123,6 +123,22 @@ export function platformNavItemActive(pathname: string, item: PlatformNavItem): 
 }
 
 export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | null {
+  if (path.startsWith("/platform/payments/")) return "analytics";
+
+  const reserved = new Set([
+    "organizations",
+    "releases",
+    "revenue",
+    "costs",
+    "subscriptions",
+    "health",
+    "payments",
+  ]);
+  const orgMatch = path.match(/^\/platform\/([^/]+)\/?$/);
+  if (orgMatch && !reserved.has(orgMatch[1])) {
+    return "tenants";
+  }
+
   let best: { id: PlatformNavGroupId; hrefLength: number } | null = null;
 
   for (const group of PLATFORM_NAV_GROUPS) {

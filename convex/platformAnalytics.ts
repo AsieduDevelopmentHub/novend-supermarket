@@ -389,3 +389,128 @@ export const systemHealth = query({
     };
   },
 });
+
+export const getPayment = query({
+  args: { paymentId: v.id("billingHistory") },
+  handler: async (ctx, args) => {
+    await requirePlatformAdmin(ctx);
+    const payment = await ctx.db.get(args.paymentId);
+    if (!payment) return null;
+    const org = await ctx.db.get(payment.organizationId);
+    return {
+      id: payment._id,
+      organizationId: payment.organizationId,
+      organizationName: org?.name ?? "Unknown organization",
+      organizationSlug: org?.slug ?? null,
+      subscriptionId: payment.subscriptionId ?? null,
+      planKey: payment.planKey ?? null,
+      plan: payment.planKey ? resolvePlan(payment.planKey).name : null,
+      billingCycle: payment.billingCycle ?? null,
+      amount: payment.amount,
+      currency: payment.currency,
+      gateway: payment.gateway,
+      reference: payment.reference,
+      status: payment.status,
+      description: payment.description,
+      paidAt: payment.paidAt ?? null,
+      createdAt: payment.createdAt,
+      updatedAt: payment.updatedAt,
+      metadata: payment.metadata ?? null,
+    };
+  },
+});
+
+/** Combined desktop + mobile release bundle for a version string. */
+export const getReleaseBundle = query({
+  args: { version: v.string() },
+  handler: async (ctx, args) => {
+    await requirePlatformAdmin(ctx);
+    const raw = args.version.trim();
+    const bare = raw.replace(/^v/, "");
+    const candidates = Array.from(new Set([raw, bare, `v${bare}`]));
+
+    let desktop = null;
+    for (const version of candidates) {
+      desktop = await ctx.db
+        .query("desktopReleases")
+        .withIndex("by_version", (q) => q.eq("version", version))
+        .unique();
+      if (desktop) break;
+    }
+
+    let mobile = null;
+    for (const version of candidates) {
+      mobile = await ctx.db
+        .query("mobileReleases")
+        .withIndex("by_version", (q) => q.eq("version", version))
+        .unique();
+      if (mobile) break;
+    }
+
+    if (!desktop && !mobile) return null;
+
+    const site = (process.env.CONVEX_SITE_URL || "").replace(/\/$/, "");
+    const desktopAssets =
+      desktop?.assets.map((asset) => ({
+        source: "desktop" as const,
+        githubAssetId: asset.githubAssetId,
+        fileName: asset.fileName,
+        kind: "installer",
+        platform: asset.platform,
+        arch: asset.arch,
+        size: asset.size,
+        downloadUrl: site
+          ? `${site}/desktop-updates/assets/${desktop.version}/${encodeURIComponent(asset.fileName)}`
+          : null,
+      })) ?? [];
+    const mobileAssets =
+      mobile?.assets.map((asset) => ({
+        source: "mobile" as const,
+        githubAssetId: asset.githubAssetId,
+        fileName: asset.fileName,
+        kind: asset.kind,
+        platform: asset.platform,
+        arch: undefined as string | undefined,
+        size: asset.size,
+        downloadUrl: site
+          ? `${site}/mobile-updates/assets/${mobile.version}/${encodeURIComponent(asset.fileName)}`
+          : null,
+      })) ?? [];
+
+    return {
+      version: desktop?.version ?? mobile?.version ?? bare,
+      tag: desktop?.tag ?? mobile?.tag ?? `v${bare}`,
+      channel: desktop?.channel ?? mobile?.channel ?? "stable",
+      notes: desktop?.notes || mobile?.notes || "",
+      releasedAt: Math.max(desktop?.releasedAt ?? 0, mobile?.releasedAt ?? 0),
+      mandatory: Boolean(desktop?.mandatory || mobile?.mandatory),
+      githubReleaseUrl: desktop?.githubReleaseUrl ?? mobile?.githubReleaseUrl ?? null,
+      desktop: desktop
+        ? {
+            id: desktop._id,
+            version: desktop.version,
+            tag: desktop.tag,
+            channel: desktop.channel,
+            notes: desktop.notes,
+            releasedAt: desktop.releasedAt,
+            mandatory: desktop.mandatory,
+            assets: desktopAssets,
+          }
+        : null,
+      mobile: mobile
+        ? {
+            id: mobile._id,
+            version: mobile.version,
+            tag: mobile.tag,
+            channel: mobile.channel,
+            notes: mobile.notes,
+            releasedAt: mobile.releasedAt,
+            mandatory: mobile.mandatory,
+            storeUrls: mobile.storeUrls ?? {},
+            assets: mobileAssets,
+          }
+        : null,
+      assets: [...desktopAssets, ...mobileAssets],
+    };
+  },
+});

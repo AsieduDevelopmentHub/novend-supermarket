@@ -152,6 +152,32 @@ export const listRecent = query({
   },
 });
 
+/** Platform console — single mobile release by version. */
+export const getForPlatform = query({
+  args: { version: v.string() },
+  handler: async (ctx, args) => {
+    await requirePlatformAdmin(ctx);
+    const version = args.version.trim().replace(/^v/, "");
+    const row =
+      (await ctx.db
+        .query("mobileReleases")
+        .withIndex("by_version", (q) => q.eq("version", version))
+        .unique()) ??
+      (await ctx.db
+        .query("mobileReleases")
+        .withIndex("by_version", (q) => q.eq("version", `v${version}`))
+        .unique());
+    if (!row) return null;
+    return {
+      ...row,
+      assets: row.assets.map((asset) => ({
+        ...asset,
+        downloadUrl: assetDownloadUrl(row.version, asset.fileName),
+      })),
+    };
+  },
+});
+
 export const listPublicRecent = query({
   args: { channel: v.optional(channelValidator), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {

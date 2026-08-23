@@ -87,6 +87,13 @@ export function PlatformView() {
           </Button>
         }
       />
+
+      {!online ? (
+        <p className="text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 text-sm">
+          Showing cached organizations while offline. Creating tenants requires a connection.
+        </p>
+      ) : null}
+
       <Card>
         <CardContent className="overflow-x-auto p-0">
           {loading || orgs === null ? (

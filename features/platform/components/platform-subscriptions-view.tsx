@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "convex/react";
 import { CreditCard, Eye } from "lucide-react";
-import { api } from "@/convex/_generated/api";
 import { PageHeader } from "@/components/layout/primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,12 +12,24 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { formatPlanBytes } from "@/convex/shared/plans";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePlatformSubscriptionsData } from "@/hooks/use-platform-offline-data";
 
 export function PlatformSubscriptionsView() {
-  const rows = useQuery(api.platformAnalytics.listSubscriptions, {});
+  const online = useConnectivity();
+  const { data: rows, loading } = usePlatformSubscriptionsData();
 
-  if (rows === undefined) {
+  if (loading || rows === undefined) {
     return <LoadingState label="Loading subscriptions…" />;
+  }
+  if (!rows) {
+    return (
+      <EmptyState
+        icon={CreditCard}
+        title="No subscription cache yet"
+        description="Open this page online once so licences can be reviewed offline."
+      />
+    );
   }
 
   return (
@@ -28,6 +38,12 @@ export function PlatformSubscriptionsView() {
         title="Subscriptions"
         description="Every organization licence, renewal date, seats, devices, and storage footprint."
       />
+
+      {!online ? (
+        <p className="text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 text-sm">
+          Showing cached subscriptions while offline.
+        </p>
+      ) : null}
 
       <Card>
         <CardContent className="overflow-x-auto p-0">

@@ -1,21 +1,32 @@
 "use client";
 
-import { useQuery } from "convex/react";
 import { Activity, Cloud, MonitorSmartphone, Package, Server } from "lucide-react";
-import { api } from "@/convex/_generated/api";
 import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/feedback/loading-state";
+import { EmptyState } from "@/components/feedback/empty-state";
 import { formatNumber } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { formatPlanBytes } from "@/convex/shared/plans";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePlatformHealthData } from "@/hooks/use-platform-offline-data";
 
 export function PlatformHealthView() {
-  const health = useQuery(api.platformAnalytics.systemHealth, {});
+  const online = useConnectivity();
+  const { data: health, loading } = usePlatformHealthData();
 
-  if (health === undefined) {
+  if (loading || health === undefined) {
     return <LoadingState label="Loading system health…" />;
+  }
+  if (!health) {
+    return (
+      <EmptyState
+        icon={Activity}
+        title="No health snapshot yet"
+        description="Open this page online once to cache a system health snapshot for offline review."
+      />
+    );
   }
 
   return (
@@ -24,6 +35,12 @@ export function PlatformHealthView() {
         title="System health"
         description="Platform connectivity snapshot, devices, storage, and latest published builds."
       />
+
+      {!online ? (
+        <p className="text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 text-sm">
+          Showing the last cached health snapshot while offline.
+        </p>
+      ) : null}
 
       <Grid cols={4}>
         <Card className="border-l-primary border-l-[3px]">

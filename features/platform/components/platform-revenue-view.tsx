@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "convex/react";
 import {
   Building2,
   CreditCard,
@@ -9,16 +8,17 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import { api } from "@/convex/_generated/api";
 import { PageHeader, Grid } from "@/components/layout/primitives";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { formatCurrency, formatNumber } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePlatformRevenueData } from "@/hooks/use-platform-offline-data";
 
 const RANGES = [
   { id: "today" as const, label: "Today" },
@@ -28,11 +28,21 @@ const RANGES = [
 ];
 
 export function PlatformRevenueView() {
+  const online = useConnectivity();
   const [range, setRange] = useState<(typeof RANGES)[number]["id"]>("30d");
-  const data = useQuery(api.platformAnalytics.revenueAnalytics, { range });
+  const { data, loading } = usePlatformRevenueData(range);
 
-  if (data === undefined) {
+  if (loading || data === undefined) {
     return <LoadingState label="Loading revenue analytics…" />;
+  }
+  if (!data) {
+    return (
+      <EmptyState
+        icon={CreditCard}
+        title="No revenue cache yet"
+        description="Open this page online once so analytics can be stored for offline review."
+      />
+    );
   }
 
   return (
@@ -56,6 +66,12 @@ export function PlatformRevenueView() {
           </div>
         }
       />
+
+      {!online ? (
+        <p className="text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 text-sm">
+          Showing cached revenue for this range while offline.
+        </p>
+      ) : null}
 
       <Grid cols={4}>
         <Kpi title="MRR" value={formatCurrency(data.mrr)} hint="Monthly recurring" icon={TrendingUp} />
@@ -178,13 +194,16 @@ export function PlatformRevenueView() {
               </thead>
               <tbody>
                 {data.recentPayments.map((payment) => (
-                  <tr key={payment.id} className="border-border border-t">
+                  <ClickableTableRow
+                    key={payment.id}
+                    href={`/platform/payments/${payment.id}`}
+                  >
                     <td className="px-4 py-3">{formatDateTime(payment.paidAt)}</td>
                     <td className="px-4 py-3">{payment.description}</td>
                     <td className="px-4 py-3 capitalize">{payment.planKey ?? "—"}</td>
                     <td className="px-4 py-3 capitalize">{payment.gateway}</td>
                     <td className="px-4 py-3 font-medium">{formatCurrency(payment.amount)}</td>
-                  </tr>
+                  </ClickableTableRow>
                 ))}
               </tbody>
             </table>

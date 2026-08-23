@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -61,174 +62,227 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={org.name}
-        description={`${org.slug} · ${org.currency} · created ${formatDateTime(org.createdAt)}`}
-        actions={
-          <Button asChild variant="outline">
-            <Link href="/platform">
-              <ArrowLeft className="h-4 w-4" />
-              All organizations
-            </Link>
-          </Button>
-        }
-      />
+      <div className="bg-background/95 supports-backdrop-filter:bg-background/80 sticky top-0 z-10 -mx-1 border-b px-1 py-3 backdrop-blur">
+        <PageHeader
+          title={org.name}
+          description={`${org.slug} · ${org.currency} · created ${formatDateTime(org.createdAt)}`}
+          actions={
+            <Button asChild variant="outline">
+              <Link href="/platform/organizations">
+                <ArrowLeft className="h-4 w-4" />
+                Organizations
+              </Link>
+            </Button>
+          }
+        />
+      </div>
+
+      {!online ? (
+        <p className="text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 text-sm">
+          Showing cached organization details. Licence changes require a connection.
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={org.status === "active" ? "success" : "secondary"}>{org.status}</Badge>
         <Badge variant="outline">{org.plan}</Badge>
       </div>
 
-      <Grid cols={5}>
-        <Kpi title="Revenue (30d)" value={formatCurrency(org.kpis.revenue30d)} />
-        <Kpi title="Revenue (all)" value={formatCurrency(org.kpis.revenueAll)} />
-        <Kpi title="Sales" value={String(org.kpis.saleCount)} />
-        <Kpi title="Users" value={String(org.kpis.userCount)} />
-        <Kpi title="Wholesale value" value={formatCurrency(org.kpis.wholesaleValue)} />
-      </Grid>
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="licence">Licence</TabsTrigger>
+          <TabsTrigger value="team">Team</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Business</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
-            <Info label="Trade name" value={org.business.tradeName} />
-            <Info label="Legal name" value={org.business.legalName} />
-            <Info label="Phone" value={org.business.phone || "—"} />
-            <Info label="Email" value={org.business.email || "—"} />
-            <Info label="Address" value={org.business.address || "—"} />
-            <Info label="Tax ID" value={org.taxId || org.business.taxId || "—"} />
-            <Info label="Timezone" value={org.timezone || "—"} />
-            <Info
-              label="Last sale"
-              value={org.kpis.lastSaleAt ? formatDateTime(org.kpis.lastSaleAt) : "None yet"}
-            />
-          </CardContent>
-        </Card>
+        <TabsContent value="overview" className="space-y-4">
+          <Grid cols={5}>
+            <Kpi title="Revenue (30d)" value={formatCurrency(org.kpis.revenue30d)} />
+            <Kpi title="Revenue (all)" value={formatCurrency(org.kpis.revenueAll)} />
+            <Kpi title="Sales" value={String(org.kpis.saleCount)} />
+            <Kpi title="Users" value={String(org.kpis.userCount)} />
+            <Kpi title="Wholesale value" value={formatCurrency(org.kpis.wholesaleValue)} />
+          </Grid>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Owner & team</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Info label="Owner name" value={org.owner.name || "—"} />
-              <Info label="Owner email" value={org.owner.email || "—"} />
-              <Info label="Admins" value={String(org.kpis.adminCount)} />
-              <Info label="Managers / cashiers" value={`${org.kpis.managerCount} / ${org.kpis.cashierCount}`} />
-              <Info label="Branches" value={String(org.kpis.branchCount)} />
-              <Info label="Products" value={String(org.kpis.productCount)} />
-              <Info label="Suppliers" value={String(org.kpis.supplierCount)} />
+          <Card>
+            <CardHeader>
+              <CardTitle>Business</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+              <Info label="Trade name" value={org.business.tradeName} />
+              <Info label="Legal name" value={org.business.legalName} />
+              <Info label="Phone" value={org.business.phone || "—"} />
+              <Info label="Email" value={org.business.email || "—"} />
+              <Info label="Address" value={org.business.address || "—"} />
+              <Info label="Tax ID" value={org.taxId || org.business.taxId || "—"} />
+              <Info label="Timezone" value={org.timezone || "—"} />
               <Info
-                label="Wholesale units"
-                value={String(org.kpis.wholesaleUnits)}
+                label="Last sale"
+                value={org.kpis.lastSaleAt ? formatDateTime(org.kpis.lastSaleAt) : "None yet"}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="resetPassword">Reset owner password</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="resetPassword"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="New password"
-                  minLength={8}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={pending || !online}
-                  onClick={() => void onReset()}
-                >
-                  Reset
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
 
-      <PlatformLicensePanel organizationId={id} status={org.status} />
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Branches</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {org.branches.length === 0 ? (
-              <EmptyState title="No branches" />
-            ) : (
-              <table className="w-full text-left text-sm">
-                <thead className="text-muted-foreground">
-                  <tr>
-                    <th className="pb-2 font-medium">Name</th>
-                    <th className="pb-2 font-medium">Code</th>
-                    <th className="pb-2 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {org.branches.map((branch) => (
-                    <tr key={branch.id} className="border-border border-t">
-                      <td className="py-2 font-medium">{branch.name}</td>
-                      <td className="py-2">{branch.code}</td>
-                      <td className="py-2 capitalize">{branch.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Users</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            {org.users.length === 0 ? (
-              <EmptyState title="No users" />
-            ) : (
-              <table className="w-full min-w-[480px] text-left text-sm">
-                <thead className="text-muted-foreground">
-                  <tr>
-                    <th className="pb-2 font-medium">Name</th>
-                    <th className="pb-2 font-medium">Role</th>
-                    <th className="pb-2 font-medium">Branch</th>
-                    <th className="pb-2 font-medium">Presence</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {org.users.map((person) => {
-                    const presence = formatPresence({
-                      lastSeenAt: person.lastSeenAt,
-                      lastLoginAt: person.lastLoginAt,
-                    });
-                    return (
-                      <tr key={person.id} className="border-border border-t">
-                        <td className="py-2">
-                          <p className="font-medium">{person.name}</p>
-                          <p className="text-muted-foreground text-xs">{person.email ?? "—"}</p>
-                        </td>
-                        <td className="py-2 capitalize">{person.role}</td>
-                        <td className="py-2">{person.branchName ?? "—"}</td>
-                        <td className="py-2">
-                          <Badge variant={presence.online ? "success" : "secondary"}>
-                            {presence.online ? "Online" : "Offline"}
-                          </Badge>
-                          <p className="text-muted-foreground mt-1 text-xs">{presence.label}</p>
-                        </td>
+          <Card>
+            <CardHeader>
+              <CardTitle>Branches</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {org.branches.length === 0 ? (
+                <EmptyState title="No branches" />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[360px] text-left text-sm">
+                    <thead className="text-muted-foreground">
+                      <tr>
+                        <th className="pb-2 font-medium">Name</th>
+                        <th className="pb-2 font-medium">Code</th>
+                        <th className="pb-2 font-medium">Status</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                    </thead>
+                    <tbody>
+                      {org.branches.map((branch) => (
+                        <tr key={branch.id} className="border-border border-t">
+                          <td className="py-2 font-medium">{branch.name}</td>
+                          <td className="py-2">{branch.code}</td>
+                          <td className="py-2 capitalize">{branch.status}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="licence">
+          <PlatformLicensePanel organizationId={id} status={org.status} />
+        </TabsContent>
+
+        <TabsContent value="team" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Owner & team</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Info label="Owner name" value={org.owner.name || "—"} />
+                <Info label="Owner email" value={org.owner.email || "—"} />
+                <Info label="Admins" value={String(org.kpis.adminCount)} />
+                <Info
+                  label="Managers / cashiers"
+                  value={`${org.kpis.managerCount} / ${org.kpis.cashierCount}`}
+                />
+                <Info label="Branches" value={String(org.kpis.branchCount)} />
+                <Info label="Products" value={String(org.kpis.productCount)} />
+                <Info label="Suppliers" value={String(org.kpis.supplierCount)} />
+                <Info label="Wholesale units" value={String(org.kpis.wholesaleUnits)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="resetPassword">Reset owner password</Label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    id="resetPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="New password"
+                    minLength={8}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={pending || !online}
+                    onClick={() => void onReset()}
+                  >
+                    Reset
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Users</CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              {org.users.length === 0 ? (
+                <EmptyState title="No users" />
+              ) : (
+                <table className="w-full min-w-[480px] text-left text-sm">
+                  <thead className="text-muted-foreground">
+                    <tr>
+                      <th className="pb-2 font-medium">Name</th>
+                      <th className="pb-2 font-medium">Role</th>
+                      <th className="pb-2 font-medium">Branch</th>
+                      <th className="pb-2 font-medium">Presence</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {org.users.map((person) => {
+                      const presence = formatPresence({
+                        lastSeenAt: person.lastSeenAt,
+                        lastLoginAt: person.lastLoginAt,
+                      });
+                      return (
+                        <tr key={person.id} className="border-border border-t">
+                          <td className="py-2">
+                            <p className="font-medium">{person.name}</p>
+                            <p className="text-muted-foreground text-xs">
+                              {person.email ?? "—"}
+                            </p>
+                          </td>
+                          <td className="py-2 capitalize">{person.role}</td>
+                          <td className="py-2">{person.branchName ?? "—"}</td>
+                          <td className="py-2">
+                            <Badge variant={presence.online ? "success" : "secondary"}>
+                              {presence.online ? "Online" : "Offline"}
+                            </Badge>
+                            <p className="text-muted-foreground mt-1 text-xs">{presence.label}</p>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <Grid cols={4}>
+            <Kpi title="Sales" value={String(org.kpis.saleCount)} />
+            <Kpi title="Revenue (30d)" value={formatCurrency(org.kpis.revenue30d)} />
+            <Kpi title="Revenue (all)" value={formatCurrency(org.kpis.revenueAll)} />
+            <Kpi title="Users" value={String(org.kpis.userCount)} />
+            <Kpi title="Branches" value={String(org.kpis.branchCount)} />
+            <Kpi title="Products" value={String(org.kpis.productCount)} />
+            <Kpi title="Wholesale units" value={String(org.kpis.wholesaleUnits)} />
+            <Kpi title="Wholesale value" value={formatCurrency(org.kpis.wholesaleValue)} />
+          </Grid>
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>Activity</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+              <Info
+                label="Last sale"
+                value={org.kpis.lastSaleAt ? formatDateTime(org.kpis.lastSaleAt) : "None yet"}
+              />
+              <Info label="Suppliers" value={String(org.kpis.supplierCount)} />
+              <Info label="Admins" value={String(org.kpis.adminCount)} />
+              <Info
+                label="Managers / cashiers"
+                value={`${org.kpis.managerCount} / ${org.kpis.cashierCount}`}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

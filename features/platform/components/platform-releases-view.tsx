@@ -1,6 +1,7 @@
 "use client";
 
-import { Download, Package } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Download, Package } from "lucide-react";
 import { PageHeader } from "@/components/layout/primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,12 @@ export function PlatformReleasesView() {
         description="Published installers available for download. Release metadata is cached offline; downloading packages still needs a connection."
       />
 
+      {!online ? (
+        <p className="text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 text-sm">
+          Showing cached release list while offline.
+        </p>
+      ) : null}
+
       {releases.length === 0 ? (
         <EmptyState
           icon={Package}
@@ -40,8 +47,8 @@ export function PlatformReleasesView() {
         />
       ) : (
         releases.map((release) => (
-          <Card key={release._id}>
-            <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <Card key={release._id} className="overflow-hidden">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
                   {release.tag}
@@ -53,6 +60,12 @@ export function PlatformReleasesView() {
                   Published {formatDateTime(release.releasedAt)}
                 </p>
               </div>
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/platform/releases/${encodeURIComponent(release.version)}`}>
+                  Details
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
             </CardHeader>
             <CardContent className="space-y-4">
               {release.notes ? (
@@ -64,7 +77,7 @@ export function PlatformReleasesView() {
                 <p className="text-muted-foreground text-sm">No installer assets on this release.</p>
               ) : (
                 <ul className="space-y-2">
-                  {release.assets.map((asset) => (
+                  {release.assets.slice(0, 3).map((asset) => (
                     <li
                       key={asset.githubAssetId}
                       className="border-border flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm"
@@ -91,6 +104,13 @@ export function PlatformReleasesView() {
                   ))}
                 </ul>
               )}
+              {release.assets.length > 3 ? (
+                <Button asChild variant="ghost" size="sm">
+                  <Link href={`/platform/releases/${encodeURIComponent(release.version)}`}>
+                    View all {release.assets.length} assets
+                  </Link>
+                </Button>
+              ) : null}
             </CardContent>
           </Card>
         ))

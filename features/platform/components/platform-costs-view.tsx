@@ -1,15 +1,13 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
 import { Plus, Receipt, Trash2 } from "lucide-react";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +22,7 @@ import { formatDateTime } from "@/lib/date";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePlatformOperatingCostsData } from "@/hooks/use-platform-offline-data";
 
 const COST_CATEGORIES = [
   { value: "hosting", label: "Hosting" },
@@ -50,9 +49,8 @@ function fromDateInput(iso: string) {
 
 export function PlatformCostsView() {
   const online = useConnectivity();
-  const rows = useQuery(api.platformAnalytics.listOperatingCosts, {});
-  const createCost = useMutation(api.platformAnalytics.createOperatingCost);
-  const removeCost = useMutation(api.platformAnalytics.removeOperatingCost);
+  const { data: rows, loading, queueCreate, queueRemove, flushing } =
+    usePlatformOperatingCostsData();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [amount, setAmount] = useState("");
@@ -60,7 +58,7 @@ export function PlatformCostsView() {
   const [occurredAt, setOccurredAt] = useState(toDateInput(Date.now()));
   const [description, setDescription] = useState("");
 
-  if (rows === undefined) {
+  if (loading || rows === null) {
     return <LoadingState label="Loading operating costs…" />;
   }
 
@@ -72,10 +70,6 @@ export function PlatformCostsView() {
 
   async function onCreate(event: FormEvent) {
     event.preventDefault();
-    if (!online) {
-      toast.error("Recording costs requires a connection");
-      return;
-    }
     const parsed = Number(amount);
     if (!(parsed > 0)) {
       toast.error("Enter a valid amount");
@@ -83,13 +77,17 @@ export function PlatformCostsView() {
     }
     setPending(true);
     try {
-      await createCost({
+      const result = await queueCreate({
         amount: parsed,
         category,
         occurredAt: fromDateInput(occurredAt),
         description: description.trim() || undefined,
       });
-      toast.success("Operating cost recorded");
+      toast.success(
+        result.queued
+          ? "Cost queued — will sync when you reconnect"
+          : "Operating cost recorded",
+      );
       setOpen(false);
       setAmount("");
       setDescription("");
@@ -102,14 +100,12 @@ export function PlatformCostsView() {
     }
   }
 
-  async function onRemove(costId: Id<"platformOperatingCosts">) {
-    if (!online) {
-      toast.error("Deleting costs requires a connection");
-      return;
-    }
+  async function onRemove(costId: string) {
     try {
-      await removeCost({ costId });
-      toast.success("Cost removed");
+      const result = await queueRemove(costId);
+      toast.success(
+        result.queued ? "Removal queued for sync" : "Cost removed",
+      );
     } catch (error) {
       showError(error, "Could not remove cost");
     }
@@ -121,12 +117,22 @@ export function PlatformCostsView() {
         title="Operating costs"
         description="Track Novend platform expenses so revenue analytics can show net profit."
         actions={
-          <Button type="button" onClick={() => setOpen(true)} disabled={!online}>
+          <Button type="button" onClick={() => setOpen(true)}>
             <Plus className="h-4 w-4" />
             Add cost
           </Button>
         }
       />
+
+      {!online ? (
+        <p className="text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 text-sm">
+          Offline mode: new costs and removals are queued on this device and sync when you reconnect.
+        </p>
+      ) : flushing ? (
+        <p className="text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 text-sm">
+          Syncing queued cost changes…
+        </p>
+      ) : null}
 
       <Grid cols={4}>
         <Card className="border-l-primary border-l-[3px]">
@@ -174,14 +180,20 @@ export function PlatformCostsView() {
                   <tr key={row.id} className="border-border border-t">
                     <td className="px-4 py-3">{formatDateTime(row.occurredAt)}</td>
                     <td className="px-4 py-3 capitalize">{row.category}</td>
-                    <td className="px-4 py-3">{row.description ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <span>{row.description ?? "—"}</span>
+                      {row.pending ? (
+                        <Badge variant="outline" className="ml-2">
+                          Pending sync
+                        </Badge>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-3 font-medium">{formatCurrency(row.amount)}</td>
                     <td className="px-4 py-3">
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        disabled={!online}
                         onClick={() => void onRemove(row.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -251,8 +263,8 @@ export function PlatformCostsView() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={pending || !online}>
-                Save
+              <Button type="submit" disabled={pending}>
+                {online ? "Save" : "Queue offline"}
               </Button>
             </DialogFooter>
           </form>
