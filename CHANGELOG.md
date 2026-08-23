@@ -4,6 +4,16 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.2 — 2026-08-23
+
+### Fixed
+
+- Capacitor Android cold start: local boot page client-navigates to the hosted app so offline reopen can use the service worker (same pattern as Electron).
+- More, About, and extra POS routes are cached for offline navigation.
+- Billing page renders from the last confirmed subscription while offline; payment still requires a connection.
+
+---
+
 ## v0.3.1 — 2026-08-23
 
 ### Fixed
