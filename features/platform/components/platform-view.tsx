@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useAction, useQuery } from "convex/react";
+import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PageHeader } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
@@ -26,9 +26,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { Building2, Eye, Plus } from "lucide-react";
 import { PLAN_LIST, type PlanKey } from "@/convex/shared/plans";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePlatformOrganizationsData } from "@/hooks/use-platform-offline-data";
 
 export function PlatformView() {
-  const orgs = useQuery(api.platform.listOrganizations, {});
+  const online = useConnectivity();
+  const { data: orgs, loading } = usePlatformOrganizationsData();
   const createOrg = useAction(api.platform.createOrganization);
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -42,6 +45,10 @@ export function PlatformView() {
 
   async function onCreate(event: FormEvent) {
     event.preventDefault();
+    if (!online) {
+      toast.error("Creating an organization requires a connection");
+      return;
+    }
     setPending(true);
     try {
       await createOrg({
@@ -74,7 +81,7 @@ export function PlatformView() {
         title="Organizations"
         description="Create tenants, change plans, and open a business for support."
         actions={
-          <Button type="button" onClick={() => setOpen(true)}>
+          <Button type="button" onClick={() => setOpen(true)} disabled={!online}>
             <Plus className="h-4 w-4" />
             New organization
           </Button>
@@ -82,7 +89,7 @@ export function PlatformView() {
       />
       <Card>
         <CardContent className="overflow-x-auto p-0">
-          {orgs === undefined ? (
+          {loading || orgs === null ? (
             <div className="p-6">
               <LoadingState label="Loading organizations…" />
             </div>
@@ -111,9 +118,7 @@ export function PlatformView() {
                       <p className="text-muted-foreground text-xs">{org.slug}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge
-                        variant={org.status === "active" ? "success" : "secondary"}
-                      >
+                      <Badge variant={org.status === "active" ? "success" : "secondary"}>
                         {org.status}
                       </Badge>
                     </td>
@@ -200,7 +205,7 @@ export function PlatformView() {
               </label>
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={pending}>
+              <Button type="submit" disabled={pending || !online}>
                 Create
               </Button>
             </DialogFooter>

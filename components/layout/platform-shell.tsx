@@ -13,16 +13,24 @@ import { BRANDING } from "@/constants/branding";
 import { PlatformNavTree } from "@/components/layout/platform-nav-tree";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useConnectivity } from "@/hooks/use-connectivity";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
 
 export function PlatformShell({
   children,
   hasTenantRole = false,
+  sessionName,
+  sessionEmail,
 }: {
   children: React.ReactNode;
   hasTenantRole?: boolean;
+  sessionName?: string;
+  sessionEmail?: string | null;
 }) {
-  const session = useQuery(api.platform.me, {});
+  const online = useConnectivity();
+  const session = useQuery(api.platform.me, online ? {} : "skip");
+  const name = sessionName ?? session?.name ?? "Platform admin";
+  const email = sessionEmail ?? session?.email ?? null;
 
   return (
     <div className="bg-background flex h-dvh max-h-dvh overflow-hidden">
@@ -41,15 +49,16 @@ export function PlatformShell({
             </Link>
           </div>
         ) : null}
-        <PlatformSession
-          name={session?.name ?? "Platform admin"}
-          email={session?.email ?? null}
-        />
+        <PlatformSession name={name} email={email} />
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 lg:hidden">
-          <MobilePlatformNav hasTenantRole={hasTenantRole} />
+          <MobilePlatformNav
+            hasTenantRole={hasTenantRole}
+            sessionName={name}
+            sessionEmail={email}
+          />
           <Image
             src={BRANDING.brandmark}
             alt=""
@@ -118,9 +127,16 @@ function PlatformSession({ name, email }: { name: string; email: string | null }
   );
 }
 
-function MobilePlatformNav({ hasTenantRole }: { hasTenantRole: boolean }) {
+function MobilePlatformNav({
+  hasTenantRole,
+  sessionName,
+  sessionEmail,
+}: {
+  hasTenantRole: boolean;
+  sessionName: string;
+  sessionEmail: string | null;
+}) {
   const [open, setOpen] = useState(false);
-  const session = useQuery(api.platform.me, {});
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -152,10 +168,7 @@ function MobilePlatformNav({ hasTenantRole }: { hasTenantRole: boolean }) {
               </div>
             ) : null}
           </div>
-          <PlatformSession
-            name={session?.name ?? "Platform admin"}
-            email={session?.email ?? null}
-          />
+          <PlatformSession name={sessionName} email={sessionEmail} />
         </div>
       </SheetContent>
     </Sheet>

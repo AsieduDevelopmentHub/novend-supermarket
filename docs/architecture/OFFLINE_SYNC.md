@@ -97,6 +97,14 @@ Next.js App Router RSC fetches fail offline. While offline, in-app navigation
 uses `history.pushState` and a client outlet so the authenticated layout stays
 mounted.
 
+## Super Admin (platform)
+
+Platform console screens use the same IndexedDB stack under a dedicated
+`novend-offline-platform-{userId}` replica. While online, overview, organization
+lists, org detail, and release metadata are written into Dexie `meta`. While
+offline, those screens paint from cache; mutating tenants (create org, reset
+password, license edits) still requires a connection.
+
 ## Desktop
 
 Electron first-run must load the hosted app so the service worker and Dexie

@@ -1,4 +1,5 @@
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { clearPlatformOfflineSession } from "@/lib/offline/platform-cache";
 import { clearOfflineSession } from "@/lib/offline/session";
 import { clearShellProfile } from "@/lib/offline/shell-profile";
 
@@ -15,6 +16,7 @@ export async function signOutAndRedirect({
   clearPresence,
 }: SignOutOptions): Promise<void> {
   clearOfflineSession();
+  clearPlatformOfflineSession();
   void clearPresence?.().catch(() => {
     /* best-effort */
   });

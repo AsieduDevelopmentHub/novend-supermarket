@@ -2,9 +2,7 @@
 
 import type { ComponentType } from "react";
 import Link from "next/link";
-import { useQuery } from "convex/react";
 import { Building2, GitBranch, Package, ShoppingBag, Users } from "lucide-react";
-import { api } from "@/convex/_generated/api";
 import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,11 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { formatDateTime } from "@/lib/date";
+import { usePlatformOverviewData } from "@/hooks/use-platform-offline-data";
 
 export function PlatformOverviewView() {
-  const overview = useQuery(api.platform.overview, {});
+  const { data: overview, loading } = usePlatformOverviewData();
 
-  if (overview === undefined) {
+  if (loading || !overview) {
     return <LoadingState label="Loading platform overview…" />;
   }
 
@@ -96,17 +95,16 @@ export function PlatformOverviewView() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Package className="h-4 w-4" />
-              Desktop channel
+              Downloads
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <p className="text-muted-foreground">
-              Windows, macOS, and Linux installers are published from git tags matching{" "}
-              <code className="bg-muted rounded px-1">package.json</code> (currently{" "}
-              <code className="bg-muted rounded px-1">v0.1.0</code>).
+              Published desktop and mobile installers are cached on this device for offline review.
+              Fresh downloads still need a connection.
             </p>
             <Button asChild variant="outline" className="w-full">
-              <Link href="/platform/releases">View desktop releases</Link>
+              <Link href="/platform/releases">View downloads</Link>
             </Button>
           </CardContent>
         </Card>

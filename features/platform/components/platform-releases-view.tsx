@@ -1,8 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
 import { Download, Package } from "lucide-react";
-import { api } from "@/convex/_generated/api";
 import { PageHeader } from "@/components/layout/primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { formatDateTime } from "@/lib/date";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePlatformReleasesData } from "@/hooks/use-platform-offline-data";
 
 function formatBytes(bytes?: number) {
   if (!bytes || bytes <= 0) return "";
@@ -18,23 +18,24 @@ function formatBytes(bytes?: number) {
 }
 
 export function PlatformReleasesView() {
-  const releases = useQuery(api.desktopReleases.listRecent, { channel: "stable", limit: 20 });
+  const online = useConnectivity();
+  const { data: releases, loading } = usePlatformReleasesData("stable");
 
-  if (releases === undefined) {
+  if (loading || !releases) {
     return <LoadingState label="Loading desktop releases…" />;
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Desktop releases"
-        description="Published installers available for download. Release hosting stays private; apps download through short-lived secure links."
+        title="Downloads"
+        description="Published installers available for download. Release metadata is cached offline; downloading packages still needs a connection."
       />
 
       {releases.length === 0 ? (
         <EmptyState
           icon={Package}
-          title="No desktop releases yet"
+          title="No releases yet"
           description="After the next version is published, installers and notes will appear here automatically for download."
         />
       ) : (
@@ -75,7 +76,12 @@ export function PlatformReleasesView() {
                           {asset.size ? ` · ${formatBytes(asset.size)}` : ""}
                         </p>
                       </div>
-                      <Button asChild size="sm" variant="outline" disabled={!asset.downloadUrl}>
+                      <Button
+                        asChild
+                        size="sm"
+                        variant="outline"
+                        disabled={!online || !asset.downloadUrl}
+                      >
                         <a href={asset.downloadUrl ?? undefined}>
                           <Download className="h-4 w-4" />
                           Download

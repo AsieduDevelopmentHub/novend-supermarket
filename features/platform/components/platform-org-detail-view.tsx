@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useAction, useQuery } from "convex/react";
+import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader, Grid } from "@/components/layout/primitives";
@@ -19,16 +19,19 @@ import { formatDateTime, formatPresence } from "@/lib/date";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { ArrowLeft } from "lucide-react";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePlatformOrgDetailData } from "@/hooks/use-platform-offline-data";
 import { PlatformLicensePanel } from "./platform-license-panel";
 
 export function PlatformOrgDetailView({ organizationId }: { organizationId: string }) {
   const id = organizationId as Id<"organizations">;
-  const org = useQuery(api.platform.getOrganization, { organizationId: id });
+  const online = useConnectivity();
+  const { data: org, loading } = usePlatformOrgDetailData(organizationId);
   const resetPassword = useAction(api.platform.resetOrganizationAdminPassword);
   const [newPassword, setNewPassword] = useState("");
   const [pending, setPending] = useState(false);
 
-  if (org === undefined) {
+  if (loading || org === undefined) {
     return <LoadingState label="Loading organization…" />;
   }
   if (!org) {
@@ -36,6 +39,10 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
   }
 
   async function onReset() {
+    if (!online) {
+      toast.error("Password reset requires a connection");
+      return;
+    }
     if (newPassword.length < 8) {
       toast.error("Password must be at least 8 characters");
       return;
@@ -129,7 +136,12 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
                   placeholder="New password"
                   minLength={8}
                 />
-                <Button type="button" variant="outline" disabled={pending} onClick={() => void onReset()}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending || !online}
+                  onClick={() => void onReset()}
+                >
                   Reset
                 </Button>
               </div>

@@ -23,6 +23,16 @@ import { SuppliersView } from "@/features/suppliers/components/suppliers-view";
 import { CustomerDetailView } from "@/features/customers/components/customer-detail-view";
 import { ProductDetailView } from "@/features/products/components/product-detail-view";
 import { UserDetailView } from "@/features/users/components/user-detail-view";
+import { PlatformOverviewView } from "@/features/platform/components/platform-overview-view";
+import { PlatformView } from "@/features/platform/components/platform-view";
+import { PlatformReleasesView } from "@/features/platform/components/platform-releases-view";
+import { PlatformOrgDetailView } from "@/features/platform/components/platform-org-detail-view";
+import {
+  PlatformCostsView,
+  PlatformHealthView,
+  PlatformRevenueView,
+  PlatformSubscriptionsView,
+} from "@/features/platform/components/platform-placeholder-pages";
 import { OfflineUnavailable } from "@/components/offline/offline-unavailable";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Id } from "@/convex/_generated/dataModel";
@@ -42,6 +52,13 @@ const SHELL_VIEWS: Record<string, () => ReactNode> = {
   "/branches": () => <BranchesView />,
   "/wholesale": () => <WholesaleView />,
   "/suppliers": () => <SuppliersView />,
+  "/platform": () => <PlatformOverviewView />,
+  "/platform/organizations": () => <PlatformView />,
+  "/platform/releases": () => <PlatformReleasesView />,
+  "/platform/revenue": () => <PlatformRevenueView />,
+  "/platform/costs": () => <PlatformCostsView />,
+  "/platform/subscriptions": () => <PlatformSubscriptionsView />,
+  "/platform/health": () => <PlatformHealthView />,
 };
 
 /** Resolve a client-side feature view for offline shell navigation. */
@@ -106,6 +123,23 @@ export function resolveOfflineView(path: string): ReactNode {
       return <UserDetailView profileId={userId as Id<"profiles">} />;
     }
     return <UsersView />;
+  }
+  if (path.startsWith("/platform/")) {
+    const rest = path.slice("/platform/".length);
+    if (
+      rest &&
+      !rest.includes("/") &&
+      ![
+        "organizations",
+        "releases",
+        "revenue",
+        "costs",
+        "subscriptions",
+        "health",
+      ].includes(rest)
+    ) {
+      return <PlatformOrgDetailView organizationId={rest} />;
+    }
   }
 
   return (

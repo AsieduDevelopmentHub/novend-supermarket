@@ -27,6 +27,12 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { useNativeShell } from "@/hooks/use-native-shell";
 import { loadShellProfile, saveShellProfile, type ShellProfile } from "@/lib/offline/shell-profile";
 import { markOfflineSession, readOfflineSession } from "@/lib/offline/session";
+import {
+  bindPlatformOfflineDb,
+  markPlatformOfflineSession,
+  readPlatformOfflineSession,
+  type PlatformOfflineSession,
+} from "@/lib/offline/platform-cache";
 import { bindOfflineOrganization } from "@/lib/offline/db";
 import { toUserMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
@@ -65,6 +71,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const heartbeat = useMutation(api.users.heartbeat);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [cachedProfile, setCachedProfile] = useState<ShellProfile | null>(null);
+  const [platformSession, setPlatformSession] = useState<PlatformOfflineSession | null>(null);
   const [cacheReady, setCacheReady] = useState(false);
   const [offlineAuthBudgetElapsed, setOfflineAuthBudgetElapsed] = useState(false);
   const bootstrapping = useRef(false);
@@ -106,6 +113,11 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             organizationId: hint.organizationId ?? null,
           });
         }
+      }
+      const platformHint = readPlatformOfflineSession();
+      if (platformHint) {
+        setPlatformSession(platformHint);
+        bindPlatformOfflineDb(platformHint.userId);
       }
       setCacheReady(true);
     });
@@ -221,6 +233,31 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return () => window.clearInterval(interval);
   }, [heartbeat, isAuthenticated, online, user]);
 
+  useEffect(() => {
+    if (!user?.isPlatformAdmin || !user.userId) return;
+    const nextSession: PlatformOfflineSession = {
+      userId: String(user.userId),
+      name: user.name,
+      email: user.email ?? null,
+      hasTenantRole: Boolean(user.role),
+      savedAt: Date.now(),
+    };
+    markPlatformOfflineSession(nextSession);
+    setPlatformSession(nextSession);
+  }, [user]);
+
+  // Keep Dexie bound to the platform replica on Super Admin routes, otherwise the tenant org.
+  useEffect(() => {
+    if (!user?.userId) return;
+    if (pathname.startsWith("/platform") && user.isPlatformAdmin) {
+      bindPlatformOfflineDb(String(user.userId));
+      return;
+    }
+    if ("organizationId" in user && user.organizationId) {
+      bindOfflineOrganization(String(user.organizationId), String(user.userId));
+    }
+  }, [pathname, user]);
+
   const shellFromCache =
     !online && cachedProfile
       ? {
@@ -241,7 +278,11 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     (online && isLoading) ||
     (online && isAuthenticated && user === undefined) ||
     (!online && !cacheReady) ||
-    (!online && isLoading && !cachedProfile && !offlineAuthBudgetElapsed);
+    (!online &&
+      isLoading &&
+      !cachedProfile &&
+      !platformSession &&
+      !offlineAuthBudgetElapsed);
 
   if (waitingForUser) {
     return <AppSplash label="Preparing workspace…" />;
@@ -251,7 +292,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return <AppSplash label="Redirecting to login…" />;
   }
 
-  if (!online && !cachedProfile) {
+  if (!online && !cachedProfile && !platformSession) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <ErrorState
@@ -263,9 +304,24 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (user?.isPlatformAdmin && (!user.role || pathname.startsWith("/platform"))) {
+  const isPlatformRoute = pathname.startsWith("/platform");
+  const showPlatformShell =
+    (Boolean(user?.isPlatformAdmin) && (!user?.role || isPlatformRoute)) ||
+    (!online && isPlatformRoute && Boolean(platformSession));
+
+  if (showPlatformShell) {
     return (
-      <PlatformShell hasTenantRole={Boolean(user.role)}>{children}</PlatformShell>
+      <OfflineProvider>
+        <OfflineNavigationProvider>
+          <PlatformShell
+            hasTenantRole={Boolean(user?.role ?? platformSession?.hasTenantRole)}
+            sessionName={user?.name ?? platformSession?.name}
+            sessionEmail={user?.email ?? platformSession?.email ?? null}
+          >
+            <OfflineOutlet>{children}</OfflineOutlet>
+          </PlatformShell>
+        </OfflineNavigationProvider>
+      </OfflineProvider>
     );
   }
 

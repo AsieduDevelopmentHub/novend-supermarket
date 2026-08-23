@@ -333,6 +333,10 @@ export const META_KEYS = {
   lastSyncError: "lastSyncError",
   replicaSchemaVersion: "replicaSchemaVersion",
   profileOrganizationId: "profileOrganizationId",
+  platformOverview: "platformOverview",
+  platformOrganizations: "platformOrganizations",
+  platformReleases: "platformReleases",
+  platformOrgDetail: "platformOrgDetail",
 } as const;
 
 /** Bump when Dexie adds replica tables so TTL snapshot skips cannot leave new stores empty. */

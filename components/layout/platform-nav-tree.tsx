@@ -11,7 +11,9 @@ import {
   type PlatformNavGroup,
   type PlatformNavItem,
 } from "@/config/platform-navigation";
+import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePlatformNavTreeState } from "@/hooks/use-platform-nav-tree-state";
+import { useOfflineNavigation } from "@/providers/offline-navigation";
 import { cn } from "@/lib/utils";
 
 function PlatformNavLink({
@@ -23,13 +25,21 @@ function PlatformNavLink({
   pathname: string;
   onNavigate?: () => void;
 }) {
-  const active = platformNavItemActive(pathname, item);
+  const online = useConnectivity();
+  const { navigate, activePath } = useOfflineNavigation();
+  const currentPath = activePath ?? pathname;
+  const active = platformNavItemActive(currentPath, item);
   const Icon = item.icon;
 
   return (
     <Link
       href={item.href}
-      onClick={() => onNavigate?.()}
+      onClick={(event) => {
+        onNavigate?.();
+        if (online || item.href === currentPath) return;
+        event.preventDefault();
+        navigate(item.href);
+      }}
       className={cn(
         "flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium transition-colors",
         active
@@ -52,15 +62,24 @@ function PlatformNavGroupLinks({
   pathname: string;
   onNavigate?: () => void;
 }) {
+  const online = useConnectivity();
+  const { navigate, activePath } = useOfflineNavigation();
+  const currentPath = activePath ?? pathname;
+
   return (
     <div className="flex flex-col gap-0.5 pb-1 pl-3">
       {group.items.map((item) => {
-        const active = platformNavItemActive(pathname, item);
+        const active = platformNavItemActive(currentPath, item);
         return (
           <Link
             key={item.href}
             href={item.href}
-            onClick={() => onNavigate?.()}
+            onClick={(event) => {
+              onNavigate?.();
+              if (online || item.href === currentPath) return;
+              event.preventDefault();
+              navigate(item.href);
+            }}
             className={cn(
               "relative flex items-center gap-2.5 rounded-full py-2 pr-3 pl-6 text-sm font-medium transition-colors",
               active
@@ -96,7 +115,9 @@ function PlatformNavGroupSection({
   onToggle: () => void;
   onNavigate?: () => void;
 }) {
-  const hasActiveChild = group.items.some((item) => platformNavItemActive(pathname, item));
+  const { activePath } = useOfflineNavigation();
+  const currentPath = activePath ?? pathname;
+  const hasActiveChild = group.items.some((item) => platformNavItemActive(currentPath, item));
   const singleItem = group.items.length === 1;
 
   if (singleItem) {
@@ -153,12 +174,14 @@ export function PlatformNavTree({
   className?: string;
 }) {
   const pathname = usePathname();
+  const { activePath } = useOfflineNavigation();
+  const currentPath = activePath ?? pathname;
   const { isExpanded, toggleGroup, expandGroup } = usePlatformNavTreeState();
 
   useEffect(() => {
-    const activeGroup = findPlatformNavGroupForPath(pathname);
+    const activeGroup = findPlatformNavGroupForPath(currentPath);
     if (activeGroup) expandGroup(activeGroup);
-  }, [pathname, expandGroup]);
+  }, [currentPath, expandGroup]);
 
   return (
     <nav className={cn("flex flex-col gap-3 px-3", className)}>
@@ -166,7 +189,7 @@ export function PlatformNavTree({
         <PlatformNavGroupSection
           key={group.id}
           group={group}
-          pathname={pathname}
+          pathname={currentPath}
           expanded={isExpanded(group.id)}
           onToggle={() => toggleGroup(group.id)}
           onNavigate={onNavigate}
