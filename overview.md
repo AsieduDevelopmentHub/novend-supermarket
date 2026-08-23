@@ -39,6 +39,20 @@ Novend is therefore not a custom POS built for one company.
 
 It is a **commercial POS platform designed to serve many independent businesses from the same product and codebase.**
 
+<p align="center">
+  <img src="docs/design/ui/novend_Landing_full_screen.png" alt="Novend landing page" width="820" />
+</p>
+
+<p align="center">
+  <img src="docs/design/ui/sales-pos.jpg" alt="Novend Sales POS" width="820" />
+</p>
+
+| Sign up | Onboarding | Dashboard |
+|---------|------------|-----------|
+| <img src="docs/design/ui/auth-signup.png" alt="Sign up" width="260" /> | <img src="docs/design/ui/business-onboarding.png" alt="Onboarding" width="260" /> | <img src="docs/design/ui/dashboard.png" alt="Dashboard" width="260" /> |
+
+Full screenshot index: [`docs/design/ui/README.md`](./docs/design/ui/README.md).
+
 ---
 
 # 2. Brand Identity

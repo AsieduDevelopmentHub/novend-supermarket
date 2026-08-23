@@ -1,9 +1,11 @@
 # Sales Workflow
 
-Version: 1.0.0
+Version: 1.1.0
 
 Cashier POS: build a cart, optional customer, Hold or Pay. Completed sales are
 immutable and print a receipt.
+
+![Novend Sales (POS) checkout](../design/ui/sales-pos.jpg)
 
 ## Rules
 
@@ -24,3 +26,12 @@ immutable and print a receipt.
 4. Adjust quantities; optional discount
 5. Hold, or Pay (cash / card / mobile money)
 6. Print receipt
+
+![Receipt after checkout](../design/ui/sales-pos-receipt-modal.png)
+
+![Orders history](../design/ui/sales-orders.png)
+
+## Related screenshots
+
+See [`../design/ui/README.md`](../design/ui/README.md) for the full capture index
+(industry POS variants, returns, customers).

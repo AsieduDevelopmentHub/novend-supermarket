@@ -2,7 +2,7 @@
 
 ## Project Context
 
-Version: 1.0.0
+Version: 1.1.0
 
 # Purpose
 
@@ -17,29 +17,39 @@ Operational and product context for Novend POS. Read alongside the Constitution.
 Novend is the commercial evolution of Princellen POS: one codebase serving many
 independent businesses rather than one dedicated wholesaler.
 
+![Landing](design/ui/novend_Landing_full_screen.png)
+
+![Sales POS](design/ui/sales-pos.jpg)
+
 # Who it is for
 
 Retail shops, wholesale distributors, pharmacies, electronics, fashion, hardware,
 convenience stores, and other product-based businesses — including multi-branch
 organizations.
 
-# What this slice delivers
+# Product screens (GitHub)
 
-A new customer can:
+| Flow | Capture |
+|------|---------|
+| Sign up | [`design/ui/auth-signup.png`](./design/ui/auth-signup.png) |
+| Onboarding | [`design/ui/business-onboarding.png`](./design/ui/business-onboarding.png) |
+| Dashboard | [`design/ui/dashboard.png`](./design/ui/dashboard.png) |
+| Desktop shell | [`design/ui/desktop_fullpage.png`](./design/ui/desktop_fullpage.png) |
+| Mobile shell | [`design/ui/mobile_fullpage.png`](./design/ui/mobile_fullpage.png) |
 
-1. Create an account
+Index: [`design/ui/README.md`](./design/ui/README.md).
+
+# What a customer can do
+
+1. Create an account (accept Terms & Privacy)
 2. Create their business (organization + MAIN branch)
 3. Add staff
 4. Add categories and products
-5. Receive / adjust stock
+5. Receive / adjust stock; wholesale and transfers where enabled
 6. Sell at the POS
 7. Print a receipt
 8. Complete a sale while offline (after an online login), then sync
-
-# What this slice does not deliver
-
-Returns, multi-branch UI, stock transfers, suppliers, purchases, expenses, full
-reports/analytics, Electron desktop, billing, industry modules.
+9. Review orders, returns, customers, analytics, and reports as entitled
 
 # Stakeholders
 
@@ -52,12 +62,13 @@ reports/analytics, Electron desktop, billing, industry modules.
 
 # Deployment targets
 
-- **Web** — primary for this slice (browsers, tablets)
+- **Web** — browsers and tablets
 - **PWA** — installable; service worker for offline shell
-- **Desktop (Electron)** — documented, not built in this slice
+- **Desktop (Electron)** — Windows / macOS / Linux installers via Downloads
+- **Mobile apps** — roadmap (publish on the Download page when ready)
 
 # Success for the business
 
-Two organizations on one Convex deployment cannot see each other’s data.
+Two organizations on one deployment cannot see each other’s data.
 A cashier can complete a sale online and offline. Inventory never goes negative.
-The UI feels like Princellen’s density with Novend branding.
+The UI follows Novend branding (Candy Blue, Onyx, Cloud White).

@@ -1,6 +1,8 @@
 # Product Workflow
 
-Version: 1.0.0
+Version: 1.1.0
+
+![Product catalog](../design/ui/inventory-products.png)
 
 ## Rules
 
@@ -16,3 +18,12 @@ Version: 1.0.0
 2. Create product (name, SKU, prices, unit, threshold, image)
 3. Receive opening stock on Inventory
 4. Active products with sellable stock appear on the POS
+
+![Product detail](../design/ui/inventory-product-detail.png)
+
+![Edit product](../design/ui/inventory-product-edit-modal.png)
+
+## Related screenshots
+
+Expiry-oriented product detail: `inventory-product-detail-expiry.png` in
+[`../design/ui/README.md`](../design/ui/README.md).
