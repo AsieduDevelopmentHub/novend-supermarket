@@ -26,6 +26,7 @@ import { useCurrentUser, usePermissions } from "@/hooks/use-permissions";
 import { useBranchesList, useOrdersList, useUsersList } from "@/hooks/use-offline-lists";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime, rangeForDatePreset, type DateRangePreset } from "@/lib/date";
+import { Plus } from "lucide-react";
 import {
   defaultOrdersFilters,
   hasActiveOrdersFilters,
@@ -154,6 +155,7 @@ export function OrdersView() {
       <PageHeader
         title="Orders"
         description="Find a completed sale by day, cashier, amount, payment, or invoice."
+        compactActions={[{ key: "sale", label: "New Sale", icon: Plus, href: "/sales" }]}
         actions={
           <Button asChild>
             <Link href="/sales">New Sale</Link>

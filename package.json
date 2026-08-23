@@ -30,6 +30,8 @@
     "desktop:verify-github-token": "node scripts/verify-desktop-github-token.mjs",
     "mobile:sync": "pnpm --filter @novend/mobile sync",
     "mobile:open:android": "pnpm --filter @novend/mobile open:android",
+    "mobile:publish-convex": "node scripts/publish-mobile-release-to-convex.mjs",
+    "git:assert-no-coauthor": "node scripts/assert-no-coauthor.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

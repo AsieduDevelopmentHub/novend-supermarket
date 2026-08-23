@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePermissions } from "@/hooks/use-permissions";
 import { moreSectionsForRole } from "@/config/mobile-navigation";
+import { PageHeader } from "@/components/layout/primitives";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { ChevronRight, CreditCard, HelpCircle, Info } from "lucide-react";
@@ -28,12 +29,10 @@ export function MoreView() {
 
   return (
     <div className="mx-auto max-w-lg space-y-5 pb-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">More</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Everything else for your role, grouped for quick access.
-        </p>
-      </div>
+      <PageHeader
+        title="More"
+        description="Everything else for your role, grouped for quick access."
+      />
 
       {sections.map((section) => (
         <Card key={section.id} className="overflow-hidden rounded-[20px]">

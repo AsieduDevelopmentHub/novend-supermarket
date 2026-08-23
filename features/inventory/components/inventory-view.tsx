@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { PageHeader } from "@/components/layout/primitives";
+import { PageHeader, type PageHeaderCompactAction } from "@/components/layout/primitives";
 import { BarcodeSearchField } from "@/components/hardware/barcode-search-field";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,7 +37,7 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCategoriesList, useInventoryList, useBranchesList } from "@/hooks/use-offline-lists";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
 import { formatExpiryDate } from "@/lib/expiry";
-import { ArrowLeftRight, Boxes, Eye } from "lucide-react";
+import { ArrowLeftRight, Boxes, Eye, Package } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { ProductImage } from "@/components/media/product-image";
@@ -244,6 +244,30 @@ function InventoryViewInner() {
             : lowOnly
               ? "Showing low-stock items only."
               : "Track available stock, low-stock, and expiry alerts."
+        }
+        compactActions={
+          [
+            ...(canManageProducts
+              ? [
+                  {
+                    key: "wholesale",
+                    label: "Wholesale",
+                    icon: Package,
+                    href: "/wholesale",
+                  } satisfies PageHeaderCompactAction,
+                ]
+              : []),
+            ...(canTransferStock
+              ? [
+                  {
+                    key: "transfer",
+                    label: "Transfer",
+                    icon: ArrowLeftRight,
+                    onClick: () => openTransfer(),
+                  } satisfies PageHeaderCompactAction,
+                ]
+              : []),
+          ] satisfies PageHeaderCompactAction[]
         }
         actions={
           <div className="flex flex-wrap gap-2">

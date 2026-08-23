@@ -160,9 +160,30 @@
 
 /* Capacitor / native shell — mobile spacing & touch targets */
 .native-shell {
-  --mobile-page-pad: 1.25rem;
+  --mobile-page-pad: 1rem;
   --mobile-radius: 1.25rem;
   --mobile-touch: 2.75rem;
+  /* Fallback when WebView reports 0 inset (common with remote server.url). */
+  --native-status-pad: max(env(safe-area-inset-top, 0px), 1.75rem);
+}
+
+/* Keep system status bar (battery/time) clear of app chrome. */
+.native-shell .native-shell-top {
+  padding-top: var(--native-status-pad);
+  background-color: var(--background);
+}
+
+/*
+ * Sticky in-page title — short, opaque bar. CTAs live in the scrollable toolbar
+ * below; compact icons appear once that toolbar scrolls away (see PageHeader).
+ */
+.native-shell .native-page-header {
+  margin-left: calc(-1 * var(--mobile-page-pad));
+  margin-right: calc(-1 * var(--mobile-page-pad));
+  padding: 0.375rem var(--mobile-page-pad);
+  border-bottom: 1px solid var(--border);
+  background-color: var(--background);
+  backdrop-filter: none;
 }
 
 .native-shell .touch-target {

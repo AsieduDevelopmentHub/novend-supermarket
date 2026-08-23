@@ -40,10 +40,22 @@ Native plugins (synced into Android/iOS): Camera, Filesystem, Share, ML Kit Barc
 Point at a local Next.dev server while developing:
 
 ```bash
-NOVEND_APP_URL=http://10.0.2.2:3000 npx cap sync
+# Physical device on Wi‑Fi (use your machine's LAN IP from `pnpm dev` output)
+set NOVEND_APP_URL=http://192.168.1.202:3000
+npx convex env set SITE_URL http://192.168.1.202:3000
+pnpm mobile:sync
+
+# Android emulator (host alias)
+set NOVEND_APP_URL=http://10.0.2.2:3000
+npx convex env set SITE_URL http://10.0.2.2:3000
+pnpm mobile:sync
 ```
 
-(`10.0.2.2` is the Android emulator alias for the host machine.)
+`SITE_URL` in Convex must match `NOVEND_APP_URL` exactly. Novend patches `@convex-dev/auth`
+so LAN/emulator HTTP dev hosts use non-secure cookies (mobile WebViews drop `Secure`
+cookies on plain HTTP — you'll see "missing refreshToken cookie" in the Next.js log).
+
+After changing URLs, restart `pnpm dev`, force-close the app, and sign in again.
 
 ## Scripts
 

@@ -15,6 +15,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -182,53 +188,75 @@ export function LandingNav({ scrollRootRef }: Props) {
                 className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4"
                 aria-label="Mobile"
               >
-                <NavHref
-                  href={nav.features.href}
-                  className="text-foreground rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {nav.features.label}
-                </NavHref>
-                <p className="text-muted-foreground mt-3 px-3 pb-1 text-[11px] font-semibold tracking-[0.14em] uppercase">
-                  {nav.industries.label}
-                </p>
-                {nav.industries.items.map((item) => (
+                <div className="flex flex-col gap-1">
                   <NavHref
-                    key={item.label}
-                    href={item.href}
-                    className="text-foreground block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                    href={nav.features.href}
+                    className="text-foreground block rounded-lg px-3 py-3 text-sm font-medium hover:bg-muted"
                     onClick={() => setMenuOpen(false)}
                   >
-                    {item.label}
+                    {nav.features.label}
                   </NavHref>
-                ))}
-                <NavHref
-                  href={nav.pricing.href}
-                  className="text-foreground mt-2 block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {nav.pricing.label}
-                </NavHref>
-                <p className="text-muted-foreground mt-3 px-3 pb-1 text-[11px] font-semibold tracking-[0.14em] uppercase">
-                  {nav.resources.label}
-                </p>
-                {nav.resources.items.map((item) => (
+
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="industries" className="border-border border-b-0">
+                      <AccordionTrigger className="text-foreground rounded-lg px-3 py-3 text-sm font-medium hover:bg-muted hover:no-underline">
+                        {nav.industries.label}
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-2">
+                        <ul className="space-y-0.5 pl-1">
+                          {nav.industries.items.map((item) => (
+                            <li key={item.label}>
+                              <NavHref
+                                href={item.href}
+                                className="text-muted-foreground hover:text-foreground block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                                onClick={() => setMenuOpen(false)}
+                              >
+                                {item.label}
+                              </NavHref>
+                            </li>
+                          ))}
+                        </ul>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <NavHref
+                      href={nav.pricing.href}
+                      className="text-foreground block rounded-lg px-3 py-3 text-sm font-medium hover:bg-muted"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      {nav.pricing.label}
+                    </NavHref>
+
+                    <AccordionItem value="resources" className="border-border border-b-0">
+                      <AccordionTrigger className="text-foreground rounded-lg px-3 py-3 text-sm font-medium hover:bg-muted hover:no-underline">
+                        {nav.resources.label}
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-2">
+                        <ul className="space-y-0.5 pl-1">
+                          {nav.resources.items.map((item) => (
+                            <li key={item.label}>
+                              <NavHref
+                                href={item.href}
+                                className="text-muted-foreground hover:text-foreground block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                                onClick={() => setMenuOpen(false)}
+                              >
+                                {item.label}
+                              </NavHref>
+                            </li>
+                          ))}
+                        </ul>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+
                   <NavHref
-                    key={item.label}
-                    href={item.href}
-                    className="text-foreground block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                    href={nav.desktop.href}
+                    className="text-foreground block rounded-lg px-3 py-3 text-sm font-medium hover:bg-muted"
                     onClick={() => setMenuOpen(false)}
                   >
-                    {item.label}
+                    {nav.desktop.label}
                   </NavHref>
-                ))}
-                <NavHref
-                  href={nav.desktop.href}
-                  className="text-foreground mt-2 block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {nav.desktop.label}
-                </NavHref>
+                </div>
               </nav>
               <div className="shrink-0 space-y-2 border-t border-border bg-card px-4 py-4">
                 <Button asChild variant="outline" className="w-full">

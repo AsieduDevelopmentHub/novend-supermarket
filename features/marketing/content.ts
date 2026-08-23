@@ -545,7 +545,6 @@ export const landingCopy = {
         { href: "/docs", label: "Docs" },
         { href: "/docs/help", label: "Help" },
         { href: "/docs/releases", label: "Releases" },
-        { href: "/download", label: "Download" },
       ],
     },
     desktop: { href: "/download", label: "Download" },

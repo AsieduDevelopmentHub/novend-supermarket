@@ -677,6 +677,38 @@ export default defineSchema({
     .index("by_version", ["version"])
     .index("by_tag", ["tag"])
     .index("by_channel_releasedAt", ["channel", "releasedAt"]),
+
+  mobileReleases: defineTable({
+    version: v.string(),
+    tag: v.string(),
+    channel: v.union(v.literal("stable"), v.literal("beta")),
+    notes: v.string(),
+    releasedAt: v.number(),
+    mandatory: v.boolean(),
+    githubReleaseId: v.number(),
+    githubReleaseUrl: v.string(),
+    githubOwner: v.string(),
+    githubRepo: v.string(),
+    storeUrls: v.object({
+      android: v.optional(v.string()),
+      ios: v.optional(v.string()),
+    }),
+    assets: v.array(
+      v.object({
+        platform: v.union(v.literal("android"), v.literal("ios")),
+        kind: v.union(v.literal("apk"), v.literal("aab"), v.literal("ipa")),
+        fileName: v.string(),
+        contentType: v.optional(v.string()),
+        size: v.optional(v.number()),
+        sha256: v.optional(v.string()),
+        githubAssetId: v.number(),
+      }),
+    ),
+    publishedAt: v.number(),
+  })
+    .index("by_version", ["version"])
+    .index("by_tag", ["tag"])
+    .index("by_channel_releasedAt", ["channel", "releasedAt"]),
 });
 
 

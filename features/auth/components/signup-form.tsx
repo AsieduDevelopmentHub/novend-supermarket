@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConvexAuth } from "convex/react";
@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { ROUTES } from "@/config/navigation";
+import { navigateAfterLogin } from "@/lib/auth/redirect-after-login";
 import { cn } from "@/lib/utils";
 
 export function SignupForm({ compact = false }: { compact?: boolean }) {
@@ -39,8 +40,9 @@ export function SignupForm({ compact = false }: { compact?: boolean }) {
 
 function ConfiguredSignupForm({ compact }: { compact: boolean }) {
   const { signIn } = useAuthActions();
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const router = useRouter();
+  const redirectingRef = useRef(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,10 +50,11 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    void router.refresh();
-    router.replace("/onboarding");
-  }, [isAuthenticated, router]);
+    if (!isAuthenticated || authLoading) return;
+    if (redirectingRef.current) return;
+    redirectingRef.current = true;
+    navigateAfterLogin("/onboarding", router);
+  }, [isAuthenticated, authLoading, router]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -68,7 +71,6 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
       formData.set("flow", "signUp");
       await signIn("password", formData);
       toast.success("Account created");
-      void router.refresh();
     } catch (error) {
       showError(error, "Could not create account. Try a different email.");
       setPending(false);

@@ -9,3 +9,6 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+
+patchedDependencies:
+  '@convex-dev/auth@0.0.87': patches/@convex-dev__auth@0.0.87.patch

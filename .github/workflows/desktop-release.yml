@@ -1,4 +1,4 @@
-name: Desktop Release
+name: Product Release
 
 on:
   push:
@@ -24,7 +24,7 @@ on:
         type: boolean
 
 concurrency:
-  group: desktop-release-${{ github.ref }}
+  group: product-release-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -115,11 +115,107 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  build-android:
+    name: Build Android APK
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.18.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Match local Android Studio / Microsoft OpenJDK builds (Gradle 8.11).
+          java-version: 21
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Sync Capacitor Android shell
+        run: pnpm mobile:sync
+        env:
+          NOVEND_APP_URL: ${{ secrets.NOVEND_APP_URL }}
+
+      - name: Decode release keystore
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > apps/mobile/android/release.keystore
+          echo "ANDROID_KEYSTORE_PATH=$PWD/apps/mobile/android/release.keystore" >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        working-directory: apps/mobile/android
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Prepare APK for GitHub Release
+        shell: bash
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          version="${tag#v}"
+          src="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$src" ]; then
+            echo "Release APK not found at $src" >&2
+            ls -la apps/mobile/android/app/build/outputs/apk/release/ || true
+            exit 1
+          fi
+          dest="NovendPOS-${version}-android.apk"
+          cp "$src" "$dest"
+          echo "APK_PATH=$dest" >> "$GITHUB_ENV"
+
+      - name: Upload APK to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          for i in $(seq 1 60); do
+            if gh release view "$tag" >/dev/null 2>&1; then
+              gh release upload "$tag" "$APK_PATH" --clobber
+              exit 0
+            fi
+            echo "Waiting for GitHub Release $tag (attempt $i)…"
+            sleep 10
+          done
+          echo "Timed out waiting for GitHub Release $tag" >&2
+          exit 1
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: novend-pos-android
+          path: NovendPOS-*-android.apk
+          if-no-files-found: warn
+          retention-days: 14
+
   publish-convex:
     name: Publish update metadata to Convex
-    needs: build
+    needs: [build, build-android]
     runs-on: ubuntu-latest
-    if: always() && needs.build.result != 'cancelled'
+    if: always() && needs.build.result == 'success'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -150,7 +246,7 @@ jobs:
           RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: node scripts/sync-github-release-notes.mjs
 
-      - name: Publish metadata to Convex
+      - name: Publish desktop metadata to Convex
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CONVEX_SITE_URL: ${{ secrets.CONVEX_SITE_URL }}
@@ -159,3 +255,16 @@ jobs:
           RELEASE_CHANNEL: ${{ github.event.inputs.channel || 'stable' }}
           RELEASE_MANDATORY: ${{ github.event.inputs.mandatory || 'false' }}
         run: node scripts/publish-desktop-release-to-convex.mjs
+
+      - name: Publish mobile metadata to Convex
+        if: needs.build-android.result == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONVEX_SITE_URL: ${{ secrets.CONVEX_SITE_URL }}
+          DESKTOP_RELEASE_PUBLISH_SECRET: ${{ secrets.DESKTOP_RELEASE_PUBLISH_SECRET }}
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          RELEASE_CHANNEL: ${{ github.event.inputs.channel || 'stable' }}
+          RELEASE_MANDATORY: ${{ github.event.inputs.mandatory || 'false' }}
+          MOBILE_ANDROID_STORE_URL: ${{ secrets.MOBILE_ANDROID_STORE_URL }}
+          MOBILE_IOS_STORE_URL: ${{ secrets.MOBILE_IOS_STORE_URL }}
+        run: node scripts/publish-mobile-release-to-convex.mjs

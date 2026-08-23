@@ -16,6 +16,26 @@ describe("platform detection", () => {
     expect(isCapacitor()).toBe(true);
   });
 
+  it("detects Capacitor Android via System WebView user agent (wv)", () => {
+    vi.stubGlobal("navigator", {
+      userAgent:
+        "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36 wv",
+    });
+    vi.stubGlobal("window", {});
+    expect(getPlatform()).toBe("android");
+    expect(isCapacitor()).toBe(true);
+  });
+
+  it("detects Capacitor via NovendCapacitor user-agent marker", () => {
+    vi.stubGlobal("navigator", {
+      userAgent:
+        "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/112.0.0.0 Mobile Safari/537.36 NovendCapacitor/1.0",
+    });
+    vi.stubGlobal("window", {});
+    expect(getPlatform()).toBe("android");
+    expect(isCapacitor()).toBe(true);
+  });
+
   it("detects Capacitor iOS via webkit bridge", () => {
     vi.stubGlobal("window", {
       webkit: { messageHandlers: { bridge: {} } },

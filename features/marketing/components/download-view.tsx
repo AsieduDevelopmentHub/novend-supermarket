@@ -61,22 +61,22 @@ function isSuggested(
   return true;
 }
 
-const MOBILE_PLATFORMS = [
+const MOBILE_PLATFORM_META = [
   {
-    id: "ios",
-    label: "iPhone & iPad",
-    detail: "Native apps for Apple devices — coming soon.",
-    icon: Apple,
+    id: "android" as const,
+    label: "Android",
+    detail: "Native app for phones and tablets.",
+    icon: Smartphone,
   },
   {
-    id: "android",
-    label: "Android",
-    detail: "Native apps for phones and tablets — coming soon.",
-    icon: Smartphone,
+    id: "ios" as const,
+    label: "iPhone & iPad",
+    detail: "Native apps for Apple devices.",
+    icon: Apple,
   },
 ] as const;
 
-/** Public download hub — live desktop installers + upcoming mobile slots. */
+/** Public download hub — live desktop and mobile installers. */
 export function DownloadView() {
   const target = useSyncExternalStore(subscribeNoop, getBrowserTargetSnapshot, () => null);
   const preferredArch = target?.arch ?? "x64";
@@ -84,14 +84,37 @@ export function DownloadView() {
     preferredArch,
     channel: "stable",
   });
-  const recent = useQuery(api.desktopReleases.listPublicRecent, {
+  const mobileOffer = useQuery(api.mobileReleases.getInstallOffer, {
+    channel: "stable",
+  });
+  const desktopRecent = useQuery(api.desktopReleases.listPublicRecent, {
+    channel: "stable",
+    limit: 5,
+  });
+  const mobileRecent = useQuery(api.mobileReleases.listPublicRecent, {
     channel: "stable",
     limit: 5,
   });
 
+  const recent = useMemo(() => {
+    const combined = [...(desktopRecent ?? []), ...(mobileRecent ?? [])];
+    const byTag = new Map<string, (typeof combined)[number]>();
+    for (const entry of combined) {
+      const existing = byTag.get(entry.tag);
+      if (!existing || entry.releasedAt > existing.releasedAt) {
+        byTag.set(entry.tag, entry);
+      }
+    }
+    return [...byTag.values()]
+      .sort((a, b) => b.releasedAt - a.releasedAt)
+      .slice(0, 5);
+  }, [desktopRecent, mobileRecent]);
+
   const installers = useMemo(() => offer?.installers ?? [], [offer]);
   const releasedLabel = formatReleasedAt(offer?.releasedAt);
+  const mobileReleasedLabel = formatReleasedAt(mobileOffer?.releasedAt);
   const loading = offer === undefined;
+  const mobileLoading = mobileOffer === undefined;
   const offerHighlights = useMemo(
     () => sanitizeReleaseNoteLines(offer?.notes),
     [offer?.notes],
@@ -101,7 +124,7 @@ export function DownloadView() {
     <MarketingSitePage
       badge="Downloads"
       title={`Download ${APP_NAME}`}
-      subtitle="Install Novend on the counter PC you use today, run it in the browser anywhere, and check back here for mobile apps as they become available."
+      subtitle="Install Novend on the counter PC, sideload the Android app, or run it in the browser — all from one account."
       maxWidthClassName="max-w-5xl"
       meta={
         offer
@@ -208,38 +231,78 @@ export function DownloadView() {
         </section>
 
         <section className="landing-shadow-card rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8">
-          <div className="flex items-center gap-2">
-            <span className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-xl">
-              <Smartphone className="h-5 w-5" aria-hidden />
-            </span>
-            <div>
-              <h2 className="text-[#111827] text-xl font-semibold tracking-tight">Mobile</h2>
-              <p className="text-slate-600 text-sm">
-                iPhone, iPad, and Android apps will publish here alongside desktop.
-              </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-xl">
+                <Smartphone className="h-5 w-5" aria-hidden />
+              </span>
+              <div>
+                <h2 className="text-[#111827] text-xl font-semibold tracking-tight">Mobile</h2>
+                <p className="text-slate-600 text-sm">
+                  {mobileOffer
+                    ? `Latest stable ${mobileOffer.version}${mobileReleasedLabel ? ` · Released ${mobileReleasedLabel}` : ""}`
+                    : "Android APK and store links publish here with each release."}
+                </p>
+              </div>
             </div>
           </div>
 
-          <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-            {MOBILE_PLATFORMS.map((platform) => {
-              const Icon = platform.icon;
-              return (
-                <li
-                  key={platform.id}
-                  className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5"
-                >
-                  <div className="flex items-center gap-2">
-                    <Icon className="text-slate-700 h-5 w-5" aria-hidden />
-                    <p className="text-[#111827] text-sm font-semibold">{platform.label}</p>
-                    <Badge variant="outline" className="ml-auto text-xs">
-                      Coming soon
-                    </Badge>
-                  </div>
-                  <p className="text-slate-600 mt-2 text-sm leading-relaxed">{platform.detail}</p>
-                </li>
-              );
-            })}
-          </ul>
+          {mobileLoading ? (
+            <div className="text-slate-600 mt-8 flex items-center gap-2 text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              Loading mobile downloads…
+            </div>
+          ) : (
+            <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+              {MOBILE_PLATFORM_META.map((platform) => {
+                const Icon = platform.icon;
+                const download = mobileOffer?.downloads[platform.id];
+                const storeUrl = mobileOffer?.storeUrls[platform.id];
+                const available = Boolean(download?.url || storeUrl);
+
+                return (
+                  <li
+                    key={platform.id}
+                    className={cn(
+                      "rounded-2xl border px-4 py-5",
+                      available
+                        ? "border-slate-200/80 bg-white"
+                        : "border-dashed border-slate-200 bg-slate-50",
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon className="text-slate-700 h-5 w-5" aria-hidden />
+                      <p className="text-[#111827] text-sm font-semibold">{platform.label}</p>
+                      {!available ? (
+                        <Badge variant="outline" className="ml-auto text-xs">
+                          Coming soon
+                        </Badge>
+                      ) : download ? (
+                        <Badge variant="secondary" className="ml-auto text-xs">
+                          {formatBytes(download.size) ?? "APK"}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="text-slate-600 mt-2 text-sm leading-relaxed">{platform.detail}</p>
+                    {download?.url ? (
+                      <Button asChild size="sm" className="mt-4 w-full sm:w-auto">
+                        <a href={download.url} download={download.fileName}>
+                          <Download className="mr-2 h-4 w-4" aria-hidden />
+                          Download APK
+                        </a>
+                      </Button>
+                    ) : storeUrl ? (
+                      <Button asChild size="sm" variant="outline" className="mt-4 w-full sm:w-auto">
+                        <a href={storeUrl} target="_blank" rel="noopener noreferrer">
+                          Open in store
+                        </a>
+                      </Button>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </section>
 
         <section className="landing-shadow-card rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8">
@@ -283,7 +346,7 @@ export function DownloadView() {
             </Link>
           </div>
 
-          {recent === undefined ? (
+          {desktopRecent === undefined && mobileRecent === undefined ? (
             <p className="text-slate-600 mt-4 text-sm">Loading release history…</p>
           ) : recent.length === 0 ? (
             <p className="text-slate-600 mt-4 text-sm">

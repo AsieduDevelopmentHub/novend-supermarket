@@ -316,21 +316,13 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             )}
           >
             {nativeShell ? null : <AppSidebar user={shellUser} />}
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-              {nativeShell ? (
-                <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-5">
-                  <Image
-                    src={BRANDING.brandmark}
-                    alt=""
-                    width={32}
-                    height={32}
-                    className="h-8 w-8 shrink-0 object-contain"
-                  />
-                  <p className="truncate text-base font-semibold">
-                    {shellUser.organizationName?.trim() || APP_BRAND}
-                  </p>
-                </header>
-              ) : (
+            <div
+              className={cn(
+                "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+                nativeShell && "native-shell-top",
+              )}
+            >
+              {nativeShell ? null : (
                 <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 lg:hidden">
                   <MobileSidebar user={shellUser} />
                   <Image
@@ -350,7 +342,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
               <main
                 className={cn(
                   "min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain",
-                  nativeShell ? "px-5 py-5" : "px-4 py-6 lg:px-8",
+                  nativeShell ? "px-[var(--mobile-page-pad)] pb-5 pt-0" : "px-4 py-6 lg:px-8",
                   nativeShell && "pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]",
                 )}
               >

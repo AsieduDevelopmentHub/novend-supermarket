@@ -68,3 +68,34 @@ A partial `ios/` tree without a Podfile makes full `cap sync` fail — use
   marketing site. Unauthenticated sessions redirect to `/login`.
 - Launcher + splash assets are generated from `apps/desktop/build/icon.png` via
   `pnpm mobile:icons` (runs automatically before sync).
+
+## Local development & auth
+
+Capacitor dev loads Next over plain HTTP (`http://192.168.x.x:3000` or
+`http://10.0.2.2:3000` on the emulator). Convex Auth session cookies must be
+**non-secure** on those hosts or Android/iOS WebViews silently drop them.
+
+Symptom in the Next.js terminal:
+
+```text
+Convex Auth: Unexpected missing refreshToken cookie during client refresh
+```
+
+Fix checklist:
+
+1. `NOVEND_APP_URL` (Capacitor sync) and Convex `SITE_URL` must be the **same**
+   origin — e.g. `http://192.168.1.202:3000`, not `localhost` on a physical device.
+2. Novend patches `@convex-dev/auth` so private LAN / emulator hosts are treated
+   like localhost for cookie `secure` in `NODE_ENV=development`.
+3. Restart `pnpm dev` after `pnpm install` (applies the patch).
+4. Force-close the app and sign in again (clears stale WebView cookie state).
+
+Post-login redirect uses Next.js client navigation (not `window.location`) so
+Convex Auth's in-flight token refresh does not trigger Android's native
+"Confirm navigation" dialog.
+
+```bash
+npx convex env set SITE_URL http://192.168.1.202:3000
+set NOVEND_APP_URL=http://192.168.1.202:3000
+pnpm mobile:sync
+```

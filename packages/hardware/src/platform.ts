@@ -41,6 +41,22 @@ function getCapacitorBridgePlatform(): NovendPlatform | null {
   if (!win) return null;
   if (win.androidBridge) return "android";
   if (win.webkit?.messageHandlers?.bridge) return "ios";
+
+  if (typeof navigator === "undefined") return null;
+  const ua = navigator.userAgent;
+
+  // Set in apps/mobile/capacitor.config.ts — survives remote server.url loads.
+  if (/NovendCapacitor/i.test(ua)) {
+    if (/android/i.test(ua)) return "android";
+    if (/iphone|ipad|ipod/i.test(ua)) return "ios";
+    return "android";
+  }
+
+  // Android System WebView (Capacitor shell) — Chrome mobile browser omits " wv".
+  if (/Android/i.test(ua) && /\bwv\b/i.test(ua)) {
+    return "android";
+  }
+
   return null;
 }
 

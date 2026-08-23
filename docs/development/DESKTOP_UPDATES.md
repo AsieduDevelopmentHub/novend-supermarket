@@ -78,3 +78,5 @@ electron-builder often creates the GitHub Release with a bare version title and 
 - **Body:** the matching `CHANGELOG.md` section
 
 Add a `## vX.Y.Z` (or `## X.Y.Z`) heading before tagging. The desktop workflow fails the notes step if that section is missing.
+
+Mobile APK publishing uses the same workflow — see `docs/development/MOBILE_UPDATES.md`.

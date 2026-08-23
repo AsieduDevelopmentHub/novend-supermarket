@@ -4,10 +4,11 @@ import { useConvexAuth } from "convex/react";
 import { usePathname } from "next/navigation";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { AppSplash } from "@/features/auth/components/app-splash";
+import { consumeSkipStartupSplash } from "@/lib/auth/redirect-after-login";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { hasOfflineSession } from "@/lib/offline/session";
 
-const MIN_SPLASH_MS = 2200;
+const MIN_SPLASH_MS = 1200;
 const EXIT_MS = 400;
 /** Don't block forever when Convex auth cannot resolve offline. */
 const OFFLINE_AUTH_BUDGET_MS = 1200;
@@ -33,8 +34,13 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
   const { isLoading } = useConvexAuth();
   const online = useConnectivity();
   const startedAt = useRef(0);
+  // One-shot session flag — read into state at mount (not a ref) so render
+  // never touches .current (react-hooks/refs).
+  const [skipFromLogin] = useState(() =>
+    typeof window !== "undefined" ? consumeSkipStartupSplash() : false,
+  );
   const [exiting, setExiting] = useState(false);
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(() => !skipFromLogin);
   const [offlineReady, setOfflineReady] = useState(false);
   const isMarketingLanding = pathname === "/";
   const isAuthRoute =
@@ -46,7 +52,8 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
     pathname.startsWith("/docs") ||
     pathname === "/privacy" ||
     pathname === "/terms";
-  const skipSplash = isMarketingLanding || isAuthRoute || isPublicSitePage;
+  const skipSplash =
+    skipFromLogin || isMarketingLanding || isAuthRoute || isPublicSitePage;
 
   useEffect(() => {
     startedAt.current = performance.now();

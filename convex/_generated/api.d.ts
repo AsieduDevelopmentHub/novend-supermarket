@@ -23,6 +23,7 @@ import type * as devices from "../devices.js";
 import type * as http from "../http.js";
 import type * as inventory from "../inventory.js";
 import type * as loginGuards from "../loginGuards.js";
+import type * as mobileReleases from "../mobileReleases.js";
 import type * as offline from "../offline.js";
 import type * as organizations from "../organizations.js";
 import type * as platform from "../platform.js";
@@ -75,6 +76,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   inventory: typeof inventory;
   loginGuards: typeof loginGuards;
+  mobileReleases: typeof mobileReleases;
   offline: typeof offline;
   organizations: typeof organizations;
   platform: typeof platform;

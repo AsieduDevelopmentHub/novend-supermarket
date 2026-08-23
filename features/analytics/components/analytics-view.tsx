@@ -282,6 +282,31 @@ export function AnalyticsView() {
       <PageHeader
         title="Analytics"
         description="Financial performance, expenses, and profit & loss."
+        compactActions={[
+          {
+            key: "print",
+            label: "Print P&L",
+            icon: Printer,
+            disabled: !summary,
+            onClick: printReport,
+          },
+          {
+            key: "export",
+            label: "Export CSV",
+            icon: Download,
+            disabled: !summary,
+            onClick: exportCsv,
+          },
+          {
+            key: "expense",
+            label: "Record expense",
+            icon: Plus,
+            onClick: () => {
+              setEditing(null);
+              setExpenseOpen(true);
+            },
+          },
+        ]}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" disabled={!summary} onClick={printReport}>
@@ -293,15 +318,15 @@ export function AnalyticsView() {
               Export CSV
             </Button>
             <Button
-                type="button"
-                onClick={() => {
-                  setEditing(null);
-                  setExpenseOpen(true);
-                }}
-              >
-                <Plus className="h-4 w-4" />
-                Record expense
-              </Button>
+              type="button"
+              onClick={() => {
+                setEditing(null);
+                setExpenseOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              Record expense
+            </Button>
           </div>
         }
       />

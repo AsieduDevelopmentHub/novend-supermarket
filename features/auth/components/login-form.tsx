@@ -2,9 +2,9 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
-import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SERVER_UNREACHABLE_MESSAGE, showError } from "@/lib/errors";
 import Image from "next/image";
@@ -20,6 +20,9 @@ import { BRANDING } from "@/constants/branding";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
 import { postLoginPath } from "@/lib/auth/post-login-path";
+import {
+  navigateAfterLogin,
+} from "@/lib/auth/redirect-after-login";
 
 const REMEMBER_KEY = "novend.login.rememberEmail";
 
@@ -43,9 +46,10 @@ export function LoginForm({ compact = false }: { compact?: boolean }) {
 
 function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const { signIn } = useAuthActions();
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const convex = useConvex();
   const router = useRouter();
+  const redirectingRef = useRef(false);
   const registration = useQuery(api.users.registrationStatus);
   const recordLoginFailure = useMutation(api.loginGuards.recordLoginFailure);
   const clearLoginFailures = useMutation(api.loginGuards.clearLoginFailures);
@@ -75,10 +79,11 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
 
   useEffect(() => {
-    if (!isAuthenticated || me === undefined || me === null) return;
-    void router.refresh();
-    router.replace(postLoginPath(me));
-  }, [isAuthenticated, me, router]);
+    if (!isAuthenticated || authLoading || me === undefined) return;
+    if (redirectingRef.current) return;
+    redirectingRef.current = true;
+    navigateAfterLogin(postLoginPath(me), router);
+  }, [isAuthenticated, authLoading, me, router]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -113,7 +118,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         /* non-fatal */
       }
       toast.success("Welcome");
-      void router.refresh();
     } catch (error) {
       const raw = error instanceof Error ? error.message : "";
       if (raw.toLowerCase().includes("auth provider discovery")) {

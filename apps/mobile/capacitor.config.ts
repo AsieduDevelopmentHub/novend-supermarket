@@ -6,9 +6,11 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * users are redirected to `/login` by the app shell — same as desktop.
  * Override host with NOVEND_APP_URL when syncing / running locally.
  *
- * The hosted URL must include the Capacitor mobile shell (bottom nav). Until
- * production is deployed, point NOVEND_APP_URL at a preview deploy or LAN dev:
- *   set NOVEND_APP_URL=http://192.168.1.x:3000 && pnpm mobile:sync
+ * Local dev (device/emulator): use your machine's LAN IP, not localhost —
+ * Android emulator → http://10.0.2.2:3000
+ * Also set Convex auth to the same origin:
+ *   npx convex env set SITE_URL http://10.0.2.2:3000
+ * (must match NOVEND_APP_URL exactly or sign-in cookies won't persist)
  */
 const appUrl = (process.env.NOVEND_APP_URL || "https://novend-pos.vercel.app").replace(
   /\/$/,
@@ -27,6 +29,10 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: appUrl.startsWith("http://"),
+    appendUserAgent: "NovendCapacitor/1.0",
+  },
+  ios: {
+    appendUserAgent: "NovendCapacitor/1.0",
   },
   plugins: {
     SplashScreen: {

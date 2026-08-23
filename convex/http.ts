@@ -1,6 +1,12 @@
 import { httpRouter } from "convex/server";
 import { auth } from "./auth";
 import { assetHttp, feedHttp, latestMetaHttp, publishHttp, purgeHttp } from "./desktopReleases";
+import {
+  assetHttp as mobileAssetHttp,
+  latestMetaHttp as mobileLatestMetaHttp,
+  publishHttp as mobilePublishHttp,
+  purgeHttp as mobilePurgeHttp,
+} from "./mobileReleases";
 import { paystackWebhookHttp } from "./billingHttp";
 
 const http = httpRouter();
@@ -40,6 +46,30 @@ http.route({
   path: "/desktop-updates/latest",
   method: "GET",
   handler: latestMetaHttp,
+});
+
+http.route({
+  path: "/mobile-updates/publish",
+  method: "POST",
+  handler: mobilePublishHttp,
+});
+
+http.route({
+  path: "/mobile-updates/purge",
+  method: "POST",
+  handler: mobilePurgeHttp,
+});
+
+http.route({
+  pathPrefix: "/mobile-updates/assets/",
+  method: "GET",
+  handler: mobileAssetHttp,
+});
+
+http.route({
+  path: "/mobile-updates/latest",
+  method: "GET",
+  handler: mobileLatestMetaHttp,
 });
 
 export default http;

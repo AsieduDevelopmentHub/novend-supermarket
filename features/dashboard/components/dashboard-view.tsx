@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
-import { Grid } from "@/components/layout/primitives";
+import { Grid, PageHeader } from "@/components/layout/primitives";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const PIE_COLORS = ["#38bdf8", "#0ea5e9", "#111827", "#16a34a"];
 
@@ -133,30 +134,96 @@ function RecentSalesTable({
   );
 }
 
+type KpiItem = {
+  title: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+  href: string;
+};
+
+function KpiBentoGrid({ kpis }: { kpis: readonly KpiItem[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div className="col-span-2 min-w-0">
+        <KpiCard {...kpis[0]} featured />
+      </div>
+      {kpis.slice(1).map((kpi) => (
+        <div key={kpi.title} className="min-w-0">
+          <KpiCard {...kpi} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function KpiCard({
   title,
   value,
   icon: Icon,
   href,
+  featured = false,
 }: {
   title: string;
   value: string;
   icon: React.ComponentType<{ className?: string }>;
   href: string;
+  featured?: boolean;
 }) {
+  const iconBox = (
+    <div
+      className={cn(
+        "bg-accent text-accent-foreground flex shrink-0 items-center justify-center rounded-lg",
+        featured ? "h-12 w-12" : "h-10 w-10",
+      )}
+    >
+      <Icon className={featured ? "h-6 w-6" : "h-5 w-5"} />
+    </div>
+  );
+
   return (
-    <Link href={href} className="group block min-w-0">
-      <Card className="min-w-0 transition-shadow group-hover:shadow-md">
-        <CardContent className="flex items-start justify-between gap-3 p-5">
-          <div className="min-w-0">
-            <p className="text-muted-foreground truncate text-sm">{title}</p>
-            <p className="mt-2 truncate text-2xl font-semibold tracking-tight">{value}</p>
-            <p className="text-primary mt-2 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100">
-              View details →
-            </p>
+    <Link href={href} className="group block h-full min-w-0">
+      <Card className="h-full min-w-0 transition-shadow group-hover:shadow-md">
+        <CardContent className={cn(featured ? "p-5 sm:p-6" : "p-4")}>
+          {/* Mobile: value + icon on top, full title at bottom (no truncate) */}
+          <div className="flex h-full flex-col gap-3 md:hidden">
+            <div className="flex items-start justify-between gap-3">
+              <p
+                className={cn(
+                  "min-w-0 truncate font-semibold tracking-tight",
+                  featured ? "text-3xl" : "text-2xl",
+                )}
+              >
+                {value}
+              </p>
+              {iconBox}
+            </div>
+            <p className="text-muted-foreground mt-auto text-sm leading-snug">{title}</p>
           </div>
-          <div className="bg-accent text-accent-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-            <Icon className="h-5 w-5" />
+
+          {/* Desktop: title above value, icon on the right */}
+          <div className="hidden items-start justify-between gap-3 md:flex">
+            <div className="min-w-0">
+              <p className="text-muted-foreground truncate text-sm">{title}</p>
+              <p
+                className={cn(
+                  "mt-2 truncate font-semibold tracking-tight",
+                  featured ? "text-3xl" : "text-2xl",
+                )}
+              >
+                {value}
+              </p>
+              <p className="text-primary mt-2 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100">
+                View details →
+              </p>
+            </div>
+            <div
+              className={cn(
+                "bg-accent text-accent-foreground flex shrink-0 items-center justify-center rounded-lg",
+                featured ? "h-12 w-12" : "h-10 w-10",
+              )}
+            >
+              <Icon className={featured ? "h-6 w-6" : "h-5 w-5"} />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -252,17 +319,50 @@ export function DashboardView() {
 
   const showOps = data.role === "administrator" || data.role === "manager";
 
+  const kpis = [
+    {
+      title: showOps ? "Total Sales" : "Today's Sales",
+      value: formatCurrency(data.kpis.revenue),
+      icon: Wallet,
+      href: "/orders",
+    },
+    {
+      title: showOps ? "Total Orders" : "Today's Orders",
+      value: formatNumber(data.kpis.orders),
+      icon: ShoppingBag,
+      href: "/orders",
+    },
+    {
+      title: showOps ? "Total Customers" : "Items Sold",
+      value: formatNumber(showOps ? (data.kpis.customersEstimate ?? 0) : data.kpis.itemsSold),
+      icon: showOps ? Users : Package,
+      href: showOps ? "/customers" : "/orders",
+    },
+    {
+      title: "Low Stock Items",
+      value: formatNumber(data.kpis.lowStockCount),
+      icon: AlertTriangle,
+      href: "/inventory?filter=low",
+    },
+    {
+      title: "Expiring / Expired",
+      value: formatNumber(data.kpis.expiringCount ?? 0),
+      icon: CalendarClock,
+      href: "/inventory?filter=expiry",
+    },
+  ] as const;
+
   return (
     <div className="min-w-0 space-y-6">
-      <div className="sticky top-0 z-10 -mx-1 space-y-3 bg-background/95 px-1 pb-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:static md:mx-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight md:text-2xl">Dashboard</h1>
-            <p className="text-muted-foreground text-sm">
-              {showOps ? "Business performance overview" : "Your sales activity today"}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-end gap-2">
+      <PageHeader
+        title="Dashboard"
+        description={showOps ? "Business performance overview" : "Your sales activity today"}
+        compactActions={[
+          { key: "inventory", label: "Inventory", icon: Package, href: "/inventory" },
+          { key: "sale", label: "New Sale", icon: ShoppingBag, href: "/sales" },
+        ]}
+        actions={
+          <>
             {isAdmin && online ? (
               <BranchFilter
                 branches={branches}
@@ -284,81 +384,19 @@ export function DashboardView() {
             <Button asChild className="min-h-12 flex-1 sm:min-h-9 sm:flex-none">
               <Link href="/sales">New Sale</Link>
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      {/* Mobile: swipeable KPI carousel · Desktop: grid */}
-      <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 md:hidden">
-        {[
-          {
-            title: showOps ? "Total Sales" : "Today's Sales",
-            value: formatCurrency(data.kpis.revenue),
-            icon: Wallet,
-            href: "/orders",
-          },
-          {
-            title: showOps ? "Total Orders" : "Today's Orders",
-            value: formatNumber(data.kpis.orders),
-            icon: ShoppingBag,
-            href: "/orders",
-          },
-          {
-            title: showOps ? "Total Customers" : "Items Sold",
-            value: formatNumber(showOps ? (data.kpis.customersEstimate ?? 0) : data.kpis.itemsSold),
-            icon: showOps ? Users : Package,
-            href: showOps ? "/customers" : "/orders",
-          },
-          {
-            title: "Low Stock Items",
-            value: formatNumber(data.kpis.lowStockCount),
-            icon: AlertTriangle,
-            href: "/inventory?filter=low",
-          },
-          {
-            title: "Expiring / Expired",
-            value: formatNumber(data.kpis.expiringCount ?? 0),
-            icon: CalendarClock,
-            href: "/inventory?filter=expiry",
-          },
-        ].map((kpi) => (
-          <div key={kpi.title} className="w-[78%] max-w-xs shrink-0 snap-center">
-            <KpiCard title={kpi.title} value={kpi.value} icon={kpi.icon} href={kpi.href} />
-          </div>
-        ))}
+      {/* Mobile: 2×3 bento grid (hero KPI spans 2 cols) · Desktop: row */}
+      <div className="md:hidden">
+        <KpiBentoGrid kpis={kpis} />
       </div>
       <div className="hidden md:block">
         <Grid cols={5}>
-          <KpiCard
-            title={showOps ? "Total Sales" : "Today's Sales"}
-            value={formatCurrency(data.kpis.revenue)}
-            icon={Wallet}
-            href="/orders"
-          />
-          <KpiCard
-            title={showOps ? "Total Orders" : "Today's Orders"}
-            value={formatNumber(data.kpis.orders)}
-            icon={ShoppingBag}
-            href="/orders"
-          />
-          <KpiCard
-            title={showOps ? "Total Customers" : "Items Sold"}
-            value={formatNumber(showOps ? (data.kpis.customersEstimate ?? 0) : data.kpis.itemsSold)}
-            icon={showOps ? Users : Package}
-            href={showOps ? "/customers" : "/orders"}
-          />
-          <KpiCard
-            title="Low Stock Items"
-            value={formatNumber(data.kpis.lowStockCount)}
-            icon={AlertTriangle}
-            href="/inventory?filter=low"
-          />
-          <KpiCard
-            title="Expiring / Expired"
-            value={formatNumber(data.kpis.expiringCount ?? 0)}
-            icon={CalendarClock}
-            href="/inventory?filter=expiry"
-          />
+          {kpis.map((kpi) => (
+            <KpiCard key={kpi.title} {...kpi} />
+          ))}
         </Grid>
       </div>
 

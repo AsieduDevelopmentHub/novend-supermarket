@@ -89,6 +89,31 @@ export function ProductsView() {
             ? "Manage catalog, pricing, and stock thresholds."
             : "Browse the product catalog for your branch."
         }
+        compactActions={
+          canManageProducts
+            ? [
+                {
+                  key: "export",
+                  label: "Export",
+                  icon: Download,
+                  onClick: () =>
+                    void exportCsv(
+                      brandedCsvName("Products"),
+                      rows.map((r) => ({ name: r.name, sku: r.sku, stock: r.stockQuantity })),
+                    ).then(() => toast.success("Export downloaded")),
+                },
+                {
+                  key: "add",
+                  label: "Add Product",
+                  icon: Plus,
+                  onClick: () => {
+                    setEditingId(null);
+                    setOpen(true);
+                  },
+                },
+              ]
+            : undefined
+        }
         actions={
           canManageProducts ? (
             <>

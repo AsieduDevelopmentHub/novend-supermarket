@@ -8,6 +8,9 @@ export function isMobileBrowser(userAgent = typeof navigator !== "undefined" ? n
 /** Capacitor WebView — not a mobile browser tab and not a PWA install target. */
 export function isCapacitorWebView(): boolean {
   if (typeof window === "undefined") return false;
+  const ua = navigator.userAgent;
+  if (/NovendCapacitor/i.test(ua)) return true;
+  if (/Android/i.test(ua) && /\bwv\b/i.test(ua)) return true;
   const win = window as Window & {
     androidBridge?: unknown;
     webkit?: { messageHandlers?: { bridge?: unknown } };
@@ -29,6 +32,24 @@ export function isIosSafari(userAgent = typeof navigator !== "undefined" ? navig
   return /iPhone|iPad|iPod/i.test(userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(userAgent);
 }
 
+export function isIosBrowser(userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "") {
+  if (!userAgent) return false;
+  if (/iPhone|iPad|iPod/i.test(userAgent)) return true;
+  // iPadOS desktop UA
+  if (
+    typeof navigator !== "undefined" &&
+    navigator.maxTouchPoints > 1 &&
+    /MacIntel/.test(navigator.platform || "")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function isAndroidBrowser(userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "") {
+  return /Android/i.test(userAgent || "");
+}
+
 export type InstallPromptKind = "desktop" | "mobile";
 
 /** Which install nudge to show in the browser shell. */
@@ -37,6 +58,18 @@ export function resolveInstallPromptKind(
 ): InstallPromptKind | null {
   if (isCapacitorWebView()) return null;
   if (isStandaloneWebApp()) return null;
-  if (isMobileBrowser(userAgent)) return "mobile";
+  if (isMobileBrowser(userAgent) || isIosBrowser(userAgent)) return "mobile";
   return "desktop";
+}
+
+/** Mobile OS for native-vs-PWA install decisions. */
+export type MobileInstallOs = "android" | "ios";
+
+export function resolveMobileInstallOs(
+  userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "",
+): MobileInstallOs | null {
+  if (isAndroidBrowser(userAgent)) return "android";
+  if (isIosBrowser(userAgent)) return "ios";
+  if (isMobileBrowser(userAgent)) return "android";
+  return null;
 }

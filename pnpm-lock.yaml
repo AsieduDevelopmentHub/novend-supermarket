@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@convex-dev/auth@0.0.87': 16d641faab69c06630478e83fccea6ac90eaae161bbc8ce46100b25577a177ef
+
 importers:
 
   .:
@@ -49,7 +52,7 @@ importers:
         version: 7.0.4(@capacitor/core@7.6.8)
       '@convex-dev/auth':
         specifier: ^0.0.87
-        version: 0.0.87(@auth/core@0.37.4)(convex@1.44.0(react@19.2.4))(react@19.2.4)
+        version: 0.0.87(patch_hash=16d641faab69c06630478e83fccea6ac90eaae161bbc8ce46100b25577a177ef)(@auth/core@0.37.4)(convex@1.44.0(react@19.2.4))(react@19.2.4)
       '@hookform/resolvers':
         specifier: ^5.0.1
         version: 5.9.1(@standard-schema/spec@1.1.0)(react-hook-form@7.85.0(react@19.2.4))(zod@3.25.76)
@@ -5955,7 +5958,7 @@ snapshots:
 
   '@capacitor/synapse@1.0.4': {}
 
-  '@convex-dev/auth@0.0.87(@auth/core@0.37.4)(convex@1.44.0(react@19.2.4))(react@19.2.4)':
+  '@convex-dev/auth@0.0.87(patch_hash=16d641faab69c06630478e83fccea6ac90eaae161bbc8ce46100b25577a177ef)(@auth/core@0.37.4)(convex@1.44.0(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@auth/core': 0.37.4
       convex: 1.44.0(react@19.2.4)

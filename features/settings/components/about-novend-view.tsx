@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { PageHeader } from "@/components/layout/primitives";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Hardware, getPlatform, type AppInfo } from "@novend/hardware";
@@ -37,10 +38,10 @@ export function AboutNovendView() {
 
   return (
     <div className="mx-auto max-w-lg space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">About {APP_BRAND}</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Device and build details for support.</p>
-      </div>
+      <PageHeader
+        title={`About ${APP_BRAND}`}
+        description="Device and build details for support."
+      />
 
       <Card className="rounded-[20px]">
         <CardHeader>
