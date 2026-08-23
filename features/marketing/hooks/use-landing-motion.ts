@@ -14,7 +14,11 @@ type Options = {
   start?: string;
 };
 
-/** Scroll reveals via GSAP ScrollTrigger. Respects prefers-reduced-motion. */
+/** Scroll reveals via GSAP ScrollTrigger. Respects prefers-reduced-motion.
+ *  `data-reveal` — fade up (default)
+ *  `data-reveal="left"|"right"` — horizontal fade (collision pairs)
+ *  Optional parent `data-reveal-pair` — shared trigger so left/right meet together
+ */
 export function useLandingReveal(
   rootRef: RefObject<HTMLElement | null>,
   {
@@ -39,22 +43,29 @@ export function useLandingReveal(
     const ctx = gsap.context(() => {
       const nodes = gsap.utils.toArray<HTMLElement>(targets);
       nodes.forEach((node) => {
-        gsap.fromTo(
-          node,
-          { autoAlpha: 0, y },
-          {
-            autoAlpha: 1,
-            y: 0,
-            duration,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: node,
-              scroller: scrollEl,
-              start,
-              toggleActions: "play none none none",
-            },
+        const dir = node.getAttribute("data-reveal");
+        const pair = node.closest<HTMLElement>("[data-reveal-pair]");
+        const travel = 64;
+        const from =
+          dir === "left"
+            ? { autoAlpha: 0, x: -travel, y: 0 }
+            : dir === "right"
+              ? { autoAlpha: 0, x: travel, y: 0 }
+              : { autoAlpha: 0, x: 0, y };
+
+        gsap.fromTo(node, from, {
+          autoAlpha: 1,
+          x: 0,
+          y: 0,
+          duration: dir === "left" || dir === "right" ? 1 : duration,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: pair ?? node,
+            scroller: scrollEl,
+            start,
+            toggleActions: "play none none none",
           },
-        );
+        });
       });
     }, root);
 

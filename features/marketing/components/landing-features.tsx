@@ -39,14 +39,20 @@ export function LandingFeatures() {
         <div className="mt-14 flex flex-col gap-16 sm:mt-20 sm:gap-24 lg:gap-28">
           {features.blocks.map((block, index) => {
             const imageLeft = index % 2 === 1;
+            // Image and copy slide toward each other (collision).
+            const imageReveal = imageLeft ? "left" : "right";
+            const copyReveal = imageLeft ? "right" : "left";
 
             return (
               <article
                 key={block.id}
-                data-reveal
+                data-reveal-pair
                 className="landing-feature-block grid items-center gap-8 lg:grid-cols-2 lg:gap-14 xl:gap-16"
               >
-                <div className={cn("order-1", imageLeft ? "lg:order-1" : "lg:order-2")}>
+                <div
+                  data-reveal={imageReveal}
+                  className={cn("order-1", imageLeft ? "lg:order-1" : "lg:order-2")}
+                >
                   <FeatureVisual
                     blockId={block.id}
                     alt={BLOCK_ALT[block.id]}
@@ -55,6 +61,7 @@ export function LandingFeatures() {
                 </div>
 
                 <div
+                  data-reveal={copyReveal}
                   className={cn(
                     "order-2 max-w-xl",
                     imageLeft ? "lg:order-2" : "lg:order-1",
