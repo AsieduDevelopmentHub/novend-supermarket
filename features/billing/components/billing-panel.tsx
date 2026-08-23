@@ -49,6 +49,45 @@ function isAccessState(value: string): value is AccessState {
   return value in ACCESS_BADGE;
 }
 
+type BillingSubscription = {
+  status: string;
+  isLifetime: boolean;
+  expiresAt: number | null;
+  nextBillingDate: number | null;
+  cancelAtPeriodEnd: boolean;
+} | null;
+
+function periodDetail(
+  subscription: BillingSubscription,
+  accessState: AccessState,
+  trialEndsAt?: number | null,
+): { label: string; value: string } {
+  if (subscription?.isLifetime) {
+    return { label: "Licence", value: "Never expires" };
+  }
+
+  const endsAt = subscription?.expiresAt ?? trialEndsAt ?? null;
+
+  if (accessState === "trial") {
+    return { label: "Trial ends", value: formatDate(endsAt) };
+  }
+
+  const unsubscribed =
+    Boolean(subscription?.cancelAtPeriodEnd) ||
+    subscription?.status === "cancelled" ||
+    subscription?.status === "expired" ||
+    accessState === "expired";
+
+  if (unsubscribed) {
+    return { label: "Expires", value: formatDate(endsAt) };
+  }
+
+  return {
+    label: "Renews",
+    value: formatDate(subscription?.nextBillingDate ?? endsAt),
+  };
+}
+
 /** Settings → Billing. Administrators only. Renders from cache while offline. */
 export function BillingPanel() {
   const online = useConnectivity();
@@ -84,6 +123,7 @@ export function BillingPanel() {
       !subscription.cancelAtPeriodEnd &&
       !scheduledChange,
   );
+  const period = periodDetail(subscription, accessState, overview.trialEndsAt);
 
   async function onCancel() {
     if (!online) {
@@ -159,14 +199,7 @@ export function BillingPanel() {
         </CardHeader>
         <CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <Detail label="Plan" value={overview.plan.name} />
-          <Detail
-            label={subscription?.isLifetime ? "Licence" : "Renews"}
-            value={
-              subscription?.isLifetime
-                ? "Never expires"
-                : formatDate(subscription?.nextBillingDate ?? overview.trialEndsAt)
-            }
-          />
+          <Detail label={period.label} value={period.value} />
           <Detail
             label="Billing"
             value={
