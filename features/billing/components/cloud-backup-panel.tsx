@@ -15,6 +15,7 @@ import { formatBytes } from "@/lib/bytes";
 import { exportOfflineBackup } from "@/lib/offline/backup";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
+import { useConnectivity } from "@/hooks/use-connectivity";
 
 function formatDateTime(value: number) {
   return new Date(value).toLocaleString("en-GH", {
@@ -33,7 +34,8 @@ function formatDateTime(value: number) {
  * Settings → Local backup keeps working. The POS is never affected.
  */
 export function CloudBackupPanel() {
-  const usage = useQuery(api.cloudBackups.usage, {});
+  const online = useConnectivity();
+  const usage = useQuery(api.cloudBackups.usage, online ? {} : "skip");
   const generateUploadUrl = useMutation(api.cloudBackups.generateBackupUploadUrl);
   const recordBackup = useMutation(api.cloudBackups.recordBackup);
   const deleteBackup = useMutation(api.cloudBackups.deleteBackup);
@@ -72,6 +74,20 @@ export function CloudBackupPanel() {
     } finally {
       setConfirmDelete(null);
     }
+  }
+
+  if (!online) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Cloud backup</CardTitle>
+          <CardDescription>
+            Connect to upload or download cloud backups. Local backup in Settings stays available
+            offline.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
   }
 
   if (usage === undefined) {

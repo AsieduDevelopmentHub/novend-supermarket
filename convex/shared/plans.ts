@@ -346,3 +346,37 @@ export function limitReachedMessage(
       return `Cloud backup pauses after ${formatPlanBytes(limit)} on ${plan.name}. Local backups continue.`;
   }
 }
+
+export type PlanChangeKind = "upgrade" | "downgrade" | "same";
+
+/** Compare catalog rank. Lifetime is above paid tiers; same key is `same`. */
+export function planChangeKind(from: PlanKey, to: PlanKey): PlanChangeKind {
+  if (from === to) return "same";
+  const fromOrder = PLAN_CATALOG[from].sortOrder;
+  const toOrder = PLAN_CATALOG[to].sortOrder;
+  return toOrder > fromOrder ? "upgrade" : "downgrade";
+}
+
+export type PlanUsageExcess = {
+  resource: LimitResource;
+  used: number;
+  limit: number;
+  reduceBy: number;
+};
+
+/** Resources whose current usage would exceed `limits` (unlimited `null` is never excess). */
+export function usageExceedsLimits(
+  used: Partial<Record<LimitResource, number>>,
+  limits: PlanLimits,
+): PlanUsageExcess[] {
+  const excess: PlanUsageExcess[] = [];
+  for (const resource of Object.keys(limits) as LimitResource[]) {
+    const limit = limits[resource];
+    if (limit === null) continue;
+    const current = used[resource] ?? 0;
+    if (current > limit) {
+      excess.push({ resource, used: current, limit, reduceBy: current - limit });
+    }
+  }
+  return excess;
+}

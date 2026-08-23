@@ -5,9 +5,10 @@
   "description": "Novend POS Capacitor shell (Android / iOS) — loads the shared hosted Next.js app",
   "scripts": {
     "generate-icons": "node ../../scripts/generate-mobile-icons.mjs",
-    "sync": "pnpm run generate-icons && npx cap sync android",
-    "sync:ios": "pnpm run generate-icons && npx cap sync ios",
-    "sync:all": "pnpm run generate-icons && npx cap sync",
+    "write-boot": "node ../../scripts/write-mobile-boot.mjs",
+    "sync": "pnpm run generate-icons && pnpm run write-boot && npx cap sync android",
+    "sync:ios": "pnpm run generate-icons && pnpm run write-boot && npx cap sync ios",
+    "sync:all": "pnpm run generate-icons && pnpm run write-boot && npx cap sync",
     "open:android": "npx cap open android",
     "open:ios": "npx cap open ios",
     "add:android": "npx cap add android",

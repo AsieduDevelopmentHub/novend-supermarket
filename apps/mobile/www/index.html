@@ -1,31 +1,145 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Novend POS</title>
     <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1f33;
+        --fg: #e2e8f0;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
       body {
         margin: 0;
-        font-family: system-ui, sans-serif;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        min-height: 100vh;
         display: grid;
         place-items: center;
-        min-height: 100vh;
-        background: #0b1220;
-        color: #f4f7fb;
+        padding: 2rem;
+        text-align: center;
+      }
+      h1 {
+        margin: 0 0 0.5rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
       }
       p {
-        max-width: 28rem;
-        text-align: center;
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.95rem;
         line-height: 1.5;
-        opacity: 0.85;
+        max-width: 28rem;
+      }
+      .spinner {
+        width: 2rem;
+        height: 2rem;
+        margin: 0 auto 1.25rem;
+        border: 2px solid rgba(148, 163, 184, 0.25);
+        border-top-color: var(--accent);
+        border-radius: 999px;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      button {
+        margin-top: 1.25rem;
+        appearance: none;
+        border: 0;
+        border-radius: 0.5rem;
+        background: var(--accent);
+        color: #0b1f33;
+        font: inherit;
+        font-weight: 600;
+        padding: 0.65rem 1.1rem;
+        cursor: pointer;
+      }
+      .hidden {
+        display: none !important;
       }
     </style>
+    <script src="app-config.js"></script>
   </head>
   <body>
-    <p>
-      Novend POS loads from the hosted web app. If you see this page, the Capacitor
-      <code>server.url</code> is not configured.
-    </p>
+    <main>
+      <div id="booting">
+        <div class="spinner" aria-hidden="true"></div>
+        <h1>Opening Novend</h1>
+        <p>Restoring your local workspace…</p>
+      </div>
+      <div id="failed" class="hidden">
+        <h1>Can’t start offline yet</h1>
+        <p>
+          Connect once while online so this device can cache the app shell. After that, Novend opens
+          from the local cache without a network.
+        </p>
+        <button type="button" id="retry">Try again</button>
+      </div>
+    </main>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var appUrl = (
+          params.get("appUrl") ||
+          window.NOVEND_APP_URL ||
+          "https://novend-pos.vercel.app"
+        ).replace(/\/$/, "");
+        var entry = params.get("entry") || window.NOVEND_APP_ENTRY || "/dashboard";
+        if (entry.charAt(0) !== "/") entry = "/" + entry;
+        var target = appUrl + entry;
+
+        var booting = document.getElementById("booting");
+        var failed = document.getElementById("failed");
+        var retry = document.getElementById("retry");
+        var navigated = false;
+
+        function showFailed() {
+          booting.classList.add("hidden");
+          failed.classList.remove("hidden");
+        }
+
+        function go() {
+          navigated = true;
+          // Client navigation (not a native loadUrl) lets the service worker
+          // serve a cached document when the device is offline — same as Electron.
+          window.location.replace(target);
+        }
+
+        retry.addEventListener("click", function () {
+          failed.classList.add("hidden");
+          booting.classList.remove("hidden");
+          go();
+        });
+
+        window.setTimeout(function () {
+          if (!navigated) return;
+          var host = window.location.hostname;
+          if (host === "localhost" || host === "capacitor" || window.location.protocol === "file:") {
+            showFailed();
+          }
+        }, 8000);
+
+        go();
+      })();
+    </script>
   </body>
 </html>

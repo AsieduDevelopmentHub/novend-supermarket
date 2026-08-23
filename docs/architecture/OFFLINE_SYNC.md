@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.3.1
+Version: 2.4.0
 
 ## Purpose
 
@@ -105,8 +105,19 @@ lists, org detail, and release metadata are written into Dexie `meta`. While
 offline, those screens paint from cache; mutating tenants (create org, reset
 password, license edits) still requires a connection.
 
-## Desktop
+## Desktop and Capacitor
 
 Electron first-run must load the hosted app so the service worker and Dexie
 initialize. Later launches client-navigate from a local boot page. See
 `DESKTOP_PLATFORM.md`.
+
+Capacitor Android/iOS use the same boot pattern (`apps/mobile/www/index.html`)
+instead of a remote `server.url` load. See `CAPACITOR_MOBILE.md`.
+
+## Billing (offline-aware)
+
+Settings → Billing renders from Dexie (`billingOverview`, `billingHistory`,
+`licenseSnapshot`). Pay / Subscribe / Upgrade / Renew require a connection and
+must not hide the rest of the billing page or lock the POS. Downgrades that
+exceed the target plan limits are rejected in Convex; existing records are never
+deleted. The last valid licence snapshot keeps selling while offline.

@@ -22,6 +22,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { usePermissions } from "@/hooks/use-permissions";
+import { usePosPreferences } from "@/hooks/use-pos-preferences";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useDesktopRuntime } from "@/hooks/use-desktop-runtime";
 import { useNativeShell } from "@/hooks/use-native-shell";
@@ -29,6 +30,7 @@ import { ReceiptDocument } from "@/features/receipts/components/receipt-document
 import { SAMPLE_RECEIPT_PAYLOAD } from "@/features/receipts/types";
 import type { ReceiptBusiness, ReceiptTemplateConfig } from "@/features/receipts/types";
 import { loadPrintSnapshotMeta } from "@/lib/offline/ui-cache";
+import { savePosPreferences } from "@/lib/offline/pos-preferences";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { AppearancePanel } from "./appearance-panel";
@@ -544,7 +546,7 @@ function ReceiptTemplateForm({
   const [paperWidthMm, setPaperWidthMm] = useState(
     String(initialTemplate.paperWidthMm) as "58" | "80",
   );
-  const posPrefs = useQuery(api.settings.getPosPreferences, readOnly ? "skip" : {});
+  const posPrefs = usePosPreferences();
   const updatePos = useMutation(api.settings.updatePosPreferences);
   const printMode = resolveReceiptPrintMode(posPrefs);
   const [headerText, setHeaderText] = useState(
@@ -679,9 +681,14 @@ function ReceiptTemplateForm({
               disabled={readOnly}
               onChange={(mode) => {
                 if (!readOnly) {
-                  void updatePos({ receiptPrintMode: mode }).catch((error) =>
-                    showError(error, "Could not save print setting"),
-                  );
+                  void updatePos({ receiptPrintMode: mode })
+                    .then(() =>
+                      savePosPreferences({
+                        autoPrintReceipt: mode === "automatic",
+                        receiptPrintMode: mode,
+                      }),
+                    )
+                    .catch((error) => showError(error, "Could not save print setting"));
                 }
               }}
             />

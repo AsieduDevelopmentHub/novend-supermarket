@@ -2,7 +2,7 @@
 
 ## Repository Structure
 
-Version: 1.1.0
+Version: 1.1.1
 
 # Philosophy
 
@@ -52,7 +52,7 @@ novend-pos/
 | `.cursor/` | Concise AI rules that reference docs |
 | `packages/hardware/` | Sole entry for camera, barcode, printer, BLE, biometrics, filesystem, share, notifications, app services; platform detection |
 | `apps/desktop/` | Electron wrapper, installers, desktop CI. Bakes `appUrl` + Convex update feed into `build/update-config.json`. |
-| `apps/mobile/` | Capacitor Android / iOS shell. Loads the same hosted Next app via `server.url`. |
+| `apps/mobile/` | Capacitor Android / iOS shell. Local boot page client-navigates to the hosted Next app (same as Electron). |
 
 # Placement rules
 

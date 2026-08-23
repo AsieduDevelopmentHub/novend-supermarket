@@ -8,13 +8,18 @@ Electron loads. It does **not** duplicate pages or business logic.
 ```text
 apps/mobile (Capacitor WebView)
         │
-        ▼  server.url → https://novend-pos.vercel.app
+        ▼  local www/index.html → client-navigate → https://novend-pos.vercel.app/dashboard
 Shared Next.js app (root)
         │
         ├── Dexie / offline outbox (unchanged)
         ├── Convex (authority)
-        └── @novend/hardware → Capacitor adapters (stubs in Phase 1)
+        └── @novend/hardware → Capacitor adapters
 ```
+
+Production APKs start from the packaged boot page (same idea as Electron
+`offline-boot.html`) so a cold start while offline can still reach the cached
+service worker. HTTP `NOVEND_APP_URL` keeps live-reload `server.url` for
+LAN/emulator development.
 
 Native camera, barcode, and Bluetooth printing are **not** implemented in this phase.
 

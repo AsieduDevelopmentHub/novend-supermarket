@@ -18,7 +18,7 @@ function mobileSummary(
   trialDays: number | null,
   fromCache: boolean,
 ): string {
-  if (fromCache) return "Offline — reconnect to confirm licence.";
+  if (fromCache) return "Offline — using your last confirmed plan.";
   if (state === "trial") {
     if (trialDays === null) return "Free trial — choose a plan soon.";
     return `Free trial · ${trialDays} ${trialDays === 1 ? "day" : "days"} left`;

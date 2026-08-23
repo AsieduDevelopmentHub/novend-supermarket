@@ -2,39 +2,96 @@
 
 import { useState } from "react";
 import { useAction } from "convex/react";
-import { Check, Loader2, Sparkles } from "lucide-react";
+import { Check, Loader2, Sparkles, WifiOff } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { formatCurrency } from "@/lib/currency";
+import { formatCurrency, formatNumber } from "@/lib/currency";
+import { formatBytes } from "@/lib/bytes";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import {
+  PLAN_CATALOG,
   PLAN_LIST,
+  RESOURCE_LABELS,
+  planChangeKind,
   planLimitLines,
+  usageExceedsLimits,
   type BillingCycle,
+  type LimitResource,
   type PlanDefinition,
   type PlanKey,
+  type PlanUsageExcess,
 } from "@/convex/shared/plans";
+import type { AccessState, UsageMetric } from "@/convex/shared/licensing";
 
 type Props = {
   currentPlanKey: PlanKey;
   currentCycle: BillingCycle | null;
+  accessState: AccessState;
+  usage: UsageMetric[];
+  online: boolean;
   onlinePaymentsEnabled: boolean;
   disabled?: boolean;
 };
 
+function usedByResource(usage: UsageMetric[]): Partial<Record<LimitResource, number>> {
+  const used: Partial<Record<LimitResource, number>> = {};
+  for (const metric of usage) {
+    used[metric.resource] = metric.used;
+  }
+  return used;
+}
+
+function actionLabel(
+  plan: PlanDefinition,
+  currentPlanKey: PlanKey,
+  accessState: AccessState,
+): string {
+  const kind = planChangeKind(currentPlanKey, plan.key);
+  if (plan.isLifetime) return "Buy lifetime licence";
+  if (kind === "same") {
+    if (accessState === "trial") return "Pay now";
+    if (accessState === "grace" || accessState === "expired") return "Renew now";
+    return "Current plan";
+  }
+  if (kind === "upgrade") return `Upgrade to ${plan.name}`;
+  return `Downgrade to ${plan.name}`;
+}
+
+function formatExcess(row: PlanUsageExcess): string {
+  const label = RESOURCE_LABELS[row.resource];
+  const used =
+    row.resource === "backupBytes" ? formatBytes(row.used) : formatNumber(row.used);
+  const limit =
+    row.resource === "backupBytes" ? formatBytes(row.limit) : formatNumber(row.limit);
+  const reduce =
+    row.resource === "backupBytes" ? formatBytes(row.reduceBy) : formatNumber(row.reduceBy);
+  return `${label}: ${used} / ${limit} — reduce by ${reduce}`;
+}
+
 /**
  * Plan comparison and self-service checkout.
  *
- * Checkout stays available while a business is suspended or expired — renewing
- * is exactly what a locked-out administrator needs to do.
+ * Pay Now stays available during trial. Downgrades that exceed the target
+ * limits are blocked in the UI (no data is deleted). Payment itself needs
+ * a connection; the rest of Billing stays usable offline.
  */
 export function PlansGrid({
   currentPlanKey,
   currentCycle,
+  accessState,
+  usage,
+  online,
   onlinePaymentsEnabled,
   disabled = false,
 }: Props) {
@@ -42,9 +99,11 @@ export function PlansGrid({
     currentCycle === "yearly" ? "yearly" : "monthly",
   );
   const [pendingPlan, setPendingPlan] = useState<PlanKey | null>(null);
+  const [offlineOpen, setOfflineOpen] = useState(false);
+  const [excess, setExcess] = useState<PlanUsageExcess[] | null>(null);
   const startCheckout = useAction(api.billing.startCheckout);
 
-  async function onChoose(plan: PlanDefinition) {
+  async function startPayment(plan: PlanDefinition) {
     const chosenCycle: BillingCycle = plan.isLifetime ? "lifetime" : cycle;
     setPendingPlan(plan.key);
     try {
@@ -61,13 +120,32 @@ export function PlansGrid({
     }
   }
 
+  function onChoose(plan: PlanDefinition) {
+    if (!online) {
+      setOfflineOpen(true);
+      return;
+    }
+    const kind = planChangeKind(currentPlanKey, plan.key);
+    if (kind === "same" && accessState === "active" && !plan.isLifetime) {
+      return;
+    }
+    if (kind === "downgrade") {
+      const over = usageExceedsLimits(usedByResource(usage), PLAN_CATALOG[plan.key].limits);
+      if (over.length > 0) {
+        setExcess(over);
+        return;
+      }
+    }
+    void startPayment(plan);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold">Available plans</h3>
           <p className="text-muted-foreground text-sm">
-            Prices are in Ghana cedis. Change or cancel at any time.
+            Prices are in Ghana cedis. Subscribe or change plan at any time — including during trial.
           </p>
         </div>
         <div
@@ -98,19 +176,83 @@ export function PlansGrid({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {PLAN_LIST.map((plan) => (
-          <PlanCard
-            key={plan.key}
-            plan={plan}
-            cycle={cycle}
-            isCurrent={plan.key === currentPlanKey}
-            pending={pendingPlan === plan.key}
-            disabled={disabled || pendingPlan !== null}
-            onlinePaymentsEnabled={onlinePaymentsEnabled}
-            onChoose={() => void onChoose(plan)}
-          />
-        ))}
+        {PLAN_LIST.map((plan) => {
+          const kind = planChangeKind(currentPlanKey, plan.key);
+          const isCurrentPaid =
+            kind === "same" && accessState === "active" && !plan.isLifetime;
+          return (
+            <PlanCard
+              key={plan.key}
+              plan={plan}
+              cycle={cycle}
+              isCurrent={kind === "same"}
+              label={actionLabel(plan, currentPlanKey, accessState)}
+              pending={pendingPlan === plan.key}
+              disabled={disabled || pendingPlan !== null || isCurrentPaid}
+              onlinePaymentsEnabled={onlinePaymentsEnabled}
+              onChoose={() => onChoose(plan)}
+            />
+          );
+        })}
       </div>
+
+      <Dialog open={offlineOpen} onOpenChange={setOfflineOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <WifiOff className="h-4 w-4" aria-hidden />
+              You&apos;re currently offline
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            Connect to the internet to continue with payment. Your current plan and limits stay
+            available in the meantime.
+          </p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOfflineOpen(false)}>
+              Stay on billing
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (navigator.onLine) {
+                  setOfflineOpen(false);
+                  return;
+                }
+                toast.error("Still offline — try again when you have a connection.");
+              }}
+            >
+              Try again
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(excess)} onOpenChange={(open) => !open && setExcess(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Usage exceeds the lower plan</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            Novend will not delete products, users, devices, or backups. Reduce usage first, or keep
+            your current plan.
+          </p>
+          {excess ? (
+            <ul className="space-y-2 text-sm">
+              {excess.map((row) => (
+                <li key={row.resource} className="bg-muted/40 rounded-lg px-3 py-2">
+                  {formatExcess(row)}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setExcess(null)}>
+              Keep current plan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -129,6 +271,7 @@ function PlanCard({
   plan,
   cycle,
   isCurrent,
+  label,
   pending,
   disabled,
   onlinePaymentsEnabled,
@@ -137,6 +280,7 @@ function PlanCard({
   plan: PlanDefinition;
   cycle: Exclude<BillingCycle, "lifetime">;
   isCurrent: boolean;
+  label: string;
   pending: boolean;
   disabled: boolean;
   onlinePaymentsEnabled: boolean;
@@ -191,31 +335,23 @@ function PlanCard({
           ))}
         </ul>
 
-        {isCurrent ? (
-          <Button variant="outline" disabled className="h-auto min-h-11 w-full px-3 whitespace-normal">
-            {plan.isLifetime ? "Lifetime licence active" : "Current plan"}
-          </Button>
-        ) : (
-          <Button
-            className="h-auto min-h-11 w-full px-3 whitespace-normal"
-            variant={plan.featured ? "default" : "outline"}
-            disabled={disabled || !onlinePaymentsEnabled}
-            onClick={onChoose}
-          >
-            {pending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" aria-hidden />
-                Opening checkout…
-              </>
-            ) : plan.isLifetime ? (
-              "Buy lifetime licence"
-            ) : (
-              `Switch to ${plan.name}`
-            )}
-          </Button>
-        )}
+        <Button
+          className="h-auto min-h-11 w-full px-3 whitespace-normal"
+          variant={isCurrent || !plan.featured ? "outline" : "default"}
+          disabled={disabled || !onlinePaymentsEnabled}
+          onClick={onChoose}
+        >
+          {pending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" aria-hidden />
+              Opening checkout…
+            </>
+          ) : (
+            label
+          )}
+        </Button>
 
-        {!onlinePaymentsEnabled && plan.selfServe && !isCurrent ? (
+        {!onlinePaymentsEnabled && plan.selfServe && !disabled ? (
           <p className="text-muted-foreground text-xs">
             Online payments are not configured yet — contact Novend to activate this plan.
           </p>

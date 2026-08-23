@@ -24,9 +24,12 @@ import {
   DEFAULT_PLAN_KEY,
   PLAN_CATALOG,
   PLAN_LIST,
+  RESOURCE_LABELS,
   parseCustomBackupGb,
+  planChangeKind,
   priceForCycle,
   supportsCycle,
+  usageExceedsLimits,
   type BillingCycle,
   type PlanKey,
 } from "./shared/plans";
@@ -224,6 +227,18 @@ export const checkoutContext = internalQuery({
     const session = await requireSessionIgnoringLicense(ctx);
     if (session.profile.role !== "administrator") {
       throw new Error("Only administrators can manage billing");
+    }
+    const license = await resolveLicense(ctx, session.organization);
+    if (planChangeKind(license.planKey, args.planKey) === "downgrade") {
+      const usage = await countUsage(ctx, session.organizationId);
+      const excess = usageExceedsLimits(usage, PLAN_CATALOG[args.planKey].limits);
+      if (excess.length > 0) {
+        throw new Error(
+          `Cannot switch to ${PLAN_CATALOG[args.planKey].name} while usage exceeds that plan. ${excess
+            .map((row) => `${RESOURCE_LABELS[row.resource]} ${row.used}/${row.limit}`)
+            .join("; ")}. Existing records are kept — reduce usage first.`,
+        );
+      }
     }
     const planRow = await ctx.db
       .query("plans")

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
@@ -24,8 +24,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { brandedCsvName } from "@/lib/export-filenames";
 import { exportCsv } from "@/services";
 import { BranchFilter } from "@/components/filters/branch-filter";
-import { useConnectivity } from "@/hooks/use-connectivity";
-import { useProductsList } from "@/hooks/use-offline-lists";
+import { useBranchesList, useProductsList } from "@/hooks/use-offline-lists";
 import { ProductImage } from "@/components/media/product-image";
 import {
   DropdownMenu,
@@ -44,7 +43,6 @@ export function ProductsView() {
     branchId: myBranchId,
     branchName,
   } = usePermissions();
-  const online = useConnectivity();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -55,7 +53,8 @@ export function ProductsView() {
   } | null>(null);
   const [archivePending, setArchivePending] = useState(false);
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all" | null>(myBranchId);
-  const branches = useQuery(api.branches.list, isAdmin && online ? {} : "skip");
+  const mirroredBranches = useBranchesList();
+  const branches = isAdmin ? mirroredBranches : undefined;
   const { products, loading: isLoading } = useProductsList({
     search,
     includeInactive: canManageProducts,

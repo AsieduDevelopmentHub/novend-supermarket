@@ -1,6 +1,6 @@
 # Capacitor mobile platform
 
-Version: 1.4.0
+Version: 1.5.0
 
 ## Purpose
 
@@ -10,18 +10,43 @@ Convex stay unchanged. All native access goes through `@novend/hardware`.
 
 ## Hosted origin
 
-Same pattern as Electron: the WebView loads the hosted Next app
-(`https://novend-pos.vercel.app`, overridable with `NOVEND_APP_URL`).
+Same pattern as Electron: the WebView **client-navigates** to the hosted Next
+app (`https://novend-pos.vercel.app`, overridable with `NOVEND_APP_URL`).
+
+Production builds do **not** set Capacitor `server.url`. A remote `loadUrl`
+fails offline even when the service worker already cached the document (same
+Chromium issue as electron#35112).
 
 ```text
 apps/mobile (Capacitor)
-        │  server.url
+        │  local www/index.html (offline boot)
+        ▼
+Client navigation → hosted /dashboard
+        │  allowNavigation keeps @novend/hardware plugins
         ▼
 Shared Next.js app
         │
         ├── Dexie / outbox / Convex (unchanged)
         └── @novend/hardware → Capacitor adapters
 ```
+
+HTTP live-reload (`NOVEND_APP_URL=http://…`) still uses `server.url` so the
+device can hit a LAN Next server. Offline cold-start testing requires an HTTPS
+hosted origin after at least one successful online sync.
+
+## Offline launch
+
+Aligned with Electron (`DESKTOP_PLATFORM.md`):
+
+1. Capacitor loads packaged `www/index.html` (baked `NOVEND_APP_URL` from
+   `scripts/write-mobile-boot.mjs`).
+2. The boot page client-navigates to `/dashboard` on the hosted origin.
+3. The registered service worker serves the cached document; Dexie restores
+   session, organization, branch, role, and licence snapshot.
+4. More, About, billing, and other shell routes render from IndexedDB. Payment
+   and first login still need a network.
+
+Do not create a second mobile database. Dexie is shared with Electron and web.
 
 ## Shell (Phase 3)
 
@@ -64,8 +89,8 @@ A partial `ios/` tree without a Podfile makes full `cap sync` fail — use
 
 ## App entry & icons
 
-- Capacitor `server.url` loads `{host}/dashboard` (same entry as Electron), not the
-  marketing site. Unauthenticated sessions redirect to `/login`.
+- Local boot always navigates to `{host}/dashboard` (same entry as Electron), not
+  the marketing site. Unauthenticated sessions redirect to `/login`.
 - Launcher + splash assets are generated from `apps/desktop/build/icon.png` via
   `pnpm mobile:icons` (runs automatically before sync).
 

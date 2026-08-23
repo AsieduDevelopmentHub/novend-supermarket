@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { formatCurrency, formatNumber } from "@/lib/currency";
 import { formatTime } from "@/lib/date";
@@ -16,6 +14,7 @@ import { BranchFilter } from "@/components/filters/branch-filter";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
+import { useBranchesList } from "@/hooks/use-offline-lists";
 import {
   Area,
   AreaChart,
@@ -310,7 +309,8 @@ export function DashboardView() {
   const { isAdmin, isManager, branchName, branchId: myBranchId } = usePermissions();
   const online = useConnectivity();
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
-  const branches = useQuery(api.branches.list, online && (isAdmin || isManager) ? {} : "skip");
+  const mirroredBranches = useBranchesList();
+  const branches = isAdmin || isManager ? mirroredBranches : undefined;
   const { data, loading } = useDashboardData(branchFilter);
 
   if (loading || !data) {

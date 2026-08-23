@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useAction, useQuery } from "convex/react";
-import { CircleAlert, Copy, ShieldCheck } from "lucide-react";
+import { useAction } from "convex/react";
+import { CircleAlert, Copy, ShieldCheck, WifiOff } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { LoadingState } from "@/components/feedback/loading-state";
+import { EmptyState } from "@/components/feedback/empty-state";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useBillingOverviewData } from "@/hooks/use-billing-offline";
 import { formatCurrency } from "@/lib/currency";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
@@ -18,17 +20,20 @@ import { PlanUsageGrid } from "./plan-usage-grid";
 import { PlansGrid } from "./plans-grid";
 import { BillingHistoryTable } from "./billing-history-table";
 import { CloudBackupPanel } from "./cloud-backup-panel";
-import type { AccessState } from "@/convex/shared/licensing";
+import type { AccessState, UsageMetric } from "@/convex/shared/licensing";
+import type { PlanKey } from "@/convex/shared/plans";
 
-const ACCESS_BADGE: Record<AccessState, { label: string; variant: "success" | "secondary" | "warning" | "destructive" }> =
-  {
-    active: { label: "Active", variant: "success" },
-    trial: { label: "Trial", variant: "secondary" },
-    grace: { label: "Payment overdue", variant: "warning" },
-    suspended: { label: "Suspended", variant: "destructive" },
-    expired: { label: "Expired", variant: "destructive" },
-    disabled: { label: "Disabled", variant: "destructive" },
-  };
+const ACCESS_BADGE: Record<
+  AccessState,
+  { label: string; variant: "success" | "secondary" | "warning" | "destructive" }
+> = {
+  active: { label: "Active", variant: "success" },
+  trial: { label: "Trial", variant: "secondary" },
+  grace: { label: "Payment overdue", variant: "warning" },
+  suspended: { label: "Suspended", variant: "destructive" },
+  expired: { label: "Expired", variant: "destructive" },
+  disabled: { label: "Disabled", variant: "destructive" },
+};
 
 function formatDate(value: number | null) {
   if (!value) return "—";
@@ -39,33 +44,43 @@ function formatDate(value: number | null) {
   });
 }
 
-/** Settings → Billing. Administrators only. */
+function isAccessState(value: string): value is AccessState {
+  return value in ACCESS_BADGE;
+}
+
+/** Settings → Billing. Administrators only. Renders from cache while offline. */
 export function BillingPanel() {
   const online = useConnectivity();
-  const overview = useQuery(api.billing.overview, online ? {} : "skip");
+  const { data: overview, loading, source } = useBillingOverviewData();
   const cancelSubscription = useAction(api.billing.cancelSubscription);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
-  if (!online) {
-    return (
-      <Card>
-        <CardContent className="text-muted-foreground p-5 text-sm">
-          Billing needs a connection. Reconnect to view your plan, usage and payments.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (overview === undefined) {
+  if (loading) {
     return <LoadingState label="Loading billing…" variant="form" />;
   }
 
-  const badge = ACCESS_BADGE[overview.access.state];
+  if (!overview) {
+    return (
+      <EmptyState
+        title="No billing snapshot yet"
+        description="Open Billing once while online to cache your plan, usage, and history for offline viewing."
+      />
+    );
+  }
+
+  const accessState = isAccessState(overview.access.state) ? overview.access.state : "active";
+  const badge = ACCESS_BADGE[accessState];
   const subscription = overview.subscription;
-  const canCancel = Boolean(subscription && !subscription.isLifetime && !subscription.cancelAtPeriodEnd);
+  const canCancel = Boolean(
+    online && subscription && !subscription.isLifetime && !subscription.cancelAtPeriodEnd,
+  );
 
   async function onCancel() {
+    if (!online) {
+      toast.error("Connect to the internet to cancel a subscription.");
+      return;
+    }
     setCancelling(true);
     try {
       const result = await cancelSubscription({});
@@ -84,6 +99,16 @@ export function BillingPanel() {
 
   return (
     <div className="space-y-6">
+      {!online || source === "cache" ? (
+        <Alert>
+          <WifiOff className="h-4 w-4" aria-hidden />
+          <AlertTitle>Using your last confirmed subscription</AlertTitle>
+          <AlertDescription>
+            Plan, limits, and history stay available offline. Connect to pay, upgrade, or renew.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       {overview.access.reason ? (
         <Alert variant={overview.access.canWrite ? "default" : "destructive"}>
           <CircleAlert className="h-4 w-4" aria-hidden />
@@ -133,12 +158,15 @@ export function BillingPanel() {
             Reaching a limit only blocks new records of that kind. Selling never stops.
           </p>
         </div>
-        <PlanUsageGrid usage={overview.usage} />
+        <PlanUsageGrid usage={overview.usage as UsageMetric[]} />
       </section>
 
       <PlansGrid
-        currentPlanKey={overview.planKey}
-        currentCycle={subscription?.billingCycle ?? null}
+        currentPlanKey={overview.planKey as PlanKey}
+        currentCycle={(subscription?.billingCycle as "monthly" | "yearly" | "lifetime") ?? null}
+        accessState={accessState}
+        usage={overview.usage as UsageMetric[]}
+        online={online}
         onlinePaymentsEnabled={overview.onlinePaymentsEnabled}
       />
 

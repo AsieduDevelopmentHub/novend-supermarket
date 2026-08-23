@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v2";
+const CACHE_NAME = "novend-pos-v3";
 const PRECACHE = [
   "/",
   "/login",
@@ -13,6 +13,12 @@ const PRECACHE = [
   "/products",
   "/reports",
   "/settings",
+  "/more",
+  "/about",
+  "/users",
+  "/branches",
+  "/analytics",
+  "/suppliers",
   "/manifest.webmanifest",
   "/favicon.png",
   "/icons/icon-192.png",

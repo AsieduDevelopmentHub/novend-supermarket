@@ -1,21 +1,24 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { formatCurrency } from "@/lib/currency";
 import { ReceiptText } from "lucide-react";
+import { useBillingHistoryData } from "@/hooks/use-billing-offline";
 
-const STATUS_VARIANT = {
-  success: "success",
-  pending: "secondary",
-  failed: "destructive",
-  abandoned: "outline",
-  refunded: "warning",
-} as const;
+const STATUS_VARIANT: Record<string, "success" | "secondary" | "destructive" | "outline" | "warning"> =
+  {
+    success: "success",
+    pending: "secondary",
+    processing: "secondary",
+    failed: "destructive",
+    cancelled: "outline",
+    abandoned: "outline",
+    expired: "outline",
+    refunded: "warning",
+  };
 
 function formatDate(value: number) {
   return new Date(value).toLocaleDateString("en-GH", {
@@ -26,9 +29,9 @@ function formatDate(value: number) {
 }
 
 export function BillingHistoryTable() {
-  const history = useQuery(api.billing.history, { limit: 25 });
+  const { data: history, loading } = useBillingHistoryData();
 
-  if (history === undefined) {
+  if (loading || history === undefined) {
     return (
       <Card>
         <CardContent className="p-6">
@@ -79,7 +82,7 @@ export function BillingHistoryTable() {
                   {formatCurrency(row.amount)}
                 </td>
                 <td className="px-4 py-3">
-                  <Badge variant={STATUS_VARIANT[row.status]} className="capitalize">
+                  <Badge variant={STATUS_VARIANT[row.status] ?? "outline"} className="capitalize">
                     {row.status}
                   </Badge>
                 </td>

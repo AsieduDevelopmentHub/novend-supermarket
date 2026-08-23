@@ -37,6 +37,8 @@ import { ReceiptPreviewDialog } from "@/features/receipts/components/receipt-pre
 import { SaleCompletedDialog } from "@/features/receipts/components/sale-completed-dialog";
 import { isCapacitor } from "@novend/hardware";
 import { useSalesCatalog, useSalesCustomerSearch } from "@/hooks/use-offline-catalog";
+import { useBranchesList } from "@/hooks/use-offline-lists";
+import { usePosPreferences } from "@/hooks/use-pos-preferences";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -122,7 +124,8 @@ export function SalesView() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const showCameraScan = shouldShowCameraBarcodeButton();
 
-  const branches = useQuery(api.branches.list, isAdmin ? {} : "skip");
+  const mirroredBranches = useBranchesList();
+  const branches = isAdmin ? mirroredBranches : undefined;
   const workingBranchId = isAdmin
     ? branchOverride && branchOverride !== "all"
       ? branchOverride
@@ -141,7 +144,7 @@ export function SalesView() {
   const resumeHeld = useMutation(api.sales.resumeHeld);
   const completeSaleRemote = useMutation(api.sales.completeSale);
   const createCustomer = useMutation(api.customers.create);
-  const posPrefs = useQuery(api.settings.getPosPreferences, online ? {} : "skip");
+  const posPrefs = usePosPreferences();
 
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity - item.discount, 0),
