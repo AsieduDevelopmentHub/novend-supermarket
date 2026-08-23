@@ -235,16 +235,34 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user?.isPlatformAdmin || !user.userId) return;
-    const nextSession: PlatformOfflineSession = {
+    markPlatformOfflineSession({
       userId: String(user.userId),
       name: user.name,
       email: user.email ?? null,
       hasTenantRole: Boolean(user.role),
       savedAt: Date.now(),
-    };
-    markPlatformOfflineSession(nextSession);
-    setPlatformSession(nextSession);
+    });
   }, [user]);
+
+  // Keep the in-memory fallback in step with the live session (sanctioned
+  // "adjust state during render" pattern — avoids a redundant effect).
+  if (
+    user?.isPlatformAdmin &&
+    user.userId &&
+    (!platformSession ||
+      platformSession.userId !== String(user.userId) ||
+      platformSession.name !== user.name ||
+      platformSession.email !== (user.email ?? null) ||
+      platformSession.hasTenantRole !== Boolean(user.role))
+  ) {
+    setPlatformSession({
+      userId: String(user.userId),
+      name: user.name,
+      email: user.email ?? null,
+      hasTenantRole: Boolean(user.role),
+      savedAt: platformSession?.savedAt ?? 0,
+    });
+  }
 
   // Keep Dexie bound to the platform replica on Super Admin routes, otherwise the tenant org.
   useEffect(() => {

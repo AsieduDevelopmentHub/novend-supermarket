@@ -1,6 +1,7 @@
 "use client";
 
-import { Activity, Cloud, MonitorSmartphone, Package, Server } from "lucide-react";
+import Link from "next/link";
+import { Activity, Cloud, MonitorSmartphone, Package, RefreshCw, Server } from "lucide-react";
 import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { formatDateTime } from "@/lib/date";
 import { formatPlanBytes } from "@/convex/shared/plans";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePlatformHealthData } from "@/hooks/use-platform-offline-data";
+import { cn } from "@/lib/utils";
 
 export function PlatformHealthView() {
   const online = useConnectivity();
@@ -57,35 +59,24 @@ export function PlatformHealthView() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-muted-foreground text-sm">Organizations</p>
-            <p className="mt-2 text-2xl font-semibold">{formatNumber(health.organizationCount)}</p>
-            <p className="text-muted-foreground mt-1 text-xs">
-              {formatNumber(health.profileCount)} staff profiles
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-muted-foreground text-sm">Active devices</p>
-            <p className="mt-2 text-2xl font-semibold">{formatNumber(health.devices.active)}</p>
-            <p className="text-muted-foreground mt-1 text-xs">
-              {formatNumber(health.devices.seenLast24h)} seen in 24h
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-muted-foreground text-sm">Cloud storage</p>
-            <p className="mt-2 text-2xl font-semibold">
-              {formatPlanBytes(health.storage.totalBytes)}
-            </p>
-            <p className="text-muted-foreground mt-1 text-xs">
-              {formatNumber(health.storage.backupCount)} backups
-            </p>
-          </CardContent>
-        </Card>
+        <HealthKpiCard
+          href="/platform/organizations"
+          label="Organizations"
+          value={formatNumber(health.organizationCount)}
+          hint={`${formatNumber(health.profileCount)} staff profiles`}
+        />
+        <HealthKpiCard
+          href="/platform/insights/active-devices"
+          label="Active devices"
+          value={formatNumber(health.devices.active)}
+          hint={`${formatNumber(health.devices.seenLast24h)} seen in 24h`}
+        />
+        <HealthKpiCard
+          href="/platform/insights/cloud-storage"
+          label="Cloud storage"
+          value={formatPlanBytes(health.storage.totalBytes)}
+          hint={`${formatNumber(health.storage.backupCount)} backups`}
+        />
       </Grid>
 
       <div className="grid gap-4 xl:grid-cols-2">
@@ -116,6 +107,30 @@ export function PlatformHealthView() {
             <Metric label="Desktop" value={String(health.devices.desktop)} />
             <Metric label="Web / PWA" value={String(health.devices.web)} />
             <Metric label="Registered" value={String(health.devices.total)} />
+          </CardContent>
+        </Card>
+
+        <Card className="xl:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Sync freshness
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-3">
+            <Metric
+              label="Backups (24h)"
+              value={String(health.sync.backupsLast24h)}
+            />
+            <Metric
+              label="Devices synced (24h)"
+              value={String(health.sync.devicesSeenLast24h)}
+            />
+            <Metric
+              label="Stale devices"
+              value={String(health.sync.devicesStale)}
+              tone={health.sync.devicesStale > 0 ? "warning" : undefined}
+            />
           </CardContent>
         </Card>
 
@@ -161,11 +176,45 @@ export function PlatformHealthView() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "warning";
+}) {
   return (
     <div className="bg-muted/40 rounded-xl p-3">
       <p className="text-muted-foreground text-xs">{label}</p>
-      <p className="mt-1 text-lg font-semibold">{value}</p>
+      <p className={cn("mt-1 text-lg font-semibold", tone === "warning" && "text-warning")}>
+        {value}
+      </p>
     </div>
+  );
+}
+
+function HealthKpiCard({
+  href,
+  label,
+  value,
+  hint,
+}: {
+  href: string;
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <Link href={href} className="block">
+      <Card className="hover:border-primary/40 transition-colors">
+        <CardContent className="p-5">
+          <p className="text-muted-foreground text-sm">{label}</p>
+          <p className="mt-2 text-2xl font-semibold">{value}</p>
+          <p className="text-muted-foreground mt-1 text-xs">{hint}</p>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }

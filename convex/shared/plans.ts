@@ -221,15 +221,34 @@ export function planLimit(planKey: PlanKey, resource: LimitResource): number | n
 export const MIN_CUSTOM_BACKUP_GB = 1;
 export const MAX_CUSTOM_BACKUP_GB = 1024;
 
-/** Catalog backup plus the per-organization Enterprise quota, when one is set. */
+export type LimitOverrides = {
+  products?: number | null;
+  users?: number | null;
+  branches?: number | null;
+  devices?: number | null;
+};
+
+/**
+ * Catalog limits with the per-organization Enterprise backup quota (when set)
+ * and any explicit Super Admin overrides applied. Overrides always win — they
+ * are a deliberate platform-admin action, audited at the call site — while an
+ * absent key keeps inheriting the plan's catalog limit.
+ */
 export function effectivePlanLimits(
   plan: PlanDefinition,
   organizationBackupLimitBytes?: number | null,
+  overrides?: LimitOverrides | null,
 ): PlanLimits {
-  if (!plan.variableBackup) return plan.limits;
+  const base: PlanLimits = plan.variableBackup
+    ? { ...plan.limits, backupBytes: organizationBackupLimitBytes ?? null }
+    : plan.limits;
+  if (!overrides) return base;
   return {
-    ...plan.limits,
-    backupBytes: organizationBackupLimitBytes ?? null,
+    products: overrides.products !== undefined ? overrides.products : base.products,
+    users: overrides.users !== undefined ? overrides.users : base.users,
+    branches: overrides.branches !== undefined ? overrides.branches : base.branches,
+    devices: overrides.devices !== undefined ? overrides.devices : base.devices,
+    backupBytes: base.backupBytes,
   };
 }
 

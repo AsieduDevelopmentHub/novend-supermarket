@@ -379,3 +379,40 @@ export async function dequeuePlatformCostDraft(draftId: string) {
   await savePlatformCostDraftQueue(next);
   return next;
 }
+
+export type PlatformInsightCache = {
+  metric: string;
+  range: string;
+  payload: unknown;
+  cachedAt: number;
+};
+
+export async function savePlatformInsight(metric: string, range: string, payload: unknown) {
+  await writeJsonMeta(`${META_KEYS.platformInsight}:${metric}:${range}`, {
+    metric,
+    range,
+    payload,
+    cachedAt: Date.now(),
+  } satisfies PlatformInsightCache);
+}
+
+export async function savePlatformReleaseBundles(channel: string, payload: unknown) {
+  await writeJsonMeta(`${META_KEYS.platformReleaseBundles}:${channel}`, {
+    channel,
+    payload,
+    cachedAt: Date.now(),
+  });
+}
+
+export async function loadPlatformReleaseBundles(
+  channel: string,
+): Promise<{ channel: string; payload: unknown; cachedAt: number } | null> {
+  return readJsonMeta(`${META_KEYS.platformReleaseBundles}:${channel}`);
+}
+
+export async function loadPlatformInsight(
+  metric: string,
+  range: string,
+): Promise<PlatformInsightCache | null> {
+  return readJsonMeta<PlatformInsightCache>(`${META_KEYS.platformInsight}:${metric}:${range}`);
+}

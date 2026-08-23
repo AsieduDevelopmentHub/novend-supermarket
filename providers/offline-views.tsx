@@ -33,6 +33,8 @@ import { PlatformSubscriptionsView } from "@/features/platform/components/platfo
 import { PlatformHealthView } from "@/features/platform/components/platform-health-view";
 import { PlatformPaymentDetailView } from "@/features/platform/components/platform-payment-detail-view";
 import { PlatformReleaseDetailView } from "@/features/platform/components/platform-release-detail-view";
+import { PlatformInsightDetailView } from "@/features/platform/components/platform-insight-detail-view";
+import type { PlatformInsightMetric } from "@/convex/platformAnalytics";
 import { OfflineUnavailable } from "@/components/offline/offline-unavailable";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Id } from "@/convex/_generated/dataModel";
@@ -123,6 +125,12 @@ export function resolveOfflineView(path: string): ReactNode {
       return <UserDetailView profileId={userId as Id<"profiles">} />;
     }
     return <UsersView />;
+  }
+  if (path.startsWith("/platform/insights/")) {
+    const metric = path.slice("/platform/insights/".length);
+    if (metric && !metric.includes("/")) {
+      return <PlatformInsightDetailView metric={metric as PlatformInsightMetric} />;
+    }
   }
   if (path.startsWith("/platform/payments/")) {
     const paymentId = path.slice("/platform/payments/".length);

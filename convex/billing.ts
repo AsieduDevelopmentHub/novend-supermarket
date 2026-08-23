@@ -993,6 +993,72 @@ export const assignPlan = mutation({
 });
 
 /**
+ * Records a manual invoice awaiting settlement (Subscription management →
+ * "Send invoice"). Novend has no outbound email integration yet, so this
+ * creates a real pending billing record rather than pretending to send mail;
+ * reconcile it with `markManualInvoicePaid` once the organization pays.
+ */
+export const recordManualInvoice = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    amount: v.number(),
+    description: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    if (!(args.amount > 0)) throw new Error("Amount must be greater than zero");
+    const organization = await ctx.db.get(args.organizationId);
+    if (!organization) throw new Error("Organization not found");
+    const license = await resolveLicense(ctx, organization);
+    const now = Date.now();
+    const billingHistoryId = await ctx.db.insert("billingHistory", {
+      organizationId: args.organizationId,
+      planKey: license.planKey,
+      amount: args.amount,
+      currency: organization.currency || "GHS",
+      gateway: "manual",
+      reference: buildReference("INVOICE"),
+      status: "pending",
+      description: args.description?.trim() || `Invoice — ${license.plan.name}`,
+      initiatedBy: userId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await writeAuditLog(ctx, {
+      organizationId: args.organizationId,
+      actorId: userId,
+      action: "platform_record_manual_invoice",
+      entityType: "billingHistory",
+      entityId: billingHistoryId,
+      metadata: { amount: args.amount },
+    });
+    return billingHistoryId;
+  },
+});
+
+/** Marks a pending manual invoice as paid. Does not touch gateway-issued payments. */
+export const markManualInvoicePaid = mutation({
+  args: { billingHistoryId: v.id("billingHistory") },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    const row = await ctx.db.get(args.billingHistoryId);
+    if (!row) throw new Error("Invoice not found");
+    if (row.gateway !== "manual") throw new Error("Only manual invoices can be reconciled here.");
+    if (row.status !== "pending") throw new Error("This invoice is not pending.");
+    const now = Date.now();
+    await ctx.db.patch(args.billingHistoryId, { status: "success", paidAt: now, updatedAt: now });
+    await writeAuditLog(ctx, {
+      organizationId: row.organizationId,
+      actorId: userId,
+      action: "platform_mark_invoice_paid",
+      entityType: "billingHistory",
+      entityId: args.billingHistoryId,
+    });
+    return { paid: true };
+  },
+});
+
+/**
  * Sets the Enterprise cloud backup quota for one organization.
  *
  * Catalog plans never publish a fixed Enterprise size. Empty / null means no cap.

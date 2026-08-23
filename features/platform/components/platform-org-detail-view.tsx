@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useAction } from "convex/react";
+import { useSearchParams } from "next/navigation";
+import { useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader, Grid } from "@/components/layout/primitives";
@@ -12,14 +13,23 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
-import { formatCurrency } from "@/lib/currency";
+import { formatCurrency, formatNumber } from "@/lib/currency";
 import { formatDateTime, formatPresence } from "@/lib/date";
+import { formatPlanBytes } from "@/convex/shared/plans";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePlatformOrgDetailData } from "@/hooks/use-platform-offline-data";
 import { PlatformLicensePanel } from "./platform-license-panel";
@@ -28,15 +38,51 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
   const id = organizationId as Id<"organizations">;
   const online = useConnectivity();
   const { data: org, loading } = usePlatformOrgDetailData(organizationId);
+  const requestedTab = useSearchParams().get("tab");
+  const initialTab = ["overview", "licence", "team", "analytics"].includes(requestedTab ?? "")
+    ? (requestedTab as string)
+    : "overview";
   const resetPassword = useAction(api.platform.resetOrganizationAdminPassword);
+  const updateProfile = useMutation(api.platform.updateOrganizationProfile);
   const [newPassword, setNewPassword] = useState("");
   const [pending, setPending] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [profileCountry, setProfileCountry] = useState("");
+  const [profileTimezone, setProfileTimezone] = useState("");
+  const [profileTaxId, setProfileTaxId] = useState("");
+  const [profilePending, setProfilePending] = useState(false);
+
+  function openEditProfile() {
+    if (!org) return;
+    setProfileCountry(org.country ?? "");
+    setProfileTimezone(org.timezone ?? "");
+    setProfileTaxId(org.taxId ?? "");
+    setEditProfileOpen(true);
+  }
 
   if (loading || org === undefined) {
     return <LoadingState label="Loading organization…" />;
   }
   if (!org) {
     return <ErrorState message="Organization not found." />;
+  }
+
+  async function onSaveProfile() {
+    setProfilePending(true);
+    try {
+      await updateProfile({
+        organizationId: id,
+        country: profileCountry.trim() || undefined,
+        timezone: profileTimezone.trim() || undefined,
+        taxId: profileTaxId.trim() || undefined,
+      });
+      toast.success("Organization profile updated");
+      setEditProfileOpen(false);
+    } catch (error) {
+      showError(error, "Update failed");
+    } finally {
+      setProfilePending(false);
+    }
   }
 
   async function onReset() {
@@ -88,7 +134,7 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
         <Badge variant="outline">{org.plan}</Badge>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs defaultValue={initialTab} className="space-y-4">
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="licence">Licence</TabsTrigger>
@@ -106,17 +152,45 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
           </Grid>
 
           <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Organization details</CardTitle>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={!online}
+                onClick={openEditProfile}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
+              </Button>
+            </CardHeader>
+            <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+              <Info label="Business name" value={org.name} />
+              <Info label="Organization ID" value={org.id} mono />
+              <Info label="Owner" value={org.owner.name || "—"} />
+              <Info label="Email" value={org.business.email || org.owner.email || "—"} />
+              <Info label="Phone" value={org.business.phone || "—"} />
+              <Info label="Country" value={org.country || "—"} />
+              <Info label="Created" value={formatDateTime(org.createdAt)} />
+              <Info
+                label="Last active"
+                value={org.kpis.lastActiveAt ? formatDateTime(org.kpis.lastActiveAt) : "Never"}
+              />
+              <Info label="Subscription status" value={org.status} className="capitalize" />
+              <Info label="Timezone" value={org.timezone || "—"} />
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader>
               <CardTitle>Business</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
               <Info label="Trade name" value={org.business.tradeName} />
               <Info label="Legal name" value={org.business.legalName} />
-              <Info label="Phone" value={org.business.phone || "—"} />
-              <Info label="Email" value={org.business.email || "—"} />
               <Info label="Address" value={org.business.address || "—"} />
               <Info label="Tax ID" value={org.taxId || org.business.taxId || "—"} />
-              <Info label="Timezone" value={org.timezone || "—"} />
               <Info
                 label="Last sale"
                 value={org.kpis.lastSaleAt ? formatDateTime(org.kpis.lastSaleAt) : "None yet"}
@@ -158,7 +232,12 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
         </TabsContent>
 
         <TabsContent value="licence">
-          <PlatformLicensePanel organizationId={id} status={org.status} />
+          <PlatformLicensePanel
+            organizationId={id}
+            organizationName={org.name}
+            status={org.status}
+            limitOverrides={org.limitOverrides}
+          />
         </TabsContent>
 
         <TabsContent value="team" className="space-y-4">
@@ -253,18 +332,28 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
           </Card>
         </TabsContent>
 
-        <TabsContent value="analytics">
+        <TabsContent value="analytics" className="space-y-4">
           <Grid cols={4}>
-            <Kpi title="Sales" value={String(org.kpis.saleCount)} />
-            <Kpi title="Revenue (30d)" value={formatCurrency(org.kpis.revenue30d)} />
+            <Kpi title="Orders" value={formatNumber(org.kpis.saleCount)} />
             <Kpi title="Revenue (all)" value={formatCurrency(org.kpis.revenueAll)} />
-            <Kpi title="Users" value={String(org.kpis.userCount)} />
-            <Kpi title="Branches" value={String(org.kpis.branchCount)} />
-            <Kpi title="Products" value={String(org.kpis.productCount)} />
-            <Kpi title="Wholesale units" value={String(org.kpis.wholesaleUnits)} />
-            <Kpi title="Wholesale value" value={formatCurrency(org.kpis.wholesaleValue)} />
+            <Kpi title="Customers" value={formatNumber(org.kpis.customerCount)} />
+            <Kpi title="Active users" value={formatNumber(org.kpis.userCount)} />
           </Grid>
-          <Card className="mt-4">
+          <Grid cols={4}>
+            <Kpi title="Products" value={formatNumber(org.kpis.productCount)} />
+            <Kpi title="Branches" value={formatNumber(org.kpis.branchCount)} />
+            <Kpi
+              title="Storage used"
+              value={formatPlanBytes(org.kpis.storageBytes)}
+              hint={`${(org.kpis.storageBytes / 1024 / 1024).toFixed(1)} MB`}
+            />
+            <Kpi
+              title="Devices"
+              value={String(org.kpis.deviceCount)}
+              hint={`${org.kpis.deviceCountTotal} registered total`}
+            />
+          </Grid>
+          <Card>
             <CardHeader>
               <CardTitle>Activity</CardTitle>
             </CardHeader>
@@ -273,6 +362,13 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
                 label="Last sale"
                 value={org.kpis.lastSaleAt ? formatDateTime(org.kpis.lastSaleAt) : "None yet"}
               />
+              <Info
+                label="Last sync"
+                value={org.kpis.lastSyncAt ? formatDateTime(org.kpis.lastSyncAt) : "Never"}
+              />
+              <Info label="Revenue (30d)" value={formatCurrency(org.kpis.revenue30d)} />
+              <Info label="Wholesale value" value={formatCurrency(org.kpis.wholesaleValue)} />
+              <Info label="Wholesale units" value={String(org.kpis.wholesaleUnits)} />
               <Info label="Suppliers" value={String(org.kpis.supplierCount)} />
               <Info label="Admins" value={String(org.kpis.adminCount)} />
               <Info
@@ -283,25 +379,88 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit organization profile</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="org-country">Country</Label>
+              <Input
+                id="org-country"
+                value={profileCountry}
+                onChange={(event) => setProfileCountry(event.target.value)}
+                placeholder="e.g. Ghana"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="org-timezone">Timezone</Label>
+              <Input
+                id="org-timezone"
+                value={profileTimezone}
+                onChange={(event) => setProfileTimezone(event.target.value)}
+                placeholder="e.g. Africa/Accra"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="org-taxid">Tax ID</Label>
+              <Input
+                id="org-taxid"
+                value={profileTaxId}
+                onChange={(event) => setProfileTaxId(event.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setEditProfileOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" disabled={profilePending} onClick={() => void onSaveProfile()}>
+              {profilePending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function Info({
+  label,
+  value,
+  mono,
+  className,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  className?: string;
+}) {
   return (
     <div>
       <p className="text-muted-foreground text-xs">{label}</p>
-      <p className="mt-1 font-medium break-words">{value}</p>
+      <p
+        className={cn(
+          "mt-1 font-medium break-words",
+          mono && "font-mono text-xs",
+          className,
+        )}
+      >
+        {value}
+      </p>
     </div>
   );
 }
 
-function Kpi({ title, value }: { title: string; value: string }) {
+function Kpi({ title, value, hint }: { title: string; value: string; hint?: string }) {
   return (
     <Card>
       <CardContent className="min-w-0 p-5">
         <p className="text-muted-foreground text-sm">{title}</p>
         <p className="mt-2 truncate text-2xl font-semibold tracking-tight">{value}</p>
+        {hint ? <p className="text-muted-foreground mt-1 text-xs">{hint}</p> : null}
       </CardContent>
     </Card>
   );

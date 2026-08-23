@@ -96,7 +96,7 @@ export function PlatformView() {
 
       <Card>
         <CardContent className="overflow-x-auto p-0">
-          {loading || orgs === null ? (
+          {loading || orgs == null ? (
             <div className="p-6">
               <LoadingState label="Loading organizations…" />
             </div>

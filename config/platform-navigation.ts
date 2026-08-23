@@ -124,6 +124,7 @@ export function platformNavItemActive(pathname: string, item: PlatformNavItem): 
 
 export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | null {
   if (path.startsWith("/platform/payments/")) return "analytics";
+  if (path.startsWith("/platform/insights/")) return "overview";
 
   const reserved = new Set([
     "organizations",

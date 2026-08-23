@@ -2,6 +2,21 @@
 
 import { useState } from "react";
 import {
+  Area,
+  Bar,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  Legend,
+  Line,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
   Building2,
   CreditCard,
   TrendingDown,
@@ -16,7 +31,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { formatCurrency, formatNumber } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
-import { cn } from "@/lib/utils";
+import { formatPlanBytes } from "@/convex/shared/plans";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePlatformRevenueData } from "@/hooks/use-platform-offline-data";
 
@@ -26,6 +41,8 @@ const RANGES = [
   { id: "30d" as const, label: "30 days" },
   { id: "12m" as const, label: "12 months" },
 ];
+
+const PLAN_COLORS = ["#38bdf8", "#0ea5e9", "#111827", "#16a34a"];
 
 export function PlatformRevenueView() {
   const online = useConnectivity();
@@ -44,6 +61,8 @@ export function PlatformRevenueView() {
       />
     );
   }
+
+  const planTotal = data.planDistribution.reduce((sum, row) => sum + row.count, 0) || 1;
 
   return (
     <div className="space-y-6">
@@ -100,35 +119,58 @@ export function PlatformRevenueView() {
         />
       </Grid>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
         <Card>
           <CardHeader>
             <CardTitle>Plan distribution</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {data.planDistribution.map((plan) => {
-              const total = data.planDistribution.reduce((sum, row) => sum + row.count, 0) || 1;
-              const pct = Math.round((plan.count / total) * 100);
-              return (
-                <div key={plan.key} className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{plan.name}</span>
-                    <span className="text-muted-foreground">
-                      {plan.count} · {pct}%
-                    </span>
-                  </div>
-                  <div className="bg-muted h-2 overflow-hidden rounded-full">
-                    <div className="bg-primary h-full rounded-full" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
+          <CardContent>
+            <div className="grid grid-cols-[minmax(0,140px)_1fr] items-center gap-4">
+              <div className="h-36 w-36">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data.planDistribution}
+                      dataKey="count"
+                      nameKey="name"
+                      innerRadius={38}
+                      outerRadius={64}
+                      paddingAngle={2}
+                    >
+                      {data.planDistribution.map((entry, index) => (
+                        <Cell key={entry.key} fill={PLAN_COLORS[index % PLAN_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatNumber(Number(value))} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-2.5">
+                {data.planDistribution.map((plan, index) => {
+                  const pct = Math.round((plan.count / planTotal) * 100);
+                  return (
+                    <div key={plan.key} className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2 font-medium">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: PLAN_COLORS[index % PLAN_COLORS.length] }}
+                        />
+                        {plan.name}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {plan.count} · {pct}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Monthly trend</CardTitle>
+            <CardTitle>Revenue, costs &amp; profit</CardTitle>
           </CardHeader>
           <CardContent>
             {data.revenueByMonth.length === 0 ? (
@@ -138,36 +180,90 @@ export function PlatformRevenueView() {
                 description="Successful Paystack / manual payments will appear here."
               />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[420px] text-left text-sm">
-                  <thead className="text-muted-foreground">
-                    <tr className="border-border border-b">
-                      <th className="pb-2 font-medium">Month</th>
-                      <th className="pb-2 font-medium">Revenue</th>
-                      <th className="pb-2 font-medium">Costs</th>
-                      <th className="pb-2 font-medium">Profit</th>
-                      <th className="pb-2 font-medium">New orgs</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.revenueByMonth.map((row) => (
-                      <tr key={row.month} className="border-border border-b last:border-0">
-                        <td className="py-2.5 font-medium">{row.label}</td>
-                        <td className="py-2.5">{formatCurrency(row.revenue)}</td>
-                        <td className="py-2.5">{formatCurrency(row.costs)}</td>
-                        <td
-                          className={cn(
-                            "py-2.5 font-medium",
-                            row.profit >= 0 ? "text-emerald-700" : "text-destructive",
-                          )}
-                        >
-                          {formatCurrency(row.profit)}
-                        </td>
-                        <td className="py-2.5">{formatNumber(row.newOrganizations)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="h-64 w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={data.revenueByMonth} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                    <YAxis width={48} tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="revenue" name="Revenue" fill="#38bdf8" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="costs" name="Costs" fill="#f97316" radius={[4, 4, 0, 0]} />
+                    <Line
+                      type="monotone"
+                      dataKey="profit"
+                      name="Profit"
+                      stroke="#16a34a"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>New organizations per month</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.revenueByMonth.length === 0 ? (
+              <EmptyState title="No new organizations in this range" />
+            ) : (
+              <div className="h-56 w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={data.revenueByMonth} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                    <YAxis width={32} tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip formatter={(value) => formatNumber(Number(value))} />
+                    <Bar dataKey="newOrganizations" name="New orgs" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Cloud storage usage trend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.revenueByMonth.length === 0 ? (
+              <EmptyState title="No storage activity in this range" />
+            ) : (
+              <div className="h-56 w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={data.revenueByMonth} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="storageFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                    <YAxis
+                      width={56}
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(value) => formatPlanBytes(Number(value))}
+                    />
+                    <Tooltip formatter={(value) => formatPlanBytes(Number(value))} />
+                    <Area
+                      type="monotone"
+                      dataKey="storageBytes"
+                      name="Cloud storage"
+                      stroke="#38bdf8"
+                      fill="url(#storageFill)"
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
               </div>
             )}
           </CardContent>

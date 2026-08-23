@@ -8,11 +8,13 @@ import { action, internalMutation, mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { getPlatformAdmin, requirePlatformAdmin } from "./shared/permissions";
-import { sanitizeText } from "./shared/validation";
+import { sanitizeText, sanitizeOptionalText, TEXT_LIMITS } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
 import { planKeyValidator, billingCycleValidator } from "./schema";
 import { resolvePlan } from "./shared/plans";
+import { resolveLicense, getActiveSubscription } from "./shared/entitlements";
 import { provisionOrganization } from "./shared/provisionOrganization";
+import { GRACE_PERIOD_MS } from "./shared/licensing";
 
 export const me = query({
   args: {},
@@ -136,32 +138,45 @@ export const getOrganization = query({
       }
     }
 
-    const [profiles, branches, products, sales, wholesale, suppliers] = await Promise.all([
-      ctx.db
-        .query("profiles")
-        .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
-        .collect(),
-      ctx.db
-        .query("branches")
-        .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
-        .collect(),
-      ctx.db
-        .query("products")
-        .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
-        .collect(),
-      ctx.db
-        .query("sales")
-        .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
-        .collect(),
-      ctx.db
-        .query("wholesaleStock")
-        .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
-        .collect(),
-      ctx.db
-        .query("suppliers")
-        .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
-        .collect(),
-    ]);
+    const [profiles, branches, products, sales, wholesale, suppliers, customers, devices, backups] =
+      await Promise.all([
+        ctx.db
+          .query("profiles")
+          .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+          .collect(),
+        ctx.db
+          .query("branches")
+          .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+          .collect(),
+        ctx.db
+          .query("products")
+          .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+          .collect(),
+        ctx.db
+          .query("sales")
+          .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+          .collect(),
+        ctx.db
+          .query("wholesaleStock")
+          .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+          .collect(),
+        ctx.db
+          .query("suppliers")
+          .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+          .collect(),
+        ctx.db
+          .query("customers")
+          .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+          .collect(),
+        ctx.db
+          .query("devices")
+          .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+          .collect(),
+        ctx.db
+          .query("cloudBackups")
+          .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+          .collect(),
+      ]);
 
     const now = Date.now();
     const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
@@ -196,18 +211,31 @@ export const getOrganization = query({
     );
 
     const branchName = new Map(branches.map((b) => [b._id, b.name]));
+    const lastActiveAt = profiles.reduce(
+      (latest, p) => Math.max(latest, p.lastSeenAt ?? 0, p.lastLoginAt ?? 0),
+      0,
+    );
+    const storageBytes = backups.reduce((sum, b) => sum + b.sizeBytes, 0);
+    const activeDevices = devices.filter((d) => d.isActive);
+    const lastSyncAt = devices.reduce((latest, d) => Math.max(latest, d.lastSeenAt ?? 0), 0);
+    const license = await resolveLicense(ctx, org);
 
     return {
       id: org._id,
       name: org.name,
       slug: org.slug,
       status: org.status,
+      country: org.country ?? null,
       planKey: resolvePlan(org.planKey).key,
       plan: resolvePlan(org.planKey).name,
       currency: org.currency,
       timezone: org.timezone ?? null,
       taxId: org.taxId ?? business.taxId ?? null,
       createdAt: org.createdAt,
+      trialEndsAt: org.trialEndsAt ?? null,
+      backupLimitBytes: org.backupLimitBytes ?? null,
+      limitOverrides: org.limitOverrides ?? null,
+      effectiveLimits: license.limits,
       owner: {
         userId: org.ownerUserId,
         name: owner?.name ?? null,
@@ -229,13 +257,19 @@ export const getOrganization = query({
         branchCount: branches.length,
         productCount: products.filter((p) => p.status !== "archived").length,
         supplierCount: suppliers.length,
+        customerCount: customers.length,
         saleCount: sales.length,
         saleCount30d: recentSales.length,
         revenueAll,
         revenue30d,
         lastSaleAt: lastSaleAt || null,
+        lastActiveAt: lastActiveAt || null,
         wholesaleUnits,
         wholesaleValue,
+        storageBytes,
+        deviceCount: activeDevices.length,
+        deviceCountTotal: devices.length,
+        lastSyncAt: lastSyncAt || null,
       },
       branches: branches
         .sort((a, b) => a.name.localeCompare(b.name))
@@ -304,6 +338,179 @@ export const setOrganizationPlan = mutation({
       metadata: { plan },
     });
     return args.organizationId;
+  },
+});
+
+/** PEAS — edits the platform-owned registration profile (not tenant business settings). */
+export const updateOrganizationProfile = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    country: v.optional(v.string()),
+    timezone: v.optional(v.string()),
+    taxId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    const org = await ctx.db.get(args.organizationId);
+    if (!org) throw new Error("Organization not found");
+    const country = sanitizeOptionalText(args.country, "Country", TEXT_LIMITS.name) ?? undefined;
+    const timezone = sanitizeOptionalText(args.timezone, "Timezone", TEXT_LIMITS.name) ?? undefined;
+    const taxId = sanitizeOptionalText(args.taxId, "Tax ID", TEXT_LIMITS.short) ?? undefined;
+    await ctx.db.patch(args.organizationId, {
+      country,
+      timezone,
+      taxId,
+      updatedAt: Date.now(),
+    });
+    await writeAuditLog(ctx, {
+      organizationId: args.organizationId,
+      actorId: userId,
+      action: "platform_update_org_profile",
+      entityType: "organizations",
+      entityId: args.organizationId,
+      metadata: { country, timezone, taxId },
+    });
+    return args.organizationId;
+  },
+});
+
+const limitOverrideValue = v.optional(v.union(v.number(), v.null()));
+
+/**
+ * PEAS — Super Admin overrides for metered resources on top of the plan
+ * catalog. Sending a key sets/clears that override; omitting a key leaves it
+ * untouched. `null` means unlimited for that resource.
+ */
+export const setOrganizationLimitOverrides = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    products: limitOverrideValue,
+    users: limitOverrideValue,
+    branches: limitOverrideValue,
+    devices: limitOverrideValue,
+    /** Resources to clear back to the plan default. */
+    clear: v.optional(
+      v.array(v.union(v.literal("products"), v.literal("users"), v.literal("branches"), v.literal("devices"))),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    const org = await ctx.db.get(args.organizationId);
+    if (!org) throw new Error("Organization not found");
+    for (const [key, value] of [
+      ["products", args.products],
+      ["users", args.users],
+      ["branches", args.branches],
+      ["devices", args.devices],
+    ] as const) {
+      if (value !== undefined && value !== null && !(Number.isInteger(value) && value > 0)) {
+        throw new Error(`${key} override must be a positive whole number or unlimited.`);
+      }
+    }
+
+    const next = { ...(org.limitOverrides ?? {}) };
+    for (const key of ["products", "users", "branches", "devices"] as const) {
+      const value = args[key];
+      if (value !== undefined) next[key] = value;
+    }
+    for (const key of args.clear ?? []) {
+      delete next[key];
+    }
+
+    await ctx.db.patch(args.organizationId, { limitOverrides: next, updatedAt: Date.now() });
+    await writeAuditLog(ctx, {
+      organizationId: args.organizationId,
+      actorId: userId,
+      action: "platform_set_limit_overrides",
+      entityType: "organizations",
+      entityId: args.organizationId,
+      metadata: next,
+    });
+    return next;
+  },
+});
+
+/** PEAS — extends the active subscription's expiry (or a running trial) by N days. */
+export const extendSubscription = mutation({
+  args: { organizationId: v.id("organizations"), days: v.number() },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    if (!(Number.isInteger(args.days) && args.days > 0 && args.days <= 3650)) {
+      throw new Error("Enter a whole number of days from 1 to 3650.");
+    }
+    const org = await ctx.db.get(args.organizationId);
+    if (!org) throw new Error("Organization not found");
+    const extraMs = args.days * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const subscription = await getActiveSubscription(ctx, org);
+
+    if (subscription && !subscription.isLifetime) {
+      const base = Math.max(subscription.expiresAt ?? now, now);
+      const expiresAt = base + extraMs;
+      await ctx.db.patch(subscription._id, {
+        expiresAt,
+        nextBillingDate: expiresAt,
+        graceUntil: expiresAt + GRACE_PERIOD_MS,
+        status: subscription.status === "expired" ? "active" : subscription.status,
+        updatedAt: now,
+      });
+    } else if (org.trialEndsAt) {
+      await ctx.db.patch(args.organizationId, {
+        trialEndsAt: Math.max(org.trialEndsAt, now) + extraMs,
+        updatedAt: now,
+      });
+    } else {
+      throw new Error("No subscription or trial to extend. Assign a plan first.");
+    }
+
+    await writeAuditLog(ctx, {
+      organizationId: args.organizationId,
+      actorId: userId,
+      action: "platform_extend_subscription",
+      entityType: "organizations",
+      entityId: args.organizationId,
+      metadata: { days: args.days },
+    });
+    return { extended: true };
+  },
+});
+
+/**
+ * PEAS — archives an organization instead of deleting business records.
+ * Deactivates every device and blocks all access; data is retained for audit
+ * and potential reinstatement via `setOrganizationStatus`.
+ */
+export const archiveOrganization = mutation({
+  args: { organizationId: v.id("organizations"), confirmName: v.string() },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    const org = await ctx.db.get(args.organizationId);
+    if (!org) throw new Error("Organization not found");
+    if (args.confirmName.trim() !== org.name) {
+      throw new Error("Type the exact organization name to confirm.");
+    }
+
+    const devices = await ctx.db
+      .query("devices")
+      .withIndex("by_organization_active", (q) =>
+        q.eq("organizationId", args.organizationId).eq("isActive", true),
+      )
+      .collect();
+    const now = Date.now();
+    for (const device of devices) {
+      await ctx.db.patch(device._id, { isActive: false, deactivatedAt: now, deactivatedBy: userId });
+    }
+
+    await ctx.db.patch(args.organizationId, { status: "disabled", updatedAt: now });
+    await writeAuditLog(ctx, {
+      organizationId: args.organizationId,
+      actorId: userId,
+      action: "platform_archive_organization",
+      entityType: "organizations",
+      entityId: args.organizationId,
+      metadata: { deactivatedDevices: devices.length },
+    });
+    return { archived: true };
   },
 });
 

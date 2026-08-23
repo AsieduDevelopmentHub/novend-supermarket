@@ -55,7 +55,7 @@ export function PlatformCostsView() {
   const [pending, setPending] = useState(false);
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState<CostCategory>("hosting");
-  const [occurredAt, setOccurredAt] = useState(toDateInput(Date.now()));
+  const [occurredAt, setOccurredAt] = useState(() => toDateInput(Date.now()));
   const [description, setDescription] = useState("");
 
   if (loading || rows === null) {

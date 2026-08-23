@@ -10,6 +10,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { formatDateTime } from "@/lib/date";
+import { groupReleaseAssets, RELEASE_GROUP_LABELS } from "@/lib/platform/release-assets";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePlatformReleaseBundleData } from "@/hooks/use-platform-offline-data";
 
@@ -105,24 +106,23 @@ export function PlatformReleaseDetailView({ version }: { version: string }) {
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3 font-medium">File</th>
-                  <th className="px-4 py-3 font-medium">Kind</th>
                   <th className="px-4 py-3 font-medium">Platform</th>
+                  <th className="px-4 py-3 font-medium">File</th>
+                  <th className="px-4 py-3 font-medium">Source</th>
                   <th className="px-4 py-3 font-medium">Size</th>
                   <th className="px-4 py-3 font-medium">Download</th>
                 </tr>
               </thead>
               <tbody>
-                {release.assets.map((asset) => (
+                {groupReleaseAssets(release.assets).map(({ label, asset }) => (
                   <tr
                     key={`${asset.source}-${asset.githubAssetId}`}
                     className="border-border border-t"
                   >
-                    <td className="px-4 py-3 font-medium">{asset.fileName}</td>
-                    <td className="px-4 py-3 capitalize">{asset.kind}</td>
+                    <td className="px-4 py-3 font-medium">{label}</td>
+                    <td className="px-4 py-3 text-xs">{asset.fileName}</td>
                     <td className="px-4 py-3 capitalize">
                       {asset.source}
-                      {asset.platform ? ` · ${asset.platform}` : ""}
                       {asset.arch ? ` · ${asset.arch}` : ""}
                     </td>
                     <td className="px-4 py-3">{formatBytes(asset.size) || "—"}</td>
@@ -141,6 +141,17 @@ export function PlatformReleaseDetailView({ version }: { version: string }) {
                     </td>
                   </tr>
                 ))}
+                {!release.assets.some((asset) => asset.kind === "ipa") ? (
+                  <tr className="border-border bg-muted/20 border-t">
+                    <td className="px-4 py-3 font-medium">{RELEASE_GROUP_LABELS.ios}</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs" colSpan={3}>
+                      Not published yet
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant="secondary">Coming soon</Badge>
+                    </td>
+                  </tr>
+                ) : null}
               </tbody>
             </table>
           )}

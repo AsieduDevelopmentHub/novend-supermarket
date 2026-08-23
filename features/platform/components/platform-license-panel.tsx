@@ -23,8 +23,10 @@ import {
   GIBIBYTE,
   MAX_CUSTOM_BACKUP_GB,
   PLAN_LIST,
+  RESOURCE_LABELS,
   supportsCycle,
   type BillingCycle,
+  type LimitResource,
   type PlanKey,
 } from "@/convex/shared/plans";
 import { formatCurrency } from "@/lib/currency";
@@ -32,6 +34,13 @@ import { formatDateTime } from "@/lib/date";
 import { showError } from "@/lib/errors";
 import { PlanUsageGrid } from "@/features/billing/components/plan-usage-grid";
 import { useConnectivity } from "@/hooks/use-connectivity";
+
+type LimitOverrides = {
+  products?: number | null;
+  users?: number | null;
+  branches?: number | null;
+  devices?: number | null;
+} | null;
 
 const ORGANIZATION_STATUSES = [
   { value: "active", label: "Active", hint: "Full access" },
@@ -57,10 +66,14 @@ const CYCLES: { value: BillingCycle; label: string }[] = [
 /** Super-admin licence controls for a single organization. */
 export function PlatformLicensePanel({
   organizationId,
+  organizationName,
   status,
+  limitOverrides,
 }: {
   organizationId: Id<"organizations">;
+  organizationName: string;
   status: OrganizationStatus | "inactive";
+  limitOverrides: LimitOverrides;
 }) {
   const online = useConnectivity();
   const license = useQuery(
@@ -72,12 +85,18 @@ export function PlatformLicensePanel({
   const resetActivation = useMutation(api.billing.resetActivation);
   const setBackupLimit = useMutation(api.billing.setBackupLimit);
   const setStatus = useMutation(api.platform.setOrganizationStatus);
+  const setLimitOverrides = useMutation(api.platform.setOrganizationLimitOverrides);
+  const extendSubscription = useMutation(api.platform.extendSubscription);
+  const archiveOrganization = useMutation(api.platform.archiveOrganization);
 
   const [planKey, setPlanKey] = useState<PlanKey>("pro");
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [note, setNote] = useState("");
+  const [extendDays, setExtendDays] = useState("30");
   const [pending, setPending] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmArchiveName, setConfirmArchiveName] = useState("");
+  const [archiveOpen, setArchiveOpen] = useState(false);
 
   if (!online && license === undefined) {
     return (
@@ -162,6 +181,56 @@ export function PlatformLicensePanel({
               Cloud backup follows the published plan. Assign Enterprise to set a custom quota.
             </p>
           )}
+
+          <LimitOverridesEditor
+            key={`${organizationId}-${JSON.stringify(limitOverrides)}`}
+            overrides={limitOverrides}
+            effectiveLimits={license.usage}
+            disabled={pending || !online}
+            onSave={(payload) =>
+              void run("Resource limits updated", () =>
+                setLimitOverrides({ organizationId, ...payload }),
+              )
+            }
+          />
+
+          <div className="border-border space-y-3 rounded-lg border p-4">
+            <p className="text-sm font-medium">Extend subscription</p>
+            <p className="text-muted-foreground text-xs">
+              Adds days to the current expiry (or trial end, if there is no paid subscription yet).
+            </p>
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="w-32 space-y-2">
+                <Label htmlFor="extend-days">Days</Label>
+                <Input
+                  id="extend-days"
+                  type="number"
+                  min={1}
+                  max={3650}
+                  inputMode="numeric"
+                  value={extendDays}
+                  onChange={(event) => setExtendDays(event.target.value)}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending || !online}
+                onClick={() => {
+                  const days = Number(extendDays);
+                  if (!Number.isInteger(days) || days <= 0) {
+                    toast.error("Enter a whole number of days");
+                    return;
+                  }
+                  void run(`Extended by ${days} days`, () =>
+                    extendSubscription({ organizationId, days }),
+                  );
+                }}
+              >
+                Extend
+              </Button>
+            </div>
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
@@ -328,6 +397,26 @@ export function PlatformLicensePanel({
         </CardContent>
       </Card>
 
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-destructive">Danger zone</CardTitle>
+          <CardDescription>
+            Archives the organization instead of permanently deleting its records — every device
+            is deactivated and access is fully blocked. Reactivate later from Account status above.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={pending || !online || status === "disabled"}
+            onClick={() => setArchiveOpen(true)}
+          >
+            Delete organization
+          </Button>
+        </CardContent>
+      </Card>
+
       <ConfirmDialog
         open={confirmReset}
         onOpenChange={setConfirmReset}
@@ -341,6 +430,177 @@ export function PlatformLicensePanel({
           )
         }
       />
+
+      <ConfirmDialog
+        open={archiveOpen}
+        onOpenChange={(open) => {
+          setArchiveOpen(open);
+          if (!open) setConfirmArchiveName("");
+        }}
+        title={`Delete ${organizationName}?`}
+        description={
+          <div className="space-y-2">
+            <p>
+              This archives the organization, blocks every login, and deactivates every device.
+              Business records are retained for audit — nothing is permanently erased.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm-archive-name">
+                Type <span className="font-semibold">{organizationName}</span> to confirm
+              </Label>
+              <Input
+                id="confirm-archive-name"
+                value={confirmArchiveName}
+                onChange={(event) => setConfirmArchiveName(event.target.value)}
+                autoComplete="off"
+              />
+            </div>
+          </div>
+        }
+        confirmLabel="Delete organization"
+        confirmVariant="destructive"
+        pending={pending}
+        disableConfirm={confirmArchiveName.trim() !== organizationName}
+        onConfirm={() =>
+          void run("Organization archived", () =>
+            archiveOrganization({ organizationId, confirmName: confirmArchiveName }),
+          ).then(() => {
+            setArchiveOpen(false);
+            setConfirmArchiveName("");
+          })
+        }
+      />
+    </div>
+  );
+}
+
+type OverrideResource = "products" | "users" | "branches" | "devices";
+const OVERRIDE_RESOURCES: OverrideResource[] = ["products", "users", "branches", "devices"];
+type OverrideMode = "default" | "unlimited" | "custom";
+
+function LimitOverridesEditor({
+  overrides,
+  effectiveLimits,
+  disabled,
+  onSave,
+}: {
+  overrides: LimitOverrides;
+  effectiveLimits: Array<{ resource: LimitResource; limit: number | null }>;
+  disabled: boolean;
+  onSave: (payload: {
+    products?: number | null;
+    users?: number | null;
+    branches?: number | null;
+    devices?: number | null;
+    clear?: OverrideResource[];
+  }) => void;
+}) {
+  const [state, setState] = useState<Record<OverrideResource, { mode: OverrideMode; value: string }>>(
+    () =>
+      Object.fromEntries(
+        OVERRIDE_RESOURCES.map((resource) => {
+          const raw = overrides?.[resource];
+          if (raw === undefined) return [resource, { mode: "default", value: "" }];
+          if (raw === null) return [resource, { mode: "unlimited", value: "" }];
+          return [resource, { mode: "custom", value: String(raw) }];
+        }),
+      ) as Record<OverrideResource, { mode: OverrideMode; value: string }>,
+  );
+
+  const limitByResource = new Map(effectiveLimits.map((row) => [row.resource, row.limit]));
+
+  function submit() {
+    const payload: {
+      products?: number | null;
+      users?: number | null;
+      branches?: number | null;
+      devices?: number | null;
+      clear: OverrideResource[];
+    } = { clear: [] };
+
+    for (const resource of OVERRIDE_RESOURCES) {
+      const entry = state[resource];
+      if (entry.mode === "default") {
+        payload.clear.push(resource);
+        continue;
+      }
+      if (entry.mode === "unlimited") {
+        payload[resource] = null;
+        continue;
+      }
+      const parsed = Number(entry.value.trim());
+      if (!Number.isInteger(parsed) || parsed <= 0) {
+        toast.error(`Enter a whole positive number for ${RESOURCE_LABELS[resource]}.`);
+        return;
+      }
+      payload[resource] = parsed;
+    }
+    onSave(payload);
+  }
+
+  return (
+    <div className="border-border space-y-3 rounded-lg border p-4">
+      <div className="space-y-1">
+        <p className="text-sm font-medium">Resource limit overrides</p>
+        <p className="text-muted-foreground text-xs">
+          Overrides win over the plan default for this organization only. Existing records are
+          never removed if a lower limit is applied — only new creation is blocked.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {OVERRIDE_RESOURCES.map((resource) => {
+          const entry = state[resource];
+          const effective = limitByResource.get(resource);
+          return (
+            <div key={resource} className="space-y-1.5">
+              <Label htmlFor={`override-${resource}`} className="flex items-center justify-between">
+                <span>{RESOURCE_LABELS[resource]}</span>
+                <span className="text-muted-foreground text-xs font-normal">
+                  Now: {effective === null || effective === undefined ? "Unlimited" : effective}
+                </span>
+              </Label>
+              <div className="flex gap-2">
+                <Select
+                  value={entry.mode}
+                  disabled={disabled}
+                  onValueChange={(mode) =>
+                    setState((prev) => ({ ...prev, [resource]: { ...prev[resource], mode: mode as OverrideMode } }))
+                  }
+                >
+                  <SelectTrigger id={`override-${resource}`} className="flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Plan default</SelectItem>
+                    <SelectItem value="unlimited">Unlimited</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+                {entry.mode === "custom" ? (
+                  <Input
+                    type="number"
+                    min={1}
+                    step={1}
+                    inputMode="numeric"
+                    className="w-24"
+                    disabled={disabled}
+                    value={entry.value}
+                    onChange={(event) =>
+                      setState((prev) => ({
+                        ...prev,
+                        [resource]: { ...prev[resource], value: event.target.value },
+                      }))
+                    }
+                  />
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <Button type="button" variant="outline" disabled={disabled} onClick={submit}>
+        Save limits
+      </Button>
     </div>
   );
 }

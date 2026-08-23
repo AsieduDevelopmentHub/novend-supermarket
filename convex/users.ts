@@ -14,7 +14,6 @@ import {
   getProfileByUserId,
   requireProfile,
   requireRole,
-  requireRoleIgnoringLicense,
   requireSessionIgnoringLicense,
 } from "./shared/permissions";
 import { roleValidator } from "./schema";

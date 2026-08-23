@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -10,128 +10,126 @@ import {
   enqueuePlatformCostDraft,
   loadPlatformCostDraftQueue,
   loadPlatformHealth,
+  loadPlatformInsight,
   loadPlatformOperatingCosts,
   loadPlatformOrgDetail,
   loadPlatformOrganizations,
   loadPlatformOverview,
   loadPlatformPayment,
   loadPlatformReleaseBundle,
+  loadPlatformReleaseBundles,
   loadPlatformReleases,
   loadPlatformRevenue,
   loadPlatformSubscriptions,
   savePlatformHealth,
+  savePlatformInsight,
   savePlatformOperatingCosts,
   savePlatformOrgDetail,
   savePlatformOrganizations,
   savePlatformOverview,
   savePlatformPayment,
   savePlatformReleaseBundle,
+  savePlatformReleaseBundles,
   savePlatformReleases,
   savePlatformRevenue,
   savePlatformSubscriptions,
   type PlatformCostDraft,
   type PlatformOperatingCostRow,
-  type PlatformOrganizationListItem,
-  type PlatformOverviewCache,
   type PlatformReleaseCacheItem,
   type PlatformRevenueRange,
 } from "@/lib/offline/platform-cache";
+import type { PlatformInsightMetric } from "@/convex/platformAnalytics";
 
 type CacheSource = "live" | "cache";
 
-export function usePlatformOverviewData() {
-  const online = useConnectivity();
-  const live = useQuery(api.platform.overview, online ? {} : "skip");
-  const [cached, setCached] = useState<PlatformOverviewCache | null>(null);
-  const [cacheReady, setCacheReady] = useState(false);
+/**
+ * Live Convex query with an IndexedDB fallback for offline viewing.
+ *
+ * `key` identifies the current query args (e.g. an organization id or a
+ * range filter) so switching between entities doesn't briefly render a
+ * stale cache entry that belongs to the previous key.
+ *
+ * Remembering the latest live value across a later disconnect uses the
+ * React-sanctioned "adjust state during render" pattern (see
+ * https://react.dev/reference/react/useState#storing-information-from-previous-renders)
+ * instead of a ref or an effect, so render stays pure and no effect ever
+ * calls `setState` synchronously — only inside the disk-load `.then()`.
+ */
+function useLiveWithDiskCache<TValue>(
+  live: TValue | undefined,
+  key: string,
+  load: () => Promise<TValue | null>,
+  save: (value: TValue) => void | Promise<void>,
+): { data: TValue | null | undefined; loading: boolean; source: CacheSource } {
+  const [diskCache, setDiskCache] = useState<{ key: string; value: TValue | null } | null>(null);
+  const [lastLive, setLastLive] = useState<{ key: string; value: TValue } | null>(null);
+
+  if (live !== undefined && (lastLive === null || lastLive.key !== key || lastLive.value !== live)) {
+    setLastLive({ key, value: live });
+  }
 
   useEffect(() => {
     let cancelled = false;
-    void loadPlatformOverview().then((row) => {
+    void load().then((value) => {
       if (cancelled) return;
-      setCached(row);
-      setCacheReady(true);
+      setDiskCache({ key, value });
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+    // `load` is a fresh closure per render capturing the args behind `key`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   useEffect(() => {
-    if (!live) return;
-    setCached({ ...live, cachedAt: Date.now() });
-    void savePlatformOverview(live);
-  }, [live]);
+    if (live === undefined) return;
+    void save(live);
+    // `save` is a fresh closure per render capturing the args behind `key`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live, key]);
 
-  if (live) {
-    return {
-      data: { ...live, cachedAt: cached?.cachedAt ?? Date.now() },
-      loading: false,
-      source: "live" as CacheSource,
-    };
+  if (live !== undefined) {
+    return { data: live, loading: false, source: "live" };
   }
-  if (cached) {
-    return { data: cached, loading: false, source: "cache" as CacheSource };
+  if (lastLive && lastLive.key === key) {
+    return { data: lastLive.value, loading: false, source: "cache" };
   }
-  return { data: null, loading: !cacheReady || online, source: "cache" as CacheSource };
+  if (diskCache && diskCache.key === key) {
+    return { data: diskCache.value, loading: false, source: "cache" };
+  }
+  return { data: undefined, loading: true, source: "cache" };
+}
+
+export function usePlatformOverviewData() {
+  const online = useConnectivity();
+  const live = useQuery(api.platform.overview, online ? {} : "skip");
+  const { data, loading, source } = useLiveWithDiskCache(
+    live,
+    "overview",
+    () => loadPlatformOverview().then((row) => (row as unknown as typeof live) ?? null),
+    (value) => savePlatformOverview(value),
+  );
+  return { data, loading: loading || (source === "cache" && online), source };
 }
 
 export function usePlatformOrganizationsData() {
   const online = useConnectivity();
   const live = useQuery(api.platform.listOrganizations, online ? {} : "skip");
-  const [cached, setCached] = useState<PlatformOrganizationListItem[] | null>(null);
-  const [cacheReady, setCacheReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void loadPlatformOrganizations().then((row) => {
-      if (cancelled) return;
-      setCached(row?.organizations ?? null);
-      setCacheReady(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!live) return;
-    setCached(live);
-    void savePlatformOrganizations(live);
-  }, [live]);
-
-  if (live) {
-    return { data: live, loading: false, source: "live" as CacheSource };
-  }
-  if (cached) {
-    return { data: cached, loading: false, source: "cache" as CacheSource };
-  }
-  return { data: null, loading: !cacheReady || online, source: "cache" as CacheSource };
+  const { data, loading, source } = useLiveWithDiskCache(
+    live,
+    "organizations",
+    () => loadPlatformOrganizations().then((row) => row?.organizations ?? null),
+    (value) => savePlatformOrganizations(value),
+  );
+  return { data, loading: loading || (source === "cache" && online), source };
 }
 
 export function usePlatformReleasesData(channel: "stable" | "beta" = "stable") {
   const online = useConnectivity();
   const live = useQuery(api.desktopReleases.listRecent, online ? { channel, limit: 20 } : "skip");
-  const [cached, setCached] = useState<PlatformReleaseCacheItem[] | null>(null);
-  const [cacheReady, setCacheReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void loadPlatformReleases().then((row) => {
-      if (cancelled) return;
-      if (row && row.channel === channel) {
-        setCached(row.releases);
-      }
-      setCacheReady(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [channel]);
-
-  useEffect(() => {
-    if (!live) return;
-    const releases: PlatformReleaseCacheItem[] = live.map((row) => ({
+  const mapped = useMemo<PlatformReleaseCacheItem[] | undefined>(() => {
+    if (!live) return undefined;
+    return live.map((row) => ({
       _id: String(row._id),
       version: row.version,
       tag: row.tag,
@@ -148,17 +146,14 @@ export function usePlatformReleasesData(channel: "stable" | "beta" = "stable") {
         downloadUrl: asset.downloadUrl,
       })),
     }));
-    setCached(releases);
-    void savePlatformReleases(channel, releases);
-  }, [live, channel]);
-
-  if (live) {
-    return { data: live, loading: false, source: "live" as CacheSource };
-  }
-  if (cached) {
-    return { data: cached, loading: false, source: "cache" as CacheSource };
-  }
-  return { data: null, loading: !cacheReady || online, source: "cache" as CacheSource };
+  }, [live]);
+  const { data, loading, source } = useLiveWithDiskCache(
+    mapped,
+    channel,
+    () => loadPlatformReleases().then((row) => (row?.channel === channel ? row.releases : null)),
+    (value) => savePlatformReleases(channel, value),
+  );
+  return { data, loading: loading || (source === "cache" && online), source };
 }
 
 export function usePlatformOrgDetailData(organizationId: string) {
@@ -168,152 +163,49 @@ export function usePlatformOrgDetailData(organizationId: string) {
     api.platform.getOrganization,
     online && organizationId ? { organizationId: id } : "skip",
   );
-  const [cached, setCached] = useState<typeof live>(undefined);
-  const [cacheReady, setCacheReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setCacheReady(false);
-    void loadPlatformOrgDetail(organizationId).then((row) => {
-      if (cancelled) return;
-      setCached(row ? (row.payload as typeof live) : null);
-      setCacheReady(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationId]);
-
-  useEffect(() => {
-    if (live === undefined) return;
-    setCached(live);
-    if (live) {
-      void savePlatformOrgDetail(organizationId, live);
-    }
-  }, [live, organizationId]);
-
-  if (live !== undefined) {
-    return { data: live, loading: false, source: "live" as CacheSource };
-  }
-  if (cacheReady) {
-    return { data: cached ?? null, loading: false, source: "cache" as CacheSource };
-  }
-  return { data: undefined, loading: true, source: "cache" as CacheSource };
+  const { data, loading, source } = useLiveWithDiskCache(
+    live,
+    organizationId,
+    () => loadPlatformOrgDetail(organizationId).then((row) => (row?.payload as typeof live) ?? null),
+    (value) => savePlatformOrgDetail(organizationId, value),
+  );
+  return { data, loading, source };
 }
 
 export function usePlatformRevenueData(range: PlatformRevenueRange) {
   const online = useConnectivity();
-  const live = useQuery(
-    api.platformAnalytics.revenueAnalytics,
-    online ? { range } : "skip",
+  const live = useQuery(api.platformAnalytics.revenueAnalytics, online ? { range } : "skip");
+  const { data, loading, source } = useLiveWithDiskCache(
+    live,
+    range,
+    () => loadPlatformRevenue(range).then((row) => (row?.payload as typeof live) ?? null),
+    (value) => savePlatformRevenue(range, value),
   );
-  const [cached, setCached] = useState<typeof live>(undefined);
-  const [cacheReady, setCacheReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setCacheReady(false);
-    void loadPlatformRevenue(range).then((row) => {
-      if (cancelled) return;
-      setCached(row ? (row.payload as typeof live) : undefined);
-      setCacheReady(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [range]);
-
-  useEffect(() => {
-    if (live === undefined) return;
-    setCached(live);
-    void savePlatformRevenue(range, live);
-  }, [live, range]);
-
-  if (live !== undefined) {
-    return { data: live, loading: false, source: "live" as CacheSource };
-  }
-  if (cacheReady) {
-    return {
-      data: (cached as typeof live) ?? null,
-      loading: false,
-      source: "cache" as CacheSource,
-    };
-  }
-  return { data: undefined, loading: true, source: "cache" as CacheSource };
+  return { data, loading, source };
 }
 
 export function usePlatformSubscriptionsData() {
   const online = useConnectivity();
   const live = useQuery(api.platformAnalytics.listSubscriptions, online ? {} : "skip");
-  const [cached, setCached] = useState<typeof live>(undefined);
-  const [cacheReady, setCacheReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void loadPlatformSubscriptions().then((row) => {
-      if (cancelled) return;
-      setCached(row ? (row.rows as typeof live) : undefined);
-      setCacheReady(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (live === undefined) return;
-    setCached(live);
-    void savePlatformSubscriptions(live);
-  }, [live]);
-
-  if (live !== undefined) {
-    return { data: live, loading: false, source: "live" as CacheSource };
-  }
-  if (cacheReady) {
-    return {
-      data: (cached as typeof live) ?? null,
-      loading: false,
-      source: "cache" as CacheSource,
-    };
-  }
-  return { data: undefined, loading: true, source: "cache" as CacheSource };
+  const { data, loading, source } = useLiveWithDiskCache(
+    live,
+    "subscriptions",
+    () => loadPlatformSubscriptions().then((row) => (row?.rows as typeof live) ?? null),
+    (value) => savePlatformSubscriptions(value),
+  );
+  return { data, loading: loading || (source === "cache" && online), source };
 }
 
 export function usePlatformHealthData() {
   const online = useConnectivity();
   const live = useQuery(api.platformAnalytics.systemHealth, online ? {} : "skip");
-  const [cached, setCached] = useState<typeof live>(undefined);
-  const [cacheReady, setCacheReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void loadPlatformHealth().then((row) => {
-      if (cancelled) return;
-      setCached(row ? (row.payload as typeof live) : undefined);
-      setCacheReady(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (live === undefined) return;
-    setCached(live);
-    void savePlatformHealth(live);
-  }, [live]);
-
-  if (live !== undefined) {
-    return { data: live, loading: false, source: "live" as CacheSource };
-  }
-  if (cacheReady) {
-    return {
-      data: (cached as typeof live) ?? null,
-      loading: false,
-      source: "cache" as CacheSource,
-    };
-  }
-  return { data: undefined, loading: true, source: "cache" as CacheSource };
+  const { data, loading, source } = useLiveWithDiskCache(
+    live,
+    "health",
+    () => loadPlatformHealth().then((row) => (row?.payload as typeof live) ?? null),
+    (value) => savePlatformHealth(value),
+  );
+  return { data, loading: loading || (source === "cache" && online), source };
 }
 
 export function usePlatformPaymentData(paymentId: string) {
@@ -323,35 +215,13 @@ export function usePlatformPaymentData(paymentId: string) {
     api.platformAnalytics.getPayment,
     online && paymentId ? { paymentId: id } : "skip",
   );
-  const [cached, setCached] = useState<typeof live>(undefined);
-  const [cacheReady, setCacheReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setCacheReady(false);
-    void loadPlatformPayment(paymentId).then((row) => {
-      if (cancelled) return;
-      setCached(row ? (row.payload as typeof live) : null);
-      setCacheReady(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [paymentId]);
-
-  useEffect(() => {
-    if (live === undefined) return;
-    setCached(live);
-    if (live) void savePlatformPayment(paymentId, live);
-  }, [live, paymentId]);
-
-  if (live !== undefined) {
-    return { data: live, loading: false, source: "live" as CacheSource };
-  }
-  if (cacheReady) {
-    return { data: cached ?? null, loading: false, source: "cache" as CacheSource };
-  }
-  return { data: undefined, loading: true, source: "cache" as CacheSource };
+  const { data, loading, source } = useLiveWithDiskCache(
+    live,
+    paymentId,
+    () => loadPlatformPayment(paymentId).then((row) => (row?.payload as typeof live) ?? null),
+    (value) => savePlatformPayment(paymentId, value),
+  );
+  return { data, loading, source };
 }
 
 export function usePlatformReleaseBundleData(version: string) {
@@ -360,35 +230,41 @@ export function usePlatformReleaseBundleData(version: string) {
     api.platformAnalytics.getReleaseBundle,
     online && version ? { version } : "skip",
   );
-  const [cached, setCached] = useState<typeof live>(undefined);
-  const [cacheReady, setCacheReady] = useState(false);
+  const { data, loading, source } = useLiveWithDiskCache(
+    live,
+    version,
+    () => loadPlatformReleaseBundle(version).then((row) => (row?.payload as typeof live) ?? null),
+    (value) => savePlatformReleaseBundle(version, value),
+  );
+  return { data, loading, source };
+}
 
-  useEffect(() => {
-    let cancelled = false;
-    setCacheReady(false);
-    void loadPlatformReleaseBundle(version).then((row) => {
-      if (cancelled) return;
-      setCached(row ? (row.payload as typeof live) : null);
-      setCacheReady(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [version]);
+/** Downloads screen — merged desktop + mobile release bundles. */
+export function usePlatformReleaseBundlesData(channel: "stable" | "beta" = "stable") {
+  const online = useConnectivity();
+  const live = useQuery(
+    api.platformAnalytics.listReleaseBundles,
+    online ? { channel, limit: 20 } : "skip",
+  );
+  const { data, loading, source } = useLiveWithDiskCache(
+    live,
+    channel,
+    () => loadPlatformReleaseBundles(channel).then((row) => (row?.payload as typeof live) ?? null),
+    (value) => savePlatformReleaseBundles(channel, value),
+  );
+  return { data, loading: loading || (source === "cache" && online), source };
+}
 
-  useEffect(() => {
-    if (live === undefined) return;
-    setCached(live);
-    if (live) void savePlatformReleaseBundle(version, live);
-  }, [live, version]);
-
-  if (live !== undefined) {
-    return { data: live, loading: false, source: "live" as CacheSource };
-  }
-  if (cacheReady) {
-    return { data: cached ?? null, loading: false, source: "cache" as CacheSource };
-  }
-  return { data: undefined, loading: true, source: "cache" as CacheSource };
+export function usePlatformInsightData(metric: PlatformInsightMetric, range: PlatformRevenueRange) {
+  const online = useConnectivity();
+  const live = useQuery(api.platformAnalytics.getInsightDetail, online ? { metric, range } : "skip");
+  const { data, loading, source } = useLiveWithDiskCache(
+    live,
+    `${metric}:${range}`,
+    () => loadPlatformInsight(metric, range).then((row) => (row?.payload as typeof live) ?? null),
+    (value) => savePlatformInsight(metric, range, value),
+  );
+  return { data, loading, source };
 }
 
 function newDraftId() {
@@ -400,26 +276,9 @@ export function usePlatformOperatingCostsData() {
   const live = useQuery(api.platformAnalytics.listOperatingCosts, online ? {} : "skip");
   const createCost = useMutation(api.platformAnalytics.createOperatingCost);
   const removeCost = useMutation(api.platformAnalytics.removeOperatingCost);
-  const [rows, setRows] = useState<PlatformOperatingCostRow[] | null>(null);
-  const [cacheReady, setCacheReady] = useState(false);
-  const [flushing, setFlushing] = useState(false);
-  const flushLock = useRef(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void loadPlatformOperatingCosts().then((row) => {
-      if (cancelled) return;
-      setRows(row?.rows ?? null);
-      setCacheReady(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (live === undefined) return;
-    const next: PlatformOperatingCostRow[] = live.map((row) => ({
+  const liveRows = useMemo<PlatformOperatingCostRow[] | undefined>(() => {
+    if (live === undefined) return undefined;
+    return live.map((row) => ({
       id: String(row.id),
       amount: row.amount,
       currency: row.currency,
@@ -428,9 +287,28 @@ export function usePlatformOperatingCostsData() {
       description: row.description,
       createdAt: row.createdAt,
     }));
-    setRows(next);
-    void savePlatformOperatingCosts(next);
   }, [live]);
+  const [cachedRows, setCachedRows] = useState<PlatformOperatingCostRow[] | null>(null);
+  const [cacheReady, setCacheReady] = useState(false);
+  const [flushing, setFlushing] = useState(false);
+  const flushLock = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadPlatformOperatingCosts().then((row) => {
+      if (cancelled) return;
+      setCachedRows(row?.rows ?? null);
+      setCacheReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (liveRows === undefined) return;
+    void savePlatformOperatingCosts(liveRows);
+  }, [liveRows]);
 
   useEffect(() => {
     if (!online || flushLock.current) return;
@@ -479,6 +357,8 @@ export function usePlatformOperatingCostsData() {
     };
   }, [online, createCost, removeCost, live]);
 
+  const rows = liveRows ?? cachedRows;
+
   async function queueCreate(input: {
     amount: number;
     category: PlatformOperatingCostRow["category"];
@@ -524,7 +404,7 @@ export function usePlatformOperatingCostsData() {
       pending: true,
     };
     const next = [optimistic, ...(rows ?? [])];
-    setRows(next);
+    setCachedRows(next);
     await savePlatformOperatingCosts(next);
     return { queued: true as const };
   }
@@ -538,7 +418,7 @@ export function usePlatformOperatingCostsData() {
     if (costId.startsWith("draft_")) {
       await dequeuePlatformCostDraft(costId);
       const next = (rows ?? []).filter((row) => row.id !== costId);
-      setRows(next);
+      setCachedRows(next);
       await savePlatformOperatingCosts(next);
       return { queued: true as const };
     }
@@ -551,14 +431,14 @@ export function usePlatformOperatingCostsData() {
     };
     await enqueuePlatformCostDraft(draft);
     const next = (rows ?? []).filter((row) => row.id !== costId);
-    setRows(next);
+    setCachedRows(next);
     await savePlatformOperatingCosts(next);
     return { queued: true as const };
   }
 
-  if (live !== undefined || rows) {
+  if (rows) {
     return {
-      data: rows ?? [],
+      data: rows,
       loading: false,
       source: (live !== undefined ? "live" : "cache") as CacheSource,
       queueCreate,

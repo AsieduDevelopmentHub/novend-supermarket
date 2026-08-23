@@ -91,6 +91,8 @@ export default defineSchema({
     currency: v.string(),
     timezone: v.optional(v.string()),
     taxId: v.optional(v.string()),
+    /** Registration country, set by the Super Admin (PEAS organization profile). */
+    country: v.optional(v.string()),
     /** Legacy free-text plan label kept for older records. `planKey` is authoritative. */
     plan: v.optional(v.string()),
     planKey: v.optional(planKeyValidator),
@@ -103,6 +105,18 @@ export default defineSchema({
      * fixed backup limit. `undefined` / `null` means no cap.
      */
     backupLimitBytes: v.optional(v.union(v.number(), v.null())),
+    /**
+     * Super Admin overrides for metered resources, on top of the plan catalog.
+     * A key present with `null` means unlimited; an absent key inherits the plan.
+     */
+    limitOverrides: v.optional(
+      v.object({
+        products: v.optional(v.union(v.number(), v.null())),
+        users: v.optional(v.union(v.number(), v.null())),
+        branches: v.optional(v.union(v.number(), v.null())),
+        devices: v.optional(v.union(v.number(), v.null())),
+      }),
+    ),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
   })

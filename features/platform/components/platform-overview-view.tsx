@@ -1,17 +1,21 @@
 "use client";
 
-import type { ComponentType } from "react";
+import { useState, type ComponentType } from "react";
 import Link from "next/link";
 import {
   Building2,
+  Clock,
   CreditCard,
+  Crown,
   GitBranch,
+  HardDrive,
+  MonitorSmartphone,
   Package,
   ShoppingBag,
   TrendingUp,
   Users,
   Wallet,
-  MonitorSmartphone,
+  XCircle,
 } from "lucide-react";
 import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Badge } from "@/components/ui/badge";
@@ -19,34 +23,57 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
-import { formatCurrency } from "@/lib/currency";
+import { formatCurrency, formatNumber } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
+import { formatPlanBytes } from "@/convex/shared/plans";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import {
   usePlatformHealthData,
   usePlatformOverviewData,
   usePlatformRevenueData,
 } from "@/hooks/use-platform-offline-data";
+import type { PlatformRevenueRange } from "@/lib/offline/platform-cache";
+
+const RANGES: { id: PlatformRevenueRange; label: string }[] = [
+  { id: "today", label: "Today" },
+  { id: "7d", label: "7 days" },
+  { id: "30d", label: "30 days" },
+  { id: "12m", label: "12 months" },
+];
 
 export function PlatformOverviewView() {
   const online = useConnectivity();
+  const [range, setRange] = useState<PlatformRevenueRange>("30d");
   const { data: overview, loading } = usePlatformOverviewData();
-  const { data: revenue } = usePlatformRevenueData("30d");
+  const { data: revenue } = usePlatformRevenueData(range);
   const { data: health } = usePlatformHealthData();
 
   if (loading || !overview) {
     return <LoadingState label="Loading platform overview…" />;
   }
 
+  const lifetimeLicenses = revenue?.lifetimeLicenses ?? 0;
+  const expiredSubscriptions = overview.expiredOrganizations;
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Platform overview"
-        description="Tenants, SaaS revenue, and product distribution for Novend."
+        description="SaaS control center for Novend — revenue, tenants, releases, and system health."
         actions={
-          <Button asChild>
-            <Link href="/platform/organizations">Manage organizations</Link>
-          </Button>
+          <div className="flex flex-wrap gap-1">
+            {RANGES.map((item) => (
+              <Button
+                key={item.id}
+                type="button"
+                size="sm"
+                variant={range === item.id ? "default" : "outline"}
+                onClick={() => setRange(item.id)}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </div>
         }
       />
 
@@ -81,6 +108,12 @@ export function PlatformOverviewView() {
             Downloads
           </Link>
         </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/platform/health">
+            <MonitorSmartphone className="h-4 w-4" />
+            System health
+          </Link>
+        </Button>
       </div>
 
       <Grid cols={4}>
@@ -89,41 +122,74 @@ export function PlatformOverviewView() {
           value={revenue ? formatCurrency(revenue.mrr) : "—"}
           hint="Monthly recurring"
           icon={TrendingUp}
+          href="/platform/insights/mrr"
         />
         <Kpi
           title="ARR"
           value={revenue ? formatCurrency(revenue.arr) : "—"}
           hint="MRR × 12"
           icon={Wallet}
+          href="/platform/insights/arr"
         />
         <Kpi
-          title="Trials"
-          value={String(overview.trialOrganizations)}
-          hint={`${overview.activeOrganizations} active orgs`}
+          title="Active organizations"
+          value={String(overview.activeOrganizations)}
+          hint={`${overview.organizationCount} total`}
           icon={Building2}
+          href="/platform/insights/active-organizations"
+        />
+        <Kpi
+          title="Trial organizations"
+          value={String(overview.trialOrganizations)}
+          icon={Clock}
+          href="/platform/insights/trial-organizations"
+        />
+      </Grid>
+
+      <Grid cols={4}>
+        <Kpi
+          title="Expired subscriptions"
+          value={String(expiredSubscriptions)}
+          icon={XCircle}
+          href="/platform/insights/expired-subscriptions"
+        />
+        <Kpi
+          title="Lifetime licenses"
+          value={String(lifetimeLicenses)}
+          icon={Crown}
+          href="/platform/insights/lifetime-licenses"
         />
         <Kpi
           title="Active devices"
           value={health ? String(health.devices.active) : "—"}
           hint={health ? `${health.devices.seenLast24h} seen in 24h` : undefined}
           icon={MonitorSmartphone}
+          href="/platform/insights/active-devices"
+        />
+        <Kpi
+          title="Cloud storage used"
+          value={health ? formatPlanBytes(health.storage.totalBytes) : "—"}
+          hint={health ? `${health.storage.backupCount} backups` : undefined}
+          icon={HardDrive}
+          href="/platform/insights/cloud-storage"
         />
       </Grid>
 
       <Grid cols={4}>
-        <Kpi
-          title="Organizations"
-          value={String(overview.organizationCount)}
-          hint={`${overview.suspendedOrganizations} suspended`}
-          icon={Building2}
-        />
-        <Kpi title="Staff accounts" value={String(overview.userCount)} icon={Users} />
-        <Kpi title="Branches" value={String(overview.branchCount)} icon={GitBranch} />
+        <Kpi title="Staff accounts" value={formatNumber(overview.userCount)} icon={Users} />
+        <Kpi title="Branches" value={formatNumber(overview.branchCount)} icon={GitBranch} />
         <Kpi
           title="Completed sales"
-          value={String(overview.saleCount)}
+          value={formatNumber(overview.saleCount)}
           hint={`${overview.salesLast24h} in the last 24 hours`}
           icon={ShoppingBag}
+        />
+        <Kpi
+          title="Net profit"
+          value={revenue ? formatCurrency(revenue.netProfit) : "—"}
+          hint={revenue ? `Costs ${formatCurrency(revenue.operatingCosts)}` : undefined}
+          icon={Wallet}
+          href="/platform/revenue"
         />
       </Grid>
 
@@ -182,6 +248,16 @@ export function PlatformOverviewView() {
               Published desktop and mobile installers are cached on this device for offline review.
               Fresh downloads still need a connection.
             </p>
+            {health?.latestDesktopVersion ? (
+              <p className="text-xs">
+                Latest desktop: <span className="font-medium">{health.latestDesktopTag}</span>
+              </p>
+            ) : null}
+            {health?.latestMobileVersion ? (
+              <p className="text-xs">
+                Latest mobile: <span className="font-medium">{health.latestMobileTag}</span>
+              </p>
+            ) : null}
             <Button asChild variant="outline" className="w-full">
               <Link href="/platform/releases">View downloads</Link>
             </Button>
@@ -197,14 +273,22 @@ function Kpi({
   value,
   hint,
   icon: Icon,
+  href,
 }: {
   title: string;
   value: string;
   hint?: string;
   icon: ComponentType<{ className?: string }>;
+  href?: string;
 }) {
-  return (
-    <Card className="border-l-primary min-w-0 border-l-[3px]">
+  const content = (
+    <Card
+      className={
+        href
+          ? "border-l-primary hover:border-l-primary/80 min-w-0 border-l-[3px] transition-colors hover:bg-accent/40"
+          : "border-l-primary min-w-0 border-l-[3px]"
+      }
+    >
       <CardContent className="flex items-start justify-between gap-3 p-5">
         <div className="min-w-0">
           <p className="text-muted-foreground truncate text-sm">{title}</p>
@@ -216,5 +300,12 @@ function Kpi({
         </div>
       </CardContent>
     </Card>
+  );
+
+  if (!href) return content;
+  return (
+    <Link href={href} className="block">
+      {content}
+    </Link>
   );
 }

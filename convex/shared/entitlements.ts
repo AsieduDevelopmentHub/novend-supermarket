@@ -74,7 +74,7 @@ export async function resolveLicense(
     organization,
     plan,
     planKey: plan.key,
-    limits: effectivePlanLimits(plan, organization.backupLimitBytes),
+    limits: effectivePlanLimits(plan, organization.backupLimitBytes, organization.limitOverrides),
     subscription,
     access,
   };
@@ -187,7 +187,11 @@ export async function assertWithinLimit(
   const organization = await ctx.db.get(organizationId);
   if (!organization) throw new Error("Organization not found");
   const plan = resolvePlan(planKey);
-  const limit = effectivePlanLimits(plan, organization.backupLimitBytes)[resource];
+  const limit = effectivePlanLimits(
+    plan,
+    organization.backupLimitBytes,
+    organization.limitOverrides,
+  )[resource];
   if (limit === null) return;
   const used = await countResource(ctx, organizationId, resource);
   if (used + additional > limit) {
