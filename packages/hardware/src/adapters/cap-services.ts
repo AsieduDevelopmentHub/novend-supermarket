@@ -360,17 +360,13 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
     async openAppSettings() {
       try {
         const info = await App.getInfo();
-        const platform =
-          typeof navigator !== "undefined" && /android/i.test(navigator.userAgent)
-            ? "android"
-            : "ios";
-        if (platform === "android") {
-          await App.openUrl({
-            url: `intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:${info.id};end`,
-          });
-        } else {
-          await App.openUrl({ url: "app-settings:" });
-        }
+        const isAndroid =
+          typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
+        const settingsUrl = isAndroid
+          ? `intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:${info.id};end`
+          : "app-settings:";
+        // Cap App plugin has no openUrl in v7 — use the same window bridge as openExternalUrl.
+        window.open(settingsUrl, "_system");
         return { ok: true as const };
       } catch (error) {
         const raw = error instanceof Error ? error.message : String(error ?? "");
