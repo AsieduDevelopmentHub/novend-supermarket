@@ -24,6 +24,15 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.3 — 2026-08-24
+
+### Fixed
+
+- Capacitor boot page passes `fromBoot=1` so cold start can restore the last in-app route after the hosted app loads.
+- Bundles routing/deep-link and Settings native timeout fixes for sideloaded Android builds (hosted JS already on Vercel).
+
+---
+
 ## v0.3.2 — 2026-08-23
 
 ### Fixed
