@@ -34,7 +34,18 @@ export function BluetoothPrinterCard() {
   useEffect(() => {
     let cancelled = false;
     void Hardware.bluetoothPrinter.getStatus().then((result) => {
-      if (!cancelled && result.ok && result.data) setStatus(result.data);
+      if (cancelled) return;
+      if (result.ok && result.data) setStatus(result.data);
+      else {
+        setStatus({
+          available: false,
+          connected: false,
+          deviceId: null,
+          deviceName: null,
+          paperWidthMm: 80,
+          autoReconnect: true,
+        });
+      }
     });
     return () => {
       cancelled = true;

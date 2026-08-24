@@ -15,6 +15,13 @@ import {
   permissionDeniedMessage,
   shareFailedMessage,
 } from "../permissions";
+import {
+  NATIVE_CAMERA_TIMEOUT_MS,
+  NATIVE_CALL_TIMEOUT_MS,
+  NATIVE_SCAN_TIMEOUT_MS,
+  isNativeTimeoutError,
+  withTimeout,
+} from "../timeout";
 import { createWebAdapters } from "./web";
 import {
   bluetoothTestPrint,
@@ -67,16 +74,19 @@ async function persistProductImage(uri: string, mimeType: string): Promise<strin
 
 async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCapture>> {
   try {
-    const permission = await Camera.checkPermissions();
+    const permission = await withTimeout(Camera.checkPermissions(), NATIVE_CALL_TIMEOUT_MS);
     const needsPrompt =
       source === CameraSource.Camera
         ? permission.camera !== "granted"
         : permission.photos !== "granted" && permission.camera !== "granted";
 
     if (needsPrompt) {
-      const requested = await Camera.requestPermissions({
-        permissions: source === CameraSource.Camera ? ["camera"] : ["photos"],
-      });
+      const requested = await withTimeout(
+        Camera.requestPermissions({
+          permissions: source === CameraSource.Camera ? ["camera"] : ["photos"],
+        }),
+        NATIVE_CALL_TIMEOUT_MS,
+      );
       const granted =
         source === CameraSource.Camera
           ? requested.camera === "granted"
@@ -92,14 +102,17 @@ async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCaptu
       }
     }
 
-    const photo = await Camera.getPhoto({
-      quality: 92,
-      allowEditing: false,
-      resultType: CameraResultType.Uri,
-      source,
-      correctOrientation: true,
-      saveToGallery: false,
-    });
+    const photo = await withTimeout(
+      Camera.getPhoto({
+        quality: 92,
+        allowEditing: false,
+        resultType: CameraResultType.Uri,
+        source,
+        correctOrientation: true,
+        saveToGallery: false,
+      }),
+      NATIVE_CAMERA_TIMEOUT_MS,
+    );
 
     const uri = photo.webPath || photo.path;
     if (!uri) {
@@ -121,6 +134,15 @@ async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCaptu
       },
     };
   } catch (error) {
+    if (isNativeTimeoutError(error)) {
+      return {
+        ok: false,
+        message:
+          source === CameraSource.Camera
+            ? "Camera took too long to respond. Try again."
+            : "Photo picker took too long to respond. Try again.",
+      };
+    }
     const raw = error instanceof Error ? error.message : String(error ?? "");
     if (/cancel/i.test(raw)) {
       return { ok: false, message: "Cancelled" };
@@ -176,19 +198,45 @@ export function createCapacitorAdapters(): HardwareAdapters {
       async scan() {
         try {
           await ensureGoogleBarcodeModule();
-          const { barcodes } = await BarcodeScanner.scan({
-            formats: [
-              BarcodeFormat.Ean13,
-              BarcodeFormat.Ean8,
-              BarcodeFormat.UpcA,
-              BarcodeFormat.UpcE,
-              BarcodeFormat.Code128,
-              BarcodeFormat.Code39,
-              BarcodeFormat.QrCode,
-              BarcodeFormat.Codabar,
-              BarcodeFormat.Itf,
-            ],
-          });
+          try {
+            const permission = await withTimeout(
+              BarcodeScanner.checkPermissions(),
+              NATIVE_CALL_TIMEOUT_MS,
+            );
+            if (permission.camera !== "granted") {
+              const requested = await withTimeout(
+                BarcodeScanner.requestPermissions(),
+                NATIVE_CALL_TIMEOUT_MS,
+              );
+              if (requested.camera !== "granted") {
+                return { ok: false, message: permissionDeniedMessage("camera") };
+              }
+            }
+          } catch (error) {
+            if (isNativeTimeoutError(error)) {
+              return {
+                ok: false,
+                message: "Camera permission timed out. Try again or enable it in device settings.",
+              };
+            }
+            /* Some platforms fold permission into scan() — continue. */
+          }
+          const { barcodes } = await withTimeout(
+            BarcodeScanner.scan({
+              formats: [
+                BarcodeFormat.Ean13,
+                BarcodeFormat.Ean8,
+                BarcodeFormat.UpcA,
+                BarcodeFormat.UpcE,
+                BarcodeFormat.Code128,
+                BarcodeFormat.Code39,
+                BarcodeFormat.QrCode,
+                BarcodeFormat.Codabar,
+                BarcodeFormat.Itf,
+              ],
+            }),
+            NATIVE_SCAN_TIMEOUT_MS,
+          );
           const first = barcodes[0];
           const value = first?.rawValue?.trim();
           if (!value) {
@@ -202,6 +250,9 @@ export function createCapacitorAdapters(): HardwareAdapters {
             },
           };
         } catch (error) {
+          if (isNativeTimeoutError(error)) {
+            return { ok: false, message: "Barcode scanner timed out. Try again." };
+          }
           const raw = error instanceof Error ? error.message : String(error ?? "");
           if (/cancel/i.test(raw)) {
             return { ok: false, message: "Cancelled" };

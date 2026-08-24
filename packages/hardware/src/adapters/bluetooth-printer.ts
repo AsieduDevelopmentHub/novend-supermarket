@@ -7,6 +7,7 @@ import type {
   BluetoothPrinterStatus,
 } from "../native-types";
 import { friendlyHardwareMessage } from "../permissions";
+import { NATIVE_BLE_TIMEOUT_MS, isNativeTimeoutError, withTimeout } from "../timeout";
 
 const PREF_DEVICE_ID = "novend.bt.printer.deviceId";
 const PREF_DEVICE_NAME = "novend.bt.printer.deviceName";
@@ -27,11 +28,20 @@ let initialized = false;
 async function ensureBle(): Promise<HardwareResult> {
   try {
     if (!initialized) {
-      await BleClient.initialize({ androidNeverForLocation: true });
+      await withTimeout(
+        BleClient.initialize({ androidNeverForLocation: true }),
+        NATIVE_BLE_TIMEOUT_MS,
+      );
       initialized = true;
     }
     return { ok: true };
   } catch (error) {
+    if (isNativeTimeoutError(error)) {
+      return {
+        ok: false,
+        message: "Bluetooth took too long to start. Turn it on and try again.",
+      };
+    }
     const raw = error instanceof Error ? error.message : String(error ?? "");
     return {
       ok: false,
@@ -174,10 +184,13 @@ export function createBluetoothPrinterControls(): BluetoothPrinterControls {
             /* ignore */
           }
         }
-        await BleClient.connect(deviceId, () => {
-          connectedId = null;
-          writeChar = null;
-        });
+        await withTimeout(
+          BleClient.connect(deviceId, () => {
+            connectedId = null;
+            writeChar = null;
+          }),
+          NATIVE_BLE_TIMEOUT_MS,
+        );
         writeChar = await resolveWriteCharacteristic(deviceId);
         connectedId = deviceId;
         await Preferences.set({ key: PREF_DEVICE_ID, value: deviceId });
@@ -187,6 +200,12 @@ export function createBluetoothPrinterControls(): BluetoothPrinterControls {
         });
         return { ok: true, message: "Printer connected" };
       } catch (error) {
+        if (isNativeTimeoutError(error)) {
+          return {
+            ok: false,
+            message: "Connecting to the printer timed out. Keep it nearby and try again.",
+          };
+        }
         const raw = error instanceof Error ? error.message : String(error ?? "");
         return {
           ok: false,

@@ -15,6 +15,7 @@ import type {
   UpdateInfo,
 } from "../native-types";
 import { friendlyHardwareMessage, permissionDeniedMessage } from "../permissions";
+import { NATIVE_CALL_TIMEOUT_MS, isNativeTimeoutError, withTimeout } from "../timeout";
 
 const TOPIC_KEY = "novend.notifications.topics";
 const BIOMETRIC_ENABLED_KEY = "novend.biometric.enabled";
@@ -49,7 +50,7 @@ export function createCapacitorBiometricsAdapter(): BiometricsAdapter {
   return {
     async checkAvailability() {
       try {
-        const result = await BiometricAuth.checkBiometry();
+        const result = await withTimeout(BiometricAuth.checkBiometry(), NATIVE_CALL_TIMEOUT_MS);
         return {
           ok: true,
           data: {
@@ -58,6 +59,13 @@ export function createCapacitorBiometricsAdapter(): BiometricsAdapter {
           },
         };
       } catch (error) {
+        if (isNativeTimeoutError(error)) {
+          return {
+            ok: false,
+            message: "Biometrics took too long to respond. Try again.",
+            data: { available: false, biometryType: "none" },
+          };
+        }
         const raw = error instanceof Error ? error.message : String(error ?? "");
         return {
           ok: false,
@@ -68,13 +76,19 @@ export function createCapacitorBiometricsAdapter(): BiometricsAdapter {
     },
     async authenticate(reason) {
       try {
-        await BiometricAuth.authenticate({
-          reason,
-          cancelTitle: "Use password",
-          allowDeviceCredential: true,
-        });
+        await withTimeout(
+          BiometricAuth.authenticate({
+            reason,
+            cancelTitle: "Use password",
+            allowDeviceCredential: true,
+          }),
+          30_000,
+        );
         return { ok: true };
       } catch (error) {
+        if (isNativeTimeoutError(error)) {
+          return { ok: false, message: "Biometric unlock timed out. Try again." };
+        }
         const raw = error instanceof Error ? error.message : String(error ?? "");
         if (/cancel|user.?cancel/i.test(raw)) {
           return { ok: false, message: "Cancelled" };
@@ -128,7 +142,10 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
   return {
     async checkPermissions() {
       try {
-        const status = await LocalNotifications.checkPermissions();
+        const status = await withTimeout(
+          LocalNotifications.checkPermissions(),
+          NATIVE_CALL_TIMEOUT_MS,
+        );
         return { ok: true, data: { granted: status.display === "granted" } };
       } catch {
         return { ok: true, data: { granted: false } };
@@ -136,7 +153,10 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
     },
     async requestPermissions() {
       try {
-        const status = await LocalNotifications.requestPermissions();
+        const status = await withTimeout(
+          LocalNotifications.requestPermissions(),
+          NATIVE_CALL_TIMEOUT_MS,
+        );
         if (status.display !== "granted") {
           return {
             ok: false,
@@ -146,6 +166,13 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
         }
         return { ok: true, data: { granted: true } };
       } catch (error) {
+        if (isNativeTimeoutError(error)) {
+          return {
+            ok: false,
+            message: "Notification permission timed out. Try again from device settings.",
+            data: { granted: false },
+          };
+        }
         const raw = error instanceof Error ? error.message : String(error ?? "");
         return {
           ok: false,
@@ -298,6 +325,28 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
         },
       };
     },
+    async addBackButtonListener(callback) {
+      const handle = await App.addListener("backButton", (event) => {
+        callback({ canGoBack: Boolean(event.canGoBack) });
+      });
+      return {
+        remove: async () => {
+          await handle.remove();
+        },
+      };
+    },
+    async exitApp() {
+      try {
+        await App.exitApp();
+        return { ok: true as const };
+      } catch (error) {
+        const raw = error instanceof Error ? error.message : String(error ?? "");
+        return {
+          ok: false as const,
+          message: friendlyHardwareMessage(raw, "Could not close the app."),
+        };
+      }
+    },
   };
 }
 
@@ -307,10 +356,13 @@ export async function getBiometricPrefs(): Promise<{
   requireOnLaunch: boolean;
 }> {
   try {
-    const [enabled, requireOnLaunch] = await Promise.all([
-      Preferences.get({ key: BIOMETRIC_ENABLED_KEY }),
-      Preferences.get({ key: BIOMETRIC_REQUIRE_LAUNCH_KEY }),
-    ]);
+    const [enabled, requireOnLaunch] = await withTimeout(
+      Promise.all([
+        Preferences.get({ key: BIOMETRIC_ENABLED_KEY }),
+        Preferences.get({ key: BIOMETRIC_REQUIRE_LAUNCH_KEY }),
+      ]),
+      NATIVE_CALL_TIMEOUT_MS,
+    );
     return {
       enabled: enabled.value === "true",
       requireOnLaunch: requireOnLaunch.value === "true",

@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.1
+Version: 2.4.2
 
 ## Purpose
 
@@ -95,7 +95,24 @@ duplicate, and stock rejections stay as conflicts instead of silent pending.
 
 Next.js App Router RSC fetches fail offline. While offline, in-app navigation
 uses `history.pushState` and a client outlet so the authenticated layout stays
-mounted.
+mounted. The **URL remains the source of navigation state**; the service worker
+may serve a cached shell HTML document for an uncached deep path without
+rewriting the browser location — `OfflineNavigationProvider` /
+`resolveOfflineView` then render the view for `location.pathname`.
+
+### Deep links and return URL
+
+Unauthenticated visits to app routes redirect to `/login?next=…` with a
+same-origin path validated by `lib/auth/safe-return-path.ts`. After sign-in,
+`resolvePostAuthPath` restores that path unless onboarding or platform-admin
+defaults take priority.
+
+### Cold start last route
+
+Capacitor and Electron boot pages open the hosted app with `?fromBoot=1`. The
+app then restores `localStorage` key `novend.lastRoute` (written on successful
+in-app navigation) once, so reopen lands on the last screen instead of always
+`/dashboard`.
 
 ## Super Admin (platform)
 

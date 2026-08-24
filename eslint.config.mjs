@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "next-scaffold/**",
     "apps/desktop/dist/**",
     "apps/desktop/release/**",
+    "apps/mobile/android/**",
+    "apps/mobile/ios/**",
   ]),
 ]);
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { Hardware, isCapacitor } from "@novend/hardware";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { Hardware, isCapacitor, withTimeout, NATIVE_CALL_TIMEOUT_MS } from "@novend/hardware";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Fingerprint } from "lucide-react";
+import { RestoreLastRoute } from "@/components/layout/restore-last-route";
+import { safeInternalPath } from "@/lib/auth/safe-return-path";
 
 function parseDeepLink(url: string): string | null {
   try {
@@ -34,26 +36,8 @@ function parseDeepLink(url: string): string | null {
 
 type Gate = "checking" | "locked" | "open";
 
-const GATE_TIMEOUT_MS = 2500;
-
-async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return await new Promise<T>((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error("timeout")), ms);
-    void promise.then(
-      (value) => {
-        window.clearTimeout(timer);
-        resolve(value);
-      },
-      (error: unknown) => {
-        window.clearTimeout(timer);
-        reject(error);
-      },
-    );
-  });
-}
-
 /**
- * Capacitor-only: biometric launch gate + deep link routing + soft update check.
+ * Capacitor-only: biometric launch gate + deep link routing + soft update check + back button.
  * All native access goes through `@novend/hardware` (no Capacitor imports here).
  */
 export function NativeAppServices({ children }: { children: ReactNode }) {
@@ -62,29 +46,34 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
   const [updateOpen, setUpdateOpen] = useState(false);
   const [updateNotes, setUpdateNotes] = useState("");
   const [updateVersion, setUpdateVersion] = useState("");
+  const [exitOpen, setExitOpen] = useState(false);
 
   useEffect(() => {
     if (!isCapacitor()) return;
 
     let cancelled = false;
-    let removeListener: (() => Promise<void>) | null = null;
+    let removeUrlListener: (() => Promise<void>) | null = null;
+    let removeBackListener: (() => Promise<void>) | null = null;
     const failOpen = window.setTimeout(() => {
       if (!cancelled) setGate((current) => (current === "checking" ? "open" : current));
-    }, GATE_TIMEOUT_MS);
+    }, NATIVE_CALL_TIMEOUT_MS);
 
     void (async () => {
       try {
-        const prefs = await withTimeout(Hardware.biometrics.getPrefs(), GATE_TIMEOUT_MS);
+        const prefs = await withTimeout(Hardware.biometrics.getPrefs(), NATIVE_CALL_TIMEOUT_MS);
         if (!prefs.enabled || !prefs.requireOnLaunch) {
           if (!cancelled) setGate("open");
           return;
         }
-        const token = await withTimeout(Hardware.biometrics.readUnlockToken(), GATE_TIMEOUT_MS);
+        const token = await withTimeout(Hardware.biometrics.readUnlockToken(), NATIVE_CALL_TIMEOUT_MS);
         if (!token.data) {
           if (!cancelled) setGate("open");
           return;
         }
-        const auth = await Hardware.biometrics.authenticate("Unlock Novend POS");
+        const auth = await withTimeout(
+          Hardware.biometrics.authenticate("Unlock Novend POS"),
+          30_000,
+        );
         if (!cancelled) setGate(auth.ok ? "open" : "locked");
       } catch {
         if (!cancelled) setGate("open");
@@ -95,7 +84,8 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
       const launch = await Hardware.app.getLaunchUrl();
       if (launch.data) {
         const href = parseDeepLink(launch.data);
-        if (href) router.push(href);
+        const safe = href ? safeInternalPath(href) : null;
+        if (safe) router.push(safe);
       }
       const update = await Hardware.app.checkForUpdate();
       if (update.data?.available) {
@@ -108,16 +98,30 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
     void Hardware.app
       .addUrlOpenListener((url) => {
         const href = parseDeepLink(url);
-        if (href) router.push(href);
+        const safe = href ? safeInternalPath(href) : null;
+        if (safe) router.push(safe);
       })
       .then((handle) => {
-        removeListener = handle.remove;
+        removeUrlListener = handle.remove;
+      });
+
+    void Hardware.app
+      .addBackButtonListener(({ canGoBack }) => {
+        if (canGoBack || window.history.length > 1) {
+          window.history.back();
+          return;
+        }
+        setExitOpen(true);
+      })
+      .then((handle) => {
+        removeBackListener = handle.remove;
       });
 
     return () => {
       cancelled = true;
       window.clearTimeout(failOpen);
-      void removeListener?.();
+      void removeUrlListener?.();
+      void removeBackListener?.();
     };
   }, [router]);
 
@@ -160,6 +164,9 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <Suspense fallback={null}>
+        <RestoreLastRoute />
+      </Suspense>
       {children}
       <Dialog open={updateOpen} onOpenChange={setUpdateOpen}>
         <DialogContent className="max-w-md rounded-[22px]">
@@ -179,6 +186,30 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
               }}
             >
               Update now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={exitOpen} onOpenChange={setExitOpen}>
+        <DialogContent className="max-w-sm rounded-[22px]">
+          <DialogHeader>
+            <DialogTitle>Leave Novend?</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            You are at the start of this session. Close the app, or stay and keep working.
+          </p>
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button type="button" variant="outline" onClick={() => setExitOpen(false)}>
+              Stay
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                void Hardware.app.exitApp();
+                setExitOpen(false);
+              }}
+            >
+              Close app
             </Button>
           </DialogFooter>
         </DialogContent>

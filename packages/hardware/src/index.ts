@@ -70,6 +70,17 @@ export {
   type PermissionOutcome,
 } from "./permissions";
 
+export {
+  withTimeout,
+  withTimeoutFallback,
+  isNativeTimeoutError,
+  NATIVE_CALL_TIMEOUT_MS,
+  NATIVE_SCAN_TIMEOUT_MS,
+  NATIVE_BLE_TIMEOUT_MS,
+  NATIVE_CAMERA_TIMEOUT_MS,
+  NativeTimeoutError,
+} from "./timeout";
+
 /** Facade used as `Hardware.printer.printReceipt(...)` etc. */
 export const Hardware = {
   camera,

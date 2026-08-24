@@ -73,6 +73,10 @@ export type AppUrlOpenHandle = {
   remove: () => Promise<void>;
 };
 
+export type AppBackButtonHandle = {
+  remove: () => Promise<void>;
+};
+
 export type AppServicesAdapter = {
   getInfo: () => Promise<HardwareResult<AppInfo>>;
   getLaunchUrl: () => Promise<HardwareResult<string | null>>;
@@ -82,6 +86,10 @@ export type AppServicesAdapter = {
   addUrlOpenListener: (
     callback: (url: string) => void,
   ) => Promise<AppUrlOpenHandle>;
+  addBackButtonListener: (
+    callback: (event: { canGoBack: boolean }) => void,
+  ) => Promise<AppBackButtonHandle>;
+  exitApp: () => Promise<HardwareResult>;
 };
 
 export type BluetoothPrinterControls = {

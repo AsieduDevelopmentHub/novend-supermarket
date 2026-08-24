@@ -1,6 +1,6 @@
 # Hardware architecture
 
-Version: 1.4.0
+Version: 1.4.1
 
 ## Purpose
 
@@ -35,6 +35,8 @@ apps/mobile      → native plugins      (Capacitor)
   `Hardware.bluetoothPrinter`, `Hardware.biometrics`, `Hardware.secureStorage`,
   `Hardware.notifications`, `Hardware.app`, …
 - Permission copy helpers (request only when a feature needs access)
+- Bounded waits: `withTimeout` / `NATIVE_*_TIMEOUT_MS` so Settings and scanners
+  fail soft instead of hanging the WebView on a stuck Capacitor plugin
 - Result types shared across adapters
 
 UI components must not call Electron preload or Capacitor plugins directly.

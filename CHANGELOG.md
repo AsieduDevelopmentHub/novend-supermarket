@@ -13,6 +13,11 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Fixed
 
+- Deep links and refresh keep the requested URL: login uses `?next=`, platform admins are not forced off `/platform/*`, and middleware no longer treats a failed session fetch as unauthorized.
+- Capacitor/Electron cold start restores the last in-app route; Android back goes through history or confirms exit.
+- Offline service worker serves a shell document for deep URLs without substituting the browser path; mobile bottom nav uses offline-safe navigation.
+- Settings Security/Hardware no longer hang on unbounded Capacitor plugin awaits; native camera, barcode, BLE, biometrics, and notifications use fail-soft timeouts.
+- ESLint ignores Capacitor Android/iOS build trees; PageHeader no longer syncs the native host via a cascading effect.
 - Cancelling a subscription no longer locks POS during the period already paid for.
 - Product sync no longer fails Convex validation on empty optional fields or a category that has not finished syncing.
 - Capacitor no longer stays on “Preparing workspace / Checking device security” when biometric plugins hang.

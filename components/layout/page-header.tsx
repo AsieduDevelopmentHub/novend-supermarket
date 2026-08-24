@@ -40,15 +40,12 @@ export function PageHeader({
   const nativeShell = useNativeShell();
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarAway, setToolbarAway] = useState(false);
-  const [headerHost, setHeaderHost] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!nativeShell) {
-      setHeaderHost(null);
-      return;
-    }
-    setHeaderHost(document.getElementById(NATIVE_HEADER_HOST_ID));
-  }, [nativeShell, title]);
+  // Host is mounted by the app shell before page content; read during render
+  // so we do not need a syncing effect (avoids cascading setState).
+  const headerHost =
+    nativeShell && typeof document !== "undefined"
+      ? document.getElementById(NATIVE_HEADER_HOST_ID)
+      : null;
 
   useEffect(() => {
     if (!nativeShell) return;

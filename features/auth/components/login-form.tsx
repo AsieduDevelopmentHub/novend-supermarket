@@ -2,9 +2,9 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { SERVER_UNREACHABLE_MESSAGE, showError } from "@/lib/errors";
 import Image from "next/image";
@@ -19,7 +19,7 @@ import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
-import { postLoginPath } from "@/lib/auth/post-login-path";
+import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 import {
   navigateAfterLogin,
 } from "@/lib/auth/redirect-after-login";
@@ -41,7 +41,11 @@ export function LoginForm({ compact = false }: { compact?: boolean }) {
     );
   }
 
-  return <ConfiguredLoginForm compact={compact} />;
+  return (
+    <Suspense fallback={<LoadingState label="Loading…" variant="form" />}>
+      <ConfiguredLoginForm compact={compact} />
+    </Suspense>
+  );
 }
 
 function ConfiguredLoginForm({ compact }: { compact: boolean }) {
@@ -49,6 +53,8 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const convex = useConvex();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnNext = searchParams.get("next");
   const redirectingRef = useRef(false);
   const registration = useQuery(api.users.registrationStatus);
   const recordLoginFailure = useMutation(api.loginGuards.recordLoginFailure);
@@ -82,8 +88,8 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     if (!isAuthenticated || authLoading || me === undefined) return;
     if (redirectingRef.current) return;
     redirectingRef.current = true;
-    navigateAfterLogin(postLoginPath(me), router);
-  }, [isAuthenticated, authLoading, me, router]);
+    navigateAfterLogin(resolvePostAuthPath(me, returnNext), router);
+  }, [isAuthenticated, authLoading, me, returnNext, router]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();

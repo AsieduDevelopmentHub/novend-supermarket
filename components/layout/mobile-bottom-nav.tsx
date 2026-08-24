@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { triggerLightHaptic } from "@/lib/haptics";
 import { MOBILE_BOTTOM_TABS, resolveMobileTab } from "@/config/mobile-navigation";
+import { useOfflineNavigation } from "@/providers/offline-navigation";
 
 /**
  * Floating Onyx bottom navigation for Capacitor only.
@@ -12,7 +12,9 @@ import { MOBILE_BOTTOM_TABS, resolveMobileTab } from "@/config/mobile-navigation
  */
 export function MobileBottomNav() {
   const pathname = usePathname();
-  const active = resolveMobileTab(pathname);
+  const { navigate, activePath } = useOfflineNavigation();
+  const pathForHighlight = activePath ?? pathname;
+  const active = resolveMobileTab(pathForHighlight);
 
   return (
     <nav
@@ -30,11 +32,13 @@ export function MobileBottomNav() {
           const isActive = active === tab.id;
           const Icon = tab.icon;
           return (
-            <Link
+            <button
               key={tab.id}
-              href={tab.href}
+              type="button"
+              aria-current={isActive ? "page" : undefined}
               onClick={() => {
                 if (!isActive) void triggerLightHaptic();
+                navigate(tab.href);
               }}
               className={cn(
                 "relative flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[18px] px-1 py-1.5 text-[10px] font-medium transition-colors",
@@ -52,7 +56,7 @@ export function MobileBottomNav() {
                 aria-hidden
               />
               <span className="truncate">{tab.title}</span>
-            </Link>
+            </button>
           );
         })}
       </div>

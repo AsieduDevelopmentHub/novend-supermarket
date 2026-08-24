@@ -104,7 +104,9 @@
         var appUrl = (params.get("appUrl") || "https://novend-pos.vercel.app").replace(/\/$/, "");
         var entry = params.get("entry") || "/dashboard";
         if (entry.charAt(0) !== "/") entry = "/" + entry;
-        var target = appUrl + entry;
+        // fromBoot=1 lets the hosted app restore novend.lastRoute after load.
+        var sep = entry.indexOf("?") >= 0 ? "&" : "?";
+        var target = appUrl + entry + sep + "fromBoot=1";
 
         var booting = document.getElementById("booting");
         var failed = document.getElementById("failed");

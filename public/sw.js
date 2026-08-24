@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v3";
+const CACHE_NAME = "novend-pos-v4";
 const PRECACHE = [
   "/",
   "/login",
@@ -19,6 +19,7 @@ const PRECACHE = [
   "/branches",
   "/analytics",
   "/suppliers",
+  "/platform",
   "/manifest.webmanifest",
   "/favicon.png",
   "/icons/icon-192.png",
@@ -79,14 +80,26 @@ function cachePut(request, response) {
   void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
 }
 
+/**
+ * Offline navigation fallback.
+ * Prefer an exact cache hit for the requested URL. If missing, serve a known
+ * shell HTML document — the browser URL stays as the deep path; client
+ * OfflineNavigationProvider + resolveOfflineView honor location.pathname.
+ */
 async function matchNavigation(request, url) {
-  return (
-    (await caches.match(request)) ||
-    (await caches.match(url.pathname)) ||
-    (await caches.match("/dashboard")) ||
-    (await caches.match("/sales")) ||
-    (await caches.match("/"))
-  );
+  const exact =
+    (await caches.match(request)) || (await caches.match(url.pathname));
+  if (exact) return exact;
+
+  const shellCandidates = url.pathname.startsWith("/platform")
+    ? ["/platform", "/dashboard", "/sales", "/"]
+    : ["/dashboard", "/sales", "/platform", "/"];
+
+  for (const shell of shellCandidates) {
+    const hit = await caches.match(shell);
+    if (hit) return hit;
+  }
+  return undefined;
 }
 
 self.addEventListener("fetch", (event) => {

@@ -94,6 +94,20 @@ export function SettingsView() {
   const [cacheReady, setCacheReady] = useState(false);
   const [tab, setTab] = useState<SettingsTab | null>(null);
   const requestedSection = useSearchParams().get("section");
+  const [remoteWaitBudgetElapsed, setRemoteWaitBudgetElapsed] = useState(false);
+
+  useEffect(() => {
+    if (!online || !isAdmin) {
+      queueMicrotask(() => setRemoteWaitBudgetElapsed(false));
+      return;
+    }
+    if (remoteBusiness !== undefined && remoteTemplate !== undefined) {
+      queueMicrotask(() => setRemoteWaitBudgetElapsed(false));
+      return;
+    }
+    const timer = window.setTimeout(() => setRemoteWaitBudgetElapsed(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, [online, isAdmin, remoteBusiness, remoteTemplate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -187,7 +201,10 @@ export function SettingsView() {
     tab && sections.some((s) => s.value === tab) ? tab : (linkedTab ?? "profile");
 
   const waitingAdminRemote =
-    online && isAdmin && (remoteBusiness === undefined || remoteTemplate === undefined);
+    online &&
+    isAdmin &&
+    !remoteWaitBudgetElapsed &&
+    (remoteBusiness === undefined || remoteTemplate === undefined);
   const waitingAdminCache = !online && isAdmin && !cacheReady;
 
   if (permissionsLoading || waitingAdminRemote || waitingAdminCache) {

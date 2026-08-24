@@ -4,7 +4,7 @@ import path from "node:path";
 
 const APP_DISPLAY_NAME = "Novend POS";
 const PERSIST_PARTITION = "persist:novend";
-/** Cached shell route — must stay in public/sw.js PRECACHE. */
+/** Cached shell route — must stay in public/sw.js PRECACHE. Last route is restored client-side via ?fromBoot=1. */
 const OFFLINE_ENTRY_PATH = "/dashboard";
 
 function iconPath(): string {

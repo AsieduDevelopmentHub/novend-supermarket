@@ -192,11 +192,15 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     }
     if (!online) return;
     if (user.isPlatformAdmin && !user.role) {
-      router.replace("/platform");
+      if (!pathname.startsWith("/platform")) {
+        router.replace("/platform");
+      }
       return;
     }
     if (user.needsOnboarding || user.needsProfile) {
-      router.replace("/onboarding");
+      if (pathname !== "/onboarding") {
+        router.replace("/onboarding");
+      }
       return;
     }
 
@@ -217,7 +221,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         bootstrapping.current = false;
       }
     })();
-  }, [ensureProfile, isAuthenticated, online, user, router]);
+  }, [ensureProfile, isAuthenticated, online, user, router, pathname]);
 
   useEffect(() => {
     if (!online || !isAuthenticated || !user || user.needsProfile || !user.role) {
@@ -329,17 +333,19 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
   if (showPlatformShell) {
     return (
-      <OfflineProvider>
-        <OfflineNavigationProvider>
-          <PlatformShell
-            hasTenantRole={Boolean(user?.role ?? platformSession?.hasTenantRole)}
-            sessionName={user?.name ?? platformSession?.name}
-            sessionEmail={user?.email ?? platformSession?.email ?? null}
-          >
-            <OfflineOutlet>{children}</OfflineOutlet>
-          </PlatformShell>
-        </OfflineNavigationProvider>
-      </OfflineProvider>
+      <NativeAppServices>
+        <OfflineProvider>
+          <OfflineNavigationProvider>
+            <PlatformShell
+              hasTenantRole={Boolean(user?.role ?? platformSession?.hasTenantRole)}
+              sessionName={user?.name ?? platformSession?.name}
+              sessionEmail={user?.email ?? platformSession?.email ?? null}
+            >
+              <OfflineOutlet>{children}</OfflineOutlet>
+            </PlatformShell>
+          </OfflineNavigationProvider>
+        </OfflineProvider>
+      </NativeAppServices>
     );
   }
 

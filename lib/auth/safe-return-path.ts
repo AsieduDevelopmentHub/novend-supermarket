@@ -1,0 +1,94 @@
+import { postLoginPath } from "@/lib/auth/post-login-path";
+
+const AUTH_PAGES = new Set(["/login", "/signup"]);
+
+/**
+ * App and platform path prefixes that may be restored after login or cold start.
+ * Marketing, auth, and API paths are excluded.
+ */
+const ALLOWED_PREFIXES = [
+  "/dashboard",
+  "/sales",
+  "/orders",
+  "/returns",
+  "/customers",
+  "/products",
+  "/inventory",
+  "/wholesale",
+  "/suppliers",
+  "/reports",
+  "/analytics",
+  "/branches",
+  "/users",
+  "/settings",
+  "/more",
+  "/about",
+  "/billing",
+  "/onboarding",
+  "/platform",
+] as const;
+
+function normalizeCandidate(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) return null;
+  if (/^https?:\/\//i.test(trimmed)) return null;
+
+  try {
+    const url = new URL(trimmed, "http://novend.local");
+    if (url.hostname !== "novend.local") return null;
+    const path = url.pathname.replace(/\/$/, "") || "/";
+    const search = url.search;
+    return `${path}${search}`;
+  } catch {
+    return null;
+  }
+}
+
+function pathAllowed(pathname: string): boolean {
+  if (AUTH_PAGES.has(pathname) || pathname === "/") return false;
+  return ALLOWED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+/**
+ * Returns a safe same-origin relative path, or `null` when the candidate is
+ * external, auth-only, or outside the app/platform surface.
+ */
+export function safeInternalPath(candidate: string | null | undefined): string | null {
+  if (!candidate) return null;
+  const normalized = normalizeCandidate(candidate);
+  if (!normalized) return null;
+  const pathname = normalized.split("?")[0] ?? normalized;
+  if (!pathAllowed(pathname)) return null;
+  return normalized;
+}
+
+export type PostAuthUser = {
+  isPlatformAdmin?: boolean | null;
+  needsOnboarding?: boolean | null;
+  needsProfile?: boolean | null;
+} | null;
+
+/**
+ * Default post-login destination, optionally overridden by a safe `next` path.
+ * Onboarding and platform-admin defaults always win when required.
+ */
+export function resolvePostAuthPath(user: PostAuthUser, next?: string | null): string {
+  const defaults = postLoginPath(user);
+  if (user?.isPlatformAdmin) {
+    const safe = safeInternalPath(next);
+    if (safe && (safe === "/platform" || safe.startsWith("/platform/"))) return safe;
+    return defaults;
+  }
+  if (user?.needsOnboarding || user?.needsProfile) return defaults;
+  return safeInternalPath(next) ?? defaults;
+}
+
+/** Build `/login?next=…` when redirecting an unauthenticated deep link. */
+export function loginPathWithNext(pathname: string, search = ""): string {
+  const candidate = `${pathname}${search}`;
+  const safe = safeInternalPath(candidate);
+  if (!safe) return "/login";
+  return `/login?next=${encodeURIComponent(safe)}`;
+}

@@ -27,7 +27,9 @@ export function OnboardingForm() {
   useEffect(() => {
     if (!user) return;
     if (user.isPlatformAdmin && !user.role) {
-      router.replace("/platform");
+      if (!window.location.pathname.startsWith("/platform")) {
+        router.replace("/platform");
+      }
       return;
     }
     if (!user.needsOnboarding && !user.needsProfile) {

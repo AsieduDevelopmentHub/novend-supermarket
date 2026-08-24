@@ -6,7 +6,7 @@ import {
 import { ConvexHttpClient } from "convex/browser";
 import { NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
-import { postLoginPath } from "@/lib/auth/post-login-path";
+import { loginPathWithNext, resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 
 const isLoginPage = createRouteMatcher(["/login", "/signup"]);
 const isPublicRoute = createRouteMatcher([
@@ -93,11 +93,17 @@ export default convexAuthNextjsMiddleware(
 
     if (isLoginPage(request) && authenticated) {
       const session = await sessionForToken(await convexAuth.getToken());
-      return withSecurityHeaders(nextjsMiddlewareRedirect(request, postLoginPath(session)), nonce);
+      const next = request.nextUrl.searchParams.get("next");
+      const destination = resolvePostAuthPath(session, next);
+      return withSecurityHeaders(nextjsMiddlewareRedirect(request, destination), nonce);
     }
 
     if (!isPublicRoute(request) && !authenticated) {
-      return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/login"), nonce);
+      const loginHref = loginPathWithNext(
+        request.nextUrl.pathname,
+        request.nextUrl.search,
+      );
+      return withSecurityHeaders(nextjsMiddlewareRedirect(request, loginHref), nonce);
     }
 
     if (
@@ -106,13 +112,23 @@ export default convexAuthNextjsMiddleware(
       (isAdminOnly(request) || isAdminOrManager(request))
     ) {
       const session = await sessionForToken(await convexAuth.getToken());
-      if (isAdminOnly(request) && session?.role !== "administrator") {
+      // Network/Convex failure must not look like "unauthorized" — fail open to the
+      // requested URL; client layout + Convex remain authoritative for RBAC.
+      if (session === null) {
+        return withSecurityHeaders(
+          NextResponse.next({
+            request: { headers: requestHeaders },
+          }),
+          nonce,
+        );
+      }
+      if (isAdminOnly(request) && session.role !== "administrator") {
         return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);
       }
       if (
         isAdminOrManager(request) &&
-        session?.role !== "administrator" &&
-        session?.role !== "manager"
+        session.role !== "administrator" &&
+        session.role !== "manager"
       ) {
         return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);
       }

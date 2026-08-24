@@ -11,6 +11,7 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { persistLastRoute } from "@/lib/auth/last-route";
 import { resolveOfflineView } from "@/providers/offline-views";
 
 type OfflineNavigationContextValue = {
@@ -37,6 +38,16 @@ function normalizePath(href: string): string {
   }
 }
 
+function pathWithSearch(href: string): string {
+  try {
+    const url = new URL(href, "http://local.invalid");
+    const path = url.pathname.replace(/\/$/, "") || "/";
+    return `${path}${url.search}`;
+  } catch {
+    return href;
+  }
+}
+
 function isInternalAppHref(href: string | null): href is string {
   if (!href) return false;
   if (href.startsWith("#")) return false;
@@ -58,6 +69,7 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
   const navigate = useCallback(
     (href: string) => {
       const path = normalizePath(href);
+      persistLastRoute(pathWithSearch(href));
       if (online) {
         setClientPath(null);
         router.push(href);
@@ -68,6 +80,12 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
     },
     [online, router],
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const search = window.location.search || "";
+    persistLastRoute(`${normalizePath(pathname)}${search}`);
+  }, [pathname]);
 
   useEffect(() => {
     if (online) return;

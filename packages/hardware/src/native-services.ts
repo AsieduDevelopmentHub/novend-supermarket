@@ -1,6 +1,7 @@
 import { isCapacitor } from "./platform";
 import type { HardwareResult } from "./types";
 import type {
+  AppBackButtonHandle,
   AppInfo,
   AppUrlOpenHandle,
   BiometricAvailability,
@@ -164,6 +165,20 @@ export const appServices = {
     }
     const mod = await capServices();
     return mod.createCapacitorAppServicesAdapter().addUrlOpenListener(callback);
+  },
+  addBackButtonListener: async (
+    callback: (event: { canGoBack: boolean }) => void,
+  ): Promise<AppBackButtonHandle> => {
+    if (!isCapacitor()) {
+      return { remove: async () => undefined };
+    }
+    const mod = await capServices();
+    return mod.createCapacitorAppServicesAdapter().addBackButtonListener(callback);
+  },
+  exitApp: async () => {
+    if (!isCapacitor()) return unsupported();
+    const mod = await capServices();
+    return mod.createCapacitorAppServicesAdapter().exitApp();
   },
 };
 

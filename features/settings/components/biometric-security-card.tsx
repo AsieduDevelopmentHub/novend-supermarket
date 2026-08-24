@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Hardware, type BiometricAvailability } from "@novend/hardware";
-import { Fingerprint } from "lucide-react";
+import { Fingerprint, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 /**
@@ -17,15 +17,36 @@ export function BiometricSecurityCard() {
   const [enabled, setEnabled] = useState(false);
   const [requireOnLaunch, setRequireOnLaunch] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
-      const avail = await Hardware.biometrics.checkAvailability();
-      if (avail.data) setAvailability(avail.data);
-      const prefs = await Hardware.biometrics.getPrefs();
-      setEnabled(prefs.enabled);
-      setRequireOnLaunch(prefs.requireOnLaunch);
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const avail = await Hardware.biometrics.checkAvailability();
+        if (cancelled) return;
+        if (avail.data) setAvailability(avail.data);
+        else setAvailability({ available: false, biometryType: "none" });
+        if (!avail.ok && avail.message) setLoadError(avail.message);
+        const prefs = await Hardware.biometrics.getPrefs();
+        if (cancelled) return;
+        setEnabled(prefs.enabled);
+        setRequireOnLaunch(prefs.requireOnLaunch);
+      } catch {
+        if (!cancelled) {
+          setAvailability({ available: false, biometryType: "none" });
+          setLoadError("Could not check biometrics on this device.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function onToggleEnabled(next: boolean) {
@@ -65,6 +86,23 @@ export function BiometricSecurityCard() {
     setRequireOnLaunch(next);
   }
 
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Fingerprint className="h-4 w-4" />
+            Biometrics
+          </CardTitle>
+          <CardDescription className="flex items-center gap-2">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            Checking this device…
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
   if (!availability?.available) {
     return (
       <Card>
@@ -74,7 +112,7 @@ export function BiometricSecurityCard() {
             Biometrics
           </CardTitle>
           <CardDescription>
-            Fingerprint or face unlock is not available on this device.
+            {loadError ?? "Fingerprint or face unlock is not available on this device."}
           </CardDescription>
         </CardHeader>
       </Card>
