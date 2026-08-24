@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Hardware, type NotificationTopic } from "@novend/hardware";
+import {
+  Hardware,
+  NATIVE_CALL_TIMEOUT_MS,
+  permissionDeniedMessage,
+  permissionNeedMessage,
+  type NotificationPermissionState,
+  type NotificationTopic,
+} from "@novend/hardware";
 import { Bell, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,59 +38,70 @@ const TOPICS: Array<{ id: NotificationTopic; label: string; description: string 
   },
 ];
 
+const EMPTY_PREFS: Record<NotificationTopic, boolean> = {
+  stock_alerts: false,
+  daily_summary: false,
+  branch_transfers: false,
+  subscription_alerts: false,
+};
+
 export function NotificationsSettingsCard() {
-  const [granted, setGranted] = useState(false);
+  const [state, setState] = useState<NotificationPermissionState>("prompt");
   const [prefs, setPrefs] = useState<Record<NotificationTopic, boolean> | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const permission = await Hardware.notifications.checkPermissions();
+      setState(permission.data?.state ?? (permission.data?.granted ? "granted" : "prompt"));
+      const topics = await Hardware.notifications.getTopicPrefs();
+      setPrefs(topics.data ?? EMPTY_PREFS);
+    } catch {
+      setState("unavailable");
+      setPrefs(EMPTY_PREFS);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    const hardStop = window.setTimeout(() => {
+      if (cancelled) return;
+      setLoading(false);
+      setPrefs((current) => current ?? EMPTY_PREFS);
+      setState((current) => current);
+    }, NATIVE_CALL_TIMEOUT_MS + 1000);
+
     void (async () => {
-      setLoading(true);
-      setLoadError(null);
-      try {
-        const permission = await Hardware.notifications.checkPermissions();
-        if (cancelled) return;
-        setGranted(Boolean(permission.data?.granted));
-        const topics = await Hardware.notifications.getTopicPrefs();
-        if (cancelled) return;
-        if (topics.data) setPrefs(topics.data);
-        else {
-          setPrefs({
-            stock_alerts: false,
-            daily_summary: false,
-            branch_transfers: false,
-            subscription_alerts: false,
-          });
-        }
-      } catch {
-        if (!cancelled) {
-          setLoadError("Could not read notification settings on this device.");
-          setPrefs({
-            stock_alerts: false,
-            daily_summary: false,
-            branch_transfers: false,
-            subscription_alerts: false,
-          });
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      await refresh();
+      if (!cancelled) window.clearTimeout(hardStop);
     })();
+
+    let remove: (() => Promise<void>) | null = null;
+    void Hardware.app.addAppStateListener((isActive) => {
+      if (isActive) void refresh();
+    }).then((handle) => {
+      remove = handle.remove;
+    });
+
     return () => {
       cancelled = true;
+      window.clearTimeout(hardStop);
+      void remove?.();
     };
-  }, []);
+  }, [refresh]);
 
   async function enableNotifications() {
     setBusy(true);
     try {
+      toast.message(permissionNeedMessage("notifications"));
       const result = await Hardware.notifications.requestPermissions();
-      setGranted(Boolean(result.data?.granted));
+      const next = result.data?.state ?? (result.data?.granted ? "granted" : "denied");
+      setState(next);
       if (!result.ok || !result.data?.granted) {
-        toast.error(result.message || "Notifications were not enabled");
+        toast.error(result.message || permissionDeniedMessage("notifications"));
         return false;
       }
       toast.success("Notifications enabled");
@@ -93,10 +111,23 @@ export function NotificationsSettingsCard() {
     }
   }
 
+  async function openSettings() {
+    const result = await Hardware.app.openAppSettings();
+    if (!result.ok) {
+      toast.message(result.message || "Open Android Settings → Apps → Novend → Permissions.");
+    }
+  }
+
   async function toggleTopic(id: NotificationTopic, enabled: boolean) {
+    if (busy) return;
     setBusy(true);
     try {
-      if (!granted && enabled) {
+      if (state !== "granted" && enabled) {
+        if (state === "denied") {
+          toast.message(permissionDeniedMessage("notifications"));
+          await openSettings();
+          return;
+        }
         const ok = await enableNotifications();
         if (!ok) return;
       }
@@ -107,6 +138,8 @@ export function NotificationsSettingsCard() {
       setBusy(false);
     }
   }
+
+  const granted = state === "granted";
 
   return (
     <Card>
@@ -126,17 +159,41 @@ export function NotificationsSettingsCard() {
             Checking notification permission…
           </p>
         ) : null}
-        {loadError ? <p className="text-destructive text-sm">{loadError}</p> : null}
-        {!loading && !granted ? (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={() => void enableNotifications()}
-          >
-            Enable notifications
-          </Button>
+
+        {!loading && state === "prompt" ? (
+          <div className="space-y-2">
+            <p className="text-muted-foreground text-sm">{permissionNeedMessage("notifications")}</p>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void enableNotifications()}
+            >
+              Enable notifications
+            </Button>
+          </div>
         ) : null}
+
+        {!loading && state === "denied" ? (
+          <div className="space-y-2">
+            <p className="text-sm">{permissionDeniedMessage("notifications")}</p>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => void openSettings()}>
+              Open device settings
+            </Button>
+          </div>
+        ) : null}
+
+        {!loading && state === "unavailable" ? (
+          <p className="text-muted-foreground text-sm">
+            Notifications are unavailable on this device right now. You can still use Novend
+            normally.
+          </p>
+        ) : null}
+
+        {!loading && granted ? (
+          <p className="text-muted-foreground text-xs">Notifications are allowed on this device.</p>
+        ) : null}
+
         {!loading
           ? TOPICS.map((topic) => (
               <div key={topic.id} className="flex items-center justify-between gap-3">
@@ -146,7 +203,7 @@ export function NotificationsSettingsCard() {
                 </div>
                 <Switch
                   checked={Boolean(prefs?.[topic.id])}
-                  disabled={busy || prefs === null}
+                  disabled={busy || prefs === null || state === "unavailable"}
                   onCheckedChange={(checked) => void toggleTopic(topic.id, checked)}
                 />
               </div>

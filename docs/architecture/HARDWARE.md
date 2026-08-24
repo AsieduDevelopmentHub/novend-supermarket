@@ -37,6 +37,8 @@ apps/mobile      → native plugins      (Capacitor)
 - Permission copy helpers (request only when a feature needs access)
 - Bounded waits: `withTimeout` / `NATIVE_*_TIMEOUT_MS` so Settings and scanners
   fail soft instead of hanging the WebView on a stuck Capacitor plugin
+- Capacitor Camera / ML Kit / BLE adapters load **lazily** — importing
+  `@novend/hardware` for biometrics must not evaluate Camera or BLE
 - Result types shared across adapters
 
 UI components must not call Electron preload or Capacitor plugins directly.

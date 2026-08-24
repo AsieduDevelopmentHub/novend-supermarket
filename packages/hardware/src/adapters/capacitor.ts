@@ -29,6 +29,13 @@ import {
   printViaBluetooth,
 } from "./bluetooth-printer";
 
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
   const chunk = 0x8000;
@@ -38,27 +45,16 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function uriToFile(uri: string, mimeType: string, fileName: string): Promise<File | undefined> {
+async function persistProductImageFromBytes(
+  bytes: Uint8Array,
+  mimeType: string,
+): Promise<string | undefined> {
   try {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const type = blob.type || mimeType;
-    return new File([blob], fileName, { type });
-  } catch {
-    return undefined;
-  }
-}
-
-async function persistProductImage(uri: string, mimeType: string): Promise<string | undefined> {
-  try {
-    const file = await uriToFile(uri, mimeType, "capture.jpg");
-    if (!file) return undefined;
-    const buffer = new Uint8Array(await file.arrayBuffer());
     const ext = mimeType.includes("png") ? "png" : "jpg";
     const path = `product-images/${Date.now()}.${ext}`;
     await Filesystem.writeFile({
       path,
-      data: bytesToBase64(buffer),
+      data: bytesToBase64(bytes),
       directory: Directory.Data,
       recursive: true,
     });
@@ -102,11 +98,12 @@ async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCaptu
       }
     }
 
+    // Base64 avoids Android WebView fetch(webPath) failures that returned no File.
     const photo = await withTimeout(
       Camera.getPhoto({
         quality: 92,
         allowEditing: false,
-        resultType: CameraResultType.Uri,
+        resultType: CameraResultType.Base64,
         source,
         correctOrientation: true,
         saveToGallery: false,
@@ -114,20 +111,21 @@ async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCaptu
       NATIVE_CAMERA_TIMEOUT_MS,
     );
 
-    const uri = photo.webPath || photo.path;
-    if (!uri) {
+    const base64 = photo.base64String?.trim();
+    if (!base64) {
       return { ok: false, message: cameraCaptureFailedMessage() };
     }
 
     const mimeType = photo.format === "png" ? "image/png" : "image/jpeg";
     const fileName = `product-${Date.now()}.${photo.format === "png" ? "png" : "jpg"}`;
-    const file = await uriToFile(uri, mimeType, fileName);
-    const localPath = await persistProductImage(uri, mimeType);
+    const bytes = base64ToBytes(base64);
+    const file = new File([bytes], fileName, { type: mimeType });
+    const localPath = await persistProductImageFromBytes(bytes, mimeType);
 
     return {
       ok: true,
       data: {
-        uri: localPath || uri,
+        uri: localPath || `data:${mimeType};base64,${base64}`,
         mimeType,
         file,
         localPath,

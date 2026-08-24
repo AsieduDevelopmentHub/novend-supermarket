@@ -4,33 +4,52 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Hardware, type BiometricAvailability } from "@novend/hardware";
+import { Hardware, NATIVE_CALL_TIMEOUT_MS, type BiometricAvailability } from "@novend/hardware";
 import { Fingerprint, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+
+type BiometricUiState =
+  | "checking"
+  | "available"
+  | "unavailable"
+  | "unsupported"
+  | "error";
 
 /**
  * Optional biometric unlock — never stores the account password.
  * Secure storage keeps only a device unlock token after the user opts in.
  */
 export function BiometricSecurityCard() {
+  const [uiState, setUiState] = useState<BiometricUiState>("checking");
   const [availability, setAvailability] = useState<BiometricAvailability | null>(null);
   const [enabled, setEnabled] = useState(false);
   const [requireOnLaunch, setRequireOnLaunch] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const hardStop = window.setTimeout(() => {
+      if (cancelled) return;
+      setUiState((current) => (current === "checking" ? "unavailable" : current));
+      setMessage("Biometrics took too long to respond on this device.");
+    }, NATIVE_CALL_TIMEOUT_MS + 1000);
+
     void (async () => {
-      setLoading(true);
-      setLoadError(null);
       try {
         const avail = await Hardware.biometrics.checkAvailability();
         if (cancelled) return;
-        if (avail.data) setAvailability(avail.data);
-        else setAvailability({ available: false, biometryType: "none" });
-        if (!avail.ok && avail.message) setLoadError(avail.message);
+        const data = avail.data ?? { available: false, biometryType: "none" as const };
+        setAvailability(data);
+        if (!data.available) {
+          setUiState(avail.ok ? "unavailable" : "error");
+          setMessage(
+            avail.message || "Fingerprint or face unlock is not available on this device.",
+          );
+        } else {
+          setUiState("available");
+          setMessage(null);
+        }
         const prefs = await Hardware.biometrics.getPrefs();
         if (cancelled) return;
         setEnabled(prefs.enabled);
@@ -38,18 +57,25 @@ export function BiometricSecurityCard() {
       } catch {
         if (!cancelled) {
           setAvailability({ available: false, biometryType: "none" });
-          setLoadError("Could not check biometrics on this device.");
+          setUiState("error");
+          setMessage("Could not check biometrics on this device.");
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        window.clearTimeout(hardStop);
+        if (!cancelled) {
+          setUiState((current) => (current === "checking" ? "unavailable" : current));
+        }
       }
     })();
+
     return () => {
       cancelled = true;
+      window.clearTimeout(hardStop);
     };
   }, []);
 
   async function onToggleEnabled(next: boolean) {
+    if (busy) return;
     setBusy(true);
     try {
       if (next) {
@@ -81,12 +107,12 @@ export function BiometricSecurityCard() {
   }
 
   async function onToggleRequire(next: boolean) {
-    if (!enabled) return;
+    if (!enabled || busy) return;
     await Hardware.biometrics.setRequireOnLaunch(next);
     setRequireOnLaunch(next);
   }
 
-  if (loading) {
+  if (uiState === "checking") {
     return (
       <Card>
         <CardHeader>
@@ -96,14 +122,14 @@ export function BiometricSecurityCard() {
           </CardTitle>
           <CardDescription className="flex items-center gap-2">
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            Checking this device…
+            Checking biometrics on this device…
           </CardDescription>
         </CardHeader>
       </Card>
     );
   }
 
-  if (!availability?.available) {
+  if (uiState !== "available" || !availability?.available) {
     return (
       <Card>
         <CardHeader>
@@ -112,7 +138,7 @@ export function BiometricSecurityCard() {
             Biometrics
           </CardTitle>
           <CardDescription>
-            {loadError ?? "Fingerprint or face unlock is not available on this device."}
+            {message ?? "Fingerprint or face unlock is not available on this device."}
           </CardDescription>
         </CardHeader>
       </Card>

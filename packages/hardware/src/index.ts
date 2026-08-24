@@ -41,6 +41,7 @@ export type {
   BluetoothPrinterStatus,
   BiometricAvailability,
   NotificationTopic,
+  NotificationPermissionState,
   AppInfo,
   UpdateInfo,
 } from "./native-types";

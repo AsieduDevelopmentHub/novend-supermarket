@@ -8,6 +8,7 @@ import type {
   NotificationTopic,
   UpdateInfo,
 } from "./native-types";
+import { NATIVE_CALL_TIMEOUT_MS, withTimeout, withTimeoutFallback } from "./timeout";
 
 function unsupported<T = void>(feature = "This feature"): HardwareResult<T> {
   return { ok: false, message: `${feature} is only available in the Novend mobile app` };
@@ -25,8 +26,18 @@ async function bluetoothFacade() {
 export const biometrics = {
   checkAvailability: async (): Promise<HardwareResult<BiometricAvailability>> => {
     if (!isCapacitor()) return unsupported("Biometrics");
-    const mod = await capServices();
-    return mod.createCapacitorBiometricsAdapter().checkAvailability();
+    return withTimeoutFallback(
+      async () => {
+        const mod = await withTimeout(capServices(), NATIVE_CALL_TIMEOUT_MS);
+        return mod.createCapacitorBiometricsAdapter().checkAvailability();
+      },
+      NATIVE_CALL_TIMEOUT_MS + 500,
+      {
+        ok: false,
+        message: "Biometrics took too long to respond on this device.",
+        data: { available: false, biometryType: "none" },
+      },
+    );
   },
   authenticate: async (reason: string) => {
     if (!isCapacitor()) return unsupported("Biometrics");
@@ -35,12 +46,14 @@ export const biometrics = {
   },
   getPrefs: async () => {
     if (!isCapacitor()) return { enabled: false, requireOnLaunch: false };
-    try {
-      const mod = await capServices();
-      return await mod.getBiometricPrefs();
-    } catch {
-      return { enabled: false, requireOnLaunch: false };
-    }
+    return withTimeoutFallback(
+      async () => {
+        const mod = await withTimeout(capServices(), NATIVE_CALL_TIMEOUT_MS);
+        return mod.getBiometricPrefs();
+      },
+      NATIVE_CALL_TIMEOUT_MS + 500,
+      { enabled: false, requireOnLaunch: false },
+    );
   },
   setEnabled: async (enabled: boolean) => {
     if (!isCapacitor()) return unsupported();
@@ -84,12 +97,24 @@ export const secureStorage = {
 
 export const notifications = {
   checkPermissions: async () => {
-    if (!isCapacitor()) return unsupported<{ granted: boolean }>("Notifications");
+    if (!isCapacitor()) {
+      return {
+        ok: false as const,
+        message: "Notifications is only available in the Novend mobile app",
+        data: { granted: false, state: "unavailable" as const },
+      };
+    }
     const mod = await capServices();
     return mod.createCapacitorNotificationsAdapter().checkPermissions();
   },
   requestPermissions: async () => {
-    if (!isCapacitor()) return unsupported<{ granted: boolean }>("Notifications");
+    if (!isCapacitor()) {
+      return {
+        ok: false as const,
+        message: "Notifications is only available in the Novend mobile app",
+        data: { granted: false, state: "unavailable" as const },
+      };
+    }
     const mod = await capServices();
     return mod.createCapacitorNotificationsAdapter().requestPermissions();
   },
@@ -179,6 +204,18 @@ export const appServices = {
     if (!isCapacitor()) return unsupported();
     const mod = await capServices();
     return mod.createCapacitorAppServicesAdapter().exitApp();
+  },
+  openAppSettings: async () => {
+    if (!isCapacitor()) return unsupported("App settings");
+    const mod = await capServices();
+    return mod.createCapacitorAppServicesAdapter().openAppSettings();
+  },
+  addAppStateListener: async (callback: (isActive: boolean) => void): Promise<AppUrlOpenHandle> => {
+    if (!isCapacitor()) {
+      return { remove: async () => undefined };
+    }
+    const mod = await capServices();
+    return mod.createCapacitorAppServicesAdapter().addAppStateListener(callback);
   },
 };
 

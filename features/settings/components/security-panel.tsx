@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
-import { LoadingState } from "@/components/feedback/loading-state";
 import { BiometricSecurityCard } from "@/features/settings/components/biometric-security-card";
 import { NotificationsSettingsCard } from "@/features/settings/components/notifications-settings-card";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -16,26 +15,17 @@ import { useCurrentUser } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 
+/**
+ * Security settings. Native cards render immediately — never wait on Convex —
+ * so a slow or failed session query cannot freeze the Security tab.
+ */
 export function SecurityPanel() {
   const online = useConnectivity();
   const nativeShell = useNativeShell();
   const remote = useQuery(api.users.me, online ? {} : "skip");
-  const { user: cachedUser, isLoading: cacheLoading } = useCurrentUser();
+  const { user: cachedUser } = useCurrentUser();
   const me = remote ?? cachedUser;
-
-  if ((online && remote === undefined) || (!online && cacheLoading && !me)) {
-    return <LoadingState label="Loading account…" variant="form" />;
-  }
-
-  if (!me || me.needsProfile) {
-    return (
-      <Card>
-        <CardContent className="text-muted-foreground p-5 text-sm">
-          Complete your profile before managing security settings.
-        </CardContent>
-      </Card>
-    );
-  }
+  const passwordReady = Boolean(me && !me.needsProfile);
 
   return (
     <div className="grid max-w-2xl gap-6">
@@ -45,7 +35,19 @@ export function SecurityPanel() {
           <NotificationsSettingsCard />
         </>
       ) : null}
-      <PasswordForm readOnly={!online} />
+      {passwordReady ? (
+        <PasswordForm readOnly={!online} />
+      ) : (
+        <Card>
+          <CardContent className="text-muted-foreground p-5 text-sm">
+            {me?.needsProfile
+              ? "Complete your profile before changing your password."
+              : online
+                ? "Loading account…"
+                : "Sign in while online once to manage your password on this device."}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

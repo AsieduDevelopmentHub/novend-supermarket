@@ -55,9 +55,19 @@ export type SecureStorageAdapter = {
   remove: (key: string) => Promise<HardwareResult>;
 };
 
+export type NotificationPermissionState =
+  | "granted"
+  | "denied"
+  | "prompt"
+  | "unavailable";
+
 export type NotificationsAdapter = {
-  checkPermissions: () => Promise<HardwareResult<{ granted: boolean }>>;
-  requestPermissions: () => Promise<HardwareResult<{ granted: boolean }>>;
+  checkPermissions: () => Promise<
+    HardwareResult<{ granted: boolean; state: NotificationPermissionState }>
+  >;
+  requestPermissions: () => Promise<
+    HardwareResult<{ granted: boolean; state: NotificationPermissionState }>
+  >;
   scheduleLocal: (args: {
     title: string;
     body: string;
@@ -90,6 +100,10 @@ export type AppServicesAdapter = {
     callback: (event: { canGoBack: boolean }) => void,
   ) => Promise<AppBackButtonHandle>;
   exitApp: () => Promise<HardwareResult>;
+  openAppSettings: () => Promise<HardwareResult>;
+  addAppStateListener: (
+    callback: (isActive: boolean) => void,
+  ) => Promise<AppUrlOpenHandle>;
 };
 
 export type BluetoothPrinterControls = {

@@ -9,6 +9,7 @@ import type {
   AppServicesAdapter,
   BiometricAvailability,
   BiometricsAdapter,
+  NotificationPermissionState,
   NotificationTopic,
   NotificationsAdapter,
   SecureStorageAdapter,
@@ -28,6 +29,13 @@ const DEFAULT_TOPICS: Record<NotificationTopic, boolean> = {
   branch_transfers: true,
   subscription_alerts: true,
 };
+
+function mapNotificationState(display: string | undefined): NotificationPermissionState {
+  if (display === "granted") return "granted";
+  if (display === "denied") return "denied";
+  if (display === "prompt" || display === "prompt-with-rationale") return "prompt";
+  return "unavailable";
+}
 
 function mapBiometry(type: BiometryType): BiometricAvailability["biometryType"] {
   switch (type) {
@@ -146,9 +154,10 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
           LocalNotifications.checkPermissions(),
           NATIVE_CALL_TIMEOUT_MS,
         );
-        return { ok: true, data: { granted: status.display === "granted" } };
+        const state = mapNotificationState(status.display);
+        return { ok: true, data: { granted: state === "granted", state } };
       } catch {
-        return { ok: true, data: { granted: false } };
+        return { ok: true, data: { granted: false, state: "unavailable" as const } };
       }
     },
     async requestPermissions() {
@@ -157,20 +166,21 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
           LocalNotifications.requestPermissions(),
           NATIVE_CALL_TIMEOUT_MS,
         );
-        if (status.display !== "granted") {
+        const state = mapNotificationState(status.display);
+        if (state !== "granted") {
           return {
             ok: false,
             message: permissionDeniedMessage("notifications"),
-            data: { granted: false },
+            data: { granted: false, state },
           };
         }
-        return { ok: true, data: { granted: true } };
+        return { ok: true, data: { granted: true, state } };
       } catch (error) {
         if (isNativeTimeoutError(error)) {
           return {
             ok: false,
             message: "Notification permission timed out. Try again from device settings.",
-            data: { granted: false },
+            data: { granted: false, state: "unavailable" as const },
           };
         }
         const raw = error instanceof Error ? error.message : String(error ?? "");
@@ -180,7 +190,7 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
             raw,
             "Novend needs notification permission to send stock and subscription alerts.",
           ),
-          data: { granted: false },
+          data: { granted: false, state: "unavailable" as const },
         };
       }
     },
@@ -346,6 +356,42 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           message: friendlyHardwareMessage(raw, "Could not close the app."),
         };
       }
+    },
+    async openAppSettings() {
+      try {
+        const info = await App.getInfo();
+        const platform =
+          typeof navigator !== "undefined" && /android/i.test(navigator.userAgent)
+            ? "android"
+            : "ios";
+        if (platform === "android") {
+          await App.openUrl({
+            url: `intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:${info.id};end`,
+          });
+        } else {
+          await App.openUrl({ url: "app-settings:" });
+        }
+        return { ok: true as const };
+      } catch (error) {
+        const raw = error instanceof Error ? error.message : String(error ?? "");
+        return {
+          ok: false as const,
+          message: friendlyHardwareMessage(
+            raw,
+            "Open Android Settings → Apps → Novend → Permissions.",
+          ),
+        };
+      }
+    },
+    async addAppStateListener(callback) {
+      const handle = await App.addListener("appStateChange", (state) => {
+        callback(Boolean(state.isActive));
+      });
+      return {
+        remove: async () => {
+          await handle.remove();
+        },
+      };
     },
   };
 }
