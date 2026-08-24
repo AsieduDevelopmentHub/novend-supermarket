@@ -16,12 +16,18 @@ import type {
   UpdateInfo,
 } from "../native-types";
 import { friendlyHardwareMessage, permissionDeniedMessage } from "../permissions";
-import { NATIVE_CALL_TIMEOUT_MS, isNativeTimeoutError, withTimeout } from "../timeout";
+import {
+  NATIVE_AVAILABILITY_TIMEOUT_MS,
+  NATIVE_CALL_TIMEOUT_MS,
+  isNativeTimeoutError,
+  withTimeout,
+} from "../timeout";
 
 const TOPIC_KEY = "novend.notifications.topics";
 const BIOMETRIC_ENABLED_KEY = "novend.biometric.enabled";
 const BIOMETRIC_REQUIRE_LAUNCH_KEY = "novend.biometric.requireOnLaunch";
 const BIOMETRIC_UNLOCK_TOKEN_KEY = "novend.biometric.unlockToken";
+const NOTIFICATION_CHANNEL_ID = "novend_alerts";
 
 const DEFAULT_TOPICS: Record<NotificationTopic, boolean> = {
   stock_alerts: true,
@@ -34,7 +40,8 @@ function mapNotificationState(display: string | undefined): NotificationPermissi
   if (display === "granted") return "granted";
   if (display === "denied") return "denied";
   if (display === "prompt" || display === "prompt-with-rationale") return "prompt";
-  return "unavailable";
+  // Unknown / missing display must not become "unavailable" — that hid real prompt states.
+  return "prompt";
 }
 
 function mapBiometry(type: BiometryType): BiometricAvailability["biometryType"] {
@@ -58,27 +65,52 @@ export function createCapacitorBiometricsAdapter(): BiometricsAdapter {
   return {
     async checkAvailability() {
       try {
-        const result = await withTimeout(BiometricAuth.checkBiometry(), NATIVE_CALL_TIMEOUT_MS);
+        // Single timeout — callers must not nest another tight deadline around this.
+        const result = await withTimeout(
+          BiometricAuth.checkBiometry(),
+          NATIVE_AVAILABILITY_TIMEOUT_MS,
+        );
+        const biometryType = mapBiometry(result.biometryType);
+        const supported =
+          biometryType !== "none" ||
+          (Array.isArray(result.biometryTypes) && result.biometryTypes.length > 0);
+        const enrolled = Boolean(result.isAvailable);
+        const available = enrolled;
+
         return {
           ok: true,
           data: {
-            available: result.isAvailable,
-            biometryType: mapBiometry(result.biometryType),
-          },
+            available,
+            supported,
+            enrolled,
+            biometryType: supported ? biometryType : "none",
+            reason: result.reason || undefined,
+          } satisfies BiometricAvailability,
         };
       } catch (error) {
         if (isNativeTimeoutError(error)) {
           return {
             ok: false,
             message: "Biometrics took too long to respond. Try again.",
-            data: { available: false, biometryType: "none" },
+            data: {
+              available: false,
+              supported: false,
+              enrolled: false,
+              biometryType: "none",
+            },
           };
         }
         const raw = error instanceof Error ? error.message : String(error ?? "");
         return {
           ok: false,
-          message: friendlyHardwareMessage(raw, "Biometrics are unavailable on this device."),
-          data: { available: false, biometryType: "none" },
+          message: friendlyHardwareMessage(raw, "Could not check biometrics on this device."),
+          data: {
+            available: false,
+            supported: false,
+            enrolled: false,
+            biometryType: "none",
+            reason: raw || undefined,
+          },
         };
       }
     },
@@ -146,25 +178,60 @@ export function createCapacitorSecureStorageAdapter(): SecureStorageAdapter {
   };
 }
 
+async function ensureNotificationChannel(): Promise<void> {
+  try {
+    await LocalNotifications.createChannel({
+      id: NOTIFICATION_CHANNEL_ID,
+      name: "Novend alerts",
+      description: "Stock, transfers, and subscription alerts",
+      importance: 4,
+      visibility: 1,
+    });
+  } catch {
+    /* Channels are Android-only; ignore on iOS / older APIs. */
+  }
+}
+
 export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
   return {
     async checkPermissions() {
       try {
+        await ensureNotificationChannel();
         const status = await withTimeout(
           LocalNotifications.checkPermissions(),
-          NATIVE_CALL_TIMEOUT_MS,
+          NATIVE_AVAILABILITY_TIMEOUT_MS,
         );
         const state = mapNotificationState(status.display);
         return { ok: true, data: { granted: state === "granted", state } };
-      } catch {
-        return { ok: true, data: { granted: false, state: "unavailable" as const } };
+      } catch (error) {
+        if (isNativeTimeoutError(error)) {
+          return {
+            ok: false,
+            message: "Notification permission check timed out. Try again.",
+            data: { granted: false, state: "error" as const },
+          };
+        }
+        const raw = error instanceof Error ? error.message : String(error ?? "");
+        if (/not implemented|unavailable|not available/i.test(raw)) {
+          return {
+            ok: false,
+            message: friendlyHardwareMessage(raw, "Notifications are unavailable on this device."),
+            data: { granted: false, state: "unavailable" as const },
+          };
+        }
+        return {
+          ok: false,
+          message: friendlyHardwareMessage(raw, "Could not check notification permission."),
+          data: { granted: false, state: "error" as const },
+        };
       }
     },
     async requestPermissions() {
       try {
+        await ensureNotificationChannel();
         const status = await withTimeout(
           LocalNotifications.requestPermissions(),
-          NATIVE_CALL_TIMEOUT_MS,
+          NATIVE_AVAILABILITY_TIMEOUT_MS,
         );
         const state = mapNotificationState(status.display);
         if (state !== "granted") {
@@ -180,28 +247,37 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
           return {
             ok: false,
             message: "Notification permission timed out. Try again from device settings.",
-            data: { granted: false, state: "unavailable" as const },
+            data: { granted: false, state: "error" as const },
           };
         }
         const raw = error instanceof Error ? error.message : String(error ?? "");
+        if (/not implemented|unavailable|not available/i.test(raw)) {
+          return {
+            ok: false,
+            message: friendlyHardwareMessage(raw, "Notifications are unavailable on this device."),
+            data: { granted: false, state: "unavailable" as const },
+          };
+        }
         return {
           ok: false,
           message: friendlyHardwareMessage(
             raw,
             "Novend needs notification permission to send stock and subscription alerts.",
           ),
-          data: { granted: false, state: "unavailable" as const },
+          data: { granted: false, state: "error" as const },
         };
       }
     },
     async scheduleLocal({ title, body, id }) {
       try {
+        await ensureNotificationChannel();
         await LocalNotifications.schedule({
           notifications: [
             {
               id: id ?? Math.floor(Date.now() % 100000),
               title,
               body,
+              channelId: NOTIFICATION_CHANNEL_ID,
               schedule: { at: new Date(Date.now() + 1000) },
             },
           ],
@@ -221,7 +297,10 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
       try {
         return {
           ok: true,
-          data: { ...DEFAULT_TOPICS, ...(JSON.parse(stored.value) as Record<NotificationTopic, boolean>) },
+          data: {
+            ...DEFAULT_TOPICS,
+            ...(JSON.parse(stored.value) as Record<NotificationTopic, boolean>),
+          },
         };
       } catch {
         return { ok: true, data: { ...DEFAULT_TOPICS } };
@@ -268,7 +347,6 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
     },
     async openExternalUrl(url) {
       try {
-        // Capacitor App plugin does not open URLs; use window as shared fallback.
         window.open(url, "_blank", "noopener,noreferrer");
         return { ok: true };
       } catch (error) {
@@ -277,8 +355,6 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
       }
     },
     async checkForUpdate() {
-      // Hosted WebView apps update with the deployed web build.
-      // Native shell version is compared against a lightweight public endpoint when present.
       try {
         const info = await App.getInfo();
         const endpoint =
@@ -365,7 +441,6 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
         const settingsUrl = isAndroid
           ? `intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:${info.id};end`
           : "app-settings:";
-        // Cap App plugin has no openUrl in v7 — use the same window bridge as openExternalUrl.
         window.open(settingsUrl, "_system");
         return { ok: true as const };
       } catch (error) {

@@ -1,11 +1,11 @@
 /**
- * Camera barcode detection for Electron, web, and PWA.
+ * Camera barcode detection for Electron, web, PWA, and Capacitor.
  *
- * Native `BarcodeDetector` is used when Chromium exposes it. Electron often
- * lacks that API even with a working camera — we fall back to bundled ZXing.
+ * Capacitor always uses bundled ZXing (no Google ML Kit / HTTPS module downloads).
+ * Web / Electron prefer native `BarcodeDetector` when present, else ZXing.
  */
 
-import { isElectron } from "@novend/hardware";
+import { isCapacitor, isElectron } from "@novend/hardware";
 
 export const CAMERA_BARCODE_FORMATS = [
   "ean_13",
@@ -65,6 +65,8 @@ export function isCameraBarcodeSupported(): boolean {
   if (window.isSecureContext) return true;
   // Packaged Electron and localhost dev still expose media devices.
   if (isDesktopShell()) return true;
+  // Capacitor WebView uses https://localhost — treat as supported when Cap runtime is present.
+  if (isCapacitor()) return true;
   const host = window.location.hostname;
   return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
 }
@@ -198,66 +200,18 @@ export function scannerInitErrorMessage(err: unknown): string {
   return "Unable to start the scanner. Please try again.";
 }
 
-/**
- * Continuous barcode scan loop — native API when present, otherwise ZXing.
- * Works offline once the app bundle is loaded (ZXing is bundled, not CDN).
- */
-export async function startCameraBarcodeScanning(options: {
+async function startZxingScanning(options: {
   video: HTMLVideoElement;
   deviceId?: string;
   onDetect: (code: string, box?: DOMRectReadOnly) => void;
 }): Promise<CameraScannerSession> {
-  const native = createBarcodeDetector();
-
-  if (native) {
-    const stream = await openBarcodeCameraStream(options.deviceId);
-    options.video.srcObject = stream;
-    await options.video.play();
-    const deviceId = activeDeviceId(options.video);
-
-    let cancelled = false;
-    let raf = 0;
-    let lastScan = 0;
-    const intervalMs = 120;
-
-    const tick = async () => {
-      if (cancelled) return;
-      const now = Date.now();
-      if (now - lastScan >= intervalMs && options.video.readyState >= 2) {
-        lastScan = now;
-        try {
-          const codes = await native.detect(options.video);
-          const hit = codes.find((code) => code.rawValue?.trim());
-          if (hit?.rawValue?.trim()) {
-            cancelled = true;
-            options.onDetect(hit.rawValue.trim(), hit.boundingBox);
-            return;
-          }
-        } catch {
-          /* keep scanning */
-        }
-      }
-      raf = requestAnimationFrame(() => {
-        void tick();
-      });
-    };
-
-    void tick();
-    return {
-      deviceId,
-      stop: () => {
-        cancelled = true;
-        if (raf) cancelAnimationFrame(raf);
-        stopVideoStream(options.video);
-      },
-    };
-  }
-
   const reader = await loadZxingReader();
   let active = true;
   let controls: { stop: () => void } | null = null;
 
   try {
+    // decodeFromVideoDevice owns getUserMedia + play — do not call video.play() again
+    // (that races and produces "play request was interrupted").
     controls = await reader.decodeFromVideoDevice(options.deviceId, options.video, (result, error) => {
       if (!active) return;
       if (result) {
@@ -273,8 +227,6 @@ export async function startCameraBarcodeScanning(options: {
         return;
       }
     });
-
-    await options.video.play();
 
     return {
       deviceId: activeDeviceId(options.video),
@@ -298,4 +250,65 @@ export async function startCameraBarcodeScanning(options: {
     stopVideoStream(options.video);
     throw err;
   }
+}
+
+/**
+ * Continuous barcode scan loop.
+ * Capacitor: ZXing only (offline-safe, no Google module).
+ * Web/Electron: BarcodeDetector when present, else ZXing.
+ */
+export async function startCameraBarcodeScanning(options: {
+  video: HTMLVideoElement;
+  deviceId?: string;
+  onDetect: (code: string, box?: DOMRectReadOnly) => void;
+}): Promise<CameraScannerSession> {
+  // Capacitor must not use BarcodeDetector paths that can pull remote Google assets.
+  if (!isCapacitor()) {
+    const native = createBarcodeDetector();
+    if (native) {
+      const stream = await openBarcodeCameraStream(options.deviceId);
+      options.video.srcObject = stream;
+      await options.video.play();
+      const deviceId = activeDeviceId(options.video);
+
+      let cancelled = false;
+      let raf = 0;
+      let lastScan = 0;
+      const intervalMs = 120;
+
+      const tick = async () => {
+        if (cancelled) return;
+        const now = Date.now();
+        if (now - lastScan >= intervalMs && options.video.readyState >= 2) {
+          lastScan = now;
+          try {
+            const codes = await native.detect(options.video);
+            const hit = codes.find((code) => code.rawValue?.trim());
+            if (hit?.rawValue?.trim()) {
+              cancelled = true;
+              options.onDetect(hit.rawValue.trim(), hit.boundingBox);
+              return;
+            }
+          } catch {
+            /* keep scanning */
+          }
+        }
+        raf = requestAnimationFrame(() => {
+          void tick();
+        });
+      };
+
+      void tick();
+      return {
+        deviceId,
+        stop: () => {
+          cancelled = true;
+          if (raf) cancelAnimationFrame(raf);
+          stopVideoStream(options.video);
+        },
+      };
+    }
+  }
+
+  return startZxingScanning(options);
 }

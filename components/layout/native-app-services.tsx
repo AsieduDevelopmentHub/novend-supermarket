@@ -1,7 +1,12 @@
 "use client";
 
 import { Suspense, useEffect, useState, type ReactNode } from "react";
-import { Hardware, isCapacitor, withTimeout, NATIVE_CALL_TIMEOUT_MS } from "@novend/hardware";
+import {
+  Hardware,
+  isCapacitor,
+  withTimeout,
+  NATIVE_AVAILABILITY_TIMEOUT_MS,
+} from "@novend/hardware";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -54,22 +59,31 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
     let cancelled = false;
     let removeUrlListener: (() => Promise<void>) | null = null;
     let removeBackListener: (() => Promise<void>) | null = null;
-    const failOpen = window.setTimeout(() => {
+    // Fail-open only while resolving prefs/token — clear before authenticate so a
+    // short timer cannot unlock during the system biometric prompt.
+    let failOpen = window.setTimeout(() => {
       if (!cancelled) setGate((current) => (current === "checking" ? "open" : current));
-    }, NATIVE_CALL_TIMEOUT_MS);
+    }, NATIVE_AVAILABILITY_TIMEOUT_MS);
 
     void (async () => {
       try {
-        const prefs = await withTimeout(Hardware.biometrics.getPrefs(), NATIVE_CALL_TIMEOUT_MS);
+        const prefs = await withTimeout(
+          Hardware.biometrics.getPrefs(),
+          NATIVE_AVAILABILITY_TIMEOUT_MS,
+        );
         if (!prefs.enabled || !prefs.requireOnLaunch) {
           if (!cancelled) setGate("open");
           return;
         }
-        const token = await withTimeout(Hardware.biometrics.readUnlockToken(), NATIVE_CALL_TIMEOUT_MS);
+        const token = await withTimeout(
+          Hardware.biometrics.readUnlockToken(),
+          NATIVE_AVAILABILITY_TIMEOUT_MS,
+        );
         if (!token.data) {
           if (!cancelled) setGate("open");
           return;
         }
+        window.clearTimeout(failOpen);
         const auth = await withTimeout(
           Hardware.biometrics.authenticate("Unlock Novend POS"),
           30_000,
@@ -77,6 +91,8 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
         if (!cancelled) setGate(auth.ok ? "open" : "locked");
       } catch {
         if (!cancelled) setGate("open");
+      } finally {
+        window.clearTimeout(failOpen);
       }
     })();
 

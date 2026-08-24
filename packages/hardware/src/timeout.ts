@@ -3,10 +3,17 @@
  * never hang the WebView forever.
  */
 
+/** Short bridge calls (prefs, one-shot status). */
 export const NATIVE_CALL_TIMEOUT_MS = 2500;
+/**
+ * First-load availability checks (dynamic import + Cap bridge).
+ * Too-low values falsely report biometrics/notifications as unavailable.
+ */
+export const NATIVE_AVAILABILITY_TIMEOUT_MS = 10_000;
 export const NATIVE_SCAN_TIMEOUT_MS = 45_000;
 export const NATIVE_BLE_TIMEOUT_MS = 12_000;
-export const NATIVE_CAMERA_TIMEOUT_MS = 60_000;
+/** User may take time in the system camera UI — do not race-abandon capture. */
+export const NATIVE_CAMERA_TIMEOUT_MS = 120_000;
 
 export class NativeTimeoutError extends Error {
   constructor(message = "timeout") {

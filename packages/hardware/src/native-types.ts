@@ -20,8 +20,15 @@ export type BluetoothPrinterStatus = {
 };
 
 export type BiometricAvailability = {
+  /** True when the user can authenticate now (hardware + enrolled). */
   available: boolean;
+  /** True when the device has biometric hardware (enrolled or not). */
+  supported: boolean;
+  /** True when at least one biometric is enrolled. */
+  enrolled: boolean;
   biometryType: "fingerprint" | "face" | "iris" | "none" | "unknown";
+  /** System reason when not available (e.g. not enrolled). */
+  reason?: string;
 };
 
 export type NotificationTopic =
@@ -59,7 +66,8 @@ export type NotificationPermissionState =
   | "granted"
   | "denied"
   | "prompt"
-  | "unavailable";
+  | "unavailable"
+  | "error";
 
 export type NotificationsAdapter = {
   checkPermissions: () => Promise<

@@ -40,7 +40,9 @@ pnpm --filter @novend/mobile add:ios       # once, macOS only
 cd apps/mobile && npx cap sync
 ```
 
-Native plugins (synced into Android/iOS): Camera, Filesystem, Share, ML Kit Barcode Scanning.
+Native plugins (synced into Android/iOS): Camera, Filesystem, Share, Local
+Notifications, Biometrics, BLE. Camera barcode scanning uses bundled ZXing in
+the WebView (not Google ML Kit).
 
 Point at a local Next.dev server while developing:
 
@@ -72,8 +74,8 @@ After changing URLs, restart `pnpm dev`, force-close the app, and sign in again.
 
 ## Phase 2 hardware
 
-Camera, gallery, native barcode, PDF save, and share go through `@novend/hardware`
-Capacitor adapters. Bluetooth printing is Phase 3.
+Camera, gallery, in-app ZXing barcode, PDF save, and share go through
+`@novend/hardware` Capacitor adapters. Bluetooth printing is Phase 3.
 
 ## Do not
 

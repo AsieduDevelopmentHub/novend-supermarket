@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Hardware, NATIVE_CALL_TIMEOUT_MS, type BiometricAvailability } from "@novend/hardware";
+import {
+  Hardware,
+  NATIVE_AVAILABILITY_TIMEOUT_MS,
+  type BiometricAvailability,
+} from "@novend/hardware";
 import { Fingerprint, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,39 +35,58 @@ export function BiometricSecurityCard() {
     let cancelled = false;
     const hardStop = window.setTimeout(() => {
       if (cancelled) return;
-      setUiState((current) => (current === "checking" ? "unavailable" : current));
-      setMessage("Biometrics took too long to respond on this device.");
-    }, NATIVE_CALL_TIMEOUT_MS + 1000);
+      setUiState((current) => (current === "checking" ? "error" : current));
+      setMessage((current) => current ?? "Biometrics took too long to respond on this device.");
+    }, NATIVE_AVAILABILITY_TIMEOUT_MS + 2000);
 
     void (async () => {
       try {
         const avail = await Hardware.biometrics.checkAvailability();
         if (cancelled) return;
-        const data = avail.data ?? { available: false, biometryType: "none" as const };
+        const data = avail.data ?? {
+          available: false,
+          supported: false,
+          enrolled: false,
+          biometryType: "none" as const,
+        };
         setAvailability(data);
-        if (!data.available) {
-          setUiState(avail.ok ? "unavailable" : "error");
+
+        if (!avail.ok && !data.supported) {
+          setUiState("error");
+          setMessage(avail.message || "Could not check biometrics on this device.");
+        } else if (!data.supported || data.biometryType === "none") {
+          setUiState("unsupported");
+          setMessage("This device does not support fingerprint or face unlock.");
+        } else if (!data.available || !data.enrolled) {
+          setUiState("unavailable");
           setMessage(
-            avail.message || "Fingerprint or face unlock is not available on this device.",
+            data.reason ||
+              "Biometrics are supported but not set up. Add a fingerprint or face unlock in device settings, then return here.",
           );
         } else {
           setUiState("available");
           setMessage(null);
         }
+
         const prefs = await Hardware.biometrics.getPrefs();
         if (cancelled) return;
         setEnabled(prefs.enabled);
         setRequireOnLaunch(prefs.requireOnLaunch);
       } catch {
         if (!cancelled) {
-          setAvailability({ available: false, biometryType: "none" });
+          setAvailability({
+            available: false,
+            supported: false,
+            enrolled: false,
+            biometryType: "none",
+          });
           setUiState("error");
           setMessage("Could not check biometrics on this device.");
         }
       } finally {
         window.clearTimeout(hardStop);
         if (!cancelled) {
-          setUiState((current) => (current === "checking" ? "unavailable" : current));
+          setUiState((current) => (current === "checking" ? "error" : current));
         }
       }
     })();

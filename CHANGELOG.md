@@ -13,6 +13,11 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Fixed
 
+- Capacitor camera barcode uses bundled ZXing by default (no Google ML Kit / HTTPS module install); scanner starts without Try Again and cleans up streams on reopen.
+- Product Take photo / gallery uses DataUrl capture with longer permission timeouts so Android no longer returns empty photos as “Could not capture”.
+- Biometrics maps hardware supported / enrolled / available correctly and no longer false-times-out as unavailable.
+- Launch biometric gate no longer fail-opens mid-prompt (clears the availability timer before `authenticate`).
+- Notifications distinguish prompt / granted / denied / error / unavailable; Android notification channel is created; unknown plugin states are not forced to “unavailable”.
 - Deep links and refresh keep the requested URL: login uses `?next=`, platform admins are not forced off `/platform/*`, and middleware no longer treats a failed session fetch as unauthorized.
 - Capacitor/Electron cold start restores the last in-app route; Android back goes through history or confirms exit.
 - Offline service worker serves a shell document for deep URLs without substituting the browser path; mobile bottom nav uses offline-safe navigation.

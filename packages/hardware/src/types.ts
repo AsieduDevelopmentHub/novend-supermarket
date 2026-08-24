@@ -72,6 +72,8 @@ export type SavedFile = {
 };
 
 export type CameraAdapter = {
+  /** Ensure camera (or photos) permission without opening the capture UI. */
+  ensurePermission: (kind?: "camera" | "photos") => Promise<HardwareResult>;
   capturePhoto: () => Promise<HardwareResult<PhotoCapture>>;
   pickFromGallery: () => Promise<HardwareResult<PhotoCapture>>;
 };

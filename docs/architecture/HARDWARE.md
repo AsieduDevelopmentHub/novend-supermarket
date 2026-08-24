@@ -1,6 +1,6 @@
 # Hardware architecture
 
-Version: 1.4.1
+Version: 1.4.2
 
 ## Purpose
 
@@ -18,8 +18,8 @@ services/print · services/hardware · services/receipts
 @novend/hardware                     (sole platform entry)
         ├── Web adapter
         ├── Electron adapter → window.novendDesktop
-        └── Capacitor adapter → Camera, ML Kit, BLE print, Filesystem,
-                                Share, Biometrics, Secure Storage,
+        └── Capacitor adapter → Camera, in-app ZXing barcode, BLE print,
+                                Filesystem, Share, Biometrics, Secure Storage,
                                 Local Notifications, App deep links
         ↓
 apps/desktop IPC → hardware/registry   (Electron only)
@@ -37,7 +37,8 @@ apps/mobile      → native plugins      (Capacitor)
 - Permission copy helpers (request only when a feature needs access)
 - Bounded waits: `withTimeout` / `NATIVE_*_TIMEOUT_MS` so Settings and scanners
   fail soft instead of hanging the WebView on a stuck Capacitor plugin
-- Capacitor Camera / ML Kit / BLE adapters load **lazily** — importing
+  (`NATIVE_AVAILABILITY_TIMEOUT_MS` for biometrics / notification checks)
+- Capacitor Camera / BLE adapters load **lazily** — importing
   `@novend/hardware` for biometrics must not evaluate Camera or BLE
 - Result types shared across adapters
 
@@ -47,15 +48,16 @@ UI components must not call Electron preload or Capacitor plugins directly.
 
 | Feature | Behavior |
 |---------|----------|
-| Camera / gallery | `@capacitor/camera` → `File` → compress + Dexie image cache |
+| Camera / gallery | `@capacitor/camera` (DataUrl) → `File` → compress + Dexie image cache |
 | Local image durability | Also written under Capacitor `Directory.Data` (`product-images/`) |
-| Barcode | `@capacitor-mlkit/barcode-scanning` full-screen `scan()` |
+| Barcode (camera) | Cap camera permission → getUserMedia → bundled **ZXing** (no Google ML Kit / HTTPS module) |
+| Barcode (HID) | Terminal wedge config + `useBarcodeScanner` (desktop primary) |
 | Bluetooth thermal print | `@capacitor-community/bluetooth-le` ESC/POS write |
 | Save PDF / backup JSON | `Directory.Documents` via Filesystem (+ optional Share) |
 | Share receipt | Native share sheet |
-| Biometrics | `@aparajita/capacitor-biometric-auth` — unlock token only (never password) |
+| Biometrics | `@aparajita/capacitor-biometric-auth` — unlock token only (never password); maps supported / enrolled / available |
 | Secure storage | `@aparajita/capacitor-secure-storage` for unlock token |
-| Notifications | `@capacitor/local-notifications` + topic prefs (push foundation) |
+| Notifications | `@capacitor/local-notifications` + Android channel + topic prefs (prompt / granted / denied / error / unavailable) |
 | Deep links | `novend://sale/…`, `novend://product/…` via `Hardware.app` |
 | Soft updates | Optional `NEXT_PUBLIC_MOBILE_UPDATE_JSON` vs native version |
 
@@ -73,7 +75,7 @@ entry point behind the Electron adapter.
 Barcode service (services/hardware)
  ├── HID / keyboard wedge (Electron + browser)
  ├── Camera web (Barcode Detection API / ZXing)
- └── Capacitor native ML Kit scanner
+ └── Capacitor camera (ZXing only — offline-safe)
 ```
 
 - Optional `products.barcode`, unique per organization

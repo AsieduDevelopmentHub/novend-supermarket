@@ -11,6 +11,9 @@ export function createElectronAdapters(): HardwareAdapters {
   return {
     ...web,
     camera: {
+      async ensurePermission() {
+        return { ok: true };
+      },
       async capturePhoto() {
         // Renderer still uses getUserMedia via product dialogs in Phase 1.
         return unsupported("Use the in-app camera dialog on desktop");

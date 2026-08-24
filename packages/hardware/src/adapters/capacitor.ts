@@ -1,9 +1,5 @@
+import { Capacitor } from "@capacitor/core";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
-import {
-  BarcodeFormat,
-  BarcodeScanner,
-  GoogleBarcodeScannerModuleInstallState,
-} from "@capacitor-mlkit/barcode-scanning";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 import type { HardwareAdapters, HardwareResult, PhotoCapture } from "../types";
@@ -16,9 +12,8 @@ import {
   shareFailedMessage,
 } from "../permissions";
 import {
+  NATIVE_AVAILABILITY_TIMEOUT_MS,
   NATIVE_CAMERA_TIMEOUT_MS,
-  NATIVE_CALL_TIMEOUT_MS,
-  NATIVE_SCAN_TIMEOUT_MS,
   isNativeTimeoutError,
   withTimeout,
 } from "../timeout";
@@ -45,6 +40,15 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+function fileFromBytes(bytes: Uint8Array<ArrayBuffer>, fileName: string, mimeType: string): File {
+  try {
+    return new File([bytes], fileName, { type: mimeType, lastModified: Date.now() });
+  } catch {
+    const blob = new Blob([bytes], { type: mimeType });
+    return new File([blob], fileName, { type: mimeType, lastModified: Date.now() });
+  }
+}
+
 async function persistProductImageFromBytes(
   bytes: Uint8Array,
   mimeType: string,
@@ -68,64 +72,128 @@ async function persistProductImageFromBytes(
   }
 }
 
-async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCapture>> {
+async function ensureCameraPermission(
+  source: CameraSource,
+): Promise<HardwareResult> {
   try {
-    const permission = await withTimeout(Camera.checkPermissions(), NATIVE_CALL_TIMEOUT_MS);
+    const permission = await withTimeout(
+      Camera.checkPermissions(),
+      NATIVE_AVAILABILITY_TIMEOUT_MS,
+    );
     const needsPrompt =
       source === CameraSource.Camera
         ? permission.camera !== "granted"
         : permission.photos !== "granted" && permission.camera !== "granted";
 
-    if (needsPrompt) {
-      const requested = await withTimeout(
-        Camera.requestPermissions({
-          permissions: source === CameraSource.Camera ? ["camera"] : ["photos"],
-        }),
-        NATIVE_CALL_TIMEOUT_MS,
-      );
-      const granted =
-        source === CameraSource.Camera
-          ? requested.camera === "granted"
-          : requested.photos === "granted" || requested.camera === "granted";
-      if (!granted) {
-        return {
-          ok: false,
-          message:
-            source === CameraSource.Camera
-              ? permissionDeniedMessage("camera")
-              : permissionDeniedMessage("photos"),
-        };
+    if (!needsPrompt) return { ok: true };
+
+    const requested = await withTimeout(
+      Camera.requestPermissions({
+        permissions: source === CameraSource.Camera ? ["camera"] : ["photos"],
+      }),
+      NATIVE_AVAILABILITY_TIMEOUT_MS,
+    );
+    const granted =
+      source === CameraSource.Camera
+        ? requested.camera === "granted"
+        : requested.photos === "granted" || requested.camera === "granted";
+    if (!granted) {
+      return {
+        ok: false,
+        message:
+          source === CameraSource.Camera
+            ? permissionDeniedMessage("camera")
+            : permissionDeniedMessage("photos"),
+      };
+    }
+    return { ok: true };
+  } catch (error) {
+    if (isNativeTimeoutError(error)) {
+      return {
+        ok: false,
+        message: "Camera permission timed out. Try again or enable it in device settings.",
+      };
+    }
+    const raw = error instanceof Error ? error.message : String(error ?? "");
+    return {
+      ok: false,
+      message: friendlyHardwareMessage(raw, permissionDeniedMessage("camera")),
+    };
+  }
+}
+
+async function bytesFromPhotoUri(webPath: string | undefined, path: string | undefined) {
+  if (path) {
+    try {
+      const result = await Filesystem.readFile({ path });
+      if (typeof result.data === "string" && result.data.trim()) {
+        return base64ToBytes(result.data);
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  if (webPath) {
+    try {
+      const src = Capacitor.convertFileSrc(webPath);
+      const response = await fetch(src);
+      if (response.ok) {
+        return new Uint8Array(await response.arrayBuffer());
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  return null;
+}
+
+async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCapture>> {
+  try {
+    const permission = await ensureCameraPermission(source);
+    if (!permission.ok) {
+      return { ok: false, message: permission.message };
+    }
+
+    // One system capture. DataUrl stays in-process (no WebView fetch). Uri bytes
+    // are a secondary read when DataUrl is omitted by the platform.
+    const photo = await Camera.getPhoto({
+      quality: 80,
+      allowEditing: false,
+      resultType: CameraResultType.DataUrl,
+      source,
+      correctOrientation: true,
+      saveToGallery: false,
+    });
+
+    const format = photo.format || "jpeg";
+    const mimeType = format === "png" ? "image/png" : "image/jpeg";
+    let bytes: Uint8Array<ArrayBuffer> | null = null;
+
+    const dataUrl = photo.dataUrl?.trim();
+    const match = dataUrl?.match(/^data:[^;]+;base64,(.+)$/);
+    if (match?.[1]) {
+      bytes = base64ToBytes(match[1]);
+    } else if (photo.base64String?.trim()) {
+      bytes = base64ToBytes(photo.base64String.trim());
+    } else {
+      const fromUri = await bytesFromPhotoUri(photo.webPath, photo.path);
+      if (fromUri && fromUri.byteLength > 0) {
+        bytes = new Uint8Array(fromUri) as Uint8Array<ArrayBuffer>;
       }
     }
 
-    // Base64 avoids Android WebView fetch(webPath) failures that returned no File.
-    const photo = await withTimeout(
-      Camera.getPhoto({
-        quality: 92,
-        allowEditing: false,
-        resultType: CameraResultType.Base64,
-        source,
-        correctOrientation: true,
-        saveToGallery: false,
-      }),
-      NATIVE_CAMERA_TIMEOUT_MS,
-    );
-
-    const base64 = photo.base64String?.trim();
-    if (!base64) {
+    if (!bytes || bytes.byteLength === 0) {
       return { ok: false, message: cameraCaptureFailedMessage() };
     }
 
-    const mimeType = photo.format === "png" ? "image/png" : "image/jpeg";
-    const fileName = `product-${Date.now()}.${photo.format === "png" ? "png" : "jpg"}`;
-    const bytes = base64ToBytes(base64);
-    const file = new File([bytes], fileName, { type: mimeType });
+    const fileName = `product-${Date.now()}.${format === "png" ? "png" : "jpg"}`;
+    const file = fileFromBytes(bytes, fileName, mimeType);
     const localPath = await persistProductImageFromBytes(bytes, mimeType);
 
     return {
       ok: true,
       data: {
-        uri: localPath || `data:${mimeType};base64,${base64}`,
+        uri: localPath || `data:${mimeType};base64,${bytesToBase64(bytes)}`,
         mimeType,
         file,
         localPath,
@@ -152,32 +220,11 @@ async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCaptu
   }
 }
 
-async function ensureGoogleBarcodeModule(): Promise<void> {
-  try {
-    const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
-    if (available) return;
-    await new Promise<void>((resolve) => {
-      void BarcodeScanner.addListener("googleBarcodeScannerModuleInstallProgress", (event) => {
-        if (
-          event.state === GoogleBarcodeScannerModuleInstallState.COMPLETED ||
-          event.state === GoogleBarcodeScannerModuleInstallState.CANCELED ||
-          event.state === GoogleBarcodeScannerModuleInstallState.FAILED
-        ) {
-          resolve();
-        }
-      }).then(() => {
-        void BarcodeScanner.installGoogleBarcodeScannerModule();
-      });
-      window.setTimeout(() => resolve(), 15_000);
-    });
-  } catch {
-    /* iOS or unsupported — scan() still attempted */
-  }
-}
-
 /**
- * Capacitor (Android / iOS) adapter — native camera, barcode, filesystem, share.
- * Printer remains stubbed until Bluetooth printing (Phase 3).
+ * Capacitor (Android / iOS) adapter — native camera, filesystem, share.
+ * Camera barcode scanning uses in-app ZXing (see ScanBarcodeCameraDialog),
+ * not Google ML Kit — ML Kit requires HTTPS module downloads and fails offline.
+ * Printer remains Bluetooth (Phase 3).
  */
 export function createCapacitorAdapters(): HardwareAdapters {
   const web = createWebAdapters();
@@ -185,86 +232,34 @@ export function createCapacitorAdapters(): HardwareAdapters {
   return {
     ...web,
     camera: {
+      async ensurePermission(kind = "camera") {
+        return ensureCameraPermission(
+          kind === "photos" ? CameraSource.Photos : CameraSource.Camera,
+        );
+      },
       async capturePhoto() {
-        return getPhoto(CameraSource.Camera);
+        return withTimeout(getPhoto(CameraSource.Camera), NATIVE_CAMERA_TIMEOUT_MS);
       },
       async pickFromGallery() {
-        return getPhoto(CameraSource.Photos);
+        return withTimeout(getPhoto(CameraSource.Photos), NATIVE_CAMERA_TIMEOUT_MS);
       },
     },
     barcode: {
+      /**
+       * Capacitor camera scanning is owned by the in-app ZXing dialog.
+       * Do not start Google ML Kit here — it races the WebView camera and
+       * requires Google Play module downloads that fail offline.
+       */
       async scan() {
-        try {
-          await ensureGoogleBarcodeModule();
-          try {
-            const permission = await withTimeout(
-              BarcodeScanner.checkPermissions(),
-              NATIVE_CALL_TIMEOUT_MS,
-            );
-            if (permission.camera !== "granted") {
-              const requested = await withTimeout(
-                BarcodeScanner.requestPermissions(),
-                NATIVE_CALL_TIMEOUT_MS,
-              );
-              if (requested.camera !== "granted") {
-                return { ok: false, message: permissionDeniedMessage("camera") };
-              }
-            }
-          } catch (error) {
-            if (isNativeTimeoutError(error)) {
-              return {
-                ok: false,
-                message: "Camera permission timed out. Try again or enable it in device settings.",
-              };
-            }
-            /* Some platforms fold permission into scan() — continue. */
-          }
-          const { barcodes } = await withTimeout(
-            BarcodeScanner.scan({
-              formats: [
-                BarcodeFormat.Ean13,
-                BarcodeFormat.Ean8,
-                BarcodeFormat.UpcA,
-                BarcodeFormat.UpcE,
-                BarcodeFormat.Code128,
-                BarcodeFormat.Code39,
-                BarcodeFormat.QrCode,
-                BarcodeFormat.Codabar,
-                BarcodeFormat.Itf,
-              ],
-            }),
-            NATIVE_SCAN_TIMEOUT_MS,
-          );
-          const first = barcodes[0];
-          const value = first?.rawValue?.trim();
-          if (!value) {
-            return { ok: false, message: barcodeScanFailedMessage() };
-          }
-          return {
-            ok: true,
-            data: {
-              value,
-              format: first.format,
-            },
-          };
-        } catch (error) {
-          if (isNativeTimeoutError(error)) {
-            return { ok: false, message: "Barcode scanner timed out. Try again." };
-          }
-          const raw = error instanceof Error ? error.message : String(error ?? "");
-          if (/cancel/i.test(raw)) {
-            return { ok: false, message: "Cancelled" };
-          }
-          return {
-            ok: false,
-            message: friendlyHardwareMessage(raw, barcodeScanFailedMessage()),
-          };
-        }
+        return {
+          ok: false,
+          message: barcodeScanFailedMessage(),
+        };
       },
       async startListening() {
         return {
           ok: true,
-          message: "Use Scan barcode for the native camera scanner",
+          message: "Use Scan barcode for the in-app camera scanner",
         };
       },
       async stopListening() {
@@ -273,14 +268,14 @@ export function createCapacitorAdapters(): HardwareAdapters {
       async discover() {
         return {
           ok: true,
-          message: "Native camera barcode scanning is available on this device",
+          message: "In-app camera barcode scanning (ZXing) is available on this device",
           data: {
             devices: [
               {
-                id: "capacitor:camera",
+                id: "capacitor:camera-zxing",
                 kind: "scanner",
                 label: "Camera barcode scanner",
-                meta: { mode: "camera_native" },
+                meta: { mode: "camera_zxing" },
               },
             ],
           },
@@ -422,7 +417,6 @@ export function createCapacitorAdapters(): HardwareAdapters {
         } catch (error) {
           const raw = error instanceof Error ? error.message : String(error ?? "");
           if (/cancel/i.test(raw)) return { ok: false, message: "Cancelled" };
-          // Fall back to Web Share when the native sheet is unavailable.
           const webResult = await web.share.shareReceipt(text, title);
           if (webResult.ok) return webResult;
           return {

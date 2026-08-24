@@ -8,7 +8,7 @@ import type {
   NotificationTopic,
   UpdateInfo,
 } from "./native-types";
-import { NATIVE_CALL_TIMEOUT_MS, withTimeout, withTimeoutFallback } from "./timeout";
+import { NATIVE_AVAILABILITY_TIMEOUT_MS, withTimeoutFallback } from "./timeout";
 
 function unsupported<T = void>(feature = "This feature"): HardwareResult<T> {
   return { ok: false, message: `${feature} is only available in the Novend mobile app` };
@@ -26,16 +26,22 @@ async function bluetoothFacade() {
 export const biometrics = {
   checkAvailability: async (): Promise<HardwareResult<BiometricAvailability>> => {
     if (!isCapacitor()) return unsupported("Biometrics");
+    // One outer deadline only — the Cap adapter already times checkBiometry().
     return withTimeoutFallback(
       async () => {
-        const mod = await withTimeout(capServices(), NATIVE_CALL_TIMEOUT_MS);
+        const mod = await capServices();
         return mod.createCapacitorBiometricsAdapter().checkAvailability();
       },
-      NATIVE_CALL_TIMEOUT_MS + 500,
+      NATIVE_AVAILABILITY_TIMEOUT_MS + 1500,
       {
         ok: false,
         message: "Biometrics took too long to respond on this device.",
-        data: { available: false, biometryType: "none" },
+        data: {
+          available: false,
+          supported: false,
+          enrolled: false,
+          biometryType: "none",
+        },
       },
     );
   },
@@ -48,10 +54,10 @@ export const biometrics = {
     if (!isCapacitor()) return { enabled: false, requireOnLaunch: false };
     return withTimeoutFallback(
       async () => {
-        const mod = await withTimeout(capServices(), NATIVE_CALL_TIMEOUT_MS);
+        const mod = await capServices();
         return mod.getBiometricPrefs();
       },
-      NATIVE_CALL_TIMEOUT_MS + 500,
+      NATIVE_AVAILABILITY_TIMEOUT_MS,
       { enabled: false, requireOnLaunch: false },
     );
   },
@@ -104,8 +110,18 @@ export const notifications = {
         data: { granted: false, state: "unavailable" as const },
       };
     }
-    const mod = await capServices();
-    return mod.createCapacitorNotificationsAdapter().checkPermissions();
+    return withTimeoutFallback(
+      async () => {
+        const mod = await capServices();
+        return mod.createCapacitorNotificationsAdapter().checkPermissions();
+      },
+      NATIVE_AVAILABILITY_TIMEOUT_MS + 1500,
+      {
+        ok: false as const,
+        message: "Notification permission check timed out. Try again.",
+        data: { granted: false, state: "error" as const },
+      },
+    );
   },
   requestPermissions: async () => {
     if (!isCapacitor()) {

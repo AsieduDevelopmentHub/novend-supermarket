@@ -5,6 +5,9 @@ import { unsupported } from "./types";
 export function createWebAdapters(): HardwareAdapters {
   return {
     camera: {
+      async ensurePermission() {
+        return { ok: true };
+      },
       async capturePhoto() {
         return unsupported("Camera capture");
       },

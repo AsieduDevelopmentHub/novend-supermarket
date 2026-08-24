@@ -40,12 +40,15 @@ type Props = {
 };
 
 /**
- * Camera barcode reader. On Capacitor, opens the native full-screen scanner.
- * On web / Electron, uses getUserMedia + BarcodeDetector / ZXing.
+ * Camera barcode reader.
+ * Capacitor: Cap camera permission → getUserMedia → bundled ZXing (no ML Kit / Google HTTPS).
+ * Web / Electron: getUserMedia + BarcodeDetector / ZXing.
+ * Hardware HID scanners remain separate via useBarcodeScanner.
  */
 export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const scannerRef = useRef<CameraScannerSession | null>(null);
+  const startGenRef = useRef(0);
   const [session, setSession] = useState(0);
   const [ready, setReady] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -54,7 +57,6 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [detectBox, setDetectBox] = useState<DOMRectReadOnly | null>(null);
   const [successCode, setSuccessCode] = useState<string | null>(null);
-  const [useWebFallback, setUseWebFallback] = useState(false);
   const native = isCapacitor();
   const supported = native || isCameraBarcodeSupported();
 
@@ -73,12 +75,14 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
 
   useEffect(() => {
     return () => {
+      startGenRef.current += 1;
       stopScanner();
     };
   }, []);
 
   function handleOpenChange(next: boolean) {
     if (!next) {
+      startGenRef.current += 1;
       stopScanner();
       setReady(false);
       setStarting(false);
@@ -87,7 +91,6 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
       setSuccessCode(null);
       setDevices([]);
       setSelectedDeviceId("");
-      setUseWebFallback(false);
     } else {
       setSession((n) => n + 1);
       setReady(false);
@@ -95,41 +98,13 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
       setError(null);
       setDetectBox(null);
       setSuccessCode(null);
-      setUseWebFallback(false);
     }
     onOpenChange(next);
   }
 
-  const runNativeScan = useCallback(async () => {
-    setStarting(true);
-    setError(null);
-    setSuccessCode(null);
-    try {
-      const result = await Hardware.barcode.scan();
-      if (!result.ok) {
-        if (result.message === "Cancelled") {
-          onOpenChange(false);
-          return "done" as const;
-        }
-        return "fallback" as const;
-      }
-      const code = result.data?.value?.trim();
-      if (!code) return "fallback" as const;
-      setSuccessCode(code);
-      playScanSuccessBeep();
-      onDetect(code);
-      onOpenChange(false);
-      return "done" as const;
-    } catch {
-      return "fallback" as const;
-    } finally {
-      setStarting(false);
-    }
-  }, [onDetect, onOpenChange]);
-
   const startWebScanner = useCallback(
     async (deviceId?: string) => {
-      setUseWebFallback(true);
+      const gen = ++startGenRef.current;
       setStarting(true);
       setError(null);
       setReady(false);
@@ -137,16 +112,27 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
       setSuccessCode(null);
       stopScanner();
 
+      if (native) {
+        const permission = await Hardware.camera.ensurePermission("camera");
+        if (gen !== startGenRef.current) return;
+        if (!permission.ok) {
+          setError(permission.message || permissionNeedMessage("camera"));
+          setStarting(false);
+          return;
+        }
+      }
+
       if (!isCameraBarcodeSupported()) {
         setError(permissionNeedMessage("camera"));
         setStarting(false);
         return;
       }
 
-      // Wait one frame so the video element exists after switching from native UI.
+      // Wait for the video element after dialog mount / key remount.
       await new Promise<void>((resolve) => {
         window.requestAnimationFrame(() => resolve());
       });
+      if (gen !== startGenRef.current) return;
 
       const video = videoRef.current;
       if (!video) {
@@ -160,64 +146,60 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
           video,
           deviceId: deviceId || undefined,
           onDetect: (code, box) => {
+            if (gen !== startGenRef.current) return;
             setDetectBox(box ?? null);
             setSuccessCode(code);
             playScanSuccessBeep();
             window.setTimeout(() => {
+              if (gen !== startGenRef.current) return;
               onDetect(code);
               stopScanner();
               onOpenChange(false);
             }, 350);
           },
         });
+        if (gen !== startGenRef.current) {
+          scanner.stop();
+          return;
+        }
         scannerRef.current = scanner;
 
         const inputs = await listVideoInputDevices();
+        if (gen !== startGenRef.current) return;
         setDevices(inputs);
         const activeId = scanner.deviceId || deviceId || "";
         if (activeId) setSelectedDeviceId(activeId);
 
         setReady(true);
       } catch (err) {
+        if (gen !== startGenRef.current) return;
         stopScanner();
         const message = cameraErrorMessage(err);
         setError(message.includes("Allow camera") ? message : scannerInitErrorMessage(err));
       } finally {
-        setStarting(false);
+        if (gen === startGenRef.current) setStarting(false);
       }
     },
-    [onDetect, onOpenChange],
-  );
-
-  const startScanner = useCallback(
-    async (deviceId?: string) => {
-      if (native && !useWebFallback && !deviceId) {
-        const outcome = await runNativeScan();
-        if (outcome === "fallback") {
-          await startWebScanner(deviceId);
-        }
-        return;
-      }
-      await startWebScanner(deviceId);
-    },
-    [native, runNativeScan, startWebScanner, useWebFallback],
+    [native, onDetect, onOpenChange],
   );
 
   useEffect(() => {
     if (!open) return;
     const timer = window.setTimeout(() => {
-      void startScanner();
+      void startWebScanner();
     }, 50);
-    return () => window.clearTimeout(timer);
-  }, [open, session, startScanner]);
+    return () => {
+      window.clearTimeout(timer);
+      startGenRef.current += 1;
+      stopScanner();
+    };
+  }, [open, session, startWebScanner]);
 
   async function switchCamera(nextDeviceId: string) {
     if (!nextDeviceId || nextDeviceId === selectedDeviceId) return;
     setSelectedDeviceId(nextDeviceId);
     await startWebScanner(nextDeviceId);
   }
-
-  const showNativeWaiting = native && !useWebFallback && starting && !error;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -254,7 +236,7 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => void startScanner(selectedDeviceId || undefined)}
+                  onClick={() => void startWebScanner(selectedDeviceId || undefined)}
                   disabled={starting}
                 >
                   {starting ? (
@@ -267,12 +249,10 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
               ) : null}
             </div>
           ) : null}
-          {showNativeWaiting || (starting && !ready) ? (
+          {starting && !ready ? (
             <div className="absolute inset-0 grid place-items-center gap-2 bg-muted/80 p-4 text-center">
               <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
-              {showNativeWaiting ? (
-                <p className="text-muted-foreground text-sm">Opening the camera scanner…</p>
-              ) : null}
+              <p className="text-muted-foreground text-sm">Starting camera scanner…</p>
             </div>
           ) : null}
           {ready ? (

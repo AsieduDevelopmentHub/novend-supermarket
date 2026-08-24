@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import {
   Hardware,
-  NATIVE_CALL_TIMEOUT_MS,
+  NATIVE_AVAILABILITY_TIMEOUT_MS,
   permissionDeniedMessage,
   permissionNeedMessage,
   type NotificationPermissionState,
@@ -50,15 +50,18 @@ export function NotificationsSettingsCard() {
   const [prefs, setPrefs] = useState<Record<NotificationTopic, boolean> | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
       const permission = await Hardware.notifications.checkPermissions();
       setState(permission.data?.state ?? (permission.data?.granted ? "granted" : "prompt"));
+      setErrorMessage(permission.ok ? null : permission.message || null);
       const topics = await Hardware.notifications.getTopicPrefs();
       setPrefs(topics.data ?? EMPTY_PREFS);
     } catch {
-      setState("unavailable");
+      setState("error");
+      setErrorMessage("Could not check notification permission.");
       setPrefs(EMPTY_PREFS);
     } finally {
       setLoading(false);
@@ -69,10 +72,15 @@ export function NotificationsSettingsCard() {
     let cancelled = false;
     const hardStop = window.setTimeout(() => {
       if (cancelled) return;
-      setLoading(false);
-      setPrefs((current) => current ?? EMPTY_PREFS);
-      setState((current) => current);
-    }, NATIVE_CALL_TIMEOUT_MS + 1000);
+      setLoading((stillLoading) => {
+        if (stillLoading) {
+          setState((current) => (current === "prompt" ? "error" : current));
+          setErrorMessage((msg) => msg ?? "Notification permission check timed out. Try again.");
+          setPrefs((current) => current ?? EMPTY_PREFS);
+        }
+        return false;
+      });
+    }, NATIVE_AVAILABILITY_TIMEOUT_MS + 2000);
 
     void (async () => {
       await refresh();
@@ -100,6 +108,7 @@ export function NotificationsSettingsCard() {
       const result = await Hardware.notifications.requestPermissions();
       const next = result.data?.state ?? (result.data?.granted ? "granted" : "denied");
       setState(next);
+      setErrorMessage(result.ok ? null : result.message || null);
       if (!result.ok || !result.data?.granted) {
         toast.error(result.message || permissionDeniedMessage("notifications"));
         return false;
@@ -128,6 +137,10 @@ export function NotificationsSettingsCard() {
           await openSettings();
           return;
         }
+        if (state === "unavailable") {
+          toast.message("Notifications are unavailable on this device.");
+          return;
+        }
         const ok = await enableNotifications();
         if (!ok) return;
       }
@@ -140,6 +153,7 @@ export function NotificationsSettingsCard() {
   }
 
   const granted = state === "granted";
+  const topicsDisabled = busy || prefs === null || state === "unavailable";
 
   return (
     <Card>
@@ -183,6 +197,17 @@ export function NotificationsSettingsCard() {
           </div>
         ) : null}
 
+        {!loading && state === "error" ? (
+          <div className="space-y-2">
+            <p className="text-muted-foreground text-sm">
+              {errorMessage || "Could not check notification permission. Try again."}
+            </p>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => void refresh()}>
+              Try again
+            </Button>
+          </div>
+        ) : null}
+
         {!loading && state === "unavailable" ? (
           <p className="text-muted-foreground text-sm">
             Notifications are unavailable on this device right now. You can still use Novend
@@ -203,7 +228,7 @@ export function NotificationsSettingsCard() {
                 </div>
                 <Switch
                   checked={Boolean(prefs?.[topic.id])}
-                  disabled={busy || prefs === null || state === "unavailable"}
+                  disabled={topicsDisabled}
                   onCheckedChange={(checked) => void toggleTopic(topic.id, checked)}
                 />
               </div>
