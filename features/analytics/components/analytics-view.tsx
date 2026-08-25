@@ -23,6 +23,7 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { useOfflineAnalytics } from "@/hooks/use-offline-analytics";
 import { useLocalExpenses } from "@/hooks/use-offline-lists";
 import { persistBusinessWrite, queuedSaveMessage, queueRemoveExpense } from "@/lib/offline/replica-writes";
@@ -104,22 +105,24 @@ export function AnalyticsView() {
     api.analytics.summary,
     online && range ? { ...range, granularity, branchId: branchArg } : "skip",
   );
+  const preferLocal = usePreferLocalData(remoteSummary !== undefined);
+  // Always hydrate Dexie so Cap false-online paints without waiting on Convex.
   const { summary: localSummary } = useOfflineAnalytics(
     range,
     granularity,
     branchArg ? String(branchArg) : null,
-    !online,
+    Boolean(range),
   );
   const expensesRemote = useQuery(
     api.analytics.listExpenses,
-    online && range
+    online && range && !preferLocal
       ? { startDate: range.startDate, endDate: range.endDate, limit: 200, branchId: branchArg }
       : "skip",
   );
   const expensesLocal = useLocalExpenses(range);
   const removeExpense = useMutation(api.analytics.removeExpense);
 
-  const summary = online ? remoteSummary : localSummary;
+  const summary = preferLocal || !online ? (localSummary ?? remoteSummary) : (remoteSummary ?? localSummary);
   const expenses = expensesRemote ?? expensesLocal?.map((row) => ({
     id: row.id as Id<"expenses">,
     amount: row.amount,
@@ -131,8 +134,8 @@ export function AnalyticsView() {
     branchName: row.branchName,
   }));
 
-  if (!online && localSummary === undefined) {
-    return <LoadingState label="Loading offline analytics…" variant="cards" />;
+  if (!summary && remoteSummary === undefined && localSummary === undefined) {
+    return <LoadingState label="Loading analytics…" variant="cards" />;
   }
 
   function onApply() {

@@ -305,6 +305,13 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         ? `org-${user.organizationId}-${user.userId}`
         : "anon";
 
+  /** Stale-looking online (Convex hung) but we have a local shell — treat like offline session. */
+  const cachedShellWhileOnlineHung =
+    online &&
+    onlineAuthBudgetElapsed &&
+    Boolean(cachedProfile) &&
+    (isLoading || (isAuthenticated && user === undefined));
+
   const shellFromCache =
     (!online || cachedShellWhileOnlineHung) && cachedProfile
       ? {
@@ -320,13 +327,6 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     !online &&
     Boolean(cachedProfile) &&
     (isAuthenticated || offlineAuthBudgetElapsed || !isLoading);
-
-  /** Stale-looking online (Convex hung) but we have a local shell — treat like offline session. */
-  const cachedShellWhileOnlineHung =
-    online &&
-    onlineAuthBudgetElapsed &&
-    Boolean(cachedProfile) &&
-    (isLoading || (isAuthenticated && user === undefined));
 
   const waitingForUser =
     (online && isLoading && !onlineAuthBudgetElapsed) ||

@@ -3,6 +3,7 @@ import { api } from "@/convex/_generated/api";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 import { bindOfflineOrganization } from "@/lib/offline/db";
 import { markOfflineSession } from "@/lib/offline/session";
+import { isCapacitor } from "@novend/hardware";
 
 const SKIP_SPLASH_KEY = "novend.auth.skipSplash";
 const RESOLVE_RETRIES = 8;
@@ -103,6 +104,22 @@ export async function resolvePostLoginPath(
  */
 export function navigateAfterLogin(path: string, router: AppRouter): void {
   markSkipStartupSplash();
+
+  // Cap / offline: client shell routing via history — RSC soft nav fails offline.
+  if (typeof window !== "undefined" && (isCapacitor() || !navigator.onLine)) {
+    window.history.replaceState({}, "", path);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    // Soft replace still helps cookie/middleware catch up when Cap is online.
+    if (navigator.onLine) {
+      try {
+        router.replace(path);
+      } catch {
+        /* ignore */
+      }
+    }
+    return;
+  }
+
   router.replace(path);
 
   if (typeof window === "undefined") return;

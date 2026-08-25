@@ -16,6 +16,7 @@ import { formatCurrency } from "@/lib/currency";
 import { formatDate, formatDateTime } from "@/lib/date";
 import { ArrowLeft } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { listLocalOrders } from "@/lib/offline/mirror-queries";
 import { useEffect, useState } from "react";
 
@@ -40,6 +41,7 @@ export function ReportDayDetailView() {
         }
       : "skip",
   );
+  const preferLocal = usePreferLocalData(details !== undefined);
 
   const backHref = (() => {
     const q = new URLSearchParams();
@@ -54,7 +56,7 @@ export function ReportDayDetailView() {
     return <ErrorState message="Choose a day from the Reports daily breakdown." />;
   }
 
-  if (!online) {
+  if (!online || preferLocal) {
     return <LocalDayFallback date={date} backHref={backHref} />;
   }
 

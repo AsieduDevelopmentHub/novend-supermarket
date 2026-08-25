@@ -70,9 +70,9 @@ export function useOfflineAnalyticsDetails(
     return { details: null, loading: false };
   }
 
-  if (state.key !== requestKey || state.loading || !state.details) {
+  if (state.key !== requestKey || state.loading) {
     return { details: undefined, loading: true };
   }
 
-  return { details: state.details, loading: false };
+  return { details: state.details ?? undefined, loading: false };
 }

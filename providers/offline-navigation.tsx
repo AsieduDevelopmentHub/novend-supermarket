@@ -12,6 +12,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { persistLastRoute } from "@/lib/auth/last-route";
+import { useForceClientShell } from "@/hooks/use-force-client-shell";
 import { resolveOfflineView } from "@/providers/offline-views";
 
 type OfflineNavigationContextValue = {
@@ -73,6 +74,7 @@ function isAuthOrApiHref(href: string): boolean {
  */
 export function OfflineNavigationProvider({ children }: { children: ReactNode }) {
   const online = useConnectivity();
+  const forceClientShell = useForceClientShell();
   const pathname = usePathname();
   const router = useRouter();
   const [clientPath, setClientPath] = useState<string | null>(null);
@@ -84,8 +86,7 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
       persistLastRoute(full);
       window.history.pushState({}, "", full);
       setClientPath(path);
-      if (online) {
-        // Warm SW / Next caches in the background — never block the UI swap.
+      if (online && !forceClientShell) {
         try {
           void router.prefetch(href);
         } catch {
@@ -93,7 +94,7 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
         }
       }
     },
-    [online, router],
+    [online, forceClientShell, router],
   );
 
   useEffect(() => {
@@ -103,21 +104,22 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
   }, [pathname]);
 
   useEffect(() => {
-    if (online) return;
-    // Hard refresh / first paint offline: enable client views for the current URL.
+    if (!forceClientShell) return;
+    // Cap / offline / hung-online: enable client views for the current URL so
+    // analytics, sales, reports, etc. never wait on a dead RSC fetch.
     queueMicrotask(() => {
       setClientPath(normalizePath(window.location.pathname));
     });
-  }, [online]);
+  }, [forceClientShell, pathname]);
 
   useEffect(() => {
-    if (!online || !clientPath) return;
+    if (!online || !clientPath || forceClientShell) return;
     try {
       void router.prefetch(clientPath);
     } catch {
       /* ignore */
     }
-  }, [online, clientPath, router]);
+  }, [online, clientPath, forceClientShell, router]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -154,8 +156,8 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
     return () => document.removeEventListener("click", onClick, true);
   }, [navigate]);
 
-  const activePath = clientPath ?? (online ? null : normalizePath(pathname));
-  const shouldRenderClientView = Boolean(clientPath);
+  const activePath = clientPath ?? (forceClientShell ? normalizePath(pathname) : null);
+  const shouldRenderClientView = Boolean(clientPath) || forceClientShell;
 
   const value = useMemo<OfflineNavigationContextValue>(
     () => ({

@@ -65,9 +65,10 @@ export function useOfflineAnalytics(
     return { summary: null, loading: false };
   }
 
-  if (state.key !== requestKey || state.loading || !state.summary) {
+  if (state.key !== requestKey || state.loading) {
     return { summary: undefined, loading: true };
   }
 
-  return { summary: state.summary, loading: false };
+  // Empty Dexie still settles (summary may be a zeroed object).
+  return { summary: state.summary ?? undefined, loading: false };
 }

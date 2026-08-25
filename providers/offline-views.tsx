@@ -9,6 +9,7 @@ import { InventoryView } from "@/features/inventory/components/inventory-view";
 import { ProductsView } from "@/features/products/components/products-view";
 import { CustomersView } from "@/features/customers/components/customers-view";
 import { ReportsView } from "@/features/reports/components/reports-view";
+import { ReportMetricDetailView } from "@/features/reports/components/metric-detail-view";
 import { ReportDayDetailView } from "@/features/reports/components/day-detail-view";
 import { SettingsView } from "@/features/settings/components/settings-view";
 import { MoreView } from "@/features/more/components/more-view";
@@ -112,6 +113,16 @@ export function resolveOfflineView(path: string): ReactNode {
   }
   if (path.startsWith("/reports/day")) {
     return <ReportDayDetailView />;
+  }
+  if (path.startsWith("/reports/")) {
+    const metric = path.slice("/reports/".length).split("/")[0];
+    if (metric && metric !== "day") {
+      return (
+        <Suspense fallback={<LoadingState label="Loading…" variant="table" />}>
+          <ReportMetricDetailView metric={metric} />
+        </Suspense>
+      );
+    }
   }
   if (path.startsWith("/analytics/")) {
     const metric = path.slice("/analytics/".length).split("/")[0];

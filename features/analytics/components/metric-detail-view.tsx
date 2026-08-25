@@ -17,6 +17,7 @@ import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { ArrowLeft } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { useOfflineAnalyticsDetails } from "@/hooks/use-offline-analytics-details";
 import type { AnalyticsDetailMetric } from "@/lib/offline/analytics-engine";
 
@@ -102,30 +103,34 @@ export function AnalyticsMetricDetailView({ metric }: { metric: string }) {
         }
       : "skip",
   );
+  const preferLocal = usePreferLocalData(remoteDetails !== undefined);
 
   const { details: localDetails, loading: localLoading } = useOfflineAnalyticsDetails(
     metricKey ?? "revenue",
     range,
     branch,
-    !online && Boolean(metricKey),
+    Boolean(metricKey && range),
   );
 
   if (!metricKey || !range) {
     return <ErrorState message="Choose a valid metric and date range from Analytics." />;
   }
 
-  const details: DetailPayload | undefined = online
-    ? remoteDetails
-    : localLoading
+  const useLocal = preferLocal || !online;
+  const details: DetailPayload | undefined = useLocal
+    ? localLoading
       ? undefined
-      : localDetails ?? undefined;
-  const loading = online ? remoteDetails === undefined : localLoading;
+      : (localDetails ?? remoteDetails ?? undefined)
+    : (remoteDetails ?? localDetails ?? undefined);
+  const loading = useLocal
+    ? localLoading && details === undefined
+    : remoteDetails === undefined && details === undefined;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={details?.title ?? "Metric detail"}
-        description={`${start} → ${end}${!online ? " · Offline records on this device" : ""}`}
+        description={`${start} → ${end}${useLocal ? " · Offline records on this device" : ""}`}
         actions={
           <Button asChild variant="outline">
             <Link href="/analytics">

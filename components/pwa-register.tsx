@@ -12,7 +12,14 @@ const SHELL_ROUTES = [
   "/customers",
   "/products",
   "/reports",
+  "/analytics",
   "/settings",
+  "/more",
+  "/about",
+  "/users",
+  "/branches",
+  "/suppliers",
+  "/platform",
 ];
 
 function shouldRegisterServiceWorker() {

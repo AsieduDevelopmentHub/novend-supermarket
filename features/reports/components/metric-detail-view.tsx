@@ -17,6 +17,7 @@ import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { ArrowLeft } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 
 const METRICS = [
   "grossSales",
@@ -84,10 +85,14 @@ export function ReportMetricDetailView({ metric }: { metric: string }) {
         }
       : "skip",
   );
+  const preferLocal = usePreferLocalData(details !== undefined);
 
   if (!isMetric(metric) || !range) {
     return <ErrorState message="Choose a valid metric and date range from Reports." />;
   }
+
+  const loading = online && !preferLocal && details === undefined;
+  const unavailableOffline = (!online || preferLocal) && details === undefined;
 
   return (
     <div className="space-y-6">
@@ -103,11 +108,16 @@ export function ReportMetricDetailView({ metric }: { metric: string }) {
           </Button>
         }
       />
-      {details === undefined ? (
+      {loading ? (
         <LoadingState label="Loading records…" variant="table" />
-      ) : details.rows.length === 0 ? (
+      ) : unavailableOffline ? (
+        <EmptyState
+          title="Detail rows need a connection"
+          description="Summary reports still work offline from this device. Reconnect to open line-item drill-down."
+        />
+      ) : details && details.rows.length === 0 ? (
         <EmptyState title="No records in this range" />
-      ) : (
+      ) : details ? (
         <Card>
           <CardContent className="overflow-x-auto p-0">
             <table className="w-full min-w-[720px] text-left text-sm">
@@ -134,6 +144,8 @@ export function ReportMetricDetailView({ metric }: { metric: string }) {
             </table>
           </CardContent>
         </Card>
+      ) : (
+        <EmptyState title="No records in this range" />
       )}
     </div>
   );

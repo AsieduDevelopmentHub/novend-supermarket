@@ -119,7 +119,7 @@ export function useProductsList(options: {
         includeInactive: options.includeInactive,
         branchId: options.branchId ?? null,
       }).then((rows) => {
-        if (cancelled || !rows) return;
+        if (cancelled || rows == null) return;
         setLocal(rows.map((r) => mapProduct(r, options.canViewCost)));
       });
     };
@@ -197,7 +197,7 @@ export function useInventoryList(options: {
         categoryId: options.categoryId,
         branchId: options.branchId ?? null,
       }).then((rows) => {
-        if (cancelled || !rows) return;
+        if (cancelled || rows == null) return;
         setLocal(
           rows.map((r) => ({
             id: r.id as Id<"products">,
@@ -251,7 +251,7 @@ export function useCategoriesList() {
     let cancelled = false;
     const load = () => {
       void listMirroredCategories().then((rows) => {
-        if (cancelled || !rows) return;
+        if (cancelled || rows == null) return;
         setLocal(rows.map((c) => ({ _id: c.id as Id<"categories">, name: c.name })));
       });
     };

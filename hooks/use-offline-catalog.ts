@@ -49,7 +49,8 @@ function mapRemoteProducts(
 
 /**
  * Branch-scoped product catalog for Sales.
- * Online and offline both resolve stock for the selected branch.
+ * Always hydrate Dexie first so Cap false-online never blocks the POS.
+ * Prefer live Convex when it settles.
  */
 export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null) {
   const { online, lastSyncAt } = useOfflineStatus();
@@ -66,9 +67,6 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
   }, [search, branchKey]);
 
   useEffect(() => {
-    if (online) {
-      return;
-    }
     let cancelled = false;
     const load = () => {
       void listLocalCatalogProducts(search || undefined, branchKey ?? null).then((rows) => {
@@ -82,17 +80,9 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
       window.clearTimeout(timer);
       unsub();
     };
-  }, [online, search, branchKey, lastSyncAt]);
+  }, [search, branchKey, lastSyncAt]);
 
-  if (online) {
-    if (remote === undefined) {
-      return {
-        products: [] as CatalogProduct[],
-        source: "remote" as const,
-        loading: true,
-        refreshLocal,
-      };
-    }
+  if (online && remote !== undefined) {
     return {
       products: mapRemoteProducts(remote),
       source: "remote" as const,
@@ -102,11 +92,17 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
   }
 
   if (local != null) {
-    return { products: local, source: "local" as const, loading: false, refreshLocal };
+    return {
+      products: local,
+      source: "local" as const,
+      loading: false,
+      refreshLocal,
+    };
   }
+
   return {
     products: [] as CatalogProduct[],
-    source: "local" as const,
+    source: online ? ("remote" as const) : ("local" as const),
     loading: true,
     refreshLocal,
   };

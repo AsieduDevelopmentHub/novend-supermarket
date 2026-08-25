@@ -18,6 +18,7 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { buildLocalSalesReport, type LocalSalesReport } from "@/lib/offline/ui-cache";
 import { formatCurrency, formatNumber } from "@/lib/currency";
 import { toast } from "sonner";
@@ -66,7 +67,6 @@ export function ReportsView() {
   const [applied, setApplied] = useState({ start: weekAgoLocal(), end: todayLocal() });
   const [rangeError, setRangeError] = useState<string | null>(null);
   const [localReport, setLocalReport] = useState<LocalSalesReport | null>(null);
-  const [localLoading, setLocalLoading] = useState(false);
 
   const branches = useQuery(api.branches.list, online && (isAdmin || isManager) ? {} : "skip");
 
@@ -91,25 +91,25 @@ export function ReportsView() {
         }
       : "skip",
   );
+  const preferLocal = usePreferLocalData(remoteReport !== undefined);
 
+  // Always hydrate Dexie so Cap false-online never waits on a hung Convex query.
   useEffect(() => {
-    if (online || !range) return;
+    if (!range) return;
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      setLocalLoading(true);
       void buildLocalSalesReport(range.startDate, range.endDate).then((next) => {
         if (cancelled) return;
         setLocalReport(next);
-        setLocalLoading(false);
       });
     }, 0);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [online, range]);
+  }, [range]);
 
-  const report = online ? remoteReport : localReport;
+  const report = preferLocal || !online ? (localReport ?? remoteReport) : (remoteReport ?? localReport);
 
   function onGenerate() {
     const startDateObj = parseLocalDate(start);
@@ -184,9 +184,9 @@ export function ReportsView() {
 
       {!range ? (
         <EmptyState title="Select a date range" description="Choose dates and click Generate." />
-      ) : (online && report === undefined) || (!online && localLoading) ? (
+      ) : !report ? (
         <LoadingState label="Generating report…" variant="cards" />
-      ) : report ? (
+      ) : (
         <>
           <Grid cols={4}>
             <Kpi
@@ -307,8 +307,6 @@ export function ReportsView() {
             </CardContent>
           </Card>
         </>
-      ) : (
-        <EmptyState title="No report data" />
       )}
     </div>
   );
