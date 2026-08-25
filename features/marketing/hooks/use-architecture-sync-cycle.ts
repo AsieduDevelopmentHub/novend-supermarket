@@ -4,14 +4,7 @@ import { useEffect, useState } from "react";
 
 /** Live trust animation phases for the offline architecture section. */
 export type ArchitectureSyncPhase =
-  | "idle"
-  | "sale"
-  | "local"
-  | "pending"
-  | "reconnect"
-  | "syncing"
-  | "synced"
-  | "dashboard";
+  "idle" | "sale" | "local" | "pending" | "reconnect" | "syncing" | "synced" | "dashboard";
 
 const PHASE_SEQUENCE: ReadonlyArray<{ phase: ArchitectureSyncPhase; ms: number }> = [
   { phase: "idle", ms: 1600 },

@@ -82,7 +82,5 @@ export function groupReleaseAssets<T extends ReleaseAssetInput>(
 ): GroupedReleaseAsset<T>[] {
   return assets
     .map((asset) => ({ ...classifyReleaseAsset(asset), asset }))
-    .sort(
-      (a, b) => RELEASE_GROUP_ORDER.indexOf(a.group) - RELEASE_GROUP_ORDER.indexOf(b.group),
-    );
+    .sort((a, b) => RELEASE_GROUP_ORDER.indexOf(a.group) - RELEASE_GROUP_ORDER.indexOf(b.group));
 }

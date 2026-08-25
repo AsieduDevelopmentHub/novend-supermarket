@@ -779,5 +779,3 @@ export default defineSchema({
     .index("by_tag", ["tag"])
     .index("by_channel_releasedAt", ["channel", "releasedAt"]),
 });
-
-

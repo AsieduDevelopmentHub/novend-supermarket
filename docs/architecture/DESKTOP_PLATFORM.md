@@ -56,7 +56,6 @@ open that route:
 Marketing UI lives in `features/marketing/` and must stay out of the desktop
 offline-first login path.
 
-
 ## Layers
 
 ```text

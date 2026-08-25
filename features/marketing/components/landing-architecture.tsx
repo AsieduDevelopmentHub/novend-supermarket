@@ -54,7 +54,7 @@ export function LandingArchitecture() {
     >
       <div className="mx-auto max-w-6xl">
         <header data-reveal className="mx-auto max-w-[680px] text-center">
-          <p className="text-[#38BDF8] text-[13px] font-semibold tracking-[0.14em] uppercase">
+          <p className="text-[13px] font-semibold tracking-[0.14em] text-[#38BDF8] uppercase">
             {copy.badge}
           </p>
           <h2
@@ -63,7 +63,7 @@ export function LandingArchitecture() {
           >
             {copy.title}
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-slate-300 text-pretty sm:text-lg">
+          <p className="mt-4 text-base leading-relaxed text-pretty text-slate-300 sm:text-lg">
             {copy.subtitle}
           </p>
         </header>
@@ -95,7 +95,7 @@ export function LandingArchitecture() {
                   <div className="landing-arch-flow-visual" aria-hidden>
                     <Visual phase={phase} cycle={cycle} active={isActive} />
                   </div>
-                  <p className="text-[#38BDF8] text-[11px] font-bold tracking-[0.16em] uppercase">
+                  <p className="text-[11px] font-bold tracking-[0.16em] text-[#38BDF8] uppercase">
                     {node.label}
                   </p>
                   <h3 className="mt-2 text-lg font-semibold tracking-tight text-white">

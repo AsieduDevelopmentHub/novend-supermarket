@@ -109,7 +109,8 @@ export function ReportsView() {
     };
   }, [range]);
 
-  const report = preferLocal || !online ? (localReport ?? remoteReport) : (remoteReport ?? localReport);
+  const report =
+    preferLocal || !online ? (localReport ?? remoteReport) : (remoteReport ?? localReport);
 
   function onGenerate() {
     const startDateObj = parseLocalDate(start);
@@ -280,12 +281,12 @@ export function ReportsView() {
                 <table className="w-full min-w-[560px] text-left text-sm">
                   <thead className="text-muted-foreground">
                     <tr>
-                      <th className="px-4 pb-2 pt-1 font-medium">Date</th>
-                      <th className="px-4 pb-2 pt-1 font-medium">Orders</th>
-                      <th className="px-4 pb-2 pt-1 font-medium">Items Sold</th>
-                      <th className="px-4 pb-2 pt-1 font-medium">Total Sales</th>
-                      <th className="px-4 pb-2 pt-1 font-medium">Refunds</th>
-                      <th className="px-4 pb-2 pt-1 font-medium">
+                      <th className="px-4 pt-1 pb-2 font-medium">Date</th>
+                      <th className="px-4 pt-1 pb-2 font-medium">Orders</th>
+                      <th className="px-4 pt-1 pb-2 font-medium">Items Sold</th>
+                      <th className="px-4 pt-1 pb-2 font-medium">Total Sales</th>
+                      <th className="px-4 pt-1 pb-2 font-medium">Refunds</th>
+                      <th className="px-4 pt-1 pb-2 font-medium">
                         <span className="sr-only">Open</span>
                       </th>
                     </tr>

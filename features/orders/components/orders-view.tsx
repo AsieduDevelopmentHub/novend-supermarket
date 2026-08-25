@@ -123,7 +123,8 @@ export function OrdersView() {
 
   const { orders } = useOrdersList({
     search: filters.search,
-    branchId: isAdmin && filters.branchId !== "all" ? (filters.branchId as Id<"branches">) : undefined,
+    branchId:
+      isAdmin && filters.branchId !== "all" ? (filters.branchId as Id<"branches">) : undefined,
     cashierId:
       !isCashier && filters.cashierId !== "all" ? (filters.cashierId as Id<"users">) : undefined,
     startDate: dateRange.startDate,
@@ -189,153 +190,155 @@ export function OrdersView() {
             }
             onReset={resetFilters}
           >
-          <div className="space-y-1">
-            <Label htmlFor="orders-date-preset">Date</Label>
-            <Select
-              value={filters.datePreset}
-              onValueChange={(value) =>
-                setFilters((prev) => ({ ...prev, datePreset: value as DateRangePreset }))
-              }
-            >
-              <SelectTrigger id="orders-date-preset" className="w-full sm:w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ORDER_DATE_PRESETS.map((preset) => (
-                  <SelectItem key={preset.value} value={preset.value}>
-                    {preset.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-1">
+              <Label htmlFor="orders-date-preset">Date</Label>
+              <Select
+                value={filters.datePreset}
+                onValueChange={(value) =>
+                  setFilters((prev) => ({ ...prev, datePreset: value as DateRangePreset }))
+                }
+              >
+                <SelectTrigger id="orders-date-preset" className="w-full sm:w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ORDER_DATE_PRESETS.map((preset) => (
+                    <SelectItem key={preset.value} value={preset.value}>
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {filters.datePreset === "custom" ? (
-            <>
-              <div className="space-y-1">
-                <Label htmlFor="orders-start">From</Label>
-                <Input
-                  id="orders-start"
-                  type="date"
-                  value={filters.customStart}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, customStart: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="orders-end">To</Label>
-                <Input
-                  id="orders-end"
-                  type="date"
-                  value={filters.customEnd}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, customEnd: e.target.value }))}
-                />
-              </div>
-            </>
-          ) : null}
+            {filters.datePreset === "custom" ? (
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="orders-start">From</Label>
+                  <Input
+                    id="orders-start"
+                    type="date"
+                    value={filters.customStart}
+                    onChange={(e) =>
+                      setFilters((prev) => ({ ...prev, customStart: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="orders-end">To</Label>
+                  <Input
+                    id="orders-end"
+                    type="date"
+                    value={filters.customEnd}
+                    onChange={(e) => setFilters((prev) => ({ ...prev, customEnd: e.target.value }))}
+                  />
+                </div>
+              </>
+            ) : null}
 
-          {isAdmin ? (
-            <BranchFilter
-              branches={branches}
-              value={filters.branchId === "all" ? "all" : (filters.branchId as Id<"branches">)}
-              onChange={(value) => setFilters((prev) => ({ ...prev, branchId: value }))}
-              allowAll
-              className="w-full sm:w-auto"
-            />
-          ) : branchName ? (
-            <BranchFilter
-              branches={undefined}
-              value={myBranchId}
-              onChange={() => undefined}
-              lockedLabel={branchName}
-              className="w-full sm:w-auto"
-            />
-          ) : null}
+            {isAdmin ? (
+              <BranchFilter
+                branches={branches}
+                value={filters.branchId === "all" ? "all" : (filters.branchId as Id<"branches">)}
+                onChange={(value) => setFilters((prev) => ({ ...prev, branchId: value }))}
+                allowAll
+                className="w-full sm:w-auto"
+              />
+            ) : branchName ? (
+              <BranchFilter
+                branches={undefined}
+                value={myBranchId}
+                onChange={() => undefined}
+                lockedLabel={branchName}
+                className="w-full sm:w-auto"
+              />
+            ) : null}
 
-          {isCashier ? (
-            <CashierFilter
-              cashiers={undefined}
-              value={null}
-              onChange={() => undefined}
-              lockedLabel={user?.name ?? "You"}
-              className="w-full sm:w-auto"
-            />
-          ) : (
-            <CashierFilter
-              cashiers={cashiers}
-              value={filters.cashierId === "all" ? "all" : (filters.cashierId as Id<"users">)}
-              onChange={(value) => setFilters((prev) => ({ ...prev, cashierId: value }))}
-              className="w-full sm:w-auto"
-            />
-          )}
+            {isCashier ? (
+              <CashierFilter
+                cashiers={undefined}
+                value={null}
+                onChange={() => undefined}
+                lockedLabel={user?.name ?? "You"}
+                className="w-full sm:w-auto"
+              />
+            ) : (
+              <CashierFilter
+                cashiers={cashiers}
+                value={filters.cashierId === "all" ? "all" : (filters.cashierId as Id<"users">)}
+                onChange={(value) => setFilters((prev) => ({ ...prev, cashierId: value }))}
+                className="w-full sm:w-auto"
+              />
+            )}
 
-          <div className="space-y-1">
-            <Label htmlFor="orders-min">Min amount</Label>
-            <Input
-              id="orders-min"
-              type="number"
-              min={0}
-              inputMode="decimal"
-              placeholder="0"
-              className="w-full sm:w-32"
-              value={filters.minAmount}
-              onChange={(e) => setFilters((prev) => ({ ...prev, minAmount: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="orders-max">Max amount</Label>
-            <Input
-              id="orders-max"
-              type="number"
-              min={0}
-              inputMode="decimal"
-              placeholder="Any"
-              className="w-full sm:w-32"
-              value={filters.maxAmount}
-              onChange={(e) => setFilters((prev) => ({ ...prev, maxAmount: e.target.value }))}
-            />
-          </div>
+            <div className="space-y-1">
+              <Label htmlFor="orders-min">Min amount</Label>
+              <Input
+                id="orders-min"
+                type="number"
+                min={0}
+                inputMode="decimal"
+                placeholder="0"
+                className="w-full sm:w-32"
+                value={filters.minAmount}
+                onChange={(e) => setFilters((prev) => ({ ...prev, minAmount: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="orders-max">Max amount</Label>
+              <Input
+                id="orders-max"
+                type="number"
+                min={0}
+                inputMode="decimal"
+                placeholder="Any"
+                className="w-full sm:w-32"
+                value={filters.maxAmount}
+                onChange={(e) => setFilters((prev) => ({ ...prev, maxAmount: e.target.value }))}
+              />
+            </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="orders-payment">Payment</Label>
-            <Select
-              value={filters.paymentMethod}
-              onValueChange={(value) =>
-                setFilters((prev) => ({ ...prev, paymentMethod: value as PaymentFilter }))
-              }
-            >
-              <SelectTrigger id="orders-payment" className="w-full sm:w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_FILTER_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-1">
+              <Label htmlFor="orders-payment">Payment</Label>
+              <Select
+                value={filters.paymentMethod}
+                onValueChange={(value) =>
+                  setFilters((prev) => ({ ...prev, paymentMethod: value as PaymentFilter }))
+                }
+              >
+                <SelectTrigger id="orders-payment" className="w-full sm:w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_FILTER_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="orders-return">Returns</Label>
-            <Select
-              value={filters.returnStatus}
-              onValueChange={(value) =>
-                setFilters((prev) => ({ ...prev, returnStatus: value as ReturnStatusFilter }))
-              }
-            >
-              <SelectTrigger id="orders-return" className="w-full sm:w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {RETURN_STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-1">
+              <Label htmlFor="orders-return">Returns</Label>
+              <Select
+                value={filters.returnStatus}
+                onValueChange={(value) =>
+                  setFilters((prev) => ({ ...prev, returnStatus: value as ReturnStatusFilter }))
+                }
+              >
+                <SelectTrigger id="orders-return" className="w-full sm:w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RETURN_STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </CollapsibleFilters>
         </CardContent>
       </Card>

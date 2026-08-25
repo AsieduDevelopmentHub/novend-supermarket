@@ -17,7 +17,10 @@ export function MobileBottomNav() {
   const active = resolveMobileTab(pathForHighlight);
 
   return (
-    <nav aria-label="Primary" className="pointer-events-none fixed inset-x-0 bottom-0 z-40 xl:hidden">
+    <nav
+      aria-label="Primary"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 xl:hidden"
+    >
       <div className="novend-mobile-tabbar pointer-events-auto">
         <div className="novend-mobile-tabbar-inner">
           {MOBILE_BOTTOM_TABS.map((tab) => {
@@ -32,10 +35,7 @@ export function MobileBottomNav() {
                   if (!isActive) void triggerLightHaptic();
                   navigate(tab.href);
                 }}
-                className={cn(
-                  "novend-mobile-tab",
-                  isActive ? "text-white" : "text-slate-400",
-                )}
+                className={cn("novend-mobile-tab", isActive ? "text-white" : "text-slate-400")}
               >
                 <span className="novend-mobile-tab-icon">
                   <span

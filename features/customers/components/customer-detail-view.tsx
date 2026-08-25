@@ -27,9 +27,9 @@ export function CustomerDetailView({ customerId }: { customerId: Id<"customers">
     api.customers.purchaseHistory,
     online ? { customerId, limit: 30 } : "skip",
   );
-  const [local, setLocal] = useState<Awaited<ReturnType<typeof getMirroredCustomerDetail>> | undefined>(
-    undefined,
-  );
+  const [local, setLocal] = useState<
+    Awaited<ReturnType<typeof getMirroredCustomerDetail>> | undefined
+  >(undefined);
   useEffect(() => {
     let cancelled = false;
     void getMirroredCustomerDetail(customerId).then((row) => {

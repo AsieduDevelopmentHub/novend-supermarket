@@ -80,18 +80,16 @@ export function PageHeader({
       >
         <div className="min-w-0 flex-1">
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">{title}</h1>
-          {description ? (
-            <p className="text-muted-foreground mt-1 text-sm">{description}</p>
-          ) : null}
+          {description ? <p className="text-muted-foreground mt-1 text-sm">{description}</p> : null}
         </div>
-        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+        ) : null}
       </header>
     );
   }
 
-  const showCompact = Boolean(
-    toolbarAway && compactActions && compactActions.length > 0,
-  );
+  const showCompact = Boolean(toolbarAway && compactActions && compactActions.length > 0);
 
   const titleBar = (
     <header className="native-page-header">

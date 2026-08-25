@@ -98,17 +98,25 @@ export async function buildLocalDashboardSummary(
     return emptyDashboard(role, now);
   }
 
-  const [products, customers, localSales, items, localReturns, mirroredOrders, orderItems, mirroredReturns] =
-    await Promise.all([
-      db.products.toArray(),
-      db.customers.toArray(),
-      db.localSales.orderBy("completedAt").reverse().toArray(),
-      db.localSaleItems.toArray(),
-      db.localReturns.toArray(),
-      db.orders.toArray(),
-      db.orderItems.toArray(),
-      db.returns.toArray(),
-    ]);
+  const [
+    products,
+    customers,
+    localSales,
+    items,
+    localReturns,
+    mirroredOrders,
+    orderItems,
+    mirroredReturns,
+  ] = await Promise.all([
+    db.products.toArray(),
+    db.customers.toArray(),
+    db.localSales.orderBy("completedAt").reverse().toArray(),
+    db.localSaleItems.toArray(),
+    db.localReturns.toArray(),
+    db.orders.toArray(),
+    db.orderItems.toArray(),
+    db.returns.toArray(),
+  ]);
 
   const activeProducts = products.filter((p) => p.status === "active");
   const lowStock = activeProducts
@@ -145,7 +153,9 @@ export async function buildLocalDashboardSummary(
   );
   const combinedReturns = [...mirroredReturns, ...unsyncedReturns];
   const branchReturns = branchId
-    ? combinedReturns.filter((row) => !("branchId" in row) || row.branchId == null || row.branchId === branchId)
+    ? combinedReturns.filter(
+        (row) => !("branchId" in row) || row.branchId == null || row.branchId === branchId,
+      )
     : combinedReturns;
   const scopedReturns = branchReturns.filter((row) =>
     showOps ? row.completedAt >= since7 : row.completedAt >= sinceToday,
@@ -326,7 +336,8 @@ export async function buildLocalSalesReport(
   );
 
   const grossSales =
-    mirrored.reduce((sum, s) => sum + s.total, 0) + unsyncedLocal.reduce((sum, s) => sum + s.total, 0);
+    mirrored.reduce((sum, s) => sum + s.total, 0) +
+    unsyncedLocal.reduce((sum, s) => sum + s.total, 0);
   const totalRefunds = returns.reduce((sum, row) => sum + row.refundAmount, 0);
   const totalSales = grossSales - totalRefunds;
   const totalOrders = mirrored.length + unsyncedLocal.length;

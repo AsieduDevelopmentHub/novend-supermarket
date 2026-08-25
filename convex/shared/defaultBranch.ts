@@ -32,5 +32,3 @@ export async function ensureDefaultBranch(
     createdAt: Date.now(),
   });
 }
-
-

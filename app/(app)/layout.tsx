@@ -158,10 +158,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       queueMicrotask(() => setOnlineAuthBudgetElapsed(false));
       return;
     }
-    const timer = window.setTimeout(
-      () => setOnlineAuthBudgetElapsed(true),
-      ONLINE_AUTH_BUDGET_MS,
-    );
+    const timer = window.setTimeout(() => setOnlineAuthBudgetElapsed(true), ONLINE_AUTH_BUDGET_MS);
     return () => window.clearTimeout(timer);
   }, [online, isLoading, isAuthenticated, user]);
 
@@ -332,11 +329,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     (online && isLoading && !onlineAuthBudgetElapsed) ||
     (online && isAuthenticated && user === undefined && !onlineAuthBudgetElapsed) ||
     (!online && !cacheReady) ||
-    (!online &&
-      isLoading &&
-      !cachedProfile &&
-      !platformSession &&
-      !offlineAuthBudgetElapsed);
+    (!online && isLoading && !cachedProfile && !platformSession && !offlineAuthBudgetElapsed);
 
   if (waitingForUser) {
     return <AppSplash label="Preparing workspace…" />;
@@ -455,7 +448,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                 className={cn(
                   "min-h-0 min-w-0 flex-1 overscroll-y-contain",
                   nativeShell
-                    ? "overflow-x-clip overflow-y-auto px-[var(--mobile-page-pad)] pb-5 pt-3"
+                    ? "overflow-x-clip overflow-y-auto px-[var(--mobile-page-pad)] pt-3 pb-5"
                     : "overflow-x-hidden overflow-y-auto px-4 py-6 lg:px-8",
                   nativeShell && "pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]",
                 )}

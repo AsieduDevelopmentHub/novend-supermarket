@@ -157,5 +157,3 @@ export async function assertStoredImage(ctx: MutationLike, storageId: Id<"_stora
     throw new Error("Only JPG, PNG, or WebP images are allowed");
   }
 }
-
-

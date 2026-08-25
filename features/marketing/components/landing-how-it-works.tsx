@@ -1,11 +1,5 @@
 import Image from "next/image";
-import {
-  Cloud,
-  Package,
-  ShoppingCart,
-  Store,
-  Warehouse,
-} from "lucide-react";
+import { Cloud, Package, ShoppingCart, Store, Warehouse } from "lucide-react";
 import { BRANDING } from "@/constants/branding";
 import { landingCopy } from "@/features/marketing/content";
 
@@ -36,17 +30,17 @@ export function LandingHowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="scroll-mt-24 border-t border-border bg-white px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
+      className="border-border scroll-mt-24 border-t bg-white px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
         <header data-reveal className="mx-auto max-w-[680px] text-center">
           <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
             {howItWorks.badge}
           </p>
-          <h2 className="text-[#111827] mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-balance text-[#111827] sm:text-4xl">
             {howItWorks.title}
           </h2>
-          <p className="text-slate-600 mt-4 text-base leading-relaxed text-pretty sm:text-lg">
+          <p className="mt-4 text-base leading-relaxed text-pretty text-slate-600 sm:text-lg">
             {howItWorks.subtitle}
           </p>
         </header>
@@ -64,10 +58,10 @@ export function LandingHowItWorks() {
                     <p className="text-primary text-xs font-bold tracking-[0.16em] uppercase">
                       {step.number}
                     </p>
-                    <h3 className="text-[#111827] mt-1 text-lg font-semibold tracking-tight">
+                    <h3 className="mt-1 text-lg font-semibold tracking-tight text-[#111827]">
                       {step.title}
                     </h3>
-                    <p className="text-slate-600 mt-1.5 text-sm leading-relaxed">{step.detail}</p>
+                    <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{step.detail}</p>
                   </div>
                 </li>
               );
@@ -101,10 +95,10 @@ export function LandingHowItWorks() {
                         <Icon className="h-3 w-3 md:h-3.5 md:w-3.5" aria-hidden />
                       </span>
                       <div className="min-w-0 pr-0.5">
-                        <p className="text-[#111827] text-[11px] font-semibold tracking-tight md:text-xs">
+                        <p className="text-[11px] font-semibold tracking-tight text-[#111827] md:text-xs">
                           {label.title}
                         </p>
-                        <p className="text-slate-500 truncate text-[9px] leading-tight md:text-[10px]">
+                        <p className="truncate text-[9px] leading-tight text-slate-500 md:text-[10px]">
                           {label.detail}
                         </p>
                       </div>
@@ -125,10 +119,10 @@ export function LandingHowItWorks() {
                         <Icon className="h-3 w-3" aria-hidden />
                       </span>
                       <div className="min-w-0">
-                        <p className="text-[#111827] text-xs font-semibold tracking-tight">
+                        <p className="text-xs font-semibold tracking-tight text-[#111827]">
                           {label.title}
                         </p>
-                        <p className="text-slate-500 text-[10px] leading-tight">{label.detail}</p>
+                        <p className="text-[10px] leading-tight text-slate-500">{label.detail}</p>
                       </div>
                     </div>
                   </li>

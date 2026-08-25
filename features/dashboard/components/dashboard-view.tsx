@@ -119,7 +119,7 @@ function RecentSalesTable({
           >
             <div className="flex justify-between gap-2">
               <p className="min-w-0 truncate font-medium">{sale.invoiceNumber}</p>
-              <p className="shrink-0 whitespace-nowrap font-semibold">
+              <p className="shrink-0 font-semibold whitespace-nowrap">
                 {formatCurrency(sale.total)}
               </p>
             </div>
@@ -260,7 +260,7 @@ function TopSellingList({
               </p>
             </div>
             <p
-              className={`shrink-0 whitespace-nowrap text-sm font-semibold ${bordered ? "text-primary" : ""}`}
+              className={`shrink-0 text-sm font-semibold whitespace-nowrap ${bordered ? "text-primary" : ""}`}
             >
               {formatCurrency(product.total)}
             </p>

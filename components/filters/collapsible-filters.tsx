@@ -4,12 +4,7 @@ import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp, ListFilter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { useNativeShell } from "@/hooks/use-native-shell";
 
 type Props = {

@@ -48,7 +48,6 @@ async function nextInvoiceNumber(
   throw new Error("Could not allocate a unique invoice reference");
 }
 
-
 export const catalog = query({
   args: {
     search: v.optional(v.string()),
@@ -87,7 +86,9 @@ export const catalog = query({
           sellingPrice: product.sellingPrice,
           stockQuantity: expiry.sellableQuantity,
           unit: product.unit,
-          imageUrl: product.imageStorageId ? await ctx.storage.getUrl(product.imageStorageId) : null,
+          imageUrl: product.imageStorageId
+            ? await ctx.storage.getUrl(product.imageStorageId)
+            : null,
           branchId,
           tracksExpiry: expiry.tracksExpiry,
           isExpiring: expiry.isExpiring,
@@ -168,7 +169,11 @@ export const holdSale = mutation({
       }
       assertPositiveMoney(item.discount, "line discount");
       const product = await ctx.db.get(item.productId);
-      if (!product || product.status !== "active" || product.organizationId !== profile.organizationId) {
+      if (
+        !product ||
+        product.status !== "active" ||
+        product.organizationId !== profile.organizationId
+      ) {
         throw new Error("Product unavailable");
       }
       const gross = roundMoney(product.sellingPrice * item.quantity);
@@ -368,16 +373,18 @@ export const completeSale = mutation({
       }
       assertPositiveMoney(item.discount, "line discount");
       const product = await ctx.db.get(item.productId);
-      if (!product || product.status !== "active" || product.organizationId !== profile.organizationId) {
+      if (
+        !product ||
+        product.status !== "active" ||
+        product.organizationId !== profile.organizationId
+      ) {
         throw new Error(`Product unavailable`);
       }
       const available = productTracksExpiry(product)
         ? await getSellableQuantity(ctx, branchId, product._id)
         : await getBranchQuantity(ctx, branchId, product._id);
       if (available < item.quantity) {
-        throw new Error(
-          `Not enough stock for ${product.name}. Available: ${available}.`,
-        );
+        throw new Error(`Not enough stock for ${product.name}. Available: ${available}.`);
       }
       const gross = roundMoney(product.sellingPrice * item.quantity);
       if (item.discount > gross) {
@@ -629,9 +636,7 @@ export const listOrders = query({
     } else {
       sales = await ctx.db
         .query("sales")
-        .withIndex("by_organization_completedAt", (q) =>
-          q.eq("organizationId", organizationId),
-        )
+        .withIndex("by_organization_completedAt", (q) => q.eq("organizationId", organizationId))
         .collect();
     }
 
@@ -854,4 +859,3 @@ export const getOrder = query({
 });
 
 export const hold = holdSale;
-

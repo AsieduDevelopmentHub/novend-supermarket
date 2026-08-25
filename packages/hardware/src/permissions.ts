@@ -24,7 +24,8 @@ const FRIENDLY: Record<HardwarePermissionKind, { need: string; denied: string }>
   },
   storage: {
     need: "Novend needs storage access to save receipts and exports on this device.",
-    denied: "Unable to save the file. Check storage permission in your device settings, then try again.",
+    denied:
+      "Unable to save the file. Check storage permission in your device settings, then try again.",
   },
   notifications: {
     need: "Novend can send stock and subscription alerts on this device.",

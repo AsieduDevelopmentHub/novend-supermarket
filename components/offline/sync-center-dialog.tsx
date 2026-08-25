@@ -180,144 +180,142 @@ export function SyncCenterDialog() {
 
   return (
     <Dialog open={syncCenterOpen} onOpenChange={(open) => !open && closeSyncCenter()}>
-        <DialogContent className="flex max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0">
-          <DialogHeader className="border-border space-y-1 border-b px-6 py-4 text-left">
-            <DialogTitle>Sync center</DialogTitle>
-            <DialogDescription>
-              Review what this device still needs to upload, conflicts the server rejected, and
-              recent successful syncs.
-            </DialogDescription>
-          </DialogHeader>
+      <DialogContent className="flex max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="border-border space-y-1 border-b px-6 py-4 text-left">
+          <DialogTitle>Sync center</DialogTitle>
+          <DialogDescription>
+            Review what this device still needs to upload, conflicts the server rejected, and recent
+            successful syncs.
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-6 py-3">
-            <div className="min-w-0 text-sm">
-              <p className="font-medium">
-                {pendingCount > 0
-                  ? `${pendingCount} waiting to upload`
-                  : failedCount > 0
-                    ? `${failedCount} conflict${failedCount === 1 ? "" : "s"}`
-                    : "Everything is uploaded"}
-              </p>
-              <p className="text-muted-foreground truncate text-xs">
-                {!online
-                  ? "Waiting until you're back online."
-                  : lastSyncAt
-                    ? `Last cloud refresh ${formatDateTime(lastSyncAt)}`
-                    : "Not synced yet"}
-              </p>
-              {lastError && (pendingCount > 0 || failedCount > 0) ? (
-                <p className="text-destructive mt-1 text-xs">{lastError}</p>
-              ) : null}
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              disabled={!online || syncing}
-              onClick={() => void syncNow()}
-            >
-              {syncing ? (
-                <Loader2 className="size-3.5 animate-spin" aria-hidden />
-              ) : online ? (
-                <RefreshCw className="size-3.5" aria-hidden />
-              ) : (
-                <CloudOff className="size-3.5" aria-hidden />
-              )}
-              {syncing ? "Syncing…" : "Sync now"}
-            </Button>
-          </div>
-
-          <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
-            <TabsList className="mx-6 mt-3 grid h-auto w-auto grid-cols-3 self-start">
-              <TabsTrigger value="waiting">Waiting ({waiting.length})</TabsTrigger>
-              <TabsTrigger value="conflicts">
-                Conflicts ({conflicts.length})
-              </TabsTrigger>
-              <TabsTrigger value="recent">Recent</TabsTrigger>
-            </TabsList>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-3">
-              <TabsContent value="waiting" className="mt-0">
-                {waiting.length === 0 ? (
-                  <EmptyState>No events waiting to upload.</EmptyState>
-                ) : (
-                  <ul className="space-y-2">
-                    {waiting.map((row) => (
-                      <EventRow
-                        key={row.id}
-                        row={row}
-                        busy={syncing}
-                        onRetry={online ? onRetry : undefined}
-                        onDiscard={() => setDiscardTarget(row)}
-                      />
-                    ))}
-                  </ul>
-                )}
-              </TabsContent>
-              <TabsContent value="conflicts" className="mt-0">
-                {conflicts.length === 0 ? (
-                  <EmptyState>No sync conflicts.</EmptyState>
-                ) : (
-                  <ul className="space-y-2">
-                    {conflicts.map((row) => (
-                      <EventRow
-                        key={row.id}
-                        row={row}
-                        busy={syncing}
-                        onRetry={online ? onRetry : undefined}
-                        onDiscard={() => setDiscardTarget(row)}
-                      />
-                    ))}
-                  </ul>
-                )}
-              </TabsContent>
-              <TabsContent value="recent" className="mt-0">
-                {recent.length === 0 ? (
-                  <EmptyState>No recently synced events on this device.</EmptyState>
-                ) : (
-                  <ul className="space-y-2">
-                    {recent.map((row) => (
-                      <EventRow key={row.id} row={row} busy={false} />
-                    ))}
-                  </ul>
-                )}
-              </TabsContent>
-            </div>
-          </Tabs>
-
-          {discardCopy ? (
-            <div className="border-destructive/30 bg-destructive/5 flex flex-col gap-3 border-t px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm">
-                Discard {discardCopy.title.toLowerCase()}? {discardCopy.detail} will not upload.
-              </p>
-              <div className="flex shrink-0 gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={discardPending}
-                  onClick={() => setDiscardTarget(null)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="destructive"
-                  disabled={discardPending}
-                  onClick={() => void onDiscard()}
-                >
-                  {discardPending ? "Discarding…" : "Discard"}
-                </Button>
-              </div>
-            </div>
-          ) : conflicts.length > 0 ? (
-            <p className="text-muted-foreground flex items-start gap-2 border-t px-6 py-3 text-xs">
-              <AlertTriangle className="text-destructive mt-0.5 size-3.5 shrink-0" aria-hidden />
-              Conflicts were rejected by the server. Retry after you fix stock or data, or discard
-              so they stop blocking the queue.
+        <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-6 py-3">
+          <div className="min-w-0 text-sm">
+            <p className="font-medium">
+              {pendingCount > 0
+                ? `${pendingCount} waiting to upload`
+                : failedCount > 0
+                  ? `${failedCount} conflict${failedCount === 1 ? "" : "s"}`
+                  : "Everything is uploaded"}
             </p>
-          ) : null}
-        </DialogContent>
+            <p className="text-muted-foreground truncate text-xs">
+              {!online
+                ? "Waiting until you're back online."
+                : lastSyncAt
+                  ? `Last cloud refresh ${formatDateTime(lastSyncAt)}`
+                  : "Not synced yet"}
+            </p>
+            {lastError && (pendingCount > 0 || failedCount > 0) ? (
+              <p className="text-destructive mt-1 text-xs">{lastError}</p>
+            ) : null}
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!online || syncing}
+            onClick={() => void syncNow()}
+          >
+            {syncing ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : online ? (
+              <RefreshCw className="size-3.5" aria-hidden />
+            ) : (
+              <CloudOff className="size-3.5" aria-hidden />
+            )}
+            {syncing ? "Syncing…" : "Sync now"}
+          </Button>
+        </div>
+
+        <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
+          <TabsList className="mx-6 mt-3 grid h-auto w-auto grid-cols-3 self-start">
+            <TabsTrigger value="waiting">Waiting ({waiting.length})</TabsTrigger>
+            <TabsTrigger value="conflicts">Conflicts ({conflicts.length})</TabsTrigger>
+            <TabsTrigger value="recent">Recent</TabsTrigger>
+          </TabsList>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-3">
+            <TabsContent value="waiting" className="mt-0">
+              {waiting.length === 0 ? (
+                <EmptyState>No events waiting to upload.</EmptyState>
+              ) : (
+                <ul className="space-y-2">
+                  {waiting.map((row) => (
+                    <EventRow
+                      key={row.id}
+                      row={row}
+                      busy={syncing}
+                      onRetry={online ? onRetry : undefined}
+                      onDiscard={() => setDiscardTarget(row)}
+                    />
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
+            <TabsContent value="conflicts" className="mt-0">
+              {conflicts.length === 0 ? (
+                <EmptyState>No sync conflicts.</EmptyState>
+              ) : (
+                <ul className="space-y-2">
+                  {conflicts.map((row) => (
+                    <EventRow
+                      key={row.id}
+                      row={row}
+                      busy={syncing}
+                      onRetry={online ? onRetry : undefined}
+                      onDiscard={() => setDiscardTarget(row)}
+                    />
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
+            <TabsContent value="recent" className="mt-0">
+              {recent.length === 0 ? (
+                <EmptyState>No recently synced events on this device.</EmptyState>
+              ) : (
+                <ul className="space-y-2">
+                  {recent.map((row) => (
+                    <EventRow key={row.id} row={row} busy={false} />
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
+          </div>
+        </Tabs>
+
+        {discardCopy ? (
+          <div className="border-destructive/30 bg-destructive/5 flex flex-col gap-3 border-t px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm">
+              Discard {discardCopy.title.toLowerCase()}? {discardCopy.detail} will not upload.
+            </p>
+            <div className="flex shrink-0 gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={discardPending}
+                onClick={() => setDiscardTarget(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                disabled={discardPending}
+                onClick={() => void onDiscard()}
+              >
+                {discardPending ? "Discarding…" : "Discard"}
+              </Button>
+            </div>
+          </div>
+        ) : conflicts.length > 0 ? (
+          <p className="text-muted-foreground flex items-start gap-2 border-t px-6 py-3 text-xs">
+            <AlertTriangle className="text-destructive mt-0.5 size-3.5 shrink-0" aria-hidden />
+            Conflicts were rejected by the server. Retry after you fix stock or data, or discard so
+            they stop blocking the queue.
+          </p>
+        ) : null}
+      </DialogContent>
     </Dialog>
   );
 }

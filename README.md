@@ -17,14 +17,14 @@ the running app.
 
 ## Product tour
 
-| App dashboard | Mobile / tablet web |
-|-------------|---------------------|
+| App dashboard                                                                 | Mobile / tablet web                                                                  |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | <img src="docs/design/ui/dashboard.png" alt="Novend dashboard" width="440" /> | <img src="docs/design/ui/mobile_fullpage.png" alt="Novend on a phone" width="220" /> |
 
 ### Get started
 
-| Sign up | Onboarding | Dashboard |
-|---------|------------|-----------|
+| Sign up                                                                       | Onboarding                                                                                  | Dashboard                                                                       |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | <img src="docs/design/ui/auth-signup.png" alt="Create account" width="280" /> | <img src="docs/design/ui/business-onboarding.png" alt="Create your business" width="280" /> | <img src="docs/design/ui/dashboard.png" alt="Dashboard overview" width="280" /> |
 
 ### Sell & manage stock
@@ -33,18 +33,18 @@ the running app.
   <img src="docs/design/ui/sales-pos.jpg" alt="Sales POS checkout" width="920" />
 </p>
 
-| Inventory | Wholesale | Analytics |
-|-----------|-----------|-----------|
+| Inventory                                                                       | Wholesale                                                                                  | Analytics                                                                                         |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
 | <img src="docs/design/ui/inventory-stock.png" alt="Branch stock" width="280" /> | <img src="docs/design/ui/inventory-wholesale.png" alt="Wholesale warehouse" width="280" /> | <img src="docs/design/ui/business-analytics-overview.png" alt="Analytics overview" width="280" /> |
 
 ### Built for every kind of retail
 
-| Pharmacy | Supermarket | Wholesale |
-|----------|-------------|-----------|
+| Pharmacy                                                                      | Supermarket                                                                         | Wholesale                                                                       |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | <img src="docs/design/ui/sale-pharmacy.jpg" alt="Pharmacy POS" width="280" /> | <img src="docs/design/ui/sale-supermarket.jpg" alt="Supermarket POS" width="280" /> | <img src="docs/design/ui/sale-wholesale.jpg" alt="Wholesale POS" width="280" /> |
 
-| Fashion | Electronics | Convenience |
-|---------|-------------|-------------|
+| Fashion                                                                     | Electronics                                                                         | Convenience                                                                         |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | <img src="docs/design/ui/sale-fashion.jpg" alt="Fashion POS" width="280" /> | <img src="docs/design/ui/sale-electronics.jpg" alt="Electronics POS" width="280" /> | <img src="docs/design/ui/sale-convenience.jpg" alt="Convenience POS" width="280" /> |
 
 More UI captures: [`docs/design/ui/README.md`](./docs/design/ui/README.md).
@@ -76,12 +76,12 @@ First-time flow: **sign up → onboard your business → add products → sell**
 
 ## Documentation map
 
-| Doc | Purpose |
-|-----|---------|
-| [`docs/PROJECT_CONSTITUTION.md`](./docs/PROJECT_CONSTITUTION.md) | Engineering authority |
-| [`docs/PROJECT_CONTEXT.md`](./docs/PROJECT_CONTEXT.md) | Product context |
-| [`docs/FOLDER_STRUCTURE.md`](./docs/FOLDER_STRUCTURE.md) | Code ownership |
-| [`docs/business/SALES_WORKFLOW.md`](./docs/business/SALES_WORKFLOW.md) | POS sell flow |
-| [`docs/business/INVENTORY_WORKFLOW.md`](./docs/business/INVENTORY_WORKFLOW.md) | Stock movements |
-| [`docs/architecture/OFFLINE_SYNC.md`](./docs/architecture/OFFLINE_SYNC.md) | Local-first sync |
-| [`docs/design/ui/README.md`](./docs/design/ui/README.md) | Screenshot index |
+| Doc                                                                            | Purpose               |
+| ------------------------------------------------------------------------------ | --------------------- |
+| [`docs/PROJECT_CONSTITUTION.md`](./docs/PROJECT_CONSTITUTION.md)               | Engineering authority |
+| [`docs/PROJECT_CONTEXT.md`](./docs/PROJECT_CONTEXT.md)                         | Product context       |
+| [`docs/FOLDER_STRUCTURE.md`](./docs/FOLDER_STRUCTURE.md)                       | Code ownership        |
+| [`docs/business/SALES_WORKFLOW.md`](./docs/business/SALES_WORKFLOW.md)         | POS sell flow         |
+| [`docs/business/INVENTORY_WORKFLOW.md`](./docs/business/INVENTORY_WORKFLOW.md) | Stock movements       |
+| [`docs/architecture/OFFLINE_SYNC.md`](./docs/architecture/OFFLINE_SYNC.md)     | Local-first sync      |
+| [`docs/design/ui/README.md`](./docs/design/ui/README.md)                       | Screenshot index      |

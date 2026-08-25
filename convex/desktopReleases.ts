@@ -232,7 +232,8 @@ function assetScore(fileName: string, platform: Platform, preferredArch: string)
   if (lower.includes(preferredArch)) score += 15;
   if (preferredArch === "x64" && (lower.includes("x64") || lower.includes("amd64"))) score += 15;
   if (lower.includes("arm64") && preferredArch !== "arm64") score -= 10;
-  if (lower.endsWith(".blockmap") || lower.endsWith(".yml") || lower.endsWith(".yaml")) score -= 100;
+  if (lower.endsWith(".blockmap") || lower.endsWith(".yml") || lower.endsWith(".yaml"))
+    score -= 100;
   return score;
 }
 

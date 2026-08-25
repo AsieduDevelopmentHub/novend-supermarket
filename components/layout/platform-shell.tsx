@@ -43,7 +43,7 @@ export function PlatformShell({
           <div className="px-3 pb-2">
             <Link
               href="/dashboard"
-              className="text-sidebar-foreground/80 hover:bg-white/5 hover:text-white flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium"
+              className="text-sidebar-foreground/80 flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium hover:bg-white/5 hover:text-white"
             >
               <Store className="h-4 w-4" />
               Open POS
@@ -185,7 +185,7 @@ function MobilePlatformNav({
                 <Link
                   href="/dashboard"
                   onClick={() => setOpen(false)}
-                  className="text-sidebar-foreground/80 hover:bg-white/5 flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium"
+                  className="text-sidebar-foreground/80 flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium hover:bg-white/5"
                 >
                   <Store className="h-4 w-4" />
                   Open POS

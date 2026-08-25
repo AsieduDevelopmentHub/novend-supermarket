@@ -32,10 +32,7 @@ export type BiometricAvailability = {
 };
 
 export type NotificationTopic =
-  | "stock_alerts"
-  | "daily_summary"
-  | "branch_transfers"
-  | "subscription_alerts";
+  "stock_alerts" | "daily_summary" | "branch_transfers" | "subscription_alerts";
 
 export type AppInfo = {
   name: string;
@@ -83,15 +80,9 @@ export type NotificationsAdapter = {
   requestPermissions: () => Promise<
     HardwareResult<{ granted: boolean; state: NotificationPermissionState }>
   >;
-  scheduleLocal: (args: {
-    title: string;
-    body: string;
-    id?: number;
-  }) => Promise<HardwareResult>;
+  scheduleLocal: (args: { title: string; body: string; id?: number }) => Promise<HardwareResult>;
   getTopicPrefs: () => Promise<HardwareResult<Record<NotificationTopic, boolean>>>;
-  setTopicPrefs: (
-    prefs: Partial<Record<NotificationTopic, boolean>>,
-  ) => Promise<HardwareResult>;
+  setTopicPrefs: (prefs: Partial<Record<NotificationTopic, boolean>>) => Promise<HardwareResult>;
 };
 
 export type AppUrlOpenHandle = {
@@ -108,17 +99,13 @@ export type AppServicesAdapter = {
   openExternalUrl: (url: string) => Promise<HardwareResult>;
   checkForUpdate: () => Promise<HardwareResult<UpdateInfo>>;
   openStoreListing: () => Promise<HardwareResult>;
-  addUrlOpenListener: (
-    callback: (url: string) => void,
-  ) => Promise<AppUrlOpenHandle>;
+  addUrlOpenListener: (callback: (url: string) => void) => Promise<AppUrlOpenHandle>;
   addBackButtonListener: (
     callback: (event: { canGoBack: boolean }) => void,
   ) => Promise<AppBackButtonHandle>;
   exitApp: () => Promise<HardwareResult>;
   openAppSettings: () => Promise<HardwareResult>;
-  addAppStateListener: (
-    callback: (isActive: boolean) => void,
-  ) => Promise<AppUrlOpenHandle>;
+  addAppStateListener: (callback: (isActive: boolean) => void) => Promise<AppUrlOpenHandle>;
 };
 
 export type BluetoothPrinterControls = {

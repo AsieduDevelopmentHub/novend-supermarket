@@ -15,8 +15,15 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         return { email, name };
       },
       validatePasswordRequirements: (password) => {
-        if (password.length < 12 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
-          throw new Error("Password must be at least 12 characters and include uppercase, lowercase, and a number");
+        if (
+          password.length < 12 ||
+          !/[A-Z]/.test(password) ||
+          !/[a-z]/.test(password) ||
+          !/\d/.test(password)
+        ) {
+          throw new Error(
+            "Password must be at least 12 characters and include uppercase, lowercase, and a number",
+          );
         }
       },
     }),

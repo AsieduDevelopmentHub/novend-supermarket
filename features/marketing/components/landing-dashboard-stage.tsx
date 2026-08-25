@@ -18,7 +18,7 @@ export function LandingDashboardStage() {
       <div className="landing-dashboard-glow" aria-hidden />
       <div
         ref={stageRef}
-        className="landing-dashboard-frame landing-shadow-mock relative z-10 overflow-hidden rounded-[1.25rem] border border-border bg-background transition-transform duration-200 ease-out will-change-transform"
+        className="landing-dashboard-frame landing-shadow-mock border-border bg-background relative z-10 overflow-hidden rounded-[1.25rem] border transition-transform duration-200 ease-out will-change-transform"
       >
         <Image
           src={BRANDING.dashboardHero}

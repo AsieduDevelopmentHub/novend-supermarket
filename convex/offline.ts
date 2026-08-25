@@ -69,9 +69,7 @@ export const getSnapshot = query({
     const nameByUser = new Map(profiles.map((p) => [p.userId, p.name]));
     const branchNameById = new Map(branches.map((b) => [b._id, b.name]));
 
-    const stockBranchIds = isAdmin(profile)
-      ? branches.map((b) => b._id)
-      : [branchId];
+    const stockBranchIds = isAdmin(profile) ? branches.map((b) => b._id) : [branchId];
 
     const branchStockRows: Array<{
       id: string;
@@ -126,7 +124,9 @@ export const getSnapshot = query({
           unit: product.unit,
           lowStockThreshold: product.lowStockThreshold,
           status: product.status as "active" | "inactive" | "archived",
-          imageUrl: product.imageStorageId ? await ctx.storage.getUrl(product.imageStorageId) : null,
+          imageUrl: product.imageStorageId
+            ? await ctx.storage.getUrl(product.imageStorageId)
+            : null,
           tracksExpiry: expiry.tracksExpiry,
           expiryAlertDays: expiry.expiryAlertDays,
           nearestExpiry: expiry.nearestExpiry,
@@ -162,10 +162,7 @@ export const getSnapshot = query({
         (row) => row.status === "completed" && saleIds.includes(row.saleId),
       );
       for (const row of relevant) {
-        refundedBySale.set(
-          row.saleId,
-          (refundedBySale.get(row.saleId) ?? 0) + row.refundAmount,
-        );
+        refundedBySale.set(row.saleId, (refundedBySale.get(row.saleId) ?? 0) + row.refundAmount);
         const returnItems = await ctx.db
           .query("saleReturnItems")
           .withIndex("by_return", (q) => q.eq("returnId", row._id))
@@ -315,34 +312,29 @@ export const getSnapshot = query({
     }> = [];
 
     if (canManage) {
-      const [
-        supplierRows,
-        wholesaleRows,
-        purchaseRows,
-        transferRows,
-        expenseRows,
-      ] = await Promise.all([
-        ctx.db
-          .query("suppliers")
-          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-          .collect(),
-        ctx.db
-          .query("wholesaleStock")
-          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-          .collect(),
-        ctx.db
-          .query("supplierPurchases")
-          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-          .collect(),
-        ctx.db
-          .query("stockTransfers")
-          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-          .collect(),
-        ctx.db
-          .query("expenses")
-          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-          .collect(),
-      ]);
+      const [supplierRows, wholesaleRows, purchaseRows, transferRows, expenseRows] =
+        await Promise.all([
+          ctx.db
+            .query("suppliers")
+            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+            .collect(),
+          ctx.db
+            .query("wholesaleStock")
+            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+            .collect(),
+          ctx.db
+            .query("supplierPurchases")
+            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+            .collect(),
+          ctx.db
+            .query("stockTransfers")
+            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+            .collect(),
+          ctx.db
+            .query("expenses")
+            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+            .collect(),
+        ]);
 
       const productById = new Map(activeProducts.map((p) => [p._id, p]));
       suppliers = supplierRows.map((row) => ({
@@ -500,9 +492,7 @@ export const getSnapshot = query({
       wholesalePurchases,
       wholesaleTransfers,
       branches: branches
-        .filter((b) =>
-          profile.role === "administrator" ? true : b._id === branchId,
-        )
+        .filter((b) => (profile.role === "administrator" ? true : b._id === branchId))
         .map((b) => ({
           id: b._id as string,
           name: b.name,
@@ -530,5 +520,3 @@ export const getSnapshot = query({
     };
   },
 });
-
-

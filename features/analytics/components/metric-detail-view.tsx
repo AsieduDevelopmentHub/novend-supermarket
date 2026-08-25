@@ -61,9 +61,17 @@ function formatCell(column: string, value: string) {
     return Number.isFinite(ts) ? formatDateTime(ts) : value;
   }
   if (
-    ["Amount", "Revenue", "Profit", "Total", "Refunded", "Refunds", "Expenses", "Net", "COGS"].includes(
-      column,
-    )
+    [
+      "Amount",
+      "Revenue",
+      "Profit",
+      "Total",
+      "Refunded",
+      "Refunds",
+      "Expenses",
+      "Net",
+      "COGS",
+    ].includes(column)
   ) {
     const n = Number(value);
     return Number.isFinite(n) ? formatCurrency(n) : value;

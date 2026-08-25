@@ -36,9 +36,7 @@ export function RestoreLastRoute() {
     const cleanedCurrent = cleanedSearch ? `${pathname}?${cleanedSearch}` : pathname;
 
     const safe = last ? safeInternalPath(last) : null;
-    const isPlatformPath = Boolean(
-      safe && (safe === "/platform" || safe.startsWith("/platform/")),
-    );
+    const isPlatformPath = Boolean(safe && (safe === "/platform" || safe.startsWith("/platform/")));
     const canRestorePlatform = Boolean(me?.isPlatformAdmin);
     const allowed = safe && (!isPlatformPath || canRestorePlatform) ? safe : null;
 

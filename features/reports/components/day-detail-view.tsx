@@ -158,7 +158,7 @@ export function ReportDayDetailView() {
                         <td className="px-4 py-3">{formatDateTime(row.completedAt)}</td>
                         <td className="px-4 py-3">{row.invoiceNumber}</td>
                         <td className="px-4 py-3">{row.customerName}</td>
-                        <td className="px-4 py-3 max-w-[180px] truncate">{row.reason}</td>
+                        <td className="max-w-[180px] truncate px-4 py-3">{row.reason}</td>
                         <td className="px-4 py-3">{row.itemCount}</td>
                         <td className="px-4 py-3 font-medium">
                           {formatCurrency(row.refundAmount)}

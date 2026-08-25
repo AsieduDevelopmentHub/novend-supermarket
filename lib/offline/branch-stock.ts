@@ -193,7 +193,10 @@ export async function applyLocalBranchStockChange(
   await db.products.put({
     ...catalog,
     stockQuantity: catalog.stockQuantity + quantityChange,
-    sellableQuantity: Math.max(0, (catalog.sellableQuantity ?? catalog.stockQuantity) + quantityChange),
+    sellableQuantity: Math.max(
+      0,
+      (catalog.sellableQuantity ?? catalog.stockQuantity) + quantityChange,
+    ),
     updatedAt: Date.now(),
   });
 }

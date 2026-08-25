@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { branchStockId, sellableFromBranchStock, stockFieldsFromAggregate } from "@/lib/offline/branch-stock";
+import {
+  branchStockId,
+  sellableFromBranchStock,
+  stockFieldsFromAggregate,
+} from "@/lib/offline/branch-stock";
 import type { MirroredBranchStock, MirroredProduct } from "@/lib/offline/types";
 
 describe("branch stock mirror", () => {
@@ -8,7 +12,11 @@ describe("branch stock mirror", () => {
   });
 
   it("uses sellable quantity for expiry-tracked products", () => {
-    const product = { tracksExpiry: true, stockQuantity: 10, sellableQuantity: 4 } as MirroredProduct;
+    const product = {
+      tracksExpiry: true,
+      stockQuantity: 10,
+      sellableQuantity: 4,
+    } as MirroredProduct;
     const stock = {
       id: "b:p",
       branchId: "b",
@@ -21,7 +29,11 @@ describe("branch stock mirror", () => {
   });
 
   it("falls back to branch quantity when sellable is absent", () => {
-    const product = { tracksExpiry: false, stockQuantity: 7, sellableQuantity: 7 } as MirroredProduct;
+    const product = {
+      tracksExpiry: false,
+      stockQuantity: 7,
+      sellableQuantity: 7,
+    } as MirroredProduct;
     const stock = {
       id: "b:p",
       branchId: "b",

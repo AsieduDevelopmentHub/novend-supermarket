@@ -45,16 +45,13 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
   const [forcedReady, setForcedReady] = useState(false);
   const isMarketingLanding = pathname === "/";
   const isAuthRoute =
-    pathname === "/login" ||
-    pathname === "/signup" ||
-    pathname.startsWith("/onboarding");
+    pathname === "/login" || pathname === "/signup" || pathname.startsWith("/onboarding");
   const isPublicSitePage =
     pathname === "/download" ||
     pathname.startsWith("/docs") ||
     pathname === "/privacy" ||
     pathname === "/terms";
-  const skipSplash =
-    skipFromLogin || isMarketingLanding || isAuthRoute || isPublicSitePage;
+  const skipSplash = skipFromLogin || isMarketingLanding || isAuthRoute || isPublicSitePage;
 
   useEffect(() => {
     if (skipFromLogin || isAuthRoute) return;
@@ -108,9 +105,7 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      {!skipSplash && visible ? (
-        <AppSplash label="Starting Novend POS…" exiting={exiting} />
-      ) : null}
+      {!skipSplash && visible ? <AppSplash label="Starting Novend POS…" exiting={exiting} /> : null}
     </>
   );
 }

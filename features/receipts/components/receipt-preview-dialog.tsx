@@ -59,10 +59,7 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
     setBusy("share");
     try {
       const text = buildReceiptShareText(normalized);
-      const result = await Hardware.share.shareReceipt(
-        text,
-        `Receipt ${normalized.invoiceNumber}`,
-      );
+      const result = await Hardware.share.shareReceipt(text, `Receipt ${normalized.invoiceNumber}`);
       if (!result.ok && result.message !== "Cancelled") {
         toast.error(result.message || shareFailedMessage());
         return;

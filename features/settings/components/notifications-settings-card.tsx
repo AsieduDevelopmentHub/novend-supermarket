@@ -77,19 +77,22 @@ export function NotificationsSettingsCard() {
 
   useEffect(() => {
     let cancelled = false;
-    const hardStop = window.setTimeout(() => {
-      if (cancelled) return;
-      setLoading((stillLoading) => {
-        if (stillLoading) {
-          setState((current) =>
-            current === "prompt" || current === "not-requested" ? "error" : current,
-          );
-          setErrorMessage((msg) => msg ?? "Notification permission check timed out. Try again.");
-          setPrefs((current) => current ?? EMPTY_PREFS);
-        }
-        return false;
-      });
-    }, NATIVE_SETTINGS_PROBE_MS * 2 + 500);
+    const hardStop = window.setTimeout(
+      () => {
+        if (cancelled) return;
+        setLoading((stillLoading) => {
+          if (stillLoading) {
+            setState((current) =>
+              current === "prompt" || current === "not-requested" ? "error" : current,
+            );
+            setErrorMessage((msg) => msg ?? "Notification permission check timed out. Try again.");
+            setPrefs((current) => current ?? EMPTY_PREFS);
+          }
+          return false;
+        });
+      },
+      NATIVE_SETTINGS_PROBE_MS * 2 + 500,
+    );
 
     const start = window.setTimeout(() => {
       if (cancelled) return;
@@ -182,7 +185,9 @@ export function NotificationsSettingsCard() {
 
         {!loading && (state === "prompt" || state === "not-requested") ? (
           <div className="space-y-2">
-            <p className="text-muted-foreground text-sm">{permissionNeedMessage("notifications")}</p>
+            <p className="text-muted-foreground text-sm">
+              {permissionNeedMessage("notifications")}
+            </p>
             <Button
               type="button"
               variant="outline"
@@ -197,7 +202,12 @@ export function NotificationsSettingsCard() {
         {!loading && state === "denied" ? (
           <div className="space-y-2">
             <p className="text-sm">{permissionDeniedMessage("notifications")}</p>
-            <Button type="button" variant="outline" disabled={busy} onClick={() => void enableNotifications()}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void enableNotifications()}
+            >
               Try again
             </Button>
           </div>
@@ -206,7 +216,12 @@ export function NotificationsSettingsCard() {
         {!loading && state === "permanently-denied" ? (
           <div className="space-y-2">
             <p className="text-sm">Notifications are blocked for Novend on this device.</p>
-            <Button type="button" variant="outline" disabled={busy} onClick={() => void openSettings()}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void openSettings()}
+            >
               Open device settings
             </Button>
           </div>

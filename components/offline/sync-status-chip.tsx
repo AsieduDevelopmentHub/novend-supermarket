@@ -26,15 +26,8 @@ function SyncGlyph({
  * Opens Sync Center for queue details, conflicts, and a forced upload.
  */
 export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
-  const {
-    online,
-    pendingCount,
-    failedCount,
-    syncing,
-    lastSyncAt,
-    lastError,
-    openSyncCenter,
-  } = useOfflineStatus();
+  const { online, pendingCount, failedCount, syncing, lastSyncAt, lastError, openSyncCenter } =
+    useOfflineStatus();
 
   const failed = online && failedCount > 0;
   const pending = online && pendingCount > 0 && !failed;
@@ -69,7 +62,7 @@ export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
       <button
         type="button"
         className={cn(
-          "hover:bg-white/5 flex w-full items-center gap-2 rounded-md text-left text-xs",
+          "flex w-full items-center gap-2 rounded-md text-left text-xs hover:bg-white/5",
           collapsed ? "justify-center px-1 py-1" : "px-1 py-0.5",
           !online && "text-sidebar-accent-foreground/80",
           failed && "text-destructive",

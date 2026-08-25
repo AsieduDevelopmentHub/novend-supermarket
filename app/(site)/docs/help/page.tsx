@@ -23,8 +23,11 @@ export default function HelpCenterPage() {
     <MarketingSitePage badge={page.badge} title={page.title} subtitle={page.subtitle}>
       <div className="space-y-8">
         {page.categories.map((category) => (
-          <section key={category.title} className="landing-shadow-card overflow-hidden rounded-3xl border border-slate-200/80 bg-white px-4 sm:px-6">
-            <h2 className="text-[#111827] border-b border-slate-100 py-5 text-lg font-semibold tracking-tight">
+          <section
+            key={category.title}
+            className="landing-shadow-card overflow-hidden rounded-3xl border border-slate-200/80 bg-white px-4 sm:px-6"
+          >
+            <h2 className="border-b border-slate-100 py-5 text-lg font-semibold tracking-tight text-[#111827]">
               {category.title}
             </h2>
             <Accordion type="single" collapsible className="w-full">
@@ -34,10 +37,10 @@ export default function HelpCenterPage() {
                   value={`${category.title}-${index}`}
                   className="border-slate-100 last:border-b-0"
                 >
-                  <AccordionTrigger className="text-[#111827] py-5 text-left text-base font-medium hover:no-underline">
+                  <AccordionTrigger className="py-5 text-left text-base font-medium text-[#111827] hover:no-underline">
                     {item.q}
                   </AccordionTrigger>
-                  <AccordionContent className="text-slate-600 pb-5 text-sm leading-relaxed">
+                  <AccordionContent className="pb-5 text-sm leading-relaxed text-slate-600">
                     {item.a}
                   </AccordionContent>
                 </AccordionItem>
@@ -48,10 +51,10 @@ export default function HelpCenterPage() {
       </div>
 
       <aside className="landing-shadow-card mt-10 rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8">
-        <h2 className="text-[#111827] text-xl font-semibold tracking-tight">
+        <h2 className="text-xl font-semibold tracking-tight text-[#111827]">
           {page.supportCta.title}
         </h2>
-        <p className="text-slate-600 mt-2 text-sm leading-relaxed">{page.supportCta.detail}</p>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">{page.supportCta.detail}</p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Button asChild>
             <a href={page.supportCta.mailto}>Contact Support</a>
@@ -60,7 +63,7 @@ export default function HelpCenterPage() {
             <Link href="/docs">Browse documentation</Link>
           </Button>
         </div>
-        <p className="text-slate-500 mt-4 text-xs">{page.supportCta.email}</p>
+        <p className="mt-4 text-xs text-slate-500">{page.supportCta.email}</p>
       </aside>
     </MarketingSitePage>
   );

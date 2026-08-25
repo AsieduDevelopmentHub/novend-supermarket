@@ -58,14 +58,7 @@ export type DesktopDiscoverResult = {
 };
 
 export type DesktopUpdateState =
-  | "idle"
-  | "disabled"
-  | "checking"
-  | "up-to-date"
-  | "available"
-  | "downloading"
-  | "ready"
-  | "error";
+  "idle" | "disabled" | "checking" | "up-to-date" | "available" | "downloading" | "ready" | "error";
 
 export type DesktopUpdateStatus = {
   state: DesktopUpdateState;

@@ -169,9 +169,7 @@ export function CustomersView() {
       <PageHeader
         title="Customers"
         description="Optional profiles for repeat buyers. Walk-in sales never require registration."
-        compactActions={[
-          { key: "add", label: "Add Customer", icon: Plus, onClick: openCreate },
-        ]}
+        compactActions={[{ key: "add", label: "Add Customer", icon: Plus, onClick: openCreate }]}
         actions={
           <Button type="button" onClick={openCreate}>
             <Plus className="h-4 w-4" />

@@ -16,13 +16,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  Building2,
-  CreditCard,
-  TrendingDown,
-  TrendingUp,
-  Wallet,
-} from "lucide-react";
+import { Building2, CreditCard, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -93,7 +87,12 @@ export function PlatformRevenueView() {
       ) : null}
 
       <Grid cols={4}>
-        <Kpi title="MRR" value={formatCurrency(data.mrr)} hint="Monthly recurring" icon={TrendingUp} />
+        <Kpi
+          title="MRR"
+          value={formatCurrency(data.mrr)}
+          hint="Monthly recurring"
+          icon={TrendingUp}
+        />
         <Kpi title="ARR" value={formatCurrency(data.arr)} hint="MRR × 12" icon={Wallet} />
         <Kpi
           title="Gross revenue"
@@ -182,7 +181,10 @@ export function PlatformRevenueView() {
             ) : (
               <div className="h-64 w-full min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={data.revenueByMonth} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+                  <ComposedChart
+                    data={data.revenueByMonth}
+                    margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
                     <YAxis width={48} tick={{ fontSize: 11 }} />
@@ -217,12 +219,20 @@ export function PlatformRevenueView() {
             ) : (
               <div className="h-56 w-full min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={data.revenueByMonth} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+                  <ComposedChart
+                    data={data.revenueByMonth}
+                    margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
                     <YAxis width={32} tick={{ fontSize: 11 }} allowDecimals={false} />
                     <Tooltip formatter={(value) => formatNumber(Number(value))} />
-                    <Bar dataKey="newOrganizations" name="New orgs" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                    <Bar
+                      dataKey="newOrganizations"
+                      name="New orgs"
+                      fill="#0ea5e9"
+                      radius={[4, 4, 0, 0]}
+                    />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -240,7 +250,10 @@ export function PlatformRevenueView() {
             ) : (
               <div className="h-56 w-full min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={data.revenueByMonth} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+                  <ComposedChart
+                    data={data.revenueByMonth}
+                    margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
+                  >
                     <defs>
                       <linearGradient id="storageFill" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.35} />
@@ -276,7 +289,9 @@ export function PlatformRevenueView() {
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
           {data.recentPayments.length === 0 ? (
-            <p className="text-muted-foreground p-6 text-sm">No successful payments in this range.</p>
+            <p className="text-muted-foreground p-6 text-sm">
+              No successful payments in this range.
+            </p>
           ) : (
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
@@ -290,10 +305,7 @@ export function PlatformRevenueView() {
               </thead>
               <tbody>
                 {data.recentPayments.map((payment) => (
-                  <ClickableTableRow
-                    key={payment.id}
-                    href={`/platform/payments/${payment.id}`}
-                  >
+                  <ClickableTableRow key={payment.id} href={`/platform/payments/${payment.id}`}>
                     <td className="px-4 py-3">{formatDateTime(payment.paidAt)}</td>
                     <td className="px-4 py-3">{payment.description}</td>
                     <td className="px-4 py-3 capitalize">{payment.planKey ?? "—"}</td>

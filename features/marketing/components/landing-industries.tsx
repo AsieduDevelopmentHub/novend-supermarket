@@ -10,9 +10,7 @@ import { cn } from "@/lib/utils";
 
 type IndustryId = (typeof landingCopy.industries.items)[number]["id"];
 
-const INDUSTRY_IDS = new Set(
-  landingCopy.industries.items.map((item) => item.id),
-);
+const INDUSTRY_IDS = new Set(landingCopy.industries.items.map((item) => item.id));
 
 function parseIndustryHash(hash: string): IndustryId | null {
   const raw = hash.replace(/^#/, "");
@@ -66,17 +64,17 @@ export function LandingIndustries() {
   return (
     <section
       id="industries"
-      className="scroll-mt-24 border-t border-border bg-[#F8FAFC] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
+      className="border-border scroll-mt-24 border-t bg-[#F8FAFC] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
         <header data-reveal className="mx-auto max-w-[700px] text-center">
           <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
             {industries.badge}
           </p>
-          <h2 className="text-[#111827] mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-balance text-[#111827] sm:text-4xl">
             {industries.title}
           </h2>
-          <p className="text-slate-600 mt-4 text-base leading-relaxed text-pretty sm:text-lg">
+          <p className="mt-4 text-base leading-relaxed text-pretty text-slate-600 sm:text-lg">
             {industries.subtitle}
           </p>
         </header>
@@ -119,10 +117,10 @@ export function LandingIndustries() {
               key={`copy-${active.id}`}
               className="order-2 flex flex-col justify-center p-6 sm:p-8 lg:order-1 lg:p-10"
             >
-              <h3 className="text-[#111827] text-2xl font-semibold tracking-tight sm:text-3xl">
+              <h3 className="text-2xl font-semibold tracking-tight text-[#111827] sm:text-3xl">
                 {active.title}
               </h3>
-              <p className="text-slate-600 mt-4 text-base leading-relaxed">{active.detail}</p>
+              <p className="mt-4 text-base leading-relaxed text-slate-600">{active.detail}</p>
               <ul className="mt-6 space-y-2.5">
                 {active.capabilities.map((capability) => (
                   <li key={capability} className="flex items-start gap-2.5 text-sm text-slate-700">

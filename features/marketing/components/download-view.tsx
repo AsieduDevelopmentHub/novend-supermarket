@@ -3,14 +3,7 @@
 import { useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
-import {
-  Apple,
-  Download,
-  Monitor,
-  Smartphone,
-  Globe,
-  Loader2,
-} from "lucide-react";
+import { Apple, Download, Monitor, Smartphone, Globe, Loader2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -105,9 +98,7 @@ export function DownloadView() {
         byTag.set(entry.tag, entry);
       }
     }
-    return [...byTag.values()]
-      .sort((a, b) => b.releasedAt - a.releasedAt)
-      .slice(0, 5);
+    return [...byTag.values()].sort((a, b) => b.releasedAt - a.releasedAt).slice(0, 5);
   }, [desktopRecent, mobileRecent]);
 
   const installers = useMemo(() => offer?.installers ?? [], [offer]);
@@ -115,10 +106,7 @@ export function DownloadView() {
   const mobileReleasedLabel = formatReleasedAt(mobileOffer?.releasedAt);
   const loading = offer === undefined;
   const mobileLoading = mobileOffer === undefined;
-  const offerHighlights = useMemo(
-    () => sanitizeReleaseNoteLines(offer?.notes),
-    [offer?.notes],
-  );
+  const offerHighlights = useMemo(() => sanitizeReleaseNoteLines(offer?.notes), [offer?.notes]);
 
   return (
     <MarketingSitePage
@@ -141,8 +129,8 @@ export function DownloadView() {
                   <Monitor className="h-5 w-5" aria-hidden />
                 </span>
                 <div>
-                  <h2 className="text-[#111827] text-xl font-semibold tracking-tight">Desktop</h2>
-                  <p className="text-slate-600 text-sm">
+                  <h2 className="text-xl font-semibold tracking-tight text-[#111827]">Desktop</h2>
+                  <p className="text-sm text-slate-600">
                     Windows, macOS, and Linux — offline-ready with barcode and receipt hardware.
                   </p>
                 </div>
@@ -152,16 +140,16 @@ export function DownloadView() {
           </div>
 
           {loading ? (
-            <div className="text-slate-600 mt-8 flex items-center gap-2 text-sm">
+            <div className="mt-8 flex items-center gap-2 text-sm text-slate-600">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
               Checking for the latest version…
             </div>
           ) : offer === null || installers.length === 0 ? (
             <div className="mt-8 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-6">
-              <p className="text-[#111827] text-sm font-semibold">No desktop installers yet</p>
-              <p className="text-slate-600 mt-1.5 text-sm leading-relaxed">
-                A desktop release hasn&apos;t been published yet. You can still use the
-                web app now, and installers will appear here automatically after the next update.
+              <p className="text-sm font-semibold text-[#111827]">No desktop installers yet</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+                A desktop release hasn&apos;t been published yet. You can still use the web app now,
+                and installers will appear here automatically after the next update.
               </p>
               <Button asChild className="mt-4" size="sm">
                 <Link href="/signup">Start free trial on the web</Link>
@@ -185,14 +173,14 @@ export function DownloadView() {
                   >
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-[#111827] text-sm font-semibold">{installer.label}</p>
+                        <p className="text-sm font-semibold text-[#111827]">{installer.label}</p>
                         {suggested ? (
                           <Badge variant="outline" className="text-xs">
                             Suggested for this device
                           </Badge>
                         ) : null}
                       </div>
-                      <p className="text-slate-600 text-xs leading-relaxed">
+                      <p className="text-xs leading-relaxed text-slate-600">
                         {installer.description}
                         {sizeLabel ? ` · ${sizeLabel}` : ""}
                         {installer.arch ? ` · ${installer.arch}` : ""}
@@ -212,7 +200,7 @@ export function DownloadView() {
 
           {offerHighlights.length > 0 ? (
             <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
-              <p className="text-[#111827] text-xs font-semibold tracking-wide uppercase">
+              <p className="text-xs font-semibold tracking-wide text-[#111827] uppercase">
                 What&apos;s in this release
               </p>
               <ul className="mt-3 space-y-2">
@@ -237,8 +225,8 @@ export function DownloadView() {
                 <Smartphone className="h-5 w-5" aria-hidden />
               </span>
               <div>
-                <h2 className="text-[#111827] text-xl font-semibold tracking-tight">Mobile</h2>
-                <p className="text-slate-600 text-sm">
+                <h2 className="text-xl font-semibold tracking-tight text-[#111827]">Mobile</h2>
+                <p className="text-sm text-slate-600">
                   {mobileOffer
                     ? `Latest stable ${mobileOffer.version}${mobileReleasedLabel ? ` · Released ${mobileReleasedLabel}` : ""}`
                     : "Android APK and store links publish here with each release."}
@@ -248,7 +236,7 @@ export function DownloadView() {
           </div>
 
           {mobileLoading ? (
-            <div className="text-slate-600 mt-8 flex items-center gap-2 text-sm">
+            <div className="mt-8 flex items-center gap-2 text-sm text-slate-600">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
               Loading mobile downloads…
             </div>
@@ -271,8 +259,8 @@ export function DownloadView() {
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <Icon className="text-slate-700 h-5 w-5" aria-hidden />
-                      <p className="text-[#111827] text-sm font-semibold">{platform.label}</p>
+                      <Icon className="h-5 w-5 text-slate-700" aria-hidden />
+                      <p className="text-sm font-semibold text-[#111827]">{platform.label}</p>
                       {!available ? (
                         <Badge variant="outline" className="ml-auto text-xs">
                           Coming soon
@@ -283,7 +271,7 @@ export function DownloadView() {
                         </Badge>
                       ) : null}
                     </div>
-                    <p className="text-slate-600 mt-2 text-sm leading-relaxed">{platform.detail}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{platform.detail}</p>
                     {download?.url ? (
                       <Button asChild size="sm" className="mt-4 w-full sm:w-auto">
                         <a href={download.url} download={download.fileName}>
@@ -312,8 +300,8 @@ export function DownloadView() {
                 <Globe className="h-5 w-5" aria-hidden />
               </span>
               <div>
-                <h2 className="text-[#111827] text-xl font-semibold tracking-tight">Web app</h2>
-                <p className="text-slate-600 mt-1 text-sm leading-relaxed">
+                <h2 className="text-xl font-semibold tracking-tight text-[#111827]">Web app</h2>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">
                   Use Novend in the browser with the same account, catalog, and sync — no installer
                   required.
                 </p>
@@ -333,8 +321,10 @@ export function DownloadView() {
         <section>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-[#111827] text-lg font-semibold tracking-tight">Recent updates</h2>
-              <p className="text-slate-600 mt-1 text-sm">
+              <h2 className="text-lg font-semibold tracking-tight text-[#111827]">
+                Recent updates
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
                 Updated automatically whenever we publish a new version.
               </p>
             </div>
@@ -347,11 +337,9 @@ export function DownloadView() {
           </div>
 
           {desktopRecent === undefined && mobileRecent === undefined ? (
-            <p className="text-slate-600 mt-4 text-sm">Loading release history…</p>
+            <p className="mt-4 text-sm text-slate-600">Loading release history…</p>
           ) : recent.length === 0 ? (
-            <p className="text-slate-600 mt-4 text-sm">
-              No published releases yet.
-            </p>
+            <p className="mt-4 text-sm text-slate-600">No published releases yet.</p>
           ) : (
             <ul className="mt-5 space-y-3">
               {recent.map((entry) => {
@@ -362,7 +350,7 @@ export function DownloadView() {
                     className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4"
                   >
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-[#111827] text-sm font-semibold">{entry.tag}</p>
+                      <p className="text-sm font-semibold text-[#111827]">{entry.tag}</p>
                       <Badge variant="secondary" className="text-xs">
                         {entry.channel}
                       </Badge>
@@ -371,7 +359,7 @@ export function DownloadView() {
                           Mandatory
                         </Badge>
                       ) : null}
-                      <span className="text-slate-500 text-xs">
+                      <span className="text-xs text-slate-500">
                         {formatReleasedAt(entry.releasedAt)}
                       </span>
                     </div>
@@ -388,7 +376,7 @@ export function DownloadView() {
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-slate-500 mt-2 text-sm">No release notes attached.</p>
+                      <p className="mt-2 text-sm text-slate-500">No release notes attached.</p>
                     )}
                   </li>
                 );

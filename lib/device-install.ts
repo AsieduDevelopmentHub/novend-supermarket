@@ -1,5 +1,7 @@
 /** Detect mobile browsers where PWA / home-screen install applies. */
-export function isMobileBrowser(userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "") {
+export function isMobileBrowser(
+  userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "",
+) {
   if (!userAgent) return false;
   if (/iPad.*Macintosh/i.test(userAgent)) return true;
   return /Android|iPhone|iPod|Mobile/i.test(userAgent);
@@ -27,12 +29,16 @@ export function isStandaloneWebApp() {
   return window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true;
 }
 
-export function isIosSafari(userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "") {
+export function isIosSafari(
+  userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "",
+) {
   if (!userAgent) return false;
   return /iPhone|iPad|iPod/i.test(userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(userAgent);
 }
 
-export function isIosBrowser(userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "") {
+export function isIosBrowser(
+  userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "",
+) {
   if (!userAgent) return false;
   if (/iPhone|iPad|iPod/i.test(userAgent)) return true;
   // iPadOS desktop UA
@@ -46,7 +52,9 @@ export function isIosBrowser(userAgent = typeof navigator !== "undefined" ? navi
   return false;
 }
 
-export function isAndroidBrowser(userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "") {
+export function isAndroidBrowser(
+  userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "",
+) {
   return /Android/i.test(userAgent || "");
 }
 

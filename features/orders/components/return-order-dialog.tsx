@@ -299,10 +299,19 @@ export function ReturnOrderDialog({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={pending} onClick={() => handleOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pending}
+            onClick={() => handleOpenChange(false)}
+          >
             Cancel
           </Button>
-          <Button type="button" disabled={pending || selected.length === 0} onClick={() => void onConfirm()}>
+          <Button
+            type="button"
+            disabled={pending || selected.length === 0}
+            onClick={() => void onConfirm()}
+          >
             {pending ? "Processing…" : "Confirm return"}
           </Button>
         </DialogFooter>

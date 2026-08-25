@@ -11,8 +11,7 @@ export const sitePages = {
       {
         id: "getting-started",
         title: "Getting Started",
-        detail:
-          "Create your account, set up your business, and reach the dashboard ready to sell.",
+        detail: "Create your account, set up your business, and reach the dashboard ready to sell.",
         items: [
           "Open Sign up, enter your name, email, and password, and accept the Terms and Privacy Policy",
           "After signup, complete onboarding with your business name and optional contact details",

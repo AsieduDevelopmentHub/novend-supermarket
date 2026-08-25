@@ -4,9 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import {
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import { ResponsiveFormSurface } from "@/components/layout/responsive-form-surface";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,7 +75,11 @@ export function ProductFormDialog({ open, onOpenChange, productId }: Props) {
   const categories = useCategoriesList();
   const mirrored = useMirroredProduct(open ? (productId as string | null) : null);
   const mirroredRow =
-    mirrored && productId && mirrored.id === productId ? mirrored : mirrored === undefined ? undefined : null;
+    mirrored && productId && mirrored.id === productId
+      ? mirrored
+      : mirrored === undefined
+        ? undefined
+        : null;
 
   const remoteProduct = useQuery(
     api.products.getProduct,
@@ -90,26 +92,31 @@ export function ProductFormDialog({ open, onOpenChange, productId }: Props) {
       : mirroredRow === null
         ? null
         : {
-          _id: mirroredRow.id as Id<"products">,
-          _creationTime: mirroredRow.updatedAt,
-          name: mirroredRow.name,
-          sku: mirroredRow.sku,
-          barcode: mirroredRow.barcode,
-          categoryId: mirroredRow.categoryId as Id<"categories">,
-          sellingPrice: mirroredRow.sellingPrice,
-          costPrice: mirroredRow.costPrice,
-          stockQuantity: mirroredRow.stockQuantity,
-          unit: mirroredRow.unit,
-          lowStockThreshold: mirroredRow.lowStockThreshold,
-          tracksExpiry: mirroredRow.tracksExpiry,
-          expiryAlertDays: mirroredRow.expiryAlertDays ?? undefined,
-          status: mirroredRow.status === "inactive" ? "inactive" : "active",
-          imageUrl: mirroredRow.imageUrl,
-        };
+            _id: mirroredRow.id as Id<"products">,
+            _creationTime: mirroredRow.updatedAt,
+            name: mirroredRow.name,
+            sku: mirroredRow.sku,
+            barcode: mirroredRow.barcode,
+            categoryId: mirroredRow.categoryId as Id<"categories">,
+            sellingPrice: mirroredRow.sellingPrice,
+            costPrice: mirroredRow.costPrice,
+            stockQuantity: mirroredRow.stockQuantity,
+            unit: mirroredRow.unit,
+            lowStockThreshold: mirroredRow.lowStockThreshold,
+            tracksExpiry: mirroredRow.tracksExpiry,
+            expiryAlertDays: mirroredRow.expiryAlertDays ?? undefined,
+            status: mirroredRow.status === "inactive" ? "inactive" : "active",
+            imageUrl: mirroredRow.imageUrl,
+          };
 
-  const product = mappedLocal === undefined ? undefined : (mappedLocal ?? (remoteProduct as ProductDetails | null | undefined));
+  const product =
+    mappedLocal === undefined
+      ? undefined
+      : (mappedLocal ?? (remoteProduct as ProductDetails | null | undefined));
   const localReady = !productId || mirrored !== undefined;
-  const waitingRemote = Boolean(productId && mirroredRow === null && online && remoteProduct === undefined);
+  const waitingRemote = Boolean(
+    productId && mirroredRow === null && online && remoteProduct === undefined,
+  );
   const editDataReady = !productId || product !== undefined;
   const ready = open && categories !== undefined && localReady && !waitingRemote && editDataReady;
 
@@ -329,9 +336,7 @@ function ProductFormBody({
             hasLocalImage: Boolean(file),
           }),
       });
-      toast.success(
-        queuedSaveMessage(kind, productId ? "Product updated" : "Product created"),
-      );
+      toast.success(queuedSaveMessage(kind, productId ? "Product updated" : "Product created"));
       onOpenChange(false);
     } catch (error) {
       showError(error, "Save failed");
@@ -474,7 +479,7 @@ function ProductFormBody({
             </Select>
           </div>
         </div>
-        <div className="space-y-3 rounded-lg border border-border p-3">
+        <div className="border-border space-y-3 rounded-lg border p-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <Label htmlFor="tracks-expiry">Track expiry dates</Label>
@@ -482,11 +487,7 @@ function ProductFormBody({
                 Receive stock in dated lots. Sales use the soonest expiry first.
               </p>
             </div>
-            <Switch
-              id="tracks-expiry"
-              checked={tracksExpiry}
-              onCheckedChange={setTracksExpiry}
-            />
+            <Switch id="tracks-expiry" checked={tracksExpiry} onCheckedChange={setTracksExpiry} />
           </div>
           {tracksExpiry ? (
             <div className="grid grid-cols-2 gap-3">

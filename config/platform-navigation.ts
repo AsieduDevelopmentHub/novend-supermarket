@@ -9,12 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type PlatformNavGroupId =
-  | "overview"
-  | "analytics"
-  | "tenants"
-  | "product"
-  | "system";
+export type PlatformNavGroupId = "overview" | "analytics" | "tenants" | "product" | "system";
 
 /** Collapsible Super Admin sidebar sections (Overview stays fixed). */
 export const PLATFORM_NAV_ACCORDION_GROUP_IDS = [

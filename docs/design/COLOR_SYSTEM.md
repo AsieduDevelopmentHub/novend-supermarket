@@ -8,20 +8,20 @@ Novend brand: **Onyx** structure + **Candy Blue** accent. Geometric, minimal. Av
 
 ## Semantic tokens
 
-| Token | Hex | Use |
-|-------|-----|-----|
-| `--primary` | `#38BDF8` | CTAs, active nav, emphasis |
-| `--primary-foreground` | `#111827` | Text on Candy Blue |
-| `--secondary` | `#111827` | Secondary buttons |
-| `--sidebar` | `#111827` | App sidebar |
-| `--background` | `#F8FAFC` | App canvas |
-| `--card` | `#FFFFFF` | Surfaces |
-| `--muted-foreground` | `#64748B` | Secondary text |
-| `--border` | `#E2E8F0` | Card and input borders |
-| `--success` | `#16A34A` | In stock / active |
-| `--warning` | `#EA580C` | Low stock |
-| `--destructive` | `#DC2626` | Errors |
-| `--ring` | `#38BDF8` | Focus ring |
+| Token                  | Hex       | Use                        |
+| ---------------------- | --------- | -------------------------- |
+| `--primary`            | `#38BDF8` | CTAs, active nav, emphasis |
+| `--primary-foreground` | `#111827` | Text on Candy Blue         |
+| `--secondary`          | `#111827` | Secondary buttons          |
+| `--sidebar`            | `#111827` | App sidebar                |
+| `--background`         | `#F8FAFC` | App canvas                 |
+| `--card`               | `#FFFFFF` | Surfaces                   |
+| `--muted-foreground`   | `#64748B` | Secondary text             |
+| `--border`             | `#E2E8F0` | Card and input borders     |
+| `--success`            | `#16A34A` | In stock / active          |
+| `--warning`            | `#EA580C` | Low stock                  |
+| `--destructive`        | `#DC2626` | Errors                     |
+| `--ring`               | `#38BDF8` | Focus ring                 |
 
 ## Rules
 

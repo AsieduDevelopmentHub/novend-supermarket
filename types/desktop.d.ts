@@ -54,14 +54,7 @@ export type NovendDesktopDiscoverResult = {
 };
 
 export type NovendDesktopUpdateState =
-  | "idle"
-  | "disabled"
-  | "checking"
-  | "up-to-date"
-  | "available"
-  | "downloading"
-  | "ready"
-  | "error";
+  "idle" | "disabled" | "checking" | "up-to-date" | "available" | "downloading" | "ready" | "error";
 
 export type NovendDesktopUpdateStatus = {
   state: NovendDesktopUpdateState;
@@ -90,9 +83,7 @@ export type NovendDesktopBridge = {
   }>;
   discoverDevices: () => Promise<NovendDesktopDiscoverResult>;
   print: (request: NovendDesktopPrintRequest) => Promise<NovendDesktopPrintResult>;
-  testPrint: (
-    partial?: Partial<NovendDesktopPrintRequest>,
-  ) => Promise<NovendDesktopPrintResult>;
+  testPrint: (partial?: Partial<NovendDesktopPrintRequest>) => Promise<NovendDesktopPrintResult>;
   getUpdateStatus: () => Promise<NovendDesktopUpdateStatus>;
   checkForUpdates: () => Promise<NovendDesktopUpdateStatus>;
   installUpdate: () => Promise<NovendDesktopInstallUpdateResult>;

@@ -72,7 +72,9 @@ function InventoryViewInner() {
   const [adjustBranchId, setAdjustBranchId] = useState<Id<"branches"> | "">("");
   const [transferOpen, setTransferOpen] = useState(false);
   const [quantityChange, setQuantityChange] = useState("0");
-  const [reason, setReason] = useState<"receive" | "adjustment" | "damage" | "return">("adjustment");
+  const [reason, setReason] = useState<"receive" | "adjustment" | "damage" | "return">(
+    "adjustment",
+  );
   const [note, setNote] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
 
@@ -302,37 +304,37 @@ function InventoryViewInner() {
             if (isAdmin) setBranchOverride("all");
           }}
         >
-        <SearchableSelect
-          className="w-full sm:w-56"
-          options={[
-            { value: "all", label: "All categories" },
-            ...(categories ?? []).map((category) => ({
-              value: category._id,
-              label: category.name,
-            })),
-          ]}
-          value={categoryId}
-          onValueChange={setCategoryId}
-          placeholder="Category"
-          searchPlaceholder="Search categories…"
-        />
-        {isAdmin ? (
-          <BranchFilter
-            branches={branches}
-            value={branchFilter}
-            onChange={setBranchOverride}
-            allowAll
-            className="w-full sm:w-auto"
+          <SearchableSelect
+            className="w-full sm:w-56"
+            options={[
+              { value: "all", label: "All categories" },
+              ...(categories ?? []).map((category) => ({
+                value: category._id,
+                label: category.name,
+              })),
+            ]}
+            value={categoryId}
+            onValueChange={setCategoryId}
+            placeholder="Category"
+            searchPlaceholder="Search categories…"
           />
-        ) : branchName ? (
-          <BranchFilter
-            branches={branches}
-            value={myBranchId}
-            onChange={() => undefined}
-            lockedLabel={branchName}
-            className="w-full sm:w-auto"
-          />
-        ) : null}
+          {isAdmin ? (
+            <BranchFilter
+              branches={branches}
+              value={branchFilter}
+              onChange={setBranchOverride}
+              allowAll
+              className="w-full sm:w-auto"
+            />
+          ) : branchName ? (
+            <BranchFilter
+              branches={branches}
+              value={myBranchId}
+              onChange={() => undefined}
+              lockedLabel={branchName}
+              className="w-full sm:w-auto"
+            />
+          ) : null}
         </CollapsibleFilters>
       </div>
 

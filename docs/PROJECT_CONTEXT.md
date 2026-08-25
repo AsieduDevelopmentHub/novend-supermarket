@@ -29,13 +29,13 @@ organizations.
 
 # Product screens (GitHub)
 
-| Flow | Capture |
-|------|---------|
-| Landing | [`design/ui/desktop_fullpage.png`](./design/ui/desktop_fullpage.png) |
-| Sign up | [`design/ui/auth-signup.png`](./design/ui/auth-signup.png) |
-| Onboarding | [`design/ui/business-onboarding.png`](./design/ui/business-onboarding.png) |
-| Dashboard | [`design/ui/dashboard.png`](./design/ui/dashboard.png) |
-| Mobile shell | [`design/ui/mobile_fullpage.png`](./design/ui/mobile_fullpage.png) |
+| Flow         | Capture                                                                    |
+| ------------ | -------------------------------------------------------------------------- |
+| Landing      | [`design/ui/desktop_fullpage.png`](./design/ui/desktop_fullpage.png)       |
+| Sign up      | [`design/ui/auth-signup.png`](./design/ui/auth-signup.png)                 |
+| Onboarding   | [`design/ui/business-onboarding.png`](./design/ui/business-onboarding.png) |
+| Dashboard    | [`design/ui/dashboard.png`](./design/ui/dashboard.png)                     |
+| Mobile shell | [`design/ui/mobile_fullpage.png`](./design/ui/mobile_fullpage.png)         |
 
 Index: [`design/ui/README.md`](./design/ui/README.md).
 
@@ -53,12 +53,12 @@ Index: [`design/ui/README.md`](./design/ui/README.md).
 
 # Stakeholders
 
-| Role | Need |
-|------|------|
-| Organization owner | Bootstrap the business, manage staff and settings |
-| Administrator / manager | Catalog, inventory, oversight |
-| Cashier | Fast, reliable selling |
-| Engineer | Clear architecture, tenant isolation, documented rules |
+| Role                    | Need                                                   |
+| ----------------------- | ------------------------------------------------------ |
+| Organization owner      | Bootstrap the business, manage staff and settings      |
+| Administrator / manager | Catalog, inventory, oversight                          |
+| Cashier                 | Fast, reliable selling                                 |
+| Engineer                | Clear architecture, tenant isolation, documented rules |
 
 # Deployment targets
 

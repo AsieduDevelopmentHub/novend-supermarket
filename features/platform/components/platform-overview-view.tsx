@@ -285,7 +285,7 @@ function Kpi({
     <Card
       className={
         href
-          ? "border-l-primary hover:border-l-primary/80 min-w-0 border-l-[3px] transition-colors hover:bg-accent/40"
+          ? "border-l-primary hover:border-l-primary/80 hover:bg-accent/40 min-w-0 border-l-[3px] transition-colors"
           : "border-l-primary min-w-0 border-l-[3px]"
       }
     >

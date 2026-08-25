@@ -163,17 +163,25 @@ export async function buildLocalAnalyticsSummary(args: {
 
   if (!db) return empty;
 
-  const [products, mirroredOrders, localSales, orderItems, localSaleItems, localReturns, localReturnItems, expenses] =
-    await Promise.all([
-      db.products.toArray(),
-      db.orders.toArray(),
-      db.localSales.toArray(),
-      db.orderItems.toArray(),
-      db.localSaleItems.toArray(),
-      db.localReturns.toArray(),
-      db.localReturnItems.toArray(),
-      db.expenses.toArray(),
-    ]);
+  const [
+    products,
+    mirroredOrders,
+    localSales,
+    orderItems,
+    localSaleItems,
+    localReturns,
+    localReturnItems,
+    expenses,
+  ] = await Promise.all([
+    db.products.toArray(),
+    db.orders.toArray(),
+    db.localSales.toArray(),
+    db.orderItems.toArray(),
+    db.localSaleItems.toArray(),
+    db.localReturns.toArray(),
+    db.localReturnItems.toArray(),
+    db.expenses.toArray(),
+  ]);
 
   const costByProduct = new Map(products.map((p) => [p.id, p.costPrice]));
   const syncedLocalIds = new Set(
@@ -255,9 +263,7 @@ export async function buildLocalAnalyticsSummary(args: {
   const itemsReturned = returns.reduce((sum, row) => sum + row.itemCount, 0);
   const returnRate = sales.length > 0 ? roundMoney((returns.length / sales.length) * 100) : 0;
 
-  const soldCogs = roundMoney(
-    items.reduce((sum, item) => sum + item.unitCost * item.quantity, 0),
-  );
+  const soldCogs = roundMoney(items.reduce((sum, item) => sum + item.unitCost * item.quantity, 0));
   const returnedCogs = roundMoney(
     returnItems.reduce((sum, item) => {
       const cost = unitCostForLine(item.unitPrice, costByProduct.get(item.productId ?? ""));
@@ -533,7 +539,9 @@ export async function buildLocalAnalyticsDetails(args: {
     if (row.syncStatus === "synced") continue;
     if (row.completedAt < args.startDate || row.completedAt > args.endDate) continue;
     const mirrored = mirroredOrders.find((order) => order.id === row.saleId);
-    const local = localSales.find((sale) => sale.id === row.saleId || sale.serverSaleId === row.saleId);
+    const local = localSales.find(
+      (sale) => sale.id === row.saleId || sale.serverSaleId === row.saleId,
+    );
     const branchId = mirrored?.branchId ?? local?.branchId ?? null;
     const branchLabel = mirrored?.branchName ?? local?.branchName ?? null;
     if (args.branchId && branchId && branchId !== args.branchId) continue;
@@ -673,14 +681,19 @@ export async function buildLocalAnalyticsDetails(args: {
     });
     const cogsBySale = new Map<string, number>();
     for (const item of items) {
-      cogsBySale.set(item.saleId, (cogsBySale.get(item.saleId) ?? 0) + item.unitCost * item.quantity);
+      cogsBySale.set(
+        item.saleId,
+        (cogsBySale.get(item.saleId) ?? 0) + item.unitCost * item.quantity,
+      );
     }
     for (const sale of sales) {
       const id = sale.branchId ?? "none";
       const current =
         byBranch.get(id) ??
         emptyBranch(
-          sale.branchId ? (branchName.get(sale.branchId) ?? sale.branchName ?? "Branch") : "Unassigned",
+          sale.branchId
+            ? (branchName.get(sale.branchId) ?? sale.branchName ?? "Branch")
+            : "Unassigned",
         );
       current.revenue += sale.total;
       current.cogs += cogsBySale.get(sale.id) ?? 0;
@@ -772,7 +785,9 @@ export async function buildLocalAnalyticsDetails(args: {
       .slice(0, 200)
       .map((sale) => {
         const refunded = refundBySale.get(sale.id) ?? 0;
-        const cogs = roundMoney((cogsBySale.get(sale.id) ?? 0) - (returnedCogsBySale.get(sale.id) ?? 0));
+        const cogs = roundMoney(
+          (cogsBySale.get(sale.id) ?? 0) - (returnedCogsBySale.get(sale.id) ?? 0),
+        );
         const profit = roundMoney(sale.total - refunded - cogs);
         return {
           id: sale.id,

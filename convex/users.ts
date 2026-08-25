@@ -21,11 +21,7 @@ import { roleValidator } from "./schema";
 import { writeAuditLog } from "./shared/audit";
 import { Id } from "./_generated/dataModel";
 import { assertStoredImage, sanitizePhone, sanitizeText, TEXT_LIMITS } from "./shared/validation";
-import {
-  assertOrganizationCapacity,
-  countUsage,
-  resolveLicense,
-} from "./shared/entitlements";
+import { assertOrganizationCapacity, countUsage, resolveLicense } from "./shared/entitlements";
 import { limitReachedMessage } from "./shared/plans";
 import { presenceFromLastSeenAt } from "./shared/presence";
 
@@ -136,10 +132,7 @@ export const list = query({
     search: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { profile: actor, organizationId } = await requireRole(ctx, [
-      "administrator",
-      "manager",
-    ]);
+    const { profile: actor, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     const now = Date.now();
     let profiles = await ctx.db
       .query("profiles")
@@ -151,9 +144,7 @@ export const list = query({
       );
     }
     const users = await Promise.all(profiles.map((p) => ctx.db.get(p.userId)));
-    const emailById = new Map(
-      users.flatMap((u) => (u ? [[u._id, u.email ?? null] as const] : [])),
-    );
+    const emailById = new Map(users.flatMap((u) => (u ? [[u._id, u.email ?? null] as const] : [])));
     const branches = await ctx.db
       .query("branches")
       .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
@@ -256,7 +247,11 @@ export const updateProfile = mutation({
     status: v.union(v.literal("active"), v.literal("inactive")),
   },
   handler: async (ctx, args) => {
-    const { userId, profile: actor, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const {
+      userId,
+      profile: actor,
+      organizationId,
+    } = await requireRole(ctx, ["administrator", "manager"]);
     const profile = await ctx.db.get(args.id);
     assertOrgDoc(profile, organizationId);
 
@@ -408,8 +403,16 @@ export const changePassword = action({
     if (!me?.email || !me.userId) {
       throw new Error("You must be signed in to change your password");
     }
-    if (!args.newPassword || args.newPassword.length < 12 || !/[A-Z]/.test(args.newPassword) || !/[a-z]/.test(args.newPassword) || !/\d/.test(args.newPassword)) {
-      throw new Error("New password must be at least 12 characters and include uppercase, lowercase, and a number");
+    if (
+      !args.newPassword ||
+      args.newPassword.length < 12 ||
+      !/[A-Z]/.test(args.newPassword) ||
+      !/[a-z]/.test(args.newPassword) ||
+      !/\d/.test(args.newPassword)
+    ) {
+      throw new Error(
+        "New password must be at least 12 characters and include uppercase, lowercase, and a number",
+      );
     }
     if (args.currentPassword === args.newPassword) {
       throw new Error("New password must be different from the current password");
@@ -572,8 +575,16 @@ export const createUserAccount = action({
     const password = args.password;
 
     if (!email || !name) throw new Error("Name and email are required");
-    if (!password || password.length < 12 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
-      throw new Error("Password must be at least 12 characters and include uppercase, lowercase, and a number");
+    if (
+      !password ||
+      password.length < 12 ||
+      !/[A-Z]/.test(password) ||
+      !/[a-z]/.test(password) ||
+      !/\d/.test(password)
+    ) {
+      throw new Error(
+        "Password must be at least 12 characters and include uppercase, lowercase, and a number",
+      );
     }
 
     const me = await ctx.runQuery(api.users.me, {});
@@ -608,7 +619,11 @@ export const createUserAccount = action({
     }
 
     const assignedBranch = await ctx.runQuery(api.branches.get, { id: assignedBranchId });
-    if (!assignedBranch || assignedBranch.organizationId !== organizationId || assignedBranch.status !== "active") {
+    if (
+      !assignedBranch ||
+      assignedBranch.organizationId !== organizationId ||
+      assignedBranch.status !== "active"
+    ) {
       throw new Error("Invalid branch");
     }
 
@@ -663,8 +678,16 @@ export const bootstrapAdministrator = action({
     const password = args.password;
 
     if (!email || !name) throw new Error("Name and email are required");
-    if (!password || password.length < 12 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
-      throw new Error("Password must be at least 12 characters and include uppercase, lowercase, and a number");
+    if (
+      !password ||
+      password.length < 12 ||
+      !/[A-Z]/.test(password) ||
+      !/[a-z]/.test(password) ||
+      !/\d/.test(password)
+    ) {
+      throw new Error(
+        "Password must be at least 12 characters and include uppercase, lowercase, and a number",
+      );
     }
 
     throw new Error("Use public signup and onboarding to create the first administrator.");
@@ -681,8 +704,16 @@ export const resetUserPassword = action({
     newPassword: v.string(),
   },
   handler: async (ctx, args) => {
-    if (!args.newPassword || args.newPassword.length < 12 || !/[A-Z]/.test(args.newPassword) || !/[a-z]/.test(args.newPassword) || !/\d/.test(args.newPassword)) {
-      throw new Error("Password must be at least 12 characters and include uppercase, lowercase, and a number");
+    if (
+      !args.newPassword ||
+      args.newPassword.length < 12 ||
+      !/[A-Z]/.test(args.newPassword) ||
+      !/[a-z]/.test(args.newPassword) ||
+      !/\d/.test(args.newPassword)
+    ) {
+      throw new Error(
+        "Password must be at least 12 characters and include uppercase, lowercase, and a number",
+      );
     }
 
     const me = await ctx.runQuery(api.users.me, {});
@@ -713,5 +744,3 @@ export const resetUserPassword = action({
     return { ok: true as const };
   },
 });
-
-

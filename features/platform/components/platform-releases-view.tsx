@@ -78,7 +78,9 @@ export function PlatformReleasesView() {
                   </pre>
                 ) : null}
                 {grouped.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">No installer assets on this release.</p>
+                  <p className="text-muted-foreground text-sm">
+                    No installer assets on this release.
+                  </p>
                 ) : (
                   <ul className="grid gap-2 sm:grid-cols-2">
                     {grouped.map(({ group, label, asset }) => (

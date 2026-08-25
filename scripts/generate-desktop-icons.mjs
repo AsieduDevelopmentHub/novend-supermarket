@@ -19,4 +19,3 @@ const pngToIco = requireFromDesktop("png-to-ico");
 const icoBuffer = await pngToIco(pngPath);
 writeFileSync(icoPath, icoBuffer);
 console.log(`Wrote ${icoPath}`);
-

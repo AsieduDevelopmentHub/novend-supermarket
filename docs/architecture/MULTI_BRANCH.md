@@ -14,13 +14,13 @@ multi-branch UI can land without a redesign.
 
 ## Model (full)
 
-| Concept | Scope |
-|---------|--------|
-| Product catalog | Organization-wide |
-| Stock quantity | Per branch (`branchStock`) |
-| Sales, holds, inventory history | Stamped with `branchId` |
-| Customers | Organization-wide (sales still stamp branch) |
-| Users | Assigned to one `branchId` |
+| Concept                         | Scope                                        |
+| ------------------------------- | -------------------------------------------- |
+| Product catalog                 | Organization-wide                            |
+| Stock quantity                  | Per branch (`branchStock`)                   |
+| Sales, holds, inventory history | Stamped with `branchId`                      |
+| Customers                       | Organization-wide (sales still stamp branch) |
+| Users                           | Assigned to one `branchId`                   |
 
 ## Roles (when multi-branch UI ships)
 

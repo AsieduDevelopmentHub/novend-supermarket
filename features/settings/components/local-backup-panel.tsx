@@ -41,7 +41,9 @@ export function LocalBackupPanel() {
       }
       const last = await getLastBackupAt();
       setLastBackupLabel(
-        last ? new Date(last).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "Never",
+        last
+          ? new Date(last).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+          : "Never",
       );
     })();
   }, []);
@@ -52,7 +54,9 @@ export function LocalBackupPanel() {
       await downloadOfflineBackup(backupPassword);
       const last = await getLastBackupAt();
       setLastBackupLabel(
-        last ? new Date(last).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "Just now",
+        last
+          ? new Date(last).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+          : "Just now",
       );
       toast.success(nativeShell ? "Backup saved to Documents" : "Backup downloaded");
     } catch (error) {
@@ -81,9 +85,8 @@ export function LocalBackupPanel() {
       <CardHeader>
         <CardTitle>Local backup</CardTitle>
         <CardDescription>
-          Export or restore this terminal&apos;s offline database — sales, inventory mirror,
-          held carts, and pending sync events. Product image blobs are excluded to keep backups
-          small.
+          Export or restore this terminal&apos;s offline database — sales, inventory mirror, held
+          carts, and pending sync events. Product image blobs are excluded to keep backups small.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -112,7 +115,11 @@ export function LocalBackupPanel() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" disabled={exporting || backupPassword.length < 8} onClick={() => void onExport()}>
+          <Button
+            type="button"
+            disabled={exporting || backupPassword.length < 8}
+            onClick={() => void onExport()}
+          >
             <Download className="mr-2 size-4" aria-hidden />
             {exporting ? "Exporting…" : nativeShell ? "Save backup" : "Download backup"}
           </Button>

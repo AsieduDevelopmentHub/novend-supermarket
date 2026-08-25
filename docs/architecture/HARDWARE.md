@@ -46,20 +46,20 @@ UI components must not call Electron preload or Capacitor plugins directly.
 
 ## Capacitor (Phase 4)
 
-| Feature | Behavior |
-|---------|----------|
-| Camera / gallery | `@capacitor/camera` (DataUrl) → `File` → compress + Dexie image cache |
-| Local image durability | Also written under Capacitor `Directory.Data` (`product-images/`) |
-| Barcode (camera) | Cap camera permission → getUserMedia → bundled **ZXing** (no Google ML Kit / HTTPS module) |
-| Barcode (HID) | Terminal wedge config + `useBarcodeScanner` (desktop primary) |
-| Bluetooth thermal print | `@capacitor-community/bluetooth-le` ESC/POS write |
-| Save PDF / backup JSON | `Directory.Documents` via Filesystem (+ optional Share) |
-| Share receipt | Native share sheet |
-| Biometrics | `@aparajita/capacitor-biometric-auth` — unlock token only (never password); maps supported / enrolled / available |
-| Secure storage | `@aparajita/capacitor-secure-storage` for unlock token |
-| Notifications | `@capacitor/local-notifications` + Android channel + topic prefs (prompt / granted / denied / error / unavailable) |
-| Deep links | `novend://sale/…`, `novend://product/…` via `Hardware.app` |
-| Soft updates | Optional `NEXT_PUBLIC_MOBILE_UPDATE_JSON` vs native version |
+| Feature                 | Behavior                                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Camera / gallery        | `@capacitor/camera` (DataUrl) → `File` → compress + Dexie image cache                                              |
+| Local image durability  | Also written under Capacitor `Directory.Data` (`product-images/`)                                                  |
+| Barcode (camera)        | Cap camera permission → getUserMedia → bundled **ZXing** (no Google ML Kit / HTTPS module)                         |
+| Barcode (HID)           | Terminal wedge config + `useBarcodeScanner` (desktop primary)                                                      |
+| Bluetooth thermal print | `@capacitor-community/bluetooth-le` ESC/POS write                                                                  |
+| Save PDF / backup JSON  | `Directory.Documents` via Filesystem (+ optional Share)                                                            |
+| Share receipt           | Native share sheet                                                                                                 |
+| Biometrics              | `@aparajita/capacitor-biometric-auth` — unlock token only (never password); maps supported / enrolled / available  |
+| Secure storage          | `@aparajita/capacitor-secure-storage` for unlock token                                                             |
+| Notifications           | `@capacitor/local-notifications` + Android channel + topic prefs (prompt / granted / denied / error / unavailable) |
+| Deep links              | `novend://sale/…`, `novend://product/…` via `Hardware.app`                                                         |
+| Soft updates            | Optional `NEXT_PUBLIC_MOBILE_UPDATE_JSON` vs native version                                                        |
 
 Permissions are requested on tap (or when enabling a feature), never at cold
 start except optional biometric unlock when the user opted in.

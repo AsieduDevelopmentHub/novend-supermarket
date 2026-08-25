@@ -898,7 +898,10 @@ export const getReleaseBundle = query({
 
 /** Downloads screen — merged desktop + mobile release bundles, newest first. */
 export const listReleaseBundles = query({
-  args: { channel: v.optional(v.union(v.literal("stable"), v.literal("beta"))), limit: v.optional(v.number()) },
+  args: {
+    channel: v.optional(v.union(v.literal("stable"), v.literal("beta"))),
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requirePlatformAdmin(ctx);
     const channel = args.channel ?? "stable";

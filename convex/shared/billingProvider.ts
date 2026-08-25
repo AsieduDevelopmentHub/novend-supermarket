@@ -33,8 +33,7 @@ export type CheckoutRequest = {
 };
 
 export type CheckoutResult =
-  | { kind: "redirect"; reference: string; url: string }
-  | { kind: "activated"; reference: string };
+  { kind: "redirect"; reference: string; url: string } | { kind: "activated"; reference: string };
 
 export type PaymentVerification = {
   paid: boolean;

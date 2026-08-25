@@ -21,13 +21,7 @@ type Options = {
  */
 export function useLandingReveal(
   rootRef: RefObject<HTMLElement | null>,
-  {
-    scroller,
-    targets = "[data-reveal]",
-    y = 36,
-    duration = 0.9,
-    start = "top 88%",
-  }: Options,
+  { scroller, targets = "[data-reveal]", y = 36, duration = 0.9, start = "top 88%" }: Options,
 ) {
   useEffect(() => {
     const root = rootRef.current;
@@ -94,11 +88,7 @@ export function useLandingHeroIntro(rootRef: RefObject<HTMLElement | null>) {
         y: 24,
         duration: 0.75,
         stagger: 0.08,
-      }).from(
-        "[data-hero-visual]",
-        { autoAlpha: 0, y: 36, rotateX: 8, duration: 1 },
-        "-=0.45",
-      );
+      }).from("[data-hero-visual]", { autoAlpha: 0, y: 36, rotateX: 8, duration: 1 }, "-=0.45");
     }, root);
 
     return () => ctx.revert();

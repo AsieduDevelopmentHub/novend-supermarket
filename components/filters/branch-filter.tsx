@@ -100,7 +100,9 @@ export function BranchFilter({
         id={id}
         className={inline ? undefined : "mt-1"}
         triggerClassName={cn(
-          inline ? "h-9 min-w-0 w-full sm:min-w-[10rem] sm:w-[200px]" : "min-w-[10rem] sm:w-[200px]",
+          inline
+            ? "h-9 min-w-0 w-full sm:min-w-[10rem] sm:w-[200px]"
+            : "min-w-[10rem] sm:w-[200px]",
           triggerClassName,
         )}
         options={options}

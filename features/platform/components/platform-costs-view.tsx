@@ -49,8 +49,13 @@ function fromDateInput(iso: string) {
 
 export function PlatformCostsView() {
   const online = useConnectivity();
-  const { data: rows, loading, queueCreate, queueRemove, flushing } =
-    usePlatformOperatingCostsData();
+  const {
+    data: rows,
+    loading,
+    queueCreate,
+    queueRemove,
+    flushing,
+  } = usePlatformOperatingCostsData();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [amount, setAmount] = useState("");
@@ -65,7 +70,9 @@ export function PlatformCostsView() {
   const total = rows.reduce((sum, row) => sum + row.amount, 0);
   const byCategory = COST_CATEGORIES.map((item) => ({
     ...item,
-    total: rows.filter((row) => row.category === item.value).reduce((sum, row) => sum + row.amount, 0),
+    total: rows
+      .filter((row) => row.category === item.value)
+      .reduce((sum, row) => sum + row.amount, 0),
   })).filter((item) => item.total > 0);
 
   async function onCreate(event: FormEvent) {
@@ -84,9 +91,7 @@ export function PlatformCostsView() {
         description: description.trim() || undefined,
       });
       toast.success(
-        result.queued
-          ? "Cost queued — will sync when you reconnect"
-          : "Operating cost recorded",
+        result.queued ? "Cost queued — will sync when you reconnect" : "Operating cost recorded",
       );
       setOpen(false);
       setAmount("");
@@ -103,9 +108,7 @@ export function PlatformCostsView() {
   async function onRemove(costId: string) {
     try {
       const result = await queueRemove(costId);
-      toast.success(
-        result.queued ? "Removal queued for sync" : "Cost removed",
-      );
+      toast.success(result.queued ? "Removal queued for sync" : "Cost removed");
     } catch (error) {
       showError(error, "Could not remove cost");
     }
@@ -126,7 +129,8 @@ export function PlatformCostsView() {
 
       {!online ? (
         <p className="text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 text-sm">
-          Offline mode: new costs and removals are queued on this device and sync when you reconnect.
+          Offline mode: new costs and removals are queued on this device and sync when you
+          reconnect.
         </p>
       ) : flushing ? (
         <p className="text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 text-sm">

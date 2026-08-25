@@ -1,11 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Doc } from "./_generated/dataModel";
-import {
-  canManageBranches,
-  requireProfile,
-  requireRole,
-} from "./shared/permissions";
+import { canManageBranches, requireProfile, requireRole } from "./shared/permissions";
 import { assertOrganizationCapacity } from "./shared/entitlements";
 import {
   sanitizeOptionalText,

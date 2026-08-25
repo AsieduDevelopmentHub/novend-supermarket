@@ -201,9 +201,7 @@ export function PrinterPanel() {
             <Alert variant="destructive">
               <Info className="h-4 w-4" />
               <AlertTitle>Hardware bridge unavailable</AlertTitle>
-              <AlertDescription>
-                Restart Novend POS, then refresh this status.
-              </AlertDescription>
+              <AlertDescription>Restart Novend POS, then refresh this status.</AlertDescription>
             </Alert>
           ) : null}
 

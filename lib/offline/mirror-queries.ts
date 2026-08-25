@@ -34,12 +34,7 @@ async function mapMirroredProductRows(
 
   return Promise.all(
     products.map(async (product) => {
-      const resolved = await resolveMirroredProductStock(
-        db,
-        product,
-        branchFilter,
-        stockByProduct,
-      );
+      const resolved = await resolveMirroredProductStock(db, product, branchFilter, stockByProduct);
       return {
         ...product,
         stockQuantity: resolved.stockQuantity,
@@ -218,7 +213,10 @@ export async function listLocalOrders(filters: LocalOrderFilters = {}) {
   const pendingRefundBySale = new Map<string, number>();
   for (const row of localReturns) {
     if (row.syncStatus !== "pending" && row.syncStatus !== "failed") continue;
-    pendingRefundBySale.set(row.saleId, (pendingRefundBySale.get(row.saleId) ?? 0) + row.refundAmount);
+    pendingRefundBySale.set(
+      row.saleId,
+      (pendingRefundBySale.get(row.saleId) ?? 0) + row.refundAmount,
+    );
   }
 
   let rows: OrderRow[] = [
@@ -446,12 +444,18 @@ export async function listMirroredExpenses(range?: { startDate: number; endDate:
   if (!db) return [];
   let rows = await db.expenses.toArray();
   if (range) {
-    rows = rows.filter((row) => row.occurredAt >= range.startDate && row.occurredAt <= range.endDate);
+    rows = rows.filter(
+      (row) => row.occurredAt >= range.startDate && row.occurredAt <= range.endDate,
+    );
   }
   return rows.sort((a, b) => b.occurredAt - a.occurredAt);
 }
 
-export async function listMirroredReturns(options?: { search?: string; kind?: string; branchId?: string }) {
+export async function listMirroredReturns(options?: {
+  search?: string;
+  kind?: string;
+  branchId?: string;
+}) {
   const db = await getOfflineDb();
   if (!db) return [];
   const mirrored = await db.returns.toArray();

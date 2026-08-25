@@ -35,7 +35,11 @@ import { showError } from "@/lib/errors";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { getMirroredProduct } from "@/lib/offline/mirror-queries";
-import { persistBusinessWrite, queuedSaveMessage, queueAdjustStock } from "@/lib/offline/replica-writes";
+import {
+  persistBusinessWrite,
+  queuedSaveMessage,
+  queueAdjustStock,
+} from "@/lib/offline/replica-writes";
 import { ArrowLeft, Package, Pencil, PackagePlus, Trash2, Warehouse } from "lucide-react";
 import { ProductImage } from "@/components/media/product-image";
 import { toast } from "sonner";
@@ -44,8 +48,7 @@ import { ProductFormDialog } from "./product-form-dialog";
 export function ProductDetailView({ productId }: { productId: Id<"products"> }) {
   const { canManageProducts, canViewCost, isAdmin, branchId: myBranchId } = usePermissions();
   const online = useConnectivity();
-  const branchScope =
-    isAdmin ? undefined : (myBranchId ?? undefined);
+  const branchScope = isAdmin ? undefined : (myBranchId ?? undefined);
   const remote = useQuery(
     api.products.getProduct,
     online ? { id: productId, branchId: branchScope } : "skip",
@@ -262,7 +265,9 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                 remoteUrl={product.imageUrl}
                 alt={product.name}
                 sizes="280px"
-                fallback={<Package className="text-muted-foreground absolute inset-0 m-auto h-12 w-12" />}
+                fallback={
+                  <Package className="text-muted-foreground absolute inset-0 m-auto h-12 w-12" />
+                }
               />
             </div>
           </CardContent>

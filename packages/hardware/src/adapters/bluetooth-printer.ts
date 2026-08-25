@@ -245,9 +245,7 @@ export function createBluetoothPrinterControls(): BluetoothPrinterControls {
   };
 }
 
-export async function printViaBluetooth(
-  request: PrintReceiptRequest,
-): Promise<HardwareResult> {
+export async function printViaBluetooth(request: PrintReceiptRequest): Promise<HardwareResult> {
   const controls = createBluetoothPrinterControls();
   const prefs = await readPrefs();
   const deviceId = request.bluetoothDeviceId || prefs.deviceId || connectedId;

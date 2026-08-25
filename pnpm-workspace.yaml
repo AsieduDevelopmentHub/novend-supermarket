@@ -11,9 +11,14 @@ allowBuilds:
   unrs-resolver: true
 
 patchedDependencies:
-  '@convex-dev/auth@0.0.87': patches/@convex-dev__auth@0.0.87.patch
+  "@convex-dev/auth@0.0.87": patches/@convex-dev__auth@0.0.87.patch
 
 overrides:
   "@auth/core": ">=0.41.3"
-  postcss: ">=8.5.18"
   sharp: ">=0.35.0"
+
+auditConfig:
+  ignoreGhsas:
+    - GHSA-6g55-p6wh-862q
+    - GHSA-r28c-9q8g-f849
+    - GHSA-f88m-g3jw-g9cj

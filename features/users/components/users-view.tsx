@@ -38,7 +38,11 @@ import { Eye, Pencil, Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
-import { persistBusinessWrite, queuedSaveMessage, queueCreateUser } from "@/lib/offline/replica-writes";
+import {
+  persistBusinessWrite,
+  queuedSaveMessage,
+  queueCreateUser,
+} from "@/lib/offline/replica-writes";
 import { formatPresence } from "@/lib/date";
 import type { AppRole } from "@/config/navigation";
 
@@ -104,7 +108,9 @@ export function UsersView() {
     setEmail("");
     setPassword("");
     setRole("cashier");
-    setBranchId((isManager ? (myBranchId ?? "") : (branches?.[0]?.id ?? "")) as Id<"branches"> | "");
+    setBranchId(
+      (isManager ? (myBranchId ?? "") : (branches?.[0]?.id ?? "")) as Id<"branches"> | "",
+    );
     setPhone("");
   }
 
@@ -162,9 +168,7 @@ export function UsersView() {
             phone: phone || undefined,
           }),
       });
-      toast.success(
-        queuedSaveMessage(kind, "User created. Share the login credentials securely."),
-      );
+      toast.success(queuedSaveMessage(kind, "User created. Share the login credentials securely."));
       setCreating(false);
       setPassword("");
     } catch (error) {
@@ -185,9 +189,7 @@ export function UsersView() {
             ? "Manage cashiers assigned to your branch."
             : "Create accounts and monitor who is online."
         }
-        compactActions={[
-          { key: "add", label: "Add User", icon: Plus, onClick: openCreate },
-        ]}
+        compactActions={[{ key: "add", label: "Add User", icon: Plus, onClick: openCreate }]}
         actions={
           <Button type="button" onClick={openCreate}>
             <Plus className="h-4 w-4" />
@@ -256,7 +258,9 @@ export function UsersView() {
                                 <Badge variant={presence.online ? "success" : "secondary"}>
                                   {presence.online ? "Online" : "Offline"}
                                 </Badge>
-                                <p className="text-muted-foreground mt-1 text-xs">{presence.label}</p>
+                                <p className="text-muted-foreground mt-1 text-xs">
+                                  {presence.label}
+                                </p>
                                 {user.lastDevice ? (
                                   <p className="text-muted-foreground text-xs">{user.lastDevice}</p>
                                 ) : null}

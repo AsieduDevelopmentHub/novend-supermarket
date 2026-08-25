@@ -45,15 +45,17 @@ function wait(ms: number): Promise<void> {
  * Bind the org-scoped Dexie replica before navigating into the app shell so
  * dashboard hydration does not open `novend-offline-anon` first.
  */
-function bindReplicaFromMe(me: {
-  userId?: string | null;
-  name?: string | null;
-  role?: string | null;
-  branchId?: string | null;
-  branch?: string | null;
-  organizationId?: string | null;
-  isPlatformAdmin?: boolean | null;
-} | null): void {
+function bindReplicaFromMe(
+  me: {
+    userId?: string | null;
+    name?: string | null;
+    role?: string | null;
+    branchId?: string | null;
+    branch?: string | null;
+    organizationId?: string | null;
+    isPlatformAdmin?: boolean | null;
+  } | null,
+): void {
   if (!me?.userId) return;
   if (me.isPlatformAdmin && !me.organizationId) return;
   if (!me.organizationId || !me.role || !me.branchId) return;

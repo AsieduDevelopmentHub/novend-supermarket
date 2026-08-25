@@ -41,7 +41,13 @@ export function SyncStatusBanner() {
         </p>
       </div>
       {showConflict ? (
-        <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={openSyncCenter}>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="shrink-0"
+          onClick={openSyncCenter}
+        >
           Review
         </Button>
       ) : null}

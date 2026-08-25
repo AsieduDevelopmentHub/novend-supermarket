@@ -89,7 +89,13 @@ export function deriveAccess(
   now: number,
 ): LicenseAccess {
   if (organizationStatus === "disabled" || organizationStatus === "inactive") {
-    return { state: "disabled", canRead: false, canWrite: false, reason: BLOCKED_DISABLED, expiresAt: null };
+    return {
+      state: "disabled",
+      canRead: false,
+      canWrite: false,
+      reason: BLOCKED_DISABLED,
+      expiresAt: null,
+    };
   }
   if (organizationStatus === "suspended") {
     return {

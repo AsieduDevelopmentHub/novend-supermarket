@@ -182,9 +182,7 @@ export const summary = query({
         .query("customers")
         .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
         .collect()
-    ).filter(
-      (c) => c.status === "active",
-    ).length;
+    ).filter((c) => c.status === "active").length;
 
     return {
       role: profile.role,

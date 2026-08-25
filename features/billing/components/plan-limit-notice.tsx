@@ -24,7 +24,10 @@ function formatQuantity(resource: LimitResource, value: number): string {
 export function PlanLimitNotice({ resource }: { resource: LimitResource }) {
   const online = useConnectivity();
   const { isCashier, isAdmin, isLoading } = usePermissions();
-  const data = useQuery(api.billing.usageSnapshot, online && !isCashier && !isLoading ? {} : "skip");
+  const data = useQuery(
+    api.billing.usageSnapshot,
+    online && !isCashier && !isLoading ? {} : "skip",
+  );
 
   const metric = data?.usage.find((item) => item.resource === resource);
   if (!data || !metric || metric.level === "ok" || metric.limit === null) return null;

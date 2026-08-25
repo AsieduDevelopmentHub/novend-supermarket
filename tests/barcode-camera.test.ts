@@ -1,8 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import {
-  cameraErrorMessage,
-  isCameraBarcodeSupported,
-} from "@/services/hardware/barcode-camera";
+import { cameraErrorMessage, isCameraBarcodeSupported } from "@/services/hardware/barcode-camera";
 
 describe("camera barcode support", () => {
   const originalNavigator = globalThis.navigator;

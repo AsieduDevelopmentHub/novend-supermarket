@@ -19,10 +19,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * Also set Convex auth to the same origin:
  *   npx convex env set SITE_URL http://10.0.2.2:3000
  */
-const appUrl = (process.env.NOVEND_APP_URL || "https://novend-pos.vercel.app").replace(
-  /\/$/,
-  "",
-);
+const appUrl = (process.env.NOVEND_APP_URL || "https://novend-pos.vercel.app").replace(/\/$/, "");
 /** Matches Electron `OFFLINE_ENTRY_PATH` in apps/desktop/src/window.ts */
 const APP_ENTRY_PATH = "/dashboard";
 const liveReload = appUrl.startsWith("http://");

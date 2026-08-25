@@ -16,12 +16,7 @@ import {
   type PlanUsageExcess,
 } from "./plans";
 
-export type PlanChangeIntent =
-  | "same"
-  | "cancel_scheduled"
-  | "downgrade"
-  | "upgrade"
-  | "purchase";
+export type PlanChangeIntent = "same" | "cancel_scheduled" | "downgrade" | "upgrade" | "purchase";
 
 export type ScheduledChangeSnapshot = {
   type: "downgrade";
@@ -177,7 +172,11 @@ export function computePlanChangePreview(input: PlanChangeInput): PlanChangePrev
         nextBillingDate: input.expiresAt,
       };
     }
-    if (input.accessState === "trial" || input.accessState === "grace" || input.accessState === "expired") {
+    if (
+      input.accessState === "trial" ||
+      input.accessState === "grace" ||
+      input.accessState === "expired"
+    ) {
       return { ...base, intent: "purchase" };
     }
     return {
@@ -205,7 +204,13 @@ export function computePlanChangePreview(input: PlanChangeInput): PlanChangePrev
   }
 
   // Upgrade — always from the active plan, never from a scheduled downgrade.
-  if (paidRemainder && currentPrice !== null && input.startsAt && input.expiresAt && !target.isLifetime) {
+  if (
+    paidRemainder &&
+    currentPrice !== null &&
+    input.startsAt &&
+    input.expiresAt &&
+    !target.isLifetime
+  ) {
     const proration = prorateUpgrade({
       currentPrice,
       newPrice: targetPrice,
@@ -224,7 +229,13 @@ export function computePlanChangePreview(input: PlanChangeInput): PlanChangePrev
     };
   }
 
-  if (paidRemainder && currentPrice !== null && target.isLifetime && input.startsAt && input.expiresAt) {
+  if (
+    paidRemainder &&
+    currentPrice !== null &&
+    target.isLifetime &&
+    input.startsAt &&
+    input.expiresAt
+  ) {
     const proration = prorateUpgrade({
       currentPrice,
       newPrice: targetPrice,

@@ -129,11 +129,7 @@ function PasswordForm({ readOnly = false }: { readOnly?: boolean }) {
             />
           </div>
           <Button type="submit" disabled={savingPassword || readOnly}>
-            {readOnly
-              ? "Needs a connection"
-              : savingPassword
-                ? "Updating…"
-                : "Update password"}
+            {readOnly ? "Needs a connection" : savingPassword ? "Updating…" : "Update password"}
           </Button>
           {readOnly ? (
             <p className="text-muted-foreground text-sm">

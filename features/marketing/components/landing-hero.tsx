@@ -18,25 +18,19 @@ export function LandingHero() {
     <section className="landing-v2-hero relative isolate min-h-dvh bg-white lg:min-h-screen">
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-7xl flex-col justify-center px-4 pt-24 pb-16 sm:px-6 lg:min-h-screen lg:px-8 lg:pt-28 lg:pb-20">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-10 xl:gap-14">
-          <div
-            data-hero-visual
-            className="order-1 flex items-center justify-center lg:order-2"
-          >
+          <div data-hero-visual className="order-1 flex items-center justify-center lg:order-2">
             <LandingHeroProductStage />
           </div>
 
           <div data-hero-copy className="order-2 max-w-[560px] lg:order-1">
-            <p className="text-primary text-[13px] font-semibold tracking-wide">
-              {hero.badge}
-            </p>
+            <p className="text-primary text-[13px] font-semibold tracking-wide">{hero.badge}</p>
 
-            <h1 className="text-[#111827] mt-4 text-[2rem] leading-[1.08] font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.5rem] lg:leading-[1.08] xl:text-[4rem]">
-              {hero.headlineLead}{" "}
-              <span className="text-primary">{hero.headlineAccent}</span> Even{" "}
+            <h1 className="mt-4 text-[2rem] leading-[1.08] font-semibold tracking-tight text-balance text-[#111827] sm:text-5xl lg:text-[3.5rem] lg:leading-[1.08] xl:text-[4rem]">
+              {hero.headlineLead} <span className="text-primary">{hero.headlineAccent}</span> Even{" "}
               <span className="text-primary">Offline.</span>
             </h1>
 
-            <p className="text-slate-600 mt-5 text-base leading-relaxed text-pretty sm:text-lg">
+            <p className="mt-5 text-base leading-relaxed text-pretty text-slate-600 sm:text-lg">
               {hero.subhead}
             </p>
 
@@ -52,7 +46,7 @@ export function LandingHero() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="h-11 w-full border-primary/40 px-6 text-[15px] font-semibold text-[#111827] sm:w-auto"
+                className="border-primary/40 h-11 w-full px-6 text-[15px] font-semibold text-[#111827] sm:w-auto"
               >
                 <Link href={hero.secondaryHref}>{hero.secondaryCta}</Link>
               </Button>
@@ -64,7 +58,7 @@ export function LandingHero() {
                 return (
                   <li
                     key={chip.id}
-                    className="text-slate-700 inline-flex items-center gap-2 text-sm font-medium"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-slate-700"
                   >
                     <span className="bg-primary/12 text-primary flex h-8 w-8 items-center justify-center rounded-lg">
                       <Icon className="h-4 w-4" aria-hidden />

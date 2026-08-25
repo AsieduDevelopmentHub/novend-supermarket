@@ -96,8 +96,7 @@ export const paystackWebhookHttp = httpAction(async (ctx, request) => {
         readString(data, "subscription_code");
       const metadata = readMetadata(data);
       const organizationId = readString(metadata, "organizationId") as
-        | Id<"organizations">
-        | undefined;
+        Id<"organizations"> | undefined;
       const planKeyRaw = metadata.planKey;
       const planKey = isPlanKey(planKeyRaw) ? (planKeyRaw as PlanKey) : undefined;
       const cycle = readCycle(metadata.cycle);

@@ -65,9 +65,13 @@ export function ReceiptPrintModePicker({
                 disabled && "cursor-not-allowed opacity-60",
               )}
             >
-              <Icon className={cn("mb-3 h-5 w-5", selected ? "text-primary" : "text-muted-foreground")} />
+              <Icon
+                className={cn("mb-3 h-5 w-5", selected ? "text-primary" : "text-muted-foreground")}
+              />
               <p className="font-semibold">{option.title}</p>
-              <p className="text-muted-foreground mt-1 text-xs leading-relaxed">{option.description}</p>
+              <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+                {option.description}
+              </p>
             </button>
           );
         })}

@@ -9,19 +9,16 @@ export function LandingCta() {
   const { cta } = landingCopy;
 
   return (
-    <section
-      id="contact"
-      className="scroll-mt-24 bg-white px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
-    >
+    <section id="contact" className="scroll-mt-24 bg-white px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
       <div
         data-reveal
         className="border-border relative mx-auto grid max-w-6xl overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-[#F8FAFC] lg:grid-cols-2 lg:items-center"
       >
         <div className="px-5 py-12 text-center sm:px-12 sm:py-16 lg:text-left">
-          <h2 className="text-[#111827] text-2xl font-semibold tracking-tight text-balance sm:text-4xl">
+          <h2 className="text-2xl font-semibold tracking-tight text-balance text-[#111827] sm:text-4xl">
             {cta.title}
           </h2>
-          <p className="text-slate-600 mx-auto mt-4 max-w-xl text-base leading-relaxed text-pretty sm:text-lg lg:mx-0">
+          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-pretty text-slate-600 sm:text-lg lg:mx-0">
             {cta.subtitle}
           </p>
 
@@ -37,7 +34,7 @@ export function LandingCta() {
               asChild
               size="lg"
               variant="outline"
-              className="landing-shadow-cta-outline h-11 w-full border-primary/40 bg-white/80 px-6 text-[15px] font-semibold text-[#111827] transition-[box-shadow,transform] hover:-translate-y-0.5 active:translate-y-0 sm:w-auto"
+              className="landing-shadow-cta-outline border-primary/40 h-11 w-full bg-white/80 px-6 text-[15px] font-semibold text-[#111827] transition-[box-shadow,transform] hover:-translate-y-0.5 active:translate-y-0 sm:w-auto"
             >
               <Link href={cta.secondaryHref}>{cta.secondary}</Link>
             </Button>
@@ -55,7 +52,7 @@ export function LandingCta() {
           </ul>
         </div>
 
-        <div className="landing-cta-devices relative flex min-h-[240px] items-end justify-center px-4 pb-6 pt-4 sm:px-8 lg:min-h-[340px] lg:pb-8">
+        <div className="landing-cta-devices relative flex min-h-[240px] items-end justify-center px-4 pt-4 pb-6 sm:px-8 lg:min-h-[340px] lg:pb-8">
           <div className="landing-cta-devices-frame">
             <Image
               src={BRANDING.landingCtaDevices}

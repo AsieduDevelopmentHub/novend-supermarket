@@ -142,8 +142,14 @@ export async function exportOfflineBackup(): Promise<OfflineBackupPayload> {
   return {
     version: BACKUP_VERSION,
     exportedAt: Date.now(),
-    organizationId: typeof window !== "undefined" ? window.localStorage.getItem("novend.offlineOrganizationId") ?? undefined : undefined,
-    userId: typeof window !== "undefined" ? window.localStorage.getItem("novend.offlineUserId") ?? undefined : undefined,
+    organizationId:
+      typeof window !== "undefined"
+        ? (window.localStorage.getItem("novend.offlineOrganizationId") ?? undefined)
+        : undefined,
+    userId:
+      typeof window !== "undefined"
+        ? (window.localStorage.getItem("novend.offlineUserId") ?? undefined)
+        : undefined,
     tables,
   };
 }
@@ -221,8 +227,15 @@ export async function importOfflineBackup(payload: OfflineBackupPayload) {
   if (!SUPPORTED_VERSIONS.has(payload.version)) {
     throw new Error("Unsupported backup version");
   }
-  const currentOrganization = typeof window !== "undefined" ? window.localStorage.getItem("novend.offlineOrganizationId") : null;
-  if (payload.organizationId && currentOrganization && payload.organizationId !== currentOrganization) {
+  const currentOrganization =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("novend.offlineOrganizationId")
+      : null;
+  if (
+    payload.organizationId &&
+    currentOrganization &&
+    payload.organizationId !== currentOrganization
+  ) {
     throw new Error("This backup belongs to a different organization");
   }
 
@@ -238,7 +251,10 @@ export async function importOfflineBackup(payload: OfflineBackupPayload) {
   });
 }
 
-export async function readBackupFile(file: File, passphrase: string): Promise<OfflineBackupPayload> {
+export async function readBackupFile(
+  file: File,
+  passphrase: string,
+): Promise<OfflineBackupPayload> {
   const text = await file.text();
   const parsed = JSON.parse(text) as unknown;
   if (

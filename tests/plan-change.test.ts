@@ -41,7 +41,9 @@ describe("prorateUpgrade", () => {
     });
     expect(result.remainingRatio).toBeGreaterThan(0.4);
     expect(result.remainingRatio).toBeLessThan(0.6);
-    expect(result.amountDueToday).toBe(roundMoney(result.newPlanRemainingCost - result.currentCredit));
+    expect(result.amountDueToday).toBe(
+      roundMoney(result.newPlanRemainingCost - result.currentCredit),
+    );
     expect(result.amountDueToday).toBeGreaterThan(90);
     expect(result.amountDueToday).toBeLessThan(110);
   });
@@ -160,7 +162,10 @@ describe("computePlanChangePreview", () => {
 describe("usageExceedsLimits", () => {
   it("never treats unlimited resources as excess", () => {
     expect(
-      usageExceedsLimits({ products: 99999 }, { products: null, users: 3, branches: 1, devices: 3, backupBytes: 1 }),
+      usageExceedsLimits(
+        { products: 99999 },
+        { products: null, users: 3, branches: 1, devices: 3, backupBytes: 1 },
+      ),
     ).toEqual([]);
   });
 });

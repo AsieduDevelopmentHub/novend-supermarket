@@ -65,12 +65,20 @@ export function describeOutboxEvent(row: OutboxRow): { title: string; detail: st
   if (row.type === "process_return") {
     return { title, detail: text(payload.reason) ?? "Return waiting to upload" };
   }
-  if (row.type === "upsert_supplier" || row.type === "upsert_customer" || row.type === "upsert_product") {
+  if (
+    row.type === "upsert_supplier" ||
+    row.type === "upsert_customer" ||
+    row.type === "upsert_product"
+  ) {
     const name = text(payload.name);
     const sku = text(payload.sku);
     return { title, detail: [name, sku].filter(Boolean).join(" · ") || title };
   }
-  if (row.type === "create_category" || row.type === "create_user" || row.type === "upsert_branch") {
+  if (
+    row.type === "create_category" ||
+    row.type === "create_user" ||
+    row.type === "upsert_branch"
+  ) {
     return { title, detail: text(payload.name) ?? text(payload.code) ?? title };
   }
   if (row.type === "record_wholesale_purchase") {

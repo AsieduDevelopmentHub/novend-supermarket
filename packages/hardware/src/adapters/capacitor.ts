@@ -71,19 +71,14 @@ async function persistProductImageFromBytes(
   }
 }
 
-async function ensureCameraPermission(
-  source: CameraSource,
-): Promise<HardwareResult> {
+async function ensureCameraPermission(source: CameraSource): Promise<HardwareResult> {
   // Android's system photo picker is scoped to the selected file and does
   // not require READ_MEDIA_IMAGES. Asking for that broad permission first can
   // leave the picker blocked even after the user grants access.
   if (source === CameraSource.Photos) return { ok: true };
 
   try {
-    const permission = await withTimeout(
-      Camera.checkPermissions(),
-      NATIVE_AVAILABILITY_TIMEOUT_MS,
-    );
+    const permission = await withTimeout(Camera.checkPermissions(), NATIVE_AVAILABILITY_TIMEOUT_MS);
     const needsPrompt =
       source === CameraSource.Camera
         ? permission.camera !== "granted"

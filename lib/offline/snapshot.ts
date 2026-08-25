@@ -48,7 +48,11 @@ export type PullOfflineSnapshotOptions = {
 };
 
 async function replaceServerRows<T extends { id: string }>(
-  table: { filter: (fn: (row: T) => boolean) => { toArray: () => Promise<T[]> }; clear: () => Promise<void>; bulkPut: (rows: T[]) => Promise<unknown> },
+  table: {
+    filter: (fn: (row: T) => boolean) => { toArray: () => Promise<T[]> };
+    clear: () => Promise<void>;
+    bulkPut: (rows: T[]) => Promise<unknown>;
+  },
   rows: T[],
 ) {
   const localOnly = await table.filter((row) => row.id.startsWith("local_")).toArray();
@@ -149,7 +153,10 @@ export async function applySnapshot(
     db.meta,
   ];
   await db.transaction("rw", tables, async () => {
-    await replaceServerRows(db.products, snapshot.products.map((p) => ({ ...p, updatedAt: p.updatedAt || now })));
+    await replaceServerRows(
+      db.products,
+      snapshot.products.map((p) => ({ ...p, updatedAt: p.updatedAt || now })),
+    );
     await replaceServerRows(db.branchStock, snapshot.branchStock ?? []);
     await replaceServerRows(db.categories, snapshot.categories);
     await replaceServerRows(

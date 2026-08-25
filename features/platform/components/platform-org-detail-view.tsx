@@ -310,9 +310,7 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
                         <tr key={person.id} className="border-border border-t">
                           <td className="py-2">
                             <p className="font-medium">{person.name}</p>
-                            <p className="text-muted-foreground text-xs">
-                              {person.email ?? "—"}
-                            </p>
+                            <p className="text-muted-foreground text-xs">{person.email ?? "—"}</p>
                           </td>
                           <td className="py-2 capitalize">{person.role}</td>
                           <td className="py-2">{person.branchName ?? "—"}</td>
@@ -441,13 +439,7 @@ function Info({
   return (
     <div>
       <p className="text-muted-foreground text-xs">{label}</p>
-      <p
-        className={cn(
-          "mt-1 font-medium break-words",
-          mono && "font-mono text-xs",
-          className,
-        )}
-      >
+      <p className={cn("mt-1 font-medium break-words", mono && "font-mono text-xs", className)}>
         {value}
       </p>
     </div>

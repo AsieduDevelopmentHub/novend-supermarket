@@ -1,9 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import {
-  requireRoleIgnoringLicense,
-  requireSessionIgnoringLicense,
-} from "./shared/permissions";
+import { requireRoleIgnoringLicense, requireSessionIgnoringLicense } from "./shared/permissions";
 import { writeAuditLog } from "./shared/audit";
 import { assertWithinLimit, resolveLicense } from "./shared/entitlements";
 import { sanitizeText, TEXT_LIMITS } from "./shared/validation";

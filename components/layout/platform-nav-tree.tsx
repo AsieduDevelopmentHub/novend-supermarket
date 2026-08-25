@@ -136,7 +136,7 @@ function PlatformNavGroupSection({
         onClick={onToggle}
         aria-expanded={expanded}
         className={cn(
-          "text-sidebar-foreground/90 hover:bg-white/5 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors",
+          "text-sidebar-foreground/90 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors hover:bg-white/5",
           hasActiveChild && "text-white",
         )}
       >

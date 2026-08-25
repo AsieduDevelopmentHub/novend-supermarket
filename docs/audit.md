@@ -29,16 +29,16 @@ The main recommendation is to make tenant ownership a mandatory post-`db.get` in
 
 ## Risk summary
 
-| Area | Rating | Main reason |
-|---|---|---|
-| Tenant isolation and authorization | Critical | Three cross-organization write paths are confirmed. |
-| Authentication and abuse resistance | High | Lockout is client-driven; public failure recording enables denial of service. |
-| Billing integrity | Medium-High | Strong webhook design, but callback ownership and reconciliation are incomplete. |
-| Offline and local data security | Medium-High | Correct scoping, but local plaintext data and stale offline authority remain. |
-| Business correctness and scale | High | Invoice, return, and purchase sequences are non-atomic; many full-table scans exist. |
-| Mobile/release reliability | High | Native changes require a new APK; baked origin, stale shell cache, and debug-sign fallback can confuse or break rollout. |
-| UI/UX and accessibility | Medium | Good states and responsive structure, but dense settings and device-specific workflows need testing. |
-| Operations and compliance | Medium-High | CI quality checks exist, but no test job, centralized telemetry, security scanning, or formal recovery controls were found. |
+| Area                                | Rating      | Main reason                                                                                                                 |
+| ----------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Tenant isolation and authorization  | Critical    | Three cross-organization write paths are confirmed.                                                                         |
+| Authentication and abuse resistance | High        | Lockout is client-driven; public failure recording enables denial of service.                                               |
+| Billing integrity                   | Medium-High | Strong webhook design, but callback ownership and reconciliation are incomplete.                                            |
+| Offline and local data security     | Medium-High | Correct scoping, but local plaintext data and stale offline authority remain.                                               |
+| Business correctness and scale      | High        | Invoice, return, and purchase sequences are non-atomic; many full-table scans exist.                                        |
+| Mobile/release reliability          | High        | Native changes require a new APK; baked origin, stale shell cache, and debug-sign fallback can confuse or break rollout.    |
+| UI/UX and accessibility             | Medium      | Good states and responsive structure, but dense settings and device-specific workflows need testing.                        |
+| Operations and compliance           | Medium-High | CI quality checks exist, but no test job, centralized telemetry, security scanning, or formal recovery controls were found. |
 
 ## Strengths
 

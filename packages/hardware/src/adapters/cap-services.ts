@@ -84,15 +84,11 @@ export function createCapacitorBiometricsAdapter(): BiometricsAdapter {
     async checkAvailability() {
       try {
         // Keep Settings probes short — a hung Cap call blocks the whole WebView bridge.
-        const result = await withTimeout(
-          BiometricAuth.checkBiometry(),
-          NATIVE_SETTINGS_PROBE_MS,
-        );
+        const result = await withTimeout(BiometricAuth.checkBiometry(), NATIVE_SETTINGS_PROBE_MS);
         const biometryType = mapBiometry(result.biometryType);
         const biometryTypes = Array.isArray(result.biometryTypes) ? result.biometryTypes : [];
         const supported =
-          biometryType !== "none" ||
-          biometryTypes.some((type) => mapBiometry(type) !== "none");
+          biometryType !== "none" || biometryTypes.some((type) => mapBiometry(type) !== "none");
         // The plugin documents isAvailable as the enrolled-and-usable signal.
         // strongBiometryIsAvailable is a safe fallback for older native builds.
         const available = Boolean(result.isAvailable || result.strongBiometryIsAvailable);
@@ -411,7 +407,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
               ? `${process.env.NEXT_PUBLIC_CONVEX_SITE_URL.replace(/\/$/, "")}/mobile-updates/latest`
               : typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CONVEX_URL
                 ? `${process.env.NEXT_PUBLIC_CONVEX_URL.replace(/\.convex\.cloud\/?$/, ".convex.site")}/mobile-updates/latest`
-              : null;
+                : null;
         if (!endpoint) {
           return {
             ok: true,
@@ -434,10 +430,14 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           mandatory?: boolean;
         };
         const compareVersions = (left: string, right: string) => {
-          const parse = (value: string) => value.replace(/^v/i, "").split(".").map((part) => {
-            const number = Number.parseInt(part, 10);
-            return Number.isFinite(number) ? number : 0;
-          });
+          const parse = (value: string) =>
+            value
+              .replace(/^v/i, "")
+              .split(".")
+              .map((part) => {
+                const number = Number.parseInt(part, 10);
+                return Number.isFinite(number) ? number : 0;
+              });
           const a = parse(left);
           const b = parse(right);
           for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
@@ -446,7 +446,9 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           }
           return 0;
         };
-        const available = Boolean(remote.version && compareVersions(remote.version, info.version) > 0);
+        const available = Boolean(
+          remote.version && compareVersions(remote.version, info.version) > 0,
+        );
         return {
           ok: true,
           data: {
@@ -505,8 +507,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
     async openAppSettings() {
       try {
         const info = await App.getInfo();
-        const isAndroid =
-          typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
+        const isAndroid = typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
         const settingsUrl = isAndroid
           ? `intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:${info.id};end`
           : "app-settings:";

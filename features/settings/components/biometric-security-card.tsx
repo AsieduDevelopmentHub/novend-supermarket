@@ -4,21 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import {
-  Hardware,
-  NATIVE_SETTINGS_PROBE_MS,
-  type BiometricAvailability,
-} from "@novend/hardware";
+import { Hardware, NATIVE_SETTINGS_PROBE_MS, type BiometricAvailability } from "@novend/hardware";
 import { Fingerprint, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { runNativeSettingsCheck } from "@/features/settings/native-settings-check";
 
-type BiometricUiState =
-  | "checking"
-  | "available"
-  | "unavailable"
-  | "unsupported"
-  | "error";
+type BiometricUiState = "checking" | "available" | "unavailable" | "unsupported" | "error";
 
 /**
  * Optional biometric unlock — never stores the account password.
@@ -42,18 +33,18 @@ export function BiometricSecurityCard() {
       setUiState("checking");
       setMessage(null);
     }
-    const hardStop = window.setTimeout(() => {
-      if (generation !== checkGenerationRef.current) return;
-      setUiState("error");
-      setMessage("Biometrics took too long to respond on this device.");
-    }, NATIVE_SETTINGS_PROBE_MS * 2 + 500);
+    const hardStop = window.setTimeout(
+      () => {
+        if (generation !== checkGenerationRef.current) return;
+        setUiState("error");
+        setMessage("Biometrics took too long to respond on this device.");
+      },
+      NATIVE_SETTINGS_PROBE_MS * 2 + 500,
+    );
 
     try {
       const [avail, prefs] = await runNativeSettingsCheck(() =>
-        Promise.all([
-          Hardware.biometrics.checkAvailability(),
-          Hardware.biometrics.getPrefs(),
-        ]),
+        Promise.all([Hardware.biometrics.checkAvailability(), Hardware.biometrics.getPrefs()]),
       );
       if (generation !== checkGenerationRef.current) return;
       const data = avail.data ?? {

@@ -76,10 +76,7 @@ export function PlatformLicensePanel({
   limitOverrides: LimitOverrides;
 }) {
   const online = useConnectivity();
-  const license = useQuery(
-    api.billing.organizationLicense,
-    online ? { organizationId } : "skip",
-  );
+  const license = useQuery(api.billing.organizationLicense, online ? { organizationId } : "skip");
   const assignPlan = useMutation(api.billing.assignPlan);
   const startTrial = useMutation(api.billing.startTrial);
   const resetActivation = useMutation(api.billing.resetActivation);
@@ -373,9 +370,7 @@ export function PlatformLicensePanel({
                       <p className="text-muted-foreground text-xs">{payment.reference}</p>
                     </td>
                     <td className="py-2 capitalize">{payment.gateway}</td>
-                    <td className="py-2 text-right">
-                      {formatCurrency(payment.amount)}
-                    </td>
+                    <td className="py-2 text-right">{formatCurrency(payment.amount)}</td>
                     <td className="py-2">
                       <Badge
                         variant={
@@ -401,8 +396,8 @@ export function PlatformLicensePanel({
         <CardHeader>
           <CardTitle className="text-destructive">Danger zone</CardTitle>
           <CardDescription>
-            Archives the organization instead of permanently deleting its records — every device
-            is deactivated and access is fully blocked. Reactivate later from Account status above.
+            Archives the organization instead of permanently deleting its records — every device is
+            deactivated and access is fully blocked. Reactivate later from Account status above.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -495,7 +490,9 @@ function LimitOverridesEditor({
     clear?: OverrideResource[];
   }) => void;
 }) {
-  const [state, setState] = useState<Record<OverrideResource, { mode: OverrideMode; value: string }>>(
+  const [state, setState] = useState<
+    Record<OverrideResource, { mode: OverrideMode; value: string }>
+  >(
     () =>
       Object.fromEntries(
         OVERRIDE_RESOURCES.map((resource) => {
@@ -543,8 +540,8 @@ function LimitOverridesEditor({
       <div className="space-y-1">
         <p className="text-sm font-medium">Resource limit overrides</p>
         <p className="text-muted-foreground text-xs">
-          Overrides win over the plan default for this organization only. Existing records are
-          never removed if a lower limit is applied — only new creation is blocked.
+          Overrides win over the plan default for this organization only. Existing records are never
+          removed if a lower limit is applied — only new creation is blocked.
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -564,7 +561,10 @@ function LimitOverridesEditor({
                   value={entry.mode}
                   disabled={disabled}
                   onValueChange={(mode) =>
-                    setState((prev) => ({ ...prev, [resource]: { ...prev[resource], mode: mode as OverrideMode } }))
+                    setState((prev) => ({
+                      ...prev,
+                      [resource]: { ...prev[resource], mode: mode as OverrideMode },
+                    }))
                   }
                 >
                   <SelectTrigger id={`override-${resource}`} className="flex-1">
@@ -614,9 +614,7 @@ function EnterpriseBackupQuota({
   disabled: boolean;
   onSave: (backupLimitGb: number | null) => void;
 }) {
-  const [value, setValue] = useState(
-    currentBytes === null ? "" : String(currentBytes / GIBIBYTE),
-  );
+  const [value, setValue] = useState(currentBytes === null ? "" : String(currentBytes / GIBIBYTE));
 
   function submit() {
     const trimmed = value.trim();

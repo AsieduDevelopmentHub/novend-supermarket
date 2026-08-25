@@ -12,8 +12,7 @@ export function lineRefundAmount(args: {
 }): number {
   if (args.returningQty <= 0 || args.soldQty <= 0) return 0;
   const gross = (args.returningQty / args.soldQty) * args.lineTotal;
-  const cartShare =
-    args.saleSubtotal > 0 ? (gross / args.saleSubtotal) * args.saleCartDiscount : 0;
+  const cartShare = args.saleSubtotal > 0 ? (gross / args.saleSubtotal) * args.saleCartDiscount : 0;
   return roundMoney(Math.max(0, gross - cartShare));
 }
 

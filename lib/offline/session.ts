@@ -24,7 +24,9 @@ export type OfflineSessionHint = {
 function readStoredSessionRaw(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    return (
+      window.localStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_STORAGE_KEY)
+    );
   } catch {
     return null;
   }
@@ -70,7 +72,10 @@ export function readOfflineSession(): OfflineSessionHint | null {
     migrateLegacySession(raw);
     const parsed = JSON.parse(raw) as OfflineSessionHint;
     if (!parsed?.userId || !parsed?.role || !parsed?.branchId) return null;
-    if (!Number.isFinite(parsed.savedAt) || Date.now() - parsed.savedAt > OFFLINE_AUTHORITY_TTL_MS) {
+    if (
+      !Number.isFinite(parsed.savedAt) ||
+      Date.now() - parsed.savedAt > OFFLINE_AUTHORITY_TTL_MS
+    ) {
       clearOfflineSession();
       return null;
     }

@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  resolveInstallPromptKind,
-  resolveMobileInstallOs,
-} from "@/lib/device-install";
+import { resolveInstallPromptKind, resolveMobileInstallOs } from "@/lib/device-install";
 
 describe("install prompt device detection", () => {
   it("classifies Android phones as mobile android", () => {

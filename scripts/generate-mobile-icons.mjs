@@ -21,7 +21,9 @@ const sourceCandidates = [
 
 const source = sourceCandidates.find((path) => existsSync(path));
 if (!source) {
-  console.error("No Novend icon source found (desktop build/icon.png or public/branding/brandmark.png)");
+  console.error(
+    "No Novend icon source found (desktop build/icon.png or public/branding/brandmark.png)",
+  );
   process.exit(1);
 }
 
@@ -67,10 +69,7 @@ const FOREGROUND = [
 async function writeLauncher(dir, size) {
   const outDir = join(androidRes, dir);
   mkdirSync(outDir, { recursive: true });
-  const buf = await sharp(masterPath)
-    .resize(size, size, { fit: "cover" })
-    .png()
-    .toBuffer();
+  const buf = await sharp(masterPath).resize(size, size, { fit: "cover" }).png().toBuffer();
   writeFileSync(join(outDir, "ic_launcher.png"), buf);
   writeFileSync(join(outDir, "ic_launcher_round.png"), buf);
 }

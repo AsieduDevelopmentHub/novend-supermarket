@@ -3,13 +3,7 @@
  * Uses the shared Dexie `meta` store under a platform-scoped DB binding.
  */
 
-import {
-  bindOfflineOrganization,
-  getMeta,
-  getOfflineDb,
-  META_KEYS,
-  setMeta,
-} from "./db";
+import { bindOfflineOrganization, getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
 
 export const PLATFORM_OFFLINE_ORG_ID = "platform";
 
@@ -149,9 +143,7 @@ async function writeJsonMeta(key: string, value: unknown) {
   await setMeta(db, key, JSON.stringify(value));
 }
 
-export async function savePlatformOverview(
-  overview: Omit<PlatformOverviewCache, "cachedAt">,
-) {
+export async function savePlatformOverview(overview: Omit<PlatformOverviewCache, "cachedAt">) {
   await writeJsonMeta(META_KEYS.platformOverview, {
     ...overview,
     cachedAt: Date.now(),
@@ -162,9 +154,7 @@ export async function loadPlatformOverview(): Promise<PlatformOverviewCache | nu
   return readJsonMeta<PlatformOverviewCache>(META_KEYS.platformOverview);
 }
 
-export async function savePlatformOrganizations(
-  organizations: PlatformOrganizationListItem[],
-) {
+export async function savePlatformOrganizations(organizations: PlatformOrganizationListItem[]) {
   await writeJsonMeta(META_KEYS.platformOrganizations, {
     organizations,
     cachedAt: Date.now(),
@@ -175,10 +165,7 @@ export async function loadPlatformOrganizations(): Promise<PlatformOrganizations
   return readJsonMeta<PlatformOrganizationsCache>(META_KEYS.platformOrganizations);
 }
 
-export async function savePlatformReleases(
-  channel: string,
-  releases: PlatformReleaseCacheItem[],
-) {
+export async function savePlatformReleases(channel: string, releases: PlatformReleaseCacheItem[]) {
   await writeJsonMeta(META_KEYS.platformReleases, {
     channel,
     releases,
@@ -201,9 +188,7 @@ export async function savePlatformOrgDetail(organizationId: string, payload: unk
 export async function loadPlatformOrgDetail(
   organizationId: string,
 ): Promise<PlatformOrgDetailCache | null> {
-  return readJsonMeta<PlatformOrgDetailCache>(
-    `${META_KEYS.platformOrgDetail}:${organizationId}`,
-  );
+  return readJsonMeta<PlatformOrgDetailCache>(`${META_KEYS.platformOrgDetail}:${organizationId}`);
 }
 
 export type PlatformRevenueRange = "today" | "7d" | "30d" | "12m";
@@ -273,10 +258,7 @@ export type PlatformCostDraftRemove = {
 
 export type PlatformCostDraft = PlatformCostDraftCreate | PlatformCostDraftRemove;
 
-export async function savePlatformRevenue(
-  range: PlatformRevenueRange,
-  payload: unknown,
-) {
+export async function savePlatformRevenue(range: PlatformRevenueRange, payload: unknown) {
   await writeJsonMeta(`${META_KEYS.platformRevenue}:${range}`, {
     range,
     payload,
@@ -331,12 +313,8 @@ export async function savePlatformPayment(paymentId: string, payload: unknown) {
   } satisfies PlatformPaymentCache);
 }
 
-export async function loadPlatformPayment(
-  paymentId: string,
-): Promise<PlatformPaymentCache | null> {
-  return readJsonMeta<PlatformPaymentCache>(
-    `${META_KEYS.platformPaymentDetail}:${paymentId}`,
-  );
+export async function loadPlatformPayment(paymentId: string): Promise<PlatformPaymentCache | null> {
+  return readJsonMeta<PlatformPaymentCache>(`${META_KEYS.platformPaymentDetail}:${paymentId}`);
 }
 
 export async function savePlatformReleaseBundle(version: string, payload: unknown) {
@@ -350,15 +328,11 @@ export async function savePlatformReleaseBundle(version: string, payload: unknow
 export async function loadPlatformReleaseBundle(
   version: string,
 ): Promise<PlatformReleaseBundleCache | null> {
-  return readJsonMeta<PlatformReleaseBundleCache>(
-    `${META_KEYS.platformReleaseDetail}:${version}`,
-  );
+  return readJsonMeta<PlatformReleaseBundleCache>(`${META_KEYS.platformReleaseDetail}:${version}`);
 }
 
 export async function loadPlatformCostDraftQueue(): Promise<PlatformCostDraft[]> {
-  const row = await readJsonMeta<{ drafts: PlatformCostDraft[] }>(
-    META_KEYS.platformCostDraftQueue,
-  );
+  const row = await readJsonMeta<{ drafts: PlatformCostDraft[] }>(META_KEYS.platformCostDraftQueue);
   return row?.drafts ?? [];
 }
 

@@ -184,7 +184,7 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
             muted
           />
           {error ? (
-            <div className="absolute inset-0 grid place-items-center gap-3 bg-muted p-4 text-center">
+            <div className="bg-muted absolute inset-0 grid place-items-center gap-3 p-4 text-center">
               <p className="text-muted-foreground text-sm">{error}</p>
               <Button
                 type="button"
@@ -206,7 +206,7 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
             </div>
           ) : null}
           {starting && !ready ? (
-            <div className="absolute inset-0 grid place-items-center bg-muted/80">
+            <div className="bg-muted/80 absolute inset-0 grid place-items-center">
               <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
             </div>
           ) : null}

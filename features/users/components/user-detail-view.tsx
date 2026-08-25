@@ -47,9 +47,9 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
   const online = useConnectivity();
   const remote = useQuery(api.users.get, canManageUsers && online ? { id: profileId } : "skip");
   const branches = useBranchesList(false);
-  const [localUser, setLocalUser] = useState<(Awaited<ReturnType<typeof listMirroredUsers>>[number]) | null | undefined>(
-    undefined,
-  );
+  const [localUser, setLocalUser] = useState<
+    Awaited<ReturnType<typeof listMirroredUsers>>[number] | null | undefined
+  >(undefined);
   useEffect(() => {
     if (online) return;
     let cancelled = false;
@@ -171,7 +171,12 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
 
   async function onResetPassword(event: FormEvent) {
     event.preventDefault();
-    if (newPassword.length < 12 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+    if (
+      newPassword.length < 12 ||
+      !/[A-Z]/.test(newPassword) ||
+      !/[a-z]/.test(newPassword) ||
+      !/\d/.test(newPassword)
+    ) {
       toast.error("Password must be 12+ characters with uppercase, lowercase, and a number");
       return;
     }

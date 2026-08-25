@@ -30,5 +30,3 @@ export async function writeAuditLog(
     createdAt: Date.now(),
   });
 }
-
-

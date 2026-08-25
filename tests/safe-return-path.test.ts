@@ -30,9 +30,9 @@ describe("resolvePostAuthPath", () => {
   });
 
   it("ignores unsafe next and falls back to the default", () => {
-    expect(
-      resolvePostAuthPath({ isPlatformAdmin: false, needsOnboarding: false }, "/login"),
-    ).toBe("/dashboard");
+    expect(resolvePostAuthPath({ isPlatformAdmin: false, needsOnboarding: false }, "/login")).toBe(
+      "/dashboard",
+    );
   });
 
   it("keeps onboarding when the user still needs a business", () => {
@@ -40,9 +40,9 @@ describe("resolvePostAuthPath", () => {
   });
 
   it("allows platform deep links for platform admins", () => {
-    expect(
-      resolvePostAuthPath({ isPlatformAdmin: true }, "/platform/releases"),
-    ).toBe("/platform/releases");
+    expect(resolvePostAuthPath({ isPlatformAdmin: true }, "/platform/releases")).toBe(
+      "/platform/releases",
+    );
     expect(resolvePostAuthPath({ isPlatformAdmin: true }, "/sales")).toBe("/platform");
   });
 

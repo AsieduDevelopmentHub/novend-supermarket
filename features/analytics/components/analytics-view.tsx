@@ -26,7 +26,11 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { useOfflineAnalytics } from "@/hooks/use-offline-analytics";
 import { useLocalExpenses } from "@/hooks/use-offline-lists";
-import { persistBusinessWrite, queuedSaveMessage, queueRemoveExpense } from "@/lib/offline/replica-writes";
+import {
+  persistBusinessWrite,
+  queuedSaveMessage,
+  queueRemoveExpense,
+} from "@/lib/offline/replica-writes";
 import { formatCurrency, formatNumber } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { expenseCategoryLabel, type ExpenseCategory } from "../constants";
@@ -122,17 +126,20 @@ export function AnalyticsView() {
   const expensesLocal = useLocalExpenses(range);
   const removeExpense = useMutation(api.analytics.removeExpense);
 
-  const summary = preferLocal || !online ? (localSummary ?? remoteSummary) : (remoteSummary ?? localSummary);
-  const expenses = expensesRemote ?? expensesLocal?.map((row) => ({
-    id: row.id as Id<"expenses">,
-    amount: row.amount,
-    category: row.category as ExpenseCategory,
-    occurredAt: row.occurredAt,
-    description: row.description,
-    recordedByName: row.recordedByName,
-    branchId: (row.branchId as Id<"branches"> | null) ?? null,
-    branchName: row.branchName,
-  }));
+  const summary =
+    preferLocal || !online ? (localSummary ?? remoteSummary) : (remoteSummary ?? localSummary);
+  const expenses =
+    expensesRemote ??
+    expensesLocal?.map((row) => ({
+      id: row.id as Id<"expenses">,
+      amount: row.amount,
+      category: row.category as ExpenseCategory,
+      occurredAt: row.occurredAt,
+      description: row.description,
+      recordedByName: row.recordedByName,
+      branchId: (row.branchId as Id<"branches"> | null) ?? null,
+      branchName: row.branchName,
+    }));
 
   if (!summary && remoteSummary === undefined && localSummary === undefined) {
     return <LoadingState label="Loading analytics…" variant="cards" />;
@@ -170,7 +177,9 @@ export function AnalyticsView() {
       `P&L,Profit Margin %,${summary.pnl.profitMargin}`,
       "",
       "Category,Amount",
-      ...summary.expenseBreakdown.map((row: { label: string; amount: number }) => `${row.label},${row.amount}`),
+      ...summary.expenseBreakdown.map(
+        (row: { label: string; amount: number }) => `${row.label},${row.amount}`,
+      ),
       "",
       "Period,Revenue,COGS,Expenses,Gross Profit,Net Profit",
       ...summary.trend.map(
@@ -599,12 +608,14 @@ export function AnalyticsView() {
                 <CardTitle>Breakdown by category</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {summary.expenseBreakdown.map((row: { label: string; amount: number; category: string }) => (
-                  <div key={row.category} className="flex items-center justify-between text-sm">
-                    <span>{row.label}</span>
-                    <span className="font-medium">{formatCurrency(row.amount)}</span>
-                  </div>
-                ))}
+                {summary.expenseBreakdown.map(
+                  (row: { label: string; amount: number; category: string }) => (
+                    <div key={row.category} className="flex items-center justify-between text-sm">
+                      <span>{row.label}</span>
+                      <span className="font-medium">{formatCurrency(row.amount)}</span>
+                    </div>
+                  ),
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -617,7 +628,10 @@ export function AnalyticsView() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                <PnLRow label="Gross revenue" value={summary.pnl.grossRevenue ?? summary.pnl.revenue} />
+                <PnLRow
+                  label="Gross revenue"
+                  value={summary.pnl.grossRevenue ?? summary.pnl.revenue}
+                />
                 <PnLRow label="Refunds" value={summary.pnl.totalRefunds ?? 0} negative />
                 <PnLRow label="Net revenue" value={summary.pnl.revenue} emphasize />
                 <PnLRow label="Cost of goods sold (COGS)" value={summary.pnl.cogs} negative />

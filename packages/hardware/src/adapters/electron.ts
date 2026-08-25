@@ -159,7 +159,8 @@ export function createElectronAdapters(): HardwareAdapters {
             printerHost: config.printerHost,
             printerPort: config.printerPort,
             windowsPrinterName: config.windowsPrinterName,
-            paperWidthMm: config.paperWidthMm === 58 || config.paperWidthMm === 80 ? config.paperWidthMm : 80,
+            paperWidthMm:
+              config.paperWidthMm === 58 || config.paperWidthMm === 80 ? config.paperWidthMm : 80,
             copies: 1,
           });
           return { ok: result.ok, message: result.message };

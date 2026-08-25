@@ -72,42 +72,42 @@ export function ReturnsView() {
             setPage(0);
           }}
         >
-        <Select
-          value={kind}
-          onValueChange={(value) => {
-            setKind(value as "all" | "full" | "partial");
-            setPage(0);
-          }}
-        >
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            <SelectItem value="full">Full return</SelectItem>
-            <SelectItem value="partial">Partial return</SelectItem>
-          </SelectContent>
-        </Select>
-        {isAdmin ? (
-          <BranchFilter
-            branches={branches}
-            value={branchFilter}
-            onChange={(value) => {
-              setBranchFilter(value);
+          <Select
+            value={kind}
+            onValueChange={(value) => {
+              setKind(value as "all" | "full" | "partial");
               setPage(0);
             }}
-            allowAll
-            className="w-full sm:w-auto"
-          />
-        ) : branchName ? (
-          <BranchFilter
-            branches={undefined}
-            value={myBranchId}
-            onChange={() => undefined}
-            lockedLabel={branchName}
-            className="w-full sm:w-auto"
-          />
-        ) : null}
+          >
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All types</SelectItem>
+              <SelectItem value="full">Full return</SelectItem>
+              <SelectItem value="partial">Partial return</SelectItem>
+            </SelectContent>
+          </Select>
+          {isAdmin ? (
+            <BranchFilter
+              branches={branches}
+              value={branchFilter}
+              onChange={(value) => {
+                setBranchFilter(value);
+                setPage(0);
+              }}
+              allowAll
+              className="w-full sm:w-auto"
+            />
+          ) : branchName ? (
+            <BranchFilter
+              branches={undefined}
+              value={myBranchId}
+              onChange={() => undefined}
+              lockedLabel={branchName}
+              className="w-full sm:w-auto"
+            />
+          ) : null}
         </CollapsibleFilters>
       </div>
 
@@ -150,8 +150,10 @@ export function ReturnsView() {
                             {row.kind === "full" ? "Full" : "Partial"}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 max-w-[160px] truncate">{row.reason}</td>
-                        <td className="px-4 py-3 font-medium">{formatCurrency(row.refundAmount)}</td>
+                        <td className="max-w-[160px] truncate px-4 py-3">{row.reason}</td>
+                        <td className="px-4 py-3 font-medium">
+                          {formatCurrency(row.refundAmount)}
+                        </td>
                         <td className="px-4 py-3">
                           <Badge variant="success">
                             {row.status === "completed" ? "Completed" : "Pending"}

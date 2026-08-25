@@ -15,7 +15,11 @@ import { useCurrentUser } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { assertValidImageFile, IMAGE_ACCEPT } from "@/lib/uploads/image";
-import { persistBusinessWrite, queuedSaveMessage, queueUpdateProfile } from "@/lib/offline/replica-writes";
+import {
+  persistBusinessWrite,
+  queuedSaveMessage,
+  queueUpdateProfile,
+} from "@/lib/offline/replica-writes";
 import { Camera, Trash2 } from "lucide-react";
 
 function initialsFromName(name: string) {
@@ -145,7 +149,9 @@ function ProfileForm({
       return;
     }
     if (!online && (file || removeImage)) {
-      toast.error("Photo updates need a connection. Your name and phone can still be saved on this device.");
+      toast.error(
+        "Photo updates need a connection. Your name and phone can still be saved on this device.",
+      );
     }
     setPending(true);
     try {

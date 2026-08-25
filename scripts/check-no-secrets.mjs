@@ -15,7 +15,10 @@ const findings = [];
 for (const file of files) {
   let text;
   try {
-    text = execFileSync("git", ["show", `HEAD:${file}`], { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
+    text = execFileSync("git", ["show", `HEAD:${file}`], {
+      encoding: "utf8",
+      maxBuffer: 4 * 1024 * 1024,
+    });
   } catch {
     continue;
   }
@@ -24,7 +27,9 @@ for (const file of files) {
   }
 }
 if (findings.length) {
-  console.error(`Potential secret material found in tracked files:\n${[...new Set(findings)].join("\n")}`);
+  console.error(
+    `Potential secret material found in tracked files:\n${[...new Set(findings)].join("\n")}`,
+  );
   process.exit(1);
 }
 console.log(`Secret hygiene check passed for ${files.length} tracked files.`);

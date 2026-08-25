@@ -14,7 +14,16 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { formatCurrency } from "@/lib/currency";
-import { Download, Eye, MoreVertical, Package, Pencil, Plus, Trash2, Warehouse } from "lucide-react";
+import {
+  Download,
+  Eye,
+  MoreVertical,
+  Package,
+  Pencil,
+  Plus,
+  Trash2,
+  Warehouse,
+} from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -221,7 +230,9 @@ export function ProductsView() {
                                 remoteUrl={product.imageUrl}
                                 alt={product.name}
                                 sizes="40px"
-                                fallback={<Package className="text-muted-foreground m-auto h-5 w-5" />}
+                                fallback={
+                                  <Package className="text-muted-foreground m-auto h-5 w-5" />
+                                }
                               />
                             </div>
                             <div>
@@ -364,7 +375,9 @@ export function ProductsView() {
                                     Edit
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
-                                    onClick={() => router.push(`/inventory?q=${encodeURIComponent(product.sku)}`)}
+                                    onClick={() =>
+                                      router.push(`/inventory?q=${encodeURIComponent(product.sku)}`)
+                                    }
                                   >
                                     <Warehouse className="mr-2 h-4 w-4" />
                                     Adjust stock

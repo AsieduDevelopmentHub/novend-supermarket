@@ -27,10 +27,9 @@ const headers = {
   "User-Agent": "NovendPOS-DesktopTokenCheck",
 };
 
-const releaseResponse = await fetch(
-  `https://api.github.com/repos/${repo}/releases/tags/${tag}`,
-  { headers },
-);
+const releaseResponse = await fetch(`https://api.github.com/repos/${repo}/releases/tags/${tag}`, {
+  headers,
+});
 const releaseBody = await releaseResponse.text();
 
 if (!releaseResponse.ok) {

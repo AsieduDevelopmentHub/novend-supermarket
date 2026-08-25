@@ -1,13 +1,6 @@
 import { format, formatDistanceToNow } from "date-fns";
 
-export type DateRangePreset =
-  | "today"
-  | "yesterday"
-  | "7d"
-  | "30d"
-  | "month"
-  | "custom"
-  | "all";
+export type DateRangePreset = "today" | "yesterday" | "7d" | "30d" | "month" | "custom" | "all";
 
 /** YYYY-MM-DD in the local calendar (avoids UTC off-by-one). */
 export function toLocalDateInput(date: Date = new Date()) {
@@ -98,10 +91,9 @@ export function formatPresence(args: {
   const seenAt =
     !clearedSeen && args.lastSeenAt != null && args.lastSeenAt > 0 ? args.lastSeenAt : null;
   const online =
-    args.presence === "online" ||
-    (seenAt !== null && Date.now() - seenAt <= ONLINE_MS);
+    args.presence === "online" || (seenAt !== null && Date.now() - seenAt <= ONLINE_MS);
   if (online) return { online: true, label: "Online" };
-  const stamp = seenAt ?? (clearedSeen ? null : args.lastLoginAt ?? null);
+  const stamp = seenAt ?? (clearedSeen ? null : (args.lastLoginAt ?? null));
   if (!stamp || stamp <= 0) return { online: false, label: "Never seen" };
   const age = Date.now() - stamp;
   if (age < 24 * 60 * 60 * 1000) {

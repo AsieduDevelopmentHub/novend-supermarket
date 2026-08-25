@@ -32,7 +32,11 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { Building2, Eye, Pencil, Plus } from "lucide-react";
-import { persistBusinessWrite, queuedSaveMessage, queueUpsertBranch } from "@/lib/offline/replica-writes";
+import {
+  persistBusinessWrite,
+  queuedSaveMessage,
+  queueUpsertBranch,
+} from "@/lib/offline/replica-writes";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -162,9 +166,7 @@ export function BranchesView() {
       <PageHeader
         title="Branches"
         description="Manage store locations and codes used for stock and sales."
-        compactActions={[
-          { key: "add", label: "Add branch", icon: Plus, onClick: openCreate },
-        ]}
+        compactActions={[{ key: "add", label: "Add branch", icon: Plus, onClick: openCreate }]}
         actions={
           <Button type="button" onClick={openCreate}>
             <Plus className="h-4 w-4" />

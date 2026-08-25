@@ -35,7 +35,10 @@ export async function discardOutboxEvent(id: string) {
   if (row.type === "process_return") {
     const payload = parseProcessReturnPayload(row);
     await markLocalReturnFailed(payload.localReturnId, row.lastError ?? "Discarded");
-    const items = await db.localReturnItems.where("localReturnId").equals(payload.localReturnId).toArray();
+    const items = await db.localReturnItems
+      .where("localReturnId")
+      .equals(payload.localReturnId)
+      .toArray();
     if (items.length > 0) {
       await db.localReturnItems.bulkDelete(items.map((item) => item.id));
     }

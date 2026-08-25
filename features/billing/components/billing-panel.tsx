@@ -114,14 +114,13 @@ export function BillingPanel() {
   const accessState = isAccessState(overview.access.state) ? overview.access.state : "active";
   const badge = ACCESS_BADGE[accessState];
   const subscription = overview.subscription;
-  const scheduledChange = (subscription?.scheduledChange ??
-    null) as ScheduledChangeSnapshot | null;
+  const scheduledChange = (subscription?.scheduledChange ?? null) as ScheduledChangeSnapshot | null;
   const canCancel = Boolean(
     online &&
-      subscription &&
-      !subscription.isLifetime &&
-      !subscription.cancelAtPeriodEnd &&
-      !scheduledChange,
+    subscription &&
+    !subscription.isLifetime &&
+    !subscription.cancelAtPeriodEnd &&
+    !scheduledChange,
   );
   const period = periodDetail(subscription, accessState, overview.trialEndsAt);
 
@@ -182,9 +181,7 @@ export function BillingPanel() {
       {overview.access.reason ? (
         <Alert variant={overview.access.canWrite ? "default" : "destructive"}>
           <CircleAlert className="h-4 w-4" aria-hidden />
-          <AlertTitle>
-            {overview.access.canWrite ? "Action needed" : "Read-only mode"}
-          </AlertTitle>
+          <AlertTitle>{overview.access.canWrite ? "Action needed" : "Read-only mode"}</AlertTitle>
           <AlertDescription>{overview.access.reason}</AlertDescription>
         </Alert>
       ) : null}

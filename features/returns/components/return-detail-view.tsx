@@ -154,11 +154,7 @@ export function ReturnDetailView({ returnId }: { returnId: string }) {
         </CardContent>
       </Card>
 
-      <ReceiptPreviewDialog
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        payload={receipt}
-      />
+      <ReceiptPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} payload={receipt} />
     </div>
   );
 }

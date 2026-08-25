@@ -6,22 +6,22 @@ Convex dev deployment: `asiedudevelopmenthub:novend-pos-39a7a:dev/cloud`
 
 ## Completed Controls
 
-| Audit items | Implementation |
-| --- | --- |
-| C1-C3 | Product archive, profile editing, branch assignment, and internal staff provisioning now assert the authenticated organization and active branch ownership. Foreign IDs return generic not-found/invalid-branch errors. |
-| H1-H2 | Removed unauthenticated login-failure writes and client lockout orchestration. Password verification remains in Convex Auth; edge/provider throttling is the security boundary. |
-| H3 | Invoice, return, and purchase references use collision-checked cryptographic identifiers instead of full-table `length + 1001` allocation. |
-| H4 | Checkout callback verification requires the authenticated organization administrator who initiated the checkout, matches the stored reference, amount, currency, and gateway response, and remains replay-idempotent. |
-| H5 | Platform and administrator bootstrap actions require explicit `BOOTSTRAP_*_ENABLED=true`, a secret, and refuse after an administrator exists. Disable the flag after provisioning. |
-| H6 | Mobile update payloads support mandatory updates. The native dialog shows installed version/build and hosted origin; mandatory updates cannot be dismissed. |
-| H7 | Android release signing requires a real keystore and credentials when building release. CI verifies APK signature, package/version metadata, and publishes a SHA-256 checksum. |
-| M1 | Privileged middleware resolution now fails closed on Convex/session errors. Backend authorization remains authoritative. |
-| M2-M3 | Android backup/device transfer is disabled for POS data. Portable backups are encrypted with PBKDF2 + AES-GCM and organization-bound. Offline authority expires after 24 hours and stale session hints are cleared. |
-| M5 | Product image replacement/clear paths delete the previous storage blob best-effort after metadata is updated. Cloud backup uploads remain quota/ownership checked. |
-| M6, M9 | Mobile version documentation now points to package/release authority. Unsupported self-service Excel/CSV import marketing claims were removed. |
-| M10 | Hourly and daily pending Paystack reconciliation retries provider verification, validates amount/currency, abandons stale attempts, and exposes pending/stale/failed counts in Platform Health. |
-| M11 | CI now runs tests, dependency audit, formatting/diff checks, and tracked-secret scanning. |
-| L1-L2 | Unreachable registration logic and deprecated `setOrganizationPlan` mutation were removed. |
+| Audit items | Implementation                                                                                                                                                                                                          |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1-C3       | Product archive, profile editing, branch assignment, and internal staff provisioning now assert the authenticated organization and active branch ownership. Foreign IDs return generic not-found/invalid-branch errors. |
+| H1-H2       | Removed unauthenticated login-failure writes and client lockout orchestration. Password verification remains in Convex Auth; edge/provider throttling is the security boundary.                                         |
+| H3          | Invoice, return, and purchase references use collision-checked cryptographic identifiers instead of full-table `length + 1001` allocation.                                                                              |
+| H4          | Checkout callback verification requires the authenticated organization administrator who initiated the checkout, matches the stored reference, amount, currency, and gateway response, and remains replay-idempotent.   |
+| H5          | Platform and administrator bootstrap actions require explicit `BOOTSTRAP_*_ENABLED=true`, a secret, and refuse after an administrator exists. Disable the flag after provisioning.                                      |
+| H6          | Mobile update payloads support mandatory updates. The native dialog shows installed version/build and hosted origin; mandatory updates cannot be dismissed.                                                             |
+| H7          | Android release signing requires a real keystore and credentials when building release. CI verifies APK signature, package/version metadata, and publishes a SHA-256 checksum.                                          |
+| M1          | Privileged middleware resolution now fails closed on Convex/session errors. Backend authorization remains authoritative.                                                                                                |
+| M2-M3       | Android backup/device transfer is disabled for POS data. Portable backups are encrypted with PBKDF2 + AES-GCM and organization-bound. Offline authority expires after 24 hours and stale session hints are cleared.     |
+| M5          | Product image replacement/clear paths delete the previous storage blob best-effort after metadata is updated. Cloud backup uploads remain quota/ownership checked.                                                      |
+| M6, M9      | Mobile version documentation now points to package/release authority. Unsupported self-service Excel/CSV import marketing claims were removed.                                                                          |
+| M10         | Hourly and daily pending Paystack reconciliation retries provider verification, validates amount/currency, abandons stale attempts, and exposes pending/stale/failed counts in Platform Health.                         |
+| M11         | CI now runs tests, dependency audit, formatting/diff checks, and tracked-secret scanning.                                                                                                                               |
+| L1-L2       | Unreachable registration logic and deprecated `setOrganizationPlan` mutation were removed.                                                                                                                              |
 
 ## Production Gates
 

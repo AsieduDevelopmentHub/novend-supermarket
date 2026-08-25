@@ -172,7 +172,9 @@ export function BluetoothPrinterCard() {
         <div className="flex items-center justify-between gap-3 rounded-[16px] border px-3 py-2">
           <div>
             <p className="text-sm font-medium">Auto reconnect</p>
-            <p className="text-muted-foreground text-xs">Retry the saved printer after a failed print</p>
+            <p className="text-muted-foreground text-xs">
+              Retry the saved printer after a failed print
+            </p>
           </div>
           <Switch
             checked={status?.autoReconnect ?? true}
@@ -213,7 +215,11 @@ export function BluetoothPrinterCard() {
             <Unplug className="mr-2 h-4 w-4" />
             Disconnect
           </Button>
-          <Button type="button" disabled={busy !== null || !status?.deviceId} onClick={() => void onTest()}>
+          <Button
+            type="button"
+            disabled={busy !== null || !status?.deviceId}
+            onClick={() => void onTest()}
+          >
             {busy === "test" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Test print
           </Button>

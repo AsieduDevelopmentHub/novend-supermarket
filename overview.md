@@ -16,18 +16,18 @@ Princellen POS was designed around the operational needs of a specific wholesale
 
 Novend is designed for:
 
-* Retail shops
-* Supermarkets
-* Wholesale businesses
-* Pharmacies
-* Electronics stores
-* Fashion stores
-* Cosmetics shops
-* Hardware stores
-* Convenience stores
-* Stationery shops
-* Multi-branch businesses
-* Other product-based businesses
+- Retail shops
+- Supermarkets
+- Wholesale businesses
+- Pharmacies
+- Electronics stores
+- Fashion stores
+- Cosmetics shops
+- Hardware stores
+- Convenience stores
+- Stationery shops
+- Multi-branch businesses
+- Other product-based businesses
 
 The fundamental idea is simple:
 
@@ -47,8 +47,8 @@ It is a **commercial POS platform designed to serve many independent businesses 
   <img src="docs/design/ui/sales-pos.jpg" alt="Novend Sales POS" width="820" />
 </p>
 
-| Sign up | Onboarding | Dashboard |
-|---------|------------|-----------|
+| Sign up                                                                | Onboarding                                                                        | Dashboard                                                              |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | <img src="docs/design/ui/auth-signup.png" alt="Sign up" width="260" /> | <img src="docs/design/ui/business-onboarding.png" alt="Onboarding" width="260" /> | <img src="docs/design/ui/dashboard.png" alt="Dashboard" width="260" /> |
 
 Full screenshot index: [`docs/design/ui/README.md`](./docs/design/ui/README.md).
@@ -63,19 +63,19 @@ Full screenshot index: [`docs/design/ui/README.md`](./docs/design/ui/README.md).
 
 **Nova** represents:
 
-* New
-* Modern
-* Fresh
-* Innovation
-* Transformation
+- New
+- Modern
+- Fresh
+- Innovation
+- Transformation
 
 **Vend** represents:
 
-* Selling
-* Commerce
-* Retail
-* Transactions
-* Point of Sale
+- Selling
+- Commerce
+- Retail
+- Transactions
+- Point of Sale
 
 Together:
 
@@ -105,14 +105,14 @@ Novend is designed around the principle:
 
 A shop should still be able to:
 
-* Sell products
-* Process payments
-* Print receipts
-* Search products
-* Manage inventory
-* Handle customers
-* Process returns
-* Record expenses
+- Sell products
+- Process payments
+- Print receipts
+- Search products
+- Manage inventory
+- Handle customers
+- Process returns
+- Record expenses
 
 even when the internet connection is unavailable.
 
@@ -244,12 +244,12 @@ The cashier does not wait for a cloud API before completing the transaction.
 
 This is particularly important for businesses operating in environments with:
 
-* Unstable internet
-* Expensive data
-* Network outages
-* Power interruptions
-* Rural connectivity limitations
-* Temporary ISP failures
+- Unstable internet
+- Expensive data
+- Network outages
+- Power interruptions
+- Rural connectivity limitations
+- Temporary ISP failures
 
 ---
 
@@ -276,12 +276,12 @@ Convex is **not** the database that cashiers depend on during normal operation.
 
 The cloud layer exists primarily for:
 
-* Synchronization
-* Backup
-* Multi-device coordination
-* Remote access
-* Business monitoring
-* Disaster recovery
+- Synchronization
+- Backup
+- Multi-device coordination
+- Remote access
+- Business monitoring
+- Disaster recovery
 
 ---
 
@@ -293,10 +293,10 @@ Novend can run directly inside modern browsers.
 
 Supported environments include:
 
-* Chrome
-* Microsoft Edge
-* Firefox
-* Safari
+- Chrome
+- Microsoft Edge
+- Firefox
+- Safari
 
 The web application provides the complete business management experience.
 
@@ -308,13 +308,13 @@ Novend can also be distributed as an Electron desktop application.
 
 Desktop capabilities include:
 
-* Offline storage
-* Thermal printer integration
-* Receipt printing
-* Local file backup
-* Hardware integration
-* Automatic updates
-* Improved POS experience
+- Offline storage
+- Thermal printer integration
+- Receipt printing
+- Local file backup
+- Hardware integration
+- Automatic updates
+- Improved POS experience
 
 Windows is the primary desktop target, with other platforms possible later.
 
@@ -326,13 +326,13 @@ Novend can be installed directly from the browser as a Progressive Web App.
 
 Mobile functionality can include:
 
-* Product lookup
-* Barcode scanning
-* Inventory checking
-* Mobile sales
-* Customer lookup
-* Stock management
-* Business monitoring
+- Product lookup
+- Barcode scanning
+- Inventory checking
+- Mobile sales
+- Customer lookup
+- Stock management
+- Business monitoring
 
 The goal is to avoid maintaining completely separate applications for every platform.
 
@@ -348,22 +348,22 @@ Designed for fast cashier operations.
 
 ### Features
 
-* Product search
-* Barcode scanning
-* Category browsing
-* Cart management
-* Manual quantity entry
-* Quantity adjustment
-* Discounts
-* Tax calculation
-* Multiple payment methods
-* Split payments
-* Held sales
-* Resume held sales
-* Customer assignment
-* Receipt generation
-* Receipt printing
-* Sales notes
+- Product search
+- Barcode scanning
+- Category browsing
+- Cart management
+- Manual quantity entry
+- Quantity adjustment
+- Discounts
+- Tax calculation
+- Multiple payment methods
+- Split payments
+- Held sales
+- Resume held sales
+- Customer assignment
+- Receipt generation
+- Receipt printing
+- Sales notes
 
 The POS remains operational offline.
 
@@ -375,33 +375,33 @@ Novend provides enterprise-capable inventory management while remaining simple e
 
 ### Product Management
 
-* Product creation
-* Product editing
-* Product deletion
-* SKU
-* Barcode
-* Product images
-* Categories
-* Brands
-* Units
-* Cost price
-* Selling price
-* Wholesale price
-* Tax configuration
-* Stock threshold
-* Product status
+- Product creation
+- Product editing
+- Product deletion
+- SKU
+- Barcode
+- Product images
+- Categories
+- Brands
+- Units
+- Cost price
+- Selling price
+- Wholesale price
+- Tax configuration
+- Stock threshold
+- Product status
 
 ### Inventory
 
-* Current stock
-* Stock adjustments
-* Stock transfers
-* Stock valuation
-* Low-stock alerts
-* Out-of-stock alerts
-* Inventory history
-* Stock movement tracking
-* Branch-specific inventory
+- Current stock
+- Stock adjustments
+- Stock transfers
+- Stock valuation
+- Low-stock alerts
+- Out-of-stock alerts
+- Inventory history
+- Stock movement tracking
+- Branch-specific inventory
 
 ---
 
@@ -411,15 +411,15 @@ Businesses can manage the process of bringing stock into the organization.
 
 ### Features
 
-* Suppliers
-* Purchase orders
-* Purchase records
-* Goods received
-* Supplier invoices
-* Purchase costs
-* Stock increases
-* Purchase history
-* Outstanding supplier balances
+- Suppliers
+- Purchase orders
+- Purchase records
+- Goods received
+- Supplier invoices
+- Purchase costs
+- Stock increases
+- Purchase history
+- Outstanding supplier balances
 
 Purchases directly affect inventory.
 
@@ -431,15 +431,15 @@ Novend provides a centralized customer database.
 
 ### Customer Features
 
-* Customer profiles
-* Phone number
-* Email
-* Address
-* Notes
-* Purchase history
-* Loyalty information
-* Outstanding balances
-* Customer-specific pricing where supported
+- Customer profiles
+- Phone number
+- Email
+- Address
+- Notes
+- Purchase history
+- Loyalty information
+- Outstanding balances
+- Customer-specific pricing where supported
 
 Customers can be organization-wide while transactions remain associated with the relevant branch.
 
@@ -451,13 +451,13 @@ Businesses can maintain complete supplier records.
 
 ### Features
 
-* Supplier profiles
-* Contact information
-* Products supplied
-* Purchase history
-* Outstanding balances
-* Supplier transactions
-* Supplier performance information
+- Supplier profiles
+- Contact information
+- Products supplied
+- Purchase history
+- Outstanding balances
+- Supplier transactions
+- Supplier performance information
 
 ---
 
@@ -491,15 +491,15 @@ Novend records the exact returned quantities.
 
 ### Every Return Records
 
-* Original sale
-* Returned items
-* Returned quantities
-* Refund amount
-* Return reason
-* Staff member
-* Branch
-* Timestamp
-* Payment/refund method
+- Original sale
+- Returned items
+- Returned quantities
+- Refund amount
+- Return reason
+- Staff member
+- Branch
+- Timestamp
+- Payment/refund method
 
 This creates a complete audit trail.
 
@@ -511,16 +511,16 @@ Businesses can record operational expenses.
 
 Examples:
 
-* Electricity
-* Water
-* Rent
-* Fuel
-* Salaries
-* Transportation
-* Maintenance
-* Internet
-* Repairs
-* Miscellaneous expenses
+- Electricity
+- Water
+- Rent
+- Fuel
+- Salaries
+- Transportation
+- Maintenance
+- Internet
+- Repairs
+- Miscellaneous expenses
 
 Expenses are incorporated into financial reporting and profitability calculations.
 
@@ -536,14 +536,14 @@ They can simply add another branch.
 
 ### Each Branch Can Have
 
-* Employees
-* Inventory
-* Sales
-* Expenses
-* Customers
-* Receipt configuration
-* Cash management
-* Branch reports
+- Employees
+- Inventory
+- Sales
+- Expenses
+- Customers
+- Receipt configuration
+- Cash management
+- Branch reports
 
 ### Stock Transfers
 
@@ -571,18 +571,18 @@ Complete organization control.
 
 Can manage:
 
-* Organization
-* Branches
-* Users
-* Products
-* Inventory
-* Sales
-* Purchases
-* Customers
-* Suppliers
-* Expenses
-* Reports
-* Settings
+- Organization
+- Branches
+- Users
+- Products
+- Inventory
+- Sales
+- Purchases
+- Customers
+- Suppliers
+- Expenses
+- Reports
+- Settings
 
 ### Admin
 
@@ -596,11 +596,11 @@ Access limited to assigned branches and authorized operations.
 
 Focused on:
 
-* POS
-* Sales
-* Customers
-* Returns where permitted
-* Assigned cashier operations
+- POS
+- Sales
+- Customers
+- Returns where permitted
+- Assigned cashier operations
 
 Permissions should be granular rather than relying only on fixed roles.
 
@@ -630,19 +630,19 @@ Current value of available inventory
 
 ### Additional Analytics
 
-* Best-selling products
-* Slow-moving products
-* Top customers
-* Sales by category
-* Sales by branch
-* Sales by cashier
-* Expense breakdown
-* Hourly sales
-* Daily sales
-* Monthly revenue
-* Monthly profit
-* Return analysis
-* Inventory movement
+- Best-selling products
+- Slow-moving products
+- Top customers
+- Sales by category
+- Sales by branch
+- Sales by cashier
+- Expense breakdown
+- Hourly sales
+- Daily sales
+- Monthly revenue
+- Monthly profit
+- Return analysis
+- Inventory movement
 
 ---
 
@@ -652,51 +652,51 @@ Novend provides detailed business reports.
 
 ### Sales
 
-* Daily sales
-* Weekly sales
-* Monthly sales
-* Custom date sales
-* Sales by cashier
-* Sales by branch
-* Sales by payment method
+- Daily sales
+- Weekly sales
+- Monthly sales
+- Custom date sales
+- Sales by cashier
+- Sales by branch
+- Sales by payment method
 
 ### Inventory
 
-* Inventory valuation
-* Current stock
-* Stock movement
-* Low-stock products
-* Out-of-stock products
+- Inventory valuation
+- Current stock
+- Stock movement
+- Low-stock products
+- Out-of-stock products
 
 ### Financial
 
-* Revenue
-* Expenses
-* Gross profit
-* Net profit
-* Cost of goods sold
+- Revenue
+- Expenses
+- Gross profit
+- Net profit
+- Cost of goods sold
 
 ### Purchases
 
-* Purchase history
-* Supplier purchases
-* Purchase costs
+- Purchase history
+- Supplier purchases
+- Purchase costs
 
 ### Returns
 
-* Return history
-* Returned products
-* Refund amounts
-* Returns by employee
-* Returns by branch
+- Return history
+- Returned products
+- Refund amounts
+- Returns by employee
+- Returns by branch
 
 ### Exports
 
 Reports can be exported as:
 
-* PDF
-* Excel
-* CSV
+- PDF
+- Excel
+- CSV
 
 ---
 
@@ -706,24 +706,24 @@ Novend includes a customizable receipt system.
 
 ### Supported Thermal Sizes
 
-* 58mm
-* 80mm
+- 58mm
+- 80mm
 
 ### Customizable Information
 
-* Business logo
-* Business name
-* Branch name
-* Address
-* Phone
-* Email
-* Tax/VAT number
-* Cashier
-* Customer
-* Payment method
-* QR code
-* Footer message
-* Return policy
+- Business logo
+- Business name
+- Branch name
+- Address
+- Phone
+- Email
+- Tax/VAT number
+- Cashier
+- Customer
+- Payment method
+- QR code
+- Footer message
+- Return policy
 
 Desktop installations can use Electron printer integration while browser deployments can use browser printing.
 
@@ -778,13 +778,13 @@ This reduces unnecessary network traffic and improves reliability.
 
 Synchronization can occur through:
 
-* Internet reconnection
-* Background synchronization
-* Manual sync
-* Periodic sync
-* Application startup
-* Application close
-* Scheduled backup
+- Internet reconnection
+- Background synchronization
+- Manual sync
+- Periodic sync
+- Application startup
+- Application close
+- Scheduled backup
 
 The system should intelligently batch operations rather than sending every event individually whenever possible.
 
@@ -796,13 +796,13 @@ Because Novend supports offline operation, synchronization conflicts must be exp
 
 The system should maintain:
 
-* Record versions
-* Event IDs
-* Device IDs
-* Organization IDs
-* Branch IDs
-* Timestamps
-* Operation status
+- Record versions
+- Event IDs
+- Device IDs
+- Organization IDs
+- Branch IDs
+- Timestamps
+- Operation status
 
 Critical business operations such as sales and inventory changes should use server-side validation before being finalized in the cloud.
 
@@ -841,15 +841,15 @@ The operational database is stored locally using IndexedDB through Dexie.
 
 Every major entity should contain appropriate metadata such as:
 
-* UUID
-* Organization ID
-* Branch ID where applicable
-* Created timestamp
-* Updated timestamp
-* Version
-* Device ID where applicable
-* Sync status
-* Soft-delete status
+- UUID
+- Organization ID
+- Branch ID where applicable
+- Created timestamp
+- Updated timestamp
+- Version
+- Device ID where applicable
+- Sync status
+- Soft-delete status
 
 ---
 
@@ -889,36 +889,36 @@ Each business gets its own configuration.
 
 ## Company
 
-* Business name
-* Logo
-* Address
-* Phone
-* Email
-* Tax ID
+- Business name
+- Logo
+- Address
+- Phone
+- Email
+- Tax ID
 
 ## Financial
 
-* Currency
-* Tax/VAT
-* Discount rules
-* Decimal precision
-* Pricing configuration
+- Currency
+- Tax/VAT
+- Discount rules
+- Decimal precision
+- Pricing configuration
 
 ## Receipt
 
-* Paper size
-* Logo
-* Footer
-* QR code
-* Return policy
+- Paper size
+- Logo
+- Footer
+- QR code
+- Return policy
 
 ## System
 
-* Appearance
-* Backup schedule
-* Sync interval
-* Offline storage
-* Business preferences
+- Appearance
+- Backup schedule
+- Sync interval
+- Offline storage
+- Business preferences
 
 ---
 
@@ -928,30 +928,30 @@ Novend is designed for commercial deployment.
 
 Security considerations include:
 
-* Authentication
-* Role-based authorization
-* Organization isolation
-* Permission-based navigation
-* Local session protection
-* Audit logs
-* Soft deletion
-* Data validation
-* Sync verification
-* Conflict resolution
-* Secure cloud communication
-* Backup history
+- Authentication
+- Role-based authorization
+- Organization isolation
+- Permission-based navigation
+- Local session protection
+- Audit logs
+- Soft deletion
+- Data validation
+- Sync verification
+- Conflict resolution
+- Secure cloud communication
+- Backup history
 
 Sensitive operations should require appropriate authorization.
 
 Examples:
 
-* Changing prices
-* Deleting products
-* Processing returns
-* Adjusting inventory
-* Viewing financial reports
-* Managing users
-* Transferring stock
+- Changing prices
+- Deleting products
+- Processing returns
+- Adjusting inventory
+- Viewing financial reports
+- Managing users
+- Transferring stock
 
 ---
 
@@ -1006,26 +1006,26 @@ Novend is intentionally industry-agnostic.
 
 ### Retail
 
-* General shops
-* Convenience stores
-* Supermarkets
-* Mini marts
+- General shops
+- Convenience stores
+- Supermarkets
+- Mini marts
 
 ### Wholesale
 
-* Distributors
-* Wholesale stores
-* Bulk product businesses
+- Distributors
+- Wholesale stores
+- Bulk product businesses
 
 ### Specialized Retail
 
-* Pharmacies
-* Electronics
-* Hardware
-* Cosmetics
-* Fashion
-* Footwear
-* Stationery
+- Pharmacies
+- Electronics
+- Hardware
+- Cosmetics
+- Fashion
+- Footwear
+- Stationery
 
 ### Future Industry Modules
 
@@ -1035,20 +1035,20 @@ For example:
 
 **Pharmacy Module**
 
-* Expiry tracking
-* Batch management
-* Prescription workflows
+- Expiry tracking
+- Batch management
+- Prescription workflows
 
 **Fashion Module**
 
-* Size
-* Color
-* Variants
+- Size
+- Color
+- Variants
 
 **Electronics Module**
 
-* Serial numbers
-* Warranty tracking
+- Serial numbers
+- Warranty tracking
 
 The core POS remains shared.
 
@@ -1088,31 +1088,31 @@ The architecture allows Novend to maintain one shared business logic layer while
 
 ### Frontend
 
-* Next.js
-* React
-* TypeScript
-* Tailwind CSS
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
 
 ### Local Database
 
-* IndexedDB
-* Dexie
+- IndexedDB
+- Dexie
 
 ### Cloud
 
-* Convex
+- Convex
 
 ### Desktop
 
-* Electron
+- Electron
 
 ### Mobile
 
-* Progressive Web App
+- Progressive Web App
 
 ### Package Management
 
-* pnpm
+- pnpm
 
 The architecture should keep business logic independent from the presentation layer wherever possible.
 
@@ -1187,23 +1187,23 @@ The goal is to **productize, generalize, improve, and commercialize them.**
 
 It combines:
 
-* Fast POS operations
-* Offline-first reliability
-* Inventory management
-* Purchasing
-* Customers
-* Suppliers
-* Returns
-* Expenses
-* Multi-branch operations
-* RBAC
-* Analytics
-* Reports
-* Receipt printing
-* Cloud synchronization
-* Web
-* Desktop
-* Mobile PWA
+- Fast POS operations
+- Offline-first reliability
+- Inventory management
+- Purchasing
+- Customers
+- Suppliers
+- Returns
+- Expenses
+- Multi-branch operations
+- RBAC
+- Analytics
+- Reports
+- Receipt printing
+- Cloud synchronization
+- Web
+- Desktop
+- Mobile PWA
 
 The defining concept is:
 

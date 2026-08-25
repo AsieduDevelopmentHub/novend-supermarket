@@ -87,8 +87,7 @@ function cachePut(request, response) {
  * OfflineNavigationProvider + resolveOfflineView honor location.pathname.
  */
 async function matchNavigation(request, url) {
-  const exact =
-    (await caches.match(request)) || (await caches.match(url.pathname));
+  const exact = (await caches.match(request)) || (await caches.match(url.pathname));
   if (exact) return exact;
 
   const shellCandidates = url.pathname.startsWith("/platform")

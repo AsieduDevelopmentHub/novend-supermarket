@@ -134,8 +134,10 @@ export const licenseSnapshot = query({
             cancelAtPeriodEnd: license.subscription.cancelAtPeriodEnd ?? false,
           }
         : null,
-      scheduledPlan: asScheduledChange(license.subscription?.scheduledChange)?.targetPlanKey ?? null,
-      scheduledEffectiveAt: asScheduledChange(license.subscription?.scheduledChange)?.effectiveAt ?? null,
+      scheduledPlan:
+        asScheduledChange(license.subscription?.scheduledChange)?.targetPlanKey ?? null,
+      scheduledEffectiveAt:
+        asScheduledChange(license.subscription?.scheduledChange)?.effectiveAt ?? null,
       issuedAt: Date.now(),
     };
   },
@@ -623,7 +625,9 @@ export const startCheckout = action({
     const preview = context.preview;
 
     if (preview.intent === "downgrade") {
-      throw new Error("Downgrades are scheduled for the end of the current period. No payment is due today.");
+      throw new Error(
+        "Downgrades are scheduled for the end of the current period. No payment is due today.",
+      );
     }
     if (preview.intent === "same") {
       throw new Error("You are already on this plan.");
@@ -636,7 +640,9 @@ export const startCheckout = action({
       return { kind: "cancelled_schedule" };
     }
     if (context.pendingReference) {
-      throw new Error("Your payment is being verified. Finish that checkout or wait a few minutes and try again.");
+      throw new Error(
+        "Your payment is being verified. Finish that checkout or wait a few minutes and try again.",
+      );
     }
     if (!context.email) {
       throw new Error("Add an email address to your account before starting a payment.");
@@ -703,7 +709,9 @@ export const startCheckout = action({
       if (ensuredCode !== gatewayPlanCode) {
         await ctx.runMutation(internal.billing.savePlanGatewayCodes, {
           planKey: args.planKey,
-          ...(args.cycle === "monthly" ? { monthlyCode: ensuredCode } : { yearlyCode: ensuredCode }),
+          ...(args.cycle === "monthly"
+            ? { monthlyCode: ensuredCode }
+            : { yearlyCode: ensuredCode }),
         });
       }
       gatewayPlanCode = ensuredCode;
@@ -765,7 +773,11 @@ export const verifyCheckout = action({
     const existing = await ctx.runQuery(internal.billing.checkoutByReference, {
       reference: args.reference,
     });
-    if (!existing || existing.organizationId !== session.organizationId || existing.initiatedBy !== session.userId) {
+    if (
+      !existing ||
+      existing.organizationId !== session.organizationId ||
+      existing.initiatedBy !== session.userId
+    ) {
       throw new Error("This payment reference is not recognized.");
     }
 
@@ -1023,9 +1035,7 @@ export const scheduleDowngrade = action({
 
 export const cancelScheduledChange = action({
   args: {},
-  handler: async (
-    ctx,
-  ): Promise<{ cancelled: boolean; currentPlanName: string | null }> => {
+  handler: async (ctx): Promise<{ cancelled: boolean; currentPlanName: string | null }> => {
     const context = await ctx.runQuery(internal.billing.checkoutContext, {
       planKey: DEFAULT_PLAN_KEY,
       cycle: "lifetime",
@@ -1148,7 +1158,10 @@ export const syncGatewayRecurring = internalAction({
     if (!alignment || !alignment.customerCode || !alignment.desiredPlanCode || !alignment.startAt) {
       return;
     }
-    if (alignment.currentPlanCode === alignment.desiredPlanCode && !alignment.currentSubscriptionCode) {
+    if (
+      alignment.currentPlanCode === alignment.desiredPlanCode &&
+      !alignment.currentSubscriptionCode
+    ) {
       return;
     }
     if (alignment.currentPlanCode === alignment.desiredPlanCode) return;
@@ -1276,10 +1289,7 @@ export const applyGatewayRenewal = internalMutation({
     }
 
     const live = (await ctx.db.get(subscription._id)) ?? subscription;
-    const nextEnd = periodEnd(
-      Math.max(paidAt, live.expiresAt ?? paidAt),
-      live.billingCycle,
-    );
+    const nextEnd = periodEnd(Math.max(paidAt, live.expiresAt ?? paidAt), live.billingCycle);
 
     await ctx.db.patch(live._id, {
       status: "active",
@@ -1511,7 +1521,9 @@ export const syncGatewayPlansInternal = internalAction({
   args: {},
   handler: async (ctx): Promise<{ synced: string[] }> => {
     if (!isPaystackConfigured()) {
-      throw new Error("Online payments are not configured. Ask your administrator to finish payment setup.");
+      throw new Error(
+        "Online payments are not configured. Ask your administrator to finish payment setup.",
+      );
     }
     await ctx.runMutation(internal.billing.ensurePlanCatalog, {});
     const existing = await ctx.runQuery(internal.billing.storedGatewayPlanCodes, {});

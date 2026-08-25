@@ -14,14 +14,7 @@ const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const STATUS_CHANNEL = "desktop:updates:status";
 
 export type DesktopUpdateState =
-  | "idle"
-  | "disabled"
-  | "checking"
-  | "up-to-date"
-  | "available"
-  | "downloading"
-  | "ready"
-  | "error";
+  "idle" | "disabled" | "checking" | "up-to-date" | "available" | "downloading" | "ready" | "error";
 
 export type DesktopUpdateStatus = {
   state: DesktopUpdateState;

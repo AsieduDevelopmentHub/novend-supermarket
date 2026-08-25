@@ -5,10 +5,7 @@ export const LANDING_CONTACT_EMAIL = "asiedudev.hub@gmail.com";
 /** Build a mailto URL with subject + body for sales outreach.
  * Uses encodeURIComponent (%20) — URLSearchParams uses +, which many mail clients show literally.
  */
-export function buildSalesMailto(options: {
-  subject: string;
-  body: string;
-}): string {
+export function buildSalesMailto(options: { subject: string; body: string }): string {
   return (
     `mailto:${LANDING_CONTACT_EMAIL}` +
     `?subject=${encodeURIComponent(options.subject)}` +
@@ -108,8 +105,7 @@ export const landingCopy = {
         id: "distribute",
         number: "02",
         title: "Distribute to Branches",
-        detail:
-          "Transfer inventory to store locations with full tracking and accurate quantities.",
+        detail: "Transfer inventory to store locations with full tracking and accurate quantities.",
       },
       {
         id: "sell",
@@ -122,8 +118,7 @@ export const landingCopy = {
         id: "sync",
         number: "04",
         title: "Sync & Stay Updated",
-        detail:
-          "When you reconnect, sales and stock changes sync to the cloud automatically.",
+        detail: "When you reconnect, sales and stock changes sync to the cloud automatically.",
       },
     ],
     diagramLabels: [
@@ -238,24 +233,14 @@ export const landingCopy = {
         title: "One Warehouse. Multiple Branches.",
         detail:
           "Separate wholesale inventory from branch stock while maintaining complete transfer history and accurate quantities.",
-        bullets: [
-          "Wholesale storage",
-          "Branch transfers",
-          "Transfer history",
-          "Quantity tracking",
-        ],
+        bullets: ["Wholesale storage", "Branch transfers", "Transfer history", "Quantity tracking"],
       },
       {
         id: "analytics",
         title: "See Your Business at a Glance",
         detail:
           "Monitor revenue, profit, inventory value, customer growth, and best-selling products through beautiful real-time dashboards.",
-        bullets: [
-          "Revenue insights",
-          "Profit tracking",
-          "Category performance",
-          "Best sellers",
-        ],
+        bullets: ["Revenue insights", "Profit tracking", "Category performance", "Best sellers"],
       },
       {
         id: "relationships",
@@ -409,8 +394,7 @@ export const landingCopy = {
     cards: {
       basic: {
         badge: "Starter",
-        description:
-          "Perfect for provision shops, boutiques, salons, and small retail businesses.",
+        description: "Perfect for provision shops, boutiques, salons, and small retail businesses.",
         included: [
           "Offline POS",
           "Inventory",
@@ -480,8 +464,7 @@ export const landingCopy = {
     badge: "FAQ",
     title: "Frequently Asked Questions.",
     contactTitle: "Still have questions?",
-    contactDetail:
-      "We're here to help you. Contact our support team anytime.",
+    contactDetail: "We're here to help you. Contact our support team anytime.",
     contactCta: "Contact Support",
     contactHref: GENERAL_SALES_MAILTO,
     items: [

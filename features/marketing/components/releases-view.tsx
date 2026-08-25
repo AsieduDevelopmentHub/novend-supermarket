@@ -26,7 +26,7 @@ export function ReleasesView() {
   return (
     <MarketingSitePage badge={page.badge} title={page.title} subtitle={page.subtitle}>
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-4">
-        <p className="text-slate-600 text-sm leading-relaxed">
+        <p className="text-sm leading-relaxed text-slate-600">
           These notes update automatically from the same release feed as{" "}
           <Link href="/download" className="text-primary font-medium hover:underline">
             Downloads
@@ -39,14 +39,14 @@ export function ReleasesView() {
       </div>
 
       {recent === undefined ? (
-        <div className="text-slate-600 flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-sm text-slate-600">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           Loading release notes…
         </div>
       ) : recent.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center">
-          <p className="text-[#111827] text-base font-semibold">No published releases yet</p>
-          <p className="text-slate-600 mx-auto mt-2 max-w-md text-sm leading-relaxed">
+          <p className="text-base font-semibold text-[#111827]">No published releases yet</p>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-600">
             When a new version is published, notes will appear here automatically — matching the
             Download page.
           </p>
@@ -75,11 +75,11 @@ export function ReleasesView() {
                       Mandatory
                     </Badge>
                   ) : null}
-                  <span className="text-slate-500 text-sm">
+                  <span className="text-sm text-slate-500">
                     {formatReleasedAt(entry.releasedAt) ?? "Date pending"}
                   </span>
                 </div>
-                <h2 className="text-[#111827] mt-4 text-xl font-semibold tracking-tight">
+                <h2 className="mt-4 text-xl font-semibold tracking-tight text-[#111827]">
                   {entry.tag}
                 </h2>
                 {highlights.length > 0 ? (
@@ -95,7 +95,7 @@ export function ReleasesView() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-slate-500 mt-4 text-sm">No release notes attached.</p>
+                  <p className="mt-4 text-sm text-slate-500">No release notes attached.</p>
                 )}
               </li>
             );

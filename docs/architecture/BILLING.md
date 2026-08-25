@@ -19,31 +19,31 @@ licence so a terminal keeps selling offline, but it never decides access.
 
 # Modules
 
-| File | Owns |
-|---|---|
-| `convex/shared/plans.ts` | Plan catalog, prices, limits, cycle rules, limit messages |
-| `convex/shared/licensing.ts` | Pure access rules: `deriveAccess`, grace, usage levels, offline TTL |
-| `convex/shared/entitlements.ts` | Database-backed licence resolution, usage counting, capacity checks |
-| `convex/shared/subscriptions.ts` | Activation, trials, plan-catalog sync |
-| `convex/shared/billingPeriod.ts` | Period arithmetic for monthly/yearly cycles |
-| `convex/shared/planChange.ts` | Upgrade proration and scheduled-downgrade preview |
-| `convex/shared/provisionOrganization.ts` | Tenant bootstrap (trial or assigned plan) |
-| `convex/shared/paystack.ts` | Paystack REST client and webhook signature verification |
-| `convex/shared/billingProvider.ts` | Gateway abstraction (`manual`, `paystack`) |
-| `convex/billing.ts` | Tenant queries, checkout, webhook handlers, platform administration, Enterprise backup quota |
-| `convex/billingHttp.ts` | `POST /billing/paystack/webhook` |
-| `convex/devices.ts` | Device activation and deactivation |
-| `convex/cloudBackups.ts` | Cloud backup uploads against the storage quota |
-| `convex/crons.ts` | Daily expiry and catalog maintenance |
+| File                                     | Owns                                                                                         |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `convex/shared/plans.ts`                 | Plan catalog, prices, limits, cycle rules, limit messages                                    |
+| `convex/shared/licensing.ts`             | Pure access rules: `deriveAccess`, grace, usage levels, offline TTL                          |
+| `convex/shared/entitlements.ts`          | Database-backed licence resolution, usage counting, capacity checks                          |
+| `convex/shared/subscriptions.ts`         | Activation, trials, plan-catalog sync                                                        |
+| `convex/shared/billingPeriod.ts`         | Period arithmetic for monthly/yearly cycles                                                  |
+| `convex/shared/planChange.ts`            | Upgrade proration and scheduled-downgrade preview                                            |
+| `convex/shared/provisionOrganization.ts` | Tenant bootstrap (trial or assigned plan)                                                    |
+| `convex/shared/paystack.ts`              | Paystack REST client and webhook signature verification                                      |
+| `convex/shared/billingProvider.ts`       | Gateway abstraction (`manual`, `paystack`)                                                   |
+| `convex/billing.ts`                      | Tenant queries, checkout, webhook handlers, platform administration, Enterprise backup quota |
+| `convex/billingHttp.ts`                  | `POST /billing/paystack/webhook`                                                             |
+| `convex/devices.ts`                      | Device activation and deactivation                                                           |
+| `convex/cloudBackups.ts`                 | Cloud backup uploads against the storage quota                                               |
+| `convex/crons.ts`                        | Daily expiry and catalog maintenance                                                         |
 
 # Plans
 
-| Plan | Monthly | Yearly | Products | Users | Branches | Devices | Cloud backup |
-|---|---|---|---|---|---|---|---|
-| Basic | GH₵200 | GH₵2,000 | 500 | 3 | 1 | 3 | 250 MB |
-| Pro (Most Popular) | GH₵450 | GH₵4,500 | 5,000 | 15 | 5 | 15 | 500 MB |
-| Enterprise | GH₵750+ | GH₵7,500+ | ∞ | ∞ | ∞ | ∞ | Custom |
-| Lifetime | — | GH₵7,990 one-time | ∞ | ∞ | ∞ | ∞ | 1 GB |
+| Plan               | Monthly | Yearly            | Products | Users | Branches | Devices | Cloud backup |
+| ------------------ | ------- | ----------------- | -------- | ----- | -------- | ------- | ------------ |
+| Basic              | GH₵200  | GH₵2,000          | 500      | 3     | 1        | 3       | 250 MB       |
+| Pro (Most Popular) | GH₵450  | GH₵4,500          | 5,000    | 15    | 5        | 15      | 500 MB       |
+| Enterprise         | GH₵750+ | GH₵7,500+         | ∞        | ∞     | ∞        | ∞       | Custom       |
+| Lifetime           | —       | GH₵7,990 one-time | ∞        | ∞     | ∞        | ∞       | 1 GB         |
 
 Lifetime sits above every subscription: the one-time price is higher than a year of
 Basic, Pro, or Enterprise because it includes every entitlement permanently. The
@@ -63,14 +63,14 @@ administrator sets `organizations.backupLimitBytes` from the licence panel.
 `deriveAccess(organizationStatus, subscription, now)` returns the only access
 decision in the system.
 
-| State | Read | Write | Cause |
-|---|---|---|---|
-| `active` | yes | yes | Paid subscription or lifetime licence |
-| `trial` | yes | yes | Trial period, 14 days |
-| `grace` | yes | yes | Expired or failed payment, within 7 days |
-| `suspended` | yes | no | Platform administrator suspended the business |
-| `expired` | yes | no | Grace window closed, or trial ended |
-| `disabled` | no | no | Platform administrator disabled the business |
+| State       | Read | Write | Cause                                         |
+| ----------- | ---- | ----- | --------------------------------------------- |
+| `active`    | yes  | yes   | Paid subscription or lifetime licence         |
+| `trial`     | yes  | yes   | Trial period, 14 days                         |
+| `grace`     | yes  | yes   | Expired or failed payment, within 7 days      |
+| `suspended` | yes  | no    | Platform administrator suspended the business |
+| `expired`   | yes  | no    | Grace window closed, or trial ended           |
+| `disabled`  | no   | no    | Platform administrator disabled the business  |
 
 Two rules follow from this table and must not be broken:
 
@@ -183,10 +183,10 @@ trials.
 
 Set on the Convex deployment (not just `.env.local`):
 
-| Variable | Purpose |
-|---|---|
-| `PAYSTACK_SECRET_KEY` | Server-side Paystack calls and webhook verification |
-| `NOVEND_SITE_URL` | Absolute base URL used to build the checkout callback |
+| Variable              | Purpose                                               |
+| --------------------- | ----------------------------------------------------- |
+| `PAYSTACK_SECRET_KEY` | Server-side Paystack calls and webhook verification   |
+| `NOVEND_SITE_URL`     | Absolute base URL used to build the checkout callback |
 
 Then create the recurring plans in Paystack once per deployment:
 

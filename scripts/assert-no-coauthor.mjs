@@ -13,7 +13,10 @@ const log = execFileSync("git", ["log", `-n`, String(count), "--format=%H%x00%B%
   encoding: "utf8",
 });
 
-const parts = log.split("\0").map((part) => part.trim()).filter(Boolean);
+const parts = log
+  .split("\0")
+  .map((part) => part.trim())
+  .filter(Boolean);
 let failed = false;
 
 for (let i = 0; i + 1 < parts.length; i += 2) {

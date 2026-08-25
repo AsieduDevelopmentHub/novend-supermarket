@@ -22,8 +22,7 @@ import {
   TEXT_LIMITS,
 } from "./shared/validation";
 
-const BARCODE_TAKEN =
-  "This barcode is already assigned to another product in your organization.";
+const BARCODE_TAKEN = "This barcode is already assigned to another product in your organization.";
 
 async function assertUniqueBarcode(
   ctx: MutationCtx,
@@ -107,11 +106,7 @@ export const listProducts = query({
             ? await ctx.storage.getUrl(product.imageStorageId)
             : null;
           const stockQuantity = stockByProduct.get(product._id) ?? 0;
-          const expiry = deriveExpiryListFields(
-            product,
-            stockQuantity,
-            summaries.get(product._id),
-          );
+          const expiry = deriveExpiryListFields(product, stockQuantity, summaries.get(product._id));
           return {
             id: product._id,
             name: product.name,
@@ -147,7 +142,11 @@ export const getProduct = query({
     branchId: v.optional(v.id("branches")),
   },
   handler: async (ctx, args) => {
-    const { profile, organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     const product = await ctx.db.get(args.id);
     if (!product || product.organizationId !== organizationId) return null;
     const category = await ctx.db.get(product.categoryId);
@@ -354,7 +353,10 @@ export const updateProduct = mutation({
     openingExpiryDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+    ]);
     if (!canManageCatalog(profile)) throw new Error("Forbidden");
     const product = await ctx.db.get(args.id);
     if (!product || product.organizationId !== organizationId) throw new Error("Product not found");
@@ -377,7 +379,8 @@ export const updateProduct = mutation({
     await assertUniqueBarcode(ctx, organizationId, barcode, args.id);
 
     const category = await ctx.db.get(args.categoryId);
-    if (!category || category.organizationId !== organizationId) throw new Error("Invalid category");
+    if (!category || category.organizationId !== organizationId)
+      throw new Error("Invalid category");
 
     if (!Number.isFinite(args.lowStockThreshold) || args.lowStockThreshold < 0) {
       throw new Error("Invalid low stock threshold");
@@ -465,7 +468,10 @@ export const updateProduct = mutation({
 export const archiveProduct = mutation({
   args: { id: v.id("products") },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+    ]);
     if (!canManageCatalog(profile)) throw new Error("Forbidden");
     const product = await ctx.db.get(args.id);
     assertOrgDoc(product, organizationId);

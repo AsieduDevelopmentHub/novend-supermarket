@@ -26,10 +26,7 @@ import {
   startCameraBarcodeScanning,
   type CameraScannerSession,
 } from "@/services/hardware";
-import {
-  isCapacitor,
-  permissionNeedMessage,
-} from "@novend/hardware";
+import { isCapacitor, permissionNeedMessage } from "@novend/hardware";
 import { Loader2, ScanBarcode } from "lucide-react";
 
 type Props = {
@@ -227,7 +224,7 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
         <div className="bg-muted relative aspect-video overflow-hidden rounded-lg">
           <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
           {error ? (
-            <div className="absolute inset-0 grid place-items-center gap-3 bg-muted p-4 text-center">
+            <div className="bg-muted absolute inset-0 grid place-items-center gap-3 p-4 text-center">
               <p className="text-muted-foreground text-sm">{error}</p>
               {supported ? (
                 <Button
@@ -248,7 +245,7 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
             </div>
           ) : null}
           {starting && !ready ? (
-            <div className="absolute inset-0 grid place-items-center gap-2 bg-muted/80 p-4 text-center">
+            <div className="bg-muted/80 absolute inset-0 grid place-items-center gap-2 p-4 text-center">
               <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
               <p className="text-muted-foreground text-sm">Starting camera scanner…</p>
             </div>

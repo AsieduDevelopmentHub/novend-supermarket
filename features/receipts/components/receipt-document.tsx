@@ -61,9 +61,7 @@ export function ReceiptDocument({
         </div>
 
         <div className="border-t border-dashed border-black/40 pt-2">
-          {payload.kind === "return" ? (
-            <p className="font-bold tracking-wide">RETURN</p>
-          ) : null}
+          {payload.kind === "return" ? <p className="font-bold tracking-wide">RETURN</p> : null}
           <p>Invoice: {payload.invoiceNumber}</p>
           {payload.kind === "return" && payload.originalInvoiceNumber ? (
             <p>Original: {payload.originalInvoiceNumber}</p>

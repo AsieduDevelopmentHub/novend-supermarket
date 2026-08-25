@@ -25,7 +25,11 @@ export function ProductImage({ productId, remoteUrl, alt, className, sizes, fall
     return (
       // Blob URLs are device-local; next/image cannot optimize them.
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} alt={alt} className={cn("absolute inset-0 h-full w-full object-cover", className)} />
+      <img
+        src={src}
+        alt={alt}
+        className={cn("absolute inset-0 h-full w-full object-cover", className)}
+      />
     );
   }
 

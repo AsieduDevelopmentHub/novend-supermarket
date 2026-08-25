@@ -62,7 +62,11 @@ export function PlatformInsightDetailView({ metric }: { metric: PlatformInsightM
   const isTrendMoney = MONEY_METRICS.has(metric);
   const isTrendBytes = BYTES_METRICS.has(metric);
   const trendValueFormatter = (value: number) =>
-    isTrendMoney ? formatCurrency(value) : isTrendBytes ? formatPlanBytes(value) : formatNumber(value);
+    isTrendMoney
+      ? formatCurrency(value)
+      : isTrendBytes
+        ? formatPlanBytes(value)
+        : formatNumber(value);
 
   return (
     <div className="space-y-6">

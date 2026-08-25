@@ -36,7 +36,11 @@ export const list = query({
     branchId: v.optional(v.id("branches")),
   },
   handler: async (ctx, args) => {
-    const { profile, organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     // Admin with no branchId → org-wide totals; others forced to own branch.
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
 
@@ -74,11 +78,7 @@ export const list = query({
             ? await ctx.storage.getUrl(product.imageStorageId)
             : null;
           const stockQuantity = stockByProduct.get(product._id) ?? 0;
-          const expiry = deriveExpiryListFields(
-            product,
-            stockQuantity,
-            summaries.get(product._id),
-          );
+          const expiry = deriveExpiryListFields(product, stockQuantity, summaries.get(product._id));
           return {
             id: product._id,
             name: product.name,
@@ -123,7 +123,10 @@ export const adjustStock = mutation({
     lotCode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+    ]);
     const product = await ctx.db.get(args.productId);
     if (!product || product.organizationId !== organizationId) throw new Error("Product not found");
     if (!Number.isInteger(args.quantityChange) || args.quantityChange === 0) {
@@ -173,7 +176,10 @@ export const transferStock = mutation({
     note: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+    ]);
     if (args.fromBranchId === args.toBranchId) {
       throw new Error("Choose two different branches");
     }
@@ -290,7 +296,11 @@ export const listLots = query({
     branchId: v.optional(v.id("branches")),
   },
   handler: async (ctx, args) => {
-    const { profile, organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
     const product = await ctx.db.get(args.productId);
     if (!product || product.organizationId !== organizationId) return [];
@@ -338,7 +348,10 @@ export const writeOffExpired = mutation({
     note: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+    ]);
     const product = await ctx.db.get(args.productId);
     if (!product || product.organizationId !== organizationId) throw new Error("Product not found");
     if (!productTracksExpiry(product)) {
@@ -438,9 +451,7 @@ export const listTransfers = query({
       .map((r) => ({
         id: r._id,
         fromBranchId: r.fromBranchId,
-        fromBranchName: r.fromBranchId
-          ? (branchName.get(r.fromBranchId) ?? "Branch")
-          : "Wholesale",
+        fromBranchName: r.fromBranchId ? (branchName.get(r.fromBranchId) ?? "Branch") : "Wholesale",
         toBranchId: r.toBranchId,
         toBranchName: branchName.get(r.toBranchId) ?? "Branch",
         productId: r.productId,

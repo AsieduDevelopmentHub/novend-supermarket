@@ -24,10 +24,7 @@ import { APP_NAME } from "@/constants/app";
 import { useDesktopRuntime } from "@/hooks/use-desktop-runtime";
 import { useNativeShell } from "@/hooks/use-native-shell";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
-import {
-  detectBrowserDesktopTarget,
-  type BrowserDesktopTarget,
-} from "@/lib/desktop";
+import { detectBrowserDesktopTarget, type BrowserDesktopTarget } from "@/lib/desktop";
 import {
   isIosSafari,
   isStandaloneWebApp,
@@ -40,11 +37,7 @@ import {
 const MAX_SHOWS = 2;
 const SHOW_DELAY_MS = 1800;
 
-type PromptSurface =
-  | "desktop-native"
-  | "android-native"
-  | "ios-native"
-  | "mobile-pwa";
+type PromptSurface = "desktop-native" | "android-native" | "ios-native" | "mobile-pwa";
 
 let cachedBrowserTarget: BrowserDesktopTarget | null | undefined;
 let cachedPromptKind: InstallPromptKind | null | undefined;
@@ -148,8 +141,7 @@ function InstallPromptDialogInner() {
     desktopTarget && desktopOffer ? desktopOffer.downloads[desktopTarget.platform]?.url : undefined;
   const androidNative =
     mobileOffer?.downloads.android?.url || mobileOffer?.storeUrls.android || undefined;
-  const iosNative =
-    mobileOffer?.downloads.ios?.url || mobileOffer?.storeUrls.ios || undefined;
+  const iosNative = mobileOffer?.downloads.ios?.url || mobileOffer?.storeUrls.ios || undefined;
 
   const surface: PromptSurface | null = (() => {
     if (isDesktopShell || nativeShell || isStandaloneWebApp() || !promptKind) return null;
@@ -222,7 +214,8 @@ function InstallPromptDialogInner() {
           {ios ? (
             <ol className="text-muted-foreground list-decimal space-y-2 pl-5 text-sm leading-relaxed">
               <li>
-                Tap <Share className="text-foreground inline size-4 align-text-bottom" aria-hidden />{" "}
+                Tap{" "}
+                <Share className="text-foreground inline size-4 align-text-bottom" aria-hidden />{" "}
                 Share in Safari
               </li>
               <li>

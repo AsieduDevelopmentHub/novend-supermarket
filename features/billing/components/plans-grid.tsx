@@ -108,9 +108,7 @@ export function PlansGrid({
           planKey: dialogPlan.key,
           cycle: chosenCycle,
         });
-        toast.success(
-          `Your downgrade is scheduled for ${formatDate(result.effectiveAt)}.`,
-        );
+        toast.success(`Your downgrade is scheduled for ${formatDate(result.effectiveAt)}.`);
         setDialogPlan(null);
         return;
       }

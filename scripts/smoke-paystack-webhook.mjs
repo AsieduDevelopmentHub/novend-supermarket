@@ -86,5 +86,7 @@ for (const testCase of cases) {
   );
 }
 
-console.log(failures === 0 ? "\nAll webhook smoke checks passed." : `\n${failures} check(s) failed.`);
+console.log(
+  failures === 0 ? "\nAll webhook smoke checks passed." : `\n${failures} check(s) failed.`,
+);
 process.exit(failures === 0 ? 0 : 1);

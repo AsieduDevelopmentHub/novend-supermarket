@@ -20,13 +20,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { landingCopy } from "@/features/marketing/content";
 import { postLoginPath } from "@/lib/auth/post-login-path";
@@ -101,7 +95,7 @@ export function LandingNav({ scrollRootRef }: Props) {
             className="h-8 w-8 object-contain"
             priority
           />
-          <span className="text-[#111827] text-sm font-semibold tracking-tight lowercase">
+          <span className="text-sm font-semibold tracking-tight text-[#111827] lowercase">
             {landingCopy.brand}
           </span>
         </Link>
@@ -181,7 +175,7 @@ export function LandingNav({ scrollRootRef }: Props) {
               side="right"
               className="flex h-dvh w-[min(100%,20rem)] flex-col gap-0 overflow-hidden p-0"
             >
-              <SheetHeader className="shrink-0 border-b border-border px-6 py-4 pr-12 text-left">
+              <SheetHeader className="border-border shrink-0 border-b px-6 py-4 pr-12 text-left">
                 <SheetTitle className="text-left">{landingCopy.brand}</SheetTitle>
               </SheetHeader>
               <nav
@@ -191,7 +185,7 @@ export function LandingNav({ scrollRootRef }: Props) {
                 <div className="flex flex-col gap-1">
                   <NavHref
                     href={nav.features.href}
-                    className="text-foreground block rounded-lg px-3 py-3 text-sm font-medium hover:bg-muted"
+                    className="text-foreground hover:bg-muted block rounded-lg px-3 py-3 text-sm font-medium"
                     onClick={() => setMenuOpen(false)}
                   >
                     {nav.features.label}
@@ -199,7 +193,7 @@ export function LandingNav({ scrollRootRef }: Props) {
 
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="industries" className="border-border border-b-0">
-                      <AccordionTrigger className="text-foreground rounded-lg px-3 py-3 text-sm font-medium hover:bg-muted hover:no-underline">
+                      <AccordionTrigger className="text-foreground hover:bg-muted rounded-lg px-3 py-3 text-sm font-medium hover:no-underline">
                         {nav.industries.label}
                       </AccordionTrigger>
                       <AccordionContent className="pb-2">
@@ -208,7 +202,7 @@ export function LandingNav({ scrollRootRef }: Props) {
                             <li key={item.label}>
                               <NavHref
                                 href={item.href}
-                                className="text-muted-foreground hover:text-foreground block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                                className="text-muted-foreground hover:text-foreground hover:bg-muted block rounded-lg px-3 py-2.5 text-sm font-medium"
                                 onClick={() => setMenuOpen(false)}
                               >
                                 {item.label}
@@ -221,14 +215,14 @@ export function LandingNav({ scrollRootRef }: Props) {
 
                     <NavHref
                       href={nav.pricing.href}
-                      className="text-foreground block rounded-lg px-3 py-3 text-sm font-medium hover:bg-muted"
+                      className="text-foreground hover:bg-muted block rounded-lg px-3 py-3 text-sm font-medium"
                       onClick={() => setMenuOpen(false)}
                     >
                       {nav.pricing.label}
                     </NavHref>
 
                     <AccordionItem value="resources" className="border-border border-b-0">
-                      <AccordionTrigger className="text-foreground rounded-lg px-3 py-3 text-sm font-medium hover:bg-muted hover:no-underline">
+                      <AccordionTrigger className="text-foreground hover:bg-muted rounded-lg px-3 py-3 text-sm font-medium hover:no-underline">
                         {nav.resources.label}
                       </AccordionTrigger>
                       <AccordionContent className="pb-2">
@@ -237,7 +231,7 @@ export function LandingNav({ scrollRootRef }: Props) {
                             <li key={item.label}>
                               <NavHref
                                 href={item.href}
-                                className="text-muted-foreground hover:text-foreground block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                                className="text-muted-foreground hover:text-foreground hover:bg-muted block rounded-lg px-3 py-2.5 text-sm font-medium"
                                 onClick={() => setMenuOpen(false)}
                               >
                                 {item.label}
@@ -251,14 +245,14 @@ export function LandingNav({ scrollRootRef }: Props) {
 
                   <NavHref
                     href={nav.desktop.href}
-                    className="text-foreground block rounded-lg px-3 py-3 text-sm font-medium hover:bg-muted"
+                    className="text-foreground hover:bg-muted block rounded-lg px-3 py-3 text-sm font-medium"
                     onClick={() => setMenuOpen(false)}
                   >
                     {nav.desktop.label}
                   </NavHref>
                 </div>
               </nav>
-              <div className="shrink-0 space-y-2 border-t border-border bg-card px-4 py-4">
+              <div className="border-border bg-card shrink-0 space-y-2 border-t px-4 py-4">
                 <Button asChild variant="outline" className="w-full">
                   <Link href={signInHref} onClick={() => setMenuOpen(false)}>
                     Sign In

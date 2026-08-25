@@ -27,11 +27,10 @@ writeFileSync(pemPath, pem, "utf8");
 writeFileSync(jwksPath, JSON.stringify({ keys: [jwk] }), "utf8");
 
 function setEnv(name, file) {
-  const result = spawnSync(
-    "pnpm",
-    ["exec", "convex", "env", "set", name, "--from-file", file],
-    { stdio: "inherit", shell: true },
-  );
+  const result = spawnSync("pnpm", ["exec", "convex", "env", "set", name, "--from-file", file], {
+    stdio: "inherit",
+    shell: true,
+  });
   if (result.status !== 0) {
     throw new Error(`Failed to set ${name}`);
   }

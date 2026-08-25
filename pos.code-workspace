@@ -1,13 +1,13 @@
 {
-	"folders": [
-		{
-			"path": "../princellen-pos"
-		},
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-		"typescript.tsdk": "node_modules/typescript/lib"
-	}
+  "folders": [
+    {
+      "path": "../princellen-pos",
+    },
+    {
+      "path": ".",
+    },
+  ],
+  "settings": {
+    "typescript.tsdk": "node_modules/typescript/lib",
+  },
 }

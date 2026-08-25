@@ -28,8 +28,7 @@ export const MARKETING_UI_SCREENS = {
   businessAnalyticsExpenses: "/marketing/ui/business-analytics-expenses.png",
   businessAnalyticsPnl: "/marketing/ui/business-analytics-pnl.png",
   businessAnalyticsRevenue: "/marketing/ui/business-analytics-revenue.png",
-  businessAnalyticsRecordExpenseModal:
-    "/marketing/ui/business-analytics-record-expense-modal.png",
+  businessAnalyticsRecordExpenseModal: "/marketing/ui/business-analytics-record-expense-modal.png",
   businessReports: "/marketing/ui/business-reports.png",
   businessReportsDailyBreakdown: "/marketing/ui/business-reports-daily-breakdown.png",
   businessReportsDayDetail: "/marketing/ui/business-reports-day-detail.png",

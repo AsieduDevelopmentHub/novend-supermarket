@@ -35,8 +35,6 @@ Optional:
 - `MOBILE_IOS_STORE_URL` - App Store listing when published
 - `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` - required for the signed release APK; CI fails closed when any value is missing
 
-
-
 ## Local Android build
 
 Use **JDK 21** (same as CI). Android Studio's bundled JBR may be newer (for example 25) and
@@ -123,17 +121,13 @@ git tag v0.3.5
 git push origin v0.3.5
 ```
 
-
-
 ## HTTP endpoints
-
 
 | Path                                          | Purpose                              |
 | --------------------------------------------- | ------------------------------------ |
 | `POST /mobile-updates/publish`                | CI metadata ingest                   |
 | `GET /mobile-updates/latest`                  | Public JSON for in-app update checks |
 | `GET /mobile-updates/assets/{version}/{file}` | Redirect to GitHub Release asset     |
-
 
 Point `NEXT_PUBLIC_MOBILE_UPDATE_JSON` at `{CONVEX_SITE_URL}/mobile-updates/latest` when
 baking native shell config if you want Capacitor to compare shell version against published

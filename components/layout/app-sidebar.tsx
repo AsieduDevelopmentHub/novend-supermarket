@@ -24,12 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SyncStatusChip } from "@/components/offline/sync-status-chip";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
@@ -137,7 +132,7 @@ function SidebarBrand({
           onClick={onToggle}
           aria-expanded={!collapsed}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="text-sidebar-foreground hover:bg-white/10 hover:text-white flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+          className="text-sidebar-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg hover:bg-white/10 hover:text-white"
         >
           {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
         </button>
@@ -179,7 +174,7 @@ function SidebarUser({ user, collapsed }: { user: ShellUser; collapsed?: boolean
           <button
             type="button"
             className={cn(
-              "hover:bg-white/5 flex w-full items-center rounded-full py-2 text-left transition-colors",
+              "flex w-full items-center rounded-full py-2 text-left transition-colors hover:bg-white/5",
               collapsed ? "justify-center px-0" : "gap-3 px-2",
             )}
           >
@@ -251,7 +246,7 @@ function SidebarBody({
                 href="/platform"
                 onClick={() => onNavigate?.()}
                 className={cn(
-                  "text-sidebar-foreground/80 hover:bg-white/5 hover:text-white flex items-center rounded-full py-2 text-sm font-medium",
+                  "text-sidebar-foreground/80 flex items-center rounded-full py-2 text-sm font-medium hover:bg-white/5 hover:text-white",
                   collapsed ? "justify-center px-0" : "gap-3 px-3",
                 )}
               >

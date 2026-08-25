@@ -78,10 +78,7 @@ export async function listPendingOutbox(db: NovendOfflineDb): Promise<OutboxRow[
   }
 }
 
-export async function claimOutboxRow(
-  db: NovendOfflineDb,
-  id: string,
-): Promise<OutboxRow | null> {
+export async function claimOutboxRow(db: NovendOfflineDb, id: string): Promise<OutboxRow | null> {
   const row = await db.outbox.get(id);
   if (!row || (row.status !== "pending" && row.status !== "failed")) return null;
   const next: OutboxRow = {
@@ -151,11 +148,7 @@ export async function enqueueOutbox(
   return row;
 }
 
-export async function replaceIdInPendingOutbox(
-  db: NovendOfflineDb,
-  fromId: string,
-  toId: string,
-) {
+export async function replaceIdInPendingOutbox(db: NovendOfflineDb, fromId: string, toId: string) {
   if (!fromId || fromId === toId) return;
   const pending = await listPendingOutbox(db);
   for (const row of pending) {

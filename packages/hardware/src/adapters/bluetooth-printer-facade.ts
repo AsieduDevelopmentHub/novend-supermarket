@@ -7,7 +7,7 @@ import type {
 } from "../native-types";
 
 function unsupportedBluetooth(): BluetoothPrinterControls {
-  const unavailable = <T,>(data?: T): HardwareResult<T> => ({
+  const unavailable = <T>(data?: T): HardwareResult<T> => ({
     ok: false,
     message: "Bluetooth printing is only available in the Novend mobile app",
     data,
@@ -58,9 +58,7 @@ export async function getBluetoothPrinterControls(): Promise<BluetoothPrinterCon
   return cachedControls;
 }
 
-export async function printViaBluetoothSafe(
-  request: PrintReceiptRequest,
-): Promise<HardwareResult> {
+export async function printViaBluetoothSafe(request: PrintReceiptRequest): Promise<HardwareResult> {
   if (!isCapacitor()) {
     return {
       ok: false,
@@ -71,9 +69,7 @@ export async function printViaBluetoothSafe(
   return mod.printViaBluetooth(request);
 }
 
-export async function bluetoothTestPrintSafe(
-  paperWidthMm: 58 | 80,
-): Promise<HardwareResult> {
+export async function bluetoothTestPrintSafe(paperWidthMm: 58 | 80): Promise<HardwareResult> {
   if (!isCapacitor()) {
     return {
       ok: false,

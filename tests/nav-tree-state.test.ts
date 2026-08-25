@@ -16,11 +16,6 @@ describe("nav accordion groups", () => {
   });
 
   it("lists all collapsible workflow sections", () => {
-    expect(NAV_ACCORDION_GROUP_IDS).toEqual([
-      "sales",
-      "inventory",
-      "business",
-      "administration",
-    ]);
+    expect(NAV_ACCORDION_GROUP_IDS).toEqual(["sales", "inventory", "business", "administration"]);
   });
 });

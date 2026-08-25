@@ -59,7 +59,8 @@ export function SuppliersView() {
       ? { id: selectedId as Id<"suppliers"> }
       : "skip",
   );
-  const [localDetail, setLocalDetail] = useState<Awaited<ReturnType<typeof getMirroredSupplier>>>(null);
+  const [localDetail, setLocalDetail] =
+    useState<Awaited<ReturnType<typeof getMirroredSupplier>>>(null);
   useEffect(() => {
     if (!selectedId) return;
     let cancelled = false;
@@ -74,7 +75,10 @@ export function SuppliersView() {
 
   if (!canManageProducts) {
     return (
-      <EmptyState title="Access required" description="Supplier records are for managers and administrators." />
+      <EmptyState
+        title="Access required"
+        description="Supplier records are for managers and administrators."
+      />
     );
   }
 

@@ -25,7 +25,9 @@ export type DetectedBarcode = {
 };
 
 type BarcodeDetectorLike = {
-  detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue: string; boundingBox?: DOMRectReadOnly }>>;
+  detect: (
+    source: ImageBitmapSource,
+  ) => Promise<Array<{ rawValue: string; boundingBox?: DOMRectReadOnly }>>;
 };
 
 type BarcodeDetectorCtor = new (options: { formats: readonly string[] }) => BarcodeDetectorLike;
@@ -35,7 +37,12 @@ type ZxingReader = {
     stream: MediaStream,
     video: HTMLVideoElement,
     callback: (
-      result: { getText: () => string; getResultPoints?: () => Array<{ getX: () => number; getY: () => number }> } | undefined,
+      result:
+        | {
+            getText: () => string;
+            getResultPoints?: () => Array<{ getX: () => number; getY: () => number }>;
+          }
+        | undefined,
       error?: unknown,
     ) => void,
   ) => Promise<{ stop: () => void }>;
@@ -146,13 +153,14 @@ export async function openBarcodeCameraStream(deviceId?: string): Promise<MediaS
 
   const buildConstraints = (withDevice: boolean): MediaStreamConstraints => ({
     audio: false,
-    video: withDevice && deviceId
-      ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-      : {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
+    video:
+      withDevice && deviceId
+        ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        : {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
   });
 
   try {
@@ -255,7 +263,12 @@ async function startZxingScanning(options: {
         }
         return;
       }
-      if (error && typeof error === "object" && "name" in error && error.name === "NotFoundException") {
+      if (
+        error &&
+        typeof error === "object" &&
+        "name" in error &&
+        error.name === "NotFoundException"
+      ) {
         return;
       }
     });

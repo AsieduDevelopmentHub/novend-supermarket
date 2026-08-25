@@ -28,7 +28,9 @@ export class NativeTimeoutError extends Error {
 }
 
 export function isNativeTimeoutError(error: unknown): boolean {
-  return error instanceof NativeTimeoutError || (error instanceof Error && error.message === "timeout");
+  return (
+    error instanceof NativeTimeoutError || (error instanceof Error && error.message === "timeout")
+  );
 }
 
 /** Rejects if `promise` does not settle within `ms`. */

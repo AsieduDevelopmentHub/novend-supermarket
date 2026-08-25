@@ -22,8 +22,7 @@ export function OfflineUnavailable({
       icon={CloudOff}
       title={title}
       description={
-        description ??
-        "This screen needs a connection. You can keep selling from the till."
+        description ?? "This screen needs a connection. You can keep selling from the till."
       }
       action={
         <Button asChild variant="outline">

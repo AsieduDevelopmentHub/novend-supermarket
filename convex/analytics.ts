@@ -74,7 +74,10 @@ export const listExpenses = query({
     const { profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
     const limit = Math.min(args.limit ?? 100, 300);
-    let rows = await ctx.db.query("expenses").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect();
+    let rows = await ctx.db
+      .query("expenses")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
 
     if (branchFilter) {
       rows = rows.filter((e) => e.branchId === branchFilter);
@@ -86,9 +89,15 @@ export const listExpenses = query({
       rows = rows.filter((e) => e.occurredAt <= args.endDate!);
     }
 
-    const profiles = await ctx.db.query("profiles").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect();
+    const profiles = await ctx.db
+      .query("profiles")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const nameByUser = new Map(profiles.map((p) => [p.userId, p.name]));
-    const branches = await ctx.db.query("branches").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect();
+    const branches = await ctx.db
+      .query("branches")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const branchName = new Map(branches.map((b) => [b._id, b.name]));
 
     return rows
@@ -118,7 +127,10 @@ export const createExpense = mutation({
     branchId: v.id("branches"),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+    ]);
     assertBranchAccess(profile, args.branchId);
     assertPositiveMoney(args.amount, "expense amount");
     if (args.amount <= 0) throw new Error("Expense amount must be greater than zero");
@@ -161,7 +173,10 @@ export const updateExpense = mutation({
     branchId: v.optional(v.id("branches")),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+    ]);
     const existing = await ctx.db.get(args.id);
     if (!existing) throw new Error("Expense not found");
     if (existing.organizationId !== organizationId) throw new Error("Not found");
@@ -192,7 +207,10 @@ export const updateExpense = mutation({
 export const removeExpense = mutation({
   args: { id: v.id("expenses") },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+    ]);
     const existing = await ctx.db.get(args.id);
     if (!existing) throw new Error("Expense not found");
     if (existing.organizationId !== organizationId) throw new Error("Not found");
@@ -219,14 +237,22 @@ export const summary = query({
     if (args.endDate < args.startDate) throw new Error("Invalid date range");
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
 
-    const sales = (await ctx.db.query("sales").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect()).filter((s) => {
+    const sales = (
+      await ctx.db
+        .query("sales")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect()
+    ).filter((s) => {
       if (s.completedAt < args.startDate || s.completedAt > args.endDate) return false;
       if (branchFilter && s.branchId !== branchFilter) return false;
       return true;
     });
 
     const saleIds = new Set(sales.map((s) => s._id));
-    const allItems = await ctx.db.query("saleItems").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect();
+    const allItems = await ctx.db
+      .query("saleItems")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const items = allItems.filter((i) => saleIds.has(i.saleId));
 
     const returns = await completedReturnsInRange(ctx, {
@@ -259,7 +285,12 @@ export const summary = query({
     const soldCogs = cogsForLines(items, costByProduct);
     const cogs = roundMoney(soldCogs - returnedCogs);
 
-    const expenses = (await ctx.db.query("expenses").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect()).filter((e) => {
+    const expenses = (
+      await ctx.db
+        .query("expenses")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect()
+    ).filter((e) => {
       if (e.occurredAt < args.startDate || e.occurredAt > args.endDate) return false;
       if (branchFilter && e.branchId !== branchFilter) return false;
       return true;
@@ -404,7 +435,12 @@ export const details = query({
     if (args.endDate < args.startDate) throw new Error("Invalid date range");
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
 
-    const sales = (await ctx.db.query("sales").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect()).filter((s) => {
+    const sales = (
+      await ctx.db
+        .query("sales")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect()
+    ).filter((s) => {
       if (s.completedAt < args.startDate || s.completedAt > args.endDate) return false;
       if (branchFilter && s.branchId !== branchFilter) return false;
       return true;
@@ -415,22 +451,38 @@ export const details = query({
       organizationId,
       branchId: branchFilter,
     });
-    const expenses = (await ctx.db.query("expenses").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect()).filter((e) => {
+    const expenses = (
+      await ctx.db
+        .query("expenses")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect()
+    ).filter((e) => {
       if (e.occurredAt < args.startDate || e.occurredAt > args.endDate) return false;
       if (branchFilter && e.branchId !== branchFilter) return false;
       return true;
     });
 
     const saleIds = new Set(sales.map((s) => s._id));
-    const items = (await ctx.db.query("saleItems").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect()).filter((i) => saleIds.has(i.saleId));
+    const items = (
+      await ctx.db
+        .query("saleItems")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect()
+    ).filter((i) => saleIds.has(i.saleId));
     const returnItems = await loadItemsForReturns(
       ctx,
       returns.map((row) => row._id),
     );
-    const products = await ctx.db.query("products").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect();
+    const products = await ctx.db
+      .query("products")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const costByProduct = new Map(products.map((p) => [p._id, p.costPrice]));
     const nameByProduct = new Map(products.map((p) => [p._id, p.name]));
-    const branches = await ctx.db.query("branches").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect();
+    const branches = await ctx.db
+      .query("branches")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const branchName = new Map(branches.map((b) => [b._id, b.name]));
 
     if (args.metric === "refunds" || args.metric === "returnRate") {
@@ -469,12 +521,7 @@ export const details = query({
           .map((e) => ({
             id: e._id,
             href: "/analytics",
-            cells: [
-              e.category,
-              e.description ?? "—",
-              String(e.amount),
-              String(e.occurredAt),
-            ],
+            cells: [e.category, e.description ?? "—", String(e.amount), String(e.occurredAt)],
             amount: e.amount,
           })),
       };
@@ -553,7 +600,8 @@ export const details = query({
         byBranch.set(id, current);
       }
       for (const row of returns) {
-        const current = byBranch.get(row.branchId) ?? emptyBranch(branchName.get(row.branchId) ?? "Branch");
+        const current =
+          byBranch.get(row.branchId) ?? emptyBranch(branchName.get(row.branchId) ?? "Branch");
         current.refunds += row.refundAmount;
         byBranch.set(row.branchId, current);
       }
@@ -567,7 +615,8 @@ export const details = query({
       }
       for (const e of expenses) {
         if (!e.branchId) continue;
-        const current = byBranch.get(e.branchId) ?? emptyBranch(branchName.get(e.branchId) ?? "Branch");
+        const current =
+          byBranch.get(e.branchId) ?? emptyBranch(branchName.get(e.branchId) ?? "Branch");
         current.expenses += e.amount;
         byBranch.set(e.branchId, current);
       }

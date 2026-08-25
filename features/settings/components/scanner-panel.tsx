@@ -113,9 +113,7 @@ export function ScannerPanel() {
         const fallback = isDesktopApp
           ? "Could not find scanners. Restart Novend POS and try again."
           : "Could not refresh the scanner list. Try again.";
-        toast.error(
-          result.message ? toUserMessage(result.message, fallback) : fallback,
-        );
+        toast.error(result.message ? toUserMessage(result.message, fallback) : fallback);
         return;
       }
 
@@ -160,8 +158,12 @@ export function ScannerPanel() {
           <AlertDescription>
             HID keyboard-wedge scans are enabled for POS. Selected: {config.deviceLabel || "—"}
             {isDesktopApp && bridge.version ? ` · Desktop ${bridge.version}` : null}
-            {isDesktopApp && bridge.platform ? ` · ${formatOperatingSystem(bridge.platform)}` : null}
-            {!isDesktopApp ? " · Browser mode — use Sales to scan with camera or a USB wedge." : null}
+            {isDesktopApp && bridge.platform
+              ? ` · ${formatOperatingSystem(bridge.platform)}`
+              : null}
+            {!isDesktopApp
+              ? " · Browser mode — use Sales to scan with camera or a USB wedge."
+              : null}
           </AlertDescription>
         </Alert>
       ) : connection === "disabled" ? (
@@ -275,7 +277,9 @@ export function ScannerPanel() {
               </SelectTrigger>
               <SelectContent>
                 {config.deviceId && !discovered.some((item) => item.id === config.deviceId) ? (
-                  <SelectItem value={config.deviceId}>{config.deviceLabel || config.deviceId}</SelectItem>
+                  <SelectItem value={config.deviceId}>
+                    {config.deviceLabel || config.deviceId}
+                  </SelectItem>
                 ) : null}
                 {discovered.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
@@ -295,9 +299,7 @@ export function ScannerPanel() {
                     <p className="truncate font-medium">{item.label}</p>
                     <p className="text-muted-foreground truncate text-xs">{item.mode}</p>
                   </div>
-                  {config.deviceId === item.id ? (
-                    <Badge variant="secondary">Selected</Badge>
-                  ) : null}
+                  {config.deviceId === item.id ? <Badge variant="secondary">Selected</Badge> : null}
                 </li>
               ))}
             </ul>
@@ -305,7 +307,8 @@ export function ScannerPanel() {
 
           {config.lastDetectedCode ? (
             <p className="text-muted-foreground text-xs">
-              Last detected: <span className="text-foreground font-medium">{config.lastDetectedCode}</span>
+              Last detected:{" "}
+              <span className="text-foreground font-medium">{config.lastDetectedCode}</span>
               {config.lastDetectedAt
                 ? ` · ${new Date(config.lastDetectedAt).toLocaleString()}`
                 : null}

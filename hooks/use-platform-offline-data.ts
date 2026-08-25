@@ -64,7 +64,10 @@ function useLiveWithDiskCache<TValue>(
   const [diskCache, setDiskCache] = useState<{ key: string; value: TValue | null } | null>(null);
   const [lastLive, setLastLive] = useState<{ key: string; value: TValue } | null>(null);
 
-  if (live !== undefined && (lastLive === null || lastLive.key !== key || lastLive.value !== live)) {
+  if (
+    live !== undefined &&
+    (lastLive === null || lastLive.key !== key || lastLive.value !== live)
+  ) {
     setLastLive({ key, value: live });
   }
 
@@ -166,7 +169,8 @@ export function usePlatformOrgDetailData(organizationId: string) {
   const { data, loading, source } = useLiveWithDiskCache(
     live,
     organizationId,
-    () => loadPlatformOrgDetail(organizationId).then((row) => (row?.payload as typeof live) ?? null),
+    () =>
+      loadPlatformOrgDetail(organizationId).then((row) => (row?.payload as typeof live) ?? null),
     (value) => savePlatformOrgDetail(organizationId, value),
   );
   return { data, loading, source };
@@ -257,7 +261,10 @@ export function usePlatformReleaseBundlesData(channel: "stable" | "beta" = "stab
 
 export function usePlatformInsightData(metric: PlatformInsightMetric, range: PlatformRevenueRange) {
   const online = useConnectivity();
-  const live = useQuery(api.platformAnalytics.getInsightDetail, online ? { metric, range } : "skip");
+  const live = useQuery(
+    api.platformAnalytics.getInsightDetail,
+    online ? { metric, range } : "skip",
+  );
   const { data, loading, source } = useLiveWithDiskCache(
     live,
     `${metric}:${range}`,
@@ -369,14 +376,7 @@ export function usePlatformOperatingCostsData() {
       await createCost({
         amount: input.amount,
         category: input.category as
-          | "hosting"
-          | "convex"
-          | "vercel"
-          | "domains"
-          | "sms"
-          | "email"
-          | "infrastructure"
-          | "misc",
+          "hosting" | "convex" | "vercel" | "domains" | "sms" | "email" | "infrastructure" | "misc",
         occurredAt: input.occurredAt,
         description: input.description,
       });

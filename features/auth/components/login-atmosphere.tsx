@@ -35,7 +35,12 @@ export function LoginAtmosphere() {
           d="M4 96 L36 88 L68 90 L100 62 L132 70 L164 38 L196 44 L244 16 L276 22"
         />
         <circle className="login-sparkline-node" cx="164" cy="38" r="3.5" />
-        <circle className="login-sparkline-node login-sparkline-node-delay" cx="276" cy="22" r="4" />
+        <circle
+          className="login-sparkline-node login-sparkline-node-delay"
+          cx="276"
+          cy="22"
+          r="4"
+        />
       </svg>
 
       <svg className="login-sparkline login-sparkline-right" viewBox="0 0 240 100" fill="none">
@@ -51,7 +56,10 @@ export function LoginAtmosphere() {
 
       <svg className="login-graph" viewBox="0 0 420 280" fill="none">
         <path className="login-graph-edge" d="M40 210 L120 80 L210 150 L310 50 L380 120" />
-        <path className="login-graph-edge login-graph-edge-delay" d="M80 40 L210 150 L160 240 L310 50" />
+        <path
+          className="login-graph-edge login-graph-edge-delay"
+          d="M80 40 L210 150 L160 240 L310 50"
+        />
         <circle className="login-graph-node" cx="40" cy="210" r="4" />
         <circle className="login-graph-node" cx="120" cy="80" r="5" />
         <circle className="login-graph-node" cx="210" cy="150" r="4" />

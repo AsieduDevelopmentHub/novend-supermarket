@@ -103,9 +103,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         },
         returnNext || last || "/dashboard",
       );
-      const dest = fromBoot
-        ? `${path}${path.includes("?") ? "&" : "?"}fromBoot=1`
-        : path;
+      const dest = fromBoot ? `${path}${path.includes("?") ? "&" : "?"}fromBoot=1` : path;
       navigateAfterLogin(dest, router);
     };
 

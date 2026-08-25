@@ -25,7 +25,5 @@ writeFileSync(
 const convexNote = convexSiteUrl
   ? `Convex site configured (${channel})`
   : "Convex site URL empty (dev placeholder)";
-const appNote = usedDefaultAppUrl
-  ? `appUrl default ${appUrl}`
-  : "appUrl from NOVEND_APP_URL";
+const appNote = usedDefaultAppUrl ? `appUrl default ${appUrl}` : "appUrl from NOVEND_APP_URL";
 console.log(`Wrote desktop update-config.json — ${appNote}; ${convexNote}`);

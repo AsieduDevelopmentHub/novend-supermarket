@@ -427,11 +427,7 @@ export async function drainOutbox(options: {
         } else if (claimed.type === "upsert_product") {
           const payload = JSON.parse(claimed.payloadJson) as UpsertProductPayload;
           if (isLocalId(payload.categoryId)) {
-            await markOutboxPending(
-              db,
-              claimed.id,
-              "Waiting for the category to finish syncing.",
-            );
+            await markOutboxPending(db, claimed.id, "Waiting for the category to finish syncing.");
             continue;
           }
           let imageStorageId = payload.imageStorageId as Id<"_storage"> | undefined;

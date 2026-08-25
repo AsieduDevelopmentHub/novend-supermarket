@@ -23,7 +23,11 @@ import { loadPrintSnapshot } from "./settings";
 type DbCtx = QueryCtx | MutationCtx;
 
 async function requireReturnableSale(ctx: DbCtx, saleId: Id<"sales">) {
-  const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+  const { userId, profile, organizationId } = await requireRole(ctx, [
+    "administrator",
+    "manager",
+    "cashier",
+  ]);
   const sale = await ctx.db.get(saleId);
   if (!sale) throw new Error("Order not found");
   if (sale.status !== "completed") throw new Error("Only completed orders can be returned");
@@ -79,7 +83,10 @@ export const processReturn = mutation({
     clientOperationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId, sale, branchId } = await requireReturnableSale(ctx, args.saleId);
+    const { userId, profile, organizationId, sale, branchId } = await requireReturnableSale(
+      ctx,
+      args.saleId,
+    );
     const reason = sanitizeText(args.reason, "Return reason", TEXT_LIMITS.short);
     const notes = sanitizeOptionalText(args.notes, "Notes", TEXT_LIMITS.note);
 
@@ -243,7 +250,9 @@ export const processReturn = mutation({
         if (remainingToRestore > 0) {
           const fallbackExpiry = ordered[0]?.expiryDate;
           if (!fallbackExpiry) {
-            throw new Error(`Cannot restock dated product ${line.saleItem.productName} without lot history`);
+            throw new Error(
+              `Cannot restock dated product ${line.saleItem.productName} without lot history`,
+            );
           }
           const lotId = await increaseLot(ctx, {
             branchId,
@@ -352,10 +361,17 @@ export const list = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
     const limit = Math.min(args.limit ?? 100, 200);
-    let rows = await ctx.db.query("saleReturns").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect();
+    let rows = await ctx.db
+      .query("saleReturns")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
 
     if (branchFilter) {
       rows = rows.filter((row) => row.branchId === branchFilter);
@@ -375,9 +391,15 @@ export const list = query({
 
     const sales = await Promise.all(rows.map((row) => ctx.db.get(row.saleId)));
     const saleById = new Map(sales.filter(Boolean).map((s) => [s!._id, s!] as const));
-    const profiles = await ctx.db.query("profiles").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect();
+    const profiles = await ctx.db
+      .query("profiles")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const nameByUser = new Map(profiles.map((p) => [p.userId, p.name]));
-    const branches = await ctx.db.query("branches").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect();
+    const branches = await ctx.db
+      .query("branches")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const branchName = new Map(branches.map((b) => [b._id, b.name]));
 
     let mapped = rows.map((row) => {
@@ -422,13 +444,22 @@ export const list = query({
 export const get = query({
   args: { id: v.id("saleReturns") },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     const row = await ctx.db.get(args.id);
     if (!row) return null;
     if (row.organizationId !== organizationId) throw new Error("Not found");
     assertBranchAccess(profile, row.branchId);
     const sale = await ctx.db.get(row.saleId);
-    if (profile.role === "cashier" && sale && sale.cashierId !== userId && row.processedBy !== userId) {
+    if (
+      profile.role === "cashier" &&
+      sale &&
+      sale.cashierId !== userId &&
+      row.processedBy !== userId
+    ) {
       throw new Error("Forbidden");
     }
     const items = await ctx.db

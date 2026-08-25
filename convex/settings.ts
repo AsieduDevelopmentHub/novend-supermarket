@@ -115,9 +115,7 @@ async function getSettingValue(
 ) {
   const row = await ctx.db
     .query("settings")
-    .withIndex("by_organization_key", (q) =>
-      q.eq("organizationId", organizationId).eq("key", key),
-    )
+    .withIndex("by_organization_key", (q) => q.eq("organizationId", organizationId).eq("key", key))
     .unique();
   return row?.value;
 }
@@ -130,9 +128,7 @@ async function upsertSetting(
 ) {
   const existing = await ctx.db
     .query("settings")
-    .withIndex("by_organization_key", (q) =>
-      q.eq("organizationId", organizationId).eq("key", key),
-    )
+    .withIndex("by_organization_key", (q) => q.eq("organizationId", organizationId).eq("key", key))
     .unique();
   if (existing) {
     await ctx.db.patch(existing._id, { value });
@@ -204,11 +200,7 @@ export async function loadPrintSnapshot(
 export const getBusiness = query({
   args: {},
   handler: async (ctx) => {
-    const { organizationId } = await requireRole(ctx, [
-      "administrator",
-      "manager",
-      "cashier",
-    ]);
+    const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
     return parseBusiness(await getSettingValue(ctx, organizationId, BUSINESS_KEY));
   },
 });
@@ -216,11 +208,7 @@ export const getBusiness = query({
 export const getReceiptTemplate = query({
   args: {},
   handler: async (ctx) => {
-    const { organizationId } = await requireRole(ctx, [
-      "administrator",
-      "manager",
-      "cashier",
-    ]);
+    const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
     return parseTemplate(await getSettingValue(ctx, organizationId, RECEIPT_KEY));
   },
 });
@@ -228,11 +216,7 @@ export const getReceiptTemplate = query({
 export const getPrintBundle = query({
   args: {},
   handler: async (ctx) => {
-    const { organizationId } = await requireRole(ctx, [
-      "administrator",
-      "manager",
-      "cashier",
-    ]);
+    const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
     return {
       business: parseBusiness(await getSettingValue(ctx, organizationId, BUSINESS_KEY)),
       template: parseTemplate(await getSettingValue(ctx, organizationId, RECEIPT_KEY)),
@@ -346,5 +330,3 @@ export const updateReceiptTemplate = mutation({
     return template;
   },
 });
-
-

@@ -21,12 +21,15 @@ export default function PrivacyPage() {
       <div className="space-y-8">
         {page.sections.map((section) => (
           <section key={section.title} className="scroll-mt-28">
-            <h2 className="text-[#111827] text-lg font-semibold tracking-tight sm:text-xl">
+            <h2 className="text-lg font-semibold tracking-tight text-[#111827] sm:text-xl">
               {section.title}
             </h2>
             <div className="mt-3 space-y-3">
               {section.paragraphs.map((paragraph) => (
-                <p key={paragraph} className="text-slate-600 text-sm leading-relaxed sm:text-[15px]">
+                <p
+                  key={paragraph}
+                  className="text-sm leading-relaxed text-slate-600 sm:text-[15px]"
+                >
                   {paragraph}
                 </p>
               ))}

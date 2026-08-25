@@ -76,10 +76,7 @@ export function PlatformPaymentDetailView({ paymentId }: { paymentId: string }) 
       <Grid cols={4}>
         <InfoCard label="Organization" value={payment.organizationName} />
         <InfoCard label="Reference" value={payment.reference} />
-        <InfoCard
-          label="Paid"
-          value={payment.paidAt ? formatDateTime(payment.paidAt) : "—"}
-        />
+        <InfoCard label="Paid" value={payment.paidAt ? formatDateTime(payment.paidAt) : "—"} />
         <InfoCard label="Created" value={formatDateTime(payment.createdAt)} />
       </Grid>
 

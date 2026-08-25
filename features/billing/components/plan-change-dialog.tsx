@@ -115,8 +115,8 @@ export function PlanChangeDialog({
                   Your organization currently exceeds some {preview.targetPlanName} limits.
                 </p>
                 <p className="text-muted-foreground text-xs">
-                  Existing products, users, devices, and history are kept. After the change you
-                  will not be able to add more until usage is within the new limits.
+                  Existing products, users, devices, and history are kept. After the change you will
+                  not be able to add more until usage is within the new limits.
                 </p>
                 <ul className="space-y-1 text-sm">
                   {preview.usageWarning.map((row) => (
@@ -143,8 +143,14 @@ export function PlanChangeDialog({
                     label="Current period"
                     value={`${formatDate(preview.currentPeriodStart)} – ${formatDate(preview.currentPeriodEnd)}`}
                   />
-                  <Row label="Remaining time" value={`${remainingDays(preview.remainingMs)} days`} />
-                  <Row label="Credit from current period" value={formatCurrency(preview.currentCredit)} />
+                  <Row
+                    label="Remaining time"
+                    value={`${remainingDays(preview.remainingMs)} days`}
+                  />
+                  <Row
+                    label="Credit from current period"
+                    value={formatCurrency(preview.currentCredit)}
+                  />
                   <Row
                     label="Remaining new-plan value"
                     value={formatCurrency(preview.newPlanRemainingCost)}

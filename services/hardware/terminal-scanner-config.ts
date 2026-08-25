@@ -46,8 +46,7 @@ export function loadTerminalScannerConfig(): TerminalScannerConfig {
           : DEFAULT_TERMINAL_SCANNER_CONFIG.deviceLabel,
       lastDetectedCode:
         typeof parsed.lastDetectedCode === "string" ? parsed.lastDetectedCode : undefined,
-      lastDetectedAt:
-        typeof parsed.lastDetectedAt === "number" ? parsed.lastDetectedAt : undefined,
+      lastDetectedAt: typeof parsed.lastDetectedAt === "number" ? parsed.lastDetectedAt : undefined,
     };
   } catch {
     return { ...DEFAULT_TERMINAL_SCANNER_CONFIG };

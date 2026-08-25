@@ -39,12 +39,12 @@ Every Convex query/mutation/action that touches business data must:
 
 Hiding a button is not authorization.
 
-| Role | Capabilities |
-|------|----------------|
-| Cashier | Sales, hold/resume, receipts, personal history, customer lookup |
-| Manager | Branch ops, catalog, inventory, cashiers in branch |
-| Administrator | Organization-wide, including users and settings |
-| Owner | Administrator + cannot be deactivated in this slice |
+| Role          | Capabilities                                                    |
+| ------------- | --------------------------------------------------------------- |
+| Cashier       | Sales, hold/resume, receipts, personal history, customer lookup |
+| Manager       | Branch ops, catalog, inventory, cashiers in branch              |
+| Administrator | Organization-wide, including users and settings                 |
+| Owner         | Administrator + cannot be deactivated in this slice             |
 
 # Tenant isolation
 
@@ -75,14 +75,14 @@ Hiding a button is not authorization.
 
 # Web threats
 
-| Threat | Defense |
-|--------|---------|
-| XSS | Safe rendering, CSP nonce + strict-dynamic |
-| CSRF | Auth cookie guidance; same-site |
-| Injection | Validated inputs; Convex parameterized access |
-| Privilege escalation | Server-side role + org checks |
-| IDOR | Org assertion after every get |
-| Mass assignment | Explicit writable field allowlists |
+| Threat               | Defense                                       |
+| -------------------- | --------------------------------------------- |
+| XSS                  | Safe rendering, CSP nonce + strict-dynamic    |
+| CSRF                 | Auth cookie guidance; same-site               |
+| Injection            | Validated inputs; Convex parameterized access |
+| Privilege escalation | Server-side role + org checks                 |
+| IDOR                 | Org assertion after every get                 |
+| Mass assignment      | Explicit writable field allowlists            |
 
 # Review checklist
 

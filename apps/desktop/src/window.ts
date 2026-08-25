@@ -114,9 +114,7 @@ async function loadAppShell(win: BrowserWindow, appUrl: string): Promise<void> {
     return;
   }
   if (!net.isOnline()) {
-    await win.loadURL(
-      `data:text/html;charset=utf-8,${encodeURIComponent(recoveryHtml(appUrl))}`,
-    );
+    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(recoveryHtml(appUrl))}`);
     return;
   }
   await win.loadURL(`${appUrl.replace(/\/$/, "")}${OFFLINE_ENTRY_PATH}`);

@@ -47,15 +47,15 @@ export function DocsGuide() {
             <li key={item.href}>
               <Link
                 href={item.href}
-                className="landing-shadow-card group flex h-full flex-col rounded-2xl border border-slate-200/80 bg-white p-5 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/30"
+                className="landing-shadow-card group hover:border-primary/30 flex h-full flex-col rounded-2xl border border-slate-200/80 bg-white p-5 transition-[transform,border-color] duration-200 hover:-translate-y-0.5"
               >
                 <span className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-xl">
                   <Icon className="h-5 w-5" aria-hidden />
                 </span>
-                <span className="text-[#111827] mt-4 text-base font-semibold tracking-tight">
+                <span className="mt-4 text-base font-semibold tracking-tight text-[#111827]">
                   {item.title}
                 </span>
-                <span className="text-slate-600 mt-1.5 text-sm leading-relaxed">{item.detail}</span>
+                <span className="mt-1.5 text-sm leading-relaxed text-slate-600">{item.detail}</span>
               </Link>
             </li>
           );
@@ -70,7 +70,7 @@ export function DocsGuide() {
           <a
             key={section.id}
             href={`#${section.id}`}
-            className="shrink-0 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-primary/40 hover:text-[#111827]"
+            className="hover:border-primary/40 shrink-0 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:text-[#111827]"
           >
             {section.title}
           </a>
@@ -95,10 +95,10 @@ export function DocsGuide() {
                   <p className="text-primary text-[11px] font-bold tracking-[0.16em] uppercase">
                     {String(index + 1).padStart(2, "0")}
                   </p>
-                  <h2 className="text-[#111827] mt-2 text-xl font-semibold tracking-tight sm:text-2xl">
+                  <h2 className="mt-2 text-xl font-semibold tracking-tight text-[#111827] sm:text-2xl">
                     {section.title}
                   </h2>
-                  <p className="text-slate-600 mt-3 text-sm leading-relaxed sm:text-[15px]">
+                  <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
                     {section.detail}
                   </p>
                   <ul className="mt-5 space-y-2.5">
@@ -126,18 +126,14 @@ export function DocsGuide() {
                       Demo screens for this topic are coming soon.
                     </div>
                   ) : (
-                    <div
-                      className={
-                        demos.length === 1
-                          ? "space-y-3"
-                          : "grid gap-3 sm:grid-cols-2"
-                      }
-                    >
+                    <div className={demos.length === 1 ? "space-y-3" : "grid gap-3 sm:grid-cols-2"}>
                       {demos.map((demo, demoIndex) => (
                         <figure
                           key={demo.src}
                           className={
-                            demos.length > 2 && demoIndex === 0 ? "min-w-0 sm:col-span-2" : "min-w-0"
+                            demos.length > 2 && demoIndex === 0
+                              ? "min-w-0 sm:col-span-2"
+                              : "min-w-0"
                           }
                         >
                           <ExpandableScreenshot

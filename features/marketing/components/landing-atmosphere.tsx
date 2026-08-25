@@ -5,7 +5,9 @@
 export function LandingAtmosphere({ soft = false }: { soft?: boolean }) {
   return (
     <div
-      className={soft ? "landing-atmosphere-frame landing-atmosphere-frame-soft" : "landing-atmosphere-frame"}
+      className={
+        soft ? "landing-atmosphere-frame landing-atmosphere-frame-soft" : "landing-atmosphere-frame"
+      }
       aria-hidden
     >
       <div className="login-atmosphere landing-atmosphere-lite">

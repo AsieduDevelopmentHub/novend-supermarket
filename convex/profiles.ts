@@ -51,5 +51,3 @@ export const ensureProfile = mutation({
     throw new Error("No staff profile for this account. Ask an administrator to create your user.");
   },
 });
-
-

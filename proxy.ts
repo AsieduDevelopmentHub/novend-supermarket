@@ -1,7 +1,4 @@
-import {
-  convexAuthNextjsMiddleware,
-  createRouteMatcher,
-} from "@convex-dev/auth/nextjs/server";
+import { convexAuthNextjsMiddleware, createRouteMatcher } from "@convex-dev/auth/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
 import { type NextRequest, NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
@@ -113,10 +110,7 @@ export default convexAuthNextjsMiddleware(
     }
 
     if (!isPublicRoute(request) && !authenticated) {
-      const loginHref = loginPathWithNext(
-        request.nextUrl.pathname,
-        request.nextUrl.search,
-      );
+      const loginHref = loginPathWithNext(request.nextUrl.pathname, request.nextUrl.search);
       return withSecurityHeaders(redirectTo(request, loginHref), nonce);
     }
 

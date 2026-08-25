@@ -39,7 +39,9 @@ export function queuedSaveMessage(kind: "remote" | "queued", live: string) {
   return kind === "queued" ? QUEUED_TOAST : live;
 }
 
-export async function queueUpsertSupplier(payload: Omit<UpsertSupplierPayload, "localId"> & { localId?: string }) {
+export async function queueUpsertSupplier(
+  payload: Omit<UpsertSupplierPayload, "localId"> & { localId?: string },
+) {
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const localId = payload.serverId ?? payload.localId ?? newClientId("local");
@@ -59,7 +61,9 @@ export async function queueUpsertSupplier(payload: Omit<UpsertSupplierPayload, "
   return localId;
 }
 
-export async function queueWholesalePurchase(payload: Omit<RecordWholesalePurchasePayload, "localId">) {
+export async function queueWholesalePurchase(
+  payload: Omit<RecordWholesalePurchasePayload, "localId">,
+) {
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const localId = newClientId("local");
@@ -81,7 +85,9 @@ export async function queueWholesalePurchase(payload: Omit<RecordWholesalePurcha
     status: "completed",
   });
   if (first) {
-    const existing = (await db.wholesaleStock.toArray()).find((row) => row.productId === first.productId);
+    const existing = (await db.wholesaleStock.toArray()).find(
+      (row) => row.productId === first.productId,
+    );
     const nextQty = (existing?.quantity ?? 0) + first.quantity;
     await db.wholesaleStock.put({
       id: existing?.id ?? newClientId("local"),
@@ -94,7 +100,10 @@ export async function queueWholesalePurchase(payload: Omit<RecordWholesalePurcha
       tracksExpiry: product?.tracksExpiry ?? existing?.tracksExpiry ?? false,
     });
   }
-  await enqueueOutbox(db, "record_wholesale_purchase", { ...payload, localId } satisfies RecordWholesalePurchasePayload);
+  await enqueueOutbox(db, "record_wholesale_purchase", {
+    ...payload,
+    localId,
+  } satisfies RecordWholesalePurchasePayload);
 }
 
 export async function queueWholesaleTransfer(payload: Omit<WholesaleTransferPayload, "localId">) {
@@ -103,7 +112,9 @@ export async function queueWholesaleTransfer(payload: Omit<WholesaleTransferPayl
   const localId = newClientId("local");
   const product = await db.products.get(payload.productId);
   const branch = await db.branches.get(payload.branchId);
-  const stock = (await db.wholesaleStock.toArray()).find((row) => row.productId === payload.productId);
+  const stock = (await db.wholesaleStock.toArray()).find(
+    (row) => row.productId === payload.productId,
+  );
   if (stock) {
     const next = stock.quantity - payload.quantity;
     if (next < 0) throw new Error("Insufficient wholesale stock");
@@ -125,7 +136,10 @@ export async function queueWholesaleTransfer(payload: Omit<WholesaleTransferPayl
     note: null,
     createdAt: Date.now(),
   });
-  await enqueueOutbox(db, "wholesale_transfer", { ...payload, localId } satisfies WholesaleTransferPayload);
+  await enqueueOutbox(db, "wholesale_transfer", {
+    ...payload,
+    localId,
+  } satisfies WholesaleTransferPayload);
 }
 
 export async function queueAdjustStock(payload: AdjustStockPayload) {
@@ -138,7 +152,10 @@ export async function queueAdjustStock(payload: AdjustStockPayload) {
     await db.products.put({
       ...product,
       stockQuantity: next,
-      sellableQuantity: Math.max(0, (product.sellableQuantity ?? product.stockQuantity) + payload.quantityChange),
+      sellableQuantity: Math.max(
+        0,
+        (product.sellableQuantity ?? product.stockQuantity) + payload.quantityChange,
+      ),
       updatedAt: Date.now(),
     });
   }
@@ -168,7 +185,9 @@ export async function queueTransferStock(payload: TransferStockPayload) {
   await enqueueOutbox(db, "transfer_stock", payload);
 }
 
-export async function queueUpsertCustomer(payload: Omit<UpsertCustomerPayload, "localId"> & { localId?: string }) {
+export async function queueUpsertCustomer(
+  payload: Omit<UpsertCustomerPayload, "localId"> & { localId?: string },
+) {
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const localId = payload.serverId ?? payload.localId ?? newClientId("local");
@@ -186,7 +205,10 @@ export async function queueUpsertCustomer(payload: Omit<UpsertCustomerPayload, "
     lastInvoiceNumber: existing?.lastInvoiceNumber ?? null,
     updatedAt: Date.now(),
   });
-  await enqueueOutbox(db, "upsert_customer", { ...payload, localId } satisfies UpsertCustomerPayload);
+  await enqueueOutbox(db, "upsert_customer", {
+    ...payload,
+    localId,
+  } satisfies UpsertCustomerPayload);
   return localId;
 }
 
@@ -257,7 +279,10 @@ export async function queueCreateCategory(name: string) {
     slug: trimmed.toLowerCase().replace(/\s+/g, "-"),
     isActive: true,
   });
-  await enqueueOutbox(db, "create_category", { localId, name: trimmed } satisfies CreateCategoryPayload);
+  await enqueueOutbox(db, "create_category", {
+    localId,
+    name: trimmed,
+  } satisfies CreateCategoryPayload);
   return localId;
 }
 
@@ -325,7 +350,9 @@ export async function queueUpsertBranch(
   if (!db) throw new Error("Local storage is not available on this device.");
   const code = payload.code.trim().toUpperCase().replace(/\s+/g, "_");
   const localId = payload.serverId ?? payload.localId ?? newClientId("local");
-  const clash = (await db.branches.toArray()).find((row) => row.code === code && row.id !== localId);
+  const clash = (await db.branches.toArray()).find(
+    (row) => row.code === code && row.id !== localId,
+  );
   if (clash) throw new Error("Branch code already exists");
   await db.branches.put({
     id: localId,

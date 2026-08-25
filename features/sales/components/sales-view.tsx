@@ -17,12 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
@@ -56,7 +51,11 @@ import {
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
 import type { LocalHeldSale } from "@/lib/offline/types";
 import { ProductImage } from "@/components/media/product-image";
-import { isBarcodeScanningEnabled, playScanSuccessBeep, shouldShowCameraBarcodeButton } from "@/services/hardware";
+import {
+  isBarcodeScanningEnabled,
+  playScanSuccessBeep,
+  shouldShowCameraBarcodeButton,
+} from "@/services/hardware";
 import { ScanBarcodeCameraDialog } from "@/components/hardware/scan-barcode-camera-dialog";
 import {
   BarcodeMatchDialog,
@@ -690,7 +689,7 @@ export function SalesView() {
                       }
                     />
                   </div>
-                  <p className="line-clamp-2 text-sm font-medium leading-tight">{product.name}</p>
+                  <p className="line-clamp-2 text-sm leading-tight font-medium">{product.name}</p>
                   <p className="text-primary mt-1 text-sm font-semibold">
                     {formatCurrency(product.sellingPrice)}
                   </p>
@@ -715,7 +714,10 @@ export function SalesView() {
                     <div className="min-w-0">
                       <p className="truncate font-medium">
                         {sale.label}
-                        <span className="text-muted-foreground font-normal"> · #{sale.holdRef}</span>
+                        <span className="text-muted-foreground font-normal">
+                          {" "}
+                          · #{sale.holdRef}
+                        </span>
                       </p>
                       <p className="text-muted-foreground text-xs">
                         {formatDateTime(sale.heldAt)} · {formatCurrency(sale.total)}
@@ -739,7 +741,7 @@ export function SalesView() {
         </div>
 
         <Card className="hidden h-fit self-start xl:sticky xl:top-4 xl:block xl:max-h-[calc(100dvh-5.5rem)] xl:overflow-y-auto">
-          <CardHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          <CardHeader className="bg-card/95 supports-[backdrop-filter]:bg-card/80 sticky top-0 z-10 backdrop-blur">
             <CardTitle className="flex items-center gap-2 text-base">
               <ShoppingCart className="h-4 w-4" />
               Current Sale
@@ -785,14 +787,12 @@ export function SalesView() {
       <div
         className={cn(
           "border-border bg-card/95 supports-[backdrop-filter]:bg-card/80 fixed inset-x-0 z-30 border-t px-4 py-3 backdrop-blur xl:hidden",
-          nativeShell
-            ? "bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))]"
-            : "bottom-0",
+          nativeShell ? "bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))]" : "bottom-0",
         )}
       >
         <button
           type="button"
-          className="flex w-full min-h-12 items-center gap-3 text-left"
+          className="flex min-h-12 w-full items-center gap-3 text-left"
           onClick={() => {
             void triggerLightHaptic();
             setCheckoutSnap(0.58);

@@ -209,10 +209,9 @@ export type PaystackSubscription = {
 };
 
 export async function fetchSubscription(code: string): Promise<PaystackSubscription> {
-  return await paystackFetch<PaystackSubscription>(
-    `/subscription/${encodeURIComponent(code)}`,
-    { method: "GET" },
-  );
+  return await paystackFetch<PaystackSubscription>(`/subscription/${encodeURIComponent(code)}`, {
+    method: "GET",
+  });
 }
 
 export async function disableSubscription(args: {
@@ -294,9 +293,7 @@ export function buildReference(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${random}`.toUpperCase();
 }
 
-export function parseMetadata(
-  metadata: PaystackTransaction["metadata"],
-): Record<string, unknown> {
+export function parseMetadata(metadata: PaystackTransaction["metadata"]): Record<string, unknown> {
   if (!metadata) return {};
   if (typeof metadata === "string") {
     try {

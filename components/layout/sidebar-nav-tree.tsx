@@ -15,11 +15,7 @@ import {
 import { useNavTreeState } from "@/hooks/use-nav-tree-state";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 function NavTooltip({
   label,
@@ -155,8 +151,7 @@ function NavGroupSection({
     return (
       <div className="flex flex-col gap-1">
         {group.items.map((item) => {
-          const active =
-            currentPath === item.href || currentPath.startsWith(`${item.href}/`);
+          const active = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
           return (
             <SidebarNavLink
               key={item.href}
@@ -191,7 +186,7 @@ function NavGroupSection({
         onClick={onToggle}
         aria-expanded={expanded}
         className={cn(
-          "text-sidebar-foreground/90 hover:bg-white/5 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors",
+          "text-sidebar-foreground/90 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors hover:bg-white/5",
           hasActiveChild && "text-white",
         )}
       >

@@ -57,7 +57,9 @@ export function LoginBrandPanel({ variant = "desktop", className }: Props) {
           </div>
         ) : (
           <div className="mt-8 flex flex-1 flex-col justify-center">
-            <p className="text-3xl font-semibold tracking-tight lg:text-4xl">Built for the counter.</p>
+            <p className="text-3xl font-semibold tracking-tight lg:text-4xl">
+              Built for the counter.
+            </p>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/65">
               Fast checkout, live stock, and a warehouse that feeds every branch.
             </p>
@@ -93,7 +95,13 @@ function CommerceChart({ className }: { className?: string }) {
         strokeLinejoin="round"
       />
       <circle className="login-chart-dot" cx="214" cy="48" r="4" fill="#38bdf8" />
-      <circle className="login-chart-dot login-chart-dot-delay" cx="312" cy="22" r="4.5" fill="#7dd3fc" />
+      <circle
+        className="login-chart-dot login-chart-dot-delay"
+        cx="312"
+        cy="22"
+        r="4.5"
+        fill="#7dd3fc"
+      />
     </svg>
   );
 }

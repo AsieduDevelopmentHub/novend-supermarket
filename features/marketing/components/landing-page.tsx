@@ -52,7 +52,7 @@ export function LandingPage() {
   return (
     <div
       ref={scrollRef}
-      className="marketing-forced-light bg-[#F8FAFC] text-foreground h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain"
+      className="marketing-forced-light text-foreground h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[#F8FAFC]"
     >
       <div ref={pageRef}>
         <LandingNav scrollRootRef={scrollRef} />

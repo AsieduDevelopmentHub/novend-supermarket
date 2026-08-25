@@ -23,7 +23,12 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { useBranchesList, useProductsList, useSuppliersList, useWholesaleLists } from "@/hooks/use-offline-lists";
+import {
+  useBranchesList,
+  useProductsList,
+  useSuppliersList,
+  useWholesaleLists,
+} from "@/hooks/use-offline-lists";
 import {
   persistBusinessWrite,
   queuedSaveMessage,
@@ -384,7 +389,11 @@ export function WholesaleView() {
               </div>
               <div className="space-y-2">
                 <Label>Expiry (dated products)</Label>
-                <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
+                <Input
+                  type="date"
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
+                />
               </div>
             </div>
             <DialogFooter>
@@ -408,7 +417,10 @@ export function WholesaleView() {
                 <SearchableSelect
                   options={(stock ?? [])
                     .filter((row) => row.quantity > 0)
-                    .map((row) => ({ value: row.productId, label: `${row.name} (${row.quantity})` }))}
+                    .map((row) => ({
+                      value: row.productId,
+                      label: `${row.name} (${row.quantity})`,
+                    }))}
                   value={issueProductId}
                   onValueChange={setIssueProductId}
                   placeholder="Select stock"

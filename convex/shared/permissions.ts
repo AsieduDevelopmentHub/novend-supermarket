@@ -275,4 +275,3 @@ export function resolveBranchFilter(
   }
   return profile.branchId;
 }
-

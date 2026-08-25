@@ -517,10 +517,13 @@ export function useSuppliersList(options: { search: string; includeInactive: boo
   const { online, ready } = useMirrorListGate();
   const remote = useQuery(
     api.suppliers.list,
-    online && ready ? { search: options.search || undefined, includeInactive: options.includeInactive } : "skip",
+    online && ready
+      ? { search: options.search || undefined, includeInactive: options.includeInactive }
+      : "skip",
   );
   const local = useMirrorRows(
-    () => listMirroredSuppliers({ search: options.search, includeInactive: options.includeInactive }),
+    () =>
+      listMirroredSuppliers({ search: options.search, includeInactive: options.includeInactive }),
     [options.search, options.includeInactive],
   );
   const mappedRemote = remote?.map((row) => ({
@@ -551,9 +554,11 @@ export function useWholesaleLists(search: string) {
   const localStock = useMirrorRows(() => listMirroredWholesaleStock(search), [search]);
   const localPurchases = useMirrorRows(() => listMirroredWholesalePurchases(), []);
   const localTransfers = useMirrorRows(() => listMirroredWholesaleTransfers(), []);
-  const [localSummary, setLocalSummary] = useState<{ units: number; value: number; skuCount: number } | null>(
-    null,
-  );
+  const [localSummary, setLocalSummary] = useState<{
+    units: number;
+    value: number;
+    skuCount: number;
+  } | null>(null);
   const { lastSyncAt } = useOfflineStatus();
   useEffect(() => {
     let cancelled = false;
@@ -568,8 +573,14 @@ export function useWholesaleLists(search: string) {
   return {
     stock: !online || (localStock && localStock.length > 0) ? localStock : (stock ?? localStock),
     summary: !online || localSummary ? localSummary : (summary ?? localSummary),
-    purchases: !online || (localPurchases && localPurchases.length > 0) ? localPurchases : (purchases ?? localPurchases),
-    transfers: !online || (localTransfers && localTransfers.length > 0) ? localTransfers : (transfers ?? localTransfers),
+    purchases:
+      !online || (localPurchases && localPurchases.length > 0)
+        ? localPurchases
+        : (purchases ?? localPurchases),
+    transfers:
+      !online || (localTransfers && localTransfers.length > 0)
+        ? localTransfers
+        : (transfers ?? localTransfers),
   };
 }
 

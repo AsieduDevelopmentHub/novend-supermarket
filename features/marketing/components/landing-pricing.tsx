@@ -99,17 +99,17 @@ export function LandingPricing() {
   return (
     <section
       id="pricing"
-      className="landing-pricing-v2 scroll-mt-24 border-t border-border bg-white px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
+      className="landing-pricing-v2 border-border scroll-mt-24 border-t bg-white px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
         <header data-reveal className="mx-auto max-w-[700px] text-center">
           <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
             {copy.badge}
           </p>
-          <h2 className="text-[#111827] mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-balance text-[#111827] sm:text-4xl">
             {copy.title}
           </h2>
-          <p className="text-slate-600 mt-4 text-base leading-relaxed text-pretty sm:text-lg">
+          <p className="mt-4 text-base leading-relaxed text-pretty text-slate-600 sm:text-lg">
             {copy.subtitle}
           </p>
 
@@ -130,8 +130,8 @@ export function LandingPricing() {
                   <Icon className="h-4 w-4" aria-hidden />
                 </span>
                 <div>
-                  <p className="text-[#111827] text-sm font-semibold">{item.title}</p>
-                  <p className="text-slate-500 mt-0.5 text-sm">{item.detail}</p>
+                  <p className="text-sm font-semibold text-[#111827]">{item.title}</p>
+                  <p className="mt-0.5 text-sm text-slate-500">{item.detail}</p>
                 </div>
               </li>
             );
@@ -164,9 +164,7 @@ function BillingToggle({
             onClick={() => onChange(option)}
             className={cn(
               "rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
-              cycle === option
-                ? "bg-primary text-white"
-                : "text-slate-600 hover:text-[#111827]",
+              cycle === option ? "bg-primary text-white" : "text-slate-600 hover:text-[#111827]",
             )}
           >
             {option === "monthly" ? "Monthly" : "Yearly"}
@@ -183,7 +181,7 @@ function BillingToggle({
           </button>
         ))}
       </div>
-      <p className="text-slate-500 text-xs">
+      <p className="text-xs text-slate-500">
         {cycle === "yearly"
           ? "Billed once a year — two months free versus monthly."
           : "Switch to yearly anytime to lock in two months free."}
@@ -208,9 +206,7 @@ function PricingCards({ cycle }: { cycle: BillingCycle }) {
         const external = cta.href.startsWith("mailto:");
         const price = planPriceDisplay(plan, cycle);
         const ctaHref =
-          external || plan.isLifetime
-            ? cta.href
-            : `${cta.href}?plan=${key}&cycle=${cycle}`;
+          external || plan.isLifetime ? cta.href : `${cta.href}?plan=${key}&cycle=${cycle}`;
 
         const limitLines = [
           `${limitLabel(plan.limits.products, "count")} Products`,
@@ -246,22 +242,20 @@ function PricingCards({ cycle }: { cycle: BillingCycle }) {
                 "mb-3 inline-flex self-start rounded-full px-3 py-1 text-[10px] font-bold tracking-[0.12em] uppercase sm:absolute sm:-top-3 sm:left-1/2 sm:mb-0 sm:-translate-x-1/2 sm:self-auto",
                 isFeatured && "bg-primary text-white",
                 isGold && "border border-amber-300 bg-amber-50 text-amber-900",
-                !isFeatured &&
-                  !isGold &&
-                  "border border-slate-200 bg-white text-slate-700",
+                !isFeatured && !isGold && "border border-slate-200 bg-white text-slate-700",
               )}
             >
               {planBadge(key)}
             </span>
 
-            <h3 className="text-[#111827] text-xl font-semibold tracking-tight sm:mt-2">
+            <h3 className="text-xl font-semibold tracking-tight text-[#111827] sm:mt-2">
               {plan.name}
             </h3>
-            <p className="text-slate-600 mt-3 text-sm leading-relaxed">{planDescription(key)}</p>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">{planDescription(key)}</p>
 
             <div className="mt-6 border-t border-slate-100 pt-5">
-              <p className="text-[#111827] text-3xl font-semibold tracking-tight">{price.amount}</p>
-              <p className="text-slate-500 mt-1 text-xs">{price.suffix}</p>
+              <p className="text-3xl font-semibold tracking-tight text-[#111827]">{price.amount}</p>
+              <p className="mt-1 text-xs text-slate-500">{price.suffix}</p>
               {price.savings !== null ? (
                 <p className="text-primary mt-2 text-xs font-semibold">
                   Save GH₵{price.savings.toLocaleString()} / year
@@ -272,7 +266,7 @@ function PricingCards({ cycle }: { cycle: BillingCycle }) {
             <ul className="mt-5 space-y-1.5 text-xs text-slate-600">
               {limitLines.map((line) => (
                 <li key={line} className="flex items-center gap-2">
-                  <span className="bg-slate-300 h-1 w-1 shrink-0 rounded-full" aria-hidden />
+                  <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden />
                   {line}
                 </li>
               ))}

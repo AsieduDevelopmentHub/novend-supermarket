@@ -18,15 +18,15 @@ Desktop:
 
 ## Layers
 
-| Layer | Location |
-|-------|----------|
-| Routes / layouts | `app/` |
-| Feature modules | `features/` |
-| Foundation UI | `components/` |
-| Shared utils | `lib/`, `hooks/` |
-| Print / OS bridge | `services/` |
-| Backend | `convex/` |
-| Config | `config/`, `constants/` |
+| Layer             | Location                |
+| ----------------- | ----------------------- |
+| Routes / layouts  | `app/`                  |
+| Feature modules   | `features/`             |
+| Foundation UI     | `components/`           |
+| Shared utils      | `lib/`, `hooks/`        |
+| Print / OS bridge | `services/`             |
+| Backend           | `convex/`               |
+| Config            | `config/`, `constants/` |
 
 ## Deployment targets
 

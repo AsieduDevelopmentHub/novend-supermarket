@@ -8,17 +8,19 @@ import { formatCurrency } from "@/lib/currency";
 import { ReceiptText } from "lucide-react";
 import { useBillingHistoryData } from "@/hooks/use-billing-offline";
 
-const STATUS_VARIANT: Record<string, "success" | "secondary" | "destructive" | "outline" | "warning"> =
-  {
-    success: "success",
-    pending: "secondary",
-    processing: "secondary",
-    failed: "destructive",
-    cancelled: "outline",
-    abandoned: "outline",
-    expired: "outline",
-    refunded: "warning",
-  };
+const STATUS_VARIANT: Record<
+  string,
+  "success" | "secondary" | "destructive" | "outline" | "warning"
+> = {
+  success: "success",
+  pending: "secondary",
+  processing: "secondary",
+  failed: "destructive",
+  cancelled: "outline",
+  abandoned: "outline",
+  expired: "outline",
+  refunded: "warning",
+};
 
 function formatDate(value: number) {
   return new Date(value).toLocaleDateString("en-GH", {

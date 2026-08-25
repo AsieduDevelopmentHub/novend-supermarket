@@ -229,110 +229,114 @@ export function SettingsView() {
           onSelect={(value) => setTab(value)}
         />
         <div className="min-w-0 flex-1 space-y-4">
-        <div className="lg:hidden">
-          <Label htmlFor="settings-section" className="sr-only">
-            Settings section
-          </Label>
-          <Select value={activeTab} onValueChange={(value) => setTab(value as SettingsTab)}>
-            <SelectTrigger id="settings-section" className="w-full">
-              <SelectValue placeholder="Choose a section" />
-            </SelectTrigger>
-            <SelectContent>
-              {sections.map((section) => (
-                <SelectItem key={section.value} value={section.value}>
-                  {section.long}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          <div className="lg:hidden">
+            <Label htmlFor="settings-section" className="sr-only">
+              Settings section
+            </Label>
+            <Select value={activeTab} onValueChange={(value) => setTab(value as SettingsTab)}>
+              <SelectTrigger id="settings-section" className="w-full">
+                <SelectValue placeholder="Choose a section" />
+              </SelectTrigger>
+              <SelectContent>
+                {sections.map((section) => (
+                  <SelectItem key={section.value} value={section.value}>
+                    {section.long}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <TabsContent value="profile" className="mt-0">
-          <ProfilePanel />
-        </TabsContent>
+          <TabsContent value="profile" className="mt-0">
+            <ProfilePanel />
+          </TabsContent>
 
-        {isAdmin && business && template ? (
-          <>
+          {isAdmin && business && template ? (
+            <>
+              <TabsContent value="business" className="mt-0">
+                <BusinessForm
+                  key={JSON.stringify(business)}
+                  initial={business}
+                  readOnly={!online}
+                />
+              </TabsContent>
+
+              <TabsContent value="receipt" className="mt-0">
+                <ReceiptTemplateForm
+                  key={JSON.stringify(template)}
+                  initialTemplate={template}
+                  initialBusiness={business}
+                  readOnly={!online}
+                />
+              </TabsContent>
+            </>
+          ) : isAdmin && !online ? (
             <TabsContent value="business" className="mt-0">
-              <BusinessForm key={JSON.stringify(business)} initial={business} readOnly={!online} />
+              <Card>
+                <CardContent className="text-muted-foreground p-5 text-sm">
+                  Business and receipt settings haven&apos;t been cached on this device yet. Open
+                  Settings once while online to keep them available offline.
+                </CardContent>
+              </Card>
             </TabsContent>
+          ) : null}
 
-            <TabsContent value="receipt" className="mt-0">
-              <ReceiptTemplateForm
-                key={JSON.stringify(template)}
-                initialTemplate={template}
-                initialBusiness={business}
-                readOnly={!online}
-              />
+          {isAdmin ? (
+            <TabsContent value="billing" className="mt-0">
+              <BillingPanel />
             </TabsContent>
-          </>
-        ) : isAdmin && !online ? (
-          <TabsContent value="business" className="mt-0">
-            <Card>
-              <CardContent className="text-muted-foreground p-5 text-sm">
-                Business and receipt settings haven&apos;t been cached on this device yet. Open
-                Settings once while online to keep them available offline.
-              </CardContent>
-            </Card>
+          ) : null}
+
+          {isManager || isAdmin ? (
+            <>
+              <TabsContent value="branchReceipt" className="mt-0">
+                <BranchReceiptPanel />
+              </TabsContent>
+              <TabsContent value="devices" className="mt-0">
+                <DevicesPanel />
+              </TabsContent>
+            </>
+          ) : null}
+
+          {isDesktop ? (
+            <>
+              <TabsContent value="printer" className="mt-0">
+                <PrinterPanel />
+              </TabsContent>
+              <TabsContent value="futureDevices" className="mt-0">
+                <FutureDevicesPanel />
+              </TabsContent>
+              <TabsContent value="updates" className="mt-0">
+                <UpdatesPanel />
+              </TabsContent>
+            </>
+          ) : onMobileShell ? (
+            <TabsContent value="mobileHardware" className="mt-0">
+              <MobileHardwarePanel />
+            </TabsContent>
+          ) : (
+            <TabsContent value="desktop" className="mt-0">
+              <DesktopDownloadPanel />
+            </TabsContent>
+          )}
+
+          {!onMobileShell ? (
+            <TabsContent value="scanner" className="mt-0">
+              <ScannerPanel />
+            </TabsContent>
+          ) : null}
+
+          <TabsContent value="backup" className="mt-0">
+            <LocalBackupPanel />
           </TabsContent>
-        ) : null}
 
-        {isAdmin ? (
-          <TabsContent value="billing" className="mt-0">
-            <BillingPanel />
+          <TabsContent value="appearance" className="mt-0">
+            <AppearancePanel />
           </TabsContent>
-        ) : null}
 
-        {isManager || isAdmin ? (
-          <>
-            <TabsContent value="branchReceipt" className="mt-0">
-              <BranchReceiptPanel />
-            </TabsContent>
-            <TabsContent value="devices" className="mt-0">
-              <DevicesPanel />
-            </TabsContent>
-          </>
-        ) : null}
-
-        {isDesktop ? (
-          <>
-            <TabsContent value="printer" className="mt-0">
-              <PrinterPanel />
-            </TabsContent>
-            <TabsContent value="futureDevices" className="mt-0">
-              <FutureDevicesPanel />
-            </TabsContent>
-            <TabsContent value="updates" className="mt-0">
-              <UpdatesPanel />
-            </TabsContent>
-          </>
-        ) : onMobileShell ? (
-          <TabsContent value="mobileHardware" className="mt-0">
-            <MobileHardwarePanel />
+          <TabsContent value="security" className="mt-0">
+            <SecurityPanel />
           </TabsContent>
-        ) : (
-          <TabsContent value="desktop" className="mt-0">
-            <DesktopDownloadPanel />
-          </TabsContent>
-        )}
-
-        {!onMobileShell ? (
-          <TabsContent value="scanner" className="mt-0">
-            <ScannerPanel />
-          </TabsContent>
-        ) : null}
-
-        <TabsContent value="backup" className="mt-0">
-          <LocalBackupPanel />
-        </TabsContent>
-
-        <TabsContent value="appearance" className="mt-0">
-          <AppearancePanel />
-        </TabsContent>
-
-        <TabsContent value="security" className="mt-0">
-          <SecurityPanel />
-        </TabsContent>
         </div>
       </Tabs>
     </div>
@@ -380,8 +384,7 @@ function SettingsTreeNav({
     {
       label: "Business",
       items: sections.filter(
-        (item) =>
-          item.value === "business" || item.value === "receipt" || item.value === "billing",
+        (item) => item.value === "business" || item.value === "receipt" || item.value === "billing",
       ),
     },
     {
@@ -399,8 +402,7 @@ function SettingsTreeNav({
     {
       label: "This device",
       items: sections.filter(
-        (item) =>
-          item.value === "updates" || item.value === "desktop" || item.value === "backup",
+        (item) => item.value === "updates" || item.value === "desktop" || item.value === "backup",
       ),
     },
   ].filter((group) => group.items.length > 0);
@@ -426,7 +428,9 @@ function SettingsTreeNav({
                     className={cn(
                       "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-medium",
                       nested && "pl-4",
-                      active ? "bg-accent text-accent-foreground" : "hover:bg-muted text-foreground",
+                      active
+                        ? "bg-accent text-accent-foreground"
+                        : "hover:bg-muted text-foreground",
                     )}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
@@ -566,9 +570,7 @@ function ReceiptTemplateForm({
   const posPrefs = usePosPreferences();
   const updatePos = useMutation(api.settings.updatePosPreferences);
   const printMode = resolveReceiptPrintMode(posPrefs);
-  const [headerText, setHeaderText] = useState(
-    sanitizeReceiptCopy(initialTemplate.headerText, ""),
-  );
+  const [headerText, setHeaderText] = useState(sanitizeReceiptCopy(initialTemplate.headerText, ""));
   const [footerText, setFooterText] = useState(initialTemplate.footerText);
   const [thankYouLine, setThankYouLine] = useState(initialTemplate.thankYouLine);
   const [showCashier, setShowCashier] = useState(initialTemplate.showCashier);

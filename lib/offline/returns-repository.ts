@@ -121,8 +121,7 @@ export async function processReturnLocally(input: {
   const cashierName = (await getMeta(db, META_KEYS.profileName)) ?? "Cashier";
   const snapshot = await loadPrintSnapshot(db);
   const order = await db.orders.get(input.saleId);
-  const branchId =
-    order?.branchId ?? (await getMeta(db, META_KEYS.profileBranchId)) ?? undefined;
+  const branchId = order?.branchId ?? (await getMeta(db, META_KEYS.profileBranchId)) ?? undefined;
 
   const receiptPayload: ReceiptPayload = {
     kind: "return",

@@ -18,12 +18,7 @@ describe("platform nav accordion", () => {
   });
 
   it("lists collapsible SaaS sections", () => {
-    expect(PLATFORM_NAV_ACCORDION_GROUP_IDS).toEqual([
-      "analytics",
-      "tenants",
-      "product",
-      "system",
-    ]);
+    expect(PLATFORM_NAV_ACCORDION_GROUP_IDS).toEqual(["analytics", "tenants", "product", "system"]);
   });
 
   it("matches overview exactly", () => {

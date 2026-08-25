@@ -16,10 +16,12 @@ export function sanitizeReceiptCopy(value?: string | null, fallback = DEFAULT_RE
   return trimmed;
 }
 
-export function resolveReceiptPrintMode(prefs?: {
-  receiptPrintMode?: ReceiptPrintMode;
-  autoPrintReceipt?: boolean;
-} | null): ReceiptPrintMode {
+export function resolveReceiptPrintMode(
+  prefs?: {
+    receiptPrintMode?: ReceiptPrintMode;
+    autoPrintReceipt?: boolean;
+  } | null,
+): ReceiptPrintMode {
   if (
     prefs?.receiptPrintMode === "automatic" ||
     prefs?.receiptPrintMode === "manual" ||

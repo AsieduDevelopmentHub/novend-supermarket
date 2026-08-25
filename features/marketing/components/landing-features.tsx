@@ -23,15 +23,15 @@ export function LandingFeatures() {
   return (
     <section
       id="features"
-      className="landing-features-showcase scroll-mt-24 border-t border-border bg-[#F8FAFC] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
+      className="landing-features-showcase border-border scroll-mt-24 border-t bg-[#F8FAFC] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
         <header data-reveal className="mx-auto max-w-[680px] text-center">
           <p className="text-primary text-[13px] font-semibold tracking-wide">{features.badge}</p>
-          <h2 className="text-[#111827] mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-balance text-[#111827] sm:text-4xl">
             {features.title}
           </h2>
-          <p className="text-slate-600 mt-4 text-base leading-relaxed text-pretty sm:text-lg">
+          <p className="mt-4 text-base leading-relaxed text-pretty text-slate-600 sm:text-lg">
             {features.subtitle}
           </p>
         </header>
@@ -68,10 +68,10 @@ export function LandingFeatures() {
                     imageLeft ? "lg:justify-self-start" : "lg:justify-self-end",
                   )}
                 >
-                  <h3 className="text-[#111827] text-2xl font-semibold tracking-tight sm:text-3xl">
+                  <h3 className="text-2xl font-semibold tracking-tight text-[#111827] sm:text-3xl">
                     {block.title}
                   </h3>
-                  <p className="text-slate-600 mt-4 text-base leading-relaxed">{block.detail}</p>
+                  <p className="mt-4 text-base leading-relaxed text-slate-600">{block.detail}</p>
                   <ul className="mt-6 grid gap-2.5 sm:grid-cols-2">
                     {block.bullets.map((bullet) => (
                       <li key={bullet} className="flex items-start gap-2.5 text-sm text-slate-700">

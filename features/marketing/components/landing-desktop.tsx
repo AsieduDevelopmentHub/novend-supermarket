@@ -10,7 +10,7 @@ export function LandingDesktop() {
   return (
     <section
       id={desktop.id}
-      className="scroll-mt-24 border-t border-border bg-[#F8FAFC] px-4 py-16 sm:px-6 lg:px-8"
+      className="border-border scroll-mt-24 border-t bg-[#F8FAFC] px-4 py-16 sm:px-6 lg:px-8"
     >
       <div
         data-reveal
@@ -23,10 +23,10 @@ export function LandingDesktop() {
           <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
             {desktop.badge}
           </p>
-          <h2 className="text-[#111827] mt-2 text-2xl font-semibold tracking-tight">
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[#111827]">
             {desktop.title}
           </h2>
-          <p className="text-slate-600 mt-2 text-sm leading-relaxed sm:text-base">
+          <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:text-base">
             {desktop.detail}
           </p>
         </div>

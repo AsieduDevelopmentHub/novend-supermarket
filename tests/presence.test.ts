@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatPresence } from "@/lib/date";
-import {
-  normalizeLastSeenAt,
-  presenceFromLastSeenAt,
-  sortUsersByPresence,
-} from "@/lib/presence";
+import { normalizeLastSeenAt, presenceFromLastSeenAt, sortUsersByPresence } from "@/lib/presence";
 
 describe("presence", () => {
   it("treats zero lastSeenAt as absent", () => {

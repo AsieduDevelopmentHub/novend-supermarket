@@ -27,18 +27,34 @@ export function BranchDetailView({ branchId }: { branchId: string }) {
     api.branches.getOverview,
     online && canManageBranches ? { id: branchId as Id<"branches"> } : "skip",
   );
-  const [localOverview, setLocalOverview] = useState<{
-    name: string;
-    code: string;
-    address: string | null;
-    phone: string | null;
-    email: string | null;
-    status: string;
-    kpis: { inventoryValue: number; revenue: number; profit: number; expenses: number; refunds: number };
-    manager: { id: string; name: string } | null;
-    staff: Array<{ id: string; name: string; role: string }>;
-    recentSales: Array<{ id: string; invoiceNumber: string; total: number; completedAt: number; customerName: string }>;
-  } | null | undefined>(undefined);
+  const [localOverview, setLocalOverview] = useState<
+    | {
+        name: string;
+        code: string;
+        address: string | null;
+        phone: string | null;
+        email: string | null;
+        status: string;
+        kpis: {
+          inventoryValue: number;
+          revenue: number;
+          profit: number;
+          expenses: number;
+          refunds: number;
+        };
+        manager: { id: string; name: string } | null;
+        staff: Array<{ id: string; name: string; role: string }>;
+        recentSales: Array<{
+          id: string;
+          invoiceNumber: string;
+          total: number;
+          completedAt: number;
+          customerName: string;
+        }>;
+      }
+    | null
+    | undefined
+  >(undefined);
 
   useEffect(() => {
     let cancelled = false;

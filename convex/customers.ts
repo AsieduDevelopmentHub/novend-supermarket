@@ -16,11 +16,7 @@ export const list = query({
     includeInactive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await requireRole(ctx, [
-      "administrator",
-      "manager",
-      "cashier",
-    ]);
+    const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
     let customers = await ctx.db
       .query("customers")
       .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
@@ -74,11 +70,7 @@ export const search = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await requireRole(ctx, [
-      "administrator",
-      "manager",
-      "cashier",
-    ]);
+    const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
     const queryText = args.q.trim().toLowerCase();
     if (!queryText) return [];
     const limit = Math.min(args.limit ?? 8, 20);
@@ -108,11 +100,7 @@ export const search = query({
 export const get = query({
   args: { id: v.id("customers") },
   handler: async (ctx, args) => {
-    const { organizationId } = await requireRole(ctx, [
-      "administrator",
-      "manager",
-      "cashier",
-    ]);
+    const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
     const customer = await ctx.db.get(args.id);
     if (!customer || customer.organizationId !== organizationId) return null;
     return {
@@ -132,11 +120,7 @@ export const purchaseHistory = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await requireRole(ctx, [
-      "administrator",
-      "manager",
-      "cashier",
-    ]);
+    const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
     const customer = await ctx.db.get(args.customerId);
     if (!customer || customer.organizationId !== organizationId) return [];
     const limit = Math.min(args.limit ?? 20, 50);
@@ -250,4 +234,3 @@ export const archive = mutation({
     });
   },
 });
-

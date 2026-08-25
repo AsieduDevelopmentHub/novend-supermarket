@@ -140,14 +140,8 @@ export function PlatformHealthView() {
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3">
-            <Metric
-              label="Backups (24h)"
-              value={String(health.sync.backupsLast24h)}
-            />
-            <Metric
-              label="Devices synced (24h)"
-              value={String(health.sync.devicesSeenLast24h)}
-            />
+            <Metric label="Backups (24h)" value={String(health.sync.backupsLast24h)} />
+            <Metric label="Devices synced (24h)" value={String(health.sync.devicesSeenLast24h)} />
             <Metric
               label="Stale devices"
               value={String(health.sync.devicesStale)}
@@ -198,15 +192,7 @@ export function PlatformHealthView() {
   );
 }
 
-function Metric({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: "warning";
-}) {
+function Metric({ label, value, tone }: { label: string; value: string; tone?: "warning" }) {
   return (
     <div className="bg-muted/40 rounded-xl p-3">
       <p className="text-muted-foreground text-xs">{label}</p>

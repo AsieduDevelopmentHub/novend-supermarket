@@ -23,9 +23,7 @@ export function useOfflineAnalyticsDetails(
 ) {
   const { lastSyncAt } = useOfflineStatus();
   const requestKey =
-    enabled && range
-      ? `${metric}:${range.startDate}:${range.endDate}:${branchId ?? "all"}`
-      : "";
+    enabled && range ? `${metric}:${range.startDate}:${range.endDate}:${branchId ?? "all"}` : "";
 
   const [state, setState] = useState<OfflineDetailsState>({
     key: "",

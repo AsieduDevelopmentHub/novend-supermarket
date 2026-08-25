@@ -112,8 +112,7 @@ export async function resolveProductImageSrc(
   if (db) {
     const row = await db.productImages.get(productId);
     if (row) {
-      const blob =
-        options?.thumbnail && row.thumbnailBlob ? row.thumbnailBlob : row.blob;
+      const blob = options?.thumbnail && row.thumbnailBlob ? row.thumbnailBlob : row.blob;
       return rememberUrl(`${productId}:${options?.thumbnail ? "t" : "f"}`, blob, row.updatedAt);
     }
   }

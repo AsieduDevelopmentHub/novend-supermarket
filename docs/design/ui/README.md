@@ -9,33 +9,33 @@ docs/design/ui/<file>
 
 ## Marketing & devices
 
-| File | Shows |
-|------|--------|
-| `desktop_fullpage.png` | Public landing page (full scroll capture) |
-| `mobile_fullpage.png` | Phone-sized web layout |
-| `hero-shell-empty-no-bg.png` | Marketing hero device shell |
-| `ui_reference.png` | Design reference board |
+| File                             | Shows                                                 |
+| -------------------------------- | ----------------------------------------------------- |
+| `desktop_fullpage.png`           | Public landing page (full scroll capture)             |
+| `mobile_fullpage.png`            | Phone-sized web layout                                |
+| `hero-shell-empty-no-bg.png`     | Marketing hero device shell                           |
+| `ui_reference.png`               | Design reference board                                |
 | `novend_Landing_full_screen.png` | Older landing capture (prefer `desktop_fullpage.png`) |
 
 ## Auth & setup
 
-| File | Shows |
-|------|--------|
-| `auth-signup.png` | Create account |
-| `auth-login.png` | Sign in |
+| File                      | Shows                          |
+| ------------------------- | ------------------------------ |
+| `auth-signup.png`         | Create account                 |
+| `auth-login.png`          | Sign in                        |
 | `business-onboarding.png` | Create organization / business |
-| `dashboard.png` | Post-setup dashboard |
+| `dashboard.png`           | Post-setup dashboard           |
 
 ## Sales
 
-| File | Shows |
-|------|--------|
-| `sales-pos.jpg` / `sales-pos.png` | Checkout (product grid + cart) |
-| `sales-pos-receipt-modal.png` | Receipt after pay |
-| `sales-orders.png` | Orders list |
-| `sales-order-detail.png` | Order detail |
-| `sales-returns.png` / `sales-return-detail.png` | Returns |
-| `sales-customer-detail.png` | Customer profile |
+| File                                            | Shows                          |
+| ----------------------------------------------- | ------------------------------ |
+| `sales-pos.jpg` / `sales-pos.png`               | Checkout (product grid + cart) |
+| `sales-pos-receipt-modal.png`                   | Receipt after pay              |
+| `sales-orders.png`                              | Orders list                    |
+| `sales-order-detail.png`                        | Order detail                   |
+| `sales-returns.png` / `sales-return-detail.png` | Returns                        |
+| `sales-customer-detail.png`                     | Customer profile               |
 
 Industry-flavored POS: `sale-pharmacy.jpg`, `sale-supermarket.jpg`,
 `sale-wholesale.jpg`, `sale-fashion.jpg`, `sale-electronics.jpg`,
@@ -43,23 +43,23 @@ Industry-flavored POS: `sale-pharmacy.jpg`, `sale-supermarket.jpg`,
 
 ## Inventory & wholesale
 
-| File | Shows |
-|------|--------|
-| `inventory-products.png` | Product catalog |
-| `inventory-stock.png` | Branch stock |
-| `inventory-wholesale.png` | Wholesale warehouse |
-| `inventory-suppliers.png` | Suppliers |
-| `inventory-*-modal.png` | Adjust, transfer, receive, issue |
+| File                      | Shows                            |
+| ------------------------- | -------------------------------- |
+| `inventory-products.png`  | Product catalog                  |
+| `inventory-stock.png`     | Branch stock                     |
+| `inventory-wholesale.png` | Wholesale warehouse              |
+| `inventory-suppliers.png` | Suppliers                        |
+| `inventory-*-modal.png`   | Adjust, transfer, receive, issue |
 
 ## Analytics, admin & settings
 
-| File | Shows |
-|------|--------|
-| `business-analytics-*.png` | Analytics & P&L |
-| `business-reports*.png` | Reports |
-| `administration-*.png` | Users & branches |
-| `settings-*.png` | Profile, billing, hardware, devices, sync backup |
-| `sync-recent.png` | Recent sync activity |
+| File                       | Shows                                            |
+| -------------------------- | ------------------------------------------------ |
+| `business-analytics-*.png` | Analytics & P&L                                  |
+| `business-reports*.png`    | Reports                                          |
+| `administration-*.png`     | Users & branches                                 |
+| `settings-*.png`           | Profile, billing, hardware, devices, sync backup |
+| `sync-recent.png`          | Recent sync activity                             |
 
 ## Using images in Markdown
 

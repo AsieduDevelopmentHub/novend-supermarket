@@ -235,7 +235,9 @@ function pickAsset(
   platform: MobilePlatform,
   preferredKind: AssetKind,
 ) {
-  const byKind = assets.filter((asset) => asset.platform === platform && asset.kind === preferredKind);
+  const byKind = assets.filter(
+    (asset) => asset.platform === platform && asset.kind === preferredKind,
+  );
   if (byKind.length > 0) return byKind[0]!;
   return assets.find((asset) => asset.platform === platform) ?? null;
 }
@@ -534,9 +536,7 @@ export const latestMetaHttp = httpAction(async (ctx, request) => {
       githubReleaseUrl: release.githubReleaseUrl,
       storeUrl: release.storeUrls.android || release.storeUrls.ios,
       storeUrls: release.storeUrls,
-      downloadUrl: androidApk
-        ? assetDownloadUrl(release.version, androidApk.fileName)
-        : undefined,
+      downloadUrl: androidApk ? assetDownloadUrl(release.version, androidApk.fileName) : undefined,
       assets: release.assets.map((entry) => ({
         platform: entry.platform,
         kind: entry.kind,

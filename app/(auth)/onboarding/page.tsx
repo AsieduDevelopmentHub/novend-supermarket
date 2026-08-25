@@ -6,10 +6,7 @@ export default function OnboardingPage() {
   return (
     <>
       <div className="bg-background relative flex max-h-dvh min-h-dvh flex-col overflow-y-auto overscroll-y-contain md:hidden">
-        <LoginBrandPanel
-          variant="mobile"
-          className="h-[min(36dvh,260px)] min-h-[200px] shrink-0"
-        />
+        <LoginBrandPanel variant="mobile" className="h-[min(36dvh,260px)] min-h-[200px] shrink-0" />
         <div className="bg-card relative z-10 -mt-10 flex flex-1 flex-col rounded-t-[1.75rem] px-5 pt-7 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(15,23,42,0.12)]">
           <OnboardingForm />
         </div>

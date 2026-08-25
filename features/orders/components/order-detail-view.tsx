@@ -17,10 +17,7 @@ import { ReceiptPreviewDialog } from "@/features/receipts/components/receipt-pre
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { ReturnOrderDialog } from "@/features/orders/components/return-order-dialog";
 import { getOfflineDb } from "@/lib/offline/db";
-import {
-  listUnsyncedLocalReturns,
-  returnedQtyBySaleItem,
-} from "@/lib/offline/returns-repository";
+import { listUnsyncedLocalReturns, returnedQtyBySaleItem } from "@/lib/offline/returns-repository";
 import { ArrowLeft, ChevronRight, Printer, Undo2 } from "lucide-react";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -318,10 +315,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
   }, [local, orderId, refreshKey]);
 
   const remoteId: Id<"sales"> | null = local ? resolvedServerId : (orderId as Id<"sales">);
-  const remote = useQuery(
-    api.sales.getOrder,
-    online && remoteId ? { id: remoteId } : "skip",
-  );
+  const remote = useQuery(api.sales.getOrder, online && remoteId ? { id: remoteId } : "skip");
 
   useEffect(() => {
     if (!online || !remote) {
@@ -439,9 +433,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
           <div className="mt-2 flex flex-wrap gap-2">
             <Badge variant="success">Completed</Badge>
             {order.refundedAmount > 0 ? (
-              <Badge variant="warning">
-                {order.canReturn ? "Partial return" : "Returned"}
-              </Badge>
+              <Badge variant="warning">{order.canReturn ? "Partial return" : "Returned"}</Badge>
             ) : null}
           </div>
         </div>
@@ -460,7 +452,10 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
                 className="border-border flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm"
               >
                 <div className="min-w-0">
-                  <Link href={`/products/${item.productId}`} className="font-medium hover:underline">
+                  <Link
+                    href={`/products/${item.productId}`}
+                    className="font-medium hover:underline"
+                  >
                     {item.productName}
                   </Link>
                   <p className="text-muted-foreground text-xs">
@@ -495,13 +490,17 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
             </div>
             {order.refundedAmount > 0 ? (
               <>
-                <div className="flex justify-between text-warning">
+                <div className="text-warning flex justify-between">
                   <span>Refunded</span>
                   <span>−{formatCurrency(order.refundedAmount)}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span>Net</span>
-                  <span>{formatCurrency(order.remainingRefundable === 0 ? 0 : order.total - order.refundedAmount)}</span>
+                  <span>
+                    {formatCurrency(
+                      order.remainingRefundable === 0 ? 0 : order.total - order.refundedAmount,
+                    )}
+                  </span>
                 </div>
               </>
             ) : null}
@@ -523,9 +522,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
       ) : null}
 
       {canProcessReturns && !order.canReturn && isLocalSaleId(order.id) ? (
-        <p className="text-muted-foreground text-sm">
-          Sync this sale before returning items.
-        </p>
+        <p className="text-muted-foreground text-sm">Sync this sale before returning items.</p>
       ) : null}
 
       <ReceiptPreviewDialog
@@ -559,11 +556,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
   );
 }
 
-function OrderReturnRow({
-  row,
-}: {
-  row: OrderDetail["returns"][number];
-}) {
+function OrderReturnRow({ row }: { row: OrderDetail["returns"][number] }) {
   const { navigate } = useAppNavigation();
 
   function openReturn() {

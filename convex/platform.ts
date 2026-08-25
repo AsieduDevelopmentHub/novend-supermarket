@@ -1,8 +1,4 @@
-import {
-  createAccount,
-  getAuthUserId,
-  modifyAccountCredentials,
-} from "@convex-dev/auth/server";
+import { createAccount, getAuthUserId, modifyAccountCredentials } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { action, internalMutation, mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
@@ -367,7 +363,14 @@ export const setOrganizationLimitOverrides = mutation({
     devices: limitOverrideValue,
     /** Resources to clear back to the plan default. */
     clear: v.optional(
-      v.array(v.union(v.literal("products"), v.literal("users"), v.literal("branches"), v.literal("devices"))),
+      v.array(
+        v.union(
+          v.literal("products"),
+          v.literal("users"),
+          v.literal("branches"),
+          v.literal("devices"),
+        ),
+      ),
     ),
   },
   handler: async (ctx, args) => {
@@ -475,7 +478,11 @@ export const archiveOrganization = mutation({
       .collect();
     const now = Date.now();
     for (const device of devices) {
-      await ctx.db.patch(device._id, { isActive: false, deactivatedAt: now, deactivatedBy: userId });
+      await ctx.db.patch(device._id, {
+        isActive: false,
+        deactivatedAt: now,
+        deactivatedBy: userId,
+      });
     }
 
     await ctx.db.patch(args.organizationId, { status: "disabled", updatedAt: now });
@@ -500,7 +507,9 @@ export const bootstrap = action({
   },
   handler: async (ctx, args) => {
     if (process.env.BOOTSTRAP_PLATFORM_ENABLED !== "true") {
-      throw new Error("Platform bootstrap is disabled. Enable it temporarily for first-time setup.");
+      throw new Error(
+        "Platform bootstrap is disabled. Enable it temporarily for first-time setup.",
+      );
     }
     const expected = process.env.BOOTSTRAP_PLATFORM_SECRET ?? process.env.BOOTSTRAP_ADMIN_SECRET;
     if (!expected || args.bootstrapSecret !== expected) {

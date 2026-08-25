@@ -490,7 +490,13 @@
   animation: login-orb-float-a 22s ease-in-out infinite;
 }
 .login-orb-a .login-orb-glow {
-  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #e0f2fe 42%, rgba(56, 189, 248, 0.45) 68%, transparent 74%);
+  background: radial-gradient(
+    circle at 32% 28%,
+    #ffffff 0%,
+    #e0f2fe 42%,
+    rgba(56, 189, 248, 0.45) 68%,
+    transparent 74%
+  );
 }
 
 .login-orb-b {
@@ -501,7 +507,13 @@
   animation: login-orb-float-b 18s ease-in-out infinite;
 }
 .login-orb-b .login-orb-glow {
-  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #bae6fd 48%, rgba(14, 165, 233, 0.4) 70%, transparent 76%);
+  background: radial-gradient(
+    circle at 32% 28%,
+    #ffffff 0%,
+    #bae6fd 48%,
+    rgba(14, 165, 233, 0.4) 70%,
+    transparent 76%
+  );
 }
 
 .login-orb-c {
@@ -512,7 +524,13 @@
   animation: login-orb-float-c 26s ease-in-out infinite;
 }
 .login-orb-c .login-orb-glow {
-  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #f1f5f9 40%, rgba(125, 211, 252, 0.5) 68%, transparent 74%);
+  background: radial-gradient(
+    circle at 32% 28%,
+    #ffffff 0%,
+    #f1f5f9 40%,
+    rgba(125, 211, 252, 0.5) 68%,
+    transparent 74%
+  );
 }
 
 .login-orb-d {
@@ -523,7 +541,13 @@
   animation: login-orb-float-d 20s ease-in-out infinite;
 }
 .login-orb-d .login-orb-glow {
-  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #e0f2fe 45%, rgba(56, 189, 248, 0.42) 70%, transparent 76%);
+  background: radial-gradient(
+    circle at 32% 28%,
+    #ffffff 0%,
+    #e0f2fe 45%,
+    rgba(56, 189, 248, 0.42) 70%,
+    transparent 76%
+  );
 }
 
 .login-orb-e {
@@ -534,7 +558,13 @@
   animation: login-orb-float-b 24s ease-in-out infinite reverse;
 }
 .login-orb-e .login-orb-glow {
-  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #e0f2fe 46%, rgba(14, 165, 233, 0.35) 70%, transparent 76%);
+  background: radial-gradient(
+    circle at 32% 28%,
+    #ffffff 0%,
+    #e0f2fe 46%,
+    rgba(14, 165, 233, 0.35) 70%,
+    transparent 76%
+  );
 }
 
 .login-orb-f {
@@ -545,7 +575,13 @@
   animation: login-orb-float-a 19s ease-in-out infinite reverse;
 }
 .login-orb-f .login-orb-glow {
-  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #bae6fd 44%, rgba(56, 189, 248, 0.4) 70%, transparent 76%);
+  background: radial-gradient(
+    circle at 32% 28%,
+    #ffffff 0%,
+    #bae6fd 44%,
+    rgba(56, 189, 248, 0.4) 70%,
+    transparent 76%
+  );
 }
 
 @keyframes login-orb-label {
@@ -1039,9 +1075,11 @@
 .landing-cta-mesh {
   background:
     radial-gradient(ellipse 80% 60% at 20% 20%, rgba(56, 189, 248, 0.18), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 80% 80%, rgba(56, 189, 248, 0.12), transparent 50%),
-    #ffffff;
-  background-size: 120% 120%, 120% 120%, auto;
+    radial-gradient(ellipse 70% 50% at 80% 80%, rgba(56, 189, 248, 0.12), transparent 50%), #ffffff;
+  background-size:
+    120% 120%,
+    120% 120%,
+    auto;
   animation: landing-cta-mesh-drift 28s ease-in-out infinite alternate;
 }
 
@@ -1102,20 +1140,12 @@
   background: #ffffff;
 }
 
-
-
 /* Dual-row infinite industry marquee */
 .landing-marquee-shell {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  mask-image: linear-gradient(
-    90deg,
-    transparent 0%,
-    #000 8%,
-    #000 92%,
-    transparent 100%
-  );
+  mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
 }
 
 .landing-marquee-row {
@@ -1193,12 +1223,6 @@
     mask-image: none;
   }
 }
-
-
-
-
-
-
 
 .landing-transfer-rail {
   display: flex;
@@ -1351,8 +1375,7 @@
 .landing-cta-band {
   background:
     radial-gradient(ellipse 60% 80% at 20% 30%, rgba(56, 189, 248, 0.16), transparent 55%),
-    radial-gradient(ellipse 50% 70% at 85% 70%, rgba(14, 165, 233, 0.1), transparent 50%),
-    #ffffff;
+    radial-gradient(ellipse 50% 70% at 85% 70%, rgba(14, 165, 233, 0.1), transparent 50%), #ffffff;
 }
 
 /* CTA laptop + phone — filled mockup with transparent plate */
@@ -1642,7 +1665,6 @@
   }
 }
 
-
 /* —— Section 3: Offline architecture (trust) —— */
 .landing-arch-section {
   padding-block: 5.5rem;
@@ -1798,12 +1820,7 @@
   position: absolute;
   inset: 18% 28%;
   border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(56, 189, 248, 0.55),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.55), transparent);
   opacity: 0;
   transform: scaleX(0.4);
 }
@@ -1936,7 +1953,9 @@
   flex-shrink: 0;
   stroke-width: 2.5;
   color: #cbd5e1;
-  transition: color 0.35s ease, filter 0.35s ease;
+  transition:
+    color 0.35s ease,
+    filter 0.35s ease;
 }
 
 .landing-arch-connector-chevron-desktop {
@@ -1995,7 +2014,9 @@
 }
 
 .landing-arch-kpi {
-  transition: border-color 0.25s ease, transform 0.25s ease;
+  transition:
+    border-color 0.25s ease,
+    transform 0.25s ease;
 }
 
 .landing-arch-kpi:hover {
@@ -2495,8 +2516,7 @@ button.landing-feature-frame {
 .novend-mobile-tabbar {
   position: relative;
   width: 100%;
-  background:
-    linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, #111827 42%, #0b1220 100%);
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, #111827 42%, #0b1220 100%);
   border-radius: 1.75rem 1.75rem 0 0;
   box-shadow:
     0 -10px 36px rgba(15, 23, 42, 0.32),
@@ -2562,8 +2582,13 @@ button.landing-feature-frame {
   border-radius: 9999px;
   opacity: 0;
   transform: scale(0.72);
-  background:
-    radial-gradient(circle at 35% 28%, #e0f2fe 0%, #7dd3fc 38%, #38bdf8 72%, #0ea5e9 100%);
+  background: radial-gradient(
+    circle at 35% 28%,
+    #e0f2fe 0%,
+    #7dd3fc 38%,
+    #38bdf8 72%,
+    #0ea5e9 100%
+  );
   box-shadow:
     0 0 0 1px rgba(125, 211, 252, 0.35),
     0 4px 14px rgba(14, 165, 233, 0.45),
@@ -2595,4 +2620,3 @@ button.landing-feature-frame {
     transition: none;
   }
 }
-

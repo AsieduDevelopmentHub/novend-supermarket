@@ -129,140 +129,143 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     [convex, refreshStatus],
   );
 
-  const flushOutbox = useCallback(async (options?: { force?: boolean }) => {
-    if (!navigator.onLine) return;
+  const flushOutbox = useCallback(
+    async (options?: { force?: boolean }) => {
+      if (!navigator.onLine) return;
 
-    const counts = await countOutboxByStatus();
-    const work = counts.pending + counts.syncing;
-    if (!options?.force && work === 0 && counts.failed === 0) {
-      setStatus((prev) => ({
-        ...prev,
-        pendingCount: 0,
-        failedCount: 0,
-        syncing: false,
-      }));
-      return;
-    }
-
-    setStatus((prev) => ({
-      ...prev,
-      pendingCount: work + (options?.force ? counts.failed : 0),
-      failedCount: options?.force ? 0 : counts.failed,
-      syncing: work > 0 || (options?.force === true && counts.failed > 0),
-    }));
-    try {
-      const result = await drainOutbox({
-        force: options?.force === true,
-        mutators: {
-          completeSale: (args) => completeSale(args),
-          processReturn: (args) => processReturn(args),
-          createSupplier: (args) => createSupplier(args),
-          updateSupplier: (args) => updateSupplier(args),
-          recordPurchase: (payload) =>
-            recordPurchase({
-              supplierId: payload.supplierId as never,
-              invoiceNumber: payload.invoiceNumber,
-              purchasedAt: payload.purchasedAt,
-              notes: payload.notes,
-              items: payload.items.map((item) => ({
-                productId: item.productId as never,
-                quantity: item.quantity,
-                unitCost: item.unitCost,
-                expiryDate: item.expiryDate,
-              })),
-            }),
-          transferToBranch: (args) => transferToBranch(args),
-          adjustStock: (payload) =>
-            adjustStock({
-              productId: payload.productId as never,
-              branchId: payload.branchId as never,
-              quantityChange: payload.quantityChange,
-              reason: payload.reason,
-              note: payload.note,
-              expiryDate: payload.expiryDate,
-            }),
-          transferStock: (payload) =>
-            transferStock({
-              productId: payload.productId as never,
-              fromBranchId: payload.fromBranchId as never,
-              toBranchId: payload.toBranchId as never,
-              quantity: payload.quantity,
-              note: payload.note,
-            }),
-          createCustomer: (args) => createCustomer(args),
-          updateCustomer: (args) => updateCustomer(args),
-          createExpense: (payload) =>
-            createExpense({
-              amount: payload.amount,
-              category: payload.category as never,
-              occurredAt: payload.occurredAt,
-              description: payload.description,
-              branchId: payload.branchId as never,
-            }),
-          removeExpense: (args) => removeExpense(args),
-          updateOwnProfile: (args) =>
-            updateOwnProfile({
-              name: args.name,
-              phone: args.phone,
-            }),
-          createUserAccount: (args) =>
-            createUserAccount({
-              email: args.email,
-              password: args.password,
-              name: args.name,
-              role: args.role,
-              branchId: args.branchId,
-              phone: args.phone,
-            }),
-          createCategory: (args) => createCategory({ name: args.name }),
-          generateUploadUrl: () => generateUploadUrl({}),
-          createProduct: (args) => createProduct(args),
-          updateProduct: (args) => updateProduct(args),
-          createBranch: (args) => createBranch(args),
-          updateBranch: (args) => updateBranch(args),
-        },
-        convex: { query: convex.query.bind(convex) },
-      });
-      if (!result.skipped) {
+      const counts = await countOutboxByStatus();
+      const work = counts.pending + counts.syncing;
+      if (!options?.force && work === 0 && counts.failed === 0) {
         setStatus((prev) => ({
           ...prev,
-          lastSyncAt: Date.now(),
-          lastError: result.failed > 0 ? prev.lastError : null,
+          pendingCount: 0,
+          failedCount: 0,
+          syncing: false,
         }));
+        return;
       }
-    } catch (error) {
+
       setStatus((prev) => ({
         ...prev,
-        lastError: toUserMessage(error, "Sync failed"),
+        pendingCount: work + (options?.force ? counts.failed : 0),
+        failedCount: options?.force ? 0 : counts.failed,
+        syncing: work > 0 || (options?.force === true && counts.failed > 0),
       }));
-    } finally {
-      setStatus((prev) => ({ ...prev, syncing: false }));
-      await refreshStatus();
-    }
-  }, [
-    completeSale,
-    processReturn,
-    createSupplier,
-    updateSupplier,
-    recordPurchase,
-    transferToBranch,
-    adjustStock,
-    transferStock,
-    createCustomer,
-    updateCustomer,
-    createExpense,
-    removeExpense,
-    updateOwnProfile,
-    createUserAccount,
-    createCategory,
-    createProduct,
-    updateProduct,
-    generateUploadUrl,
-    createBranch,
-    updateBranch,
-    convex,
-    refreshStatus,
-  ]);
+      try {
+        const result = await drainOutbox({
+          force: options?.force === true,
+          mutators: {
+            completeSale: (args) => completeSale(args),
+            processReturn: (args) => processReturn(args),
+            createSupplier: (args) => createSupplier(args),
+            updateSupplier: (args) => updateSupplier(args),
+            recordPurchase: (payload) =>
+              recordPurchase({
+                supplierId: payload.supplierId as never,
+                invoiceNumber: payload.invoiceNumber,
+                purchasedAt: payload.purchasedAt,
+                notes: payload.notes,
+                items: payload.items.map((item) => ({
+                  productId: item.productId as never,
+                  quantity: item.quantity,
+                  unitCost: item.unitCost,
+                  expiryDate: item.expiryDate,
+                })),
+              }),
+            transferToBranch: (args) => transferToBranch(args),
+            adjustStock: (payload) =>
+              adjustStock({
+                productId: payload.productId as never,
+                branchId: payload.branchId as never,
+                quantityChange: payload.quantityChange,
+                reason: payload.reason,
+                note: payload.note,
+                expiryDate: payload.expiryDate,
+              }),
+            transferStock: (payload) =>
+              transferStock({
+                productId: payload.productId as never,
+                fromBranchId: payload.fromBranchId as never,
+                toBranchId: payload.toBranchId as never,
+                quantity: payload.quantity,
+                note: payload.note,
+              }),
+            createCustomer: (args) => createCustomer(args),
+            updateCustomer: (args) => updateCustomer(args),
+            createExpense: (payload) =>
+              createExpense({
+                amount: payload.amount,
+                category: payload.category as never,
+                occurredAt: payload.occurredAt,
+                description: payload.description,
+                branchId: payload.branchId as never,
+              }),
+            removeExpense: (args) => removeExpense(args),
+            updateOwnProfile: (args) =>
+              updateOwnProfile({
+                name: args.name,
+                phone: args.phone,
+              }),
+            createUserAccount: (args) =>
+              createUserAccount({
+                email: args.email,
+                password: args.password,
+                name: args.name,
+                role: args.role,
+                branchId: args.branchId,
+                phone: args.phone,
+              }),
+            createCategory: (args) => createCategory({ name: args.name }),
+            generateUploadUrl: () => generateUploadUrl({}),
+            createProduct: (args) => createProduct(args),
+            updateProduct: (args) => updateProduct(args),
+            createBranch: (args) => createBranch(args),
+            updateBranch: (args) => updateBranch(args),
+          },
+          convex: { query: convex.query.bind(convex) },
+        });
+        if (!result.skipped) {
+          setStatus((prev) => ({
+            ...prev,
+            lastSyncAt: Date.now(),
+            lastError: result.failed > 0 ? prev.lastError : null,
+          }));
+        }
+      } catch (error) {
+        setStatus((prev) => ({
+          ...prev,
+          lastError: toUserMessage(error, "Sync failed"),
+        }));
+      } finally {
+        setStatus((prev) => ({ ...prev, syncing: false }));
+        await refreshStatus();
+      }
+    },
+    [
+      completeSale,
+      processReturn,
+      createSupplier,
+      updateSupplier,
+      recordPurchase,
+      transferToBranch,
+      adjustStock,
+      transferStock,
+      createCustomer,
+      updateCustomer,
+      createExpense,
+      removeExpense,
+      updateOwnProfile,
+      createUserAccount,
+      createCategory,
+      createProduct,
+      updateProduct,
+      generateUploadUrl,
+      createBranch,
+      updateBranch,
+      convex,
+      refreshStatus,
+    ],
+  );
 
   const refreshCatalog = useCallback(async () => {
     if (!navigator.onLine) {
@@ -359,7 +362,17 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       openSyncCenter,
       closeSyncCenter,
     }),
-    [status, online, refreshStatus, pullSnapshot, flushOutbox, refreshCatalog, syncCenterOpen, openSyncCenter, closeSyncCenter],
+    [
+      status,
+      online,
+      refreshStatus,
+      pullSnapshot,
+      flushOutbox,
+      refreshCatalog,
+      syncCenterOpen,
+      openSyncCenter,
+      closeSyncCenter,
+    ],
   );
 
   return <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>;

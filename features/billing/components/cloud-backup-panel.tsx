@@ -134,7 +134,9 @@ export function CloudBackupPanel() {
               Last backup: {usage.lastBackupAt ? formatDateTime(usage.lastBackupAt) : "never"}
             </span>
           </div>
-          {usage.limitBytes === null ? null : <Progress value={percent} aria-label="Cloud backup usage" />}
+          {usage.limitBytes === null ? null : (
+            <Progress value={percent} aria-label="Cloud backup usage" />
+          )}
         </div>
 
         {usage.full ? (
@@ -160,7 +162,11 @@ export function CloudBackupPanel() {
           </p>
         </div>
 
-        <Button type="button" disabled={uploading || usage.full || backupPassword.length < 8} onClick={() => void onBackupNow()}>
+        <Button
+          type="button"
+          disabled={uploading || usage.full || backupPassword.length < 8}
+          onClick={() => void onBackupNow()}
+        >
           <CloudUpload className="mr-2 h-4 w-4" aria-hidden />
           {uploading ? "Backing up…" : "Back up now"}
         </Button>

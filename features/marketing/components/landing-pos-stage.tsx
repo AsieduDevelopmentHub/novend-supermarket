@@ -42,7 +42,10 @@ const CART_TOTAL = CART_LINES.reduce((sum, line) => sum + line.qty * line.unit, 
 /** Desktop shell + mobile phone checkout — mirrors real Sales UI density per viewport. */
 export function LandingPosStage() {
   return (
-    <div data-depth-stage className="landing-pos-stage landing-depth-preserve relative mx-auto w-full">
+    <div
+      data-depth-stage
+      className="landing-pos-stage landing-depth-preserve relative mx-auto w-full"
+    >
       <MobilePosMock />
       <DesktopPosMock />
     </div>
@@ -53,10 +56,10 @@ export function LandingPosStage() {
 function MobilePosMock() {
   return (
     <div className="landing-shadow-mock border-border bg-background relative z-10 mx-auto w-full max-w-[340px] overflow-hidden rounded-[1.5rem] border md:hidden">
-      <div className="bg-muted/40 flex items-center justify-center gap-1.5 border-b border-border py-2">
+      <div className="bg-muted/40 border-border flex items-center justify-center gap-1.5 border-b py-2">
         <span className="bg-foreground/15 h-1 w-10 rounded-full" />
       </div>
-      <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
+      <div className="border-border flex items-center justify-between border-b px-3 py-2.5">
         <p className="text-foreground text-sm font-semibold">Sales</p>
         <span className="bg-primary/15 text-primary rounded-md px-2 py-0.5 text-[10px] font-semibold">
           Synced
@@ -76,7 +79,7 @@ function MobilePosMock() {
               <div className="bg-muted relative mb-2 aspect-square overflow-hidden rounded-lg">
                 <Package className="text-muted-foreground absolute inset-0 m-auto h-7 w-7" />
               </div>
-              <p className="text-foreground line-clamp-2 text-xs font-medium leading-tight">
+              <p className="text-foreground line-clamp-2 text-xs leading-tight font-medium">
                 {product.name}
               </p>
               <p className="text-primary mt-1 text-xs font-semibold tabular-nums">
@@ -106,8 +109,8 @@ function MobilePosMock() {
 function DesktopPosMock() {
   return (
     <div className="relative mx-auto hidden w-full max-w-[560px] md:block">
-      <div className="landing-pos-frame landing-shadow-mock relative z-10 overflow-hidden rounded-2xl border border-border bg-background">
-        <div className="flex items-center gap-2 border-b border-border bg-card px-3 py-2">
+      <div className="landing-pos-frame landing-shadow-mock border-border bg-background relative z-10 overflow-hidden rounded-2xl border">
+        <div className="border-border bg-card flex items-center gap-2 border-b px-3 py-2">
           <span className="h-2 w-2 rounded-full bg-slate-300" />
           <span className="h-2 w-2 rounded-full bg-slate-300" />
           <span className="h-2 w-2 rounded-full bg-slate-300" />
@@ -152,7 +155,9 @@ function DesktopPosMock() {
             <div className="border-border bg-muted/50 text-muted-foreground h-7 rounded-md border px-2 text-[10px] leading-7">
               Search products…
             </div>
-            <p className="text-foreground text-[10px] font-semibold tracking-tight">Quick Products</p>
+            <p className="text-foreground text-[10px] font-semibold tracking-tight">
+              Quick Products
+            </p>
             <div className="grid grid-cols-3 gap-1.5">
               {PRODUCTS.map((product) => (
                 <div
@@ -162,7 +167,7 @@ function DesktopPosMock() {
                   <div className="bg-muted relative mb-1.5 aspect-[4/3] overflow-hidden rounded-lg">
                     <Package className="text-muted-foreground absolute inset-0 m-auto h-6 w-6" />
                   </div>
-                  <p className="text-foreground line-clamp-2 text-[10px] font-medium leading-tight">
+                  <p className="text-foreground line-clamp-2 text-[10px] leading-tight font-medium">
                     {product.name}
                   </p>
                   <p className="text-primary mt-1 text-[10px] font-semibold tabular-nums">
@@ -173,8 +178,8 @@ function DesktopPosMock() {
             </div>
           </div>
 
-          <div className="border-border flex flex-col border-l bg-card">
-            <div className="border-border border-b bg-card/95 px-2.5 py-2">
+          <div className="border-border bg-card flex flex-col border-l">
+            <div className="border-border bg-card/95 border-b px-2.5 py-2">
               <p className="text-foreground flex items-center gap-1.5 text-[11px] font-semibold">
                 <ShoppingCart className="h-3.5 w-3.5" aria-hidden />
                 Current Sale

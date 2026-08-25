@@ -4,14 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
-import {
-  CreditCard,
-  Eye,
-  FileText,
-  MoreVertical,
-  Pencil,
-  ShieldOff,
-} from "lucide-react";
+import { CreditCard, Eye, FileText, MoreVertical, Pencil, ShieldOff } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { PageHeader } from "@/components/layout/primitives";
 import { Badge } from "@/components/ui/badge";

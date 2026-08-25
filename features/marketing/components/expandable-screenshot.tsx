@@ -3,11 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import { Expand } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 type Props = {

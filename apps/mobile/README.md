@@ -66,11 +66,11 @@ After changing URLs, restart `pnpm dev`, force-close the app, and sign in again.
 
 ## Scripts
 
-| Script | Purpose |
-|--------|---------|
-| `pnpm mobile:sync` | Sync web assets + config into native projects |
-| `pnpm mobile:open:android` | Open Android Studio |
-| `pnpm --filter @novend/mobile open:ios` | Open Xcode (macOS) |
+| Script                                  | Purpose                                       |
+| --------------------------------------- | --------------------------------------------- |
+| `pnpm mobile:sync`                      | Sync web assets + config into native projects |
+| `pnpm mobile:open:android`              | Open Android Studio                           |
+| `pnpm --filter @novend/mobile open:ios` | Open Xcode (macOS)                            |
 
 ## Phase 2 hardware
 

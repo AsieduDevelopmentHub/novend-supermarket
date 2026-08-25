@@ -43,7 +43,11 @@ export function PullToRefresh({ onRefresh, children, className, disabled }: Prop
         if (disabled || refreshing) return;
         const el = scrollerRef.current;
         const scrollParent = el?.closest("main") ?? el;
-        if (scrollParent && "scrollTop" in scrollParent && (scrollParent as HTMLElement).scrollTop > 0) {
+        if (
+          scrollParent &&
+          "scrollTop" in scrollParent &&
+          (scrollParent as HTMLElement).scrollTop > 0
+        ) {
           startY.current = null;
           return;
         }

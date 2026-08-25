@@ -16,8 +16,7 @@ let mainWindow: BrowserWindow | null = null;
 
 function allowMediaPermissions() {
   const ses = session.fromPartition(PERSIST_PARTITION);
-  const allow = (permission: string) =>
-    permission === "media" || permission === "mediaKeySystem";
+  const allow = (permission: string) => permission === "media" || permission === "mediaKeySystem";
 
   // Auto-approve Chromium's media permission so getUserMedia can open the OS
   // camera prompt / stream. Still requires Permissions-Policy camera=(self)

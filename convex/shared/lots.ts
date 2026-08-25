@@ -119,10 +119,10 @@ export function deriveExpiryListFields(
   const nearestExpiry = tracksExpiry ? (summary?.nearestExpiry ?? null) : null;
   const nearestSellableExpiry = tracksExpiry ? (summary?.nearestSellableExpiry ?? null) : null;
   const isExpired = expiredQuantity > 0;
-    const isExpiring = isExpiringSoon(
-      nearestSellableExpiry,
-      expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS,
-    );
+  const isExpiring = isExpiringSoon(
+    nearestSellableExpiry,
+    expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS,
+  );
   const isLowStock = sellableQuantity <= product.lowStockThreshold;
   const statusLabel: ExpiryListFields["statusLabel"] = isExpired
     ? "Expired"
@@ -223,10 +223,7 @@ export async function getSellableQuantity(
   }, 0);
 }
 
-export async function remainingLotQuantity(
-  ctx: Ctx,
-  productId: Id<"products">,
-): Promise<number> {
+export async function remainingLotQuantity(ctx: Ctx, productId: Id<"products">): Promise<number> {
   const lots = await ctx.db
     .query("inventoryLots")
     .withIndex("by_product", (q) => q.eq("productId", productId))
@@ -544,4 +541,3 @@ export async function applyInventoryMovement(
     relatedTransferId: args.relatedTransferId,
   });
 }
-

@@ -212,7 +212,9 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
           </DialogHeader>
           <p className="text-muted-foreground text-sm whitespace-pre-wrap">{updateNotes}</p>
           <p className="text-muted-foreground text-xs">
-            Installed {installedVersion || "unknown"}{installedBuild ? ` (${installedBuild})` : ""} · Hosted origin {hostedOrigin || "unknown"}
+            Installed {installedVersion || "unknown"}
+            {installedBuild ? ` (${installedBuild})` : ""} · Hosted origin{" "}
+            {hostedOrigin || "unknown"}
           </p>
           <DialogFooter className="gap-2 sm:justify-between">
             {!updateMandatory ? (

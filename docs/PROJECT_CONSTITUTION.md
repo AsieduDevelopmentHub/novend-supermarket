@@ -150,12 +150,12 @@ A user from Organization A must never read or write Organization B.
 
 # 9. Roles
 
-| Role | Scope |
-|------|--------|
-| Owner (`organizations.ownerUserId`) | Organization creator; cannot be deactivated in this slice |
-| Administrator | Full in-org operations (catalog, users, settings, sales) |
-| Manager | Assigned branch operations; catalog and inventory |
-| Cashier | Sales, holds, receipts, customers; no catalog/pricing/user admin |
+| Role                                | Scope                                                            |
+| ----------------------------------- | ---------------------------------------------------------------- |
+| Owner (`organizations.ownerUserId`) | Organization creator; cannot be deactivated in this slice        |
+| Administrator                       | Full in-org operations (catalog, users, settings, sales)         |
+| Manager                             | Assigned branch operations; catalog and inventory                |
+| Cashier                             | Sales, holds, receipts, customers; no catalog/pricing/user admin |
 
 Permissions come from roles, not from hiding buttons.
 

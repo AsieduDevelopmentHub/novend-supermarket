@@ -37,8 +37,9 @@ export function BarcodeMatchDialog({ open, code, products, onOpenChange, onSelec
           <DialogTitle>Select product</DialogTitle>
         </DialogHeader>
         <p className="text-muted-foreground text-sm">
-          Multiple products match barcode <span className="text-foreground font-medium">{code}</span>.
-          Choose one to add to the cart.
+          Multiple products match barcode{" "}
+          <span className="text-foreground font-medium">{code}</span>. Choose one to add to the
+          cart.
         </p>
         <ul className="border-border max-h-72 divide-y overflow-y-auto rounded-lg border">
           {products.map((product) => (
@@ -49,7 +50,12 @@ export function BarcodeMatchDialog({ open, code, products, onOpenChange, onSelec
                 onClick={() => onSelect(product)}
               >
                 <div className="bg-muted relative h-10 w-10 shrink-0 overflow-hidden rounded-md">
-                  <ProductImage productId={product.id} remoteUrl={product.imageUrl} alt="" sizes="40px" />
+                  <ProductImage
+                    productId={product.id}
+                    remoteUrl={product.imageUrl}
+                    alt=""
+                    sizes="40px"
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{product.name}</p>

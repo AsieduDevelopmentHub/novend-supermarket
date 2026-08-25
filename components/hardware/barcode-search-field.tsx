@@ -6,10 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScanBarcodeCameraDialog } from "@/components/hardware/scan-barcode-camera-dialog";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
-import {
-  isHardwareBarcodeScannerActive,
-  shouldShowCameraBarcodeButton,
-} from "@/services/hardware";
+import { isHardwareBarcodeScannerActive, shouldShowCameraBarcodeButton } from "@/services/hardware";
 
 type Props = {
   value: string;

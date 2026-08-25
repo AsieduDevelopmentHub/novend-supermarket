@@ -38,21 +38,21 @@ novend-pos/
 
 # Ownership
 
-| Location | Owns |
-|----------|------|
-| `app/` | Routes, layouts, metadata, page assembly |
-| `features/` | Feature UI and presentation logic (including `features/marketing`, `features/more`) |
-| `components/` | Shared UI — never Convex, never business rules |
-| `convex/` | Schema, auth, authorization, validation, integrity |
-| `lib/` | Shared non-React utilities |
-| `hooks/` | Shared generic React hooks |
-| `providers/` | App-wide providers only |
-| `config/` | Desktop nav groups + Capacitor bottom tabs (`mobile-navigation.ts`) |
-| `docs/` | Project documentation |
-| `.cursor/` | Concise AI rules that reference docs |
+| Location             | Owns                                                                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `app/`               | Routes, layouts, metadata, page assembly                                                                                     |
+| `features/`          | Feature UI and presentation logic (including `features/marketing`, `features/more`)                                          |
+| `components/`        | Shared UI — never Convex, never business rules                                                                               |
+| `convex/`            | Schema, auth, authorization, validation, integrity                                                                           |
+| `lib/`               | Shared non-React utilities                                                                                                   |
+| `hooks/`             | Shared generic React hooks                                                                                                   |
+| `providers/`         | App-wide providers only                                                                                                      |
+| `config/`            | Desktop nav groups + Capacitor bottom tabs (`mobile-navigation.ts`)                                                          |
+| `docs/`              | Project documentation                                                                                                        |
+| `.cursor/`           | Concise AI rules that reference docs                                                                                         |
 | `packages/hardware/` | Sole entry for camera, barcode, printer, BLE, biometrics, filesystem, share, notifications, app services; platform detection |
-| `apps/desktop/` | Electron wrapper, installers, desktop CI. Bakes `appUrl` + Convex update feed into `build/update-config.json`. |
-| `apps/mobile/` | Capacitor Android / iOS shell. Local boot page client-navigates to the hosted Next app (same as Electron). |
+| `apps/desktop/`      | Electron wrapper, installers, desktop CI. Bakes `appUrl` + Convex update feed into `build/update-config.json`.               |
+| `apps/mobile/`       | Capacitor Android / iOS shell. Local boot page client-navigates to the hosted Next app (same as Electron).                   |
 
 # Placement rules
 

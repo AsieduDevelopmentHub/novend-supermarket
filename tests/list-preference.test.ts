@@ -8,7 +8,11 @@ describe("pickReplicaList", () => {
   });
 
   it("uses Dexie when it already has catalog rows", () => {
-    const picked = pickReplicaList({ local: [{ id: "local_1" }], remote: [{ id: "srv" }], online: true });
+    const picked = pickReplicaList({
+      local: [{ id: "local_1" }],
+      remote: [{ id: "srv" }],
+      online: true,
+    });
     expect(picked.source).toBe("local");
     expect(picked.rows).toEqual([{ id: "local_1" }]);
   });

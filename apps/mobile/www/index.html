@@ -173,7 +173,11 @@
         window.setTimeout(function () {
           if (settled) return;
           var host = window.location.hostname;
-          if (host === "localhost" || host === "capacitor" || window.location.protocol === "file:") {
+          if (
+            host === "localhost" ||
+            host === "capacitor" ||
+            window.location.protocol === "file:"
+          ) {
             showFailed(
               navigator.onLine === false
                 ? "This device looks offline. Connect to the internet and try again."

@@ -11,12 +11,21 @@ export const salesSummary = query({
     branchId: v.optional(v.id("branches")),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     if (args.endDate < args.startDate) throw new Error("Invalid date range");
 
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
 
-    const sales = (await ctx.db.query("sales").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect()).filter((sale) => {
+    const sales = (
+      await ctx.db
+        .query("sales")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect()
+    ).filter((sale) => {
       if (sale.completedAt < args.startDate || sale.completedAt > args.endDate) return false;
       if (branchFilter && sale.branchId !== branchFilter) return false;
       if (!isAdmin(profile) && !isManager(profile) && sale.cashierId !== userId) return false;
@@ -108,11 +117,20 @@ export const details = query({
     branchId: v.optional(v.id("branches")),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     if (args.endDate < args.startDate) throw new Error("Invalid date range");
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
 
-    const sales = (await ctx.db.query("sales").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect()).filter((sale) => {
+    const sales = (
+      await ctx.db
+        .query("sales")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect()
+    ).filter((sale) => {
       if (sale.completedAt < args.startDate || sale.completedAt > args.endDate) return false;
       if (branchFilter && sale.branchId !== branchFilter) return false;
       if (!isAdmin(profile) && !isManager(profile) && sale.cashierId !== userId) return false;
@@ -127,7 +145,10 @@ export const details = query({
       branchId: branchFilter,
       cashierSaleIds,
     });
-    const branches = await ctx.db.query("branches").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect();
+    const branches = await ctx.db
+      .query("branches")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const branchName = new Map(branches.map((b) => [b._id, b.name]));
 
     if (args.metric === "refunds" || args.metric === "itemsReturned") {
@@ -209,12 +230,21 @@ export const dayDetails = query({
     branchId: v.optional(v.id("branches")),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) throw new Error("Invalid date");
     const { startDate, endDate } = utcDayBounds(args.date);
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
 
-    const sales = (await ctx.db.query("sales").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect()).filter((sale) => {
+    const sales = (
+      await ctx.db
+        .query("sales")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect()
+    ).filter((sale) => {
       if (sale.completedAt < startDate || sale.completedAt > endDate) return false;
       if (branchFilter && sale.branchId !== branchFilter) return false;
       if (!isAdmin(profile) && !isManager(profile) && sale.cashierId !== userId) return false;
@@ -230,9 +260,15 @@ export const dayDetails = query({
       cashierSaleIds,
     });
 
-    const profiles = await ctx.db.query("profiles").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect();
+    const profiles = await ctx.db
+      .query("profiles")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const nameByUser = new Map(profiles.map((p) => [p.userId, p.name]));
-    const branches = await ctx.db.query("branches").withIndex("by_organization", (q) => q.eq("organizationId", organizationId)).collect();
+    const branches = await ctx.db
+      .query("branches")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
     const branchName = new Map(branches.map((b) => [b._id, b.name]));
 
     const grossSales = sales.reduce((sum, s) => sum + s.total, 0);

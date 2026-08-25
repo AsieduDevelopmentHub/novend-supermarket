@@ -12,9 +12,9 @@ describe("withTimeout", () => {
   });
 
   it("rejects with NativeTimeoutError when the budget elapses", async () => {
-    await expect(
-      withTimeout(new Promise(() => undefined), 20),
-    ).rejects.toBeInstanceOf(NativeTimeoutError);
+    await expect(withTimeout(new Promise(() => undefined), 20)).rejects.toBeInstanceOf(
+      NativeTimeoutError,
+    );
   });
 
   it("withTimeoutFallback returns the fallback on timeout", async () => {

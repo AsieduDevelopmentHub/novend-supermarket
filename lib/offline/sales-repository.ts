@@ -109,7 +109,15 @@ export async function completeSaleLocally(input: {
 
   await db.transaction(
     "rw",
-    [db.products, db.branchStock, db.localSales, db.localSaleItems, db.localReceipts, db.outbox, db.heldSales],
+    [
+      db.products,
+      db.branchStock,
+      db.localSales,
+      db.localSaleItems,
+      db.localReceipts,
+      db.outbox,
+      db.heldSales,
+    ],
     async () => {
       for (const item of input.items) {
         if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
@@ -124,9 +132,7 @@ export async function completeSaleLocally(input: {
         }
         const available = await getSellableQuantity(db, branchId, item.productId, product);
         if (available < item.quantity) {
-          throw new Error(
-            `Not enough stock for ${product.name}. Available: ${available}.`,
-          );
+          throw new Error(`Not enough stock for ${product.name}. Available: ${available}.`);
         }
         const gross = roundMoney(product.sellingPrice * item.quantity);
         if (!Number.isFinite(item.discount) || item.discount < 0 || item.discount - gross > 0.001) {
@@ -261,25 +267,35 @@ export async function markLocalSaleFailed(localSaleId: string, error: string) {
   const db = await getOfflineDb();
   if (!db) return;
 
-  await db.transaction("rw", [db.products, db.branchStock, db.localSales, db.localSaleItems], async () => {
-    const sale = await db.localSales.get(localSaleId);
-    if (!sale || sale.syncStatus === "synced") return;
+  await db.transaction(
+    "rw",
+    [db.products, db.branchStock, db.localSales, db.localSaleItems],
+    async () => {
+      const sale = await db.localSales.get(localSaleId);
+      if (!sale || sale.syncStatus === "synced") return;
 
-    if (sale.syncStatus === "pending") {
-      const items = await db.localSaleItems.where("localSaleId").equals(localSaleId).toArray();
-      for (const item of items) {
-        const product = await db.products.get(item.productId);
-        if (!product || !sale.branchId) continue;
-        await applyLocalBranchStockChange(db, sale.branchId, item.productId, item.quantity, product);
+      if (sale.syncStatus === "pending") {
+        const items = await db.localSaleItems.where("localSaleId").equals(localSaleId).toArray();
+        for (const item of items) {
+          const product = await db.products.get(item.productId);
+          if (!product || !sale.branchId) continue;
+          await applyLocalBranchStockChange(
+            db,
+            sale.branchId,
+            item.productId,
+            item.quantity,
+            product,
+          );
+        }
       }
-    }
 
-    await db.localSales.put({
-      ...sale,
-      syncStatus: "failed",
-      lastError: error,
-    });
-  });
+      await db.localSales.put({
+        ...sale,
+        syncStatus: "failed",
+        lastError: error,
+      });
+    },
+  );
 }
 
 export async function markLocalSaleSynced(
@@ -441,11 +457,9 @@ export async function mirrorCompletedSale(input: {
   const db = await getOfflineDb();
   if (!db) return;
   const cashierId = input.cashierId ?? (await getMeta(db, META_KEYS.profileUserId)) ?? null;
-  const cashierName =
-    input.cashierName ?? (await getMeta(db, META_KEYS.profileName)) ?? "Cashier";
+  const cashierName = input.cashierName ?? (await getMeta(db, META_KEYS.profileName)) ?? "Cashier";
   const branchId = input.branchId ?? (await getMeta(db, META_KEYS.profileBranchId)) ?? null;
-  const branchName =
-    input.branchName ?? (await getMeta(db, META_KEYS.profileBranchName)) ?? null;
+  const branchName = input.branchName ?? (await getMeta(db, META_KEYS.profileBranchName)) ?? null;
 
   const order: MirroredOrder = {
     id: input.saleId,
