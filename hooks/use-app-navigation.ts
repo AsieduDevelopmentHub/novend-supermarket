@@ -1,29 +1,23 @@
 "use client";
 
 import { useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useConnectivity } from "@/hooks/use-connectivity";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
+import { useConnectivity } from "@/hooks/use-connectivity";
 
 /**
- * App navigation that stays usable offline.
+ * App navigation that stays instant online and usable offline.
  * Prefer this over raw `router.push` inside authenticated screens.
  */
 export function useAppNavigation() {
   const online = useConnectivity();
-  const router = useRouter();
-  const offlineNav = useOfflineNavigation();
+  const { navigate } = useOfflineNavigation();
 
-  const navigate = useCallback(
+  const go = useCallback(
     (href: string) => {
-      if (!online || offlineNav.clientRouting) {
-        offlineNav.navigate(href);
-        return;
-      }
-      router.push(href);
+      navigate(href);
     },
-    [online, offlineNav, router],
+    [navigate],
   );
 
-  return { navigate, online };
+  return { navigate: go, online };
 }

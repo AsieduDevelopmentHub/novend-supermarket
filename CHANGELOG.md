@@ -14,6 +14,7 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 ### Fixed
 
 - After sign-in, navigate immediately to the post-auth path (no wait on reactive `me` + no instant `router.refresh()`), so `/login` no longer stays blank until reload.
+- In-app navigation stays instant online: client shell routing (same as offline) plus stale-while-revalidate SW (`novend-pos-v6`); removed `(app)/loading.tsx` full-page skeleton flash.
 
 ---
 

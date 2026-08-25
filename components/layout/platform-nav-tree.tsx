@@ -11,7 +11,6 @@ import {
   type PlatformNavGroup,
   type PlatformNavItem,
 } from "@/config/platform-navigation";
-import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePlatformNavTreeState } from "@/hooks/use-platform-nav-tree-state";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
 import { cn } from "@/lib/utils";
@@ -25,7 +24,6 @@ function PlatformNavLink({
   pathname: string;
   onNavigate?: () => void;
 }) {
-  const online = useConnectivity();
   const { navigate, activePath } = useOfflineNavigation();
   const currentPath = activePath ?? pathname;
   const active = platformNavItemActive(currentPath, item);
@@ -36,8 +34,8 @@ function PlatformNavLink({
       href={item.href}
       onClick={(event) => {
         onNavigate?.();
-        if (online || item.href === currentPath) return;
         event.preventDefault();
+        if (item.href === currentPath) return;
         navigate(item.href);
       }}
       className={cn(
@@ -62,7 +60,6 @@ function PlatformNavGroupLinks({
   pathname: string;
   onNavigate?: () => void;
 }) {
-  const online = useConnectivity();
   const { navigate, activePath } = useOfflineNavigation();
   const currentPath = activePath ?? pathname;
 
@@ -76,8 +73,8 @@ function PlatformNavGroupLinks({
             href={item.href}
             onClick={(event) => {
               onNavigate?.();
-              if (online || item.href === currentPath) return;
               event.preventDefault();
+              if (item.href === currentPath) return;
               navigate(item.href);
             }}
             className={cn(

@@ -12,7 +12,6 @@ import {
   type NavGroup,
   type NavItem,
 } from "@/config/navigation";
-import { useConnectivity } from "@/hooks/use-connectivity";
 import { useNavTreeState } from "@/hooks/use-nav-tree-state";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
 import { cn } from "@/lib/utils";
@@ -51,7 +50,6 @@ function SidebarNavLink({
   collapsed?: boolean;
   onNavigate?: () => void;
 }) {
-  const online = useConnectivity();
   const { navigate, activePath } = useOfflineNavigation();
   const pathname = usePathname();
   const currentPath = activePath ?? pathname;
@@ -63,8 +61,8 @@ function SidebarNavLink({
         href={item.href}
         onClick={(event) => {
           onNavigate?.();
-          if (online || item.href === currentPath) return;
           event.preventDefault();
+          if (item.href === currentPath) return;
           navigate(item.href);
         }}
         className={cn(
@@ -95,7 +93,6 @@ function NavGroupLinks({
   currentPath: string;
   onNavigate?: () => void;
 }) {
-  const online = useConnectivity();
   const { navigate } = useOfflineNavigation();
 
   return (
@@ -108,8 +105,8 @@ function NavGroupLinks({
             href={item.href}
             onClick={(event) => {
               onNavigate?.();
-              if (online || item.href === currentPath) return;
               event.preventDefault();
+              if (item.href === currentPath) return;
               navigate(item.href);
             }}
             className={cn(

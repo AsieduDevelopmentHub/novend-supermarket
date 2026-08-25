@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v5";
+const CACHE_NAME = "novend-pos-v6";
 const PRECACHE = [
   "/",
   "/login",
@@ -102,6 +102,52 @@ async function matchNavigation(request, url) {
   return undefined;
 }
 
+/** Serve cache immediately when present; refresh in the background. */
+async function staleWhileRevalidate(request, url) {
+  const cached =
+    (await caches.match(request)) ||
+    (request.mode === "navigate" || request.destination === "document"
+      ? await caches.match(url.pathname)
+      : undefined);
+
+  const networkPromise = fetch(request)
+    .then((response) => {
+      cachePut(request, response);
+      if (request.mode === "navigate" || request.destination === "document") {
+        cachePut(new Request(url.pathname), response);
+      }
+      return response;
+    })
+    .catch(async (error) => {
+      if (cached) return cached;
+      throw error;
+    });
+
+  if (cached) {
+    void networkPromise.catch(() => undefined);
+    return cached;
+  }
+
+  try {
+    return await networkPromise;
+  } catch {
+    const isRsc = request.headers.get("RSC") === "1" || url.searchParams.has("_rsc");
+    if (isRsc) {
+      return new Response("Offline", {
+        status: 503,
+        statusText: "Offline",
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+    const fallback = await matchNavigation(request, url);
+    if (fallback) return fallback;
+    return new Response(
+      "<!doctype html><title>Offline</title><p>Novend POS is offline. Open a page you visited while online, or reconnect.</p>",
+      { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } },
+    );
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -112,49 +158,25 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/") || url.hostname.includes("convex")) return;
 
   if (isAppShellRequest(request, url)) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          cachePut(request, response);
-          if (request.mode === "navigate") {
-            cachePut(new Request(url.pathname), response);
-          }
-          return response;
-        })
-        .catch(async () => {
-          const isRsc = request.headers.get("RSC") === "1" || url.searchParams.has("_rsc");
-          if (isRsc) {
-            const cachedRsc = await caches.match(request);
-            if (cachedRsc) return cachedRsc;
-            return new Response("Offline", {
-              status: 503,
-              statusText: "Offline",
-              headers: { "Content-Type": "text/plain; charset=utf-8" },
-            });
-          }
-
-          const cached = await matchNavigation(request, url);
-          if (cached) return cached;
-          return new Response(
-            "<!doctype html><title>Offline</title><p>Novend POS is offline. Open a page you visited while online, or reconnect.</p>",
-            { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } },
-          );
-        }),
-    );
+    event.respondWith(staleWhileRevalidate(request, url));
     return;
   }
 
   if (isStaticAsset(url)) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          cachePut(request, response);
-          return response;
-        })
-        .catch(async () => {
-          const cached = await caches.match(request);
-          return cached || new Response("", { status: 503, statusText: "Offline" });
-        }),
+      caches.match(request).then((cached) => {
+        const networkPromise = fetch(request)
+          .then((response) => {
+            cachePut(request, response);
+            return response;
+          })
+          .catch(async () => cached || new Response("", { status: 503, statusText: "Offline" }));
+        if (cached) {
+          void networkPromise.catch(() => undefined);
+          return cached;
+        }
+        return networkPromise;
+      }),
     );
     return;
   }

@@ -93,12 +93,14 @@ duplicate, and stock rejections stay as conflicts instead of silent pending.
 
 ## Offline navigation
 
-Next.js App Router RSC fetches fail offline. While offline, in-app navigation
-uses `history.pushState` and a client outlet so the authenticated layout stays
-mounted. The **URL remains the source of navigation state**; the service worker
-may serve a cached shell HTML document for an uncached deep path without
-rewriting the browser location — `OfflineNavigationProvider` /
-`resolveOfflineView` then render the view for `location.pathname`.
+Next.js App Router RSC fetches fail offline and feel slow online (network round-trip
+plus `loading.tsx` flash). Inside the authenticated shell, in-app navigation uses
+`history.pushState` and a client outlet both **online and offline**, so the sidebar
+stays mounted and tab switches are instant. The URL remains the source of navigation
+state; the service worker may serve a cached shell HTML document for an uncached deep
+path without rewriting the browser location — `OfflineNavigationProvider` /
+`resolveOfflineView` honor `location.pathname`. Static assets and shell HTML use
+stale-while-revalidate (`novend-pos-v6`).
 
 ### Deep links and return URL
 

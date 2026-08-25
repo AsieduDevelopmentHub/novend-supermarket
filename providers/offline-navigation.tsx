@@ -17,11 +17,12 @@ import { resolveOfflineView } from "@/providers/offline-views";
 type OfflineNavigationContextValue = {
   /** True when the shell is rendering a client-side route instead of Next RSC children. */
   clientRouting: boolean;
-  /** Path currently shown while offline client routing is active. */
+  /** Path currently shown while client shell routing is active. */
   activePath: string | null;
   /**
-   * Navigate within the app. Online → Next soft navigation.
-   * Offline → client view swap (no RSC fetch) so the shell never blanks.
+   * Navigate within the authenticated shell.
+   * Uses history + client feature views (online and offline) so tab switches
+   * never wait on an RSC round-trip or flash `loading.tsx`.
    */
   navigate: (href: string) => void;
 };
@@ -56,9 +57,19 @@ function isInternalAppHref(href: string | null): href is string {
   return href.startsWith("/");
 }
 
+function isAuthOrApiHref(href: string): boolean {
+  return (
+    href.startsWith("/login") ||
+    href.startsWith("/signup") ||
+    href.startsWith("/api/") ||
+    href.startsWith("/onboarding")
+  );
+}
+
 /**
- * Keeps the authenticated shell mounted while offline by swapping feature views
- * client-side instead of relying on Next.js RSC soft navigations (which need the network).
+ * Keeps the authenticated shell mounted across in-app navigation.
+ * Offline: avoids broken RSC fetches. Online: avoids network-bound soft nav
+ * that made every tab feel like a full reload.
  */
 export function OfflineNavigationProvider({ children }: { children: ReactNode }) {
   const online = useConnectivity();
@@ -69,14 +80,18 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
   const navigate = useCallback(
     (href: string) => {
       const path = normalizePath(href);
-      persistLastRoute(pathWithSearch(href));
-      if (online) {
-        setClientPath(null);
-        router.push(href);
-        return;
-      }
-      window.history.pushState({}, "", href);
+      const full = pathWithSearch(href);
+      persistLastRoute(full);
+      window.history.pushState({}, "", full);
       setClientPath(path);
+      if (online) {
+        // Warm SW / Next caches in the background — never block the UI swap.
+        try {
+          void router.prefetch(href);
+        } catch {
+          /* ignore */
+        }
+      }
     },
     [online, router],
   );
@@ -89,8 +104,7 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
 
   useEffect(() => {
     if (online) return;
-    // Hard refresh / first paint offline: enable client views for the current URL
-    // so we never depend on a cached RSC tree that cannot revalidate.
+    // Hard refresh / first paint offline: enable client views for the current URL.
     queueMicrotask(() => {
       setClientPath(normalizePath(window.location.pathname));
     });
@@ -98,27 +112,23 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
 
   useEffect(() => {
     if (!online || !clientPath) return;
-    // Soft-nav catch-up after reconnect. Keep clientPath until Next owns the route;
-    // clientRouting is already false while online.
-    router.replace(clientPath);
+    try {
+      void router.prefetch(clientPath);
+    } catch {
+      /* ignore */
+    }
   }, [online, clientPath, router]);
 
   useEffect(() => {
     const onPopState = () => {
-      if (navigator.onLine) {
-        setClientPath(null);
-        return;
-      }
       setClientPath(normalizePath(window.location.pathname));
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  // Capture in-app link clicks while offline so Next Link never triggers a failing RSC fetch.
+  // Capture in-app link clicks so Next Link never blocks on RSC (online or offline).
   useEffect(() => {
-    if (online) return;
-
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented) return;
       if (event.button !== 0) return;
@@ -133,7 +143,7 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
 
       const href = anchor.getAttribute("href");
       if (!isInternalAppHref(href)) return;
-      if (href.startsWith("/login") || href.startsWith("/api/")) return;
+      if (isAuthOrApiHref(href)) return;
 
       event.preventDefault();
       event.stopPropagation();
@@ -142,11 +152,10 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
 
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
-  }, [online, navigate]);
+  }, [navigate]);
 
-  const activePath = !online ? (clientPath ?? normalizePath(pathname)) : null;
-  // Always client-render feature views while offline (including after a full refresh).
-  const shouldRenderClientView = Boolean(!online && activePath);
+  const activePath = clientPath ?? (online ? null : normalizePath(pathname));
+  const shouldRenderClientView = Boolean(clientPath);
 
   const value = useMemo<OfflineNavigationContextValue>(
     () => ({
@@ -162,7 +171,7 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
   );
 }
 
-/** Renders the offline client view inside the shell main area (keeps sidebar mounted). */
+/** Renders the client feature view inside the shell main area (keeps sidebar mounted). */
 export function OfflineOutlet({ children }: { children: ReactNode }) {
   const { clientRouting, activePath } = useOfflineNavigation();
   if (clientRouting && activePath) {
