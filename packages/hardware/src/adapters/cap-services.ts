@@ -1,6 +1,7 @@
 import { BiometricAuth, BiometryType } from "@aparajita/capacitor-biometric-auth";
 import { SecureStorage } from "@aparajita/capacitor-secure-storage";
 import { App } from "@capacitor/app";
+import { registerPlugin } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { Preferences } from "@capacitor/preferences";
 import type { HardwareResult } from "../types";
@@ -28,6 +29,17 @@ const BIOMETRIC_ENABLED_KEY = "novend.biometric.enabled";
 const BIOMETRIC_REQUIRE_LAUNCH_KEY = "novend.biometric.requireOnLaunch";
 const BIOMETRIC_UNLOCK_TOKEN_KEY = "novend.biometric.unlockToken";
 const NOTIFICATION_CHANNEL_ID = "novend_alerts";
+const NOTIFICATION_PERMISSION_REQUESTED_KEY = "novend.notifications.permissionRequested";
+const NOTIFICATION_PERMISSION_ATTEMPTS_KEY = "novend.notifications.permissionAttempts";
+
+type NovendPermissionsPlugin = {
+  checkNotificationPermission: () => Promise<{
+    state: "granted" | "denied" | "not-requested" | "permanently-denied";
+  }>;
+  markNotificationPermissionRequested: () => Promise<void>;
+};
+
+const NovendPermissions = registerPlugin<NovendPermissionsPlugin>("NovendPermissions");
 
 const DEFAULT_TOPICS: Record<NotificationTopic, boolean> = {
   stock_alerts: true,
@@ -36,12 +48,17 @@ const DEFAULT_TOPICS: Record<NotificationTopic, boolean> = {
   subscription_alerts: true,
 };
 
-function mapNotificationState(display: string | undefined): NotificationPermissionState {
+function mapNotificationState(
+  display: string | undefined,
+  requested: boolean,
+  attempts: number,
+): NotificationPermissionState {
   if (display === "granted") return "granted";
-  if (display === "denied") return "denied";
-  if (display === "prompt" || display === "prompt-with-rationale") return "prompt";
+  if (display === "denied") return attempts > 1 ? "permanently-denied" : "denied";
+  if (display === "prompt-with-rationale") return "prompt";
+  if (display === "prompt") return requested ? "prompt" : "not-requested";
   // Unknown / missing display must not become "unavailable" — that hid real prompt states.
-  return "prompt";
+  return "error";
 }
 
 function mapBiometry(type: BiometryType): BiometricAvailability["biometryType"] {
@@ -71,11 +88,14 @@ export function createCapacitorBiometricsAdapter(): BiometricsAdapter {
           NATIVE_AVAILABILITY_TIMEOUT_MS,
         );
         const biometryType = mapBiometry(result.biometryType);
+        const biometryTypes = Array.isArray(result.biometryTypes) ? result.biometryTypes : [];
         const supported =
           biometryType !== "none" ||
-          (Array.isArray(result.biometryTypes) && result.biometryTypes.length > 0);
-        const enrolled = Boolean(result.isAvailable);
-        const available = enrolled;
+          biometryTypes.some((type) => mapBiometry(type) !== "none");
+        // The plugin documents isAvailable as the enrolled-and-usable signal.
+        // strongBiometryIsAvailable is a safe fallback for older native builds.
+        const available = Boolean(result.isAvailable || result.strongBiometryIsAvailable);
+        const enrolled = available;
 
         return {
           ok: true,
@@ -180,15 +200,32 @@ export function createCapacitorSecureStorageAdapter(): SecureStorageAdapter {
 
 async function ensureNotificationChannel(): Promise<void> {
   try {
-    await LocalNotifications.createChannel({
-      id: NOTIFICATION_CHANNEL_ID,
-      name: "Novend alerts",
-      description: "Stock, transfers, and subscription alerts",
-      importance: 4,
-      visibility: 1,
-    });
+    await withTimeout(
+      LocalNotifications.createChannel({
+        id: NOTIFICATION_CHANNEL_ID,
+        name: "Novend alerts",
+        description: "Stock, transfers, and subscription alerts",
+        importance: 4,
+        visibility: 1,
+      }),
+      NATIVE_CALL_TIMEOUT_MS,
+    );
   } catch {
     /* Channels are Android-only; ignore on iOS / older APIs. */
+  }
+}
+
+async function nativeNotificationState(): Promise<NotificationPermissionState | null> {
+  try {
+    const result = await withTimeout(
+      NovendPermissions.checkNotificationPermission(),
+      NATIVE_CALL_TIMEOUT_MS,
+    );
+    return result.state;
+  } catch {
+    // Older shells do not include the optional probe. LocalNotifications is
+    // still the source of truth in those builds.
+    return null;
   }
 }
 
@@ -197,11 +234,16 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
     async checkPermissions() {
       try {
         await ensureNotificationChannel();
+        const requestedValue = await Preferences.get({ key: NOTIFICATION_PERMISSION_REQUESTED_KEY });
+        const attemptsValue = await Preferences.get({ key: NOTIFICATION_PERMISSION_ATTEMPTS_KEY });
+        const requested = requestedValue.value === "true";
+        const attempts = Number.parseInt(attemptsValue.value ?? "0", 10) || 0;
+        const nativeState = await nativeNotificationState();
         const status = await withTimeout(
           LocalNotifications.checkPermissions(),
           NATIVE_AVAILABILITY_TIMEOUT_MS,
         );
-        const state = mapNotificationState(status.display);
+        const state = nativeState ?? mapNotificationState(status.display, requested, attempts);
         return { ok: true, data: { granted: state === "granted", state } };
       } catch (error) {
         if (isNativeTimeoutError(error)) {
@@ -212,13 +254,6 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
           };
         }
         const raw = error instanceof Error ? error.message : String(error ?? "");
-        if (/not implemented|unavailable|not available/i.test(raw)) {
-          return {
-            ok: false,
-            message: friendlyHardwareMessage(raw, "Notifications are unavailable on this device."),
-            data: { granted: false, state: "unavailable" as const },
-          };
-        }
         return {
           ok: false,
           message: friendlyHardwareMessage(raw, "Could not check notification permission."),
@@ -229,15 +264,27 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
     async requestPermissions() {
       try {
         await ensureNotificationChannel();
+        const attemptsValue = await Preferences.get({ key: NOTIFICATION_PERMISSION_ATTEMPTS_KEY });
+        const attempts = (Number.parseInt(attemptsValue.value ?? "0", 10) || 0) + 1;
         const status = await withTimeout(
           LocalNotifications.requestPermissions(),
           NATIVE_AVAILABILITY_TIMEOUT_MS,
         );
-        const state = mapNotificationState(status.display);
+        await NovendPermissions.markNotificationPermissionRequested().catch(() => undefined);
+        await Preferences.set({ key: NOTIFICATION_PERMISSION_REQUESTED_KEY, value: "true" });
+        await Preferences.set({
+          key: NOTIFICATION_PERMISSION_ATTEMPTS_KEY,
+          value: String(attempts),
+        });
+        const state =
+          (await nativeNotificationState()) ?? mapNotificationState(status.display, true, attempts);
         if (state !== "granted") {
           return {
             ok: false,
-            message: permissionDeniedMessage("notifications"),
+            message:
+              state === "permanently-denied"
+                ? "Notifications are blocked. Enable them in device settings."
+                : permissionDeniedMessage("notifications"),
             data: { granted: false, state },
           };
         }
@@ -251,13 +298,6 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
           };
         }
         const raw = error instanceof Error ? error.message : String(error ?? "");
-        if (/not implemented|unavailable|not available/i.test(raw)) {
-          return {
-            ok: false,
-            message: friendlyHardwareMessage(raw, "Notifications are unavailable on this device."),
-            data: { granted: false, state: "unavailable" as const },
-          };
-        }
         return {
           ok: false,
           message: friendlyHardwareMessage(

@@ -48,6 +48,7 @@ type Props = {
 export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const scannerRef = useRef<CameraScannerSession | null>(null);
+  const scanAbortRef = useRef<AbortController | null>(null);
   const startGenRef = useRef(0);
   const [session, setSession] = useState(0);
   const [ready, setReady] = useState(false);
@@ -61,6 +62,8 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
   const supported = native || isCameraBarcodeSupported();
 
   function stopScanner() {
+    scanAbortRef.current?.abort();
+    scanAbortRef.current = null;
     try {
       scannerRef.current?.stop();
     } catch {
@@ -111,6 +114,8 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
       setDetectBox(null);
       setSuccessCode(null);
       stopScanner();
+      const abortController = new AbortController();
+      scanAbortRef.current = abortController;
 
       if (native) {
         const permission = await Hardware.camera.ensurePermission("camera");
@@ -145,6 +150,7 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
         const scanner = await startCameraBarcodeScanning({
           video,
           deviceId: deviceId || undefined,
+          signal: abortController.signal,
           onDetect: (code, box) => {
             if (gen !== startGenRef.current) return;
             setDetectBox(box ?? null);
@@ -162,6 +168,7 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
           scanner.stop();
           return;
         }
+        scanAbortRef.current = null;
         scannerRef.current = scanner;
 
         const inputs = await listVideoInputDevices();

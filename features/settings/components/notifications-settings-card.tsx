@@ -46,7 +46,7 @@ const EMPTY_PREFS: Record<NotificationTopic, boolean> = {
 };
 
 export function NotificationsSettingsCard() {
-  const [state, setState] = useState<NotificationPermissionState>("prompt");
+  const [state, setState] = useState<NotificationPermissionState>("not-requested");
   const [prefs, setPrefs] = useState<Record<NotificationTopic, boolean> | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -55,7 +55,7 @@ export function NotificationsSettingsCard() {
   const refresh = useCallback(async () => {
     try {
       const permission = await Hardware.notifications.checkPermissions();
-      setState(permission.data?.state ?? (permission.data?.granted ? "granted" : "prompt"));
+      setState(permission.data?.state ?? (permission.data?.granted ? "granted" : "not-requested"));
       setErrorMessage(permission.ok ? null : permission.message || null);
       const topics = await Hardware.notifications.getTopicPrefs();
       setPrefs(topics.data ?? EMPTY_PREFS);
@@ -74,7 +74,9 @@ export function NotificationsSettingsCard() {
       if (cancelled) return;
       setLoading((stillLoading) => {
         if (stillLoading) {
-          setState((current) => (current === "prompt" ? "error" : current));
+          setState((current) =>
+            current === "prompt" || current === "not-requested" ? "error" : current,
+          );
           setErrorMessage((msg) => msg ?? "Notification permission check timed out. Try again.");
           setPrefs((current) => current ?? EMPTY_PREFS);
         }
@@ -132,7 +134,7 @@ export function NotificationsSettingsCard() {
     setBusy(true);
     try {
       if (state !== "granted" && enabled) {
-        if (state === "denied") {
+        if (state === "permanently-denied") {
           toast.message(permissionDeniedMessage("notifications"));
           await openSettings();
           return;
@@ -153,7 +155,8 @@ export function NotificationsSettingsCard() {
   }
 
   const granted = state === "granted";
-  const topicsDisabled = busy || prefs === null || state === "unavailable";
+  const topicsDisabled =
+    busy || prefs === null || state === "unavailable" || state === "permanently-denied";
 
   return (
     <Card>
@@ -174,7 +177,7 @@ export function NotificationsSettingsCard() {
           </p>
         ) : null}
 
-        {!loading && state === "prompt" ? (
+        {!loading && (state === "prompt" || state === "not-requested") ? (
           <div className="space-y-2">
             <p className="text-muted-foreground text-sm">{permissionNeedMessage("notifications")}</p>
             <Button
@@ -191,6 +194,15 @@ export function NotificationsSettingsCard() {
         {!loading && state === "denied" ? (
           <div className="space-y-2">
             <p className="text-sm">{permissionDeniedMessage("notifications")}</p>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => void enableNotifications()}>
+              Try again
+            </Button>
+          </div>
+        ) : null}
+
+        {!loading && state === "permanently-denied" ? (
+          <div className="space-y-2">
+            <p className="text-sm">Notifications are blocked for Novend on this device.</p>
             <Button type="button" variant="outline" disabled={busy} onClick={() => void openSettings()}>
               Open device settings
             </Button>

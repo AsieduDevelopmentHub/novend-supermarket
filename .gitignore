@@ -11,7 +11,7 @@ release
 coverage
 scripts/.auth-keys.*
 .convex-auth-keys.tmp.json
-/gpt.md
+# /gpt.md
 /saas.md
 /billing.md
 *.log

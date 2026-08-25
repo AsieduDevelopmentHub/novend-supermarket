@@ -31,8 +31,8 @@ type BarcodeDetectorLike = {
 type BarcodeDetectorCtor = new (options: { formats: readonly string[] }) => BarcodeDetectorLike;
 
 type ZxingReader = {
-  decodeFromVideoDevice: (
-    deviceId: string | undefined,
+  decodeFromStream: (
+    stream: MediaStream,
     video: HTMLVideoElement,
     callback: (
       result: { getText: () => string; getResultPoints?: () => Array<{ getX: () => number; getY: () => number }> } | undefined,
@@ -204,22 +204,54 @@ async function startZxingScanning(options: {
   video: HTMLVideoElement;
   deviceId?: string;
   onDetect: (code: string, box?: DOMRectReadOnly) => void;
+  signal?: AbortSignal;
 }): Promise<CameraScannerSession> {
   const reader = await loadZxingReader();
   let active = true;
+  let detected = false;
   let controls: { stop: () => void } | null = null;
+  let stream: MediaStream | null = null;
+
+  const stop = () => {
+    if (!active && !stream && !options.video.srcObject) return;
+    active = false;
+    try {
+      controls?.stop();
+    } catch {
+      /* ignore */
+    }
+    if (stream) {
+      for (const track of stream.getTracks()) track.stop();
+      stream = null;
+    }
+    options.signal?.removeEventListener("abort", stop);
+    stopVideoStream(options.video);
+  };
+
+  if (options.signal?.aborted) {
+    throw new DOMException("Scanner start was cancelled", "AbortError");
+  }
+
+  // Keep getUserMedia under our control. ZXing's convenience device method
+  // starts a second stream and playback, which races WebView remounts/retries.
+  stream = await openBarcodeCameraStream(options.deviceId);
+  if (options.signal?.aborted) {
+    stop();
+    throw new DOMException("Scanner start was cancelled", "AbortError");
+  }
+  options.signal?.addEventListener("abort", stop, { once: true });
 
   try {
-    // decodeFromVideoDevice owns getUserMedia + play — do not call video.play() again
-    // (that races and produces "play request was interrupted").
-    controls = await reader.decodeFromVideoDevice(options.deviceId, options.video, (result, error) => {
+    options.video.srcObject = stream;
+    controls = await reader.decodeFromStream(stream, options.video, (result, error) => {
       if (!active) return;
       if (result) {
         const value = result.getText()?.trim();
         if (value) {
-          active = false;
-          controls?.stop();
-          options.onDetect(value, pointsToBoundingBox(result.getResultPoints?.(), options.video));
+          detected = true;
+          const box = pointsToBoundingBox(result.getResultPoints?.(), options.video);
+          stop();
+          options.onDetect(value, box);
         }
         return;
       }
@@ -228,26 +260,20 @@ async function startZxingScanning(options: {
       }
     });
 
+    if (detected) {
+      return { stop };
+    }
+    if (!active || options.signal?.aborted) {
+      stop();
+      throw new DOMException("Scanner start was cancelled", "AbortError");
+    }
+
     return {
       deviceId: activeDeviceId(options.video),
-      stop: () => {
-        active = false;
-        try {
-          controls?.stop();
-        } catch {
-          /* ignore */
-        }
-        stopVideoStream(options.video);
-      },
+      stop,
     };
   } catch (err) {
-    active = false;
-    try {
-      controls?.stop();
-    } catch {
-      /* ignore */
-    }
-    stopVideoStream(options.video);
+    stop();
     throw err;
   }
 }
@@ -261,6 +287,7 @@ export async function startCameraBarcodeScanning(options: {
   video: HTMLVideoElement;
   deviceId?: string;
   onDetect: (code: string, box?: DOMRectReadOnly) => void;
+  signal?: AbortSignal;
 }): Promise<CameraScannerSession> {
   // Capacitor must not use BarcodeDetector paths that can pull remote Google assets.
   if (!isCapacitor()) {

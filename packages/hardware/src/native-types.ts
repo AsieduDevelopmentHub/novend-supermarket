@@ -65,6 +65,11 @@ export type SecureStorageAdapter = {
 export type NotificationPermissionState =
   | "granted"
   | "denied"
+  /** Permission has not been requested in this app install. */
+  | "not-requested"
+  /** Android has stopped presenting the runtime permission prompt. */
+  | "permanently-denied"
+  /** Backward-compatible alias used by older callers. */
   | "prompt"
   | "unavailable"
   | "error";

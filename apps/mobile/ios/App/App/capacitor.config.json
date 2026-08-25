@@ -19,7 +19,6 @@
 		"BiometricAuthNative",
 		"SecureStorage",
 		"BluetoothLe",
-		"BarcodeScannerPlugin",
 		"AppPlugin",
 		"CAPCameraPlugin",
 		"FilesystemPlugin",
