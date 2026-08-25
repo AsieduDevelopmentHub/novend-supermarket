@@ -2523,23 +2523,27 @@ button.landing-feature-frame {
   position: relative;
   width: 100%;
   --active-notch-x: 50%;
+  --stone-size: 2.5rem;
+  --stone-lift: 0.22rem;
   overflow: visible;
   background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, #111827 42%, #0b1220 100%);
   border-radius: 1.75rem 1.75rem 0 0;
   box-shadow:
     0 -10px 36px rgba(15, 23, 42, 0.32),
     0 -1px 0 rgba(255, 255, 255, 0.08) inset;
-  padding: 1.05rem 0.45rem max(0.45rem, env(safe-area-inset-bottom, 0px));
+  padding: calc(var(--stone-size) * 0.46) 0.45rem max(0.45rem, env(safe-area-inset-bottom, 0px))
+    0.45rem;
   transition: --active-notch-x 320ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* Concave shoulders where the bar meets the lifted stone well */
 .novend-mobile-tabbar-notch {
   position: absolute;
-  top: 0;
+  top: calc(var(--stone-lift) + 0.06rem);
   left: var(--active-notch-x);
-  z-index: 1;
-  width: 3.85rem;
-  height: 0.55rem;
+  z-index: 2;
+  width: calc(var(--stone-size) + 1.35rem);
+  height: 0.72rem;
   pointer-events: none;
   transform: translateX(-50%);
   transition: left 320ms cubic-bezier(0.32, 0.72, 0, 1);
@@ -2550,21 +2554,65 @@ button.landing-feature-frame {
   content: "";
   position: absolute;
   bottom: 0;
-  width: 0.7rem;
-  height: 0.7rem;
+  width: 0.78rem;
+  height: 0.78rem;
   background: transparent;
 }
 
 .novend-mobile-tabbar-notch::before {
-  left: 0.05rem;
-  border-bottom-right-radius: 0.7rem;
-  box-shadow: 0.38rem 0 0 0 rgba(30, 41, 59, 0.98);
+  left: 0;
+  border-bottom-right-radius: 0.78rem;
+  box-shadow: 0.42rem 0 0 0 rgba(30, 41, 59, 0.98);
 }
 
 .novend-mobile-tabbar-notch::after {
-  right: 0.05rem;
-  border-bottom-left-radius: 0.7rem;
-  box-shadow: -0.38rem 0 0 0 rgba(30, 41, 59, 0.98);
+  right: 0;
+  border-bottom-left-radius: 0.78rem;
+  box-shadow: -0.42rem 0 0 0 rgba(30, 41, 59, 0.98);
+}
+
+/* Active orb — center on bar top edge, lifted slightly off the surface */
+.novend-mobile-tabbar-stone {
+  position: absolute;
+  top: 0;
+  left: var(--active-notch-x);
+  z-index: 4;
+  display: flex;
+  height: var(--stone-size);
+  width: var(--stone-size);
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transform: translate(-50%, calc(-50% - var(--stone-lift)));
+  transition:
+    left 320ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Visible gap between stone and bar — page background shows through */
+.novend-mobile-tabbar-stone::before {
+  content: "";
+  position: absolute;
+  inset: -0.28rem;
+  z-index: -1;
+  border-radius: 9999px;
+  background: var(--background);
+}
+
+/* Soft contact shadow under the lifted stone */
+.novend-mobile-tabbar-stone::after {
+  content: "";
+  position: absolute;
+  bottom: -0.12rem;
+  left: 50%;
+  z-index: -2;
+  width: 1.55rem;
+  height: 0.38rem;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.42);
+  filter: blur(4px);
+  transform: translateX(-50%);
+  opacity: 0.85;
 }
 
 .novend-mobile-tabbar::before {
@@ -2619,21 +2667,16 @@ button.landing-feature-frame {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .novend-mobile-tab-icon-active {
-  transform: translateY(-0.72rem);
+  pointer-events: none;
 }
 
-.novend-mobile-tab-icon-active::after {
-  content: "";
-  position: absolute;
-  inset: -0.3rem;
-  z-index: -1;
-  border-radius: 9999px;
-  background: var(--background);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.14);
+.novend-mobile-tab-icon-spacer {
+  display: block;
+  height: 2.25rem;
+  width: 2.25rem;
 }
 
 .novend-mobile-tab-orb {
@@ -2659,14 +2702,25 @@ button.landing-feature-frame {
     box-shadow 320ms ease;
 }
 
+.novend-mobile-tabbar-stone .novend-mobile-tab-orb {
+  opacity: 1;
+  inset: 0;
+  transform: scale(1);
+  box-shadow:
+    0 0 0 1px rgba(186, 230, 253, 0.55),
+    0 6px 18px rgba(14, 165, 233, 0.52),
+    0 0 28px rgba(56, 189, 248, 0.68),
+    0 2px 6px rgba(15, 23, 42, 0.28);
+}
+
 .novend-mobile-tab-orb-active {
   opacity: 1;
   transform: scale(1);
   box-shadow:
     0 0 0 1px rgba(186, 230, 253, 0.55),
-    0 8px 22px rgba(14, 165, 233, 0.58),
-    0 0 32px rgba(56, 189, 248, 0.72),
-    0 -3px 12px rgba(125, 211, 252, 0.42);
+    0 6px 18px rgba(14, 165, 233, 0.52),
+    0 0 28px rgba(56, 189, 248, 0.68),
+    0 2px 6px rgba(15, 23, 42, 0.28);
 }
 
 .novend-mobile-tab-label {
@@ -2691,10 +2745,10 @@ button.landing-feature-frame {
 @media (prefers-reduced-motion: reduce) {
   .novend-mobile-tabbar,
   .novend-mobile-tabbar-notch,
+  .novend-mobile-tabbar-stone,
   .novend-mobile-tab,
   .novend-mobile-tab-orb,
   .novend-mobile-tab-label,
-  .novend-mobile-tab-icon,
   .novend-mobile-tab-icon svg {
     transition: none;
   }

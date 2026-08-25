@@ -21,6 +21,8 @@ export function MobileBottomNav() {
     MOBILE_BOTTOM_TABS.findIndex((tab) => tab.id === active),
   );
   const notchX = `${((activeIndex + 0.5) / MOBILE_BOTTOM_TABS.length) * 100}%`;
+  const activeTab = MOBILE_BOTTOM_TABS[activeIndex];
+  const ActiveIcon = activeTab.icon;
 
   return (
     <nav
@@ -32,6 +34,10 @@ export function MobileBottomNav() {
         style={{ "--active-notch-x": notchX } as CSSProperties}
       >
         <div className="novend-mobile-tabbar-notch" aria-hidden />
+        <div className="novend-mobile-tabbar-stone" aria-hidden>
+          <span className="novend-mobile-tab-orb novend-mobile-tab-orb-active" />
+          <ActiveIcon className="relative z-10 h-5 w-5 text-slate-950" />
+        </div>
         <div className="novend-mobile-tabbar-inner">
           {MOBILE_BOTTOM_TABS.map((tab) => {
             const isActive = active === tab.id;
@@ -56,20 +62,17 @@ export function MobileBottomNav() {
                     isActive && "novend-mobile-tab-icon-active",
                   )}
                 >
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "novend-mobile-tab-orb",
-                      isActive && "novend-mobile-tab-orb-active",
-                    )}
-                  />
-                  <Icon
-                    className={cn(
-                      "relative z-10 h-5 w-5 transition-colors duration-200",
-                      isActive ? "text-slate-950" : "text-current",
-                    )}
-                    aria-hidden
-                  />
+                  {!isActive ? (
+                    <>
+                      <span aria-hidden className="novend-mobile-tab-orb" />
+                      <Icon
+                        className="relative z-10 h-5 w-5 text-current transition-colors duration-200"
+                        aria-hidden
+                      />
+                    </>
+                  ) : (
+                    <span className="novend-mobile-tab-icon-spacer" aria-hidden />
+                  )}
                 </span>
                 <span className="novend-mobile-tab-label">{tab.title}</span>
               </button>
