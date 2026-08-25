@@ -12,3 +12,8 @@ allowBuilds:
 
 patchedDependencies:
   '@convex-dev/auth@0.0.87': patches/@convex-dev__auth@0.0.87.patch
+
+overrides:
+  "@auth/core": ">=0.41.3"
+  postcss: ">=8.5.18"
+  sharp: ">=0.35.0"

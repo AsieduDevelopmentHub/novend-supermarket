@@ -6,12 +6,22 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ## Unreleased
 
+---
+
+## v0.3.5 — 2026-08-25
+
+### Fixed
+
+- Align package version with release tag; Android release signing + CI audit hygiene.
+- Cap shell scroll resets on route change; PWA sidebar closes after navigation; shared mobile dialog insets.
+- Cap/PWA cart drawer dark overlay; dashboard action alignment; curved Cap bottom nav.
+
 ### Changed
 
 - Subscription plan changes are now a lifecycle on one subscription: upgrades take effect after a prorated payment; downgrades are scheduled for the end of the paid period with no charge today.
 - Pro is GH₵450 / month (GH₵4,500 / year). Enterprise is shown as GH₵750+, not a fixed 750. Yearly prices stay 10 × monthly on every recurring plan.
 
-### Fixed
+### Fixed (carried from unreleased)
 
 - After sign-in, navigate immediately to the post-auth path (no wait on reactive `me` + no instant `router.refresh()`), so `/login` no longer stays blank until reload.
 - In-app navigation stays instant online: client shell routing (same as offline) plus stale-while-revalidate SW (`novend-pos-v6`); removed `(app)/loading.tsx` full-page skeleton flash.

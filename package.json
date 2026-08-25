@@ -1,6 +1,6 @@
 {
   "name": "novend-pos",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "private": true,
   "packageManager": "pnpm@11.18.0",
   "repository": {
@@ -39,7 +39,7 @@
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^9.1.2",
     "@aparajita/capacitor-secure-storage": "^7.1.6",
-    "@auth/core": "^0.37.0",
+    "@auth/core": "^0.41.3",
     "@capacitor-community/bluetooth-le": "^7.3.2",
     "@capacitor/app": "^7.1.2",
     "@capacitor/camera": "^7.0.5",
