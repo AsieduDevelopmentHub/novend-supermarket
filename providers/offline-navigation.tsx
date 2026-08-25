@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -67,6 +68,16 @@ function isAuthOrApiHref(href: string): boolean {
   );
 }
 
+/** App shell scroll lives on <main>, not window — reset it when the route changes. */
+function resetShellScroll() {
+  if (typeof document === "undefined") return;
+  const root = document.querySelector("[data-novend-scroll-root]");
+  if (root instanceof HTMLElement) {
+    root.scrollTop = 0;
+  }
+  window.scrollTo(0, 0);
+}
+
 /**
  * Keeps the authenticated shell mounted across in-app navigation.
  * Offline: avoids broken RSC fetches. Online: avoids network-bound soft nav
@@ -78,6 +89,7 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const [clientPath, setClientPath] = useState<string | null>(null);
+  const lastScrollRoute = useRef<string | null>(null);
 
   const navigate = useCallback(
     (href: string) => {
@@ -96,6 +108,19 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
     },
     [online, forceClientShell, router],
   );
+
+  const routeKey = clientPath ?? normalizePath(pathname);
+
+  useEffect(() => {
+    if (lastScrollRoute.current === null) {
+      lastScrollRoute.current = routeKey;
+      return;
+    }
+    if (lastScrollRoute.current === routeKey) return;
+    lastScrollRoute.current = routeKey;
+    // After the destination view paints into the shared shell scroller.
+    queueMicrotask(() => resetShellScroll());
+  }, [routeKey]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

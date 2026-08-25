@@ -451,6 +451,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                 <div id="native-page-header-host" className="native-page-header-host shrink-0" />
               ) : null}
               <main
+                data-novend-scroll-root
                 className={cn(
                   "min-h-0 min-w-0 flex-1 overscroll-y-contain",
                   nativeShell

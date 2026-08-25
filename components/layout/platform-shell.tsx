@@ -71,7 +71,10 @@ export function PlatformShell({
             {APP_BRAND} platform
           </p>
         </header>
-        <main className="min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-y-contain px-4 py-6 lg:px-8">
+        <main
+          data-novend-scroll-root
+          className="min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-y-contain px-4 py-6 lg:px-8"
+        >
           {children}
         </main>
       </div>
