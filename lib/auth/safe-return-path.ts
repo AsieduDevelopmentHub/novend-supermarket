@@ -73,6 +73,7 @@ export type PostAuthUser = {
 /**
  * Default post-login destination, optionally overridden by a safe `next` path.
  * Onboarding and platform-admin defaults always win when required.
+ * Platform routes are never restored for non–platform-admins (cross-user device).
  */
 export function resolvePostAuthPath(user: PostAuthUser, next?: string | null): string {
   const defaults = postLoginPath(user);
@@ -82,7 +83,10 @@ export function resolvePostAuthPath(user: PostAuthUser, next?: string | null): s
     return defaults;
   }
   if (user?.needsOnboarding || user?.needsProfile) return defaults;
-  return safeInternalPath(next) ?? defaults;
+  const safe = safeInternalPath(next);
+  if (!safe) return defaults;
+  if (safe === "/platform" || safe.startsWith("/platform/")) return defaults;
+  return safe;
 }
 
 /** Build `/login?next=…` when redirecting an unauthenticated deep link. */

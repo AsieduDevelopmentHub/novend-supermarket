@@ -293,8 +293,13 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       void refreshStatus();
       return;
     }
-    // Reconnect / online boot: refresh Dexie replica (TTL-gated) then drain outbox.
-    void pullSnapshot().then(() => flushOutbox());
+    // First session pull must be forced when this replica has no snapshot yet
+    // (post-login org bind) — TTL skip on a warm anon DB left KPIs at zero.
+    void (async () => {
+      const lastSnap = await getLastSnapshotAt();
+      await pullSnapshot({ force: !lastSnap });
+      await flushOutbox();
+    })();
   }, [online, pullSnapshot, flushOutbox, refreshStatus]);
 
   useEffect(() => {

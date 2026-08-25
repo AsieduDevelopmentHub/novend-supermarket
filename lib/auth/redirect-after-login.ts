@@ -1,6 +1,8 @@
 import type { ConvexReactClient } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
+import { bindOfflineOrganization } from "@/lib/offline/db";
+import { markOfflineSession } from "@/lib/offline/session";
 
 const SKIP_SPLASH_KEY = "novend.auth.skipSplash";
 const RESOLVE_RETRIES = 8;
@@ -39,6 +41,34 @@ function wait(ms: number): Promise<void> {
 }
 
 /**
+ * Bind the org-scoped Dexie replica before navigating into the app shell so
+ * dashboard hydration does not open `novend-offline-anon` first.
+ */
+function bindReplicaFromMe(me: {
+  userId?: string | null;
+  name?: string | null;
+  role?: string | null;
+  branchId?: string | null;
+  branch?: string | null;
+  organizationId?: string | null;
+  isPlatformAdmin?: boolean | null;
+} | null): void {
+  if (!me?.userId) return;
+  if (me.isPlatformAdmin && !me.organizationId) return;
+  if (!me.organizationId || !me.role || !me.branchId) return;
+  bindOfflineOrganization(String(me.organizationId), String(me.userId));
+  markOfflineSession({
+    userId: String(me.userId),
+    name: me.name ?? "User",
+    role: me.role,
+    branchId: String(me.branchId),
+    branchName: me.branch ?? "Branch",
+    organizationId: String(me.organizationId),
+    savedAt: Date.now(),
+  });
+}
+
+/**
  * Resolve the post-login route from the live session.
  * Retries briefly while the Convex client picks up the auth token after signIn.
  * Honors a safe `next` return path when provided.
@@ -50,6 +80,7 @@ export async function resolvePostLoginPath(
   for (let attempt = 0; attempt < RESOLVE_RETRIES; attempt++) {
     try {
       const me = await convex.query(api.users.me, {});
+      bindReplicaFromMe(me);
       return resolvePostAuthPath(me, next);
     } catch {
       if (attempt === RESOLVE_RETRIES - 1) break;

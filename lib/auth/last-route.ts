@@ -35,3 +35,13 @@ export function readLastRoute(): string | null {
     return null;
   }
 }
+
+/** Drop device last-route so the next user cannot inherit Super Admin deep links. */
+export function clearLastRoute(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LAST_ROUTE_KEY);
+  } catch {
+    /* private browsing */
+  }
+}

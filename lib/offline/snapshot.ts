@@ -85,6 +85,8 @@ export async function pullOfflineSnapshot(
         db.orders.count(),
       ]);
       if (productCount > 0) {
+        // Late dashboard subscribers still need a refresh signal.
+        notifyReplicaChanged();
         return { productCount, customerCount, orderCount, skipped: true };
       }
     }

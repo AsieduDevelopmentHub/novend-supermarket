@@ -269,16 +269,22 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   }
 
   // Keep Dexie bound to the platform replica on Super Admin routes, otherwise the tenant org.
-  useEffect(() => {
-    if (!user?.userId) return;
+  // Bind during render (before OfflineProvider children effects) so the first snapshot
+  // targets the correct org DB — not novend-offline-anon.
+  if (user?.userId) {
     if (pathname.startsWith("/platform") && user.isPlatformAdmin) {
       bindPlatformOfflineDb(String(user.userId));
-      return;
-    }
-    if ("organizationId" in user && user.organizationId) {
+    } else if ("organizationId" in user && user.organizationId) {
       bindOfflineOrganization(String(user.organizationId), String(user.userId));
     }
-  }, [pathname, user]);
+  }
+
+  const replicaKey =
+    user?.userId && pathname.startsWith("/platform") && user.isPlatformAdmin
+      ? `platform-${user.userId}`
+      : user?.userId && "organizationId" in user && user.organizationId
+        ? `org-${user.organizationId}-${user.userId}`
+        : "anon";
 
   const shellFromCache =
     !online && cachedProfile
@@ -334,7 +340,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   if (showPlatformShell) {
     return (
       <NativeAppServices>
-        <OfflineProvider>
+        <OfflineProvider key={replicaKey}>
           <OfflineNavigationProvider>
             <PlatformShell
               hasTenantRole={Boolean(user?.role ?? platformSession?.hasTenantRole)}
@@ -387,7 +393,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <NativeAppServices>
-      <OfflineProvider>
+      <OfflineProvider key={replicaKey}>
         <OfflineNavigationProvider>
           <div
             className={cn(

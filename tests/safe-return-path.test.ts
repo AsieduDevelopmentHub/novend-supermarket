@@ -45,6 +45,18 @@ describe("resolvePostAuthPath", () => {
     ).toBe("/platform/releases");
     expect(resolvePostAuthPath({ isPlatformAdmin: true }, "/sales")).toBe("/platform");
   });
+
+  it("rejects platform next for tenant users", () => {
+    expect(
+      resolvePostAuthPath({ isPlatformAdmin: false, needsOnboarding: false }, "/platform"),
+    ).toBe("/dashboard");
+    expect(
+      resolvePostAuthPath(
+        { isPlatformAdmin: false, needsOnboarding: false },
+        "/platform/organizations",
+      ),
+    ).toBe("/dashboard");
+  });
 });
 
 describe("loginPathWithNext", () => {

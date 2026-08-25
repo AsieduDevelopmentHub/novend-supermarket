@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import type { AppRole } from "@/config/navigation";
+import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePermissions } from "@/hooks/use-permissions";
+import { getLastSnapshotAt } from "@/lib/offline/freshness";
 import {
   buildLocalDashboardSummary,
   loadDashboardSummary,
@@ -25,45 +27,92 @@ function cacheMatchesScope(cache: DashboardSummaryCache, branchKey: string) {
   return cache.branchId === branchKey;
 }
 
+function isEmptySummary(summary: DashboardSummaryCache): boolean {
+  return (
+    summary.kpis.revenue === 0 &&
+    summary.kpis.orders === 0 &&
+    summary.kpis.itemsSold === 0 &&
+    summary.kpis.lowStockCount === 0 &&
+    (summary.kpis.customersEstimate ?? 0) === 0 &&
+    summary.recentSales.length === 0 &&
+    summary.topProducts.length === 0
+  );
+}
+
 /**
  * Dashboard summary is IndexedDB-only. Convex is never queried for this screen —
  * restock, sales, and returns already live in the Dexie replica.
+ *
+ * While online and the org replica has never been snapshotted, keep loading
+ * instead of painting authoritative zeros (post-login race).
  */
 export function useDashboardData(branchFilter: Id<"branches"> | "all") {
+  const online = useConnectivity();
   const { isAdmin, role } = usePermissions();
   const branchKey = cacheKeyFor(isAdmin, branchFilter);
   const [localData, setLocalData] = useState<DashboardData | null>(null);
+  const [waitingForReplica, setWaitingForReplica] = useState(true);
+  const generationRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    const generation = ++generationRef.current;
     let paintCache = true;
+
+    // Soft timeout so a failed first snapshot cannot leave the dashboard spinning forever.
+    const giveUp = window.setTimeout(() => {
+      if (!cancelled) setWaitingForReplica(false);
+    }, 12_000);
+
     const load = () => {
       void (async () => {
+        const lastSnap = await getLastSnapshotAt();
+        if (cancelled || generation !== generationRef.current) return;
+
         if (paintCache) {
           paintCache = false;
-          const cached = await loadDashboardSummary(branchKey);
-          if (cancelled) return;
-          if (cached && cacheMatchesScope(cached, branchKey)) {
-            setLocalData({ ...cached, source: "cache" });
+          if (lastSnap) {
+            const cached = await loadDashboardSummary(branchKey);
+            if (cancelled || generation !== generationRef.current) return;
+            if (cached && cacheMatchesScope(cached, branchKey)) {
+              setLocalData({ ...cached, source: "cache" });
+              setWaitingForReplica(false);
+            }
           }
         }
+
         const local = await buildLocalDashboardSummary(
           (role as AppRole) ?? "cashier",
           branchKey === "all" ? undefined : branchKey,
         );
-        if (cancelled) return;
+        if (cancelled || generation !== generationRef.current) return;
+
+        const empty = isEmptySummary(local);
+        if (online && !lastSnap && empty) {
+          setWaitingForReplica(true);
+          return;
+        }
+
         setLocalData({ ...local, source: "local" });
-        await saveDashboardSummary(local, branchKey);
+        setWaitingForReplica(false);
+        if (lastSnap || !empty) {
+          await saveDashboardSummary(local, branchKey);
+        }
       })();
     };
+
     load();
     const unsub = subscribeReplicaChanged(load);
     return () => {
       cancelled = true;
+      window.clearTimeout(giveUp);
       unsub();
     };
-  }, [role, branchKey]);
+  }, [role, branchKey, online]);
 
+  if (waitingForReplica && !(localData && cacheMatchesScope(localData, branchKey))) {
+    return { data: null, loading: true };
+  }
   if (localData && cacheMatchesScope(localData, branchKey)) {
     return { data: localData, loading: false };
   }
