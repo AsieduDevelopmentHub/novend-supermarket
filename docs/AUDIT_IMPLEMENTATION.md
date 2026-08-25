@@ -41,6 +41,9 @@ The following audit items require external operational systems or evidence and a
 - Local TypeScript passed after Convex code generation against the dev deployment.
 - Production `next build` passed with network access for `next/font` asset resolution.
 - Android release workflow now refuses unsigned/debug fallback artifacts.
+- Local Android signing variables are documented in `.env.example`, a repeatable
+  `pnpm mobile:build:android:release` helper validates them, and tag CI now fails fast when
+  the protected keystore secret is absent.
 
 ## Release Checklist
 

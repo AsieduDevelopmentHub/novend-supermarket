@@ -16,4 +16,6 @@ scripts/.auth-keys.*
 /billing.md
 *.log
 *.logs
+*.keystore
+*.jks
 .tmp-vitalgo/
