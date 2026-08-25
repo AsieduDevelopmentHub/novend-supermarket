@@ -1,4 +1,3 @@
-import { Capacitor } from "@capacitor/core";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
@@ -127,39 +126,15 @@ async function ensureCameraPermission(
   }
 }
 
-async function bytesFromPhotoUri(webPath: string | undefined, path: string | undefined) {
-  if (webPath) {
-    try {
-      const src = Capacitor.convertFileSrc(webPath);
-      const response = await fetch(src);
-      if (response.ok) {
-        return new Uint8Array(await response.arrayBuffer());
-      }
-    } catch {
-      /* fall through */
-    }
-  }
-  if (path) {
-    try {
-      const result = await Filesystem.readFile({ path });
-      if (typeof result.data === "string" && result.data.trim()) {
-        return base64ToBytes(result.data);
-      }
-    } catch {
-      /* fall through */
-    }
-  }
-  return null;
-}
-
 async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCapture>> {
   try {
-    // Uri avoids shipping multi‑MB DataUrls through the Cap bridge (OOM / freeze).
-    // Let the plugin own system prompts — do not pre-request permissions here.
+    // Hosted WebView (Vercel) cannot fetch Cap file:// / content:// URIs via
+    // convertFileSrc — Upload Image works because <input type=file> gives a
+    // real File. Camera must return Base64 through the bridge.
     const photo = await Camera.getPhoto({
-      quality: 70,
+      quality: 55,
       allowEditing: false,
-      resultType: CameraResultType.Uri,
+      resultType: CameraResultType.Base64,
       source,
       correctOrientation: true,
       saveToGallery: false,
@@ -167,27 +142,25 @@ async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCaptu
 
     const format = photo.format || "jpeg";
     const mimeType = format === "png" ? "image/png" : "image/jpeg";
-    let bytes: Uint8Array<ArrayBuffer> | null = null;
-
-    const fromUri = await bytesFromPhotoUri(photo.webPath, photo.path);
-    if (fromUri && fromUri.byteLength > 0) {
-      bytes = new Uint8Array(fromUri) as Uint8Array<ArrayBuffer>;
-    } else if (photo.base64String?.trim()) {
-      bytes = base64ToBytes(photo.base64String.trim());
+    const encoded = photo.base64String?.trim();
+    if (!encoded) {
+      return { ok: false, message: cameraCaptureFailedMessage() };
     }
 
-    if (!bytes || bytes.byteLength === 0) {
+    const bytes = base64ToBytes(encoded);
+    if (bytes.byteLength === 0) {
       return { ok: false, message: cameraCaptureFailedMessage() };
     }
 
     const fileName = `product-${Date.now()}.${format === "png" ? "png" : "jpg"}`;
     const file = fileFromBytes(bytes, fileName, mimeType);
+    // Persist is best-effort; capture success must not depend on Filesystem.
     const localPath = await persistProductImageFromBytes(bytes, mimeType);
 
     return {
       ok: true,
       data: {
-        uri: localPath || photo.webPath || `data:${mimeType};base64,${bytesToBase64(bytes)}`,
+        uri: localPath || `data:${mimeType};base64,${encoded}`,
         mimeType,
         file,
         localPath,

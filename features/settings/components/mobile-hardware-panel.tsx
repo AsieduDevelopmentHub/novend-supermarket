@@ -56,14 +56,14 @@ export function MobileHardwarePanel() {
             Photo capture
           </CardTitle>
           <CardDescription>
-            Take a photo or choose from the gallery when adding product images. Photos are stored
-            on this device and sync when you are online.
+            Take a photo or upload an image when adding products. Photos are stored on this device
+            and sync when you are online.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-sm">
-            Use Take Photo or Choose Gallery on the product form. Camera and photo access are
-            requested only when you tap those actions.
+            Use Take Photo or Upload Image on the product form. Camera access is requested only when
+            you take a photo.
           </p>
         </CardContent>
       </Card>

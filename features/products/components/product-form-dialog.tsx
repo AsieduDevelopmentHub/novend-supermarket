@@ -25,7 +25,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { generateSkuFromName } from "@/lib/sku";
 import { DEFAULT_EXPIRY_ALERT_DAYS } from "@/lib/expiry";
 import { assertValidImageFile, compressProductImage, IMAGE_ACCEPT } from "@/lib/uploads/image";
-import { Camera, ImagePlus, Images, Upload } from "lucide-react";
+import { Camera, ImagePlus, Upload } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -236,16 +236,9 @@ function ProductFormBody({
     }
   }
 
-  async function applyHardwarePhoto(
-    action: "capture" | "gallery",
-  ): Promise<void> {
-    toast.message(
-      action === "capture" ? permissionNeedMessage("camera") : permissionNeedMessage("photos"),
-    );
-    const result =
-      action === "capture"
-        ? await Hardware.camera.capturePhoto()
-        : await Hardware.camera.pickFromGallery();
+  async function applyHardwarePhoto(): Promise<void> {
+    toast.message(permissionNeedMessage("camera"));
+    const result = await Hardware.camera.capturePhoto();
     if (!result.ok) {
       if (result.message === "Cancelled") return;
       toast.error(result.message || cameraCaptureFailedMessage());
@@ -261,18 +254,10 @@ function ProductFormBody({
 
   async function onTakePhoto() {
     if (isCapacitor()) {
-      await applyHardwarePhoto("capture");
+      await applyHardwarePhoto();
       return;
     }
     setCameraOpen(true);
-  }
-
-  async function onChooseGallery() {
-    if (isCapacitor()) {
-      await applyHardwarePhoto("gallery");
-      return;
-    }
-    document.getElementById("image")?.click();
   }
 
   async function onSubmit(event: FormEvent) {
@@ -593,25 +578,10 @@ function ProductFormBody({
               Upload Image
             </label>
           </Button>
-          {isCapacitor() ? (
-            <>
-              <Button type="button" variant="outline" onClick={() => void onTakePhoto()}>
-                <Camera className="mr-2 h-4 w-4" />
-                Take Photo
-              </Button>
-              <Button type="button" variant="outline" onClick={() => void onChooseGallery()}>
-                <Images className="mr-2 h-4 w-4" />
-                Choose Gallery
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button type="button" variant="outline" onClick={() => void onTakePhoto()}>
-                <Camera className="mr-2 h-4 w-4" />
-                Take Photo
-              </Button>
-            </>
-          )}
+          <Button type="button" variant="outline" onClick={() => void onTakePhoto()}>
+            <Camera className="mr-2 h-4 w-4" />
+            Take Photo
+          </Button>
           <Input
             id="image"
             type="file"
