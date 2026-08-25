@@ -37,7 +37,9 @@ import { bindOfflineOrganization } from "@/lib/offline/db";
 import { toUserMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
-const OFFLINE_AUTH_BUDGET_MS = 2000;
+const OFFLINE_AUTH_BUDGET_MS = 1200;
+/** Cap/Web often look "online" while Convex never settles — fail soft into cache/login. */
+const ONLINE_AUTH_BUDGET_MS = 4500;
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const configured = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
@@ -74,6 +76,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const [platformSession, setPlatformSession] = useState<PlatformOfflineSession | null>(null);
   const [cacheReady, setCacheReady] = useState(false);
   const [offlineAuthBudgetElapsed, setOfflineAuthBudgetElapsed] = useState(false);
+  const [onlineAuthBudgetElapsed, setOnlineAuthBudgetElapsed] = useState(false);
   const bootstrapping = useRef(false);
   const multiBranchReady = useRef(false);
 
@@ -145,6 +148,22 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     );
     return () => window.clearTimeout(timer);
   }, [online, isLoading, isAuthenticated]);
+
+  useEffect(() => {
+    if (!online) {
+      queueMicrotask(() => setOnlineAuthBudgetElapsed(false));
+      return;
+    }
+    if (!isLoading && !(isAuthenticated && user === undefined)) {
+      queueMicrotask(() => setOnlineAuthBudgetElapsed(false));
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setOnlineAuthBudgetElapsed(true),
+      ONLINE_AUTH_BUDGET_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [online, isLoading, isAuthenticated, user]);
 
   useEffect(() => {
     if (
@@ -287,7 +306,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         : "anon";
 
   const shellFromCache =
-    !online && cachedProfile
+    (!online || cachedShellWhileOnlineHung) && cachedProfile
       ? {
           name: cachedProfile.name,
           role: cachedProfile.role,
@@ -302,9 +321,16 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     Boolean(cachedProfile) &&
     (isAuthenticated || offlineAuthBudgetElapsed || !isLoading);
 
+  /** Stale-looking online (Convex hung) but we have a local shell — treat like offline session. */
+  const cachedShellWhileOnlineHung =
+    online &&
+    onlineAuthBudgetElapsed &&
+    Boolean(cachedProfile) &&
+    (isLoading || (isAuthenticated && user === undefined));
+
   const waitingForUser =
-    (online && isLoading) ||
-    (online && isAuthenticated && user === undefined) ||
+    (online && isLoading && !onlineAuthBudgetElapsed) ||
+    (online && isAuthenticated && user === undefined && !onlineAuthBudgetElapsed) ||
     (!online && !cacheReady) ||
     (!online &&
       isLoading &&
@@ -316,11 +342,11 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return <AppSplash label="Preparing workspace…" />;
   }
 
-  if (!isAuthenticated && online) {
+  if (!isAuthenticated && online && !cachedShellWhileOnlineHung) {
     return <AppSplash label="Redirecting to login…" />;
   }
 
-  if (!online && !cachedProfile && !platformSession) {
+  if ((!online || cachedShellWhileOnlineHung) && !cachedProfile && !platformSession) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <ErrorState
@@ -357,7 +383,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
   const liveReady = user && !user.needsProfile && user.role && (user.branch || user.branchId);
 
-  if (!liveReady && !shellFromCache && !offlineSessionOk) {
+  if (!liveReady && !shellFromCache && !offlineSessionOk && !cachedShellWhileOnlineHung) {
     if (profileError) {
       return (
         <div className="flex min-h-screen items-center justify-center px-4">

@@ -104,7 +104,12 @@ export default convexAuthNextjsMiddleware(
       const session = await sessionForToken(await convexAuth.getToken());
       const next = request.nextUrl.searchParams.get("next");
       const destination = resolvePostAuthPath(session, next);
-      return withSecurityHeaders(redirectTo(request, destination), nonce);
+      const fromBoot = request.nextUrl.searchParams.get("fromBoot") === "1";
+      const href =
+        fromBoot && !destination.includes("fromBoot=")
+          ? `${destination}${destination.includes("?") ? "&" : "?"}fromBoot=1`
+          : destination;
+      return withSecurityHeaders(redirectTo(request, href), nonce);
     }
 
     if (!isPublicRoute(request) && !authenticated) {

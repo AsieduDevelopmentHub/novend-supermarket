@@ -103,10 +103,10 @@
           window.NOVEND_APP_URL ||
           "https://novend-pos.vercel.app"
         ).replace(/\/$/, "");
-        var entry = params.get("entry") || window.NOVEND_APP_ENTRY || "/dashboard";
+        // Prefer /login — always returns HTML when signed out. Booting /dashboard
+        // triggers an auth 307 that Android WebView often surfaces as net::ERR_FAILED.
+        var entry = params.get("entry") || window.NOVEND_APP_ENTRY || "/login";
         if (entry.charAt(0) !== "/") entry = "/" + entry;
-        // fromBoot=1 lets the hosted app restore novend.lastRoute after load
-        // (boot page and app origins do not share localStorage).
         var sep = entry.indexOf("?") >= 0 ? "&" : "?";
         var target = appUrl + entry + sep + "fromBoot=1";
 
@@ -115,28 +115,63 @@
         var failedDetail = document.getElementById("failed-detail");
         var retry = document.getElementById("retry");
         var navigated = false;
+        var settled = false;
 
         function showFailed(message) {
+          settled = true;
           booting.classList.add("hidden");
           failed.classList.remove("hidden");
           if (message && failedDetail) failedDetail.textContent = message;
         }
 
-        function go() {
+        function leaveBoot() {
           navigated = true;
-          // Client navigation (not a native loadUrl) lets the service worker
-          // serve a cached document when the device is offline — same as Electron.
           window.location.replace(target);
+        }
+
+        function go() {
+          if (navigator.onLine === false) {
+            // Still attempt — HTTP/SW cache may serve the hosted origin.
+            // If WebView stays on the local boot host, show a friendly error
+            // instead of Chromium's net::ERR_FAILED page.
+            leaveBoot();
+            return;
+          }
+
+          // Prefetch so a dead network fails on our UI, not the system error page.
+          var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+          var timer = window.setTimeout(function () {
+            if (controller) controller.abort();
+          }, 8000);
+
+          fetch(target, {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
+            redirect: "follow",
+            signal: controller ? controller.signal : undefined,
+          })
+            .then(function () {
+              window.clearTimeout(timer);
+              leaveBoot();
+            })
+            .catch(function () {
+              window.clearTimeout(timer);
+              // Last try — SW/http cache may still succeed.
+              leaveBoot();
+            });
         }
 
         retry.addEventListener("click", function () {
           failed.classList.add("hidden");
           booting.classList.remove("hidden");
+          settled = false;
+          navigated = false;
           go();
         });
 
         window.setTimeout(function () {
-          if (!navigated) return;
+          if (settled) return;
           var host = window.location.hostname;
           if (host === "localhost" || host === "capacitor" || window.location.protocol === "file:") {
             showFailed(
@@ -145,7 +180,7 @@
                 : "Novend could not open. Check your connection and try again.",
             );
           }
-        }, 8000);
+        }, 10000);
 
         go();
       })();

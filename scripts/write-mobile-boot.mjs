@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const appUrl = (process.env.NOVEND_APP_URL || "https://novend-pos.vercel.app").replace(/\/$/, "");
-const entry = "/dashboard";
+const entry = "/login";
 const dest = join(root, "apps/mobile/www/app-config.js");
 
 writeFileSync(

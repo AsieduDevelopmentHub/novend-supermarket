@@ -20,6 +20,10 @@ import { BRANDING } from "@/constants/branding";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
 import { navigateAfterLogin, resolvePostLoginPath } from "@/lib/auth/redirect-after-login";
+import { useConnectivity } from "@/hooks/use-connectivity";
+import { hasOfflineSession } from "@/lib/offline/session";
+import { readLastRoute } from "@/lib/auth/last-route";
+import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 
 const REMEMBER_KEY = "novend.login.rememberEmail";
 
@@ -48,10 +52,12 @@ export function LoginForm({ compact = false }: { compact?: boolean }) {
 function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const { signIn } = useAuthActions();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
+  const online = useConnectivity();
   const convex = useConvex();
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnNext = searchParams.get("next");
+  const fromBoot = searchParams.get("fromBoot") === "1";
   const redirectingRef = useRef(false);
   const registration = useQuery(api.users.registrationStatus);
   const recordLoginFailure = useMutation(api.loginGuards.recordLoginFailure);
@@ -79,6 +85,43 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  // Cap cold start often lands on /login. When Convex cannot settle offline (or
+  // navigator lies about being online), resume the cached workspace immediately.
+  useEffect(() => {
+    if (redirectingRef.current || pending || isAuthenticated) return;
+    if (!hasOfflineSession()) return;
+
+    const resumeFromCache = () => {
+      if (redirectingRef.current || isAuthenticated) return;
+      redirectingRef.current = true;
+      setOpeningWorkspace(true);
+      const last = readLastRoute();
+      const path = resolvePostAuthPath(
+        {
+          isPlatformAdmin: false,
+          needsOnboarding: false,
+          needsProfile: false,
+        },
+        returnNext || last || "/dashboard",
+      );
+      const dest = fromBoot
+        ? `${path}${path.includes("?") ? "&" : "?"}fromBoot=1`
+        : path;
+      navigateAfterLogin(dest, router);
+    };
+
+    if (!online) {
+      resumeFromCache();
+      return;
+    }
+
+    // Boot path while "online" but auth still loading — Cap often lies about
+    // connectivity. Fall back to the local session after a short budget.
+    if (!fromBoot || !authLoading) return;
+    const timer = window.setTimeout(resumeFromCache, 2500);
+    return () => window.clearTimeout(timer);
+  }, [online, fromBoot, isAuthenticated, authLoading, pending, returnNext, router]);
 
   // Already signed in (e.g. opened /login with a live session) — leave auth pages.
   useEffect(() => {
