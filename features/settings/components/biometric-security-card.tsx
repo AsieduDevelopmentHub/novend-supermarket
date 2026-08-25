@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
   Hardware,
-  NATIVE_AVAILABILITY_TIMEOUT_MS,
+  NATIVE_SETTINGS_PROBE_MS,
   type BiometricAvailability,
 } from "@novend/hardware";
 import { Fingerprint, Loader2 } from "lucide-react";
@@ -23,6 +23,9 @@ type BiometricUiState =
 /**
  * Optional biometric unlock — never stores the account password.
  * Secure storage keeps only a device unlock token after the user opts in.
+ *
+ * Do not re-probe Cap biometrics on app resume — that races camera/gallery
+ * return and can freeze the WebView bridge.
  */
 export function BiometricSecurityCard() {
   const [uiState, setUiState] = useState<BiometricUiState>("checking");
@@ -43,7 +46,7 @@ export function BiometricSecurityCard() {
       if (generation !== checkGenerationRef.current) return;
       setUiState("error");
       setMessage("Biometrics took too long to respond on this device.");
-    }, NATIVE_AVAILABILITY_TIMEOUT_MS + 2000);
+    }, NATIVE_SETTINGS_PROBE_MS * 2 + 500);
 
     try {
       const [avail, prefs] = await runNativeSettingsCheck(() =>
@@ -96,28 +99,15 @@ export function BiometricSecurityCard() {
 
   useEffect(() => {
     let disposed = false;
-    let refreshRunning = false;
-    let remove: (() => Promise<void>) | null = null;
-    const runRefresh = (showLoading: boolean) => {
-      if (disposed || refreshRunning) return;
-      refreshRunning = true;
-      void refreshAvailability(showLoading).finally(() => {
-        refreshRunning = false;
-      });
-    };
-    runRefresh(true);
-
-    void Hardware.app.addAppStateListener((isActive) => {
-      if (isActive) runRefresh(false);
-    }).then((handle) => {
-      if (disposed) void handle.remove();
-      else remove = handle.remove;
-    });
-
+    // Defer so the Security tab paints before Cap probes run.
+    const start = window.setTimeout(() => {
+      if (disposed) return;
+      void refreshAvailability(true);
+    }, 120);
     return () => {
       disposed = true;
       checkGenerationRef.current += 1;
-      void remove?.();
+      window.clearTimeout(start);
     };
   }, [refreshAvailability]);
 
@@ -172,6 +162,20 @@ export function BiometricSecurityCard() {
             Checking biometrics on this device…
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              checkGenerationRef.current += 1;
+              setUiState("error");
+              setMessage("Biometrics check cancelled. You can try again when ready.");
+            }}
+          >
+            Cancel check
+          </Button>
+        </CardContent>
       </Card>
     );
   }
@@ -188,6 +192,18 @@ export function BiometricSecurityCard() {
             {message ?? "Fingerprint or face unlock is not available on this device."}
           </CardDescription>
         </CardHeader>
+        {uiState === "error" ? (
+          <CardContent>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void refreshAvailability(true)}
+            >
+              Try again
+            </Button>
+          </CardContent>
+        ) : null}
       </Card>
     );
   }

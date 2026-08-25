@@ -20,6 +20,7 @@ import { friendlyHardwareMessage, permissionDeniedMessage } from "../permissions
 import {
   NATIVE_AVAILABILITY_TIMEOUT_MS,
   NATIVE_CALL_TIMEOUT_MS,
+  NATIVE_SETTINGS_PROBE_MS,
   isNativeTimeoutError,
   withTimeout,
 } from "../timeout";
@@ -82,10 +83,10 @@ export function createCapacitorBiometricsAdapter(): BiometricsAdapter {
   return {
     async checkAvailability() {
       try {
-        // Single timeout — callers must not nest another tight deadline around this.
+        // Keep Settings probes short — a hung Cap call blocks the whole WebView bridge.
         const result = await withTimeout(
           BiometricAuth.checkBiometry(),
-          NATIVE_AVAILABILITY_TIMEOUT_MS,
+          NATIVE_SETTINGS_PROBE_MS,
         );
         const biometryType = mapBiometry(result.biometryType);
         const biometryTypes = Array.isArray(result.biometryTypes) ? result.biometryTypes : [];
@@ -233,15 +234,21 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
   return {
     async checkPermissions() {
       try {
-        await ensureNotificationChannel();
-        const requestedValue = await Preferences.get({ key: NOTIFICATION_PERMISSION_REQUESTED_KEY });
-        const attemptsValue = await Preferences.get({ key: NOTIFICATION_PERMISSION_ATTEMPTS_KEY });
+        // Do not createChannel on status checks — that Cap call can stall the bridge
+        // on Security open and freeze camera/gallery afterward.
+        const [requestedValue, attemptsValue] = await withTimeout(
+          Promise.all([
+            Preferences.get({ key: NOTIFICATION_PERMISSION_REQUESTED_KEY }),
+            Preferences.get({ key: NOTIFICATION_PERMISSION_ATTEMPTS_KEY }),
+          ]),
+          NATIVE_CALL_TIMEOUT_MS,
+        );
         const requested = requestedValue.value === "true";
         const attempts = Number.parseInt(attemptsValue.value ?? "0", 10) || 0;
         const nativeState = await nativeNotificationState();
         const status = await withTimeout(
           LocalNotifications.checkPermissions(),
-          NATIVE_AVAILABILITY_TIMEOUT_MS,
+          NATIVE_SETTINGS_PROBE_MS,
         );
         const state = nativeState ?? mapNotificationState(status.display, requested, attempts);
         return { ok: true, data: { granted: state === "granted", state } };

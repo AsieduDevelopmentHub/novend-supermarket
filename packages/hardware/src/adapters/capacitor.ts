@@ -128,16 +128,6 @@ async function ensureCameraPermission(
 }
 
 async function bytesFromPhotoUri(webPath: string | undefined, path: string | undefined) {
-  if (path) {
-    try {
-      const result = await Filesystem.readFile({ path });
-      if (typeof result.data === "string" && result.data.trim()) {
-        return base64ToBytes(result.data);
-      }
-    } catch {
-      /* fall through */
-    }
-  }
   if (webPath) {
     try {
       const src = Capacitor.convertFileSrc(webPath);
@@ -149,18 +139,27 @@ async function bytesFromPhotoUri(webPath: string | undefined, path: string | und
       /* fall through */
     }
   }
+  if (path) {
+    try {
+      const result = await Filesystem.readFile({ path });
+      if (typeof result.data === "string" && result.data.trim()) {
+        return base64ToBytes(result.data);
+      }
+    } catch {
+      /* fall through */
+    }
+  }
   return null;
 }
 
 async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCapture>> {
   try {
-    // Let the Capacitor camera plugin own the system prompt. Pre-checking and
-    // requesting here races the picker on Android and can report a stale
-    // denied state immediately after the user grants access.
+    // Uri avoids shipping multi‑MB DataUrls through the Cap bridge (OOM / freeze).
+    // Let the plugin own system prompts — do not pre-request permissions here.
     const photo = await Camera.getPhoto({
-      quality: 80,
+      quality: 70,
       allowEditing: false,
-      resultType: CameraResultType.DataUrl,
+      resultType: CameraResultType.Uri,
       source,
       correctOrientation: true,
       saveToGallery: false,
@@ -170,17 +169,11 @@ async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCaptu
     const mimeType = format === "png" ? "image/png" : "image/jpeg";
     let bytes: Uint8Array<ArrayBuffer> | null = null;
 
-    const dataUrl = photo.dataUrl?.trim();
-    const match = dataUrl?.match(/^data:[^;]+;base64,(.+)$/);
-    if (match?.[1]) {
-      bytes = base64ToBytes(match[1]);
+    const fromUri = await bytesFromPhotoUri(photo.webPath, photo.path);
+    if (fromUri && fromUri.byteLength > 0) {
+      bytes = new Uint8Array(fromUri) as Uint8Array<ArrayBuffer>;
     } else if (photo.base64String?.trim()) {
       bytes = base64ToBytes(photo.base64String.trim());
-    } else {
-      const fromUri = await bytesFromPhotoUri(photo.webPath, photo.path);
-      if (fromUri && fromUri.byteLength > 0) {
-        bytes = new Uint8Array(fromUri) as Uint8Array<ArrayBuffer>;
-      }
     }
 
     if (!bytes || bytes.byteLength === 0) {
@@ -194,7 +187,7 @@ async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCaptu
     return {
       ok: true,
       data: {
-        uri: localPath || `data:${mimeType};base64,${bytesToBase64(bytes)}`,
+        uri: localPath || photo.webPath || `data:${mimeType};base64,${bytesToBase64(bytes)}`,
         mimeType,
         file,
         localPath,

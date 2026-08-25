@@ -8,7 +8,7 @@ import type {
   NotificationTopic,
   UpdateInfo,
 } from "./native-types";
-import { NATIVE_AVAILABILITY_TIMEOUT_MS, withTimeoutFallback } from "./timeout";
+import { NATIVE_CALL_TIMEOUT_MS, NATIVE_SETTINGS_PROBE_MS, withTimeoutFallback } from "./timeout";
 
 function unsupported<T = void>(feature = "This feature"): HardwareResult<T> {
   return { ok: false, message: `${feature} is only available in the Novend mobile app` };
@@ -26,13 +26,13 @@ async function bluetoothFacade() {
 export const biometrics = {
   checkAvailability: async (): Promise<HardwareResult<BiometricAvailability>> => {
     if (!isCapacitor()) return unsupported("Biometrics");
-    // One outer deadline only — the Cap adapter already times checkBiometry().
+    // Outer budget slightly above adapter probe so import+bridge can settle.
     return withTimeoutFallback(
       async () => {
         const mod = await capServices();
         return mod.createCapacitorBiometricsAdapter().checkAvailability();
       },
-      NATIVE_AVAILABILITY_TIMEOUT_MS + 1500,
+      NATIVE_SETTINGS_PROBE_MS + NATIVE_CALL_TIMEOUT_MS,
       {
         ok: false,
         message: "Biometrics took too long to respond on this device.",
@@ -57,7 +57,7 @@ export const biometrics = {
         const mod = await capServices();
         return mod.getBiometricPrefs();
       },
-      NATIVE_AVAILABILITY_TIMEOUT_MS,
+      NATIVE_CALL_TIMEOUT_MS + 500,
       { enabled: false, requireOnLaunch: false },
     );
   },
@@ -115,7 +115,7 @@ export const notifications = {
         const mod = await capServices();
         return mod.createCapacitorNotificationsAdapter().checkPermissions();
       },
-      NATIVE_AVAILABILITY_TIMEOUT_MS + 1500,
+      NATIVE_SETTINGS_PROBE_MS + NATIVE_CALL_TIMEOUT_MS,
       {
         ok: false as const,
         message: "Notification permission check timed out. Try again.",

@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import {
   Hardware,
-  NATIVE_AVAILABILITY_TIMEOUT_MS,
+  NATIVE_SETTINGS_PROBE_MS,
   permissionDeniedMessage,
   permissionNeedMessage,
   type NotificationPermissionState,
@@ -46,6 +46,10 @@ const EMPTY_PREFS: Record<NotificationTopic, boolean> = {
   subscription_alerts: false,
 };
 
+/**
+ * Local notification prefs. Cap permission checks run once on mount — never on
+ * app resume — so returning from camera/gallery cannot stall the Cap bridge.
+ */
 export function NotificationsSettingsCard() {
   const [state, setState] = useState<NotificationPermissionState>("not-requested");
   const [prefs, setPrefs] = useState<Record<NotificationTopic, boolean> | null>(null);
@@ -73,16 +77,6 @@ export function NotificationsSettingsCard() {
 
   useEffect(() => {
     let cancelled = false;
-    let registrationDisposed = false;
-    let remove: (() => Promise<void>) | null = null;
-    let refreshRunning = false;
-    const runRefresh = () => {
-      if (cancelled || refreshRunning) return;
-      refreshRunning = true;
-      void refresh().finally(() => {
-        refreshRunning = false;
-      });
-    };
     const hardStop = window.setTimeout(() => {
       if (cancelled) return;
       setLoading((stillLoading) => {
@@ -95,25 +89,20 @@ export function NotificationsSettingsCard() {
         }
         return false;
       });
-    }, NATIVE_AVAILABILITY_TIMEOUT_MS + 2000);
+    }, NATIVE_SETTINGS_PROBE_MS * 2 + 500);
 
-    void (async () => {
-      await refresh();
-      if (!cancelled) window.clearTimeout(hardStop);
-    })();
-
-    void Hardware.app.addAppStateListener((isActive) => {
-      if (isActive) runRefresh();
-    }).then((handle) => {
-      if (registrationDisposed) void handle.remove();
-      else remove = handle.remove;
-    });
+    const start = window.setTimeout(() => {
+      if (cancelled) return;
+      void (async () => {
+        await refresh();
+        if (!cancelled) window.clearTimeout(hardStop);
+      })();
+    }, 180);
 
     return () => {
       cancelled = true;
-      registrationDisposed = true;
       window.clearTimeout(hardStop);
-      void remove?.();
+      window.clearTimeout(start);
     };
   }, [refresh]);
 
@@ -170,7 +159,7 @@ export function NotificationsSettingsCard() {
 
   const granted = state === "granted";
   const topicsDisabled =
-    busy || prefs === null || state === "unavailable" || state === "permanently-denied";
+    busy || prefs === null || loading || state === "unavailable" || state === "permanently-denied";
 
   return (
     <Card>
@@ -245,21 +234,19 @@ export function NotificationsSettingsCard() {
           <p className="text-muted-foreground text-xs">Notifications are allowed on this device.</p>
         ) : null}
 
-        {!loading
-          ? TOPICS.map((topic) => (
-              <div key={topic.id} className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">{topic.label}</p>
-                  <p className="text-muted-foreground text-xs">{topic.description}</p>
-                </div>
-                <Switch
-                  checked={Boolean(prefs?.[topic.id])}
-                  disabled={topicsDisabled}
-                  onCheckedChange={(checked) => void toggleTopic(topic.id, checked)}
-                />
-              </div>
-            ))
-          : null}
+        {TOPICS.map((topic) => (
+          <div key={topic.id} className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">{topic.label}</p>
+              <p className="text-muted-foreground text-xs">{topic.description}</p>
+            </div>
+            <Switch
+              checked={Boolean(prefs?.[topic.id])}
+              disabled={topicsDisabled}
+              onCheckedChange={(checked) => void toggleTopic(topic.id, checked)}
+            />
+          </div>
+        ))}
       </CardContent>
     </Card>
   );
