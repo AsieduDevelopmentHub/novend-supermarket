@@ -14,6 +14,13 @@ describe("redirect-after-login", () => {
     await expect(resolvePostLoginPath(convex as never)).resolves.toBe("/platform");
   });
 
+  it("resolvePostLoginPath honors a safe next path", async () => {
+    const convex = {
+      query: vi.fn().mockResolvedValue({ isPlatformAdmin: false, needsOnboarding: false }),
+    };
+    await expect(resolvePostLoginPath(convex as never, "/products")).resolves.toBe("/products");
+  });
+
   it("resolvePostLoginPath falls back to dashboard on failure", async () => {
     vi.useFakeTimers();
     const convex = {

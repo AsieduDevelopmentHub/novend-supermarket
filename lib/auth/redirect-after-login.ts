@@ -1,14 +1,16 @@
 import type { ConvexReactClient } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { postLoginPath } from "@/lib/auth/post-login-path";
+import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 
 const SKIP_SPLASH_KEY = "novend.auth.skipSplash";
-const RESOLVE_RETRIES = 6;
-const RESOLVE_RETRY_MS = 120;
+const RESOLVE_RETRIES = 8;
+const RESOLVE_RETRY_MS = 100;
+/** Soft nav stalled on auth pages — last-resort assign after cookies settle. */
+const HARD_NAV_FALLBACK_MS = 2500;
 
 type AppRouter = {
   replace: (href: string) => void;
-  refresh: () => void | Promise<void>;
+  refresh?: () => void | Promise<void>;
 };
 
 export function markSkipStartupSplash(): void {
@@ -39,29 +41,45 @@ function wait(ms: number): Promise<void> {
 /**
  * Resolve the post-login route from the live session.
  * Retries briefly while the Convex client picks up the auth token after signIn.
+ * Honors a safe `next` return path when provided.
  */
-export async function resolvePostLoginPath(convex: ConvexReactClient): Promise<string> {
+export async function resolvePostLoginPath(
+  convex: ConvexReactClient,
+  next?: string | null,
+): Promise<string> {
   for (let attempt = 0; attempt < RESOLVE_RETRIES; attempt++) {
     try {
       const me = await convex.query(api.users.me, {});
-      return postLoginPath(me);
+      return resolvePostAuthPath(me, next);
     } catch {
       if (attempt === RESOLVE_RETRIES - 1) break;
-      await wait(RESOLVE_RETRY_MS * (attempt + 1));
     }
+    await wait(RESOLVE_RETRY_MS * (attempt + 1));
   }
-  return "/dashboard";
+  return resolvePostAuthPath(null, next);
 }
 
 /**
  * Navigate after sign-in without unloading the document.
  *
- * Uses Next.js soft navigation so we do not trigger Convex Auth's beforeunload
- * guard (active while refresh tokens sync). Hard `window.location` navigations
- * show Android WebView's native "Confirm navigation" dialog during that window.
+ * Soft `replace` only — do not call `router.refresh()` immediately. Refreshing
+ * while still notionally on `/login` races Convex Auth cookie sync and the
+ * middleware “authenticated on /login → redirect” gate, which can leave a blank
+ * screen with the URL stuck on `/login`.
+ *
+ * Hard `window.location` is a delayed fallback only if soft nav never leaves
+ * the auth pages (after refresh tokens have had time to sync).
  */
 export function navigateAfterLogin(path: string, router: AppRouter): void {
   markSkipStartupSplash();
   router.replace(path);
-  void router.refresh();
+
+  if (typeof window === "undefined") return;
+
+  window.setTimeout(() => {
+    const here = window.location.pathname;
+    if (here === "/login" || here === "/signup") {
+      window.location.assign(path);
+    }
+  }, HARD_NAV_FALLBACK_MS);
 }

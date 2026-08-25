@@ -55,6 +55,16 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
   const skipSplash =
     skipFromLogin || isMarketingLanding || isAuthRoute || isPublicSitePage;
 
+  // Soft post-login nav keeps StartupSplash mounted; consume the flag when leaving auth.
+  useEffect(() => {
+    if (skipFromLogin || isAuthRoute) return;
+    if (!consumeSkipStartupSplash()) return;
+    queueMicrotask(() => {
+      setVisible(false);
+      setExiting(false);
+    });
+  }, [pathname, isAuthRoute, skipFromLogin]);
+
   useEffect(() => {
     startedAt.current = performance.now();
   }, []);

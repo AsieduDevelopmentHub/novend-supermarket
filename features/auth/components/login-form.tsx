@@ -19,10 +19,7 @@ import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
-import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
-import {
-  navigateAfterLogin,
-} from "@/lib/auth/redirect-after-login";
+import { navigateAfterLogin, resolvePostLoginPath } from "@/lib/auth/redirect-after-login";
 
 const REMEMBER_KEY = "novend.login.rememberEmail";
 
@@ -64,6 +61,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [pending, setPending] = useState(false);
+  const [openingWorkspace, setOpeningWorkspace] = useState(false);
 
   const isProvisioned = registration?.hasUsers === true;
 
@@ -82,19 +80,21 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     return () => window.clearTimeout(timer);
   }, []);
 
-  const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
-
+  // Already signed in (e.g. opened /login with a live session) — leave auth pages.
   useEffect(() => {
-    if (!isAuthenticated || authLoading || me === undefined) return;
-    if (redirectingRef.current) return;
+    if (!isAuthenticated || authLoading || redirectingRef.current || pending) return;
     redirectingRef.current = true;
-    navigateAfterLogin(resolvePostAuthPath(me, returnNext), router);
-  }, [isAuthenticated, authLoading, me, returnNext, router]);
+    setOpeningWorkspace(true);
+    void (async () => {
+      const path = await resolvePostLoginPath(convex, returnNext);
+      navigateAfterLogin(path, router);
+    })();
+  }, [isAuthenticated, authLoading, convex, returnNext, router, pending]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!isProvisioned) {
-      toast.error("This business isn't set up yet. Contact Novend support.");
+    if (!isProvisioned || pending || redirectingRef.current) {
+      if (!isProvisioned) toast.error("This business isn't set up yet. Contact Novend support.");
       return;
     }
 
@@ -124,7 +124,16 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         /* non-fatal */
       }
       toast.success("Welcome");
+
+      // Navigate from the submit path — do not wait for reactive `me` (that left
+      // /login blank until reload). resolvePostLoginPath retries while the token settles.
+      redirectingRef.current = true;
+      setOpeningWorkspace(true);
+      const path = await resolvePostLoginPath(convex, returnNext);
+      navigateAfterLogin(path, router);
     } catch (error) {
+      redirectingRef.current = false;
+      setOpeningWorkspace(false);
       const raw = error instanceof Error ? error.message : "";
       if (raw.toLowerCase().includes("auth provider discovery")) {
         showError(error, SERVER_UNREACHABLE_MESSAGE);
@@ -137,6 +146,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
           const lockMsg = lockError instanceof Error ? lockError.message : "";
           if (lockMsg.toLowerCase().includes("too many failed")) {
             showError(lockError, "Too many failed sign-in attempts.");
+            setPending(false);
             return;
           }
         }
@@ -166,6 +176,14 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         <p className="bg-muted text-muted-foreground rounded-lg px-3 py-3 text-left text-sm leading-relaxed">
           No administrator exists yet. Ask the system owner to finish setup, then try again.
         </p>
+      </div>
+    );
+  }
+
+  if (openingWorkspace) {
+    return (
+      <div className="mx-auto w-full max-w-[360px] py-10">
+        <LoadingState label="Opening workspace…" variant="form" />
       </div>
     );
   }

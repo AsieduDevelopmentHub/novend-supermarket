@@ -11,6 +11,10 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 - Subscription plan changes are now a lifecycle on one subscription: upgrades take effect after a prorated payment; downgrades are scheduled for the end of the paid period with no charge today.
 - Pro is GH₵450 / month (GH₵4,500 / year). Enterprise is shown as GH₵750+, not a fixed 750. Yearly prices stay 10 × monthly on every recurring plan.
 
+### Fixed
+
+- After sign-in, navigate immediately to the post-auth path (no wait on reactive `me` + no instant `router.refresh()`), so `/login` no longer stays blank until reload.
+
 ---
 
 ## v0.3.4 — 2026-08-25
