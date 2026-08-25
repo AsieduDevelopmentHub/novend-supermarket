@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { triggerLightHaptic } from "@/lib/haptics";
@@ -15,13 +16,22 @@ export function MobileBottomNav() {
   const { navigate, activePath } = useOfflineNavigation();
   const pathForHighlight = activePath ?? pathname;
   const active = resolveMobileTab(pathForHighlight);
+  const activeIndex = Math.max(
+    0,
+    MOBILE_BOTTOM_TABS.findIndex((tab) => tab.id === active),
+  );
+  const notchX = `${((activeIndex + 0.5) / MOBILE_BOTTOM_TABS.length) * 100}%`;
 
   return (
     <nav
       aria-label="Primary"
       className="pointer-events-none fixed inset-x-0 bottom-0 z-40 xl:hidden"
     >
-      <div className="novend-mobile-tabbar pointer-events-auto">
+      <div
+        className="novend-mobile-tabbar pointer-events-auto"
+        style={{ "--active-notch-x": notchX } as CSSProperties}
+      >
+        <div className="novend-mobile-tabbar-notch" aria-hidden />
         <div className="novend-mobile-tabbar-inner">
           {MOBILE_BOTTOM_TABS.map((tab) => {
             const isActive = active === tab.id;
@@ -35,9 +45,17 @@ export function MobileBottomNav() {
                   if (!isActive) void triggerLightHaptic();
                   navigate(tab.href);
                 }}
-                className={cn("novend-mobile-tab", isActive ? "text-white" : "text-slate-400")}
+                className={cn(
+                  "novend-mobile-tab",
+                  isActive ? "novend-mobile-tab-active text-white" : "text-slate-300",
+                )}
               >
-                <span className="novend-mobile-tab-icon">
+                <span
+                  className={cn(
+                    "novend-mobile-tab-icon",
+                    isActive && "novend-mobile-tab-icon-active",
+                  )}
+                >
                   <span
                     aria-hidden
                     className={cn(

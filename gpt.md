@@ -1,29 +1,20 @@
-Capacitor UI/UX Fix — Reset Scroll Position on Navigation
+Capacitor Bottom Navigation Refinement
 
-There is a scroll-position bug in the Capacitor mobile app.
+The current bottom navigation design is good, but I want to refine the active-state interaction and visibility.
 
-For example:
+Keep the existing round/circular active CTA with the candy-blue glow.
+When a navigation item becomes active, animate the circle slightly upward, creating a floating tooltip/notch effect above the navigation bar.
+The navigation bar should visually have a cut-out/gap around the active circle, so there is visible empty space between the circle and the bar.
+The active circle should appear as though it is floating out of the navigation bar, rather than simply sitting inside it.
+Add a subtle, smooth elevation/glow/depth effect while keeping the animation professional and minimal.
+Keep the navigation bar's existing curved shape and safe-area behavior.
 
-User opens Sales.
-User scrolls to the bottom.
-User taps Inventory from the bottom navigation.
-Inventory opens at the same scroll position instead of starting at the top.
+Also, the navigation labels are currently too faint/invisible. Increase their brightness/contrast slightly so they are clearly readable while remaining consistent with the Novend color system.
 
-The destination page should have its own independent scroll position and should start from the top when navigating to a different route.
+Desired interaction
+          ◉  ← active item floats upward
+───────╯     ╰───────  ← visible cut/gap around active item
+│   Home   Sales   Inventory   │
+╰──────────────────────────────╯
 
-Please inspect the existing routing/navigation and scroll-container architecture and fix the root cause rather than adding page-specific workarounds.
-
-Requirements:
-
-Navigating to a different route should reset the destination screen to the top.
-This should work consistently across all Capacitor bottom-navigation routes.
-It should also work when navigation occurs programmatically or through sidebar links where applicable.
-Do not break intentional internal scrolling within a page.
-Avoid resetting scroll repeatedly while the user is interacting with the same page.
-Handle the actual scroll container used by the mobile application, not only window.scrollTo().
-Preserve normal browser history/back-navigation behavior where appropriate.
-Verify the fix across Sales, Inventory, Products, Orders, Returns, Customers, Reports, Settings, and other main routes.
-
-The goal is:
-
-Navigate to another screen → destination starts at the top → user can then scroll independently.
+Do not change navigation routes or functionality. This is strictly a Capacitor bottom-navigation visual/interaction refinement.

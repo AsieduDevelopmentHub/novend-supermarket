@@ -2513,15 +2513,58 @@ button.landing-feature-frame {
 }
 
 /* —— Capacitor bottom navigation (login-sheet curvature + candy orb) —— */
+@property --active-notch-x {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 50%;
+}
+
 .novend-mobile-tabbar {
   position: relative;
   width: 100%;
+  --active-notch-x: 50%;
+  overflow: visible;
   background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, #111827 42%, #0b1220 100%);
   border-radius: 1.75rem 1.75rem 0 0;
   box-shadow:
     0 -10px 36px rgba(15, 23, 42, 0.32),
     0 -1px 0 rgba(255, 255, 255, 0.08) inset;
-  padding: 0.55rem 0.45rem max(0.45rem, env(safe-area-inset-bottom, 0px));
+  padding: 1.05rem 0.45rem max(0.45rem, env(safe-area-inset-bottom, 0px));
+  transition: --active-notch-x 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.novend-mobile-tabbar-notch {
+  position: absolute;
+  top: 0;
+  left: var(--active-notch-x);
+  z-index: 1;
+  width: 3.85rem;
+  height: 0.55rem;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: left 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.novend-mobile-tabbar-notch::before,
+.novend-mobile-tabbar-notch::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 0.7rem;
+  height: 0.7rem;
+  background: transparent;
+}
+
+.novend-mobile-tabbar-notch::before {
+  left: 0.05rem;
+  border-bottom-right-radius: 0.7rem;
+  box-shadow: 0.38rem 0 0 0 rgba(30, 41, 59, 0.98);
+}
+
+.novend-mobile-tabbar-notch::after {
+  right: 0.05rem;
+  border-bottom-left-radius: 0.7rem;
+  box-shadow: -0.38rem 0 0 0 rgba(30, 41, 59, 0.98);
 }
 
 .novend-mobile-tabbar::before {
@@ -2534,6 +2577,8 @@ button.landing-feature-frame {
 }
 
 .novend-mobile-tabbar-inner {
+  position: relative;
+  z-index: 2;
   display: flex;
   width: 100%;
   max-width: 36rem;
@@ -2562,7 +2607,7 @@ button.landing-feature-frame {
   -webkit-tap-highlight-color: transparent;
 }
 
-.novend-mobile-tab:hover {
+.novend-mobile-tab:hover:not(.novend-mobile-tab-active) {
   color: #e2e8f0;
 }
 
@@ -2574,6 +2619,21 @@ button.landing-feature-frame {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.novend-mobile-tab-icon-active {
+  transform: translateY(-0.72rem);
+}
+
+.novend-mobile-tab-icon-active::after {
+  content: "";
+  position: absolute;
+  inset: -0.3rem;
+  z-index: -1;
+  border-radius: 9999px;
+  background: var(--background);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.14);
 }
 
 .novend-mobile-tab-orb {
@@ -2594,14 +2654,19 @@ button.landing-feature-frame {
     0 4px 14px rgba(14, 165, 233, 0.45),
     0 0 22px rgba(56, 189, 248, 0.55);
   transition:
-    opacity 180ms ease,
-    transform 180ms cubic-bezier(0.32, 0.72, 0, 1),
-    box-shadow 180ms ease;
+    opacity 220ms ease,
+    transform 320ms cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 320ms ease;
 }
 
 .novend-mobile-tab-orb-active {
   opacity: 1;
   transform: scale(1);
+  box-shadow:
+    0 0 0 1px rgba(186, 230, 253, 0.55),
+    0 8px 22px rgba(14, 165, 233, 0.58),
+    0 0 32px rgba(56, 189, 248, 0.72),
+    0 -3px 12px rgba(125, 211, 252, 0.42);
 }
 
 .novend-mobile-tab-label {
@@ -2609,13 +2674,27 @@ button.landing-feature-frame {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: color 180ms ease;
+  transition: color 180ms ease, opacity 180ms ease;
+}
+
+.novend-mobile-tab:not(.novend-mobile-tab-active) .novend-mobile-tab-label {
+  color: #cbd5e1;
+  opacity: 0.96;
+}
+
+.novend-mobile-tab-active .novend-mobile-tab-label {
+  color: #f8fafc;
+  font-weight: 600;
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .novend-mobile-tabbar,
+  .novend-mobile-tabbar-notch,
   .novend-mobile-tab,
   .novend-mobile-tab-orb,
   .novend-mobile-tab-label,
+  .novend-mobile-tab-icon,
   .novend-mobile-tab-icon svg {
     transition: none;
   }
