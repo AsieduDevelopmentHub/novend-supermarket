@@ -71,7 +71,7 @@ export function OnboardingForm() {
             Set up your business
           </h1>
           <p className="text-muted-foreground text-sm">
-            {APP_NAME} starts with a 14-day Pro trial. You can change plans any time.
+            {APP_NAME} starts with a 14-day Pro trial. Passwords must be 12+ characters with uppercase, lowercase, and a number.
           </p>
         </div>
       </div>

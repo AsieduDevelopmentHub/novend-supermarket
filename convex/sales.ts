@@ -32,12 +32,20 @@ async function nextInvoiceNumber(
   ctx: MutationCtx,
   organizationId: import("./_generated/dataModel").Id<"organizations">,
 ) {
-  const sales = await ctx.db
-    .query("sales")
-    .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-    .collect();
-  const n = sales.length + 1001;
-  return `INV-${n}`;
+  // References are identifiers, not counters. A UUID-backed value avoids
+  // duplicate numbers under concurrent checkouts and remains stable when rows
+  // are voided/imported. The indexed lookup is a defensive collision check.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const reference = `INV-${crypto.randomUUID().replaceAll("-", "").slice(0, 16).toUpperCase()}`;
+    const existing = await ctx.db
+      .query("sales")
+      .withIndex("by_organization_invoice", (q) =>
+        q.eq("organizationId", organizationId).eq("invoiceNumber", reference),
+      )
+      .unique();
+    if (!existing) return reference;
+  }
+  throw new Error("Could not allocate a unique invoice reference");
 }
 
 

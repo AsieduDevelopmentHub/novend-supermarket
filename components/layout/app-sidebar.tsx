@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation } from "convex/react";
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, LogOut, Menu, Shield } from "lucide-react";
 import type { AppRole } from "@/config/navigation";
 import { SidebarNavTree, SidebarSettingsLink } from "@/components/layout/sidebar-nav-tree";
@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/tooltip";
 import { SyncStatusChip } from "@/components/offline/sync-status-chip";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
+import { useOfflineNavigation } from "@/providers/offline-navigation";
 
 const SIDEBAR_COLLAPSED_KEY = "novend.sidebarCollapsed";
 
@@ -287,6 +288,30 @@ export function AppSidebar({ user }: { user: ShellUser }) {
 
 export function MobileSidebar({ user }: { user: ShellUser }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const { activePath } = useOfflineNavigation();
+  const routeKey = activePath ?? pathname;
+
+  // Offline nav intercepts <a> clicks in capture phase, so Link onClick/onNavigate
+  // often never runs — close on route change and on any in-sheet link click.
+  useEffect(() => {
+    // Route changes are an external navigation event; close the transient sheet.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpen(false);
+  }, [routeKey]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!target.closest("a[href]")) return;
+      setOpen(false);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [open]);
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>

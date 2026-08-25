@@ -51,11 +51,16 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
   const [updateOpen, setUpdateOpen] = useState(false);
   const [updateNotes, setUpdateNotes] = useState("");
   const [updateVersion, setUpdateVersion] = useState("");
+  const [updateMandatory, setUpdateMandatory] = useState(false);
+  const [installedVersion, setInstalledVersion] = useState("");
+  const [installedBuild, setInstalledBuild] = useState("");
+  const [hostedOrigin] = useState(() =>
+    typeof window !== "undefined" && isCapacitor() ? window.location.origin : "",
+  );
   const [exitOpen, setExitOpen] = useState(false);
 
   useEffect(() => {
     if (!isCapacitor()) return;
-
     let cancelled = false;
     let removeUrlListener: (() => Promise<void>) | null = null;
     let removeBackListener: (() => Promise<void>) | null = null;
@@ -105,9 +110,15 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
         if (safe) router.push(safe);
       }
       const update = await Hardware.app.checkForUpdate();
+      const appInfo = await Hardware.app.getInfo();
+      if (appInfo.data) {
+        setInstalledVersion(appInfo.data.version);
+        setInstalledBuild(appInfo.data.build);
+      }
       if (update.data?.available) {
         setUpdateVersion(update.data.version || "");
         setUpdateNotes(update.data.notes || "A newer Novend build is available.");
+        setUpdateMandatory(update.data.mandatory === true);
         setUpdateOpen(true);
       }
     })();
@@ -188,21 +199,32 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
         <RestoreLastRoute />
       </Suspense>
       {children}
-      <Dialog open={updateOpen} onOpenChange={setUpdateOpen}>
+      <Dialog
+        open={updateOpen}
+        onOpenChange={(open) => {
+          if (!open && updateMandatory) return;
+          setUpdateOpen(open);
+        }}
+      >
         <DialogContent className="max-w-md rounded-[22px]">
           <DialogHeader>
             <DialogTitle>Update available{updateVersion ? ` · ${updateVersion}` : ""}</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-sm whitespace-pre-wrap">{updateNotes}</p>
+          <p className="text-muted-foreground text-xs">
+            Installed {installedVersion || "unknown"}{installedBuild ? ` (${installedBuild})` : ""} · Hosted origin {hostedOrigin || "unknown"}
+          </p>
           <DialogFooter className="gap-2 sm:justify-between">
-            <Button type="button" variant="outline" onClick={() => setUpdateOpen(false)}>
-              Later
-            </Button>
+            {!updateMandatory ? (
+              <Button type="button" variant="outline" onClick={() => setUpdateOpen(false)}>
+                Later
+              </Button>
+            ) : null}
             <Button
               type="button"
               onClick={() => {
                 void Hardware.app.openStoreListing();
-                setUpdateOpen(false);
+                if (!updateMandatory) setUpdateOpen(false);
               }}
             >
               Update now

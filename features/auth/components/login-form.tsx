@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useConvex, useConvexAuth, useQuery } from "convex/react";
 import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -60,8 +60,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const fromBoot = searchParams.get("fromBoot") === "1";
   const redirectingRef = useRef(false);
   const registration = useQuery(api.users.registrationStatus);
-  const recordLoginFailure = useMutation(api.loginGuards.recordLoginFailure);
-  const clearLoginFailures = useMutation(api.loginGuards.clearLoginFailures);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -144,8 +142,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     setPending(true);
     const normalizedEmail = email.trim().toLowerCase();
     try {
-      await convex.query(api.loginGuards.assertLoginAllowed, { email: normalizedEmail });
-
       try {
         if (rememberMe) {
           window.localStorage.setItem(REMEMBER_KEY, normalizedEmail);
@@ -161,11 +157,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       formData.set("password", password);
       formData.set("flow", "signIn");
       await signIn("password", formData);
-      try {
-        await clearLoginFailures({});
-      } catch {
-        /* non-fatal */
-      }
       toast.success("Welcome");
 
       // Navigate from the submit path — do not wait for reactive `me` (that left
@@ -180,19 +171,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       const raw = error instanceof Error ? error.message : "";
       if (raw.toLowerCase().includes("auth provider discovery")) {
         showError(error, SERVER_UNREACHABLE_MESSAGE);
-      } else if (raw.toLowerCase().includes("too many failed")) {
-        showError(error, "Too many failed sign-in attempts.");
       } else {
-        try {
-          await recordLoginFailure({ email: normalizedEmail });
-        } catch (lockError) {
-          const lockMsg = lockError instanceof Error ? lockError.message : "";
-          if (lockMsg.toLowerCase().includes("too many failed")) {
-            showError(lockError, "Too many failed sign-in attempts.");
-            setPending(false);
-            return;
-          }
-        }
         showError(error, "Sign in failed. Check your email and password.");
       }
       setPending(false);

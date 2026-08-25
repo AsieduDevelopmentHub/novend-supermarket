@@ -19,11 +19,18 @@ android {
     signingConfigs {
         release {
             def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+            def releaseRequested = gradle.startParameter.taskNames.any { it.toLowerCase().contains("release") }
+            if (releaseRequested && (keystorePath == null || !new File(keystorePath).exists())) {
+                throw new GradleException("ANDROID_KEYSTORE_PATH must point to a release keystore")
+            }
+            if (releaseRequested && (!System.getenv("ANDROID_KEYSTORE_PASSWORD") || !System.getenv("ANDROID_KEY_ALIAS") || !System.getenv("ANDROID_KEY_PASSWORD"))) {
+                throw new GradleException("Android release signing credentials are incomplete")
+            }
             if (keystorePath != null && new File(keystorePath).exists()) {
                 storeFile file(keystorePath)
-                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
-                keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: ""
-                keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: ""
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
             }
         }
     }
@@ -33,9 +40,6 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             if (signingConfigs.release.storeFile != null) {
                 signingConfig signingConfigs.release
-            } else {
-                // CI / local sideload builds without a release keystore.
-                signingConfig signingConfigs.debug
             }
         }
     }

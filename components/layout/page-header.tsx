@@ -157,7 +157,7 @@ export function PageHeader({
             <p className="text-muted-foreground text-sm leading-snug">{description}</p>
           ) : null}
           {actions ? (
-            <div className="flex flex-wrap items-center gap-2">{actions}</div>
+            <div className="flex w-full min-w-0 flex-nowrap items-center gap-2">{actions}</div>
           ) : null}
         </div>
       ) : compactActions?.length ? (

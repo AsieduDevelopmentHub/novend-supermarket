@@ -126,15 +126,10 @@ export default convexAuthNextjsMiddleware(
       (isAdminOnly(request) || isAdminOrManager(request))
     ) {
       const session = await sessionForToken(await convexAuth.getToken());
-      // Network/Convex failure must not look like "unauthorized" — fail open to the
-      // requested URL; client layout + Convex remain authoritative for RBAC.
+      // Privileged route resolution fails closed. Backend checks remain
+      // authoritative, but an outage must not render an operational shell.
       if (session === null) {
-        return withSecurityHeaders(
-          NextResponse.next({
-            request: { headers: requestHeaders },
-          }),
-          nonce,
-        );
+        return withSecurityHeaders(redirectTo(request, "/dashboard"), nonce);
       }
       if (isAdminOnly(request) && session.role !== "administrator") {
         return withSecurityHeaders(redirectTo(request, "/dashboard"), nonce);

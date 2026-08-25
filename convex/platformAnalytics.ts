@@ -381,6 +381,8 @@ export const systemHealth = query({
       profiles,
       desktopReleases,
       mobileReleases,
+      pendingPayments,
+      failedPayments,
     ] = await Promise.all([
       ctx.db.query("organizations").collect(),
       ctx.db.query("subscriptions").collect(),
@@ -397,6 +399,19 @@ export const systemHealth = query({
         .withIndex("by_channel_releasedAt", (q) => q.eq("channel", "stable"))
         .order("desc")
         .take(1),
+      ctx.db
+        .query("billingHistory")
+        .withIndex("by_status_gateway_createdAt", (q) =>
+          q.eq("status", "pending").eq("gateway", "paystack"),
+        )
+        .take(100),
+      ctx.db
+        .query("billingHistory")
+        .withIndex("by_status_gateway_createdAt", (q) =>
+          q.eq("status", "failed").eq("gateway", "paystack"),
+        )
+        .order("desc")
+        .take(100),
     ]);
 
     const activeDevices = devices.filter((d) => d.isActive);
@@ -425,6 +440,12 @@ export const systemHealth = query({
       storage: {
         backupCount: backups.length,
         totalBytes: storageBytes,
+      },
+      billingOperations: {
+        pending: pendingPayments.length,
+        stalePending: pendingPayments.filter((row) => now - row.createdAt > 30 * 60 * 1000).length,
+        failed: failedPayments.length,
+        lastFailureAt: failedPayments[0]?.updatedAt ?? null,
       },
       /**
        * Sync freshness proxy. Novend has no server-side sync-queue table (the

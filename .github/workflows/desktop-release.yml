@@ -172,6 +172,21 @@ jobs:
           chmod +x ./gradlew
           ./gradlew assembleRelease --no-daemon
 
+      - name: Verify APK provenance
+        shell: bash
+        run: |
+          apk="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+          if [ -z "$ANDROID_KEYSTORE_PATH" ] || [ ! -f "$ANDROID_KEYSTORE_PATH" ]; then
+            echo "Release keystore was not provisioned" >&2
+            exit 1
+          fi
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          aapt=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)
+          [ -x "$apksigner" ] && [ -x "$aapt" ]
+          "$apksigner" verify --verbose "$apk"
+          sha256sum "$apk" | tee "$apk.sha256"
+          "$aapt" dump badging "$apk" | grep -E "package: name='com.novend.pos'|versionCode='9'|versionName='0.3.4'"
+
       - name: Prepare APK for GitHub Release
         shell: bash
         run: |
@@ -212,6 +227,12 @@ jobs:
           path: NovendPOS-*-android.apk
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Upload APK checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: novend-pos-android-checksum
+          path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk.sha256
 
   publish-convex:
     name: Publish update metadata to Convex

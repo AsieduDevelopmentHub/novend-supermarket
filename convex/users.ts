@@ -15,6 +15,7 @@ import {
   requireProfile,
   requireRole,
   requireSessionIgnoringLicense,
+  assertOrgDoc,
 } from "./shared/permissions";
 import { roleValidator } from "./schema";
 import { writeAuditLog } from "./shared/audit";
@@ -123,7 +124,8 @@ export const registrationStatus = query({
   args: {},
   handler: async (ctx) => {
     // Commercial signup is always open. Staff still cannot self-provision a profile.
-    return { hasUsers: true };
+    // The flag is intentionally derived from the current deployment so the login
+    // screen never claims an unprovisioned system when an administrator exists.
     const existing = await ctx.db.query("profiles").take(1);
     return { hasUsers: existing.length > 0 };
   },
@@ -254,9 +256,9 @@ export const updateProfile = mutation({
     status: v.union(v.literal("active"), v.literal("inactive")),
   },
   handler: async (ctx, args) => {
-    const { userId, profile: actor } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile: actor, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     const profile = await ctx.db.get(args.id);
-    if (!profile) throw new Error("User profile not found");
+    assertOrgDoc(profile, organizationId);
 
     if (actor.role === "manager") {
       if (profile.branchId !== actor.branchId) throw new Error("Forbidden");
@@ -265,7 +267,9 @@ export const updateProfile = mutation({
     }
 
     const branch = await ctx.db.get(args.branchId);
-    if (!branch || branch.status !== "active") throw new Error("Invalid branch");
+    if (!branch || branch.status !== "active" || branch.organizationId !== organizationId) {
+      throw new Error("Invalid branch");
+    }
 
     await ctx.db.patch(args.id, {
       name: sanitizeText(args.name, "Name", TEXT_LIMITS.name),
@@ -404,8 +408,8 @@ export const changePassword = action({
     if (!me?.email || !me.userId) {
       throw new Error("You must be signed in to change your password");
     }
-    if (!args.newPassword || args.newPassword.length < 8) {
-      throw new Error("New password must be at least 8 characters");
+    if (!args.newPassword || args.newPassword.length < 12 || !/[A-Z]/.test(args.newPassword) || !/[a-z]/.test(args.newPassword) || !/\d/.test(args.newPassword)) {
+      throw new Error("New password must be at least 12 characters and include uppercase, lowercase, and a number");
     }
     if (args.currentPassword === args.newPassword) {
       throw new Error("New password must be different from the current password");
@@ -506,6 +510,7 @@ export const insertProfileForUser = internalMutation({
     branchId: v.id("branches"),
     phone: v.optional(v.string()),
     actorId: v.optional(v.id("users")),
+    organizationId: v.optional(v.id("organizations")),
   },
   handler: async (ctx, args) => {
     const existing = await getProfileByUserId(ctx, args.userId);
@@ -513,6 +518,10 @@ export const insertProfileForUser = internalMutation({
 
     const branch = await ctx.db.get(args.branchId);
     if (!branch) throw new Error("Invalid branch");
+
+    if (args.organizationId && branch.organizationId !== args.organizationId) {
+      throw new Error("Invalid branch");
+    }
 
     const organization = await ctx.db.get(branch.organizationId);
     if (!organization) throw new Error("Invalid branch");
@@ -563,8 +572,8 @@ export const createUserAccount = action({
     const password = args.password;
 
     if (!email || !name) throw new Error("Name and email are required");
-    if (!password || password.length < 8) {
-      throw new Error("Password must be at least 8 characters");
+    if (!password || password.length < 12 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+      throw new Error("Password must be at least 12 characters and include uppercase, lowercase, and a number");
     }
 
     const me = await ctx.runQuery(api.users.me, {});
@@ -579,6 +588,8 @@ export const createUserAccount = action({
 
     const role = args.role;
     const actorId = me.userId;
+    const organizationId = me.organizationId;
+    if (!organizationId) throw new Error("Your account is not associated with an organization");
     let branchId = args.branchId;
 
     if (me.role === "manager") {
@@ -596,6 +607,11 @@ export const createUserAccount = action({
       throw new Error("No branch available. Complete organization onboarding first.");
     }
 
+    const assignedBranch = await ctx.runQuery(api.branches.get, { id: assignedBranchId });
+    if (!assignedBranch || assignedBranch.organizationId !== organizationId || assignedBranch.status !== "active") {
+      throw new Error("Invalid branch");
+    }
+
     const created = await createAccount(ctx, {
       provider: "password",
       account: { id: email, secret: password },
@@ -609,6 +625,7 @@ export const createUserAccount = action({
       branchId: assignedBranchId,
       phone: args.phone,
       actorId,
+      organizationId,
     });
 
     return { userId: created.user._id };
@@ -628,6 +645,9 @@ export const bootstrapAdministrator = action({
     name: v.string(),
   },
   handler: async (ctx, args) => {
+    if (process.env.BOOTSTRAP_ADMIN_ENABLED !== "true") {
+      throw new Error("Administrator bootstrap is disabled. Use the organization onboarding flow.");
+    }
     const expected = process.env.BOOTSTRAP_ADMIN_SECRET;
     if (!expected || args.bootstrapSecret !== expected) {
       throw new Error("Invalid bootstrap secret");
@@ -643,8 +663,8 @@ export const bootstrapAdministrator = action({
     const password = args.password;
 
     if (!email || !name) throw new Error("Name and email are required");
-    if (!password || password.length < 8) {
-      throw new Error("Password must be at least 8 characters");
+    if (!password || password.length < 12 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+      throw new Error("Password must be at least 12 characters and include uppercase, lowercase, and a number");
     }
 
     throw new Error("Use public signup and onboarding to create the first administrator.");
@@ -661,8 +681,8 @@ export const resetUserPassword = action({
     newPassword: v.string(),
   },
   handler: async (ctx, args) => {
-    if (!args.newPassword || args.newPassword.length < 8) {
-      throw new Error("Password must be at least 8 characters");
+    if (!args.newPassword || args.newPassword.length < 12 || !/[A-Z]/.test(args.newPassword) || !/[a-z]/.test(args.newPassword) || !/\d/.test(args.newPassword)) {
+      throw new Error("Password must be at least 12 characters and include uppercase, lowercase, and a number");
     }
 
     const me = await ctx.runQuery(api.users.me, {});

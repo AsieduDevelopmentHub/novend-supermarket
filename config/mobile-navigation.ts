@@ -80,6 +80,6 @@ export function resolveMobileTab(pathname: string): MobileTabId {
   return "more";
 }
 
-/** Bottom inset for content above the floating tab bar (+ safe area). */
+/** Bottom inset for content above the curved Cap tab bar (+ safe area). */
 export const MOBILE_TAB_BAR_OFFSET =
-  "calc(5.5rem + env(safe-area-inset-bottom, 0px))";
+  "calc(5.25rem + env(safe-area-inset-bottom, 0px))";

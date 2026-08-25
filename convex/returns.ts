@@ -149,7 +149,7 @@ export const processReturn = mutation({
       throw new Error("Invalid refund amount");
     }
 
-    const returnNumber = await nextReturnNumber(ctx, organizationId);
+    const returnNumber = await nextReturnNumber(ctx);
     const completedAt = Date.now();
     const snapshot = await loadPrintSnapshot(ctx, organizationId, branchId);
 

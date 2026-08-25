@@ -7,12 +7,14 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { PasswordInput } from "@/components/ui/password-input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { formatBytes } from "@/lib/bytes";
-import { exportOfflineBackup } from "@/lib/offline/backup";
+import { encryptOfflineBackup, exportOfflineBackup } from "@/lib/offline/backup";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -41,21 +43,23 @@ export function CloudBackupPanel() {
   const deleteBackup = useMutation(api.cloudBackups.deleteBackup);
   const [uploading, setUploading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Id<"cloudBackups"> | null>(null);
+  const [backupPassword, setBackupPassword] = useState("");
 
   async function onBackupNow() {
     setUploading(true);
     try {
       const payload = await exportOfflineBackup();
-      const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+      const encrypted = await encryptOfflineBackup(payload, backupPassword);
+      const blob = new Blob([JSON.stringify(encrypted)], { type: "application/octet-stream" });
       const uploadUrl = await generateUploadUrl({});
       const response = await fetch(uploadUrl, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/octet-stream" },
         body: blob,
       });
       if (!response.ok) throw new Error("Upload failed. Check your connection and try again.");
       const { storageId } = (await response.json()) as { storageId: Id<"_storage"> };
-      const fileName = `novend-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      const fileName = `novend-backup-${new Date().toISOString().slice(0, 10)}.novend-backup`;
       await recordBackup({ storageId, fileName, kind: "manual" });
       toast.success("Backup saved to the cloud");
     } catch (error) {
@@ -143,7 +147,20 @@ export function CloudBackupPanel() {
           </Alert>
         ) : null}
 
-        <Button type="button" disabled={uploading || usage.full} onClick={() => void onBackupNow()}>
+        <div className="max-w-sm space-y-2">
+          <Label htmlFor="cloud-backup-password">Backup password</Label>
+          <PasswordInput
+            id="cloud-backup-password"
+            value={backupPassword}
+            onChange={(event) => setBackupPassword(event.target.value)}
+            autoComplete="new-password"
+          />
+          <p className="text-muted-foreground text-xs">
+            Encrypts the backup before upload. Keep it in your organization&apos;s password manager.
+          </p>
+        </div>
+
+        <Button type="button" disabled={uploading || usage.full || backupPassword.length < 8} onClick={() => void onBackupNow()}>
           <CloudUpload className="mr-2 h-4 w-4" aria-hidden />
           {uploading ? "Backing up…" : "Back up now"}
         </Button>

@@ -431,6 +431,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           notes?: string;
           storeUrl?: string;
           downloadUrl?: string;
+          mandatory?: boolean;
         };
         const compareVersions = (left: string, right: string) => {
           const parse = (value: string) => value.replace(/^v/i, "").split(".").map((part) => {
@@ -450,6 +451,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           ok: true,
           data: {
             available,
+            mandatory: remote.mandatory === true,
             version: remote.version,
             notes: remote.notes,
             storeUrl: remote.storeUrl,

@@ -273,13 +273,19 @@ export const recordPurchase = mutation({
       });
     }
 
-    const count = (
-      await ctx.db
+    let reference: string | null = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const candidate = `PO-${crypto.randomUUID().replaceAll("-", "").slice(0, 16).toUpperCase()}`;
+      const existing = await ctx.db
         .query("supplierPurchases")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect()
-    ).length;
-    const reference = `PO-${String(count + 1001).padStart(5, "0")}`;
+        .withIndex("by_reference", (q) => q.eq("reference", candidate))
+        .unique();
+      if (!existing) {
+        reference = candidate;
+        break;
+      }
+    }
+    if (!reference) throw new Error("Could not allocate a unique purchase reference");
     const purchaseId = await ctx.db.insert("supplierPurchases", {
       organizationId,
       supplierId: args.supplierId,

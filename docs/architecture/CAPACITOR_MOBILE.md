@@ -68,7 +68,7 @@ Web and Electron keep the existing sidebar unchanged.
 - Deep links: `novend://sale/{id}`, `novend://product/{id}`, …
 - Offline backup / restore (Documents on device)
 - About page: `/about`
-- Android store prep: package `com.novend.pos`, versionName `0.4.0`, icons/splash
+- Android package: `com.novend.pos`. The authoritative version is the root/mobile `package.json`; release CI verifies the Android `versionName` before publishing.
   already present — do not publish until QA sign-off
 
 See `docs/architecture/HARDWARE.md` and `docs/architecture/MOBILE_QA.md`.

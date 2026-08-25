@@ -8,7 +8,7 @@ import { action, internalMutation, mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { getPlatformAdmin, requirePlatformAdmin } from "./shared/permissions";
-import { sanitizeText, sanitizeOptionalText, TEXT_LIMITS } from "./shared/validation";
+import { sanitizeOptionalText, TEXT_LIMITS } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
 import { planKeyValidator, billingCycleValidator } from "./schema";
 import { resolvePlan } from "./shared/plans";
@@ -318,29 +318,6 @@ export const setOrganizationStatus = mutation({
   },
 });
 
-/** @deprecated Use `billing.assignPlan`, which also writes the subscription. */
-export const setOrganizationPlan = mutation({
-  args: {
-    organizationId: v.id("organizations"),
-    plan: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
-    const org = await ctx.db.get(args.organizationId);
-    if (!org) throw new Error("Organization not found");
-    const plan = sanitizeText(args.plan, "Plan", 40);
-    await ctx.db.patch(args.organizationId, { plan, updatedAt: Date.now() });
-    await writeAuditLog(ctx, {
-      actorId: userId,
-      action: "platform_set_org_plan",
-      entityType: "organizations",
-      entityId: args.organizationId,
-      metadata: { plan },
-    });
-    return args.organizationId;
-  },
-});
-
 /** PEAS — edits the platform-owned registration profile (not tenant business settings). */
 export const updateOrganizationProfile = mutation({
   args: {
@@ -522,6 +499,9 @@ export const bootstrap = action({
     name: v.string(),
   },
   handler: async (ctx, args) => {
+    if (process.env.BOOTSTRAP_PLATFORM_ENABLED !== "true") {
+      throw new Error("Platform bootstrap is disabled. Enable it temporarily for first-time setup.");
+    }
     const expected = process.env.BOOTSTRAP_PLATFORM_SECRET ?? process.env.BOOTSTRAP_ADMIN_SECRET;
     if (!expected || args.bootstrapSecret !== expected) {
       throw new Error("Invalid bootstrap secret");
@@ -610,6 +590,7 @@ export const createOrganization = action({
       name: args.adminName.trim(),
       role: "administrator",
       branchId: result.branchId,
+      organizationId: result.organizationId,
     });
     await ctx.runMutation(api.platform.attachOwner, {
       organizationId: result.organizationId,

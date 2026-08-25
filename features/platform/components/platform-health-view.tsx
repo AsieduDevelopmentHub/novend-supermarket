@@ -99,6 +99,28 @@ export function PlatformHealthView() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Payment reconciliation
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-3">
+            <Metric label="Pending" value={String(health.billingOperations.pending)} />
+            <Metric
+              label="Stale pending"
+              value={String(health.billingOperations.stalePending)}
+              tone={health.billingOperations.stalePending > 0 ? "warning" : undefined}
+            />
+            <Metric
+              label="Failed"
+              value={String(health.billingOperations.failed)}
+              tone={health.billingOperations.failed > 0 ? "warning" : undefined}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
               <MonitorSmartphone className="h-4 w-4" />
               Connected runtimes
             </CardTitle>

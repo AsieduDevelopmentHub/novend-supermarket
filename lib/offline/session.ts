@@ -7,6 +7,7 @@
 import { bindOfflineOrganization, unbindOfflineOrganization } from "./db";
 
 const STORAGE_KEY = "novend.offlineSession";
+const OFFLINE_AUTHORITY_TTL_MS = 24 * 60 * 60 * 1000;
 /** Pre-rebrand localStorage key — read-only migration from early Novend builds. */
 const LEGACY_STORAGE_KEY = "princellen.offlineSession";
 
@@ -69,6 +70,10 @@ export function readOfflineSession(): OfflineSessionHint | null {
     migrateLegacySession(raw);
     const parsed = JSON.parse(raw) as OfflineSessionHint;
     if (!parsed?.userId || !parsed?.role || !parsed?.branchId) return null;
+    if (!Number.isFinite(parsed.savedAt) || Date.now() - parsed.savedAt > OFFLINE_AUTHORITY_TTL_MS) {
+      clearOfflineSession();
+      return null;
+    }
     return parsed;
   } catch {
     return null;

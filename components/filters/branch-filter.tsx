@@ -3,6 +3,7 @@
 import { Id } from "@/convex/_generated/dataModel";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { cn } from "@/lib/utils";
 
 export type BranchOption = {
   id?: Id<"branches">;
@@ -22,6 +23,12 @@ type Props = {
   label?: string;
   id?: string;
   className?: string;
+  /**
+   * Toolbar mode: hide the stacked label, match control height to adjacent CTAs.
+   * Use for page-header action rows (Dashboard, etc.).
+   */
+  inline?: boolean;
+  triggerClassName?: string;
 };
 
 function branchId(branch: BranchOption): Id<"branches"> | undefined {
@@ -37,14 +44,28 @@ export function BranchFilter({
   label = "Branch",
   id = "branch-filter",
   className,
+  inline = false,
+  triggerClassName,
 }: Props) {
   if (lockedLabel) {
     return (
       <div className={className}>
-        <Label htmlFor={id}>{label}</Label>
-        <p id={id} className="text-muted-foreground mt-1 text-sm">
-          {lockedLabel}
-        </p>
+        {inline ? (
+          <p
+            id={id}
+            className="border-input bg-background text-foreground flex h-9 items-center truncate rounded-md border px-3 text-sm"
+          >
+            <span className="sr-only">{label}: </span>
+            {lockedLabel}
+          </p>
+        ) : (
+          <>
+            <Label htmlFor={id}>{label}</Label>
+            <p id={id} className="text-muted-foreground mt-1 text-sm">
+              {lockedLabel}
+            </p>
+          </>
+        )}
       </div>
     );
   }
@@ -68,11 +89,20 @@ export function BranchFilter({
 
   return (
     <div className={className}>
-      <Label htmlFor={id}>{label}</Label>
+      {inline ? (
+        <Label htmlFor={id} className="sr-only">
+          {label}
+        </Label>
+      ) : (
+        <Label htmlFor={id}>{label}</Label>
+      )}
       <SearchableSelect
         id={id}
-        className="mt-1"
-        triggerClassName="min-w-[10rem] sm:w-[200px]"
+        className={inline ? undefined : "mt-1"}
+        triggerClassName={cn(
+          inline ? "h-9 min-w-0 w-full sm:min-w-[10rem] sm:w-[200px]" : "min-w-[10rem] sm:w-[200px]",
+          triggerClassName,
+        )}
         options={options}
         value={selectValue || undefined}
         onValueChange={(next) => {

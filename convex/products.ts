@@ -3,6 +3,7 @@ import { mutation, query, type MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import {
   assertBranchAccess,
+  assertOrgDoc,
   canManageCatalog,
   canViewCostPrice,
   requireRole,
@@ -442,6 +443,13 @@ export const updateProduct = mutation({
       description: sanitizeOptionalText(args.description, "Description", TEXT_LIMITS.description),
       imageStorageId,
     });
+    if (product.imageStorageId && product.imageStorageId !== imageStorageId) {
+      try {
+        await ctx.storage.delete(product.imageStorageId);
+      } catch {
+        /* best-effort cleanup; metadata no longer references the blob */
+      }
+    }
 
     await writeAuditLog(ctx, {
       actorId: userId,
@@ -457,10 +465,10 @@ export const updateProduct = mutation({
 export const archiveProduct = mutation({
   args: { id: v.id("products") },
   handler: async (ctx, args) => {
-    const { userId, profile } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     if (!canManageCatalog(profile)) throw new Error("Forbidden");
     const product = await ctx.db.get(args.id);
-    if (!product) throw new Error("Product not found");
+    assertOrgDoc(product, organizationId);
     await ctx.db.patch(args.id, { status: "archived" });
     await writeAuditLog(ctx, {
       actorId: userId,

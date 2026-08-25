@@ -362,29 +362,33 @@ export function DashboardView() {
           { key: "sale", label: "New Sale", icon: ShoppingBag, href: "/sales" },
         ]}
         actions={
-          <>
+          <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 sm:w-auto">
             {isAdmin && online ? (
               <BranchFilter
+                inline
                 branches={branches}
                 value={branchFilter}
                 onChange={setBranchFilter}
                 allowAll
+                className="min-w-0 flex-1 sm:flex-none"
               />
             ) : isManager && branchName ? (
               <BranchFilter
+                inline
                 branches={branches}
                 value={myBranchId}
                 onChange={() => undefined}
                 lockedLabel={branchName}
+                className="min-w-0 flex-1 sm:flex-none"
               />
             ) : null}
-            <Button asChild variant="outline" className="hidden sm:inline-flex">
+            <Button asChild variant="outline" className="hidden h-9 shrink-0 sm:inline-flex">
               <Link href="/inventory">Inventory</Link>
             </Button>
-            <Button asChild className="min-h-12 flex-1 sm:min-h-9 sm:flex-none">
+            <Button asChild className="h-9 min-h-9 flex-1 shrink-0 sm:flex-none">
               <Link href="/sales">New Sale</Link>
             </Button>
-          </>
+          </div>
         }
       />
 

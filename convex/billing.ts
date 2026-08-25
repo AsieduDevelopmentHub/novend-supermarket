@@ -9,7 +9,7 @@ import {
   type MutationCtx,
 } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import {
   billingCycleValidator,
   billingEventKindValidator,
@@ -444,6 +444,15 @@ export const applySuccessfulPayment = internalMutation({
       return { applied: false as const };
     }
 
+    if (
+      record &&
+      args.gateway === "paystack" &&
+      (Math.abs(args.amount - record.amount) > 0.01 ||
+        args.currency.toUpperCase() !== record.currency.toUpperCase())
+    ) {
+      throw new Error("Payment amount or currency does not match the checkout");
+    }
+
     if (record?.status === "success") {
       return { applied: false as const, alreadyApplied: true as const };
     }
@@ -523,6 +532,63 @@ export const markPaymentStatus = internalMutation({
       .unique();
     if (!record || record.status === "success") return;
     await ctx.db.patch(record._id, { status: args.status, updatedAt: Date.now() });
+  },
+});
+
+export const pendingPaystackCheckouts = internalQuery({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("billingHistory")
+      .withIndex("by_status_gateway_createdAt", (q) =>
+        q.eq("status", "pending").eq("gateway", "paystack"),
+      )
+      .order("asc")
+      .take(Math.min(Math.max(args.limit ?? 50, 1), 100));
+  },
+});
+
+/** Retries pending provider checks outside the user-facing checkout request. */
+export const reconcilePendingPayments = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ checked: number; applied: number; abandoned: number }> => {
+    if (!isPaystackConfigured()) return { checked: 0, applied: 0, abandoned: 0 };
+    const rows = await ctx.runQuery(internal.billing.pendingPaystackCheckouts, { limit: 50 });
+    const provider = getBillingProvider("paystack");
+    const now = Date.now();
+    let applied = 0;
+    let abandoned = 0;
+    for (const row of rows) {
+      try {
+        const verification = await provider.verifyPayment(row.reference);
+        if (
+          verification.paid &&
+          verification.reference === row.reference &&
+          Math.abs(verification.amount - row.amount) <= 0.01 &&
+          verification.currency.toUpperCase() === row.currency.toUpperCase()
+        ) {
+          const result = await ctx.runMutation(internal.billing.applySuccessfulPayment, {
+            reference: verification.reference,
+            amount: verification.amount,
+            currency: verification.currency,
+            paidAt: verification.paidAt ?? undefined,
+            gateway: "paystack",
+            gatewayCustomerCode: verification.gatewayCustomerCode ?? undefined,
+            gatewayPlanCode: verification.gatewayPlanCode ?? undefined,
+          });
+          if (result.applied) applied += 1;
+        } else if (now - row.createdAt > 24 * 60 * 60 * 1000) {
+          await ctx.runMutation(internal.billing.markPaymentStatus, {
+            reference: row.reference,
+            status: "abandoned",
+          });
+          abandoned += 1;
+        }
+      } catch {
+        // Leave pending so the next hourly run or gateway webhook can recover it.
+      }
+    }
+    return { checked: rows.length, applied, abandoned };
   },
 });
 
@@ -691,15 +757,27 @@ export const startCheckout = action({
 export const verifyCheckout = action({
   args: { reference: v.string() },
   handler: async (ctx, args): Promise<{ paid: boolean; planKey: PlanKey | null }> => {
+    const session = await ctx.runQuery(api.users.me, {});
+    if (!session?.userId || session.role !== "administrator" || !session.organizationId) {
+      throw new Error("Sign in as an organization administrator to verify this payment.");
+    }
+
     const existing = await ctx.runQuery(internal.billing.checkoutByReference, {
       reference: args.reference,
     });
-    if (!existing) {
+    if (!existing || existing.organizationId !== session.organizationId || existing.initiatedBy !== session.userId) {
       throw new Error("This payment reference is not recognized.");
     }
 
     const provider = getBillingProvider();
     const verification = await provider.verifyPayment(args.reference);
+    if (
+      verification.reference !== existing.reference ||
+      verification.amount !== existing.amount ||
+      verification.currency.toUpperCase() !== existing.currency.toUpperCase()
+    ) {
+      throw new Error("Payment details did not match the checkout record.");
+    }
     if (!verification.paid) {
       await ctx.runMutation(internal.billing.markPaymentStatus, {
         reference: args.reference,
@@ -1376,6 +1454,7 @@ export const dailyMaintenance = internalAction({
     await ctx.runMutation(internal.billing.applyDueScheduledChanges, {});
     await ctx.runMutation(internal.billing.expireLapsedSubscriptions, {});
     await ctx.runMutation(internal.billing.expireTrials, {});
+    await ctx.runAction(internal.billing.reconcilePendingPayments, {});
   },
 });
 

@@ -112,7 +112,7 @@ export function SalesView() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saleCompleteOpen, setSaleCompleteOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [checkoutSnap, setCheckoutSnap] = useState<number | string | null>(0.55);
+  const [checkoutSnap, setCheckoutSnap] = useState<number | string | null>(0.58);
   const [localHeld, setLocalHeld] = useState<LocalHeldSale[]>([]);
   const [cashierId, setCashierId] = useState<string | null>(null);
   /** Draft qty strings while editing — empty allowed until blur. */
@@ -795,7 +795,7 @@ export function SalesView() {
           className="flex w-full min-h-12 items-center gap-3 text-left"
           onClick={() => {
             void triggerLightHaptic();
-            setCheckoutSnap(0.55);
+            setCheckoutSnap(0.58);
             setCheckoutOpen(true);
           }}
           aria-label={
@@ -831,12 +831,19 @@ export function SalesView() {
       <Drawer
         open={checkoutOpen}
         onOpenChange={setCheckoutOpen}
-        snapPoints={nativeShell ? [0.38, 0.58, 0.92] : undefined}
-        activeSnapPoint={nativeShell ? checkoutSnap : undefined}
-        setActiveSnapPoint={nativeShell ? setCheckoutSnap : undefined}
+        {...(nativeShell
+          ? {
+              snapPoints: [0.38, 0.58, 0.92],
+              activeSnapPoint: checkoutSnap,
+              setActiveSnapPoint: setCheckoutSnap,
+            }
+          : {})}
         shouldScaleBackground={false}
       >
-        <DrawerContent className="max-h-[92dvh] rounded-t-[22px] xl:hidden">
+        <DrawerContent
+          className="max-h-[92dvh] rounded-t-[22px] xl:hidden"
+          overlayClassName="bg-black/60"
+        >
           <DrawerHeader className="border-border border-b text-left">
             <DrawerTitle className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" aria-hidden />

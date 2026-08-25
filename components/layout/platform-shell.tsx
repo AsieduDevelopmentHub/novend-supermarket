@@ -2,11 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { LogOut, Menu, Store } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { APP_BRAND } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
+import { useOfflineNavigation } from "@/providers/offline-navigation";
 
 export function PlatformShell({
   children,
@@ -137,6 +138,27 @@ function MobilePlatformNav({
   sessionEmail: string | null;
 }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const { activePath } = useOfflineNavigation();
+  const routeKey = activePath ?? pathname;
+
+  useEffect(() => {
+    // Route changes are an external navigation event; close the transient sheet.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpen(false);
+  }, [routeKey]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!target.closest("a[href]")) return;
+      setOpen(false);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [open]);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>

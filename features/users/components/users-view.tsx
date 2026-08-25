@@ -474,7 +474,7 @@ export function UsersView() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={8}
+                minLength={12}
                 autoComplete="new-password"
               />
               <p className="text-muted-foreground text-xs">

@@ -109,12 +109,16 @@ export async function loadReturnedLotQty(ctx: Ctx, saleItemId: Id<"saleItems">) 
   return byLot;
 }
 
-export async function nextReturnNumber(ctx: MutationCtx, organizationId: Id<"organizations">) {
-  const rows = await ctx.db
-    .query("saleReturns")
-    .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-    .collect();
-  return `RET-${rows.length + 1001}`;
+export async function nextReturnNumber(ctx: MutationCtx) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const reference = `RET-${crypto.randomUUID().replaceAll("-", "").slice(0, 16).toUpperCase()}`;
+    const existing = await ctx.db
+      .query("saleReturns")
+      .withIndex("by_returnNumber", (q) => q.eq("returnNumber", reference))
+      .unique();
+    if (!existing) return reference;
+  }
+  throw new Error("Could not allocate a unique return reference");
 }
 
 export function unitCostForLine(
@@ -169,5 +173,3 @@ export async function completedReturnsInRange(
     return true;
   });
 }
-
-

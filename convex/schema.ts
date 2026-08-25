@@ -256,6 +256,7 @@ export default defineSchema({
   })
     .index("by_organization", ["organizationId"])
     .index("by_organization_createdAt", ["organizationId", "createdAt"])
+    .index("by_status_gateway_createdAt", ["status", "gateway", "createdAt"])
     .index("by_reference", ["reference"]),
 
   cloudBackups: defineTable({

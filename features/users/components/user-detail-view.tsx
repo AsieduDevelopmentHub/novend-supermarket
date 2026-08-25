@@ -171,8 +171,8 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
 
   async function onResetPassword(event: FormEvent) {
     event.preventDefault();
-    if (newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters");
+    if (newPassword.length < 12 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      toast.error("Password must be 12+ characters with uppercase, lowercase, and a number");
       return;
     }
     if (newPassword !== confirmPassword) {

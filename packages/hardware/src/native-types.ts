@@ -46,6 +46,7 @@ export type AppInfo = {
 
 export type UpdateInfo = {
   available: boolean;
+  mandatory?: boolean;
   version?: string;
   notes?: string;
   storeUrl?: string;

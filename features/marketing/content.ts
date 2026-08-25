@@ -495,7 +495,7 @@ export const landingCopy = {
       },
       {
         q: "Can I import my existing inventory?",
-        a: "Yes. Novend supports importing products and inventory through Excel and CSV.",
+        a: "Novend currently supports structured exports. Assisted inventory migration is available through Novend support while self-service import is being prepared.",
       },
       {
         q: "Does Novend support barcode scanners and receipt printers?",

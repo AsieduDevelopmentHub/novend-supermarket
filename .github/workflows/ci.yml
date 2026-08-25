@@ -30,6 +30,18 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Dependency audit
+        run: pnpm audit --audit-level high
+
+      - name: Check generated/release hygiene
+        run: |
+          pnpm format:check
+          git diff --check
+          node scripts/check-no-secrets.mjs
+
       - name: Build
         run: pnpm build
         env:

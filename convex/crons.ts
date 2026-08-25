@@ -14,4 +14,11 @@ crons.daily(
   {},
 );
 
+crons.interval(
+  "pending payment reconciliation",
+  { hours: 1 },
+  internal.billing.reconcilePendingPayments,
+  {},
+);
+
 export default crons;
