@@ -39,15 +39,30 @@ jobs:
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
 
-      - name: Tag must match package version
+      - name: Tag must match package versions
         shell: bash
         run: |
           tag="${{ github.event.inputs.tag || github.ref_name }}"
-          pkg="v$(node -p "require('./package.json').version")"
-          if [ "$tag" != "$pkg" ]; then
-            echo "Tag $tag does not match root package version $pkg" >&2
+          root="v$(node -p "require('./package.json').version")"
+          desktop="v$(node -p "require('./apps/desktop/package.json').version")"
+          mobile="v$(node -p "require('./apps/mobile/package.json').version")"
+          ok=1
+          if [ "$tag" != "$root" ]; then
+            echo "Tag $tag does not match root package version $root" >&2
+            ok=0
+          fi
+          if [ "$tag" != "$desktop" ]; then
+            echo "Tag $tag does not match desktop package version $desktop (electron-builder publishes this release)" >&2
+            ok=0
+          fi
+          if [ "$tag" != "$mobile" ]; then
+            echo "Tag $tag does not match mobile package version $mobile" >&2
+            ok=0
+          fi
+          if [ "$ok" -ne 1 ]; then
             exit 1
           fi
+          echo "Tag $tag matches root, desktop, and mobile package versions."
 
   build:
     name: Build ${{ matrix.os }}
@@ -189,7 +204,11 @@ jobs:
           [ -x "$apksigner" ] && [ -x "$aapt" ]
           "$apksigner" verify --verbose "$apk"
           sha256sum "$apk" | tee "$apk.sha256"
-          "$aapt" dump badging "$apk" | grep -E "package: name='com.novend.pos'|versionCode='9'|versionName='0.3.4'"
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          version="${tag#v}"
+          badging="$("$aapt" dump badging "$apk")"
+          echo "$badging" | grep -F "package: name='com.novend.pos'"
+          echo "$badging" | grep -F "versionName='$version'"
 
       - name: Prepare APK for GitHub Release
         shell: bash
