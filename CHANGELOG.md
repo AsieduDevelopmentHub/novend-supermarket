@@ -11,24 +11,17 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 - Subscription plan changes are now a lifecycle on one subscription: upgrades take effect after a prorated payment; downgrades are scheduled for the end of the paid period with no charge today.
 - Pro is GH₵450 / month (GH₵4,500 / year). Enterprise is shown as GH₵750+, not a fixed 750. Yearly prices stay 10 × monthly on every recurring plan.
 
+---
+
+## v0.3.4 — 2026-08-25
+
 ### Fixed
 
-- Capacitor camera barcode uses bundled ZXing by default (no Google ML Kit / HTTPS module install); scanner starts without Try Again and cleans up streams on reopen.
-- Product Take photo / gallery uses DataUrl capture with longer permission timeouts so Android no longer returns empty photos as “Could not capture”.
-- Biometrics maps hardware supported / enrolled / available correctly and no longer false-times-out as unavailable.
-- Launch biometric gate no longer fail-opens mid-prompt (clears the availability timer before `authenticate`).
-- Notifications distinguish prompt / granted / denied / error / unavailable; Android notification channel is created; unknown plugin states are not forced to “unavailable”.
-- Deep links and refresh keep the requested URL: login uses `?next=`, platform admins are not forced off `/platform/*`, and middleware no longer treats a failed session fetch as unauthorized.
-- Capacitor/Electron cold start restores the last in-app route; Android back goes through history or confirms exit.
-- Offline service worker serves a shell document for deep URLs without substituting the browser path; mobile bottom nav uses offline-safe navigation.
-- Settings Security/Hardware no longer hang on unbounded Capacitor plugin awaits; native camera, barcode, BLE, biometrics, and notifications use fail-soft timeouts.
-- Capacitor Security tab: native cards render without waiting on Convex; Cap Camera/ML Kit/BLE adapters load lazily so opening Security cannot freeze the WebView.
-- Product camera capture uses Base64 (not WebView fetch of file URIs); barcode falls back to in-app ZXing when ML Kit fails.
-- Notification permission states (prompt/granted/denied) with open-device-settings and refresh on app resume.
-- ESLint ignores Capacitor Android/iOS build trees; PageHeader no longer syncs the native host via a cascading effect.
-- Cancelling a subscription no longer locks POS during the period already paid for.
-- Product sync no longer fails Convex validation on empty optional fields or a category that has not finished syncing.
-- Capacitor no longer stays on “Preparing workspace / Checking device security” when biometric plugins hang.
+- Capacitor camera barcode uses bundled ZXing by default (no Google ML Kit / HTTPS module); scanner starts without Try Again and cleans up streams on reopen.
+- Product Take photo / gallery uses reliable Cap camera capture so Android no longer returns empty photos as “Could not capture”.
+- Biometrics maps hardware supported / enrolled / available correctly; launch gate no longer fail-opens mid-prompt.
+- Notifications distinguish prompt / granted / denied / error / unavailable; Android app-settings and notification channel wiring for permission recovery.
+- Service worker and Settings native checks updated for Cap permission / resume stability.
 
 ---
 

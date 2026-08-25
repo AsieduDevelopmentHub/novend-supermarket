@@ -587,6 +587,12 @@ function ProductFormBody({
           )}
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" asChild>
+            <label htmlFor="image" className="cursor-pointer">
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Image
+            </label>
+          </Button>
           {isCapacitor() ? (
             <>
               <Button type="button" variant="outline" onClick={() => void onTakePhoto()}>
@@ -600,12 +606,6 @@ function ProductFormBody({
             </>
           ) : (
             <>
-              <Button type="button" variant="outline" asChild>
-                <label htmlFor="image" className="cursor-pointer">
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Image
-                </label>
-              </Button>
               <Button type="button" variant="outline" onClick={() => void onTakePhoto()}>
                 <Camera className="mr-2 h-4 w-4" />
                 Take Photo

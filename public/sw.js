@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v4";
+const CACHE_NAME = "novend-pos-v5";
 const PRECACHE = [
   "/",
   "/login",
@@ -146,21 +146,15 @@ self.addEventListener("fetch", (event) => {
 
   if (isStaticAsset(url)) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request)
-          .then((response) => {
-            cachePut(request, response);
-            return response;
-          })
-          .catch(
-            () =>
-              new Response("", {
-                status: 503,
-                statusText: "Offline",
-              }),
-          );
-      }),
+      fetch(request)
+        .then((response) => {
+          cachePut(request, response);
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          return cached || new Response("", { status: 503, statusText: "Offline" });
+        }),
     );
     return;
   }

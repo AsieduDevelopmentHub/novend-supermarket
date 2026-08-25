@@ -75,6 +75,11 @@ async function persistProductImageFromBytes(
 async function ensureCameraPermission(
   source: CameraSource,
 ): Promise<HardwareResult> {
+  // Android's system photo picker is scoped to the selected file and does
+  // not require READ_MEDIA_IMAGES. Asking for that broad permission first can
+  // leave the picker blocked even after the user grants access.
+  if (source === CameraSource.Photos) return { ok: true };
+
   try {
     const permission = await withTimeout(
       Camera.checkPermissions(),
@@ -149,13 +154,9 @@ async function bytesFromPhotoUri(webPath: string | undefined, path: string | und
 
 async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCapture>> {
   try {
-    const permission = await ensureCameraPermission(source);
-    if (!permission.ok) {
-      return { ok: false, message: permission.message };
-    }
-
-    // One system capture. DataUrl stays in-process (no WebView fetch). Uri bytes
-    // are a secondary read when DataUrl is omitted by the platform.
+    // Let the Capacitor camera plugin own the system prompt. Pre-checking and
+    // requesting here races the picker on Android and can report a stale
+    // denied state immediately after the user grants access.
     const photo = await Camera.getPhoto({
       quality: 80,
       allowEditing: false,
@@ -215,7 +216,9 @@ async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCaptu
     }
     return {
       ok: false,
-      message: friendlyHardwareMessage(raw, cameraCaptureFailedMessage()),
+      message: /permission|denied|not authorized|access/i.test(raw)
+        ? permissionDeniedMessage(source === CameraSource.Photos ? "photos" : "camera")
+        : friendlyHardwareMessage(raw, cameraCaptureFailedMessage()),
     };
   }
 }

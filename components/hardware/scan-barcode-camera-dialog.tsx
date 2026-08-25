@@ -27,7 +27,6 @@ import {
   type CameraScannerSession,
 } from "@/services/hardware";
 import {
-  Hardware,
   isCapacitor,
   permissionNeedMessage,
 } from "@novend/hardware";
@@ -117,16 +116,6 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
       const abortController = new AbortController();
       scanAbortRef.current = abortController;
 
-      if (native) {
-        const permission = await Hardware.camera.ensurePermission("camera");
-        if (gen !== startGenRef.current) return;
-        if (!permission.ok) {
-          setError(permission.message || permissionNeedMessage("camera"));
-          setStarting(false);
-          return;
-        }
-      }
-
       if (!isCameraBarcodeSupported()) {
         setError(permissionNeedMessage("camera"));
         setStarting(false);
@@ -147,6 +136,8 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
       }
 
       try {
+        // getUserMedia owns the WebView permission prompt. A separate native
+        // check/request can return a stale denial after Android resumes.
         const scanner = await startCameraBarcodeScanning({
           video,
           deviceId: deviceId || undefined,
@@ -187,7 +178,7 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
         if (gen === startGenRef.current) setStarting(false);
       }
     },
-    [native, onDetect, onOpenChange],
+    [onDetect, onOpenChange],
   );
 
   useEffect(() => {

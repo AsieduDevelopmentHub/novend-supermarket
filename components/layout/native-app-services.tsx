@@ -59,9 +59,10 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
     let cancelled = false;
     let removeUrlListener: (() => Promise<void>) | null = null;
     let removeBackListener: (() => Promise<void>) | null = null;
+    let listenersDisposed = false;
     // Fail-open only while resolving prefs/token — clear before authenticate so a
     // short timer cannot unlock during the system biometric prompt.
-    let failOpen = window.setTimeout(() => {
+    const failOpen = window.setTimeout(() => {
       if (!cancelled) setGate((current) => (current === "checking" ? "open" : current));
     }, NATIVE_AVAILABILITY_TIMEOUT_MS);
 
@@ -118,7 +119,8 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
         if (safe) router.push(safe);
       })
       .then((handle) => {
-        removeUrlListener = handle.remove;
+        if (listenersDisposed) void handle.remove();
+        else removeUrlListener = handle.remove;
       });
 
     void Hardware.app
@@ -130,11 +132,13 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
         setExitOpen(true);
       })
       .then((handle) => {
-        removeBackListener = handle.remove;
+        if (listenersDisposed) void handle.remove();
+        else removeBackListener = handle.remove;
       });
 
     return () => {
       cancelled = true;
+      listenersDisposed = true;
       window.clearTimeout(failOpen);
       void removeUrlListener?.();
       void removeBackListener?.();

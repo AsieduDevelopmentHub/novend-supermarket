@@ -11,6 +11,7 @@ import {
 } from "@novend/hardware";
 import { Fingerprint, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { runNativeSettingsCheck } from "@/features/settings/native-settings-check";
 
 type BiometricUiState =
   | "checking"
@@ -45,10 +46,12 @@ export function BiometricSecurityCard() {
     }, NATIVE_AVAILABILITY_TIMEOUT_MS + 2000);
 
     try {
-      const [avail, prefs] = await Promise.all([
-        Hardware.biometrics.checkAvailability(),
-        Hardware.biometrics.getPrefs(),
-      ]);
+      const [avail, prefs] = await runNativeSettingsCheck(() =>
+        Promise.all([
+          Hardware.biometrics.checkAvailability(),
+          Hardware.biometrics.getPrefs(),
+        ]),
+      );
       if (generation !== checkGenerationRef.current) return;
       const data = avail.data ?? {
         available: false,
@@ -92,16 +95,27 @@ export function BiometricSecurityCard() {
   }, []);
 
   useEffect(() => {
-    void refreshAvailability(true);
-
+    let disposed = false;
+    let refreshRunning = false;
     let remove: (() => Promise<void>) | null = null;
+    const runRefresh = (showLoading: boolean) => {
+      if (disposed || refreshRunning) return;
+      refreshRunning = true;
+      void refreshAvailability(showLoading).finally(() => {
+        refreshRunning = false;
+      });
+    };
+    runRefresh(true);
+
     void Hardware.app.addAppStateListener((isActive) => {
-      if (isActive) void refreshAvailability(false);
+      if (isActive) runRefresh(false);
     }).then((handle) => {
-      remove = handle.remove;
+      if (disposed) void handle.remove();
+      else remove = handle.remove;
     });
 
     return () => {
+      disposed = true;
       checkGenerationRef.current += 1;
       void remove?.();
     };

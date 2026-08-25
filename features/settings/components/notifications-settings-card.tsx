@@ -14,6 +14,7 @@ import {
 } from "@novend/hardware";
 import { Bell, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { runNativeSettingsCheck } from "@/features/settings/native-settings-check";
 
 const TOPICS: Array<{ id: NotificationTopic; label: string; description: string }> = [
   {
@@ -54,10 +55,12 @@ export function NotificationsSettingsCard() {
 
   const refresh = useCallback(async () => {
     try {
-      const permission = await Hardware.notifications.checkPermissions();
+      const { permission, topics } = await runNativeSettingsCheck(async () => ({
+        permission: await Hardware.notifications.checkPermissions(),
+        topics: await Hardware.notifications.getTopicPrefs(),
+      }));
       setState(permission.data?.state ?? (permission.data?.granted ? "granted" : "not-requested"));
       setErrorMessage(permission.ok ? null : permission.message || null);
-      const topics = await Hardware.notifications.getTopicPrefs();
       setPrefs(topics.data ?? EMPTY_PREFS);
     } catch {
       setState("error");
@@ -70,6 +73,16 @@ export function NotificationsSettingsCard() {
 
   useEffect(() => {
     let cancelled = false;
+    let registrationDisposed = false;
+    let remove: (() => Promise<void>) | null = null;
+    let refreshRunning = false;
+    const runRefresh = () => {
+      if (cancelled || refreshRunning) return;
+      refreshRunning = true;
+      void refresh().finally(() => {
+        refreshRunning = false;
+      });
+    };
     const hardStop = window.setTimeout(() => {
       if (cancelled) return;
       setLoading((stillLoading) => {
@@ -89,15 +102,16 @@ export function NotificationsSettingsCard() {
       if (!cancelled) window.clearTimeout(hardStop);
     })();
 
-    let remove: (() => Promise<void>) | null = null;
     void Hardware.app.addAppStateListener((isActive) => {
-      if (isActive) void refresh();
+      if (isActive) runRefresh();
     }).then((handle) => {
-      remove = handle.remove;
+      if (registrationDisposed) void handle.remove();
+      else remove = handle.remove;
     });
 
     return () => {
       cancelled = true;
+      registrationDisposed = true;
       window.clearTimeout(hardStop);
       void remove?.();
     };

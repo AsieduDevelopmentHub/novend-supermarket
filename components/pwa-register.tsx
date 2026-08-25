@@ -46,6 +46,7 @@ export function PwaRegister() {
     void navigator.serviceWorker
       .register("/sw.js")
       .then(async (registration) => {
+        await registration.update().catch(() => undefined);
         await navigator.serviceWorker.ready;
         if (!navigator.onLine) return registration;
         // Warm shell HTML + trigger static asset caching in the background.

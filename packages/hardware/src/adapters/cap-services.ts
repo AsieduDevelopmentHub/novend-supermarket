@@ -400,7 +400,11 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
         const endpoint =
           typeof process !== "undefined" && process.env?.NEXT_PUBLIC_MOBILE_UPDATE_JSON
             ? process.env.NEXT_PUBLIC_MOBILE_UPDATE_JSON
-            : null;
+            : typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CONVEX_SITE_URL
+              ? `${process.env.NEXT_PUBLIC_CONVEX_SITE_URL.replace(/\/$/, "")}/mobile-updates/latest`
+              : typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CONVEX_URL
+                ? `${process.env.NEXT_PUBLIC_CONVEX_URL.replace(/\.convex\.cloud\/?$/, ".convex.site")}/mobile-updates/latest`
+              : null;
         if (!endpoint) {
           return {
             ok: true,
@@ -419,8 +423,22 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           version?: string;
           notes?: string;
           storeUrl?: string;
+          downloadUrl?: string;
         };
-        const available = Boolean(remote.version && remote.version !== info.version);
+        const compareVersions = (left: string, right: string) => {
+          const parse = (value: string) => value.replace(/^v/i, "").split(".").map((part) => {
+            const number = Number.parseInt(part, 10);
+            return Number.isFinite(number) ? number : 0;
+          });
+          const a = parse(left);
+          const b = parse(right);
+          for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+            const delta = (a[index] ?? 0) - (b[index] ?? 0);
+            if (delta !== 0) return delta;
+          }
+          return 0;
+        };
+        const available = Boolean(remote.version && compareVersions(remote.version, info.version) > 0);
         return {
           ok: true,
           data: {
@@ -428,6 +446,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
             version: remote.version,
             notes: remote.notes,
             storeUrl: remote.storeUrl,
+            downloadUrl: remote.downloadUrl,
           },
         };
       } catch {
@@ -437,6 +456,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
     async openStoreListing() {
       const update = await this.checkForUpdate();
       const url =
+        update.data?.downloadUrl ||
         update.data?.storeUrl ||
         "https://play.google.com/store/apps/details?id=com.novend.pos";
       return this.openExternalUrl(url);

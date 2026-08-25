@@ -49,6 +49,7 @@ export type UpdateInfo = {
   version?: string;
   notes?: string;
   storeUrl?: string;
+  downloadUrl?: string;
 };
 
 export type BiometricsAdapter = {
