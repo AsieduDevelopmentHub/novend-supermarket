@@ -1,10 +1,9 @@
 import {
   convexAuthNextjsMiddleware,
   createRouteMatcher,
-  nextjsMiddlewareRedirect,
 } from "@convex-dev/auth/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
 import { loginPathWithNext, resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 
@@ -23,6 +22,16 @@ const isPublicRoute = createRouteMatcher([
 const isPlatformRoute = createRouteMatcher(["/platform(.*)"]);
 const isAdminOnly = createRouteMatcher(["/branches(.*)"]);
 const isAdminOrManager = createRouteMatcher(["/analytics(.*)", "/users(.*)"]);
+
+/**
+ * Prefer NextResponse.redirect over nextjsMiddlewareRedirect when the target
+ * includes a query string. The Convex helper treats the whole href as a
+ * pathname (encoding `?` → `%3F`) and re-appends the original search
+ * (`fromBoot=1`), which breaks Cap/WebView cold start with net::ERR_FAILED.
+ */
+function redirectTo(request: NextRequest, href: string) {
+  return NextResponse.redirect(new URL(href, request.nextUrl.origin));
+}
 
 function buildCsp(nonce: string) {
   const isDev = process.env.NODE_ENV === "development";
@@ -95,7 +104,7 @@ export default convexAuthNextjsMiddleware(
       const session = await sessionForToken(await convexAuth.getToken());
       const next = request.nextUrl.searchParams.get("next");
       const destination = resolvePostAuthPath(session, next);
-      return withSecurityHeaders(nextjsMiddlewareRedirect(request, destination), nonce);
+      return withSecurityHeaders(redirectTo(request, destination), nonce);
     }
 
     if (!isPublicRoute(request) && !authenticated) {
@@ -103,7 +112,7 @@ export default convexAuthNextjsMiddleware(
         request.nextUrl.pathname,
         request.nextUrl.search,
       );
-      return withSecurityHeaders(nextjsMiddlewareRedirect(request, loginHref), nonce);
+      return withSecurityHeaders(redirectTo(request, loginHref), nonce);
     }
 
     if (
@@ -123,14 +132,14 @@ export default convexAuthNextjsMiddleware(
         );
       }
       if (isAdminOnly(request) && session.role !== "administrator") {
-        return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);
+        return withSecurityHeaders(redirectTo(request, "/dashboard"), nonce);
       }
       if (
         isAdminOrManager(request) &&
         session.role !== "administrator" &&
         session.role !== "manager"
       ) {
-        return withSecurityHeaders(nextjsMiddlewareRedirect(request, "/dashboard"), nonce);
+        return withSecurityHeaders(redirectTo(request, "/dashboard"), nonce);
       }
     }
 

@@ -87,10 +87,10 @@
         <p>Restoring your local workspace…</p>
       </div>
       <div id="failed" class="hidden">
-        <h1>Can’t start offline yet</h1>
-        <p>
-          Connect once while online so this device can cache the app shell. After that, Novend opens
-          from the local cache without a network.
+        <h1>Can’t reach Novend right now</h1>
+        <p id="failed-detail">
+          Check your internet connection, then try again. After you open Novend once while online,
+          this device can start from the local cache.
         </p>
         <button type="button" id="retry">Try again</button>
       </div>
@@ -112,12 +112,14 @@
 
         var booting = document.getElementById("booting");
         var failed = document.getElementById("failed");
+        var failedDetail = document.getElementById("failed-detail");
         var retry = document.getElementById("retry");
         var navigated = false;
 
-        function showFailed() {
+        function showFailed(message) {
           booting.classList.add("hidden");
           failed.classList.remove("hidden");
+          if (message && failedDetail) failedDetail.textContent = message;
         }
 
         function go() {
@@ -137,7 +139,11 @@
           if (!navigated) return;
           var host = window.location.hostname;
           if (host === "localhost" || host === "capacitor" || window.location.protocol === "file:") {
-            showFailed();
+            showFailed(
+              navigator.onLine === false
+                ? "This device looks offline. Connect to the internet and try again."
+                : "Novend could not open. Check your connection and try again.",
+            );
           }
         }, 8000);
 

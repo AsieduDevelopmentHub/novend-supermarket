@@ -90,5 +90,25 @@ export function loginPathWithNext(pathname: string, search = ""): string {
   const candidate = `${pathname}${search}`;
   const safe = safeInternalPath(candidate);
   if (!safe) return "/login";
-  return `/login?next=${encodeURIComponent(safe)}`;
+  // Cap/Electron cold start appends fromBoot=1; keep that off the return path.
+  let next = safe;
+  try {
+    const url = new URL(safe, "http://novend.local");
+    url.searchParams.delete("fromBoot");
+    const path = url.pathname.replace(/\/$/, "") || "/";
+    const q = url.searchParams.toString();
+    next = q ? `${path}?${q}` : path;
+  } catch {
+    /* keep safe */
+  }
+  const params = new URLSearchParams();
+  params.set("next", next);
+  // Preserve boot marker on /login so RestoreLastRoute can run after sign-in.
+  try {
+    const incoming = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+    if (incoming.get("fromBoot") === "1") params.set("fromBoot", "1");
+  } catch {
+    /* ignore */
+  }
+  return `/login?${params.toString()}`;
 }

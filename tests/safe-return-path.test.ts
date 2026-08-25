@@ -57,4 +57,10 @@ describe("loginPathWithNext", () => {
   it("omits next when the path is not restorable", () => {
     expect(loginPathWithNext("/login", "")).toBe("/login");
   });
+
+  it("strips fromBoot from next and keeps it on login", () => {
+    expect(loginPathWithNext("/dashboard", "?fromBoot=1")).toBe(
+      `/login?next=${encodeURIComponent("/dashboard")}&fromBoot=1`,
+    );
+  });
 });
