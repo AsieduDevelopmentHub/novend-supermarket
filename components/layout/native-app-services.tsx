@@ -46,7 +46,7 @@ type Gate = "checking" | "locked" | "open";
  */
 export function NativeAppServices({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [gate, setGate] = useState<Gate>(() => (isCapacitor() ? "checking" : "open"));
+  const [gate, setGate] = useState<Gate>("open");
   const [updateOpen, setUpdateOpen] = useState(false);
   const [updateNotes, setUpdateNotes] = useState("");
   const [updateVersion, setUpdateVersion] = useState("");
@@ -88,6 +88,7 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
           if (!cancelled) setGate("open");
           return;
         }
+        if (!cancelled) setGate("checking");
         window.clearTimeout(failOpen);
         const auth = await withTimeout(
           Hardware.biometrics.authenticate("Unlock Novend POS"),
@@ -106,7 +107,7 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
       if (launch.data) {
         const href = parseDeepLink(launch.data);
         const safe = href ? safeInternalPath(href) : null;
-        if (safe) router.push(safe);
+        if (safe) router.replace(safe);
       }
       const update = await Hardware.app.checkForUpdate();
       const appInfo = await Hardware.app.getInfo();
@@ -126,7 +127,7 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
       .addUrlOpenListener((url) => {
         const href = parseDeepLink(url);
         const safe = href ? safeInternalPath(href) : null;
-        if (safe) router.push(safe);
+        if (safe) router.replace(safe);
       })
       .then((handle) => {
         if (listenersDisposed) void handle.remove();

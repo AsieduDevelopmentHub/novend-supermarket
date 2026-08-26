@@ -94,31 +94,19 @@ export async function resolvePostLoginPath(
 }
 
 /**
- * Navigate after sign-in without unloading the document.
+ * Leave auth pages for the app shell.
  *
- * Soft `replace` only — do not call `router.refresh()` immediately. Refreshing
- * while still notionally on `/login` races Convex Auth cookie sync and the
- * middleware “authenticated on /login → redirect” gate, which can leave a blank
- * screen with the URL stuck on `/login`.
+ * Capacitor / offline: SoftNav is not mounted on `/login`, so history+popstate
+ * alone leaves the login layout painted on top of a dashboard URL (stacked
+ * splash / broken dashboard). Use a single `location.replace` instead.
  *
- * Hard `window.location` is a delayed fallback only if soft nav never leaves
- * the auth pages (after refresh tokens have had time to sync).
+ * Web online: soft `router.replace`, with a hard fallback if we never leave auth.
  */
 export function navigateAfterLogin(path: string, router: AppRouter): void {
   markSkipStartupSplash();
 
-  // Cap / offline: client shell routing via history — RSC soft nav fails offline.
   if (typeof window !== "undefined" && (isCapacitor() || !navigator.onLine)) {
-    window.history.replaceState({}, "", path);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-    // Soft replace still helps cookie/middleware catch up when Cap is online.
-    if (navigator.onLine) {
-      try {
-        router.replace(path);
-      } catch {
-        /* ignore */
-      }
-    }
+    window.location.replace(path);
     return;
   }
 

@@ -9,7 +9,8 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const appUrl = (process.env.NOVEND_APP_URL || "https://novend-pos.vercel.app").replace(/\/$/, "");
-const entry = "/login";
+// Same entry as Electron / CAPACITOR_MOBILE.md. Unauthenticated → middleware /login.
+const entry = "/dashboard";
 const dest = join(root, "apps/mobile/www/app-config.js");
 
 writeFileSync(

@@ -83,48 +83,63 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     return () => window.clearTimeout(timer);
   }, []);
 
-  // Cap cold start often lands on /login. When Convex cannot settle offline (or
-  // navigator lies about being online), resume the cached workspace immediately.
+  function withBootMarker(path: string): string {
+    if (!fromBoot || path.includes("fromBoot=")) return path;
+    return `${path}${path.includes("?") ? "&" : "?"}fromBoot=1`;
+  }
+
+  // Cached session: leave /login immediately (no waiting on Convex / brand chrome).
   useEffect(() => {
     if (redirectingRef.current || pending || isAuthenticated) return;
     if (!hasOfflineSession()) return;
 
-    const resumeFromCache = () => {
-      if (redirectingRef.current || isAuthenticated) return;
-      redirectingRef.current = true;
-      setOpeningWorkspace(true);
-      const path = resolvePostAuthPath({
-        isPlatformAdmin: false,
-        needsOnboarding: false,
-        needsProfile: false,
-      });
-      navigateAfterLogin(path, router);
-    };
-
-    if (!online) {
-      resumeFromCache();
-      return;
+    const shouldResumeNow = !online || fromBoot || isCapacitor();
+    if (!shouldResumeNow) return;
+    // Online Cap without fromBoot: give live auth a brief head start, then resume.
+    if (online && !fromBoot && authLoading) {
+      const timer = window.setTimeout(() => {
+        if (redirectingRef.current || isAuthenticated) return;
+        redirectingRef.current = true;
+        setOpeningWorkspace(true);
+        navigateAfterLogin(
+          withBootMarker(
+            resolvePostAuthPath({
+              isPlatformAdmin: false,
+              needsOnboarding: false,
+              needsProfile: false,
+            }),
+          ),
+          router,
+        );
+      }, 800);
+      return () => window.clearTimeout(timer);
     }
 
-    // Cap / cold boot: auth may hang while "online". Resume cache so closing the
-    // app never feels like a forced re-login when a local session exists.
-    if (!fromBoot && !isCapacitor()) return;
-    if (!authLoading && !fromBoot) return;
-    const budgetMs = fromBoot ? 2500 : 4500;
-    const timer = window.setTimeout(resumeFromCache, budgetMs);
-    return () => window.clearTimeout(timer);
+    redirectingRef.current = true;
+    setOpeningWorkspace(true);
+    navigateAfterLogin(
+      withBootMarker(
+        resolvePostAuthPath({
+          isPlatformAdmin: false,
+          needsOnboarding: false,
+          needsProfile: false,
+        }),
+      ),
+      router,
+    );
   }, [online, fromBoot, isAuthenticated, authLoading, pending, router]);
 
-  // Already signed in (e.g. opened /login with a live session) — leave auth pages.
+  // Already signed in without submitting credentials.
+  // Keep fromBoot so cold start can restore the last in-app route after shell mount.
   useEffect(() => {
     if (!isAuthenticated || authLoading || redirectingRef.current || pending) return;
     redirectingRef.current = true;
     setOpeningWorkspace(true);
     void (async () => {
       const path = await resolvePostLoginPath(convex);
-      navigateAfterLogin(path, router);
+      navigateAfterLogin(withBootMarker(path), router);
     })();
-  }, [isAuthenticated, authLoading, convex, router, pending]);
+  }, [isAuthenticated, authLoading, convex, router, pending, fromBoot]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -153,8 +168,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       await signIn("password", formData);
       toast.success("Welcome");
 
-      // Navigate from the submit path — do not wait for reactive `me` (that left
-      // /login blank until reload). resolvePostLoginPath retries while the token settles.
+  // Fresh password sign-in: always Dashboard (ignore last route / fromBoot).
       redirectingRef.current = true;
       setOpeningWorkspace(true);
       const path = await resolvePostLoginPath(convex);
