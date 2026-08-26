@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useQuery } from "convex/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
@@ -16,8 +16,10 @@ import { isCapacitor } from "@novend/hardware";
  * last in-app path from localStorage once the hosted origin is loaded.
  * Never restore /platform for a non–platform-admin session.
  * Cap/offline: use history + popstate so OfflineOutlet engages (not RSC).
+ *
+ * Not used after credential login — that always lands on Dashboard.
  */
-export function RestoreLastRoute() {
+function RestoreLastRouteInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -40,14 +42,11 @@ export function RestoreLastRoute() {
     const safe = last ? safeInternalPath(last) : null;
     const isPlatformPath = Boolean(safe && (safe === "/platform" || safe.startsWith("/platform/")));
     const canRestorePlatform = Boolean(me?.isPlatformAdmin);
-    const role = (me?.role as AppRole | undefined) ?? (readOfflineSession()?.role as AppRole | undefined);
+    const role =
+      (me?.role as AppRole | undefined) ?? (readOfflineSession()?.role as AppRole | undefined);
     const roleOk =
-      !safe ||
-      isPlatformPath ||
-      !role ||
-      pathAllowedForRole(safe.split("?")[0] || safe, role);
-    const allowed =
-      safe && (!isPlatformPath || canRestorePlatform) && roleOk ? safe : null;
+      !safe || isPlatformPath || !role || pathAllowedForRole(safe.split("?")[0] || safe, role);
+    const allowed = safe && (!isPlatformPath || canRestorePlatform) && roleOk ? safe : null;
 
     const target =
       allowed && allowed !== cleanedCurrent
@@ -69,4 +68,12 @@ export function RestoreLastRoute() {
   }, [pathname, router, searchParams, online, me]);
 
   return null;
+}
+
+export function RestoreLastRoute() {
+  return (
+    <Suspense fallback={null}>
+      <RestoreLastRouteInner />
+    </Suspense>
+  );
 }

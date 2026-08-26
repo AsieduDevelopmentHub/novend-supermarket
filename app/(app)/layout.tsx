@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { AppSidebar, MobileSidebar } from "@/components/layout/app-sidebar";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { NativeAppServices } from "@/components/layout/native-app-services";
+import { RestoreLastRoute } from "@/components/layout/restore-last-route";
 import { PlatformShell } from "@/components/layout/platform-shell";
 import { ErrorState } from "@/components/feedback/error-state";
 import { AppSplash } from "@/features/auth/components/app-splash";
@@ -362,6 +363,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       <NativeAppServices>
         <OfflineProvider key={replicaKey}>
           <OfflineNavigationProvider>
+            <RestoreLastRoute />
             <PlatformShell
               hasTenantRole={Boolean(user?.role ?? platformSession?.hasTenantRole)}
               sessionName={user?.name ?? platformSession?.name}
@@ -415,6 +417,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     <NativeAppServices>
       <OfflineProvider key={replicaKey}>
         <OfflineNavigationProvider>
+          <RestoreLastRoute />
           <div
             className={cn(
               "bg-background flex h-dvh max-h-dvh overflow-hidden overscroll-none",

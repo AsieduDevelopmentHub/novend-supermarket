@@ -1,13 +1,15 @@
 import { LoginForm } from "@/features/auth/components/login-form";
 import { LoginBrandPanel } from "@/features/auth/components/login-brand-panel";
 import { LoginAtmosphere } from "@/features/auth/components/login-atmosphere";
+import { LoginSessionGate } from "@/features/auth/components/login-session-gate";
 
 /**
  * Login — mobile hero + overlapping sheet, desktop split card.
+ * Session gate replaces the whole chrome while an existing session resumes.
  */
 export default function LoginPage() {
   return (
-    <>
+    <LoginSessionGate>
       {/* Mobile — brand hero with form sheet overlapping rounded top */}
       <div className="bg-background relative flex max-h-dvh min-h-dvh flex-col overflow-y-auto overscroll-y-contain md:hidden">
         <LoginBrandPanel variant="mobile" className="h-[min(42dvh,300px)] min-h-[220px] shrink-0" />
@@ -26,6 +28,6 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-    </>
+    </LoginSessionGate>
   );
 }

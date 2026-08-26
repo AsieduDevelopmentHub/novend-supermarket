@@ -103,9 +103,10 @@
           window.NOVEND_APP_URL ||
           "https://novend-pos.vercel.app"
         ).replace(/\/$/, "");
-        // Prefer /login — always returns HTML when signed out. Booting /dashboard
-        // triggers an auth 307 that Android WebView often surfaces as net::ERR_FAILED.
-        var entry = params.get("entry") || window.NOVEND_APP_ENTRY || "/login";
+        // Boot the app shell (same as Electron). Middleware sends signed-out users
+        // to /login?fromBoot=1. Avoid /login as the default so authenticated opens
+        // never paint the login brand chrome first.
+        var entry = params.get("entry") || window.NOVEND_APP_ENTRY || "/dashboard";
         if (entry.charAt(0) !== "/") entry = "/" + entry;
         var sep = entry.indexOf("?") >= 0 ? "&" : "?";
         var target = appUrl + entry + sep + "fromBoot=1";
