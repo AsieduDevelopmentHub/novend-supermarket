@@ -19,6 +19,7 @@ import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
+import { isCapacitor } from "@novend/hardware";
 import { navigateAfterLogin, resolvePostLoginPath } from "@/lib/auth/redirect-after-login";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { hasOfflineSession } from "@/lib/offline/session";
@@ -105,10 +106,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       return;
     }
 
-    // Boot path while "online" but auth still loading — Cap often lies about
-    // connectivity. Fall back to the local session after a short budget.
-    if (!fromBoot || !authLoading) return;
-    const timer = window.setTimeout(resumeFromCache, 2500);
+    // Cap / cold boot: auth may hang while "online". Resume cache so closing the
+    // app never feels like a forced re-login when a local session exists.
+    if (!fromBoot && !isCapacitor()) return;
+    if (!authLoading && !fromBoot) return;
+    const budgetMs = fromBoot ? 2500 : 4500;
+    const timer = window.setTimeout(resumeFromCache, budgetMs);
     return () => window.clearTimeout(timer);
   }, [online, fromBoot, isAuthenticated, authLoading, pending, router]);
 

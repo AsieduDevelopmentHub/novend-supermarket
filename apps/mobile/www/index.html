@@ -133,9 +133,12 @@
 
         function go() {
           if (requestInFlight || navigated) return;
+
+          // Offline-first: still hand off to the hosted origin so the service
+          // worker can serve the cached shell. Never leave users on a system
+          // "can't reach vercel.app" page from this boot screen.
           if (navigator.onLine === false) {
-            // Keep the local recovery UI visible until connectivity returns.
-            showFailed("This device looks offline. Connect to the internet and try again.");
+            leaveBoot();
             return;
           }
 
@@ -162,9 +165,8 @@
                 response.type !== "opaque" &&
                 response.type !== "opaqueredirect"
               ) {
-                showFailed(
-                  "Novend is temporarily unavailable. Check your connection and try again.",
-                );
+                // Prefer cached shell over staying on boot forever.
+                leaveBoot();
                 return;
               }
               leaveBoot();
@@ -172,11 +174,8 @@
             .catch(function () {
               window.clearTimeout(timer);
               requestInFlight = false;
-              showFailed(
-                navigator.onLine === false
-                  ? "This device looks offline. Connect to the internet and try again."
-                  : "Novend could not open right now. Try again in a moment.",
-              );
+              // Still attempt the cached document — SW may answer offline.
+              leaveBoot();
             });
         }
 

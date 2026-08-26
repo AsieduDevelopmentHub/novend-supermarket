@@ -14,6 +14,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { persistLastRoute } from "@/lib/auth/last-route";
 import { useForceClientShell } from "@/hooks/use-force-client-shell";
+import { usePermissions } from "@/hooks/use-permissions";
+import { pathAllowedForRole } from "@/config/navigation";
+import { AccessDenied } from "@/components/feedback/access-denied";
 import { resolveOfflineView } from "@/providers/offline-views";
 
 type OfflineNavigationContextValue = {
@@ -201,7 +204,11 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
 /** Renders the client feature view inside the shell main area (keeps sidebar mounted). */
 export function OfflineOutlet({ children }: { children: ReactNode }) {
   const { clientRouting, activePath } = useOfflineNavigation();
+  const { role, isLoading } = usePermissions();
   if (clientRouting && activePath) {
+    if (!isLoading && role && !pathAllowedForRole(activePath, role)) {
+      return <AccessDenied />;
+    }
     return <>{resolveOfflineView(activePath)}</>;
   }
   return <>{children}</>;

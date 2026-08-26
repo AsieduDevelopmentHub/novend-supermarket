@@ -26,7 +26,7 @@ import { OfflineNavigationProvider, OfflineOutlet } from "@/providers/offline-na
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useNativeShell } from "@/hooks/use-native-shell";
 import { loadShellProfile, saveShellProfile, type ShellProfile } from "@/lib/offline/shell-profile";
-import { markOfflineSession, readOfflineSession } from "@/lib/offline/session";
+import { markOfflineSession, readOfflineSession, hasOfflineSession } from "@/lib/offline/session";
 import {
   bindPlatformOfflineDb,
   markPlatformOfflineSession,
@@ -129,9 +129,10 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Only force login while online — offline refresh must use the cached session.
+  // Only force login while online and there is no local offline session.
+  // Cap often flickers "online" without a Convex token — never kick a cached cashier out.
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && online) {
+    if (!isLoading && !isAuthenticated && online && !hasOfflineSession()) {
       router.replace("/login");
       multiBranchReady.current = false;
     }

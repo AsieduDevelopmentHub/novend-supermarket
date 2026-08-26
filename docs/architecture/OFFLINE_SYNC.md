@@ -69,12 +69,19 @@ Pull snapshot + drain outbox
 These cannot complete locally without weakening security or talking to a
 payment network:
 
-- First login, signup, and onboarding
+- **First** login, signup, and onboarding on a new device
 - Creating a new login (password is stored by Convex Auth)
 - Changing a password
 - Paystack checkout and live billing mutations
 - Cloud backup upload/download
 - Desktop auto-update download
+
+After the first successful online sign-in, this device keeps an **offline
+session** (local shell profile + Dexie replica) for up to **30 days**. Closing
+the Cap app does **not** sign you out. Cold start resumes from cache when
+offline or when Convex is slow — you only need the network again for the
+first login on a new device, after an explicit Sign out, or when the offline
+session expires.
 
 Name, phone, catalog, inventory, wholesale, suppliers, customers, expenses,
 sales, returns, reports, and analytics all continue on the device.

@@ -126,14 +126,14 @@ export default convexAuthNextjsMiddleware(
         return withSecurityHeaders(redirectTo(request, "/dashboard"), nonce);
       }
       if (isAdminOnly(request) && session.role !== "administrator") {
-        return withSecurityHeaders(redirectTo(request, "/dashboard"), nonce);
+        return withSecurityHeaders(redirectTo(request, "/unauthorized"), nonce);
       }
       if (
         isAdminOrManager(request) &&
         session.role !== "administrator" &&
         session.role !== "manager"
       ) {
-        return withSecurityHeaders(redirectTo(request, "/dashboard"), nonce);
+        return withSecurityHeaders(redirectTo(request, "/unauthorized"), nonce);
       }
     }
 

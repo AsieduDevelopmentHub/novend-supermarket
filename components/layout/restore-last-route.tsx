@@ -6,7 +6,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { FROM_BOOT_PARAM, readLastRoute } from "@/lib/auth/last-route";
 import { safeInternalPath } from "@/lib/auth/safe-return-path";
+import { pathAllowedForRole, type AppRole } from "@/config/navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { readOfflineSession } from "@/lib/offline/session";
 import { isCapacitor } from "@novend/hardware";
 
 /**
@@ -38,7 +40,14 @@ export function RestoreLastRoute() {
     const safe = last ? safeInternalPath(last) : null;
     const isPlatformPath = Boolean(safe && (safe === "/platform" || safe.startsWith("/platform/")));
     const canRestorePlatform = Boolean(me?.isPlatformAdmin);
-    const allowed = safe && (!isPlatformPath || canRestorePlatform) ? safe : null;
+    const role = (me?.role as AppRole | undefined) ?? (readOfflineSession()?.role as AppRole | undefined);
+    const roleOk =
+      !safe ||
+      isPlatformPath ||
+      !role ||
+      pathAllowedForRole(safe.split("?")[0] || safe, role);
+    const allowed =
+      safe && (!isPlatformPath || canRestorePlatform) && roleOk ? safe : null;
 
     const target =
       allowed && allowed !== cleanedCurrent

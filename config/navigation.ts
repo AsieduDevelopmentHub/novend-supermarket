@@ -206,6 +206,18 @@ export function flatNavForRole(role: AppRole): NavItem[] {
   return items;
 }
 
+/** True when `path` is allowed for this role (nav + settings). Platform is separate. */
+export function pathAllowedForRole(path: string, role: AppRole): boolean {
+  const pathname = path.split("?")[0] || path;
+  if (pathname === "/more" || pathname.startsWith("/more/")) return true;
+  if (pathname === "/about" || pathname.startsWith("/about/")) return true;
+  if (pathname === "/unauthorized") return true;
+  if (pathname === "/onboarding" || pathname.startsWith("/onboarding/")) return true;
+  return flatNavForRole(role).some(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  );
+}
+
 /** @deprecated Prefer navGroupsForRole or flatNavForRole. */
 export function navForRole(role: AppRole) {
   return flatNavForRole(role);
