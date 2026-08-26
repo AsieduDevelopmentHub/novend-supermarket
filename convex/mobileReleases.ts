@@ -509,6 +509,17 @@ export const assetHttp = httpAction(async (ctx, request) => {
 });
 
 export const latestMetaHttp = httpAction(async (ctx, request) => {
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Max-Age": "86400",
+      },
+    });
+  }
   if (request.method !== "GET") {
     return new Response("Method not allowed", { status: 405 });
   }
@@ -518,7 +529,10 @@ export const latestMetaHttp = httpAction(async (ctx, request) => {
   if (!release) {
     return new Response(JSON.stringify({ ok: false, error: "No releases" }), {
       status: 404,
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
     });
   }
 
@@ -551,6 +565,7 @@ export const latestMetaHttp = httpAction(async (ctx, request) => {
       headers: {
         "content-type": "application/json",
         "cache-control": "no-cache",
+        "Access-Control-Allow-Origin": "*",
       },
     },
   );

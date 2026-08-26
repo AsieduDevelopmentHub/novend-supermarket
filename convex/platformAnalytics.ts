@@ -435,6 +435,9 @@ export const systemHealth = query({
         active: activeDevices.length,
         desktop: activeDevices.filter((d) => d.runtime === "desktop").length,
         web: activeDevices.filter((d) => d.runtime === "web").length,
+        android: activeDevices.filter((d) => d.runtime === "android").length,
+        ios: activeDevices.filter((d) => d.runtime === "ios").length,
+        mobile: activeDevices.filter((d) => d.runtime === "android" || d.runtime === "ios").length,
         seenLast24h: activeDevices.filter((d) => d.lastSeenAt >= dayAgo).length,
       },
       storage: {

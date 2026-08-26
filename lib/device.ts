@@ -5,14 +5,20 @@
  * (and mirrored into the offline database). It is deliberately not a hardware
  * fingerprint: Novend counts installations, not machines, so reinstalling on
  * the same computer is expected to consume a slot until the old one is removed.
+ *
+ * Capacitor and the mobile browser are separate installations even on one phone:
+ * they use different storage + different runtime labels (`android`/`ios` vs `web`).
  */
 
+import { APP_VERSION } from "@/constants/app";
 import { formatOperatingSystem, getDesktopBridge, isDesktopRuntime } from "@/lib/desktop";
+import { Hardware, getPlatform, isCapacitor } from "@novend/hardware";
 
 const FINGERPRINT_KEY = "novend.device.fingerprint";
+const FINGERPRINT_KEY_CAP = "novend.device.fingerprint.native";
 const NAME_KEY = "novend.device.name";
 
-export type DeviceRuntime = "desktop" | "web";
+export type DeviceRuntime = "desktop" | "web" | "android" | "ios";
 
 export type DeviceIdentity = {
   fingerprint: string;
@@ -29,14 +35,27 @@ function randomId(): string {
   return `dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function fingerprintStorageKey(): string {
+  return isCapacitor() ? FINGERPRINT_KEY_CAP : FINGERPRINT_KEY;
+}
+
 /** Stable identifier for this installation. Created on first use. */
 export function getDeviceFingerprint(): string {
   if (typeof window === "undefined") return "";
+  const key = fingerprintStorageKey();
   try {
-    const existing = window.localStorage.getItem(FINGERPRINT_KEY);
+    const existing = window.localStorage.getItem(key);
     if (existing) return existing;
+    // Migrate legacy Cap installs that wrote the shared web key before we split.
+    if (isCapacitor()) {
+      const legacy = window.localStorage.getItem(FINGERPRINT_KEY);
+      if (legacy) {
+        window.localStorage.setItem(key, legacy);
+        return legacy;
+      }
+    }
     const created = randomId();
-    window.localStorage.setItem(FINGERPRINT_KEY, created);
+    window.localStorage.setItem(key, created);
     return created;
   } catch {
     // Private browsing without storage: fall back to a session-only id so the
@@ -76,8 +95,29 @@ function detectBrowserName(userAgent: string): string {
   if (/Edg\//i.test(userAgent)) return "Edge";
   if (/OPR\//i.test(userAgent)) return "Opera";
   if (/Chrome\//i.test(userAgent) && !/Chromium/i.test(userAgent)) return "Chrome";
-  if (/Firefox\//i.test(userAgent)) return "Firefox";
+  if (/Firefox/i.test(userAgent)) return "Firefox";
   if (/Safari\//i.test(userAgent)) return "Safari";
+  return "Browser";
+}
+
+function runtimeLabel(runtime: DeviceRuntime): string {
+  switch (runtime) {
+    case "desktop":
+      return "Desktop app";
+    case "android":
+      return "Android app";
+    case "ios":
+      return "iOS app";
+    default:
+      return "Browser";
+  }
+}
+
+/** Human label for activated-device lists. */
+export function formatDeviceRuntime(runtime: string | null | undefined): string {
+  if (runtime === "desktop" || runtime === "android" || runtime === "ios" || runtime === "web") {
+    return runtimeLabel(runtime);
+  }
   return "Browser";
 }
 
@@ -107,11 +147,38 @@ export async function describeClientDevice(): Promise<DeviceIdentity> {
     };
   }
 
+  if (isCapacitor()) {
+    const native = getPlatform();
+    const runtime: DeviceRuntime = native === "ios" ? "ios" : "android";
+    const platform = runtime === "ios" ? "iOS" : "Android";
+    let appVersion = APP_VERSION;
+    try {
+      const info = await Hardware.app.getInfo();
+      if (info.data?.version) appVersion = info.data.version;
+    } catch {
+      /* keep APP_VERSION */
+    }
+    // Older builds stored UA-based names ("Chrome on Android") even inside Cap.
+    const defaultName = `Novend ${platform} app`;
+    const name =
+      stored && !/^(Chrome|Safari|Firefox|Edge|Opera|Browser) on /i.test(stored)
+        ? stored
+        : defaultName;
+    return {
+      fingerprint,
+      name,
+      platform,
+      runtime,
+      appVersion,
+    };
+  }
+
   const platform = detectBrowserPlatform(userAgent);
   return {
     fingerprint,
     name: stored ?? `${detectBrowserName(userAgent)} on ${platform}`,
     platform,
     runtime: "web",
+    appVersion: APP_VERSION,
   };
 }

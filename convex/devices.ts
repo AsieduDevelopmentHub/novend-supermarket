@@ -5,7 +5,12 @@ import { writeAuditLog } from "./shared/audit";
 import { assertWithinLimit, resolveLicense } from "./shared/entitlements";
 import { sanitizeText, TEXT_LIMITS } from "./shared/validation";
 
-const runtimeValidator = v.union(v.literal("desktop"), v.literal("web"));
+const runtimeValidator = v.union(
+  v.literal("desktop"),
+  v.literal("web"),
+  v.literal("android"),
+  v.literal("ios"),
+);
 
 /**
  * Registers or refreshes the terminal the current user is signed in on.
@@ -47,8 +52,14 @@ export const registerDevice = mutation({
           "devices",
         );
       }
+      // Refresh auto browser labels when Cap/desktop identity improves; keep admin renames.
+      const runtimeChanged = existing.runtime !== args.runtime;
+      const browserAutoName = /^(Chrome|Safari|Firefox|Edge|Opera|Browser) on /i.test(
+        existing.name,
+      );
       await ctx.db.patch(existing._id, {
         userId,
+        ...(runtimeChanged || browserAutoName ? { name } : {}),
         platform,
         runtime: args.runtime,
         appVersion: args.appVersion?.slice(0, 32),
