@@ -130,7 +130,9 @@ async function ensureCameraPermission(source: CameraSource): Promise<HardwareRes
 
 async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCapture>> {
   const permission = await ensureCameraPermission(source);
-  if (!permission.ok) return permission;
+  if (!permission.ok) {
+    return { ok: false, message: permission.message };
+  }
 
   try {
     // Hosted WebView (Vercel) cannot fetch Cap file:// / content:// URIs via
