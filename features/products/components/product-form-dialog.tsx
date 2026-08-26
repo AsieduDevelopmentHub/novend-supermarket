@@ -42,7 +42,7 @@ import {
   Hardware,
   cameraCaptureFailedMessage,
   isCapacitor,
-  permissionNeedMessage,
+  permissionDeniedMessage,
 } from "@novend/hardware";
 
 type Props = {
@@ -244,7 +244,11 @@ function ProductFormBody({
   }
 
   async function applyHardwarePhoto(): Promise<void> {
-    toast.message(permissionNeedMessage("camera"));
+    const permission = await Hardware.camera.ensurePermission("camera");
+    if (!permission.ok) {
+      toast.error(permission.message || permissionDeniedMessage("camera"));
+      return;
+    }
     const result = await Hardware.camera.capturePhoto();
     if (!result.ok) {
       if (result.message === "Cancelled") return;

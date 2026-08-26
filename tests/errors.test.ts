@@ -18,3 +18,18 @@ describe("connectivity errors", () => {
     expect(toUserMessage(new Error("NETWORK_ERROR"))).toMatch(/Unable to reach the server/i);
   });
 });
+
+describe("auth errors", () => {
+  it("maps rate limits before credential failures", () => {
+    expect(toUserMessage(new Error("Rate limit exceeded"))).toMatch(/Too many attempts/i);
+    expect(toUserMessage(new Error("Too many requests"))).toMatch(/Too many attempts/i);
+    expect(toUserMessage(new Error("TOO_MANY_REQUESTS"))).toMatch(/Too many attempts/i);
+    expect(toUserMessage(new Error("Too many failed login attempts"))).toMatch(
+      /Too many attempts/i,
+    );
+  });
+
+  it("maps invalid credentials distinctly from rate limits", () => {
+    expect(toUserMessage(new Error("InvalidSecret"))).toMatch(/Incorrect email or password/i);
+  });
+});

@@ -6,7 +6,6 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import {
   Hardware,
-  NATIVE_SETTINGS_PROBE_MS,
   permissionDeniedMessage,
   permissionNeedMessage,
   type NotificationPermissionState,
@@ -14,7 +13,6 @@ import {
 } from "@novend/hardware";
 import { Bell, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { runNativeSettingsCheck } from "@/features/settings/native-settings-check";
 
 const TOPICS: Array<{ id: NotificationTopic; label: string; description: string }> = [
   {
@@ -47,75 +45,60 @@ const EMPTY_PREFS: Record<NotificationTopic, boolean> = {
 };
 
 /**
- * Local notification prefs. Cap permission checks run once on mount — never on
- * app resume — so returning from camera/gallery cannot stall the Cap bridge.
+ * Local notification prefs. Never auto-probe Cap permission on mount —
+ * LocalNotifications / NovendPermissions can block the WebView bridge and
+ * freeze Security (spinners die within ~1s). Load Preferences only; probe on tap.
  */
 export function NotificationsSettingsCard() {
   const [state, setState] = useState<NotificationPermissionState>("not-requested");
-  const [prefs, setPrefs] = useState<Record<NotificationTopic, boolean> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [prefs, setPrefs] = useState<Record<NotificationTopic, boolean>>(EMPTY_PREFS);
+  const [permissionKnown, setPermissionKnown] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    try {
-      const { permission, topics } = await runNativeSettingsCheck(async () => ({
-        permission: await Hardware.notifications.checkPermissions(),
-        topics: await Hardware.notifications.getTopicPrefs(),
-      }));
-      setState(permission.data?.state ?? (permission.data?.granted ? "granted" : "not-requested"));
-      setErrorMessage(permission.ok ? null : permission.message || null);
-      setPrefs(topics.data ?? EMPTY_PREFS);
-    } catch {
-      setState("error");
-      setErrorMessage("Could not check notification permission.");
-      setPrefs(EMPTY_PREFS);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    const hardStop = window.setTimeout(
-      () => {
+    void (async () => {
+      try {
+        const topics = await Hardware.notifications.getTopicPrefs();
         if (cancelled) return;
-        setLoading((stillLoading) => {
-          if (stillLoading) {
-            setState((current) =>
-              current === "prompt" || current === "not-requested" ? "error" : current,
-            );
-            setErrorMessage((msg) => msg ?? "Notification permission check timed out. Try again.");
-            setPrefs((current) => current ?? EMPTY_PREFS);
-          }
-          return false;
-        });
-      },
-      NATIVE_SETTINGS_PROBE_MS * 2 + 500,
-    );
-
-    const start = window.setTimeout(() => {
-      if (cancelled) return;
-      void (async () => {
-        await refresh();
-        if (!cancelled) window.clearTimeout(hardStop);
-      })();
-    }, 180);
-
+        if (topics.data) setPrefs(topics.data);
+      } catch {
+        /* prefs are best-effort */
+      }
+    })();
     return () => {
       cancelled = true;
-      window.clearTimeout(hardStop);
-      window.clearTimeout(start);
     };
-  }, [refresh]);
+  }, []);
+
+  const refreshPermission = useCallback(async () => {
+    setChecking(true);
+    setErrorMessage(null);
+    try {
+      const permission = await Hardware.notifications.checkPermissions();
+      setState(
+        permission.data?.state ?? (permission.data?.granted ? "granted" : "not-requested"),
+      );
+      setErrorMessage(permission.ok ? null : permission.message || null);
+      setPermissionKnown(true);
+    } catch {
+      setState("error");
+      setErrorMessage("Could not check notification permission.");
+      setPermissionKnown(true);
+    } finally {
+      setChecking(false);
+    }
+  }, []);
 
   async function enableNotifications() {
     setBusy(true);
     try {
-      toast.message(permissionNeedMessage("notifications"));
       const result = await Hardware.notifications.requestPermissions();
       const next = result.data?.state ?? (result.data?.granted ? "granted" : "denied");
       setState(next);
+      setPermissionKnown(true);
       setErrorMessage(result.ok ? null : result.message || null);
       if (!result.ok || !result.data?.granted) {
         toast.error(result.message || permissionDeniedMessage("notifications"));
@@ -139,13 +122,17 @@ export function NotificationsSettingsCard() {
     if (busy) return;
     setBusy(true);
     try {
+      if (!permissionKnown) {
+        await refreshPermission();
+      }
       if (state !== "granted" && enabled) {
-        if (state === "permanently-denied") {
+        const current = permissionKnown ? state : "not-requested";
+        if (current === "permanently-denied") {
           toast.message(permissionDeniedMessage("notifications"));
           await openSettings();
           return;
         }
-        if (state === "unavailable") {
+        if (current === "unavailable") {
           toast.message("Notifications are unavailable on this device.");
           return;
         }
@@ -160,9 +147,9 @@ export function NotificationsSettingsCard() {
     }
   }
 
-  const granted = state === "granted";
+  const granted = permissionKnown && state === "granted";
   const topicsDisabled =
-    busy || prefs === null || loading || state === "unavailable" || state === "permanently-denied";
+    busy || checking || (permissionKnown && (state === "unavailable" || state === "permanently-denied"));
 
   return (
     <Card>
@@ -176,14 +163,28 @@ export function NotificationsSettingsCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {loading ? (
+        {!permissionKnown && !checking ? (
+          <div className="space-y-2">
+            <p className="text-muted-foreground text-sm">{permissionNeedMessage("notifications")}</p>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void refreshPermission()}
+            >
+              Check notification permission
+            </Button>
+          </div>
+        ) : null}
+
+        {checking ? (
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
             Checking notification permission…
           </p>
         ) : null}
 
-        {!loading && (state === "prompt" || state === "not-requested") ? (
+        {permissionKnown && (state === "prompt" || state === "not-requested") ? (
           <div className="space-y-2">
             <p className="text-muted-foreground text-sm">
               {permissionNeedMessage("notifications")}
@@ -199,7 +200,7 @@ export function NotificationsSettingsCard() {
           </div>
         ) : null}
 
-        {!loading && state === "denied" ? (
+        {permissionKnown && state === "denied" ? (
           <div className="space-y-2">
             <p className="text-sm">{permissionDeniedMessage("notifications")}</p>
             <Button
@@ -213,7 +214,7 @@ export function NotificationsSettingsCard() {
           </div>
         ) : null}
 
-        {!loading && state === "permanently-denied" ? (
+        {permissionKnown && state === "permanently-denied" ? (
           <div className="space-y-2">
             <p className="text-sm">Notifications are blocked for Novend on this device.</p>
             <Button
@@ -227,25 +228,30 @@ export function NotificationsSettingsCard() {
           </div>
         ) : null}
 
-        {!loading && state === "error" ? (
+        {permissionKnown && state === "error" ? (
           <div className="space-y-2">
             <p className="text-muted-foreground text-sm">
               {errorMessage || "Could not check notification permission. Try again."}
             </p>
-            <Button type="button" variant="outline" disabled={busy} onClick={() => void refresh()}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void refreshPermission()}
+            >
               Try again
             </Button>
           </div>
         ) : null}
 
-        {!loading && state === "unavailable" ? (
+        {permissionKnown && state === "unavailable" ? (
           <p className="text-muted-foreground text-sm">
             Notifications are unavailable on this device right now. You can still use Novend
             normally.
           </p>
         ) : null}
 
-        {!loading && granted ? (
+        {granted ? (
           <p className="text-muted-foreground text-xs">Notifications are allowed on this device.</p>
         ) : null}
 
@@ -256,7 +262,7 @@ export function NotificationsSettingsCard() {
               <p className="text-muted-foreground text-xs">{topic.description}</p>
             </div>
             <Switch
-              checked={Boolean(prefs?.[topic.id])}
+              checked={Boolean(prefs[topic.id])}
               disabled={topicsDisabled}
               onCheckedChange={(checked) => void toggleTopic(topic.id, checked)}
             />

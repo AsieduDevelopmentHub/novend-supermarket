@@ -293,19 +293,24 @@ export async function printReceipt(
       const paperWidthMm = resolvePaperWidthMm(payload, config);
       const bytes = buildEscPosReceipt(payload, paperWidthMm);
       const preferred = await Hardware.printer.getDefaultPrinter();
-      const result = await Hardware.printer.printReceipt({
-        escposBase64: escPosToBase64(bytes),
-        invoiceNumber: payload.invoiceNumber,
-        copies: config.copies,
-        connectionType: "bluetooth",
-        bluetoothDeviceId: preferred.data?.bluetoothDeviceId,
-        paperWidthMm,
-        openCashDrawer: config.openCashDrawer,
-      });
-      if (result.ok) {
-        return { printed: true, reason: "native", copies: config.copies };
+      if (!preferred.data?.bluetoothDeviceId) {
+        console.warn("[print:bluetooth-missing]");
+        // Fall through to browser print — Cap WebView may still open a print sheet.
+      } else {
+        const result = await Hardware.printer.printReceipt({
+          escposBase64: escPosToBase64(bytes),
+          invoiceNumber: payload.invoiceNumber,
+          copies: config.copies,
+          connectionType: "bluetooth",
+          bluetoothDeviceId: preferred.data.bluetoothDeviceId,
+          paperWidthMm,
+          openCashDrawer: config.openCashDrawer,
+        });
+        if (result.ok) {
+          return { printed: true, reason: "native", copies: config.copies };
+        }
+        console.warn("[print:bluetooth-failed]", result.message);
       }
-      console.warn("[print:bluetooth-failed]", result.message);
     } catch (error) {
       console.warn("[print:bluetooth-error]", error);
     }

@@ -39,7 +39,11 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
     try {
       const result = await printReceipt(normalized);
       if (!result.printed) {
-        toast.error("Could not print the receipt. Check printer settings or try again.");
+        toast.error(
+          mobile
+            ? "Could not print. Pair a Bluetooth printer in Settings, or use Share / Save PDF."
+            : "Could not print the receipt. Check printer settings or try again.",
+        );
         return;
       }
       if (result.reason === "native") {

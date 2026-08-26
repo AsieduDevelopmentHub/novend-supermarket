@@ -94,6 +94,29 @@ export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): strin
   message = message.replace(/\s+at\s+handler\b.*$/i, "").trim();
 
   const lower = message.toLowerCase();
+  const rawLower = rawErrorText(error).toLowerCase();
+
+  // Rate limit / lockout first — Auth often wraps these as opaque codes or
+  // credential-like strings; never show "wrong password" for throttling.
+  if (
+    lower.includes("rate limit") ||
+    lower.includes("too many requests") ||
+    lower.includes("too many attempts") ||
+    lower.includes("too many failed") ||
+    lower.includes("try again later") ||
+    lower.includes("temporarily locked") ||
+    lower.includes("account locked") ||
+    lower.includes("login locked") ||
+    lower.includes("locked until") ||
+    /\bthrottl/.test(lower) ||
+    /\b(too_many|ratelimit|rate_limit)\b/.test(lower) ||
+    rawLower.includes("rate limit") ||
+    rawLower.includes("too many requests") ||
+    rawLower.includes("too many attempts") ||
+    /\b(too_many_requests|ratelimit|rate_limit)\b/.test(rawLower)
+  ) {
+    return "Too many attempts. Please wait a moment and try again.";
+  }
 
   if (
     lower.includes("invalidsecret") ||
@@ -132,9 +155,6 @@ export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): strin
   ) {
     return "This change could not sync. Open the record, check the details, and save again.";
   }
-  if (lower.includes("rate limit") || lower.includes("too many requests")) {
-    return "Too many attempts. Please wait a moment and try again.";
-  }
   if (
     lower.includes("could not find public function") ||
     lower.includes("could not find function")
@@ -144,6 +164,9 @@ export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): strin
 
   // Opaque Auth / Convex error codes (InvalidSecret, etc.)
   if (/^[A-Z][A-Za-z0-9_]+$/.test(message) && message.length <= 48) {
+    if (/TOO_MANY|RATE_LIMIT|THROTTL|LOCKED/i.test(message)) {
+      return "Too many attempts. Please wait a moment and try again.";
+    }
     return fallback;
   }
 

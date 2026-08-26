@@ -1135,8 +1135,12 @@ function SalesCheckoutFields({
           ))}
         </ul>
       )}
+    </>
+  );
 
-      <div className="space-y-2 border-t pt-3 text-sm">
+  const checkoutFooter = (
+    <div className="space-y-3">
+      <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-muted-foreground">Subtotal</span>
           <span>{formatCurrency(subtotal)}</span>
@@ -1209,15 +1213,16 @@ function SalesCheckoutFields({
           <span className="text-primary">{formatCurrency(total)}</span>
         </div>
       </div>
-    </>
+      {actions}
+    </div>
   );
 
   if (pinActions) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-3">{body}</div>
-        <div className="border-border bg-card shrink-0 space-y-2 border-t pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
-          {actions}
+        <div className="border-border bg-card shrink-0 border-t pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+          {checkoutFooter}
         </div>
       </div>
     );
@@ -1226,7 +1231,7 @@ function SalesCheckoutFields({
   return (
     <div className="space-y-4">
       {body}
-      {actions}
+      {checkoutFooter}
     </div>
   );
 }

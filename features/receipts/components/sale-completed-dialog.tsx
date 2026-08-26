@@ -40,9 +40,13 @@ export function SaleCompletedDialog({ open, onOpenChange, payload }: Props) {
     setBusy("print");
     try {
       const result = await printReceipt(normalized);
-      if (!result.printed)
-        toast.error("Could not print the receipt. Check printer settings or try again.");
-      else
+      if (!result.printed) {
+        toast.error(
+          isCapacitor()
+            ? "Could not print. Pair a Bluetooth printer in Settings, or use Share / Save PDF."
+            : "Could not print the receipt. Check printer settings or try again.",
+        );
+      } else
         toast.success(
           result.reason === "native" ? "Receipt sent to printer" : "Print dialog opened",
         );

@@ -160,8 +160,16 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       redirectingRef.current = false;
       setOpeningWorkspace(false);
       const raw = error instanceof Error ? error.message : "";
-      if (raw.toLowerCase().includes("auth provider discovery")) {
+      const lower = raw.toLowerCase();
+      if (lower.includes("auth provider discovery")) {
         showError(error, SERVER_UNREACHABLE_MESSAGE);
+      } else if (
+        lower.includes("rate limit") ||
+        lower.includes("too many") ||
+        lower.includes("locked") ||
+        /TOO_MANY|RATE_LIMIT/i.test(raw)
+      ) {
+        showError(error, "Too many attempts. Please wait a moment and try again.");
       } else {
         showError(error, "Sign in failed. Check your email and password.");
       }

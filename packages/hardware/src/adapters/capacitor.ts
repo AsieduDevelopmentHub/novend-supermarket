@@ -39,12 +39,19 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function fileFromBytes(bytes: Uint8Array<ArrayBuffer>, fileName: string, mimeType: string): File {
+function fileFromBytes(bytes: Uint8Array, fileName: string, mimeType: string): File {
+  const copy = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
+  const blob = new Blob([copy], { type: mimeType });
   try {
-    return new File([bytes], fileName, { type: mimeType, lastModified: Date.now() });
-  } catch {
-    const blob = new Blob([bytes], { type: mimeType });
     return new File([blob], fileName, { type: mimeType, lastModified: Date.now() });
+  } catch {
+    // Older Android WebViews lack `File`; Blob with a name is enough for uploads.
+    Object.defineProperty(blob, "name", { value: fileName, configurable: true });
+    Object.defineProperty(blob, "lastModified", { value: Date.now(), configurable: true });
+    return blob as File;
   }
 }
 
@@ -122,6 +129,9 @@ async function ensureCameraPermission(source: CameraSource): Promise<HardwareRes
 }
 
 async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCapture>> {
+  const permission = await ensureCameraPermission(source);
+  if (!permission.ok) return permission;
+
   try {
     // Hosted WebView (Vercel) cannot fetch Cap file:// / content:// URIs via
     // convertFileSrc — Upload Image works because <input type=file> gives a
@@ -303,16 +313,17 @@ export function createCapacitorAdapters(): HardwareAdapters {
       async savePDF(bytes, fileName) {
         try {
           const safeName = fileName.replace(/[^\w.\-]+/g, "_");
-          const path = `documents/${safeName.endsWith(".pdf") ? safeName : `${safeName}.pdf`}`;
+          // Cache is covered by FileProvider paths and is shareable on Android.
+          const path = `receipts/${safeName.endsWith(".pdf") ? safeName : `${safeName}.pdf`}`;
           await Filesystem.writeFile({
             path,
             data: bytesToBase64(bytes),
-            directory: Directory.Documents,
+            directory: Directory.Cache,
             recursive: true,
           });
           const { uri } = await Filesystem.getUri({
             path,
-            directory: Directory.Documents,
+            directory: Directory.Cache,
           });
           return { ok: true, data: { pathOrName: uri || path } };
         } catch (error) {
@@ -372,14 +383,13 @@ export function createCapacitorAdapters(): HardwareAdapters {
     share: {
       async shareReceipt(text, title) {
         try {
-          await withTimeout(
-            Share.share({
-              title: title ?? "Receipt",
-              text,
-              dialogTitle: title ?? "Share receipt",
-            }),
-            15_000,
-          );
+          // Do not wrap Share in withTimeout — the OS sheet stays open longer than
+          // any budget and a race reject leaves share/print feeling broken.
+          await Share.share({
+            title: title ?? "Receipt",
+            text,
+            dialogTitle: title ?? "Share receipt",
+          });
           return { ok: true };
         } catch (error) {
           const raw = error instanceof Error ? error.message : String(error ?? "");
@@ -394,14 +404,11 @@ export function createCapacitorAdapters(): HardwareAdapters {
       },
       async shareImage(uri, title) {
         try {
-          await withTimeout(
-            Share.share({
-              title: title ?? "Image",
-              url: uri,
-              dialogTitle: title ?? "Share image",
-            }),
-            15_000,
-          );
+          await Share.share({
+            title: title ?? "Image",
+            url: uri,
+            dialogTitle: title ?? "Share image",
+          });
           return { ok: true };
         } catch (error) {
           const raw = error instanceof Error ? error.message : String(error ?? "");
