@@ -217,7 +217,12 @@ export default defineSchema({
     /** Stable per-installation identifier generated on the client. */
     fingerprint: v.string(),
     platform: v.string(),
-    runtime: v.union(v.literal("desktop"), v.literal("web")),
+    runtime: v.union(
+      v.literal("desktop"),
+      v.literal("web"),
+      v.literal("android"),
+      v.literal("ios"),
+    ),
     appVersion: v.optional(v.string()),
     registeredAt: v.number(),
     lastSeenAt: v.number(),

@@ -24,7 +24,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePermissions } from "@/hooks/use-permissions";
-import { getDeviceFingerprint } from "@/lib/device";
+import { formatDeviceRuntime, getDeviceFingerprint } from "@/lib/device";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import { PlanLimitNotice } from "@/features/billing/components/plan-limit-notice";
@@ -109,7 +109,7 @@ export function DevicesPanel() {
             </Badge>
           </CardTitle>
           <CardDescription>
-            Every computer or browser signed in to this business uses one activation slot.
+            Every signed-in installation uses one slot — desktop app, Android/iOS app, or browser.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -143,8 +143,9 @@ export function DevicesPanel() {
                       {device.isActive ? null : <Badge variant="secondary">Deactivated</Badge>}
                     </p>
                     <p className="text-muted-foreground text-xs">
-                      {device.platform} · {device.runtime === "desktop" ? "Desktop app" : "Browser"}{" "}
-                      · {device.userName} · {formatLastSeen(device.lastSeenAt)}
+                      {device.platform} · {formatDeviceRuntime(device.runtime)}
+                      {device.appVersion ? ` · v${device.appVersion}` : ""} · {device.userName} ·{" "}
+                      {formatLastSeen(device.lastSeenAt)}
                     </p>
                   </div>
                   {isAdmin && device.isActive ? (
