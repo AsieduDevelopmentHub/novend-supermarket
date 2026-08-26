@@ -8,6 +8,17 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.7 — 2026-08-26
+
+### Fixed
+
+- Cap cold start boots `/dashboard` (not `/login`), so signed-in opens no longer flash the login brand animation.
+- Cap leave-login uses a single `location.replace` so dashboard is not stacked under splash/login chrome.
+- Activated devices distinguish Android/iOS app vs browser (`runtime` android/ios/web).
+- Cold reopen (`fromBoot`) restores the last in-app route; credential login still always lands on Dashboard.
+
+---
+
 ## v0.3.6 — 2026-08-26
 
 ### Fixed
