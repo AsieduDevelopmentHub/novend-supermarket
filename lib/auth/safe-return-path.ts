@@ -71,22 +71,12 @@ export type PostAuthUser = {
 } | null;
 
 /**
- * Default post-login destination, optionally overridden by a safe `next` path.
- * Onboarding and platform-admin defaults always win when required.
- * Platform routes are never restored for non–platform-admins (cross-user device).
+ * Session-isolated post-login destination. Onboarding wins when required;
+ * every other authenticated session starts at Dashboard.
  */
-export function resolvePostAuthPath(user: PostAuthUser, next?: string | null): string {
-  const defaults = postLoginPath(user);
-  if (user?.isPlatformAdmin) {
-    const safe = safeInternalPath(next);
-    if (safe && (safe === "/platform" || safe.startsWith("/platform/"))) return safe;
-    return defaults;
-  }
-  if (user?.needsOnboarding || user?.needsProfile) return defaults;
-  const safe = safeInternalPath(next);
-  if (!safe) return defaults;
-  if (safe === "/platform" || safe.startsWith("/platform/")) return defaults;
-  return safe;
+export function resolvePostAuthPath(user: PostAuthUser, _next?: string | null): string {
+  void _next;
+  return postLoginPath(user);
 }
 
 /** Build `/login?next=…` when redirecting an unauthenticated deep link. */
@@ -107,7 +97,7 @@ export function loginPathWithNext(pathname: string, search = ""): string {
   }
   const params = new URLSearchParams();
   params.set("next", next);
-  // Preserve boot marker on /login so RestoreLastRoute can run after sign-in.
+  // Preserve boot marker so the login screen can fall back to an offline session.
   try {
     const incoming = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
     if (incoming.get("fromBoot") === "1") params.set("fromBoot", "1");

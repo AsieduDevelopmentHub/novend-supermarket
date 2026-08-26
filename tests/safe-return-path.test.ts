@@ -23,10 +23,10 @@ describe("safeInternalPath", () => {
 });
 
 describe("resolvePostAuthPath", () => {
-  it("honors a safe next path for tenant users", () => {
+  it("always starts authenticated users on the dashboard", () => {
     expect(
       resolvePostAuthPath({ isPlatformAdmin: false, needsOnboarding: false }, "/orders/xyz"),
-    ).toBe("/orders/xyz");
+    ).toBe("/dashboard");
   });
 
   it("ignores unsafe next and falls back to the default", () => {
@@ -39,11 +39,9 @@ describe("resolvePostAuthPath", () => {
     expect(resolvePostAuthPath({ needsOnboarding: true }, "/sales")).toBe("/onboarding");
   });
 
-  it("allows platform deep links for platform admins", () => {
-    expect(resolvePostAuthPath({ isPlatformAdmin: true }, "/platform/releases")).toBe(
-      "/platform/releases",
-    );
-    expect(resolvePostAuthPath({ isPlatformAdmin: true }, "/sales")).toBe("/platform");
+  it("does not restore platform routes for platform admins", () => {
+    expect(resolvePostAuthPath({ isPlatformAdmin: true }, "/platform/releases")).toBe("/dashboard");
+    expect(resolvePostAuthPath({ isPlatformAdmin: true }, "/sales")).toBe("/dashboard");
   });
 
   it("rejects platform next for tenant users", () => {

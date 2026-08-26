@@ -116,6 +116,7 @@
         var retry = document.getElementById("retry");
         var navigated = false;
         var settled = false;
+        var requestInFlight = false;
 
         function showFailed(message) {
           settled = true;
@@ -125,20 +126,21 @@
         }
 
         function leaveBoot() {
+          if (navigated) return;
           navigated = true;
           window.location.replace(target);
         }
 
         function go() {
+          if (requestInFlight || navigated) return;
           if (navigator.onLine === false) {
-            // Still attempt — HTTP/SW cache may serve the hosted origin.
-            // If WebView stays on the local boot host, show a friendly error
-            // instead of Chromium's net::ERR_FAILED page.
-            leaveBoot();
+            // Keep the local recovery UI visible until connectivity returns.
+            showFailed("This device looks offline. Connect to the internet and try again.");
             return;
           }
 
           // Prefetch so a dead network fails on our UI, not the system error page.
+          requestInFlight = true;
           var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
           var timer = window.setTimeout(function () {
             if (controller) controller.abort();
@@ -148,17 +150,33 @@
             method: "GET",
             credentials: "include",
             cache: "no-store",
+            mode: "no-cors",
             redirect: "follow",
             signal: controller ? controller.signal : undefined,
           })
-            .then(function () {
+            .then(function (response) {
               window.clearTimeout(timer);
+              requestInFlight = false;
+              if (
+                !response.ok &&
+                response.type !== "opaque" &&
+                response.type !== "opaqueredirect"
+              ) {
+                showFailed(
+                  "Novend is temporarily unavailable. Check your connection and try again.",
+                );
+                return;
+              }
               leaveBoot();
             })
             .catch(function () {
               window.clearTimeout(timer);
-              // Last try — SW/http cache may still succeed.
-              leaveBoot();
+              requestInFlight = false;
+              showFailed(
+                navigator.onLine === false
+                  ? "This device looks offline. Connect to the internet and try again."
+                  : "Novend could not open right now. Try again in a moment.",
+              );
             });
         }
 
@@ -167,6 +185,14 @@
           booting.classList.remove("hidden");
           settled = false;
           navigated = false;
+          go();
+        });
+
+        window.addEventListener("online", function () {
+          if (navigated) return;
+          failed.classList.add("hidden");
+          booting.classList.remove("hidden");
+          settled = false;
           go();
         });
 

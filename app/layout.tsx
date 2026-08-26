@@ -1,21 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import { AppProviders } from "@/providers/app-providers";
 import { PwaRegister } from "@/components/pwa-register";
 
 import "@/styles/globals.css";
 import { APP_NAME, APP_WEB_INSTALL_NAME } from "@/constants/app";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: {
@@ -54,11 +43,7 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full`}
-      suppressHydrationWarning
-    >
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <body className="bg-background text-foreground h-full overflow-hidden font-sans antialiased">
         <ConvexAuthNextjsServerProvider>
           <AppProviders>

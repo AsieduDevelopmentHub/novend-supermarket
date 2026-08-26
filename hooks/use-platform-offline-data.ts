@@ -112,7 +112,7 @@ export function usePlatformOverviewData() {
     () => loadPlatformOverview().then((row) => (row as unknown as typeof live) ?? null),
     (value) => savePlatformOverview(value),
   );
-  return { data, loading: loading || (source === "cache" && online), source };
+  return { data, loading, source };
 }
 
 export function usePlatformOrganizationsData() {
@@ -124,7 +124,7 @@ export function usePlatformOrganizationsData() {
     () => loadPlatformOrganizations().then((row) => row?.organizations ?? null),
     (value) => savePlatformOrganizations(value),
   );
-  return { data, loading: loading || (source === "cache" && online), source };
+  return { data, loading, source };
 }
 
 export function usePlatformReleasesData(channel: "stable" | "beta" = "stable") {
@@ -156,7 +156,7 @@ export function usePlatformReleasesData(channel: "stable" | "beta" = "stable") {
     () => loadPlatformReleases().then((row) => (row?.channel === channel ? row.releases : null)),
     (value) => savePlatformReleases(channel, value),
   );
-  return { data, loading: loading || (source === "cache" && online), source };
+  return { data, loading, source };
 }
 
 export function usePlatformOrgDetailData(organizationId: string) {
@@ -197,7 +197,7 @@ export function usePlatformSubscriptionsData() {
     () => loadPlatformSubscriptions().then((row) => (row?.rows as typeof live) ?? null),
     (value) => savePlatformSubscriptions(value),
   );
-  return { data, loading: loading || (source === "cache" && online), source };
+  return { data, loading, source };
 }
 
 export function usePlatformHealthData() {
@@ -209,7 +209,7 @@ export function usePlatformHealthData() {
     () => loadPlatformHealth().then((row) => (row?.payload as typeof live) ?? null),
     (value) => savePlatformHealth(value),
   );
-  return { data, loading: loading || (source === "cache" && online), source };
+  return { data, loading, source };
 }
 
 export function usePlatformPaymentData(paymentId: string) {
@@ -256,7 +256,7 @@ export function usePlatformReleaseBundlesData(channel: "stable" | "beta" = "stab
     () => loadPlatformReleaseBundles(channel).then((row) => (row?.payload as typeof live) ?? null),
     (value) => savePlatformReleaseBundles(channel, value),
   );
-  return { data, loading: loading || (source === "cache" && online), source };
+  return { data, loading, source };
 }
 
 export function usePlatformInsightData(metric: PlatformInsightMetric, range: PlatformRevenueRange) {

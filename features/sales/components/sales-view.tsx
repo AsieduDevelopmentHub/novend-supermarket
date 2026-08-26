@@ -111,7 +111,6 @@ export function SalesView() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saleCompleteOpen, setSaleCompleteOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [checkoutSnap, setCheckoutSnap] = useState<number | string | null>(0.58);
   const [localHeld, setLocalHeld] = useState<LocalHeldSale[]>([]);
   const [cashierId, setCashierId] = useState<string | null>(null);
   /** Draft qty strings while editing — empty allowed until blur. */
@@ -786,16 +785,17 @@ export function SalesView() {
 
       <div
         className={cn(
-          "border-border bg-card/95 supports-[backdrop-filter]:bg-card/80 fixed inset-x-0 z-30 border-t px-4 py-3 backdrop-blur xl:hidden",
-          nativeShell ? "bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))]" : "bottom-0",
+          "fixed right-4 z-30 xl:hidden",
+          nativeShell
+            ? "bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))]"
+            : "bottom-[max(1rem,env(safe-area-inset-bottom,0px))]",
         )}
       >
         <button
           type="button"
-          className="flex min-h-12 w-full items-center gap-3 text-left"
+          className="border-border bg-card text-foreground focus:ring-ring hover:bg-muted relative flex size-12 items-center justify-center rounded-full border shadow-lg transition-colors focus:ring-2 focus:outline-none"
           onClick={() => {
             void triggerLightHaptic();
-            setCheckoutSnap(0.58);
             setCheckoutOpen(true);
           }}
           aria-label={
@@ -804,44 +804,16 @@ export function SalesView() {
               : "Open cart"
           }
         >
-          <span className="bg-primary/10 text-primary relative flex size-11 shrink-0 items-center justify-center rounded-full">
-            <ShoppingCart className="size-5" aria-hidden />
-            {cartItemCount > 0 ? (
-              <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold tabular-nums">
-                {cartItemCount > 99 ? "99+" : cartItemCount}
-              </span>
-            ) : null}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium">
-              {cartItemCount > 0
-                ? `${cartItemCount} ${cartItemCount === 1 ? "item" : "items"} · ${formatCurrency(total)}`
-                : "Cart empty"}
-            </span>
-            <span className="text-muted-foreground block text-xs">
-              {cartItemCount > 0 ? "Tap to review cart and pay" : "Add products to start a sale"}
-            </span>
-          </span>
-          <span className="bg-primary text-primary-foreground inline-flex h-9 shrink-0 items-center rounded-md px-3 text-sm font-medium">
-            View cart
+          <ShoppingCart className="size-5" aria-hidden />
+          <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold tabular-nums">
+            {cartItemCount > 99 ? "99+" : cartItemCount}
           </span>
         </button>
       </div>
 
-      <Drawer
-        open={checkoutOpen}
-        onOpenChange={setCheckoutOpen}
-        {...(nativeShell
-          ? {
-              snapPoints: [0.38, 0.58, 0.92],
-              activeSnapPoint: checkoutSnap,
-              setActiveSnapPoint: setCheckoutSnap,
-            }
-          : {})}
-        shouldScaleBackground={false}
-      >
+      <Drawer open={checkoutOpen} onOpenChange={setCheckoutOpen} shouldScaleBackground={false}>
         <DrawerContent
-          className="max-h-[92dvh] rounded-t-[22px] xl:hidden"
+          className="h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)))] max-h-[92dvh] rounded-t-[22px] xl:hidden"
           overlayClassName="bg-black/60"
         >
           <DrawerHeader className="border-border border-b text-left">
@@ -850,7 +822,7 @@ export function SalesView() {
               Current Sale
             </DrawerTitle>
           </DrawerHeader>
-          <div className="overflow-y-auto px-4 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             <SalesCheckoutFields
               online={online}
               customer={customer}

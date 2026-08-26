@@ -60,11 +60,34 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
     try {
       const text = buildReceiptShareText(normalized);
       const result = await Hardware.share.shareReceipt(text, `Receipt ${normalized.invoiceNumber}`);
-      if (!result.ok && result.message !== "Cancelled") {
-        toast.error(result.message || shareFailedMessage());
-        return;
-      }
       if (result.ok) toast.success("Receipt shared");
+      if (result.ok || result.message === "Cancelled") return;
+
+      // Some Android share targets reject text-only payloads from a hosted
+      // WebView. Persist a PDF and share its content URI as a reliable fallback.
+      if (mobile) {
+        try {
+          const bytes = await buildReceiptPdfBytes(normalized);
+          const saved = await Hardware.filesystem.savePDF(
+            bytes,
+            `receipt-${normalized.invoiceNumber}.pdf`,
+          );
+          const uri = saved.data?.pathOrName;
+          if (saved.ok && uri) {
+            const fileShare = await Hardware.share.shareImage(
+              uri,
+              `Receipt ${normalized.invoiceNumber}`,
+            );
+            if (fileShare.ok) {
+              toast.success("Receipt shared");
+              return;
+            }
+          }
+        } catch {
+          /* Fall through to the actionable error below. */
+        }
+      }
+      toast.error(result.message || shareFailedMessage());
     } finally {
       setBusy(null);
     }
@@ -131,16 +154,15 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
                 </Button>
               </>
             ) : null}
-            {!mobile ? (
-              <Button
-                type="button"
-                disabled={!normalized || busy !== null}
-                onClick={() => void onPrint()}
-              >
-                <Printer className="h-4 w-4" />
-                {busy === "print" ? "Printing…" : "Print receipt"}
-              </Button>
-            ) : null}
+            <Button
+              type="button"
+              variant={mobile ? "outline" : "default"}
+              disabled={!normalized || busy !== null}
+              onClick={() => void onPrint()}
+            >
+              <Printer className="h-4 w-4" />
+              {busy === "print" ? "Printing…" : "Print receipt"}
+            </Button>
           </div>
         </DialogFooter>
       </DialogContent>

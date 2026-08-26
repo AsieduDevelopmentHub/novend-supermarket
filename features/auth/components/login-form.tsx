@@ -22,7 +22,6 @@ import { cn } from "@/lib/utils";
 import { navigateAfterLogin, resolvePostLoginPath } from "@/lib/auth/redirect-after-login";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { hasOfflineSession } from "@/lib/offline/session";
-import { readLastRoute } from "@/lib/auth/last-route";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 
 const REMEMBER_KEY = "novend.login.rememberEmail";
@@ -56,7 +55,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const convex = useConvex();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnNext = searchParams.get("next");
   const fromBoot = searchParams.get("fromBoot") === "1";
   const redirectingRef = useRef(false);
   const registration = useQuery(api.users.registrationStatus);
@@ -94,17 +92,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       if (redirectingRef.current || isAuthenticated) return;
       redirectingRef.current = true;
       setOpeningWorkspace(true);
-      const last = readLastRoute();
-      const path = resolvePostAuthPath(
-        {
-          isPlatformAdmin: false,
-          needsOnboarding: false,
-          needsProfile: false,
-        },
-        returnNext || last || "/dashboard",
-      );
-      const dest = fromBoot ? `${path}${path.includes("?") ? "&" : "?"}fromBoot=1` : path;
-      navigateAfterLogin(dest, router);
+      const path = resolvePostAuthPath({
+        isPlatformAdmin: false,
+        needsOnboarding: false,
+        needsProfile: false,
+      });
+      navigateAfterLogin(path, router);
     };
 
     if (!online) {
@@ -117,7 +110,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     if (!fromBoot || !authLoading) return;
     const timer = window.setTimeout(resumeFromCache, 2500);
     return () => window.clearTimeout(timer);
-  }, [online, fromBoot, isAuthenticated, authLoading, pending, returnNext, router]);
+  }, [online, fromBoot, isAuthenticated, authLoading, pending, router]);
 
   // Already signed in (e.g. opened /login with a live session) — leave auth pages.
   useEffect(() => {
@@ -125,10 +118,10 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     redirectingRef.current = true;
     setOpeningWorkspace(true);
     void (async () => {
-      const path = await resolvePostLoginPath(convex, returnNext);
+      const path = await resolvePostLoginPath(convex);
       navigateAfterLogin(path, router);
     })();
-  }, [isAuthenticated, authLoading, convex, returnNext, router, pending]);
+  }, [isAuthenticated, authLoading, convex, router, pending]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -161,7 +154,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       // /login blank until reload). resolvePostLoginPath retries while the token settles.
       redirectingRef.current = true;
       setOpeningWorkspace(true);
-      const path = await resolvePostLoginPath(convex, returnNext);
+      const path = await resolvePostLoginPath(convex);
       navigateAfterLogin(path, router);
     } catch (error) {
       redirectingRef.current = false;

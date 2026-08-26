@@ -58,6 +58,11 @@ export {
 } from "./platform";
 
 export { getHardwareAdapters, resetHardwareAdapters };
+export { compareAppVersions, normalizeAppVersion } from "./version";
+export {
+  mapNotificationDisplayState,
+  resolveNotificationPermissionState,
+} from "./notification-permission";
 
 export {
   permissionNeedMessage,

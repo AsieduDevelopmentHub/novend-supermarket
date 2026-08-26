@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Hardware,
   isCapacitor,
@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Fingerprint } from "lucide-react";
-import { RestoreLastRoute } from "@/components/layout/restore-last-route";
 import { safeInternalPath } from "@/lib/auth/safe-return-path";
 
 function parseDeepLink(url: string): string | null {
@@ -195,9 +194,6 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <Suspense fallback={null}>
-        <RestoreLastRoute />
-      </Suspense>
       {children}
       <Dialog
         open={updateOpen}

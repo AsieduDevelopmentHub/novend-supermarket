@@ -43,7 +43,7 @@ export function SecurityPanel() {
             {me?.needsProfile
               ? "Complete your profile before changing your password."
               : online
-                ? "Loading account…"
+                ? "Account details are still syncing. You can use the device security controls above; reconnect or refresh to manage your password."
                 : "Sign in while online once to manage your password on this device."}
           </CardContent>
         </Card>

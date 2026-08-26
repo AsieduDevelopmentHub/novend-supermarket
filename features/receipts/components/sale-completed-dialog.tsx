@@ -11,11 +11,16 @@ import {
 import { Button } from "@/components/ui/button";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { ReceiptDocument } from "@/features/receipts/components/receipt-document";
-import { normalizeReceiptPayload } from "@/services/printing";
+import { normalizeReceiptPayload, printReceipt } from "@/services/printing";
 import { buildReceiptPdfBytes, buildReceiptShareText } from "@/services/receipts/share";
-import { Hardware, filesystemSaveFailedMessage, shareFailedMessage } from "@novend/hardware";
+import {
+  Hardware,
+  filesystemSaveFailedMessage,
+  isCapacitor,
+  shareFailedMessage,
+} from "@novend/hardware";
 import { toast } from "sonner";
-import { Check, FileDown, Share2 } from "lucide-react";
+import { Check, FileDown, Printer, Share2 } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -28,7 +33,23 @@ type Props = {
  */
 export function SaleCompletedDialog({ open, onOpenChange, payload }: Props) {
   const normalized = payload ? normalizeReceiptPayload(payload) : null;
-  const [busy, setBusy] = useState<"share" | "pdf" | null>(null);
+  const [busy, setBusy] = useState<"share" | "pdf" | "print" | null>(null);
+
+  async function onPrint() {
+    if (!normalized) return;
+    setBusy("print");
+    try {
+      const result = await printReceipt(normalized);
+      if (!result.printed)
+        toast.error("Could not print the receipt. Check printer settings or try again.");
+      else
+        toast.success(
+          result.reason === "native" ? "Receipt sent to printer" : "Print dialog opened",
+        );
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function onShare() {
     if (!normalized) return;
@@ -36,11 +57,31 @@ export function SaleCompletedDialog({ open, onOpenChange, payload }: Props) {
     try {
       const text = buildReceiptShareText(normalized);
       const result = await Hardware.share.shareReceipt(text, `Receipt ${normalized.invoiceNumber}`);
-      if (!result.ok && result.message !== "Cancelled") {
-        toast.error(result.message || shareFailedMessage());
-        return;
-      }
       if (result.ok) toast.success("Receipt shared");
+      if (result.ok || result.message === "Cancelled") return;
+      if (isCapacitor()) {
+        try {
+          const bytes = await buildReceiptPdfBytes(normalized);
+          const saved = await Hardware.filesystem.savePDF(
+            bytes,
+            `receipt-${normalized.invoiceNumber}.pdf`,
+          );
+          const uri = saved.data?.pathOrName;
+          if (saved.ok && uri) {
+            const fileShare = await Hardware.share.shareImage(
+              uri,
+              `Receipt ${normalized.invoiceNumber}`,
+            );
+            if (fileShare.ok) {
+              toast.success("Receipt shared");
+              return;
+            }
+          }
+        } catch {
+          /* Fall through to the actionable error below. */
+        }
+      }
+      toast.error(result.message || shareFailedMessage());
     } finally {
       setBusy(null);
     }
@@ -92,6 +133,15 @@ export function SaleCompletedDialog({ open, onOpenChange, payload }: Props) {
           >
             <Share2 className="h-4 w-4" />
             {busy === "share" ? "Sharing…" : "Share receipt"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!normalized || busy !== null}
+            onClick={() => void onPrint()}
+          >
+            <Printer className="h-4 w-4" />
+            {busy === "print" ? "Printing…" : "Print receipt"}
           </Button>
           <Button
             type="button"

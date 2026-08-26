@@ -21,7 +21,10 @@ export function Toaster() {
         duration={4000}
         gap={8}
         offset={16}
-        mobileOffset={12}
+        mobileOffset={{
+          top: "calc(4.5rem + env(safe-area-inset-top, 0px))",
+          right: "0.75rem",
+        }}
         toastOptions={{
           closeButton: true,
           classNames: {

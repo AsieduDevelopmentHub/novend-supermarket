@@ -51,8 +51,8 @@
   --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
   --shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.12);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .dark {
@@ -2692,7 +2692,9 @@ button.landing-feature-frame {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: color 180ms ease, opacity 180ms ease;
+  transition:
+    color 180ms ease,
+    opacity 180ms ease;
 }
 
 .novend-mobile-tab:not(.novend-mobile-tab-active) .novend-mobile-tab-label {

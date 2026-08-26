@@ -24,6 +24,11 @@ import {
   isNativeTimeoutError,
   withTimeout,
 } from "../timeout";
+import { compareAppVersions, normalizeAppVersion } from "../version";
+import {
+  mapNotificationDisplayState,
+  resolveNotificationPermissionState,
+} from "../notification-permission";
 
 const TOPIC_KEY = "novend.notifications.topics";
 const BIOMETRIC_ENABLED_KEY = "novend.biometric.enabled";
@@ -31,7 +36,6 @@ const BIOMETRIC_REQUIRE_LAUNCH_KEY = "novend.biometric.requireOnLaunch";
 const BIOMETRIC_UNLOCK_TOKEN_KEY = "novend.biometric.unlockToken";
 const NOTIFICATION_CHANNEL_ID = "novend_alerts";
 const NOTIFICATION_PERMISSION_REQUESTED_KEY = "novend.notifications.permissionRequested";
-const NOTIFICATION_PERMISSION_ATTEMPTS_KEY = "novend.notifications.permissionAttempts";
 
 type NovendPermissionsPlugin = {
   checkNotificationPermission: () => Promise<{
@@ -48,19 +52,6 @@ const DEFAULT_TOPICS: Record<NotificationTopic, boolean> = {
   branch_transfers: true,
   subscription_alerts: true,
 };
-
-function mapNotificationState(
-  display: string | undefined,
-  requested: boolean,
-  attempts: number,
-): NotificationPermissionState {
-  if (display === "granted") return "granted";
-  if (display === "denied") return attempts > 1 ? "permanently-denied" : "denied";
-  if (display === "prompt-with-rationale") return "prompt";
-  if (display === "prompt") return requested ? "prompt" : "not-requested";
-  // Unknown / missing display must not become "unavailable" — that hid real prompt states.
-  return "error";
-}
 
 function mapBiometry(type: BiometryType): BiometricAvailability["biometryType"] {
   switch (type) {
@@ -87,8 +78,12 @@ export function createCapacitorBiometricsAdapter(): BiometricsAdapter {
         const result = await withTimeout(BiometricAuth.checkBiometry(), NATIVE_SETTINGS_PROBE_MS);
         const biometryType = mapBiometry(result.biometryType);
         const biometryTypes = Array.isArray(result.biometryTypes) ? result.biometryTypes : [];
-        const supported =
-          biometryType !== "none" || biometryTypes.some((type) => mapBiometry(type) !== "none");
+        const alternateType = biometryTypes
+          .map((type) => mapBiometry(type))
+          .find((type) => type !== "none");
+        const resolvedBiometryType =
+          biometryType !== "none" ? biometryType : (alternateType ?? "none");
+        const supported = resolvedBiometryType !== "none";
         // The plugin documents isAvailable as the enrolled-and-usable signal.
         // strongBiometryIsAvailable is a safe fallback for older native builds.
         const available = Boolean(result.isAvailable || result.strongBiometryIsAvailable);
@@ -100,7 +95,7 @@ export function createCapacitorBiometricsAdapter(): BiometricsAdapter {
             available,
             supported,
             enrolled,
-            biometryType: supported ? biometryType : "none",
+            biometryType: supported ? resolvedBiometryType : "none",
             reason: result.reason || undefined,
           } satisfies BiometricAvailability,
         };
@@ -232,21 +227,17 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
       try {
         // Do not createChannel on status checks — that Cap call can stall the bridge
         // on Security open and freeze camera/gallery afterward.
-        const [requestedValue, attemptsValue] = await withTimeout(
-          Promise.all([
-            Preferences.get({ key: NOTIFICATION_PERMISSION_REQUESTED_KEY }),
-            Preferences.get({ key: NOTIFICATION_PERMISSION_ATTEMPTS_KEY }),
-          ]),
+        const requestedValue = await withTimeout(
+          Preferences.get({ key: NOTIFICATION_PERMISSION_REQUESTED_KEY }),
           NATIVE_CALL_TIMEOUT_MS,
         );
         const requested = requestedValue.value === "true";
-        const attempts = Number.parseInt(attemptsValue.value ?? "0", 10) || 0;
         const nativeState = await nativeNotificationState();
         const status = await withTimeout(
           LocalNotifications.checkPermissions(),
           NATIVE_SETTINGS_PROBE_MS,
         );
-        const state = nativeState ?? mapNotificationState(status.display, requested, attempts);
+        const state = resolveNotificationPermissionState(status.display, requested, nativeState);
         return { ok: true, data: { granted: state === "granted", state } };
       } catch (error) {
         if (isNativeTimeoutError(error)) {
@@ -267,20 +258,14 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
     async requestPermissions() {
       try {
         await ensureNotificationChannel();
-        const attemptsValue = await Preferences.get({ key: NOTIFICATION_PERMISSION_ATTEMPTS_KEY });
-        const attempts = (Number.parseInt(attemptsValue.value ?? "0", 10) || 0) + 1;
         const status = await withTimeout(
           LocalNotifications.requestPermissions(),
           NATIVE_AVAILABILITY_TIMEOUT_MS,
         );
         await NovendPermissions.markNotificationPermissionRequested().catch(() => undefined);
         await Preferences.set({ key: NOTIFICATION_PERMISSION_REQUESTED_KEY, value: "true" });
-        await Preferences.set({
-          key: NOTIFICATION_PERMISSION_ATTEMPTS_KEY,
-          value: String(attempts),
-        });
         const state =
-          (await nativeNotificationState()) ?? mapNotificationState(status.display, true, attempts);
+          (await nativeNotificationState()) ?? mapNotificationDisplayState(status.display, true);
         if (state !== "granted") {
           return {
             ok: false,
@@ -413,14 +398,22 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
             ok: true,
             data: {
               available: false,
+              status: "unknown",
               version: info.version,
-              notes: "You are on the latest prepared build for this device.",
+              notes: "The latest release could not be verified from this build.",
             } satisfies UpdateInfo,
           };
         }
-        const response = await fetch(endpoint, { cache: "no-store" });
+        const separator = endpoint.includes("?") ? "&" : "?";
+        const response = await withTimeout(
+          fetch(`${endpoint}${separator}t=${Date.now()}`, {
+            cache: "no-store",
+            headers: { "cache-control": "no-cache", pragma: "no-cache" },
+          }),
+          NATIVE_AVAILABILITY_TIMEOUT_MS,
+        );
         if (!response.ok) {
-          return { ok: true, data: { available: false } };
+          return { ok: true, data: { available: false, status: "unknown" } };
         }
         const remote = (await response.json()) as {
           version?: string;
@@ -429,30 +422,17 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           downloadUrl?: string;
           mandatory?: boolean;
         };
-        const compareVersions = (left: string, right: string) => {
-          const parse = (value: string) =>
-            value
-              .replace(/^v/i, "")
-              .split(".")
-              .map((part) => {
-                const number = Number.parseInt(part, 10);
-                return Number.isFinite(number) ? number : 0;
-              });
-          const a = parse(left);
-          const b = parse(right);
-          for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
-            const delta = (a[index] ?? 0) - (b[index] ?? 0);
-            if (delta !== 0) return delta;
-          }
-          return 0;
-        };
-        const available = Boolean(
-          remote.version && compareVersions(remote.version, info.version) > 0,
-        );
+        const installedVersion = normalizeAppVersion(info.version);
+        const remoteVersion = normalizeAppVersion(remote.version);
+        if (!installedVersion || !remoteVersion) {
+          return { ok: true, data: { available: false, status: "unknown" } };
+        }
+        const available = compareAppVersions(remoteVersion, installedVersion) > 0;
         return {
           ok: true,
           data: {
             available,
+            status: available ? "available" : "latest",
             mandatory: remote.mandatory === true,
             version: remote.version,
             notes: remote.notes,
@@ -461,7 +441,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           },
         };
       } catch {
-        return { ok: true, data: { available: false } };
+        return { ok: true, data: { available: false, status: "unknown" } };
       }
     },
     async openStoreListing() {

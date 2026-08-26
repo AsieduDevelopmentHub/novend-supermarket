@@ -54,7 +54,7 @@ public class NovendPermissionsPlugin extends Plugin {
             );
             result.put(
                 "state",
-                !requested ? "not-requested" : rationale ? "denied" : "permanently-denied"
+                rationale ? "denied" : !requested ? "not-requested" : "permanently-denied"
             );
         }
         call.resolve(result);

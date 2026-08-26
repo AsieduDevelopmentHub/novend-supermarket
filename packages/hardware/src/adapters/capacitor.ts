@@ -372,11 +372,14 @@ export function createCapacitorAdapters(): HardwareAdapters {
     share: {
       async shareReceipt(text, title) {
         try {
-          await Share.share({
-            title: title ?? "Receipt",
-            text,
-            dialogTitle: title ?? "Share receipt",
-          });
+          await withTimeout(
+            Share.share({
+              title: title ?? "Receipt",
+              text,
+              dialogTitle: title ?? "Share receipt",
+            }),
+            15_000,
+          );
           return { ok: true };
         } catch (error) {
           const raw = error instanceof Error ? error.message : String(error ?? "");
@@ -391,11 +394,14 @@ export function createCapacitorAdapters(): HardwareAdapters {
       },
       async shareImage(uri, title) {
         try {
-          await Share.share({
-            title: title ?? "Image",
-            url: uri,
-            dialogTitle: title ?? "Share image",
-          });
+          await withTimeout(
+            Share.share({
+              title: title ?? "Image",
+              url: uri,
+              dialogTitle: title ?? "Share image",
+            }),
+            15_000,
+          );
           return { ok: true };
         } catch (error) {
           const raw = error instanceof Error ? error.message : String(error ?? "");

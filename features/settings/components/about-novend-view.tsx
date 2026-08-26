@@ -5,7 +5,13 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/primitives";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Hardware, getPlatform, type AppInfo } from "@novend/hardware";
+import {
+  Hardware,
+  getPlatform,
+  isCapacitor,
+  type AppInfo,
+  type UpdateInfo,
+} from "@novend/hardware";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { usePermissions } from "@/hooks/use-permissions";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
@@ -17,6 +23,7 @@ export function AboutNovendView() {
   const { role, branchName } = usePermissions();
   const offline = useOfflineStatus();
   const [info, setInfo] = useState<AppInfo | null>(null);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
   const [storageLabel, setStorageLabel] = useState<string>("Calculating…");
 
@@ -24,6 +31,10 @@ export function AboutNovendView() {
     void (async () => {
       const app = await Hardware.app.getInfo();
       if (app.data) setInfo(app.data);
+      if (isCapacitor()) {
+        const checked = await Hardware.app.checkForUpdate();
+        if (checked.data) setUpdate(checked.data);
+      }
       const profile = await loadShellProfile();
       setOrgName(profile?.organizationName ?? null);
       try {
@@ -80,6 +91,18 @@ export function AboutNovendView() {
           ) : null}
           <p>Platform: {platform}</p>
           <p>Package: {info?.id ?? "com.novend.pos"}</p>
+          {isCapacitor() ? (
+            <p>
+              Update check:{" "}
+              <span className="text-foreground font-medium">
+                {update?.status === "available"
+                  ? `v${update.version ?? "new release"} available`
+                  : update?.status === "latest"
+                    ? "Latest verified"
+                    : "Unable to verify right now"}
+              </span>
+            </p>
+          ) : null}
           <p>Organization: {orgName || "—"}</p>
           <p>Branch: {branchName || "—"}</p>
           <p>Role: {role || "—"}</p>
