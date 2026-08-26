@@ -40,7 +40,6 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { useNativeShell } from "@/hooks/use-native-shell";
 import { getMeta, getOfflineDb, META_KEYS } from "@/lib/offline/db";
 import { cn } from "@/lib/utils";
-import { triggerLightHaptic } from "@/lib/haptics";
 import {
   completeSaleLocally,
   holdSaleLocally,
@@ -61,6 +60,7 @@ import {
   BarcodeMatchDialog,
   type BarcodeMatchProduct,
 } from "@/features/sales/components/barcode-match-dialog";
+import { DraggableCartFab } from "@/features/sales/components/draggable-cart-fab";
 
 type DiscountMode = "amount" | "percent";
 
@@ -783,46 +783,27 @@ export function SalesView() {
         </Card>
       </div>
 
-      <div
-        className={cn(
-          "fixed right-4 z-30 xl:hidden",
-          nativeShell
-            ? "bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px))]"
-            : "bottom-[max(1rem,env(safe-area-inset-bottom,0px))]",
-        )}
-      >
-        <button
-          type="button"
-          className="border-border bg-card text-foreground focus:ring-ring hover:bg-muted relative flex size-12 items-center justify-center rounded-full border shadow-lg transition-colors focus:ring-2 focus:outline-none"
-          onClick={() => {
-            void triggerLightHaptic();
-            setCheckoutOpen(true);
-          }}
-          aria-label={
-            cartItemCount > 0
-              ? `Open cart, ${cartItemCount} items, ${formatCurrency(total)}`
-              : "Open cart"
-          }
-        >
-          <ShoppingCart className="size-5" aria-hidden />
-          <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold tabular-nums">
-            {cartItemCount > 99 ? "99+" : cartItemCount}
-          </span>
-        </button>
+      <div className="xl:hidden">
+        <DraggableCartFab
+          itemCount={cartItemCount}
+          totalLabel={formatCurrency(total)}
+          bottomInsetPx={nativeShell ? 92 : 24}
+          onOpen={() => setCheckoutOpen(true)}
+        />
       </div>
 
       <Drawer open={checkoutOpen} onOpenChange={setCheckoutOpen} shouldScaleBackground={false}>
         <DrawerContent
-          className="h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)))] max-h-[92dvh] rounded-t-[22px] xl:hidden"
+          className="flex h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)))] max-h-[92dvh] flex-col rounded-t-[22px] xl:hidden"
           overlayClassName="bg-black/60"
         >
-          <DrawerHeader className="border-border border-b text-left">
+          <DrawerHeader className="border-border shrink-0 border-b text-left">
             <DrawerTitle className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" aria-hidden />
               Current Sale
             </DrawerTitle>
           </DrawerHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <div className="flex min-h-0 flex-1 flex-col px-4 pt-2">
             <SalesCheckoutFields
               online={online}
               customer={customer}
@@ -839,6 +820,7 @@ export function SalesView() {
               discountExceedsSubtotal={discountExceedsSubtotal}
               canCheckout={canCheckout}
               lastReceipt={lastReceipt}
+              pinActions
               onQuickCreate={() => setQuickOpen(true)}
               onClearCustomer={() => setCustomer(null)}
               onCustomerQuery={setCustomerQuery}
@@ -948,6 +930,8 @@ type SalesCheckoutFieldsProps = {
   discountExceedsSubtotal: boolean;
   canCheckout: boolean;
   lastReceipt: ReceiptPayload | null;
+  /** Pin Hold/Pay to the bottom of a full-height sheet (mobile checkout drawer). */
+  pinActions?: boolean;
   onQuickCreate: () => void;
   onClearCustomer: () => void;
   onCustomerQuery: (value: string) => void;
@@ -978,6 +962,7 @@ function SalesCheckoutFields({
   discountExceedsSubtotal,
   canCheckout,
   lastReceipt,
+  pinActions = false,
   onQuickCreate,
   onClearCustomer,
   onCustomerQuery,
@@ -991,8 +976,26 @@ function SalesCheckoutFields({
   onPay,
   onReprint,
 }: SalesCheckoutFieldsProps) {
-  return (
-    <div className="space-y-4">
+  const actions = (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <Button type="button" variant="secondary" disabled={!canCheckout} onClick={onHold}>
+          Hold
+        </Button>
+        <Button type="button" disabled={!canCheckout} onClick={onPay}>
+          Pay
+        </Button>
+      </div>
+      {lastReceipt ? (
+        <Button type="button" variant="outline" className="w-full" onClick={onReprint}>
+          Reprint last receipt
+        </Button>
+      ) : null}
+    </div>
+  );
+
+  const body = (
+    <>
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <Label className="flex items-center gap-1.5">
@@ -1206,21 +1209,24 @@ function SalesCheckoutFields({
           <span className="text-primary">{formatCurrency(total)}</span>
         </div>
       </div>
+    </>
+  );
 
-      <div className="grid grid-cols-2 gap-2">
-        <Button type="button" variant="secondary" disabled={!canCheckout} onClick={onHold}>
-          Hold
-        </Button>
-        <Button type="button" disabled={!canCheckout} onClick={onPay}>
-          Pay
-        </Button>
+  if (pinActions) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-3">{body}</div>
+        <div className="border-border bg-card shrink-0 space-y-2 border-t pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+          {actions}
+        </div>
       </div>
+    );
+  }
 
-      {lastReceipt ? (
-        <Button type="button" variant="outline" className="w-full" onClick={onReprint}>
-          Reprint last receipt
-        </Button>
-      ) : null}
+  return (
+    <div className="space-y-4">
+      {body}
+      {actions}
     </div>
   );
 }

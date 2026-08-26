@@ -2516,17 +2516,17 @@ button.landing-feature-frame {
 .novend-mobile-tabbar {
   position: relative;
   width: 100%;
-  --stone-size: 2.5rem;
-  --stone-lift: 0.22rem;
-  --stone-rise: 2.05rem;
+  --stone-size: 2.1rem;
+  --stone-lift: 0.12rem;
+  --stone-rise: 0.55rem;
   overflow: visible;
   background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, #111827 42%, #0b1220 100%);
-  border-radius: 1.75rem 1.75rem 0 0;
+  border-radius: 1.5rem 1.5rem 0 0;
   box-shadow:
     0 -10px 36px rgba(15, 23, 42, 0.32),
     0 -1px 0 rgba(255, 255, 255, 0.08) inset;
-  padding: calc(var(--stone-size) * 0.42 + var(--stone-lift)) 0.45rem
-    max(0.45rem, env(safe-area-inset-bottom, 0px)) 0.45rem;
+  /* Compact bar — only a thin strip above icons for the lifted stone */
+  padding: 0.35rem 0.35rem max(0.28rem, env(safe-area-inset-bottom, 0px));
 }
 
 .novend-mobile-tabbar::before {
@@ -2556,28 +2556,28 @@ button.landing-feature-frame {
   flex: 1 1 0;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.2rem;
-  min-height: 3.15rem;
-  padding: 0.2rem 0.15rem;
+  justify-content: center;
+  gap: 0.1rem;
+  min-height: 2.55rem;
+  padding: 0.1rem 0.1rem 0.05rem;
   border: 0;
   background: transparent;
   font-size: 0.625rem;
   font-weight: 500;
-  line-height: 1.1;
+  line-height: 1.05;
   overflow: visible;
   transition: color 180ms ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Concave shoulders — anchored to the active tab, not the bar center */
+/* Concave shoulders — anchored to the active tab */
 .novend-mobile-tab-notch {
   position: absolute;
-  top: calc(-1 * (var(--stone-rise) + var(--stone-lift) - 0.18rem));
+  top: calc(-1 * (var(--stone-rise) + var(--stone-lift)));
   left: 50%;
   z-index: 2;
-  width: calc(var(--stone-size) * 1.25 + 1.1rem);
-  height: 0.72rem;
+  width: calc(var(--stone-size) * 1.25 + 0.85rem);
+  height: 0.55rem;
   pointer-events: none;
   transform: translateX(-50%);
 }
@@ -2608,23 +2608,34 @@ button.landing-feature-frame {
   color: #e2e8f0;
 }
 
+/* Sales tab — brighter when idle so it doesn’t blend into the bar */
+.novend-mobile-tab-sales {
+  color: #7dd3fc;
+}
+
+.novend-mobile-tab-sales .novend-mobile-tab-label {
+  color: #bae6fd;
+  font-weight: 600;
+  opacity: 1;
+}
+
 .novend-mobile-tab-icon {
   position: relative;
   z-index: 1;
   display: flex;
-  height: 2.25rem;
-  width: 2.25rem;
+  height: 1.85rem;
+  width: 1.85rem;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   transform: translate(0, 0) scale(1);
-  transform-origin: center center;
+  transform-origin: center bottom;
   transition:
-    transform 340ms cubic-bezier(0.32, 0.72, 0, 1),
-    box-shadow 340ms ease;
+    transform 300ms cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 300ms ease;
 }
 
-/* Rises from this tab's slot — translate -40%, scale 1.25 */
+/* Short lift from this tab — -40% Y + scale 1.25; label nudges up with it */
 .novend-mobile-tab-icon-active {
   z-index: 5;
   transform: translate(0, calc(-1 * var(--stone-rise) - 40%)) scale(1.25);
@@ -2633,7 +2644,7 @@ button.landing-feature-frame {
 .novend-mobile-tab-icon-active::before {
   content: "";
   position: absolute;
-  inset: -0.28rem;
+  inset: -0.2rem;
   z-index: -1;
   border-radius: 9999px;
   background: var(--background);
@@ -2642,16 +2653,16 @@ button.landing-feature-frame {
 .novend-mobile-tab-icon-active::after {
   content: "";
   position: absolute;
-  bottom: -0.55rem;
+  bottom: -0.35rem;
   left: 50%;
   z-index: -2;
-  width: 1.55rem;
-  height: 0.38rem;
+  width: 1.25rem;
+  height: 0.28rem;
   border-radius: 50%;
-  background: rgba(15, 23, 42, 0.42);
-  filter: blur(4px);
+  background: rgba(15, 23, 42, 0.4);
+  filter: blur(3px);
   transform: translateX(-50%);
-  opacity: 0.85;
+  opacity: 0.8;
 }
 
 .novend-mobile-tab-orb {
@@ -2688,13 +2699,16 @@ button.landing-feature-frame {
 }
 
 .novend-mobile-tab-label {
+  position: relative;
+  z-index: 3;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   transition:
     color 180ms ease,
-    opacity 180ms ease;
+    opacity 180ms ease,
+    transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .novend-mobile-tab:not(.novend-mobile-tab-active) .novend-mobile-tab-label {
@@ -2706,6 +2720,8 @@ button.landing-feature-frame {
   color: #f8fafc;
   font-weight: 600;
   opacity: 1;
+  /* Follow the stone slightly so the name stays attached to the icon */
+  transform: translateY(calc(-0.45 * var(--stone-rise)));
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2716,4 +2732,24 @@ button.landing-feature-frame {
   .novend-mobile-tab-icon svg {
     transition: none;
   }
+}
+
+/* Floating cart FAB — candy blue so it doesn’t blend into the shell */
+.novend-cart-fab {
+  background: radial-gradient(
+    circle at 35% 28%,
+    #e0f2fe 0%,
+    #7dd3fc 38%,
+    #38bdf8 72%,
+    #0ea5e9 100%
+  );
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.novend-cart-fab:hover {
+  box-shadow:
+    0 10px 32px rgba(14, 165, 233, 0.65),
+    0 0 0 1px rgba(186, 230, 253, 0.55);
 }

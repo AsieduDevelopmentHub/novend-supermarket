@@ -38,6 +38,7 @@ export function MobileBottomNav() {
                 className={cn(
                   "novend-mobile-tab",
                   isActive ? "novend-mobile-tab-active text-white" : "text-slate-300",
+                  tab.id === "sales" && !isActive && "novend-mobile-tab-sales",
                 )}
               >
                 {isActive ? <span className="novend-mobile-tab-notch" aria-hidden /> : null}
@@ -56,7 +57,7 @@ export function MobileBottomNav() {
                   />
                   <Icon
                     className={cn(
-                      "relative z-10 h-5 w-5 transition-colors duration-200",
+                      "relative z-10 h-4 w-4 transition-colors duration-200",
                       isActive ? "text-slate-950" : "text-current",
                     )}
                     aria-hidden

@@ -450,7 +450,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                   nativeShell
                     ? "overflow-x-clip overflow-y-auto px-[var(--mobile-page-pad)] pt-3 pb-5"
                     : "overflow-x-hidden overflow-y-auto px-4 py-6 lg:px-8",
-                  nativeShell && "pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]",
+                  nativeShell && "pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))]",
                 )}
               >
                 <OfflineOutlet>{children}</OfflineOutlet>
