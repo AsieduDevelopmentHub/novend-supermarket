@@ -72,4 +72,10 @@ http.route({
   handler: mobileLatestMetaHttp,
 });
 
+http.route({
+  path: "/mobile-updates/latest",
+  method: "OPTIONS",
+  handler: mobileLatestMetaHttp,
+});
+
 export default http;

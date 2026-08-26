@@ -24,6 +24,7 @@ export function AboutNovendView() {
   const offline = useOfflineStatus();
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [updateChecking, setUpdateChecking] = useState(false);
   const [orgName, setOrgName] = useState<string | null>(null);
   const [storageLabel, setStorageLabel] = useState<string>("Calculating…");
 
@@ -32,8 +33,13 @@ export function AboutNovendView() {
       const app = await Hardware.app.getInfo();
       if (app.data) setInfo(app.data);
       if (isCapacitor()) {
-        const checked = await Hardware.app.checkForUpdate();
-        if (checked.data) setUpdate(checked.data);
+        setUpdateChecking(true);
+        try {
+          const checked = await Hardware.app.checkForUpdate();
+          setUpdate(checked.data ?? { available: false, status: "unknown" });
+        } finally {
+          setUpdateChecking(false);
+        }
       }
       const profile = await loadShellProfile();
       setOrgName(profile?.organizationName ?? null);
@@ -95,11 +101,13 @@ export function AboutNovendView() {
             <p>
               Update check:{" "}
               <span className="text-foreground font-medium">
-                {update?.status === "available"
-                  ? `v${update.version ?? "new release"} available`
-                  : update?.status === "latest"
-                    ? "Latest verified"
-                    : "Unable to verify right now"}
+                {updateChecking
+                  ? "Checking…"
+                  : update?.status === "available"
+                    ? `v${update.version ?? "new release"} available`
+                    : update?.status === "latest"
+                      ? "Latest verified"
+                      : "Unable to verify right now"}
               </span>
             </p>
           ) : null}

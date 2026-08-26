@@ -5,7 +5,10 @@ alwaysApply: false
 
 # Git Workflow
 
-- Purpose-based branch names. Keep branches focused.
+- **Default integration branch:** `staging` (day-to-day commits).
+- **`main`:** protected production branch — update only via PR from `staging` (or a focused fix branch).
+- Purpose-based short-lived branches are fine; merge into `staging` first when possible.
 - Commit only when asked. Messages explain why.
 - Never commit secrets.
 - Small, reviewable diffs. Include summary, test plan, and docs when architecture or business rules change.
+- Product releases: bump versions on `staging`, open PR → `main`, then tag `v*` (on the merged main commit preferred) to run Product Release.

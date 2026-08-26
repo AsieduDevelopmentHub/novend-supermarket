@@ -8,6 +8,22 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.6 — 2026-08-26
+
+### Fixed
+
+- Cap boot hands off to the cached shell when offline instead of a system “can’t reach Vercel” page.
+- Unauthorized routes show a branded access-denied screen (no Chromium/Vercel error sheet).
+- Offline session lasts 30 days; Cap resumes from cache without forcing online login on every cold start.
+- About → Privacy / Terms / Help open as public pages (no longer trapped as “unavailable offline”).
+- Mobile update check allows CORS from the hosted app so “Latest verified” works when Convex has a release.
+
+### Changed
+
+- Development continues on `staging`; merge to `main` via PR because of branch protection.
+
+---
+
 ## v0.3.5 — 2026-08-25
 
 ### Fixed

@@ -385,14 +385,19 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
     async checkForUpdate() {
       try {
         const info = await App.getInfo();
-        const endpoint =
+        const fromPublic =
           typeof process !== "undefined" && process.env?.NEXT_PUBLIC_MOBILE_UPDATE_JSON
             ? process.env.NEXT_PUBLIC_MOBILE_UPDATE_JSON
-            : typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CONVEX_SITE_URL
-              ? `${process.env.NEXT_PUBLIC_CONVEX_SITE_URL.replace(/\/$/, "")}/mobile-updates/latest`
-              : typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CONVEX_URL
-                ? `${process.env.NEXT_PUBLIC_CONVEX_URL.replace(/\.convex\.cloud\/?$/, ".convex.site")}/mobile-updates/latest`
-                : null;
+            : null;
+        const fromSite =
+          typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CONVEX_SITE_URL
+            ? `${process.env.NEXT_PUBLIC_CONVEX_SITE_URL.replace(/\/$/, "")}/mobile-updates/latest`
+            : null;
+        const fromCloud =
+          typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CONVEX_URL
+            ? `${process.env.NEXT_PUBLIC_CONVEX_URL.replace(/\.cloud\/?$/, ".site").replace(/\/$/, "")}/mobile-updates/latest`
+            : null;
+        const endpoint = fromPublic || fromSite || fromCloud;
         if (!endpoint) {
           return {
             ok: true,
@@ -400,7 +405,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
               available: false,
               status: "unknown",
               version: info.version,
-              notes: "The latest release could not be verified from this build.",
+              notes: "Update endpoint is not configured for this build.",
             } satisfies UpdateInfo,
           };
         }
@@ -412,8 +417,24 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           }),
           NATIVE_AVAILABILITY_TIMEOUT_MS,
         );
+        if (response.status === 404) {
+          // No published mobile release yet — treat installed shell as current.
+          return {
+            ok: true,
+            data: {
+              available: false,
+              status: "latest",
+              version: info.version,
+              notes: "No newer mobile release is published for this channel.",
+            },
+          };
+        }
         if (!response.ok) {
-          return { ok: true, data: { available: false, status: "unknown" } };
+          return {
+            ok: false,
+            message: "Could not reach the update server.",
+            data: { available: false, status: "unknown" },
+          };
         }
         const remote = (await response.json()) as {
           version?: string;
@@ -425,7 +446,15 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
         const installedVersion = normalizeAppVersion(info.version);
         const remoteVersion = normalizeAppVersion(remote.version);
         if (!installedVersion || !remoteVersion) {
-          return { ok: true, data: { available: false, status: "unknown" } };
+          return {
+            ok: true,
+            data: {
+              available: false,
+              status: "unknown",
+              version: info.version,
+              notes: "Could not compare shell versions.",
+            },
+          };
         }
         const available = compareAppVersions(remoteVersion, installedVersion) > 0;
         return {
@@ -441,7 +470,11 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           },
         };
       } catch {
-        return { ok: true, data: { available: false, status: "unknown" } };
+        return {
+          ok: false,
+          message: "Could not reach the update server.",
+          data: { available: false, status: "unknown" },
+        };
       }
     },
     async openStoreListing() {

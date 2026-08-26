@@ -62,6 +62,18 @@ function isInternalAppHref(href: string | null): href is string {
   return href.startsWith("/");
 }
 
+function isMarketingOrPublicHref(href: string): boolean {
+  return (
+    href === "/privacy" ||
+    href.startsWith("/privacy/") ||
+    href === "/terms" ||
+    href.startsWith("/terms/") ||
+    href.startsWith("/docs") ||
+    href === "/download" ||
+    href.startsWith("/download?")
+  );
+}
+
 function isAuthOrApiHref(href: string): boolean {
   return (
     href.startsWith("/login") ||
@@ -174,6 +186,9 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
       const href = anchor.getAttribute("href");
       if (!isInternalAppHref(href)) return;
       if (isAuthOrApiHref(href)) return;
+      // Legal / docs live outside the POS shell — let Next navigate (online) instead
+      // of trapping them in OfflineOutlet as “unavailable offline”.
+      if (isMarketingOrPublicHref(href)) return;
 
       event.preventDefault();
       event.stopPropagation();
