@@ -8,10 +8,12 @@ alwaysApply: false
 - **Default integration branch:** `staging` (day-to-day commits). CI runs on
   `staging` and `main`.
 - **`main`:** protected production branch — update only via PR from `staging`
-  (or a focused fix branch). Merge that PR with a **merge commit**, not squash
-  or rebase, so `staging` and `main` keep a shared history.
-- After `main` updates, workflow `sync-staging.yml` merges `main` back into
-  `staging` (or opens a PR if it conflicts). Do not leave the branches diverged.
+  (or a focused fix branch). Squash-merge that PR so `main` stays one commit
+  per release.
+- After `main` updates, `sync-staging.yml` **merge-commits** `main` back into
+  `staging` (or opens a PR if it conflicts). That is what keeps squash from
+  stacking version/`CHANGELOG` conflicts on the next release. The sync PR
+  itself must not be squashed.
 - Purpose-based short-lived branches are fine; merge into `staging` first when possible.
 - Commit only when asked. Messages explain why.
 - Never commit secrets.

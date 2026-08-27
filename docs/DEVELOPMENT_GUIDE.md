@@ -2,7 +2,7 @@
 
 ## Development Guide
 
-Version: 1.0.1
+Version: 1.0.2
 
 # Purpose
 
@@ -36,10 +36,12 @@ pnpm lint
 
 # Git
 
-Work on `staging`. Open a PR into `main` only for a product release. Merge
-`staging` → `main` with a **merge commit** (not squash). Squash rewrites the
-release commits and the next PR conflicts on version files. After `main`
-updates, GitHub Actions merges `main` back into `staging`.
+Work on `staging`. Open a PR into `main` only for a product release. Squash-merge
+`staging` → `main` so production history stays one commit per release. GitHub
+Actions then **merge-commits** that squash back into `staging`. Squash is what
+keeps `main` clean; the sync is what prevents the next release PR from
+conflicting. If the sync opens a PR, merge it with a merge commit (do not
+squash the sync).
 
 # Lifecycle
 

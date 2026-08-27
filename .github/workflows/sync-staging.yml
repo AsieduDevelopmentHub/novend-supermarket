@@ -1,7 +1,8 @@
 name: Sync staging from main
 
-# Squash-merging staging → main rewrites commits, so staging and main diverge.
-# Merge main back immediately to keep the next release PR clean.
+# Release PRs squash staging → main (clean main). Staging then lacks that squash
+# commit, so the next release would conflict. Merge main back into staging
+# immediately. If this sync itself is a GitHub PR, use a merge commit — not squash.
 on:
   push:
     branches: [main]
@@ -50,7 +51,7 @@ jobs:
           if [ "$open_count" = "0" ]; then
             gh pr create --base staging --head main \
               --title "chore: sync main into staging" \
-              --body "main was updated (usually a staging → main release). Merge this PR with a merge commit, not squash, so histories stay aligned."
+              --body "A squash-merge landed on main. Merge this into staging with a merge commit (not squash) so staging records that release commit and the next staging → main PR stays clean."
           else
             echo "A main → staging PR is already open"
           fi

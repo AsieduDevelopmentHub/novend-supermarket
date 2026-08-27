@@ -6,6 +6,6 @@
 
 <!-- How to verify. -->
 
-## Merge (staging → main)
+## Release merge (`staging` → `main`)
 
-Use **Create a merge commit**, not squash or rebase. Squash-merging `staging` into `main` rewrites history and the next release PR conflicts on version files (`package.json`, `CHANGELOG.md`). After `main` updates, `Sync staging from main` merges `main` back into `staging`.
+Squash is the default and is what we want on `main` (one commit per release). After that lands, **Sync staging from main** merges that squash commit back into `staging` so the next release does not fight the last one. Do not skip that sync. If the sync opens a PR, merge it with a merge commit (do not squash the sync).
