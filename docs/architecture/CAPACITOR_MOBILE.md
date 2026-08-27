@@ -1,6 +1,6 @@
 # Capacitor mobile platform
 
-Version: 1.5.2
+Version: 1.5.3
 
 ## Purpose
 
@@ -41,9 +41,11 @@ Aligned with Electron (`DESKTOP_PLATFORM.md`):
 1. Capacitor loads packaged `www/index.html` (baked `NOVEND_APP_URL` from
    `scripts/write-mobile-boot.mjs`).
 2. The boot page CORS-probes `{host}/api/health`. On success it client-navigates
-   to `/dashboard`; on failure it stays on the branded retry UI. A native
-   `onReceivedError` handler reloads `https://localhost/?stay=1` so Chrome’s
-   “This page couldn’t load” sheet is never left on screen.
+   to `/dashboard`; on failure it stays on the branded retry UI. Android
+   `onReceivedError` plus Capacitor `errorPath` (`www/error.html`) recover failed
+   hosted loads to `https://localhost/?stay=1` so Chrome’s
+   “The webpage at https://… could not be loaded because: net::ERR_FAILED”
+   sheet is never left on screen.
 3. The registered service worker serves the cached document; Dexie restores
    session, organization, branch, role, and licence snapshot.
 4. More, About, billing, and other shell routes render from IndexedDB. Payment

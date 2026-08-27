@@ -20,7 +20,13 @@ import {
   sellableFromBranchStock,
 } from "./branch-stock";
 import { saveShellProfile } from "./shell-profile";
-import { mergeServerAndLocalById, mergeWholesaleStock, pendingLocalIdsFromOutbox } from "./replica-dedupe";
+import {
+  mergeServerAndLocalById,
+  mergeWholesaleStock,
+  overlayPendingBranchStock,
+  overlayPendingWholesaleStock,
+  pendingLocalIdsFromOutbox,
+} from "./replica-dedupe";
 import type {
   MirroredBranch,
   MirroredBranchStock,
@@ -157,7 +163,8 @@ export async function applySnapshot(
   },
 ) {
   const now = Date.now();
-  const pendingLocalIds = pendingLocalIdsFromOutbox(await db.outbox.toArray());
+  const openOutbox = await db.outbox.toArray();
+  const pendingLocalIds = pendingLocalIdsFromOutbox(openOutbox);
   const tables = [
     db.products,
     db.branchStock,
@@ -181,7 +188,11 @@ export async function applySnapshot(
       snapshot.products.map((p) => ({ ...p, updatedAt: p.updatedAt || now })),
       pendingLocalIds,
     );
-    await replaceServerRows(db.branchStock, snapshot.branchStock ?? [], pendingLocalIds);
+    await replaceServerRows(
+      db.branchStock,
+      overlayPendingBranchStock(snapshot.branchStock ?? [], openOutbox),
+      pendingLocalIds,
+    );
     await replaceServerRows(db.categories, snapshot.categories, pendingLocalIds);
     await replaceServerRows(
       db.customers,
@@ -202,7 +213,11 @@ export async function applySnapshot(
       await db.orderItems.bulkPut(snapshot.orderItems);
     }
     await replaceServerRows(db.suppliers, snapshot.suppliers ?? [], pendingLocalIds);
-    await replaceWholesaleStockRows(db.wholesaleStock, snapshot.wholesaleStock ?? [], pendingLocalIds);
+    await replaceWholesaleStockRows(
+      db.wholesaleStock,
+      overlayPendingWholesaleStock(snapshot.wholesaleStock ?? [], openOutbox),
+      pendingLocalIds,
+    );
     await replaceServerRows(db.wholesalePurchases, snapshot.wholesalePurchases ?? [], pendingLocalIds);
     await replaceServerRows(db.wholesaleTransfers, snapshot.wholesaleTransfers ?? [], pendingLocalIds);
     const branchRows =

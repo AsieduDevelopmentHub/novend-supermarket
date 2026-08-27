@@ -19,6 +19,17 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        installErrorRecovery();
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        // Capacitor may replace the WebViewClient after onCreate — re-install.
+        installErrorRecovery();
+    }
+
+    private void installErrorRecovery() {
         if (this.bridge == null) {
             return;
         }
@@ -33,6 +44,17 @@ public class MainActivity extends BridgeActivity {
                         }
                         super.onReceivedError(view, request, error);
                     }
+
+                    @Override
+                    @SuppressWarnings("deprecation")
+                    public void onReceivedError(
+                            WebView view, int errorCode, String description, String failingUrl) {
+                        if (shouldRecoverUrl(failingUrl)) {
+                            loadRecovery(view);
+                            return;
+                        }
+                        super.onReceivedError(view, errorCode, description, failingUrl);
+                    }
                 });
     }
 
@@ -40,11 +62,20 @@ public class MainActivity extends BridgeActivity {
         if (request == null || !request.isForMainFrame() || request.getUrl() == null) {
             return false;
         }
-        String url = request.getUrl().toString();
-        if (url.contains("stay=1")) {
+        return shouldRecoverUrl(request.getUrl().toString());
+    }
+
+    private static boolean shouldRecoverUrl(String url) {
+        if (url == null || url.isEmpty()) {
             return false;
         }
-        return url.startsWith("https://") && !url.startsWith("https://localhost");
+        if (url.contains("stay=1") || url.contains("error.html")) {
+            return false;
+        }
+        if (url.startsWith("https://localhost")) {
+            return false;
+        }
+        return url.startsWith("https://") || url.startsWith("http://");
     }
 
     private static void loadRecovery(WebView view) {

@@ -4,6 +4,7 @@ import {
   keepPendingLocalRows,
   mergeServerAndLocalById,
   mergeWholesaleStock,
+  overlayPendingWholesaleStock,
   pendingLocalIdsFromOutbox,
 } from "@/lib/offline/replica-dedupe";
 
@@ -53,6 +54,20 @@ describe("replica dedupe", () => {
       { id: "ws_server", productId: "prod_1", quantity: 8 },
     ]);
     expect(rows).toEqual([{ id: "ws_server", productId: "prod_1", quantity: 8 }]);
+  });
+
+  it("re-applies a pending warehouse issue onto stale snapshot stock", () => {
+    const overlaid = overlayPendingWholesaleStock(
+      [{ productId: "prod_1", quantity: 10 }],
+      [
+        {
+          status: "pending",
+          type: "wholesale_transfer",
+          payloadJson: JSON.stringify({ productId: "prod_1", branchId: "br_1", quantity: 3 }),
+        },
+      ],
+    );
+    expect(overlaid[0]?.quantity).toBe(7);
   });
 
   it("keeps a pending local row when it is still in the outbox", () => {

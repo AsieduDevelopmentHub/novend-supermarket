@@ -570,17 +570,22 @@ export function useWholesaleLists(search: string) {
     };
   }, [lastSyncAt, localStock]);
 
+  const stockPick = pickReplicaList({ local: localStock, remote: stock ?? undefined, online });
+  const purchasePick = pickReplicaList({
+    local: localPurchases,
+    remote: purchases ?? undefined,
+    online,
+  });
+  const transferPick = pickReplicaList({
+    local: localTransfers,
+    remote: transfers ?? undefined,
+    online,
+  });
   return {
-    stock: !online || (localStock && localStock.length > 0) ? localStock : (stock ?? localStock),
+    stock: stockPick.rows ?? localStock,
     summary: !online || localSummary ? localSummary : (summary ?? localSummary),
-    purchases:
-      !online || (localPurchases && localPurchases.length > 0)
-        ? localPurchases
-        : (purchases ?? localPurchases),
-    transfers:
-      !online || (localTransfers && localTransfers.length > 0)
-        ? localTransfers
-        : (transfers ?? localTransfers),
+    purchases: purchasePick.rows ?? localPurchases,
+    transfers: transferPick.rows ?? localTransfers,
   };
 }
 

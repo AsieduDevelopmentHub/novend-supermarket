@@ -162,6 +162,9 @@ export function WholesaleView() {
       });
       toast.success(queuedSaveMessage(kind, "Stock issued to branch"));
       setIssueOpen(false);
+      setIssueProductId("");
+      setIssueQty("1");
+      setIssueBranchId("");
     } catch (error) {
       showError(error, "Transfer failed");
     } finally {
