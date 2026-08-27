@@ -316,7 +316,9 @@ export async function markLocalSaleSynced(
   await db.transaction("rw", db.localSales, db.localReceipts, async () => {
     const sale = await db.localSales.get(localSaleId);
     if (!sale) return;
-    const invoiceNumber = sale.invoiceNumber;
+    const invoiceNumber = sale.invoiceNumber.toUpperCase().startsWith("INV-")
+      ? sale.invoiceNumber
+      : result.invoiceNumber;
     await db.localSales.put({
       ...sale,
       syncStatus: "synced",

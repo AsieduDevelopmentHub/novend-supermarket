@@ -104,8 +104,6 @@ duplicate sales.
 The identifier printed on the receipt at checkout (`INV-…`). It is allocated on
 the device (or by Convex when no number is supplied) and **does not change** when
 the sale syncs. Staff look up the paper receipt by this number online and offline.
-Older unsynced receipts may still show `OFF-…`; that value is kept as the invoice
-number.
 
 # Settings
 

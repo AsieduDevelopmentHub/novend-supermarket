@@ -1,25 +1,22 @@
 import { TEXT_LIMITS, sanitizeText } from "./validation";
 
-const INVOICE_PREFIXES = ["INV-", "OFF-"] as const;
-const RETURN_PREFIXES = ["RET-"] as const;
+const INVOICE_PREFIX = "INV-";
+const RETURN_PREFIX = "RET-";
 
 function allocateReference(prefix: "INV" | "RET"): string {
   return `${prefix}-${crypto.randomUUID().replaceAll("-", "").slice(0, 16).toUpperCase()}`;
 }
 
-function sanitizeReference(
-  value: string,
-  label: string,
-  prefixes: readonly string[],
-): string {
+function sanitizeReference(value: string, label: string, prefix: string): string {
   const cleaned = sanitizeText(value, label, TEXT_LIMITS.code).toUpperCase();
-  if (!prefixes.some((prefix) => cleaned.startsWith(prefix))) {
+  const normalized = cleaned.startsWith("OFF-") ? `${prefix}${cleaned.slice(4)}` : cleaned;
+  if (!normalized.startsWith(prefix)) {
     throw new Error(`Invalid ${label.toLowerCase()}`);
   }
-  if (!/^[A-Z0-9][A-Z0-9._-]*$/.test(cleaned)) {
+  if (!/^[A-Z0-9][A-Z0-9._-]*$/.test(normalized)) {
     throw new Error(`Invalid ${label.toLowerCase()}`);
   }
-  return cleaned;
+  return normalized;
 }
 
 /** Canonical invoice printed at checkout. Stable across offline sync. */
@@ -28,7 +25,7 @@ export function allocateInvoiceNumber(): string {
 }
 
 export function sanitizeInvoiceNumber(value: string): string {
-  return sanitizeReference(value, "Invoice number", INVOICE_PREFIXES);
+  return sanitizeReference(value, "Invoice number", INVOICE_PREFIX);
 }
 
 /** Canonical return number printed on the return receipt. */
@@ -37,5 +34,5 @@ export function allocateReturnNumber(): string {
 }
 
 export function sanitizeReturnNumber(value: string): string {
-  return sanitizeReference(value, "Return number", RETURN_PREFIXES);
+  return sanitizeReference(value, "Return number", RETURN_PREFIX);
 }

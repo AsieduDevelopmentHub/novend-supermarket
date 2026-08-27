@@ -15,10 +15,14 @@ describe("document references", () => {
     expect(invoice).not.toBe(allocateInvoiceNumber());
   });
 
-  it("accepts the number printed at checkout, including legacy OFF- receipts", () => {
+  it("accepts the INV- number printed at checkout", () => {
     expect(sanitizeInvoiceNumber("INV-A1B2C3D4E5F60708")).toBe("INV-A1B2C3D4E5F60708");
-    expect(sanitizeInvoiceNumber("off-a1b2c3-0001")).toBe("OFF-A1B2C3-0001");
-    expect(sanitizeReturnNumber("ret-off-abc123")).toBe("RET-OFF-ABC123");
+    expect(sanitizeInvoiceNumber("inv-a1b2c3d4e5f60708")).toBe("INV-A1B2C3D4E5F60708");
+    expect(sanitizeReturnNumber("RET-A1B2C3D4E5F60708")).toBe("RET-A1B2C3D4E5F60708");
+  });
+
+  it("rewrites a leftover OFF- prefix to INV- so queued sales still upload", () => {
+    expect(sanitizeInvoiceNumber("off-a1b2c3-0001")).toBe("INV-A1B2C3-0001");
   });
 
   it("rejects numbers that could not have been printed as invoices", () => {
