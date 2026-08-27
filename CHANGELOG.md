@@ -6,16 +6,24 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ## Unreleased
 
+---
+
+## v0.3.8 — 2026-08-27
+
 ### Fixed
 
 - Cap/Electron boot checks `/api/health` before opening the hosted app, so a dead network shows Novend’s retry screen instead of Chrome’s “This page couldn’t load”.
-- Android WebView recovers failed hosted navigations onto the local boot page (`?stay=1`).
+- Android recovers failed hosted navigations (`net::ERR_FAILED`) onto the local boot page (`?stay=1`) and a branded `error.html`, not Chrome’s “webpage could not be loaded” sheet.
+- Capacitor production config no longer remote-`loadUrl`s the hosted origin (that load is what painted `ERR_FAILED`).
 - Service worker no longer rejects failed fetches (that also painted Chrome’s error sheet) and precaches Privacy, Terms, Help, and Download.
+- Warehouse “Issue to branch” keeps the new quantity and transfer on the page until the server snapshot arrives.
+- Outbox retries for wholesale, inventory, and expenses are idempotent so a lost response cannot double-apply stock.
 
 ### Changed
 
 - Settings → Downloads lists the Android APK (and iOS when published) next to desktop installers.
 - Settings → Backups combines this-device and cloud backups. New backups require a 12-character password (uppercase, lowercase, number) and confirmation; unencrypted files cannot be restored.
+- Mobile checkout honors Automatic / Manual / Do not print; Print (one copy) is the primary post-sale action.
 - CI runs on `staging`. Squash-merge `staging` → `main` for a clean release commit; Actions then merge-commits `main` back into `staging` so the next release PR does not conflict.
 
 ---
