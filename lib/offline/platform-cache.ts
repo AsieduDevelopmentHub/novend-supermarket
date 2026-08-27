@@ -28,6 +28,9 @@ export type PlatformOverviewCache = {
   branchCount: number;
   saleCount: number;
   salesLast24h: number;
+  importJobCount?: number;
+  failedImportJobs?: number;
+  exportEventCount?: number;
   recentOrganizations: Array<{
     id: string;
     name: string;

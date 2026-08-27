@@ -7,6 +7,8 @@ import {
   Clock,
   CreditCard,
   Crown,
+  FileDown,
+  FileUp,
   GitBranch,
   HardDrive,
   MonitorSmartphone,
@@ -190,6 +192,26 @@ export function PlatformOverviewView() {
           hint={revenue ? `Costs ${formatCurrency(revenue.operatingCosts)}` : undefined}
           icon={Wallet}
           href="/platform/revenue"
+        />
+      </Grid>
+
+      <Grid cols={4}>
+        <Kpi
+          title="Product imports"
+          value={formatNumber(overview.importJobCount ?? 0)}
+          hint="Completed jobs (counts only)"
+          icon={FileUp}
+        />
+        <Kpi
+          title="Failed imports"
+          value={formatNumber(overview.failedImportJobs ?? 0)}
+          icon={XCircle}
+        />
+        <Kpi
+          title="Exports recorded"
+          value={formatNumber(overview.exportEventCount ?? 0)}
+          hint="Format usage, not a billed quota"
+          icon={FileDown}
         />
       </Grid>
 

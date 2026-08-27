@@ -32,11 +32,13 @@ export const overview = query({
   args: {},
   handler: async (ctx) => {
     await requirePlatformAdmin(ctx);
-    const [organizations, profiles, branches, sales] = await Promise.all([
+    const [organizations, profiles, branches, sales, importJobs, exportEvents] = await Promise.all([
       ctx.db.query("organizations").collect(),
       ctx.db.query("profiles").collect(),
       ctx.db.query("branches").collect(),
       ctx.db.query("sales").collect(),
+      ctx.db.query("importJobs").collect(),
+      ctx.db.query("exportEvents").collect(),
     ]);
 
     const now = Date.now();
@@ -56,6 +58,9 @@ export const overview = query({
       branchCount: branches.length,
       saleCount: sales.length,
       salesLast24h: recentSales.length,
+      importJobCount: importJobs.length,
+      failedImportJobs: importJobs.filter((job) => job.status === "failed").length,
+      exportEventCount: exportEvents.length,
       recentOrganizations: organizations
         .sort((a, b) => b.createdAt - a.createdAt)
         .slice(0, 8)
