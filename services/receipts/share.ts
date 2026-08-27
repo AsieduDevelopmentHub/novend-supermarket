@@ -1,6 +1,7 @@
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
+import { Hardware } from "@novend/hardware";
 import { normalizeReceiptPayload } from "@/services/printing";
 
 /** Plain-text receipt for the native share sheet (WhatsApp, Messages, email, …). */
@@ -40,6 +41,30 @@ export function buildReceiptShareText(input: ReceiptPayload | Record<string, unk
     lines.push(t.thankYouLine);
   }
   return lines.join("\n");
+}
+
+export async function shareReceiptOnDevice(
+  input: ReceiptPayload | Record<string, unknown>,
+): Promise<{ ok: boolean; message?: string }> {
+  const payload = normalizeReceiptPayload(input);
+  const title = `Receipt ${payload.invoiceNumber}`;
+  const bytes = await buildReceiptPdfBytes(payload);
+  const saved = await Hardware.filesystem.savePDF(bytes, `receipt-${payload.invoiceNumber}.pdf`);
+  const uri = saved.data?.pathOrName;
+  if (uri) {
+    const fileShare = await Hardware.share.shareFile(uri, title);
+    if (fileShare.ok || fileShare.message === "Cancelled") return fileShare;
+  }
+  const text = buildReceiptShareText(payload);
+  return Hardware.share.shareReceipt(text, title);
+}
+
+export async function saveReceiptPdfOnDevice(
+  input: ReceiptPayload | Record<string, unknown>,
+): Promise<{ ok: boolean; message?: string }> {
+  const payload = normalizeReceiptPayload(input);
+  const bytes = await buildReceiptPdfBytes(payload);
+  return Hardware.filesystem.savePDF(bytes, `receipt-${payload.invoiceNumber}.pdf`);
 }
 
 /** Build a compact PDF receipt for save / share on mobile. */

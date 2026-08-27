@@ -1,6 +1,6 @@
 # Capacitor mobile platform
 
-Version: 1.5.4
+Version: 1.5.5
 
 ## Purpose
 
@@ -71,7 +71,8 @@ Web and Electron keep the existing sidebar unchanged.
 
 - Bluetooth thermal printing (Settings → Hardware). Checkout honors Automatic /
   Manual / Do not print. Print (one copy) is the primary post-sale action;
-  share and PDF are optional.
+  share and PDF are optional. Without a paired BLE printer, Android opens
+  `PrintManager` (not WebView `window.print()`, which never leaves “Opening…”).
 - Biometrics + secure unlock token (Settings → Security)
 - Local notification topic prefs (push delivery can plug in later)
 - Soft OTA check via `NEXT_PUBLIC_MOBILE_UPDATE_JSON` (Later / Update now)

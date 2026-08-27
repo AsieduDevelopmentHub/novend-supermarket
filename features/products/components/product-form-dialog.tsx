@@ -42,7 +42,6 @@ import {
   Hardware,
   cameraCaptureFailedMessage,
   isCapacitor,
-  permissionDeniedMessage,
 } from "@novend/hardware";
 
 export type CreatedCatalogProduct = {
@@ -278,11 +277,6 @@ function ProductFormBody({
   }
 
   async function applyHardwarePhoto(): Promise<void> {
-    const permission = await Hardware.camera.ensurePermission("camera");
-    if (!permission.ok) {
-      toast.error(permission.message || permissionDeniedMessage("camera"));
-      return;
-    }
     const result = await Hardware.camera.capturePhoto();
     if (!result.ok) {
       if (result.message === "Cancelled") return;

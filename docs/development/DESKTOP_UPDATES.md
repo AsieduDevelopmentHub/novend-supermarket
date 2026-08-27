@@ -3,7 +3,7 @@
 Packaged Novend POS apps discover updates through Convex, not the GitHub Releases API. GitHub still stores the installer binaries (private repo). Convex holds metadata and redirects downloads with a short-lived GitHub asset URL.
 
 ```
-Tag v* → GitHub Actions builds + uploads installers
+Tag v* → GitHub Actions (desktop installers only when targets is all)
       → publish job posts metadata to Convex
       → app / Settings / Super Admin download via
         {CONVEX_SITE_URL}/desktop-updates/...
@@ -78,5 +78,7 @@ electron-builder often creates the GitHub Release with a bare version title and 
 - **Body:** the matching `CHANGELOG.md` section
 
 Add a `## vX.Y.Z` (or `## X.Y.Z`) heading before tagging. The desktop workflow fails the notes step if that section is missing.
+
+Tag pushes default to Android APK + Convex mobile only. Desktop installers and desktop Convex metadata require workflow_dispatch with `targets: all`.
 
 Mobile APK publishing uses the same workflow — see `docs/development/MOBILE_UPDATES.md`.

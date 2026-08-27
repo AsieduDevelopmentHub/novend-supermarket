@@ -70,11 +70,14 @@ export {
   friendlyHardwareMessage,
   filesystemSaveFailedMessage,
   shareFailedMessage,
+  printFailedMessage,
   barcodeScanFailedMessage,
   cameraCaptureFailedMessage,
   type HardwarePermissionKind,
   type PermissionOutcome,
 } from "./permissions";
+
+export { isNativePluginAvailable, pluginUnavailableMessage } from "./plugin-available";
 
 export {
   withTimeout,

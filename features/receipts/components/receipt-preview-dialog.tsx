@@ -12,9 +12,8 @@ import { Button } from "@/components/ui/button";
 import { ReceiptDocument } from "@/features/receipts/components/receipt-document";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { printReceipt, normalizeReceiptPayload } from "@/services/printing";
-import { buildReceiptPdfBytes, buildReceiptShareText } from "@/services/receipts/share";
+import { saveReceiptPdfOnDevice, shareReceiptOnDevice } from "@/services/receipts/share";
 import {
-  Hardware,
   filesystemSaveFailedMessage,
   isCapacitor,
   shareFailedMessage,
@@ -41,16 +40,18 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
       if (!result.printed) {
         toast.error(
           mobile
-            ? "Could not print. Pair a Bluetooth printer in Settings, or use Share / Save PDF."
+            ? "Could not print. Pair a Bluetooth printer in Settings, or try Share / Save PDF."
             : "Could not print the receipt. Check printer settings or try again.",
         );
         return;
       }
-      if (result.reason === "native") {
+      if (result.reason === "native" || result.reason === "system") {
         toast.success(
           result.copies && result.copies > 1
             ? `Receipt sent to printer (${result.copies} copies)`
-            : "Receipt sent to printer",
+            : result.reason === "system"
+              ? "Print dialog opened"
+              : "Receipt sent to printer",
         );
       }
     } finally {
@@ -62,36 +63,9 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
     if (!normalized) return;
     setBusy("share");
     try {
-      const text = buildReceiptShareText(normalized);
-      const result = await Hardware.share.shareReceipt(text, `Receipt ${normalized.invoiceNumber}`);
+      const result = await shareReceiptOnDevice(normalized);
       if (result.ok) toast.success("Receipt shared");
-      if (result.ok || result.message === "Cancelled") return;
-
-      // Some Android share targets reject text-only payloads from a hosted
-      // WebView. Persist a PDF and share its content URI as a reliable fallback.
-      if (mobile) {
-        try {
-          const bytes = await buildReceiptPdfBytes(normalized);
-          const saved = await Hardware.filesystem.savePDF(
-            bytes,
-            `receipt-${normalized.invoiceNumber}.pdf`,
-          );
-          const uri = saved.data?.pathOrName;
-          if (saved.ok && uri) {
-            const fileShare = await Hardware.share.shareImage(
-              uri,
-              `Receipt ${normalized.invoiceNumber}`,
-            );
-            if (fileShare.ok) {
-              toast.success("Receipt shared");
-              return;
-            }
-          }
-        } catch {
-          /* Fall through to the actionable error below. */
-        }
-      }
-      toast.error(result.message || shareFailedMessage());
+      else if (result.message !== "Cancelled") toast.error(result.message || shareFailedMessage());
     } finally {
       setBusy(null);
     }
@@ -101,16 +75,12 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
     if (!normalized) return;
     setBusy("pdf");
     try {
-      const bytes = await buildReceiptPdfBytes(normalized);
-      const result = await Hardware.filesystem.savePDF(
-        bytes,
-        `receipt-${normalized.invoiceNumber}.pdf`,
-      );
+      const result = await saveReceiptPdfOnDevice(normalized);
       if (!result.ok) {
         toast.error(result.message || filesystemSaveFailedMessage());
         return;
       }
-      toast.success("Receipt PDF saved on this device");
+      toast.success("Receipt PDF saved to Downloads");
     } catch {
       toast.error(filesystemSaveFailedMessage());
     } finally {

@@ -5,8 +5,8 @@ installers. Convex stores metadata and redirects downloads; clients never call t
 Releases API directly.
 
 ```
-Tag v* -> GitHub Actions builds desktop + Android APK
-      -> publish job posts metadata to Convex
+Tag v* -> GitHub Actions builds Android APK (default)
+      -> publish job posts mobile metadata to Convex
       -> /download page and in-app checks read
         {CONVEX_SITE_URL}/mobile-updates/...
 ```
@@ -89,8 +89,12 @@ The helper loads `.env.local`, validates all four signing values, syncs Capacito
 
 ## GitHub tag releases
 
-The `Product Release` workflow runs for tags matching `v*`. Add these repository secrets
-before pushing a release tag:
+The `Product Release` workflow runs for tags matching `v*`. By default it
+builds the **Android APK only** and publishes mobile metadata to Convex (no
+desktop installers). Use workflow_dispatch with `targets: all` when you also
+need Windows/macOS/Linux installers and desktop Convex metadata.
+
+Required signing secrets:
 
 - `ANDROID_KEYSTORE_BASE64` - base64 encoding of the exact release keystore
 - `ANDROID_KEYSTORE_PASSWORD`
@@ -114,11 +118,11 @@ SHA-256 checksum to the GitHub Release, and then publishes mobile update metadat
 A missing keystore or signing secret fails the Android job; there is no debug-signing fallback
 for release artifacts.
 
-After updating the package version and changelog, push the matching tag:
+After updating the package version and changelog, squash-merge to `main`, then tag:
 
 ```bash
-git tag v0.3.5
-git push origin v0.3.5
+git tag v0.3.9
+git push origin v0.3.9
 ```
 
 ## HTTP endpoints

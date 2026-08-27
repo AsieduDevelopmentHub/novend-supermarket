@@ -295,7 +295,6 @@ export async function printReceipt(
       const preferred = await Hardware.printer.getDefaultPrinter();
       if (!preferred.data?.bluetoothDeviceId) {
         console.warn("[print:bluetooth-missing]");
-        // Fall through to browser print — Cap WebView may still open a print sheet.
       } else {
         const copies = 1;
         const result = await Hardware.printer.printReceipt({
@@ -342,6 +341,24 @@ export async function printReceipt(
         console.warn("[print:native-error]", error);
       }
     }
+  }
+
+  if (!options?.forceBrowser && isCapacitor()) {
+    try {
+      const { buildReceiptPdfBytes } = await import("@/services/receipts/share");
+      const pdf = await buildReceiptPdfBytes(payload);
+      const printed = await Hardware.filesystem.printPDF(
+        pdf,
+        `Receipt ${payload.invoiceNumber}`,
+      );
+      if (printed.ok) {
+        return { printed: true, reason: "system" };
+      }
+      console.warn("[print:system-failed]", printed.message);
+    } catch (error) {
+      console.warn("[print:system-error]", error);
+    }
+    return { printed: false, reason: "native_unavailable" };
   }
 
   return printReceiptBrowser(payload);

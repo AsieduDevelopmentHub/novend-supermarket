@@ -98,11 +98,15 @@ export type FilesystemAdapter = {
   savePDF: (bytes: Uint8Array, fileName: string) => Promise<HardwareResult<SavedFile>>;
   saveImage: (bytes: Uint8Array, fileName: string) => Promise<HardwareResult<SavedFile>>;
   readFile: (path: string) => Promise<HardwareResult<Uint8Array>>;
+  /** Write a PDF and open the system print dialog (Capacitor). */
+  printPDF?: (bytes: Uint8Array, title: string) => Promise<HardwareResult>;
 };
 
 export type ShareAdapter = {
   shareReceipt: (text: string, title?: string) => Promise<HardwareResult>;
   shareImage: (uri: string, title?: string) => Promise<HardwareResult>;
+  /** Share a local file URI (PDF/image) via the native sheet. */
+  shareFile?: (uri: string, title?: string) => Promise<HardwareResult>;
 };
 
 export type HardwareAdapters = {

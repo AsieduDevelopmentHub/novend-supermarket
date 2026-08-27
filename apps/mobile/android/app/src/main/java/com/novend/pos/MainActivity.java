@@ -14,6 +14,7 @@ public class MainActivity extends BridgeActivity {
 
     public MainActivity() {
         registerPlugin(NovendPermissionsPlugin.class);
+        registerPlugin(NovendPrintPlugin.class);
     }
 
     @Override
