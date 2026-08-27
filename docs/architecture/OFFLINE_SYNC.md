@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.2
+Version: 2.4.3
 
 ## Purpose
 
@@ -73,7 +73,7 @@ payment network:
 - Creating a new login (password is stored by Convex Auth)
 - Changing a password
 - Paystack checkout and live billing mutations
-- Cloud backup upload/download
+- Cloud backup upload/download (Settings → Backups; always encrypted)
 - Desktop auto-update download
 
 After the first successful online sign-in, this device keeps an **offline

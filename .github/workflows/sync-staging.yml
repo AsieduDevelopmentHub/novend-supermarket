@@ -1,0 +1,56 @@
+name: Sync staging from main
+
+# Squash-merging staging → main rewrites commits, so staging and main diverge.
+# Merge main back immediately to keep the next release PR clean.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: sync-staging-from-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    name: Merge main into staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge and push, or open a PR if it conflicts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main staging
+          git checkout -B staging origin/staging
+
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "staging already contains main"
+            exit 0
+          fi
+
+          if git merge origin/main -m "Merge branch 'main' into staging"; then
+            git push origin staging
+            echo "Pushed merge of main into staging"
+            exit 0
+          fi
+
+          git merge --abort
+          echo "Merge conflict — opening a PR so it can be resolved on staging"
+          open_count="$(gh pr list --base staging --head main --state open --json number --jq 'length')"
+          if [ "$open_count" = "0" ]; then
+            gh pr create --base staging --head main \
+              --title "chore: sync main into staging" \
+              --body "main was updated (usually a staging → main release). Merge this PR with a merge commit, not squash, so histories stay aligned."
+          else
+            echo "A main → staging PR is already open"
+          fi

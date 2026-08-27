@@ -1,6 +1,6 @@
 # Billing, Plans & Activation
 
-Version: 1.3.0
+Version: 1.3.1
 
 Novend is sold as a subscription with a lifetime licence option. This document is
 the reference for how entitlements are defined, enforced and paid for.
@@ -33,7 +33,7 @@ licence so a terminal keeps selling offline, but it never decides access.
 | `convex/billing.ts`                      | Tenant queries, checkout, webhook handlers, platform administration, Enterprise backup quota |
 | `convex/billingHttp.ts`                  | `POST /billing/paystack/webhook`                                                             |
 | `convex/devices.ts`                      | Device activation and deactivation                                                           |
-| `convex/cloudBackups.ts`                 | Cloud backup uploads against the storage quota                                               |
+| `convex/cloudBackups.ts`                 | Cloud backup uploads against the storage quota. UI: Settings → Backups |
 | `convex/crons.ts`                        | Daily expiry and catalog maintenance                                                         |
 
 # Plans

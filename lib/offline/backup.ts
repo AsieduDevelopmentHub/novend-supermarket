@@ -1,6 +1,7 @@
 import { brandedDocumentName } from "@/lib/export-filenames";
 import { getOfflineDb } from "./db";
 import { Hardware, isCapacitor } from "@novend/hardware";
+import { assertBackupPassword, assertBackupUnlockPassword } from "./backup-password";
 
 const TABLE_NAMES = [
   "meta",
@@ -62,8 +63,13 @@ function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
   return new Uint8Array(Array.from(binary, (char) => char.charCodeAt(0)));
 }
 
-async function deriveBackupKey(passphrase: string, salt: Uint8Array<ArrayBuffer>) {
-  if (passphrase.length < 8) throw new Error("Backup password must be at least 8 characters");
+async function deriveBackupKey(
+  passphrase: string,
+  salt: Uint8Array<ArrayBuffer>,
+  purpose: "create" | "unlock",
+) {
+  if (purpose === "create") assertBackupPassword(passphrase);
+  else assertBackupUnlockPassword(passphrase);
   const material = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(passphrase),
@@ -86,7 +92,7 @@ export async function encryptOfflineBackup(
 ): Promise<EncryptedBackupEnvelope> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveBackupKey(passphrase, salt);
+  const key = await deriveBackupKey(passphrase, salt, "create");
   const ciphertext = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     key,
@@ -113,14 +119,15 @@ async function decryptOfflineBackup(
   try {
     const salt = base64ToBytes(envelope.kdf.salt);
     const iv = base64ToBytes(envelope.cipher.iv);
-    const key = await deriveBackupKey(passphrase, salt);
+    const key = await deriveBackupKey(passphrase, salt, "unlock");
     const plaintext = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv },
       key,
       base64ToBytes(envelope.ciphertext),
     );
     return JSON.parse(new TextDecoder().decode(plaintext)) as OfflineBackupPayload;
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Enter the backup")) throw error;
     throw new Error("Backup password is incorrect or the file is damaged");
   }
 }
@@ -251,12 +258,16 @@ export async function importOfflineBackup(payload: OfflineBackupPayload) {
   });
 }
 
-export async function readBackupFile(
-  file: File,
+export async function parseBackupPayload(
+  text: string,
   passphrase: string,
 ): Promise<OfflineBackupPayload> {
-  const text = await file.text();
-  const parsed = JSON.parse(text) as unknown;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Invalid backup file");
+  }
   if (
     parsed &&
     typeof parsed === "object" &&
@@ -265,8 +276,12 @@ export async function readBackupFile(
   ) {
     return await decryptOfflineBackup(parsed as EncryptedBackupEnvelope, passphrase);
   }
-  if (!parsed || typeof parsed !== "object" || !("tables" in parsed)) {
-    throw new Error("Invalid backup file");
-  }
-  return parsed as OfflineBackupPayload;
+  throw new Error("This backup is not password-protected. Novend only restores encrypted backups.");
+}
+
+export async function readBackupFile(
+  file: File,
+  passphrase: string,
+): Promise<OfflineBackupPayload> {
+  return await parseBackupPayload(await file.text(), passphrase);
 }

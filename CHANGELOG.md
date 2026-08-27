@@ -15,6 +15,8 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 ### Changed
 
 - Settings → Downloads lists the Android APK (and iOS when published) next to desktop installers.
+- Settings → Backups combines this-device and cloud backups. New backups require a 12-character password (uppercase, lowercase, number) and confirmation; unencrypted files cannot be restored.
+- CI runs on `staging`. After `main` updates, Actions merges `main` back into `staging` so the next release PR does not conflict. Merge `staging` → `main` with a merge commit, not squash.
 
 ---
 

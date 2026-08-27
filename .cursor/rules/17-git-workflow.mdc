@@ -5,8 +5,13 @@ alwaysApply: false
 
 # Git Workflow
 
-- **Default integration branch:** `staging` (day-to-day commits).
-- **`main`:** protected production branch — update only via PR from `staging` (or a focused fix branch).
+- **Default integration branch:** `staging` (day-to-day commits). CI runs on
+  `staging` and `main`.
+- **`main`:** protected production branch — update only via PR from `staging`
+  (or a focused fix branch). Merge that PR with a **merge commit**, not squash
+  or rebase, so `staging` and `main` keep a shared history.
+- After `main` updates, workflow `sync-staging.yml` merges `main` back into
+  `staging` (or opens a PR if it conflicts). Do not leave the branches diverged.
 - Purpose-based short-lived branches are fine; merge into `staging` first when possible.
 - Commit only when asked. Messages explain why.
 - Never commit secrets.

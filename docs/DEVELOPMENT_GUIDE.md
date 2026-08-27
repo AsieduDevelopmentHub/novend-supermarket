@@ -2,7 +2,7 @@
 
 ## Development Guide
 
-Version: 1.0.0
+Version: 1.0.1
 
 # Purpose
 
@@ -33,6 +33,13 @@ pnpm dev:all          # Next + Convex
 pnpm typecheck
 pnpm lint
 ```
+
+# Git
+
+Work on `staging`. Open a PR into `main` only for a product release. Merge
+`staging` → `main` with a **merge commit** (not squash). Squash rewrites the
+release commits and the next PR conflicts on version files. After `main`
+updates, GitHub Actions merges `main` back into `staging`.
 
 # Lifecycle
 
