@@ -11,11 +11,12 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 - Wholesale **Record purchase** sets catalog **cost** and **selling** prices so a supplier increase is what branches sell after issue. Recent purchases list those line prices. **New product** on the same dialog adds a catalog SKU (no opening branch stock); quantity is received into the warehouse.
 - Sales cart, discount, and attached customer stay in the tab when you leave Sales and come back. Checkout, hold, and sign-out clear that draft.
 - Settings → Devices can **shut down all except this device**, so administrators free every other activation slot in one action.
+- Shut-down terminals can be **re-enabled** (uses a slot again) or **removed** from Settings → Devices.
 
 ### Changed
 
 - You cannot set your own account inactive, deactivate the organization owner, or deactivate a user who is currently signed in.
-- The device you are using cannot be shut down. Other activated terminals still can.
+- The device you are using cannot be shut down or removed. Other activated terminals still can.
 
 ### Fixed
 

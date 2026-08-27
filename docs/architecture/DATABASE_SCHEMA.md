@@ -15,7 +15,8 @@ or drive hot queries **start with** `organizationId`.
   subscriptionId, trialEndsAt, backupLimitBytes (Enterprise quota override)
 - `plans` — catalog mirror of `convex/shared/plans.ts` plus gateway plan codes
 - `subscriptions` — one live licence per organization
-- `devices` — activated terminals counted against the plan
+- `devices` — activated terminals counted against the plan; shut-down rows can
+  be re-enabled or removed from Settings → Devices
 - `billingHistory` — checkout and webhook payment records
 - `cloudBackups` — cloud backup blobs counted against the storage quota
 - `users` / auth tables — Convex Auth (global identity)
