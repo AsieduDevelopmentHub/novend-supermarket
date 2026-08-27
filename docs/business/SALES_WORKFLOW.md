@@ -17,6 +17,9 @@ immutable and print a receipt.
 - Completed sales are immutable
 - Hold stores the cart; inventory is not reduced until checkout
 - Offline checkout writes Dexie + outbox, then syncs with `clientOperationId`
+- The working cart (items, discount, customer) is kept in the tab per cashier
+  and branch so leaving Sales and returning restores it. Checkout, hold, and
+  sign-out clear it.
 
 ## Flow
 

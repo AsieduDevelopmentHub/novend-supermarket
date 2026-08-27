@@ -62,6 +62,11 @@ import {
   type BarcodeMatchProduct,
 } from "@/features/sales/components/barcode-match-dialog";
 import { DraggableCartFab } from "@/features/sales/components/draggable-cart-fab";
+import {
+  readCartDraft,
+  writeCartDraft,
+  type CartDraftItem,
+} from "@/lib/sales/cart-draft";
 
 type DiscountMode = "amount" | "percent";
 
@@ -122,6 +127,7 @@ export function SalesView() {
   } | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const showCameraScan = shouldShowCameraBarcodeButton();
+  const [hydratedCartScope, setHydratedCartScope] = useState<string | null>(null);
 
   const mirroredBranches = useBranchesList();
   const branches = isAdmin ? mirroredBranches : undefined;
@@ -186,6 +192,39 @@ export function SalesView() {
       setLocalHeld(await listLocalHeldSales(uid ?? undefined));
     })();
   }, []);
+
+  useEffect(() => {
+    if (!cashierId || !workingBranchId) return;
+    const draft = readCartDraft(cashierId, workingBranchId);
+    setCart((draft?.items as CartItem[] | undefined) ?? []);
+    setDiscountMode(draft?.discountMode ?? "amount");
+    setDiscountField(draft?.discountField ?? 0);
+    setCustomer(draft?.customer ?? null);
+    setQtyDrafts({});
+    setHydratedCartScope(`${cashierId}:${workingBranchId}`);
+  }, [cashierId, workingBranchId]);
+
+  useEffect(() => {
+    if (!cashierId || !workingBranchId) return;
+    if (hydratedCartScope !== `${cashierId}:${workingBranchId}`) return;
+    writeCartDraft({
+      userId: cashierId,
+      branchId: workingBranchId,
+      items: cart satisfies CartDraftItem[],
+      discountMode,
+      discountField,
+      customer,
+      savedAt: Date.now(),
+    });
+  }, [
+    cart,
+    discountMode,
+    discountField,
+    customer,
+    cashierId,
+    workingBranchId,
+    hydratedCartScope,
+  ]);
 
   async function refreshLocalHeld() {
     const rows = await listLocalHeldSales(cashierId ?? undefined);
@@ -358,8 +397,6 @@ export function SalesView() {
   function changeBranch(next: Id<"branches"> | "all") {
     if (next === "all") return;
     setBranchOverride(next);
-    setCart([]);
-    clearCartDiscount();
   }
 
   async function onHold() {

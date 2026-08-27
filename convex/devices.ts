@@ -192,12 +192,20 @@ export const renameDevice = mutation({
  * that machine from registering again until someone signs in on it.
  */
 export const deactivateDevice = mutation({
-  args: { deviceId: v.id("devices") },
+  args: {
+    deviceId: v.id("devices"),
+    currentFingerprint: v.string(),
+  },
   handler: async (ctx, args) => {
     const { organizationId, userId } = await requireRoleIgnoringLicense(ctx, ["administrator"]);
+    const fingerprint = args.currentFingerprint.trim();
+    if (!fingerprint) throw new Error("This device could not be identified");
     const device = await ctx.db.get(args.deviceId);
     if (!device || device.organizationId !== organizationId) throw new Error("Not found");
     if (!device.isActive) return;
+    if (device.fingerprint === fingerprint) {
+      throw new Error("You cannot shut down the device you are using");
+    }
     await ctx.db.patch(device._id, {
       isActive: false,
       deactivatedAt: Date.now(),
@@ -210,5 +218,48 @@ export const deactivateDevice = mutation({
       entityType: "devices",
       entityId: device._id,
     });
+  },
+});
+
+/**
+ * Frees every other activation slot. The terminal making the request stays on.
+ */
+export const deactivateOtherDevices = mutation({
+  args: { currentFingerprint: v.string() },
+  handler: async (ctx, args) => {
+    const { organizationId, userId } = await requireRoleIgnoringLicense(ctx, ["administrator"]);
+    const fingerprint = args.currentFingerprint.trim();
+    if (!fingerprint) throw new Error("This device could not be identified");
+
+    const devices = await ctx.db
+      .query("devices")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
+
+    const now = Date.now();
+    const shutdown: typeof devices = [];
+    for (const device of devices) {
+      if (!device.isActive) continue;
+      if (device.fingerprint === fingerprint) continue;
+      shutdown.push(device);
+    }
+
+    for (const device of shutdown) {
+      await ctx.db.patch(device._id, {
+        isActive: false,
+        deactivatedAt: now,
+        deactivatedBy: userId,
+      });
+      await writeAuditLog(ctx, {
+        organizationId,
+        actorId: userId,
+        action: "device_deactivated",
+        entityType: "devices",
+        entityId: device._id,
+        metadata: { bulk: true, keptFingerprint: fingerprint },
+      });
+    }
+
+    return { count: shutdown.length };
   },
 });

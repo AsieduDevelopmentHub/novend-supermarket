@@ -24,6 +24,7 @@ import { assertStoredImage, sanitizePhone, sanitizeText, TEXT_LIMITS } from "./s
 import { assertOrganizationCapacity, countUsage, resolveLicense } from "./shared/entitlements";
 import { limitReachedMessage } from "./shared/plans";
 import { presenceFromLastSeenAt } from "./shared/presence";
+import { deactivateAccountBlockReason } from "./shared/accountStatus";
 
 export const me = query({
   args: {},
@@ -132,7 +133,11 @@ export const list = query({
     search: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { profile: actor, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const { profile: actor, organizationId, userId: actorUserId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+    ]);
+    const organization = await ctx.db.get(organizationId);
     const now = Date.now();
     let profiles = await ctx.db
       .query("profiles")
@@ -174,6 +179,8 @@ export const list = query({
           lastLoginAt: profile.lastLoginAt ?? null,
           lastDevice: profile.lastDevice ?? null,
           presence,
+          isOwner: organization?.ownerUserId === profile.userId,
+          isSelf: profile.userId === actorUserId,
         };
       }),
     );
@@ -200,7 +207,10 @@ export const list = query({
 export const get = query({
   args: { id: v.id("profiles") },
   handler: async (ctx, args) => {
-    const { profile: actor, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const { profile: actor, organizationId, userId: actorUserId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+    ]);
     const profile = await ctx.db.get(args.id);
     if (!profile || profile.organizationId !== organizationId) return null;
     if (
@@ -212,6 +222,7 @@ export const get = query({
     }
     const user = await ctx.db.get(profile.userId);
     const branchDoc = profile.branchId ? await ctx.db.get(profile.branchId) : null;
+    const organization = await ctx.db.get(organizationId);
     const now = Date.now();
     const { lastSeenAt, presence } = presenceFromLastSeenAt(profile.lastSeenAt, now);
     const imageUrl = profile.imageStorageId
@@ -232,6 +243,8 @@ export const get = query({
       lastLoginAt: profile.lastLoginAt ?? null,
       lastDevice: profile.lastDevice ?? null,
       presence,
+      isOwner: organization?.ownerUserId === profile.userId,
+      isSelf: profile.userId === actorUserId,
     };
   },
 });
@@ -264,6 +277,18 @@ export const updateProfile = mutation({
     const branch = await ctx.db.get(args.branchId);
     if (!branch || branch.status !== "active" || branch.organizationId !== organizationId) {
       throw new Error("Invalid branch");
+    }
+
+    if (args.status === "inactive") {
+      const organization = await ctx.db.get(organizationId);
+      const { presence } = presenceFromLastSeenAt(profile.lastSeenAt);
+      const blocked = deactivateAccountBlockReason({
+        actorUserId: userId,
+        targetUserId: profile.userId,
+        ownerUserId: organization?.ownerUserId,
+        presence,
+      });
+      if (blocked) throw new Error(blocked);
     }
 
     await ctx.db.patch(args.id, {

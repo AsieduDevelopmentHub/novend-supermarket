@@ -90,5 +90,6 @@ export function usePermissions() {
     canTransferStock: role === "administrator" || role === "manager",
     canAccessSales: role === "administrator" || role === "manager" || role === "cashier",
     canProcessReturns: role === "administrator" || role === "manager" || role === "cashier",
+    userId: user?.userId ?? null,
   };
 }

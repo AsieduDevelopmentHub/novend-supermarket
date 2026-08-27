@@ -49,8 +49,10 @@ export function DevicesPanel() {
   const data = useQuery(api.devices.listDevices, online ? { fingerprint } : "skip");
   const renameDevice = useMutation(api.devices.renameDevice);
   const deactivateDevice = useMutation(api.devices.deactivateDevice);
+  const deactivateOtherDevices = useMutation(api.devices.deactivateOtherDevices);
   const [renaming, setRenaming] = useState<{ id: Id<"devices">; name: string } | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<Id<"devices"> | null>(null);
+  const [confirmShutdownOthers, setConfirmShutdownOthers] = useState(false);
   const [pending, setPending] = useState(false);
 
   if (!online) {
@@ -68,6 +70,8 @@ export function DevicesPanel() {
   }
 
   const atLimit = data.limit !== null && data.activeCount >= data.limit;
+  const otherActiveCount = data.devices.filter((device) => device.isActive && !device.isCurrent)
+    .length;
 
   async function onRename() {
     if (!renaming) return;
@@ -86,13 +90,30 @@ export function DevicesPanel() {
   async function onDeactivate(deviceId: Id<"devices">) {
     setPending(true);
     try {
-      await deactivateDevice({ deviceId });
-      toast.success("Device deactivated");
+      await deactivateDevice({ deviceId, currentFingerprint: fingerprint });
+      toast.success("Device shut down");
     } catch (error) {
-      showError(error, "Could not deactivate this device");
+      showError(error, "Could not shut down this device");
     } finally {
       setPending(false);
       setConfirmDeactivate(null);
+    }
+  }
+
+  async function onShutdownOthers() {
+    setPending(true);
+    try {
+      const result = await deactivateOtherDevices({ currentFingerprint: fingerprint });
+      toast.success(
+        result.count === 0
+          ? "No other devices were active"
+          : `Shut down ${result.count} other device${result.count === 1 ? "" : "s"}`,
+      );
+    } catch (error) {
+      showError(error, "Could not shut down other devices");
+    } finally {
+      setPending(false);
+      setConfirmShutdownOthers(false);
     }
   }
 
@@ -110,6 +131,7 @@ export function DevicesPanel() {
           </CardTitle>
           <CardDescription>
             Every signed-in installation uses one slot — desktop app, Android/iOS app, or browser.
+            You cannot shut down this device while you are using it.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -117,10 +139,19 @@ export function DevicesPanel() {
             <Alert>
               <AlertTitle>Device limit reached</AlertTitle>
               <AlertDescription>
-                Deactivate a device you no longer use, or upgrade your plan to activate more
-                terminals.
+                Shut down a device you no longer use, or upgrade your plan to activate more
+                terminals. This device stays on.
               </AlertDescription>
             </Alert>
+          ) : null}
+
+          {isAdmin && otherActiveCount > 0 ? (
+            <div className="flex flex-wrap justify-end">
+              <Button type="button" variant="outline" onClick={() => setConfirmShutdownOthers(true)}>
+                <PowerOff className="h-4 w-4" aria-hidden />
+                Shut down all except this device
+              </Button>
+            </div>
           ) : null}
 
           {data.devices.length === 0 ? (
@@ -159,15 +190,17 @@ export function DevicesPanel() {
                       >
                         <Pencil className="h-4 w-4" aria-hidden />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Deactivate ${device.name}`}
-                        onClick={() => setConfirmDeactivate(device.id)}
-                      >
-                        <PowerOff className="h-4 w-4" aria-hidden />
-                      </Button>
+                      {device.isCurrent ? null : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Shut down ${device.name}`}
+                          onClick={() => setConfirmDeactivate(device.id)}
+                        >
+                          <PowerOff className="h-4 w-4" aria-hidden />
+                        </Button>
+                      )}
                     </div>
                   ) : null}
                 </li>
@@ -219,12 +252,26 @@ export function DevicesPanel() {
         onOpenChange={(open) => {
           if (!open) setConfirmDeactivate(null);
         }}
-        title="Deactivate this device?"
-        description="It frees an activation slot immediately. Anyone signing in on that terminal again will need a free slot."
-        confirmLabel="Deactivate"
+        title="Shut down this device?"
+        description="It frees an activation slot immediately. Anyone signing in on that terminal again will need a free slot. The terminal you are using stays on."
+        confirmLabel="Shut down"
         pending={pending}
         onConfirm={() => {
           if (confirmDeactivate) void onDeactivate(confirmDeactivate);
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmShutdownOthers}
+        onOpenChange={(open) => {
+          if (!open) setConfirmShutdownOthers(false);
+        }}
+        title="Shut down all other devices?"
+        description={`This device stays on. ${otherActiveCount} other activated terminal${otherActiveCount === 1 ? "" : "s"} will lose ${otherActiveCount === 1 ? "its" : "their"} slot immediately. Anyone signing in on those terminals again will need a free slot.`}
+        confirmLabel="Shut down others"
+        pending={pending}
+        onConfirm={() => {
+          void onShutdownOthers();
         }}
       />
     </div>

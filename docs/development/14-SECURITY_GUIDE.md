@@ -46,6 +46,10 @@ Hiding a button is not authorization.
 | Administrator | Organization-wide, including users and settings                 |
 | Owner         | Administrator + cannot be deactivated in this slice             |
 
+A user cannot set their own account inactive. A signed-in (online) account
+cannot be set inactive until they sign out. Convex enforces both; hiding the
+control is not authorization.
+
 # Tenant isolation
 
 - Never accept `organizationId` from the client as authority

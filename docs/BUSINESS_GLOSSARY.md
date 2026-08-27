@@ -27,7 +27,8 @@ This slice creates a `MAIN` branch at onboarding. Multi-branch UI comes later.
 # Profile
 
 Application identity for an authenticated user: name, role, organization, branch,
-status. Distinct from Convex Auth `users`.
+status. Distinct from Convex Auth `users`. Users cannot deactivate their own
+account. A signed-in user cannot be set inactive until they sign out.
 
 # Product
 

@@ -49,6 +49,8 @@ One Convex Auth user belongs to exactly one organization
 # Roles
 
 - `organizations.ownerUserId` — cannot be deactivated in this slice
+- A signed-in (presence online) account cannot be set inactive until they sign out
+- Users cannot deactivate their own account
 - `administrator` | `manager` | `cashier` — Princellen capability map, always
   scoped to the session organization (and branch for manager/cashier)
 

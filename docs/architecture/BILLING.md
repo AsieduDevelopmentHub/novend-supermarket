@@ -162,8 +162,10 @@ itself on first sign-in. Registration counts against the plan's device limit; a
 refused registration shows a dismissible dialog rather than blocking the app,
 because a licensing message must never strand a cashier mid-shift.
 
-Administrators free a slot from Settings → Devices. Platform administrators can
-clear every activation with `billing.resetActivation` when hardware is replaced.
+Administrators free a slot from Settings → Devices. The terminal in use cannot
+be shut down; administrators can shut down every other activated device in one
+action. Platform administrators can clear every activation with
+`billing.resetActivation` when hardware is replaced.
 
 # Offline
 

@@ -309,6 +309,8 @@ export type MirroredUser = {
   lastSeenAt?: number | null;
   lastLoginAt?: number | null;
   lastDevice?: string | null;
+  isOwner?: boolean;
+  isSelf?: boolean;
 };
 
 export type MirroredExpense = {
