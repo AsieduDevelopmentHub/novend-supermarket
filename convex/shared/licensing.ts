@@ -6,6 +6,7 @@
  */
 
 import type { LimitResource, PlanKey } from "./plans";
+import type { PlanCapabilities } from "./capabilities";
 
 export const ORGANIZATION_STATUSES = [
   "active",
@@ -250,6 +251,7 @@ export type LicenseSnapshot = {
   subscription: SubscriptionSnapshot | null;
   access: LicenseAccess;
   limits: Record<LimitResource, number | null>;
+  capabilities?: PlanCapabilities;
   features: string[];
   issuedAt: number;
   scheduledPlan?: PlanKey | null;

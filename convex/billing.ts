@@ -24,6 +24,7 @@ import {
   getActiveSubscription,
   resolveLicense,
 } from "./shared/entitlements";
+import { planCapabilities } from "./shared/capabilities";
 import { GRACE_PERIOD_MS } from "./shared/licensing";
 import {
   DEFAULT_PLAN_KEY,
@@ -122,6 +123,7 @@ export const licenseSnapshot = query({
       planName: license.plan.name,
       access: license.access,
       limits: license.limits,
+      capabilities: planCapabilities(license.planKey, license.limits),
       features: license.plan.features,
       subscription: license.subscription
         ? {
