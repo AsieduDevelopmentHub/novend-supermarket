@@ -744,6 +744,9 @@ export function SalesView() {
                   <p className="text-primary mt-1 text-sm font-semibold">
                     {formatCurrency(product.sellingPrice)}
                   </p>
+                  <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                    Stock {product.stockQuantity} {product.unit}
+                  </p>
                   {product.isExpiring ? (
                     <Badge variant="warning" className="mt-1 sm:mt-2">
                       Expiring soon

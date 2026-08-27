@@ -1,6 +1,7 @@
 import type { AppRole } from "@/config/navigation";
 import { getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
 import type { PrintSnapshot } from "./types";
+import { collectTopSellingCandidates } from "@/lib/dashboard/top-selling";
 
 export type DashboardSummaryCache = {
   role: AppRole | string;
@@ -192,7 +193,7 @@ export async function buildLocalDashboardSummary(
     addProductTotal(item.productId, item.productName, item.lineTotal, item.quantity);
   }
 
-  const topProducts = [...productTotals.values()].sort((a, b) => b.total - a.total).slice(0, 5);
+  const topProducts = collectTopSellingCandidates([...productTotals.values()]);
 
   const trendMap = new Map<string, number>();
   for (let i = 6; i >= 0; i -= 1) {
