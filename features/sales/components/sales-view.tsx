@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -38,15 +38,15 @@ import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useNativeShell } from "@/hooks/use-native-shell";
-import { getMeta, getOfflineDb, META_KEYS, newClientId } from "@/lib/offline/db";
+import { getMeta, getOfflineDb, META_KEYS } from "@/lib/offline/db";
 import { cn } from "@/lib/utils";
 import {
   completeSaleLocally,
   holdSaleLocally,
   listLocalHeldSales,
-  mirrorCompletedSale,
   resumeLocalHeldSale,
 } from "@/lib/offline/sales-repository";
+import { notifyReplicaChanged } from "@/lib/offline/replica-events";
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
 import { resolveReceiptPrintMode } from "@/lib/receipt-print-mode";
 import type { LocalHeldSale } from "@/lib/offline/types";
@@ -117,6 +117,8 @@ export function SalesView() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saleCompleteOpen, setSaleCompleteOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const payingRef = useRef(false);
   const [localHeld, setLocalHeld] = useState<LocalHeldSale[]>([]);
   const [cashierId, setCashierId] = useState<string | null>(null);
   /** Draft qty strings while editing — empty allowed until blur. */
@@ -147,7 +149,6 @@ export function SalesView() {
   const remoteHeld = useQuery(api.sales.listHeld, online ? {} : "skip");
   const holdSale = useMutation(api.sales.holdSale);
   const resumeHeld = useMutation(api.sales.resumeHeld);
-  const completeSaleRemote = useMutation(api.sales.completeSale);
   const createCustomer = useMutation(api.customers.create);
   const posPrefs = usePosPreferences();
 
@@ -491,7 +492,7 @@ export function SalesView() {
   }
 
   async function onPay() {
-    if (!canCheckout) return;
+    if (!canCheckout || payingRef.current) return;
     const saleBranchId = (isAdmin ? workingBranchId : myBranchId) ?? undefined;
     if (!saleBranchId) {
       toast.error("Select a branch before completing this sale");
@@ -506,64 +507,18 @@ export function SalesView() {
       toast.error(`Not enough stock for ${oversold.name}. Available: ${available}.`);
       return;
     }
-    const saleInput = {
-      customerId: customer?.id as Id<"customers"> | undefined,
-      customerName: customer?.name,
-      items: cart.map((item) => ({
-        productId: item.productId as Id<"products">,
-        quantity: item.quantity,
-        discount: item.discount,
-      })),
-      discount: cartDiscount,
-      paymentMethod: "cash" as const,
-      branchId: saleBranchId,
-    };
+    if (isAdmin && myBranchId && saleBranchId !== myBranchId && !online) {
+      toast.error("Connect to the internet to sell from another branch.");
+      return;
+    }
+    if (!dexieAvailable) {
+      toast.error("Local storage unavailable — cannot complete sale offline");
+      return;
+    }
+
+    payingRef.current = true;
+    setPaying(true);
     try {
-      if (online) {
-        const result = await completeSaleRemote({
-          ...saleInput,
-          clientOperationId: newClientId("sale"),
-        });
-        const receipt = result.receiptPayload as ReceiptPayload;
-        await mirrorCompletedSale({
-          saleId: String(result.saleId),
-          invoiceNumber: result.invoiceNumber,
-          customerId: customer?.id,
-          customerName: customer?.name ?? receipt.customerName ?? "Walk-in Customer",
-          itemCount: receipt.itemCount ?? cartItemCount,
-          subtotal: receipt.subtotal ?? subtotal,
-          discount: receipt.discount ?? cartDiscount,
-          total: result.total,
-          paymentMethod: "cash",
-          completedAt: receipt.completedAt ?? Date.now(),
-          branchId: saleBranchId,
-          items: cart.map((item) => ({
-            productId: item.productId,
-            productName: item.name,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            discount: item.discount,
-            lineTotal: roundMoney(item.unitPrice * item.quantity - item.discount),
-          })),
-        });
-        setCart([]);
-        clearCartDiscount();
-        setCustomer(null);
-        setCustomerQuery("");
-        setCheckoutOpen(false);
-        await refreshLocal();
-        toast.success(`Sale complete · ${result.invoiceNumber}`, { id: "sale-complete" });
-        await triggerPrint(result.receiptPayload as ReceiptPayload);
-        return;
-      }
-      if (isAdmin && myBranchId && saleBranchId !== myBranchId) {
-        toast.error("Connect to the internet to sell from another branch.");
-        return;
-      }
-      if (!dexieAvailable) {
-        toast.error("Local storage unavailable — cannot complete sale offline");
-        return;
-      }
       const result = await completeSaleLocally({
         items: cart,
         discount: cartDiscount,
@@ -579,10 +534,18 @@ export function SalesView() {
       setCustomerQuery("");
       setCheckoutOpen(false);
       await refreshLocal();
+      notifyReplicaChanged({ flush: true });
       toast.success(`Sale saved · ${result.invoiceNumber}`, { id: "sale-complete" });
-      await triggerPrint(result.receiptPayload);
+      try {
+        await triggerPrint(result.receiptPayload);
+      } catch {
+        toast.error("Sale saved. Reprint the receipt if the printer did not fire.");
+      }
     } catch (error) {
       showError(error, "Payment failed");
+    } finally {
+      payingRef.current = false;
+      setPaying(false);
     }
   }
 
@@ -817,6 +780,7 @@ export function SalesView() {
               discountField={discountField}
               discountExceedsSubtotal={discountExceedsSubtotal}
               canCheckout={canCheckout}
+              paying={paying}
               lastReceipt={lastReceipt}
               onQuickCreate={() => setQuickOpen(true)}
               onClearCustomer={() => setCustomer(null)}
@@ -874,6 +838,7 @@ export function SalesView() {
               discountField={discountField}
               discountExceedsSubtotal={discountExceedsSubtotal}
               canCheckout={canCheckout}
+              paying={paying}
               lastReceipt={lastReceipt}
               pinActions
               onQuickCreate={() => setQuickOpen(true)}
@@ -985,6 +950,7 @@ type SalesCheckoutFieldsProps = {
   discountField: number;
   discountExceedsSubtotal: boolean;
   canCheckout: boolean;
+  paying?: boolean;
   lastReceipt: ReceiptPayload | null;
   /** Pin Hold/Pay to the bottom of a full-height sheet (mobile checkout drawer). */
   pinActions?: boolean;
@@ -1017,6 +983,7 @@ function SalesCheckoutFields({
   discountField,
   discountExceedsSubtotal,
   canCheckout,
+  paying = false,
   lastReceipt,
   pinActions = false,
   onQuickCreate,
@@ -1035,11 +1002,11 @@ function SalesCheckoutFields({
   const actions = (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
-        <Button type="button" variant="secondary" disabled={!canCheckout} onClick={onHold}>
+        <Button type="button" variant="secondary" disabled={!canCheckout || paying} onClick={onHold}>
           Hold
         </Button>
-        <Button type="button" disabled={!canCheckout} onClick={onPay}>
-          Pay
+        <Button type="button" disabled={!canCheckout || paying} onClick={onPay}>
+          {paying ? "Saving…" : "Pay"}
         </Button>
       </div>
       {lastReceipt ? (

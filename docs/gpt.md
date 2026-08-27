@@ -1,339 +1,612 @@
-## Novend — Deep Production Regression Audit & Fix
+## Novend — Product Import, Reporting, Export & SaaS Plan Architecture
 
-We have multiple Web/PWA, Electron, Capacitor Android, caching, routing, native-plugin, and UI issues. Do NOT apply superficial patches. Perform a full root-cause investigation, trace the regressions through the existing code/history, then implement and verify the fixes.
+I want to introduce a major architectural expansion to Novend covering **product imports, detailed reporting, analytics exports, comprehensive product exports, and SaaS plan-based access/limits**.
 
-### 1. Intermittent "site unavailable / refresh" errors
+Do not implement this as isolated UI features. Design and implement a reusable architecture that can scale across organizations, plans, Web/PWA, Electron, and Capacitor.
 
-Internet connectivity is sometimes strong, but Web/PWA shows the native browser error:
+### 1. Product Import System
 
-"Novend ... app refresh / site unavailable"
+Clients must be able to import existing products into Novend.
 
-Capacitor Android can also show:
+Support two import approaches:
 
-"Website not available"
+#### A. Novend Template Import
 
-while the device is actually online.
+Provide an official downloadable product-import template containing Novend's supported fields.
 
-Investigate the complete chain:
+The client fills in the template and uploads it.
 
-- WebView/network configuration
-- Capacitor server/origin configuration
-- PWA service worker/cache
-- stale app shell
-- DNS/origin failures
-- fetch failures
-- navigation requests
-- offline detection logic
-- retry/reconnect handling
-- WebView lifecycle
-- cached routes/assets
-- API/Convex availability
-- error boundaries
+The system should:
 
-Determine whether the application is incorrectly treating a temporary resource/API failure as a complete website failure.
+* Detect headers.
+* Validate required fields.
+* Validate data types and formats.
+* Detect duplicate products/SKUs/barcodes where applicable.
+* Show validation errors before committing data.
+* Provide an import preview.
+* Show how many records will be created/updated/skipped.
+* Allow the client to confirm the import.
+* Process large imports safely.
+* Provide an import result/history after completion.
 
-The app should gracefully recover from temporary connectivity/resource failures without displaying the native "website unavailable" screen.
+#### B. Dynamic Header Mapping
+
+Clients often have completely different spreadsheets and naming conventions.
+
+Do not assume their headers match Novend.
+
+For example:
+
+```text
+Client spreadsheet:
+
+Item Name
+Product Code
+Selling Price
+Cost
+Qty
+Barcode No
+Supplier Name
+```
+
+Novend expects:
+
+```text
+Product Name
+SKU
+Selling Price
+Cost Price
+Quantity
+Barcode
+Supplier
+```
+
+The import system should intelligently identify likely matches using normalized names and keyword/synonym matching.
+
+Examples:
+
+```text
+Item Name → Product Name
+Product → Product Name
+Product Title → Product Name
+
+Product Code → SKU
+Item Code → SKU
+Stock Code → SKU
+
+Barcode No → Barcode
+EAN → Barcode
+UPC → Barcode
+```
+
+Do not rely solely on exact string matching.
+
+### Manual Mapping
+
+If automatic mapping is uncertain, allow the user to manually map:
+
+```text
+Client Header       Novend Field
+----------------------------------
+Item Name      →    Product Name
+Product Code   →    SKU
+Selling Price  →    Selling Price
+Qty            →    Quantity
+Barcode No     →    Barcode
+```
+
+The user should be able to save/reuse mapping templates for future imports.
+
+### Import Pipeline
+
+Use a staged architecture:
+
+```text
+Upload
+  ↓
+File validation
+  ↓
+Header detection
+  ↓
+Automatic mapping
+  ↓
+Manual correction
+  ↓
+Preview
+  ↓
+Validation
+  ↓
+Import job
+  ↓
+Database write
+  ↓
+Local IndexedDB update
+  ↓
+Sync/outbox where required
+  ↓
+Import report
+```
+
+Do not partially corrupt the product database if an import fails.
 
 ---
 
-### 2. Super Admin pages are extremely slow
+# 2. Supported Import Formats
 
-Many Platform/Super Admin pages take too long to load.
+Design the import engine so it can support:
 
-Detailed screens often show:
+* CSV
+* XLSX
+* XLS where practical
+* Future formats without rewriting the import architecture
 
-"Fast load / no data cached for this insight"
-
-even though the information should already be available locally.
-
-Audit the Platform/Super Admin data architecture and identify:
-
-- unnecessary Convex waits
-- sequential queries
-- full-table scans
-- duplicate queries
-- missing IndexedDB caching
-- missing repository usage
-- repeated data fetching
-- blocking analytics calculations
-
-Where appropriate:
-
-Local cache → immediate render → background refresh.
-
-Do not make the UI wait for every analytics/detail query before rendering.
-
-Cache the actual data required by the detailed screens, not just a "no data cached" placeholder.
+Keep the parser/mapping/validation layers independent from the UI.
 
 ---
 
-### 3. Simplify the mobile/PWA cart
+# 3. Product Export Must Be Comprehensive
 
-Replace the current cart presentation with a simple mobile-friendly cart CTA:
+The current product export appears to contain only a few columns.
 
-[ 🛒 ] with a small count badge.
+That is not sufficient for a SaaS/POS system where the product model contains significantly more information.
 
-Requirements:
+Audit the actual product schema and create a comprehensive export containing all appropriate product information, such as:
 
-- Cart icon.
-- Badge showing item count.
-- Default count = `0`.
-- Compact and unobtrusive.
-- Clicking it opens the checkout/cart interface on PWA/mobile.
-- Preserve existing cart functionality.
+* Product ID
+* Product name
+* SKU
+* Barcode
+* Category
+* Brand
+* Description
+* Cost price
+* Selling price
+* Wholesale price where applicable
+* Tax information
+* Stock quantity
+* Minimum stock
+* Unit
+* Supplier
+* Branch
+* Status
+* Product image/reference where appropriate
+* Created date
+* Updated date
+* Other relevant product fields actually present in the schema
+
+Do NOT invent fields that do not exist.
+
+Export should be based on the actual current schema.
+
+Support:
+
+* CSV
+* XLSX
+* PDF where appropriate
+* Other formats only where they provide meaningful value
+
+For very large datasets, avoid generating huge client-side PDFs unnecessarily.
 
 ---
 
-### 4. Mobile checkout cannot fully slide out
+# 4. Reports & Analytics Export System
 
-The checkout/cart panel on mobile sometimes does not fully open/expand and requires manually dragging it.
+Introduce a reusable export architecture for reports and analytics.
 
-Fix the underlying sheet/drawer implementation.
+Users should be able to export relevant reports as:
 
-It should:
+* PDF
+* Excel/XLSX
+* CSV
+* JSON where useful
+* Other appropriate formats
 
-- Open fully from the CTA.
-- Respect viewport height.
-- Respect safe-area insets.
-- Not be constrained by an incorrect parent overflow.
-- Not require manual dragging to become usable.
-- Work consistently on PWA and Capacitor.
+The export system should preserve the report's actual data rather than exporting only the visible UI cards.
+
+For example, analytics may contain:
+
+* Revenue
+* Sales
+* Profit
+* Returns
+* Expenses
+* Purchases
+* Inventory
+* Product performance
+* Customer performance
+* Branch performance
+* Tax
+* Payment methods
+* Trends
+* Date ranges
+* Comparative periods
+
+Export should respect the currently selected:
+
+* Organization
+* Branch
+* Date range
+* Filters
+* User permissions
+
+Never export information outside the user's authorized organization/branch scope.
 
 ---
 
-### 5. Mobile modal close buttons invisible
+# 5. Reusable Export Architecture
 
-Many mobile modals have invisible or barely visible close icons.
+Do not create separate export implementations for every page.
+
+Create a shared export layer conceptually:
+
+```text
+Report/Data Source
+       ↓
+Export Definition
+       ↓
+Permission + Scope Validation
+       ↓
+Data Preparation
+       ↓
+Format Renderer
+   ┌───┼────┬────┐
+   ↓   ↓    ↓    ↓
+ CSV XLSX  PDF  JSON
+```
+
+This should be reusable by:
+
+* Products
+* Sales
+* Orders
+* Returns
+* Inventory
+* Purchases
+* Customers
+* Suppliers
+* Expenses
+* Reports
+* Analytics
+* Platform/Super Admin reports where applicable
+
+---
+
+# 6. SaaS Plan Access & Limits
+
+This entire update must integrate with the existing Novend SaaS subscription architecture.
+
+Every new capability must have a clearly defined plan entitlement.
+
+Do NOT hardcode plan checks throughout the UI.
+
+Create/reuse a centralized entitlement system:
+
+```text
+Organization
+    ↓
+Current Plan
+    ↓
+Entitlements
+    ↓
+Feature Access + Usage Limits
+```
+
+The entitlement system should support both:
+
+### Feature access
 
 Example:
 
-- Add Product modal.
+```text
+canImportProducts
+canExportReports
+canExportPDF
+canExportXLSX
+canExportCSV
+canAdvancedAnalytics
+```
 
-Audit the shared modal/dialog component and fix the common source.
+### Usage limits
 
-Ensure:
+Example:
 
-- Close button is always visible.
-- Sufficient contrast.
-- Proper size/touch target.
-- Correct z-index.
-- Not hidden behind content.
-- Works in light/dark mode.
-- Works on PWA and Capacitor.
+```text
+maxProducts
+maxUsers
+maxDevices
+maxCloudStorage
+maxImportRows
+maxExportsPerPeriod
+```
 
-Do not manually patch every modal unless the modal genuinely has a unique implementation.
-
----
-
-### 6. PWA/mobile toast positioning
-
-Current toast notifications appear too close to the top of the screen.
-
-Move the toast system to a more appropriate mobile-safe position while preserving the existing desktop placement where appropriate.
-
-Check:
-
-- Safe-area inset.
-- Header overlap.
-- Modal overlap.
-- Bottom navigation overlap.
-- Multiple toast stacking.
-- Dismiss/close behavior.
-
-Do not let important UI/content become hidden behind toasts.
+Use the actual current Novend plan definitions from the codebase rather than inventing new pricing/limits.
 
 ---
 
-### 7. Mobile version/update detection is incorrect
+# 7. Plan Enforcement
 
-The mobile application can indicate that the latest version is installed even when the latest APK/version has not actually been installed.
+Plan restrictions must be enforced server-side/backend-side, not only through hidden UI buttons.
 
-Audit the complete update/version mechanism:
+The UI should still communicate limits clearly.
 
-- native app version
-- package version
-- remote release version
-- cached version
-- update metadata
-- comparison logic
-- APK installation state
+Example:
 
-Do not trust stale cached metadata.
+```text
+Basic
+Product limit: 200 / 200
 
-The displayed status must represent the **actual installed Capacitor version** compared with the latest available release.
+Import unavailable because the product limit has been reached.
+Upgrade to continue.
+```
 
----
+Another example:
 
-### 8. CRITICAL REGRESSION — Biometrics & Notifications
+```text
+Export limit
+23 / 25 exports used this period
+```
 
-This is one of the biggest issues.
+Where a feature is not available:
 
-In release **v0.3.0**, biometrics and notifications were working correctly.
+* Clearly show it as restricted.
+* Explain why.
+* Provide an upgrade path where appropriate.
+* Do not expose internal/developer errors.
 
-From **v0.3.1 onward**, they started producing incorrect/bogus errors.
+Never rely solely on:
 
-Do a regression investigation.
+```text
+if (plan === "pro")
+```
 
-Compare:
+throughout the frontend.
 
-`v0.3.0 → v0.3.1 → current`
-
-Identify exactly what changed in:
-
-- Capacitor plugins
-- Android configuration
-- AndroidManifest
-- permissions
-- native initialization
-- biometric implementation
-- notification implementation
-- WebView bridge
-- dependency versions
-- build configuration
-- app lifecycle
-- permission handling
-
-Do NOT rewrite the features blindly.
-
-Find the regression and restore the working behavior while preserving legitimate newer changes.
+Use centralized entitlement checks.
 
 ---
 
-### 9. Security page still freezes offline
+# 8. SaaS Usage Tracking
 
-Settings → Security still freezes when offline.
+Introduce reusable usage tracking for features that need quotas.
 
-This must be treated as an architectural bug.
+For example:
 
-The Security screen must render without waiting for:
+```text
+organization
+    ↓
+usage
+ ├── products
+ ├── users
+ ├── devices
+ ├── storage
+ ├── imports
+ └── exports
+```
 
-- Convex
-- network
-- notification API
-- biometric API
-- remote data
+Usage must be organization-scoped.
 
-Native checks must fail gracefully and asynchronously.
+Prevent one organization from affecting another organization's usage.
 
-No infinite promise/loading state should be able to block the page.
-
-Trace the exact operation causing the freeze.
-
----
-
-### 10. Legal & Support pages inside the app
-
-Legal and Support pages should render properly inside the Novend application.
-
-When accessed inside:
-
-- PWA
-- Capacitor
-- Electron
-
-they should behave as application pages.
-
-Do NOT show unnecessary:
-
-"Go back to Novend landing page"
-
-links inside the application version if they are not appropriate.
-
-Audit how these pages determine whether they are running inside the marketing site versus the actual application.
+Where appropriate, usage should be calculated from authoritative backend data rather than trusting client-provided counters.
 
 ---
 
-### 11. Share & Print Receipt regression
+# 9. Import/Export Security
 
-Receipt sharing and printing stopped working from **v0.3.1**.
+Treat uploaded spreadsheets and generated exports as untrusted/sensitive data.
 
-Investigate the regression between:
+Implement:
 
-`v0.3.0 → v0.3.1 → current`
+* File type validation
+* File size limits
+* Row limits based on plan
+* Input validation
+* Sanitization
+* Formula-injection protection for spreadsheet exports
+* Authorization checks
+* Organization/branch scoping
+* Safe image/file handling
+* Protection against malformed spreadsheets
 
-Check:
-
-- native share implementation
-- print implementation
-- WebView restrictions
-- Capacitor plugins
-- receipt generation
-- PDF/blob generation
-- file permissions
-- URI handling
-- Android intent handling
-- Electron/Web differences
-
-Restore the functionality without breaking the existing receipt system.
+Never allow imported data to bypass existing RBAC or organization isolation.
 
 ---
 
-### 12. Login routing
+# 10. Offline-First Compatibility
 
-Every successful login should start at the **Dashboard**.
+Novend remains offline-first.
 
-Currently the application can restore the route/page where a previous user left the application.
+Where appropriate:
 
-Fix this.
+```text
+Local IndexedDB
+      ↓
+Import/update local state
+      ↓
+Immediate UI update
+      ↓
+Outbox/sync
+      ↓
+Convex/cloud
+```
 
-After successful authentication:
+Exports that can safely operate from local data should work offline.
 
-`Login → Dashboard`
+Operations that genuinely require server-side processing should clearly indicate that requirement rather than making the entire page unusable offline.
 
-Do NOT restore the previous user's route.
-
-This is especially important when:
-
-`Super Admin logout → Client login`
-
-The new user must never be sent back to `/platform` or another route belonging to the previous session.
-
-Clear/invalidate previous route state during logout and determine the landing page from the newly authenticated session.
-
----
-
-## Required investigation
-
-Before making large changes, provide a concise root-cause report covering:
-
-1. Intermittent WebView/PWA "website unavailable".
-2. Super Admin performance/caching.
-3. Checkout/cart behavior.
-4. Modal/toast issues.
-5. Incorrect mobile version detection.
-6. v0.3.0 → v0.3.1 biometric regression.
-7. v0.3.0 → v0.3.1 notification regression.
-8. Security offline freeze.
-9. Share/print regression.
-10. Authentication route persistence.
-
-Use git history/releases where available. Specifically compare the working `v0.3.0` implementation against `v0.3.1` and current code for biometrics, notifications, sharing, and printing.
-
-Do not assume the cause.
-
-Trace the actual code path.
+Do not introduce unnecessary network gates.
 
 ---
 
-## Final acceptance criteria
+# 11. UX Architecture
 
-- Web/PWA does not incorrectly display a native "website unavailable" screen during temporary connectivity/resource failures.
-- Capacitor recovers gracefully from temporary network failures.
-- Super Admin pages render cached/local data immediately where supported.
-- No unnecessary Convex/network blocking on page render.
-- Mobile cart is a simple icon + count badge.
-- Checkout opens fully without manual dragging.
-- Mobile modal close buttons are visible and usable.
-- Toasts do not obstruct the mobile UI.
-- Installed app version is detected from the actual native app version.
-- Biometrics work as they did in v0.3.0.
-- Notifications work as they did in v0.3.0.
-- Security does not freeze offline.
-- Legal/Support render correctly inside the application.
-- Share Receipt works.
-- Print Receipt works.
-- Every successful login lands on Dashboard.
-- Previous user's route/session state cannot leak into the next login.
-- Web, PWA, Electron, and Capacitor behavior remains consistent where functionality is shared.
+Create a professional import experience:
 
-Most importantly: **fix the root causes and regressions, not the symptoms. Do not mark an issue resolved merely because its error message disappeared.**
+```text
+Import Products
+
+1. Upload
+2. Map Columns
+3. Preview
+4. Validate
+5. Import
+6. Results
+```
+
+The user should always understand:
+
+* What is happening.
+* What failed.
+* What will be changed.
+* How many records succeeded.
+* How many failed.
+* Why records failed.
+
+Provide downloadable error/result reports where useful.
+
+For exports, use a consistent export menu throughout the application rather than different UI patterns on every page.
+
+---
+
+# 12. Super Admin Visibility
+
+Because this is a SaaS platform, Super Admin should eventually be able to see appropriate platform-level metrics around:
+
+* Imports
+* Exports
+* Usage
+* Storage
+* Plan utilization
+* Organizations approaching limits
+* Failed import jobs
+* Export activity where appropriate
+
+Respect tenant privacy and RBAC.
+
+Do not expose organization data unnecessarily.
+
+---
+
+# 13. Architecture / Design Loop
+
+Use this implementation loop:
+
+### Phase 1 — Audit
+
+Inspect:
+
+* Current product schema
+* Existing import functionality
+* Existing export functionality
+* Report architecture
+* Analytics architecture
+* SaaS plan model
+* Organization model
+* Usage tracking
+* RBAC
+* IndexedDB repositories
+* Convex mutations/queries
+
+Identify duplication and architectural gaps.
+
+### Phase 2 — Design
+
+Define:
+
+* Import service
+* Header mapping engine
+* Validation engine
+* Import job/result model
+* Export service
+* Export format adapters
+* Entitlement service
+* Usage tracking
+* Plan enforcement
+* Local/offline integration
+
+Reuse existing infrastructure wherever possible.
+
+### Phase 3 — Implement
+
+Build the shared architecture first, then integrate:
+
+1. Product import
+2. Product export
+3. Reports export
+4. Analytics export
+5. Plan entitlements
+6. Usage limits
+7. UI
+
+### Phase 4 — Verify
+
+Test:
+
+* Different spreadsheet headers
+* Missing headers
+* Duplicate products
+* Invalid values
+* Large imports
+* Product limits
+* Unauthorized organization access
+* Offline import where supported
+* Sync after reconnect
+* CSV export
+* XLSX export
+* PDF export
+* Filtered reports
+* Branch-scoped reports
+* Plan restrictions
+* Upgrade scenarios
+
+---
+
+# 14. Git Commit Discipline
+
+This is important.
+
+Do NOT make one enormous undocumented commit.
+
+After each major completed feature/fix/refactor/chore, create an appropriate Git commit.
+
+Examples:
+
+```text
+feat: add product import pipeline
+feat: add dynamic product column mapping
+feat: add product export service
+feat: add report export framework
+feat: add analytics export formats
+feat: add plan entitlements for imports and exports
+feat: add organization usage tracking
+refactor: centralize export generation
+refactor: centralize SaaS entitlement checks
+fix: enforce organization scope during imports
+fix: prevent export data leakage across branches
+chore: add import/export validation tests
+```
+
+Use meaningful commits that describe the actual change.
+
+---
+
+# Final Requirement
+
+This is a **major architectural feature**, not simply an import button and a few export buttons.
+
+Before coding, inspect the existing architecture and produce a concise implementation/design report showing:
+
+1. Current product schema.
+2. Current import/export implementation.
+3. Current reporting/analytics architecture.
+4. Current SaaS plan/entitlement architecture.
+5. Current organization/RBAC boundaries.
+6. Current IndexedDB/offline architecture.
+7. Gaps and risks.
+8. Proposed reusable architecture.
+9. Implementation phases.
+10. Tests required.
+
+Then implement incrementally.
+
+Do not hallucinate existing fields, plans, APIs, or database structures. Inspect the codebase first and build on what already exists.
