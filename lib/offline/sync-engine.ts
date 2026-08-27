@@ -519,6 +519,9 @@ export async function drainOutbox(options: {
               ...(barcode ? { barcode } : {}),
               ...(description ? { description } : {}),
               ...(imageStorageId ? { imageStorageId } : {}),
+              ...(payload.branchId && !isLocalId(payload.branchId)
+                ? { branchId: payload.branchId as Id<"branches"> }
+                : {}),
             });
             if (payload.localId.startsWith("local_")) {
               await rekeyProductImage(payload.localId, String(createdId));

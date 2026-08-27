@@ -35,6 +35,7 @@ export type MirroredProduct = {
   unit: string;
   lowStockThreshold: number;
   status: "active" | "inactive" | "archived";
+  description?: string | null;
   imageUrl: string | null;
   tracksExpiry?: boolean;
   expiryAlertDays?: number | null;
@@ -480,6 +481,8 @@ export type UpsertProductPayload = {
   expiryDate?: string;
   imageStorageId?: string;
   hasLocalImage?: boolean;
+  /** Opening stock branch for new products. Ignored on update. */
+  branchId?: string;
 };
 
 export type OutboxRow = {

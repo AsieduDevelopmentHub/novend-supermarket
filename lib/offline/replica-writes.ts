@@ -312,7 +312,7 @@ export async function queueCreateUser(payload: Omit<CreateUserPayload, "localId"
   return localId;
 }
 
-export async function queueCreateCategory(name: string) {
+export async function queueCreateCategory(name: string, options?: { notify?: boolean }) {
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const localId = newClientId("local");
@@ -323,15 +323,22 @@ export async function queueCreateCategory(name: string) {
     slug: trimmed.toLowerCase().replace(/\s+/g, "-"),
     isActive: true,
   });
-  await enqueueOutbox(db, "create_category", {
-    localId,
-    name: trimmed,
-  } satisfies CreateCategoryPayload);
+  await enqueueOutbox(
+    db,
+    "create_category",
+    {
+      localId,
+      name: trimmed,
+    } satisfies CreateCategoryPayload,
+    undefined,
+    { notify: options?.notify },
+  );
   return localId;
 }
 
 export async function queueUpsertProduct(
   payload: Omit<UpsertProductPayload, "localId"> & { localId?: string; imageBlob?: Blob },
+  options?: { notify?: boolean },
 ) {
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
@@ -348,7 +355,8 @@ export async function queueUpsertProduct(
     );
     if (clash) throw new Error(BARCODE_ALREADY_ASSIGNED);
   }
-  const stockQuantity = payload.stockQuantity;
+  const isCreate = !existing;
+  const stockQuantity = isCreate ? payload.stockQuantity : (existing.stockQuantity ?? 0);
   const { imageBlob, ...rest } = payload;
   await db.products.put({
     id: localId,
@@ -360,10 +368,11 @@ export async function queueUpsertProduct(
     sellingPrice: payload.sellingPrice,
     costPrice: payload.costPrice,
     stockQuantity,
-    sellableQuantity: stockQuantity,
+    sellableQuantity: isCreate ? stockQuantity : (existing.sellableQuantity ?? stockQuantity),
     unit: payload.unit,
     lowStockThreshold: payload.lowStockThreshold,
     status: payload.status,
+    description: payload.description ?? existing?.description ?? null,
     imageUrl: existing?.imageUrl ?? null,
     tracksExpiry: payload.tracksExpiry,
     expiryAlertDays: payload.expiryAlertDays ?? null,
@@ -372,6 +381,17 @@ export async function queueUpsertProduct(
     isExpiring: existing?.isExpiring ?? false,
     updatedAt: Date.now(),
   });
+  if (isCreate && payload.branchId) {
+    const qty = Math.max(0, Math.floor(payload.stockQuantity));
+    await db.branchStock.put({
+      id: branchStockId(payload.branchId, localId),
+      branchId: payload.branchId,
+      productId: localId,
+      quantity: qty,
+      sellableQuantity: qty,
+      updatedAt: Date.now(),
+    });
+  }
   if (imageBlob) {
     await putProductImage({
       productId: localId,
@@ -379,11 +399,18 @@ export async function queueUpsertProduct(
       mimeType: imageBlob.type || "image/jpeg",
     });
   }
-  await enqueueOutbox(db, "upsert_product", {
-    ...rest,
-    localId,
-    hasLocalImage: Boolean(imageBlob) || payload.hasLocalImage,
-  } satisfies UpsertProductPayload);
+  await enqueueOutbox(
+    db,
+    "upsert_product",
+    {
+      ...rest,
+      localId,
+      stockQuantity: isCreate ? payload.stockQuantity : 0,
+      hasLocalImage: Boolean(imageBlob) || payload.hasLocalImage,
+    } satisfies UpsertProductPayload,
+    undefined,
+    { notify: options?.notify },
+  );
   return localId;
 }
 

@@ -129,6 +129,7 @@ export async function enqueueOutbox(
   type: OutboxOpType,
   payload: unknown,
   clientOperationId = newClientId("op"),
+  options?: { notify?: boolean },
 ): Promise<OutboxRow> {
   const now = Date.now();
   const row: OutboxRow = {
@@ -144,7 +145,9 @@ export async function enqueueOutbox(
   if (!isMirrorOnly()) {
     await db.outbox.put(row);
   }
-  notifyReplicaChanged();
+  if (options?.notify !== false) {
+    notifyReplicaChanged();
+  }
   return row;
 }
 
