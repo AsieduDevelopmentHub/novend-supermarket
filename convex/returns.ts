@@ -81,6 +81,8 @@ export const processReturn = mutation({
     reason: v.string(),
     notes: v.optional(v.string()),
     clientOperationId: v.optional(v.string()),
+    /** Return number printed on the receipt. Convex persists this; it must not change on sync. */
+    returnNumber: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId, profile, organizationId, sale, branchId } = await requireReturnableSale(
@@ -159,7 +161,7 @@ export const processReturn = mutation({
       throw new Error("Invalid refund amount");
     }
 
-    const returnNumber = await nextReturnNumber(ctx);
+    const returnNumber = await nextReturnNumber(ctx, args.returnNumber);
     const completedAt = Date.now();
     const snapshot = await loadPrintSnapshot(ctx, organizationId, branchId);
 

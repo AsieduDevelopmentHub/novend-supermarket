@@ -2,7 +2,7 @@
 
 ## Business Glossary
 
-Version: 1.0.1
+Version: 1.0.2
 
 # Purpose
 
@@ -99,10 +99,13 @@ to Convex. Operation-based, not a raw database dump.
 Idempotency key generated on the device so retries and offline sync do not create
 duplicate sales.
 
-# Provisional invoice
+# Invoice number
 
-Local invoice number (`OFF-…`) printed before Convex assigns the canonical
-`INV-…` number.
+The identifier printed on the receipt at checkout (`INV-…`). It is allocated on
+the device (or by Convex when no number is supplied) and **does not change** when
+the sale syncs. Staff look up the paper receipt by this number online and offline.
+Older unsynced receipts may still show `OFF-…`; that value is kept as the invoice
+number.
 
 # Settings
 

@@ -82,6 +82,7 @@ export type CompleteSaleMutator = (args: {
   heldSaleId?: Id<"heldSales">;
   clientOperationId?: string;
   branchId?: Id<"branches">;
+  invoiceNumber?: string;
 }) => Promise<{
   saleId: Id<"sales">;
   invoiceNumber: string;
@@ -95,6 +96,7 @@ export type ProcessReturnMutator = (args: {
   reason: string;
   notes?: string;
   clientOperationId?: string;
+  returnNumber?: string;
 }) => Promise<{
   returnId: Id<"saleReturns">;
   returnNumber: string;
@@ -295,6 +297,8 @@ export async function drainOutbox(options: {
       try {
         if (claimed.type === "complete_sale") {
           const payload = parseCompleteSalePayload(claimed);
+          const localSale = await db.localSales.get(payload.localSaleId);
+          const invoiceNumber = payload.invoiceNumber ?? localSale?.invoiceNumber;
           const result = await options.mutators.completeSale({
             customerId: payload.customerId as Id<"customers"> | undefined,
             customerName: payload.customerName,
@@ -308,6 +312,7 @@ export async function drainOutbox(options: {
             heldSaleId: payload.serverHeldSaleId as Id<"heldSales"> | undefined,
             clientOperationId: claimed.clientOperationId,
             branchId: payload.branchId as Id<"branches"> | undefined,
+            invoiceNumber,
           });
           await markOutboxSynced(db, claimed.id);
           await markLocalSaleSynced(payload.localSaleId, {
@@ -319,6 +324,8 @@ export async function drainOutbox(options: {
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "process_return") {
           const payload = parseProcessReturnPayload(claimed);
+          const localReturn = await db.localReturns.get(payload.localReturnId);
+          const returnNumber = payload.returnNumber ?? localReturn?.returnNumber;
           const result = await options.mutators.processReturn({
             saleId: payload.saleId as Id<"sales">,
             items: payload.items.map((item) => ({
@@ -328,6 +335,7 @@ export async function drainOutbox(options: {
             reason: payload.reason,
             notes: payload.notes,
             clientOperationId: claimed.clientOperationId,
+            returnNumber,
           });
           await markOutboxSynced(db, claimed.id);
           await markLocalReturnSynced(payload.localReturnId, {

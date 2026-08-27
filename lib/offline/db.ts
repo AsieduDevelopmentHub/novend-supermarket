@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
+import { allocateInvoiceNumber } from "@/convex/shared/documentReferences";
 import type {
   LocalHeldSale,
   LocalReceipt,
@@ -374,13 +375,9 @@ export async function ensureDeviceId(db: NovendOfflineDb): Promise<string> {
   return id;
 }
 
-export async function nextProvisionalInvoice(db: NovendOfflineDb): Promise<string> {
-  const deviceId = await ensureDeviceId(db);
-  const short = deviceId.replace(/-/g, "").slice(0, 6).toUpperCase();
-  const raw = await getMeta(db, META_KEYS.invoiceSeq);
-  const seq = (raw ? Number.parseInt(raw, 10) : 0) + 1;
-  await setMeta(db, META_KEYS.invoiceSeq, String(seq));
-  return `OFF-${short}-${String(seq).padStart(4, "0")}`;
+/** Invoice printed at checkout. Convex stores this same number on sync. */
+export function nextProvisionalInvoice(): string {
+  return allocateInvoiceNumber();
 }
 
 export function newClientId(prefix = "op"): string {

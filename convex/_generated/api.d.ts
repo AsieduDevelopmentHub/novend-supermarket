@@ -43,6 +43,7 @@ import type * as shared_branchStock from "../shared/branchStock.js";
 import type * as shared_capabilities from "../shared/capabilities.js";
 import type * as shared_clientOps from "../shared/clientOps.js";
 import type * as shared_defaultBranch from "../shared/defaultBranch.js";
+import type * as shared_documentReferences from "../shared/documentReferences.js";
 import type * as shared_entitlements from "../shared/entitlements.js";
 import type * as shared_importExportSnapshot from "../shared/importExportSnapshot.js";
 import type * as shared_licensing from "../shared/licensing.js";
@@ -103,6 +104,7 @@ declare const fullApi: ApiFromModules<{
   "shared/capabilities": typeof shared_capabilities;
   "shared/clientOps": typeof shared_clientOps;
   "shared/defaultBranch": typeof shared_defaultBranch;
+  "shared/documentReferences": typeof shared_documentReferences;
   "shared/entitlements": typeof shared_entitlements;
   "shared/importExportSnapshot": typeof shared_importExportSnapshot;
   "shared/licensing": typeof shared_licensing;

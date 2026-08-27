@@ -21,6 +21,7 @@ import {
   productTracksExpiry,
 } from "./shared/lots";
 import { loadReturnableLines } from "./shared/returns";
+import { allocateInvoiceNumber, sanitizeInvoiceNumber } from "./shared/documentReferences";
 
 type CartLine = {
   productId: Id<"products">;
@@ -28,22 +29,37 @@ type CartLine = {
   discount: number;
 };
 
+async function invoiceNumberTaken(
+  ctx: MutationCtx,
+  organizationId: import("./_generated/dataModel").Id<"organizations">,
+  invoiceNumber: string,
+) {
+  const existing = await ctx.db
+    .query("sales")
+    .withIndex("by_organization_invoice", (q) =>
+      q.eq("organizationId", organizationId).eq("invoiceNumber", invoiceNumber),
+    )
+    .unique();
+  return existing !== null;
+}
+
 async function nextInvoiceNumber(
   ctx: MutationCtx,
   organizationId: import("./_generated/dataModel").Id<"organizations">,
+  requested?: string,
 ) {
-  // References are identifiers, not counters. A UUID-backed value avoids
-  // duplicate numbers under concurrent checkouts and remains stable when rows
-  // are voided/imported. The indexed lookup is a defensive collision check.
+  if (requested?.trim()) {
+    const invoiceNumber = sanitizeInvoiceNumber(requested);
+    if (await invoiceNumberTaken(ctx, organizationId, invoiceNumber)) {
+      throw new Error("This invoice number is already used");
+    }
+    return invoiceNumber;
+  }
+  // Identifiers, not counters. UUID-backed so concurrent checkouts and
+  // offline devices never mint the same printed number.
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const reference = `INV-${crypto.randomUUID().replaceAll("-", "").slice(0, 16).toUpperCase()}`;
-    const existing = await ctx.db
-      .query("sales")
-      .withIndex("by_organization_invoice", (q) =>
-        q.eq("organizationId", organizationId).eq("invoiceNumber", reference),
-      )
-      .unique();
-    if (!existing) return reference;
+    const reference = allocateInvoiceNumber();
+    if (!(await invoiceNumberTaken(ctx, organizationId, reference))) return reference;
   }
   throw new Error("Could not allocate a unique invoice reference");
 }
@@ -295,6 +311,8 @@ export const completeSale = mutation({
     heldSaleId: v.optional(v.id("heldSales")),
     /** Client-generated idempotency key for offline / retry-safe checkout. */
     clientOperationId: v.optional(v.string()),
+    /** Invoice printed at checkout. Convex persists this number; it must not change on sync. */
+    invoiceNumber: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId, profile, branchId } = await requireBranchId(ctx, args.branchId);
@@ -415,7 +433,11 @@ export const completeSale = mutation({
     }
     const cartDiscount = roundMoney(args.discount);
     const total = Math.max(0, roundMoney(subtotal - cartDiscount));
-    const invoiceNumber = await nextInvoiceNumber(ctx, profile.organizationId);
+    const invoiceNumber = await nextInvoiceNumber(
+      ctx,
+      profile.organizationId,
+      args.invoiceNumber,
+    );
     const completedAt = Date.now();
     const snapshot = await loadPrintSnapshot(ctx, profile.organizationId, branchId);
 

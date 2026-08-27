@@ -1,6 +1,6 @@
 # Database Schema
 
-Version: 1.1.3
+Version: 1.1.4
 
 Defined in `convex/schema.ts`. See also [`MULTI_TENANT.md`](./MULTI_TENANT.md).
 
@@ -54,5 +54,5 @@ it is not a Convex table.
 - SKU
 - Category slug
 - Branch code
-- Invoice number
+- Invoice number (allocated at checkout; sync must not replace the printed value)
 - Organization slug (global)

@@ -175,6 +175,8 @@ export type LocalReceipt = {
 
 export type CompleteSaleOutboxPayload = {
   localSaleId: string;
+  /** Invoice printed on the receipt — Convex must persist this number. */
+  invoiceNumber?: string;
   customerId?: string;
   customerName?: string;
   items: Array<{
@@ -194,6 +196,8 @@ export type CompleteSaleOutboxPayload = {
 export type ProcessReturnOutboxPayload = {
   localReturnId: string;
   saleId: string;
+  /** Return number printed on the receipt — Convex must persist this number. */
+  returnNumber?: string;
   reason: string;
   notes?: string;
   items: Array<{
