@@ -4,9 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Upload } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PasswordInput } from "@/components/ui/password-input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import {
   downloadOfflineBackup,
@@ -19,8 +16,14 @@ import { useNativeShell } from "@/hooks/use-native-shell";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 
-/** One-click local database backup and restore for Electron / PWA / Capacitor. */
-export function LocalBackupPanel() {
+type LocalBackupCardProps = {
+  password: string;
+  canProtect: boolean;
+  canUnlock: boolean;
+};
+
+/** Device-local encrypted backup — save a file or restore one. */
+export function LocalBackupCard({ password, canProtect, canUnlock }: LocalBackupCardProps) {
   const nativeShell = useNativeShell();
   const inputRef = useRef<HTMLInputElement>(null);
   const [exporting, setExporting] = useState(false);
@@ -28,7 +31,6 @@ export function LocalBackupPanel() {
   const [confirmRestore, setConfirmRestore] = useState<File | null>(null);
   const [sizeLabel, setSizeLabel] = useState<string>("—");
   const [lastBackupLabel, setLastBackupLabel] = useState<string>("Never");
-  const [backupPassword, setBackupPassword] = useState("");
 
   useEffect(() => {
     void (async () => {
@@ -49,9 +51,10 @@ export function LocalBackupPanel() {
   }, []);
 
   async function onExport() {
+    if (!canProtect) return;
     setExporting(true);
     try {
-      await downloadOfflineBackup(backupPassword);
+      await downloadOfflineBackup(password);
       const last = await getLastBackupAt();
       setLastBackupLabel(
         last
@@ -67,9 +70,10 @@ export function LocalBackupPanel() {
   }
 
   async function onRestore(file: File) {
+    if (!canUnlock) return;
     setImporting(true);
     try {
-      const payload = await readBackupFile(file, backupPassword);
+      const payload = await readBackupFile(file, password);
       await importOfflineBackup(payload);
       toast.success("Backup restored — reload to refresh all views");
     } catch (error) {
@@ -83,54 +87,30 @@ export function LocalBackupPanel() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Local backup</CardTitle>
+        <CardTitle>This device</CardTitle>
         <CardDescription>
-          Export or restore this terminal&apos;s offline database — sales, inventory mirror, held
-          carts, and pending sync events. Product image blobs are excluded to keep backups small.
+          Encrypted copy of this terminal&apos;s offline database — sales, inventory mirror, held
+          carts, and pending sync. Product image blobs are excluded to keep files small.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Alert>
-          <AlertTitle>Device backup</AlertTitle>
-          <AlertDescription>
-            {nativeShell
-              ? "Backups save to Documents on this phone and can be shared. Restore replaces local data — sync with care on shared terminals."
-              : "Backups stay on this device unless you save the file elsewhere. Restore replaces local data — sync with care on shared terminals."}
-          </AlertDescription>
-        </Alert>
         <div className="text-muted-foreground grid gap-1 text-sm sm:grid-cols-2">
           <p>Estimated size: {sizeLabel}</p>
-          <p>Last backup: {lastBackupLabel}</p>
-        </div>
-        <div className="max-w-sm space-y-2">
-          <Label htmlFor="local-backup-password">Backup password</Label>
-          <PasswordInput
-            id="local-backup-password"
-            value={backupPassword}
-            onChange={(event) => setBackupPassword(event.target.value)}
-            autoComplete="new-password"
-          />
-          <p className="text-muted-foreground text-xs">
-            Required to encrypt and restore backup files. Novend cannot recover this password.
-          </p>
+          <p>Last local backup: {lastBackupLabel}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            disabled={exporting || backupPassword.length < 8}
-            onClick={() => void onExport()}
-          >
+          <Button type="button" disabled={exporting || !canProtect} onClick={() => void onExport()}>
             <Download className="mr-2 size-4" aria-hidden />
-            {exporting ? "Exporting…" : nativeShell ? "Save backup" : "Download backup"}
+            {exporting ? "Saving…" : nativeShell ? "Save to this device" : "Download file"}
           </Button>
           <Button
             type="button"
             variant="outline"
-            disabled={importing || backupPassword.length < 8}
+            disabled={importing || !canUnlock}
             onClick={() => inputRef.current?.click()}
           >
             <Upload className="mr-2 size-4" aria-hidden />
-            Restore backup
+            Restore from file
           </Button>
           <input
             ref={inputRef}
@@ -144,15 +124,24 @@ export function LocalBackupPanel() {
             }}
           />
         </div>
+        {!canProtect ? (
+          <p className="text-muted-foreground text-xs">
+            Set and confirm a strong backup password above before saving. Restore only needs the
+            password that encrypted the file.
+          </p>
+        ) : null}
       </CardContent>
       <ConfirmDialog
         open={Boolean(confirmRestore)}
         onOpenChange={(open) => {
           if (!open) setConfirmRestore(null);
         }}
-        title="Restore local backup?"
+        title="Restore this backup?"
         description="This replaces all offline data on this device with the backup file. Unsynced changes may be lost."
         confirmLabel={importing ? "Restoring…" : "Restore"}
+        confirmVariant="default"
+        pending={importing}
+        disableConfirm={!canUnlock}
         onConfirm={() => {
           if (confirmRestore) void onRestore(confirmRestore);
         }}

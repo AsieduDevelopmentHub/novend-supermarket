@@ -3,6 +3,7 @@ import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireRole, resolveBranchFilter, assertBranchAccess } from "./shared/permissions";
 import { writeAuditLog } from "./shared/audit";
+import { rememberClientOp, replayClientOp } from "./shared/clientOps";
 import {
   assertPositiveMoney,
   roundMoney,
@@ -125,12 +126,19 @@ export const createExpense = mutation({
     occurredAt: v.number(),
     description: v.optional(v.string()),
     branchId: v.id("branches"),
+    clientOperationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId, profile, organizationId } = await requireRole(ctx, [
       "administrator",
       "manager",
     ]);
+    const replayed = await replayClientOp<Id<"expenses">>(
+      ctx,
+      organizationId,
+      args.clientOperationId,
+    );
+    if (replayed) return replayed;
     assertBranchAccess(profile, args.branchId);
     assertPositiveMoney(args.amount, "expense amount");
     if (args.amount <= 0) throw new Error("Expense amount must be greater than zero");
@@ -159,6 +167,12 @@ export const createExpense = mutation({
       metadata: { amount: args.amount, category: args.category, branchId: args.branchId },
     });
 
+    await rememberClientOp(ctx, {
+      organizationId,
+      clientOperationId: args.clientOperationId,
+      kind: "create_expense",
+      result: id,
+    });
     return id;
   },
 });

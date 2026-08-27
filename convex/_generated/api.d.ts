@@ -38,6 +38,7 @@ import type * as shared_audit from "../shared/audit.js";
 import type * as shared_billingPeriod from "../shared/billingPeriod.js";
 import type * as shared_billingProvider from "../shared/billingProvider.js";
 import type * as shared_branchStock from "../shared/branchStock.js";
+import type * as shared_clientOps from "../shared/clientOps.js";
 import type * as shared_defaultBranch from "../shared/defaultBranch.js";
 import type * as shared_entitlements from "../shared/entitlements.js";
 import type * as shared_licensing from "../shared/licensing.js";
@@ -93,6 +94,7 @@ declare const fullApi: ApiFromModules<{
   "shared/billingPeriod": typeof shared_billingPeriod;
   "shared/billingProvider": typeof shared_billingProvider;
   "shared/branchStock": typeof shared_branchStock;
+  "shared/clientOps": typeof shared_clientOps;
   "shared/defaultBranch": typeof shared_defaultBranch;
   "shared/entitlements": typeof shared_entitlements;
   "shared/licensing": typeof shared_licensing;

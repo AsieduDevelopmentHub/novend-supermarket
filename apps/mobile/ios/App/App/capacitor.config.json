@@ -3,11 +3,17 @@
   "appName": "Novend POS",
   "webDir": "www",
   "server": {
-    "url": "https://novend-pos.vercel.app",
-    "cleartext": false
+    "androidScheme": "https",
+    "hostname": "localhost",
+    "allowNavigation": ["novend-pos.vercel.app", "*.vercel.app"],
+    "errorPath": "error.html"
   },
   "android": {
-    "allowMixedContent": false
+    "allowMixedContent": false,
+    "appendUserAgent": "NovendCapacitor/1.0"
+  },
+  "ios": {
+    "appendUserAgent": "NovendCapacitor/1.0"
   },
   "plugins": {
     "SplashScreen": {

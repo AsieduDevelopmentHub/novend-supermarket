@@ -1,3 +1,4 @@
+import { branchStockId } from "./branch-stock";
 import { getMeta, getOfflineDb, META_KEYS, newClientId } from "./db";
 import { enqueueOutbox } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
@@ -125,6 +126,25 @@ export async function queueWholesaleTransfer(payload: Omit<WholesaleTransferPayl
       ...product,
       stockQuantity: product.stockQuantity + payload.quantity,
       sellableQuantity: (product.sellableQuantity ?? product.stockQuantity) + payload.quantity,
+      updatedAt: Date.now(),
+    });
+  }
+  const destStockId = branchStockId(payload.branchId, payload.productId);
+  const destStock = await db.branchStock.get(destStockId);
+  if (destStock) {
+    await db.branchStock.put({
+      ...destStock,
+      quantity: destStock.quantity + payload.quantity,
+      sellableQuantity: destStock.sellableQuantity + payload.quantity,
+      updatedAt: Date.now(),
+    });
+  } else {
+    await db.branchStock.put({
+      id: destStockId,
+      branchId: payload.branchId,
+      productId: payload.productId,
+      quantity: payload.quantity,
+      sellableQuantity: payload.quantity,
       updatedAt: Date.now(),
     });
   }

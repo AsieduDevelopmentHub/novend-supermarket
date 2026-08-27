@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.2
+Version: 2.4.5
 
 ## Purpose
 
@@ -73,7 +73,9 @@ payment network:
 - Creating a new login (password is stored by Convex Auth)
 - Changing a password
 - Paystack checkout and live billing mutations
-- Cloud backup upload/download
+- Cloud backup upload/download (Settings → Backups; always encrypted). The
+  file envelope lists PBKDF2/AES-GCM salt and IV so restore can run; those
+  are public parameters, not the password.
 - Desktop auto-update download
 
 After the first successful online sign-in, this device keeps an **offline
@@ -90,7 +92,14 @@ sales, returns, reports, and analytics all continue on the device.
 
 Queue order + server validation. Inventory cannot become negative on Convex.
 Cashiers resolve failed syncs (retry or discard). Local `local_*` ids are
-remapped after creates succeed.
+remapped after creates succeed. Snapshot merge keeps only **pending** `local_*`
+rows so a synced wholesale purchase, expense, or supplier is not shown beside
+the server row.
+
+Outbox retries are idempotent: sales and returns use `saleClientOps` /
+`saleReturnClientOps`; wholesale, inventory, and expenses use
+`mutationClientOps` keyed by `(organizationId, clientOperationId)`. Online
+checkout also sends `clientOperationId` so a retried Pay is one sale.
 
 The sidebar chip is the only always-on offline indicator. The top banner
 appears only for active uploads and sync conflicts. **Sync Center** (from the

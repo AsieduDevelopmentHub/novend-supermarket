@@ -5,6 +5,7 @@ import { requireRole, resolveBranchFilter } from "./shared/permissions";
 import { applyBranchStockChange } from "./shared/branchStock";
 import { increaseLot, productTracksExpiry } from "./shared/lots";
 import { writeAuditLog } from "./shared/audit";
+import { rememberClientOp, replayClientOp } from "./shared/clientOps";
 import {
   productMatchesLookup,
   assertPositiveMoney,
@@ -221,6 +222,7 @@ export const recordPurchase = mutation({
     invoiceNumber: v.optional(v.string()),
     purchasedAt: v.number(),
     notes: v.optional(v.string()),
+    clientOperationId: v.optional(v.string()),
     items: v.array(
       v.object({
         productId: v.id("products"),
@@ -232,6 +234,12 @@ export const recordPurchase = mutation({
   },
   handler: async (ctx, args) => {
     const { userId, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const replayed = await replayClientOp<{ purchaseId: Id<"supplierPurchases">; reference: string }>(
+      ctx,
+      organizationId,
+      args.clientOperationId,
+    );
+    if (replayed) return replayed;
     const supplier = await ctx.db.get(args.supplierId);
     if (!supplier || supplier.organizationId !== organizationId || supplier.status !== "active") {
       throw new Error("Select a valid supplier");
@@ -338,7 +346,14 @@ export const recordPurchase = mutation({
       organizationId,
       metadata: { supplierId: args.supplierId, reference, totalCost },
     });
-    return { purchaseId, reference };
+    const result = { purchaseId, reference };
+    await rememberClientOp(ctx, {
+      organizationId,
+      clientOperationId: args.clientOperationId,
+      kind: "record_wholesale_purchase",
+      result,
+    });
+    return result;
   },
 });
 
@@ -348,12 +363,19 @@ export const transferToBranch = mutation({
     productId: v.id("products"),
     quantity: v.number(),
     note: v.optional(v.string()),
+    clientOperationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId, profile, organizationId } = await requireRole(ctx, [
       "administrator",
       "manager",
     ]);
+    const replayed = await replayClientOp<Id<"stockTransfers">>(
+      ctx,
+      organizationId,
+      args.clientOperationId,
+    );
+    if (replayed) return replayed;
     if (!Number.isInteger(args.quantity) || args.quantity <= 0) {
       throw new Error("Quantity must be a positive integer");
     }
@@ -429,6 +451,12 @@ export const transferToBranch = mutation({
       entityId: transferId,
       organizationId,
       metadata: { branchId: args.branchId, productId: args.productId, quantity: args.quantity },
+    });
+    await rememberClientOp(ctx, {
+      organizationId,
+      clientOperationId: args.clientOperationId,
+      kind: "wholesale_transfer",
+      result: transferId,
     });
     return transferId;
   },

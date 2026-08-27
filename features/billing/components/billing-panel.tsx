@@ -19,7 +19,6 @@ import { toast } from "sonner";
 import { PlanUsageGrid } from "./plan-usage-grid";
 import { PlansGrid } from "./plans-grid";
 import { BillingHistoryTable } from "./billing-history-table";
-import { CloudBackupPanel } from "./cloud-backup-panel";
 import type { AccessState, UsageMetric } from "@/convex/shared/licensing";
 import { PLAN_CATALOG, type PlanKey } from "@/convex/shared/plans";
 import type { ScheduledChangeSnapshot } from "@/convex/shared/planChange";
@@ -258,7 +257,8 @@ export function BillingPanel() {
         <div>
           <h3 className="text-base font-semibold">Usage</h3>
           <p className="text-muted-foreground text-sm">
-            Reaching a limit only blocks new records of that kind. Selling never stops.
+            Reaching a limit only blocks new records of that kind. Selling never stops. Cloud backup
+            files are managed in Settings → Backups.
           </p>
         </div>
         <PlanUsageGrid usage={overview.usage as UsageMetric[]} />
@@ -272,8 +272,6 @@ export function BillingPanel() {
         onlinePaymentsEnabled={overview.onlinePaymentsEnabled}
         scheduledChange={scheduledChange}
       />
-
-      <CloudBackupPanel />
 
       <section className="space-y-3">
         <h3 className="text-base font-semibold">Payment history</h3>

@@ -93,20 +93,23 @@ export const processReturn = mutation({
     if (args.clientOperationId?.trim()) {
       const existing = await ctx.db
         .query("saleReturnClientOps")
-        .withIndex("by_clientOperationId", (q) =>
-          q.eq("clientOperationId", args.clientOperationId!.trim()),
+        .withIndex("by_organization_clientOperationId", (q) =>
+          q
+            .eq("organizationId", organizationId)
+            .eq("clientOperationId", args.clientOperationId!.trim()),
         )
         .unique();
       if (existing) {
         const prior = await ctx.db.get(existing.returnId);
-        if (prior) {
-          return {
-            returnId: prior._id,
-            returnNumber: prior.returnNumber,
-            refundAmount: prior.refundAmount,
-            receiptPayload: JSON.parse(prior.payload) as unknown,
-          };
+        if (!prior || prior.organizationId !== organizationId) {
+          throw new Error("This return was already submitted and cannot be created again");
         }
+        return {
+          returnId: prior._id,
+          returnNumber: prior.returnNumber,
+          refundAmount: prior.refundAmount,
+          receiptPayload: JSON.parse(prior.payload) as unknown,
+        };
       }
     }
 

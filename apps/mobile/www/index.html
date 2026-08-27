@@ -118,6 +118,8 @@
         var navigated = false;
         var settled = false;
         var requestInFlight = false;
+        var stayOnBoot = params.get("stay") === "1";
+        var healthUrl = appUrl + "/api/health";
 
         function showFailed(message) {
           settled = true;
@@ -136,38 +138,32 @@
           if (requestInFlight || navigated) return;
 
           // Offline-first: still hand off to the hosted origin so the service
-          // worker can serve the cached shell. Never leave users on a system
-          // "can't reach vercel.app" page from this boot screen.
+          // worker can serve the cached shell.
           if (navigator.onLine === false) {
             leaveBoot();
             return;
           }
 
-          // Prefetch so a dead network fails on our UI, not the system error page.
+          // CORS health check — opaque no-cors fetch cannot detect a dead origin,
+          // and navigating anyway paints Chrome's "This page couldn't load".
           requestInFlight = true;
           var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
           var timer = window.setTimeout(function () {
             if (controller) controller.abort();
           }, 8000);
 
-          fetch(target, {
+          fetch(healthUrl, {
             method: "GET",
-            credentials: "include",
+            credentials: "omit",
             cache: "no-store",
-            mode: "no-cors",
-            redirect: "follow",
+            mode: "cors",
             signal: controller ? controller.signal : undefined,
           })
             .then(function (response) {
               window.clearTimeout(timer);
               requestInFlight = false;
-              if (
-                !response.ok &&
-                response.type !== "opaque" &&
-                response.type !== "opaqueredirect"
-              ) {
-                // Prefer cached shell over staying on boot forever.
-                leaveBoot();
+              if (!response.ok) {
+                showFailed("Novend could not open. Check your connection and try again.");
                 return;
               }
               leaveBoot();
@@ -175,8 +171,11 @@
             .catch(function () {
               window.clearTimeout(timer);
               requestInFlight = false;
-              // Still attempt the cached document — SW may answer offline.
-              leaveBoot();
+              if (navigator.onLine === false) {
+                leaveBoot();
+                return;
+              }
+              showFailed("Novend could not open. Check your connection and try again.");
             });
         }
 
@@ -197,7 +196,7 @@
         });
 
         window.setTimeout(function () {
-          if (settled) return;
+          if (settled || navigated) return;
           var host = window.location.hostname;
           if (
             host === "localhost" ||
@@ -212,7 +211,11 @@
           }
         }, 10000);
 
-        go();
+        if (stayOnBoot) {
+          showFailed("Novend could not open. Check your connection and try again.");
+        } else {
+          go();
+        }
       })();
     </script>
   </body>

@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v7";
+const CACHE_NAME = "novend-pos-v8";
 const PRECACHE = [
   "/",
   "/login",
@@ -20,6 +20,12 @@ const PRECACHE = [
   "/analytics",
   "/suppliers",
   "/platform",
+  "/download",
+  "/privacy",
+  "/terms",
+  "/docs",
+  "/docs/help",
+  "/unauthorized",
   "/manifest.webmanifest",
   "/favicon.png",
   "/icons/icon-192.png",
@@ -183,10 +189,21 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
-      return fetch(request).then((response) => {
-        cachePut(request, response);
-        return response;
-      });
+      return fetch(request)
+        .then((response) => {
+          cachePut(request, response);
+          return response;
+        })
+        .catch(async () => {
+          // Never reject respondWith — Chrome then paints "This page couldn't load".
+          const fallback = await matchNavigation(request, url);
+          if (fallback) return fallback;
+          return new Response("Novend POS is offline. Reconnect and try again.", {
+            status: 503,
+            statusText: "Offline",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+          });
+        });
     }),
   );
 });

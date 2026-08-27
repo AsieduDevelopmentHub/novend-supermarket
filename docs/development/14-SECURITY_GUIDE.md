@@ -73,6 +73,14 @@ Hiding a button is not authorization.
 - Client may only receive intentional `NEXT_PUBLIC_*` values
 - Store secrets in Convex env / host secret stores
 
+# Portable backups
+
+Encrypted `.novend-backup` files include PBKDF2 + AES-GCM parameters (hash,
+iterations, salt, IV) in the envelope. Those values are **public** and required
+to decrypt; they are not a key leak. The backup password is the secret. Files
+are written as compact JSON so the envelope is a restore artifact, not a
+readable showcase.
+
 # Web threats
 
 | Threat               | Defense                                       |

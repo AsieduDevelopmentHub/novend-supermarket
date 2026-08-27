@@ -38,7 +38,7 @@ import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useNativeShell } from "@/hooks/use-native-shell";
-import { getMeta, getOfflineDb, META_KEYS } from "@/lib/offline/db";
+import { getMeta, getOfflineDb, META_KEYS, newClientId } from "@/lib/offline/db";
 import { cn } from "@/lib/utils";
 import {
   completeSaleLocally,
@@ -48,6 +48,7 @@ import {
   resumeLocalHeldSale,
 } from "@/lib/offline/sales-repository";
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
+import { resolveReceiptPrintMode } from "@/lib/receipt-print-mode";
 import type { LocalHeldSale } from "@/lib/offline/types";
 import { ProductImage } from "@/components/media/product-image";
 import {
@@ -405,12 +406,23 @@ export function SalesView() {
 
   async function triggerPrint(payload: ReceiptPayload) {
     setLastReceipt(payload);
+    const printMode = resolveReceiptPrintMode(posPrefs);
     if (isCapacitor()) {
+      if (printMode === "automatic") {
+        const result = await printReceipt(payload);
+        if (result.printed) {
+          toast.success(
+            result.reason === "native" ? "Receipt sent to printer" : "Print dialog opened",
+          );
+        } else {
+          toast.error(
+            "Could not print. Pair a Bluetooth printer in Settings, or use Share / Save PDF.",
+          );
+        }
+      }
       setSaleCompleteOpen(true);
       return;
     }
-    const printMode =
-      posPrefs?.receiptPrintMode ?? (posPrefs?.autoPrintReceipt ? "automatic" : "manual");
     if (printMode === "never") {
       return;
     }
@@ -471,7 +483,10 @@ export function SalesView() {
     };
     try {
       if (online) {
-        const result = await completeSaleRemote(saleInput);
+        const result = await completeSaleRemote({
+          ...saleInput,
+          clientOperationId: newClientId("sale"),
+        });
         const receipt = result.receiptPayload as ReceiptPayload;
         await mirrorCompletedSale({
           saleId: String(result.saleId),
@@ -850,6 +865,7 @@ export function SalesView() {
         open={saleCompleteOpen}
         onOpenChange={setSaleCompleteOpen}
         payload={lastReceipt}
+        printMode={resolveReceiptPrintMode(posPrefs)}
       />
 
       <BarcodeMatchDialog

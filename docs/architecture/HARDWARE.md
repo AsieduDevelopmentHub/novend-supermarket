@@ -1,6 +1,6 @@
 # Hardware architecture
 
-Version: 1.4.2
+Version: 1.4.3
 
 ## Purpose
 
@@ -52,9 +52,9 @@ UI components must not call Electron preload or Capacitor plugins directly.
 | Local image durability  | Also written under Capacitor `Directory.Data` (`product-images/`)                                                  |
 | Barcode (camera)        | Cap camera permission → getUserMedia → bundled **ZXing** (no Google ML Kit / HTTPS module)                         |
 | Barcode (HID)           | Terminal wedge config + `useBarcodeScanner` (desktop primary)                                                      |
-| Bluetooth thermal print | `@capacitor-community/bluetooth-le` ESC/POS write                                                                  |
+| Bluetooth thermal print | `@capacitor-community/bluetooth-le` ESC/POS write. After-sale print mode (automatic / manual / never) applies. One copy. |
 | Save PDF / backup JSON  | `Directory.Documents` via Filesystem (+ optional Share)                                                            |
-| Share receipt           | Native share sheet                                                                                                 |
+| Share receipt           | Optional native share sheet — Print is the primary post-sale action                                                |
 | Biometrics              | `@aparajita/capacitor-biometric-auth` — unlock token only (never password); maps supported / enrolled / available  |
 | Secure storage          | `@aparajita/capacitor-secure-storage` for unlock token                                                             |
 | Notifications           | `@capacitor/local-notifications` + Android channel + topic prefs (prompt / granted / denied / error / unavailable) |

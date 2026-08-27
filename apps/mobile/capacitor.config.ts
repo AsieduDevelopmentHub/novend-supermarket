@@ -33,8 +33,20 @@ function hostedHostname(url: string): string {
 }
 
 const allowNavigation = Array.from(
-  new Set([hostedHostname(appUrl), "novend-pos.vercel.app", "*.vercel.app"]),
+  new Set([
+    hostedHostname(appUrl),
+    "novend-pos.vercel.app",
+    "*.vercel.app",
+    appUrl.replace(/^https?:\/\//, ""),
+  ]),
 );
+
+const localServer = {
+  androidScheme: "https" as const,
+  hostname: "localhost",
+  allowNavigation,
+  errorPath: "error.html",
+};
 
 const config: CapacitorConfig = {
   appId: "com.novend.pos",
@@ -45,12 +57,9 @@ const config: CapacitorConfig = {
         url: `${appUrl}${APP_ENTRY_PATH}`,
         cleartext: true,
         allowNavigation,
+        errorPath: "error.html",
       }
-    : {
-        androidScheme: "https",
-        hostname: "localhost",
-        allowNavigation,
-      },
+    : localServer,
   android: {
     allowMixedContent: liveReload,
     appendUserAgent: "NovendCapacitor/1.0",

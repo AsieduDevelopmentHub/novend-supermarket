@@ -165,6 +165,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
                 invoiceNumber: payload.invoiceNumber,
                 purchasedAt: payload.purchasedAt,
                 notes: payload.notes,
+                clientOperationId: payload.clientOperationId,
                 items: payload.items.map((item) => ({
                   productId: item.productId as never,
                   quantity: item.quantity,
@@ -172,7 +173,13 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
                   expiryDate: item.expiryDate,
                 })),
               }),
-            transferToBranch: (args) => transferToBranch(args),
+            transferToBranch: (args) =>
+              transferToBranch({
+                productId: args.productId,
+                branchId: args.branchId,
+                quantity: args.quantity,
+                clientOperationId: args.clientOperationId,
+              }),
             adjustStock: (payload) =>
               adjustStock({
                 productId: payload.productId as never,
@@ -181,6 +188,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
                 reason: payload.reason,
                 note: payload.note,
                 expiryDate: payload.expiryDate,
+                clientOperationId: payload.clientOperationId,
               }),
             transferStock: (payload) =>
               transferStock({
@@ -189,6 +197,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
                 toBranchId: payload.toBranchId as never,
                 quantity: payload.quantity,
                 note: payload.note,
+                clientOperationId: payload.clientOperationId,
               }),
             createCustomer: (args) => createCustomer(args),
             updateCustomer: (args) => updateCustomer(args),
@@ -199,6 +208,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
                 occurredAt: payload.occurredAt,
                 description: payload.description,
                 branchId: payload.branchId as never,
+                clientOperationId: payload.clientOperationId,
               }),
             removeExpense: (args) => removeExpense(args),
             updateOwnProfile: (args) =>

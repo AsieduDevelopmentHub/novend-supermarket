@@ -11,8 +11,9 @@ const MAX_BACKUP_BYTES = 200 * 1024 * 1024;
 /**
  * Cloud backup storage for an organization.
  *
- * Quotas pause cloud uploads only. Local backups and the POS itself never stop
- * because storage is full — see `lib/offline/backup.ts` for the device-local copy.
+ * Quotas pause cloud uploads only. This-device backups in Settings → Backups
+ * and the POS itself never stop because storage is full — see
+ * `lib/offline/backup.ts`.
  */
 export const usage = query({
   args: {},

@@ -43,7 +43,7 @@ import { MobileHardwarePanel } from "./mobile-hardware-panel";
 import { FutureDevicesPanel } from "./future-devices-panel";
 import { UpdatesPanel } from "./updates-panel";
 import { DesktopDownloadPanel } from "./desktop-download-panel";
-import { LocalBackupPanel } from "./local-backup-panel";
+import { BackupsPanel } from "./backups-panel";
 import { ReceiptPrintModePicker } from "./receipt-print-mode-picker";
 import { resolveReceiptPrintMode, sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 import {
@@ -175,6 +175,7 @@ export function SettingsView() {
                 long: "Future devices",
               },
               { value: "updates" as const, label: "Updates", long: "Desktop updates" },
+              { value: "desktop" as const, label: "Downloads", long: "Download apps" },
             ] as const)
           : onMobileShell
             ? ([
@@ -186,9 +187,9 @@ export function SettingsView() {
               ] as const)
             : ([
                 { value: "scanner" as const, label: "Scanner", long: "Barcode scanner" },
-                { value: "desktop" as const, label: "Desktop", long: "Download desktop app" },
+                { value: "desktop" as const, label: "Downloads", long: "Download apps" },
               ] as const)),
-        { value: "backup" as const, label: "Backup", long: "Local backup" },
+        { value: "backup" as const, label: "Backups", long: "Backups" },
         { value: "appearance" as const, label: "Appearance", long: "Appearance" },
         { value: "security" as const, label: "Security", long: "Security" },
       ] as const,
@@ -309,6 +310,9 @@ export function SettingsView() {
               <TabsContent value="updates" className="mt-0">
                 <UpdatesPanel />
               </TabsContent>
+              <TabsContent value="desktop" className="mt-0">
+                <DesktopDownloadPanel />
+              </TabsContent>
             </>
           ) : onMobileShell ? (
             <TabsContent value="mobileHardware" className="mt-0">
@@ -327,7 +331,7 @@ export function SettingsView() {
           ) : null}
 
           <TabsContent value="backup" className="mt-0">
-            <LocalBackupPanel />
+            <BackupsPanel />
           </TabsContent>
 
           <TabsContent value="appearance" className="mt-0">

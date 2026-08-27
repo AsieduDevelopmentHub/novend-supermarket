@@ -20,6 +20,13 @@ import {
   sellableFromBranchStock,
 } from "./branch-stock";
 import { saveShellProfile } from "./shell-profile";
+import {
+  mergeServerAndLocalById,
+  mergeWholesaleStock,
+  overlayPendingBranchStock,
+  overlayPendingWholesaleStock,
+  pendingLocalIdsFromOutbox,
+} from "./replica-dedupe";
 import type {
   MirroredBranch,
   MirroredBranchStock,
@@ -54,11 +61,32 @@ async function replaceServerRows<T extends { id: string }>(
     bulkPut: (rows: T[]) => Promise<unknown>;
   },
   rows: T[],
+  pendingLocalIds: Set<string>,
 ) {
   const localOnly = await table.filter((row) => row.id.startsWith("local_")).toArray();
+  const merged = mergeServerAndLocalById(rows, localOnly, pendingLocalIds);
   await table.clear();
-  if (rows.length + localOnly.length > 0) {
-    await table.bulkPut([...rows, ...localOnly]);
+  if (merged.length > 0) {
+    await table.bulkPut(merged);
+  }
+}
+
+async function replaceWholesaleStockRows(
+  table: {
+    filter: (fn: (row: MirroredWholesaleStock) => boolean) => {
+      toArray: () => Promise<MirroredWholesaleStock[]>;
+    };
+    clear: () => Promise<void>;
+    bulkPut: (rows: MirroredWholesaleStock[]) => Promise<unknown>;
+  },
+  rows: MirroredWholesaleStock[],
+  pendingLocalIds: Set<string>,
+) {
+  const localOnly = await table.filter((row) => row.id.startsWith("local_")).toArray();
+  const merged = mergeWholesaleStock(rows, localOnly, pendingLocalIds);
+  await table.clear();
+  if (merged.length > 0) {
+    await table.bulkPut(merged);
   }
 }
 
@@ -135,6 +163,8 @@ export async function applySnapshot(
   },
 ) {
   const now = Date.now();
+  const openOutbox = await db.outbox.toArray();
+  const pendingLocalIds = pendingLocalIdsFromOutbox(openOutbox);
   const tables = [
     db.products,
     db.branchStock,
@@ -156,9 +186,14 @@ export async function applySnapshot(
     await replaceServerRows(
       db.products,
       snapshot.products.map((p) => ({ ...p, updatedAt: p.updatedAt || now })),
+      pendingLocalIds,
     );
-    await replaceServerRows(db.branchStock, snapshot.branchStock ?? []);
-    await replaceServerRows(db.categories, snapshot.categories);
+    await replaceServerRows(
+      db.branchStock,
+      overlayPendingBranchStock(snapshot.branchStock ?? [], openOutbox),
+      pendingLocalIds,
+    );
+    await replaceServerRows(db.categories, snapshot.categories, pendingLocalIds);
     await replaceServerRows(
       db.customers,
       snapshot.customers.map((c) => ({
@@ -170,16 +205,21 @@ export async function applySnapshot(
         lastInvoiceNumber: c.lastInvoiceNumber ?? null,
         updatedAt: c.updatedAt || now,
       })),
+      pendingLocalIds,
     );
-    await replaceServerRows(db.orders, snapshot.orders ?? []);
+    await replaceServerRows(db.orders, snapshot.orders ?? [], pendingLocalIds);
     await db.orderItems.clear();
     if (snapshot.orderItems && snapshot.orderItems.length > 0) {
       await db.orderItems.bulkPut(snapshot.orderItems);
     }
-    await replaceServerRows(db.suppliers, snapshot.suppliers ?? []);
-    await replaceServerRows(db.wholesaleStock, snapshot.wholesaleStock ?? []);
-    await replaceServerRows(db.wholesalePurchases, snapshot.wholesalePurchases ?? []);
-    await replaceServerRows(db.wholesaleTransfers, snapshot.wholesaleTransfers ?? []);
+    await replaceServerRows(db.suppliers, snapshot.suppliers ?? [], pendingLocalIds);
+    await replaceWholesaleStockRows(
+      db.wholesaleStock,
+      overlayPendingWholesaleStock(snapshot.wholesaleStock ?? [], openOutbox),
+      pendingLocalIds,
+    );
+    await replaceServerRows(db.wholesalePurchases, snapshot.wholesalePurchases ?? [], pendingLocalIds);
+    await replaceServerRows(db.wholesaleTransfers, snapshot.wholesaleTransfers ?? [], pendingLocalIds);
     const branchRows =
       snapshot.branches && snapshot.branches.length > 0
         ? snapshot.branches
@@ -195,10 +235,10 @@ export async function applySnapshot(
               },
             ]
           : [];
-    await replaceServerRows(db.branches, branchRows);
-    await replaceServerRows(db.users, snapshot.users ?? []);
-    await replaceServerRows(db.expenses, snapshot.expenses ?? []);
-    await replaceServerRows(db.returns, snapshot.returns ?? []);
+    await replaceServerRows(db.branches, branchRows, pendingLocalIds);
+    await replaceServerRows(db.users, snapshot.users ?? [], pendingLocalIds);
+    await replaceServerRows(db.expenses, snapshot.expenses ?? [], pendingLocalIds);
+    await replaceServerRows(db.returns, snapshot.returns ?? [], pendingLocalIds);
     await setMeta(db, META_KEYS.printSnapshot, JSON.stringify(snapshot.print));
     await setMeta(db, META_KEYS.profileUserId, snapshot.profile.userId);
     await setMeta(db, META_KEYS.profileName, snapshot.profile.name);

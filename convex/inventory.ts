@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 import {
   assertBranchAccess,
   isAdmin,
@@ -27,6 +28,7 @@ import {
   writeOffExpiredLots,
 } from "./shared/lots";
 import { writeAuditLog } from "./shared/audit";
+import { rememberClientOp, replayClientOp } from "./shared/clientOps";
 import { sanitizeOptionalText, productMatchesLookup, TEXT_LIMITS } from "./shared/validation";
 
 export const list = query({
@@ -121,12 +123,15 @@ export const adjustStock = mutation({
     expiryDate: v.optional(v.string()),
     lotId: v.optional(v.id("inventoryLots")),
     lotCode: v.optional(v.string()),
+    clientOperationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId, profile, organizationId } = await requireRole(ctx, [
       "administrator",
       "manager",
     ]);
+    const replayed = await replayClientOp<number>(ctx, organizationId, args.clientOperationId);
+    if (replayed !== null) return replayed;
     const product = await ctx.db.get(args.productId);
     if (!product || product.organizationId !== organizationId) throw new Error("Product not found");
     if (!Number.isInteger(args.quantityChange) || args.quantityChange === 0) {
@@ -163,6 +168,12 @@ export const adjustStock = mutation({
       },
     });
 
+    await rememberClientOp(ctx, {
+      organizationId,
+      clientOperationId: args.clientOperationId,
+      kind: "adjust_stock",
+      result: next,
+    });
     return next;
   },
 });
@@ -174,12 +185,19 @@ export const transferStock = mutation({
     productId: v.id("products"),
     quantity: v.number(),
     note: v.optional(v.string()),
+    clientOperationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId, profile, organizationId } = await requireRole(ctx, [
       "administrator",
       "manager",
     ]);
+    const replayed = await replayClientOp<Id<"stockTransfers">>(
+      ctx,
+      organizationId,
+      args.clientOperationId,
+    );
+    if (replayed) return replayed;
     if (args.fromBranchId === args.toBranchId) {
       throw new Error("Choose two different branches");
     }
@@ -286,6 +304,12 @@ export const transferStock = mutation({
       },
     });
 
+    await rememberClientOp(ctx, {
+      organizationId,
+      clientOperationId: args.clientOperationId,
+      kind: "transfer_stock",
+      result: transferId,
+    });
     return transferId;
   },
 });

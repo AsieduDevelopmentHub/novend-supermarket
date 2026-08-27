@@ -608,7 +608,18 @@ export default defineSchema({
     returnId: v.id("saleReturns"),
     processedBy: v.id("users"),
     createdAt: v.number(),
-  }).index("by_clientOperationId", ["clientOperationId"]),
+  })
+    .index("by_clientOperationId", ["clientOperationId"])
+    .index("by_organization_clientOperationId", ["organizationId", "clientOperationId"]),
+
+  /** Idempotency keys for wholesale, inventory, expenses, and other outbox mutations. */
+  mutationClientOps: defineTable({
+    organizationId: v.id("organizations"),
+    clientOperationId: v.string(),
+    kind: v.string(),
+    resultJson: v.string(),
+    createdAt: v.number(),
+  }).index("by_organization_clientOperationId", ["organizationId", "clientOperationId"]),
 
   expenses: defineTable({
     organizationId: v.id("organizations"),
