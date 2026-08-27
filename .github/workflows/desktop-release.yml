@@ -22,6 +22,14 @@ on:
         required: false
         default: false
         type: boolean
+      targets:
+        description: "What to build and publish to Convex"
+        required: false
+        default: android
+        type: choice
+        options:
+          - android
+          - all
 
 concurrency:
   group: product-release-${{ github.ref }}
@@ -34,10 +42,24 @@ jobs:
   verify:
     name: Verify version
     runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.targets.outputs.targets }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Resolve release targets
+        id: targets
+        shell: bash
+        run: |
+          targets="${{ github.event.inputs.targets }}"
+          if [ -z "$targets" ]; then
+            # Tag pushes default to Android + Convex mobile only.
+            targets="android"
+          fi
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          echo "Release targets: $targets"
 
       - name: Tag must match package versions
         shell: bash
@@ -64,9 +86,40 @@ jobs:
           fi
           echo "Tag $tag matches root, desktop, and mobile package versions."
 
+  github-release:
+    name: Create GitHub Release
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Ensure GitHub Release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "GitHub Release $tag already exists"
+            exit 0
+          fi
+          gh release create "$tag" \
+            --title "Novend POS $tag" \
+            --notes "See CHANGELOG.md" \
+            --verify-tag
+
+      - name: Sync GitHub Release notes from CHANGELOG
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: node scripts/sync-github-release-notes.mjs
+
   build:
     name: Build ${{ matrix.os }}
     needs: verify
+    if: needs.verify.outputs.targets == 'all'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -132,7 +185,7 @@ jobs:
 
   build-android:
     name: Build Android APK
-    needs: verify
+    needs: [verify, github-release]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -259,9 +312,14 @@ jobs:
 
   publish-convex:
     name: Publish update metadata to Convex
-    needs: [build, build-android]
+    needs: [verify, github-release, build, build-android]
     runs-on: ubuntu-latest
-    if: always() && needs.build.result == 'success'
+    if: |
+      always() &&
+      needs.verify.result == 'success' &&
+      needs.github-release.result == 'success' &&
+      needs.build-android.result == 'success' &&
+      (needs.verify.outputs.targets == 'android' || needs.build.result == 'success')
     steps:
       - uses: actions/checkout@v4
         with:
@@ -293,6 +351,7 @@ jobs:
         run: node scripts/sync-github-release-notes.mjs
 
       - name: Publish desktop metadata to Convex
+        if: needs.verify.outputs.targets == 'all' && needs.build.result == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CONVEX_SITE_URL: ${{ secrets.CONVEX_SITE_URL }}

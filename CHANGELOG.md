@@ -1,10 +1,16 @@
 # Changelog
 
-All notable changes to Novend POS are recorded here. The project follows [Semantic Versioning](https://semver.org/); each `vX.Y.Z` tag builds desktop installers and publishes a GitHub Release titled **Novend POS vX.Y.Z**.
+All notable changes to Novend POS are recorded here. The project follows [Semantic Versioning](https://semver.org/); each `vX.Y.Z` tag runs Product Release. **Default is Android APK + Convex mobile metadata.** Desktop installers publish when the workflow is run with `targets: all`. GitHub Releases are titled **Novend POS vX.Y.Z**.
 
 ---
 
 ## Unreleased
+
+---
+
+## v0.3.9 — 2026-08-27
+
+Android APK and Convex mobile updates only. Desktop installers stay on v0.3.8 until the next full (`targets: all`) product release.
 
 ### Added
 
