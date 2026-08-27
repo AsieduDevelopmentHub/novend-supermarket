@@ -15,26 +15,28 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { formatCurrency } from "@/lib/currency";
 import {
-  Download,
   Eye,
   MoreVertical,
   Package,
   Pencil,
   Plus,
   Trash2,
+  Upload,
   Warehouse,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { ProductFormDialog } from "./product-form-dialog";
+import { ProductImportWizard } from "./product-import-wizard";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
 import { usePermissions } from "@/hooks/use-permissions";
-import { brandedCsvName } from "@/lib/export-filenames";
-import { exportCsv } from "@/services";
+import { useLicense } from "@/hooks/use-license";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { useBranchesList, useProductsList } from "@/hooks/use-offline-lists";
 import { ProductImage } from "@/components/media/product-image";
+import { ExportMenu } from "@/components/export/export-menu";
+import { productExportTable } from "@/lib/export/products";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,9 +54,11 @@ export function ProductsView() {
     branchId: myBranchId,
     branchName,
   } = usePermissions();
+  const { capabilities, planName } = useLicense();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editingId, setEditingId] = useState<Id<"products"> | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<{
     id: Id<"products">;
@@ -71,8 +75,18 @@ export function ProductsView() {
     canViewCost,
   });
   const archiveProduct = useMutation(api.products.archiveProduct);
+  const recordExport = useMutation(api.imports.recordExport);
 
   const rows = useMemo(() => products ?? [], [products]);
+  const exportTable = useMemo(
+    () =>
+      productExportTable({
+        rows,
+        canViewCost,
+        branchLabel: isAdmin && branchFilter && branchFilter !== "all" ? undefined : (branchName ?? undefined),
+      }),
+    [rows, canViewCost, isAdmin, branchFilter, branchName],
+  );
 
   async function confirmArchive() {
     if (!archiveTarget) return;
@@ -101,14 +115,10 @@ export function ProductsView() {
           canManageProducts
             ? [
                 {
-                  key: "export",
-                  label: "Export",
-                  icon: Download,
-                  onClick: () =>
-                    void exportCsv(
-                      brandedCsvName("Products"),
-                      rows.map((r) => ({ name: r.name, sku: r.sku, stock: r.stockQuantity })),
-                    ).then(() => toast.success("Export downloaded")),
+                  key: "import",
+                  label: "Import",
+                  icon: Upload,
+                  onClick: () => setImportOpen(true),
                 },
                 {
                   key: "add",
@@ -125,19 +135,19 @@ export function ProductsView() {
         actions={
           canManageProducts ? (
             <>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  void exportCsv(
-                    brandedCsvName("Products"),
-                    rows.map((r) => ({ name: r.name, sku: r.sku, stock: r.stockQuantity })),
-                  ).then(() => toast.success("Export downloaded"))
-                }
-              >
-                <Download className="h-4 w-4" />
-                Export
+              <Button type="button" variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4" />
+                Import
               </Button>
+              <ExportMenu
+                table={exportTable}
+                capabilities={capabilities}
+                planName={planName}
+                disabled={rows.length === 0}
+                onExported={(format, count) => {
+                  void recordExport({ kind: "products", format, rowCount: count }).catch(() => undefined);
+                }}
+              />
               <Button
                 type="button"
                 onClick={() => {
@@ -435,6 +445,7 @@ export function ProductsView() {
             onConfirm={confirmArchive}
           />
 
+          <ProductImportWizard open={importOpen} onOpenChange={setImportOpen} />
           <ProductFormDialog
             open={open}
             onOpenChange={(next) => {

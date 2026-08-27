@@ -35,15 +35,20 @@ type ProductListRow = {
   sku: string;
   barcode?: string | null;
   categoryName: string;
+  description?: string | null;
   sellingPrice: number;
   costPrice?: number;
   stockQuantity: number;
+  lowStockThreshold?: number;
   unit: string;
   isLowStock: boolean;
   isExpired?: boolean;
   isExpiring?: boolean;
   status: string;
+  tracksExpiry?: boolean;
+  expiryAlertDays?: number | null;
   imageUrl: string | null;
+  updatedAt?: number;
 };
 
 function mapProduct(row: MirroredProductRow, canViewCost: boolean): ProductListRow {
@@ -53,15 +58,20 @@ function mapProduct(row: MirroredProductRow, canViewCost: boolean): ProductListR
     sku: row.sku,
     barcode: row.barcode,
     categoryName: row.categoryName,
+    description: row.description ?? null,
     sellingPrice: row.sellingPrice,
     costPrice: canViewCost ? row.costPrice : undefined,
     stockQuantity: row.stockQuantity,
+    lowStockThreshold: row.lowStockThreshold,
     unit: row.unit,
     isLowStock: row.isLowStock,
     isExpired: row.isExpired,
     isExpiring: row.isExpiring,
     status: row.status,
+    tracksExpiry: row.tracksExpiry,
+    expiryAlertDays: row.expiryAlertDays,
     imageUrl: row.imageUrl,
+    updatedAt: row.updatedAt,
   };
 }
 

@@ -21,7 +21,9 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
+import { ExportMenu } from "@/components/export/export-menu";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useLicense } from "@/hooks/use-license";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { useOfflineAnalytics } from "@/hooks/use-offline-analytics";
@@ -36,8 +38,8 @@ import { formatDateTime } from "@/lib/date";
 import { expenseCategoryLabel, type ExpenseCategory } from "../constants";
 import { ExpenseFormDialog, type ExpenseRow } from "./expense-form-dialog";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
-import { Download, Pencil, Plus, Printer, Trash2 } from "lucide-react";
-import { brandedCsvName } from "@/lib/export-filenames";
+import { Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { analyticsExportTable } from "@/lib/export/analytics";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import {
@@ -72,6 +74,7 @@ function localIso(d: Date) {
 
 export function AnalyticsView() {
   const { isAdmin, isManager, branchName, branchId: myBranchId } = usePermissions();
+  const { capabilities, planName } = useLicense();
   const online = useConnectivity();
   const today = localIso(new Date());
   const weekAgo = (() => {
@@ -128,6 +131,21 @@ export function AnalyticsView() {
 
   const summary =
     preferLocal || !online ? (localSummary ?? remoteSummary) : (remoteSummary ?? localSummary);
+  const recordExport = useMutation(api.imports.recordExport);
+  const exportTable = summary
+    ? analyticsExportTable({
+        start: applied.start,
+        end: applied.end,
+        granularity,
+        branchLabel:
+          isAdmin && branchFilter !== "all"
+            ? branches?.find((b) => b.id === branchFilter)?.name
+            : branchName ?? undefined,
+        pnl: summary.pnl,
+        expenseBreakdown: summary.expenseBreakdown,
+        trend: summary.trend,
+      })
+    : null;
   const expenses =
     expensesRemote ??
     expensesLocal?.map((row) => ({
@@ -161,47 +179,6 @@ export function AnalyticsView() {
     setRangeError(null);
     setApplied({ start, end });
     toast.success("Analytics updated");
-  }
-
-  function exportCsv() {
-    if (!summary || !range) return;
-    const lines = [
-      "Section,Metric,Value",
-      `P&L,Gross Revenue,${summary.pnl.grossRevenue ?? summary.pnl.revenue}`,
-      `P&L,Refunds,${summary.pnl.totalRefunds ?? 0}`,
-      `P&L,Net Revenue,${summary.pnl.revenue}`,
-      `P&L,COGS,${summary.pnl.cogs}`,
-      `P&L,Gross Profit,${summary.pnl.grossProfit}`,
-      `P&L,Operating Expenses,${summary.pnl.operatingExpenses}`,
-      `P&L,Net Profit,${summary.pnl.netProfit}`,
-      `P&L,Profit Margin %,${summary.pnl.profitMargin}`,
-      "",
-      "Category,Amount",
-      ...summary.expenseBreakdown.map(
-        (row: { label: string; amount: number }) => `${row.label},${row.amount}`,
-      ),
-      "",
-      "Period,Revenue,COGS,Expenses,Gross Profit,Net Profit",
-      ...summary.trend.map(
-        (row: {
-          period: string;
-          revenue: number;
-          cogs: number;
-          expenses: number;
-          grossProfit: number;
-          netProfit: number;
-        }) =>
-          `${row.period},${row.revenue},${row.cogs},${row.expenses},${row.grossProfit},${row.netProfit}`,
-      ),
-    ];
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = brandedCsvName("Analytics", `${applied.start}-to-${applied.end}`);
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("CSV exported");
   }
 
   function printReport() {
@@ -303,13 +280,6 @@ export function AnalyticsView() {
             onClick: printReport,
           },
           {
-            key: "export",
-            label: "Export CSV",
-            icon: Download,
-            disabled: !summary,
-            onClick: exportCsv,
-          },
-          {
             key: "expense",
             label: "Record expense",
             icon: Plus,
@@ -325,10 +295,17 @@ export function AnalyticsView() {
               <Printer className="h-4 w-4" />
               Print P&L
             </Button>
-            <Button type="button" variant="outline" disabled={!summary} onClick={exportCsv}>
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
+            <ExportMenu
+              table={exportTable}
+              capabilities={capabilities}
+              planName={planName}
+              disabled={!summary}
+              onExported={(format, count) => {
+                void recordExport({ kind: "analytics", format, rowCount: count }).catch(
+                  () => undefined,
+                );
+              }}
+            />
             <Button
               type="button"
               onClick={() => {

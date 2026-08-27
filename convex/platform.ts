@@ -7,7 +7,13 @@ import { getPlatformAdmin, requirePlatformAdmin } from "./shared/permissions";
 import { sanitizeOptionalText, TEXT_LIMITS } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
 import { planKeyValidator, billingCycleValidator } from "./schema";
-import { resolvePlan } from "./shared/plans";
+import { effectivePlanLimits, resolvePlan } from "./shared/plans";
+import { planCapabilities } from "./shared/capabilities";
+import {
+  countExportFormats,
+  groupRowsByOrganization,
+  loadOrganizationImportExport,
+} from "./shared/importExportSnapshot";
 import { resolveLicense, getActiveSubscription } from "./shared/entitlements";
 import { provisionOrganization } from "./shared/provisionOrganization";
 import { GRACE_PERIOD_MS } from "./shared/licensing";
@@ -32,16 +38,58 @@ export const overview = query({
   args: {},
   handler: async (ctx) => {
     await requirePlatformAdmin(ctx);
-    const [organizations, profiles, branches, sales] = await Promise.all([
-      ctx.db.query("organizations").collect(),
-      ctx.db.query("profiles").collect(),
-      ctx.db.query("branches").collect(),
-      ctx.db.query("sales").collect(),
-    ]);
+    const [organizations, profiles, branches, sales, products, importJobs, exportEvents] =
+      await Promise.all([
+        ctx.db.query("organizations").collect(),
+        ctx.db.query("profiles").collect(),
+        ctx.db.query("branches").collect(),
+        ctx.db.query("sales").collect(),
+        ctx.db.query("products").collect(),
+        ctx.db.query("importJobs").collect(),
+        ctx.db.query("exportEvents").collect(),
+      ]);
 
     const now = Date.now();
     const dayAgo = now - 24 * 60 * 60 * 1000;
     const recentSales = sales.filter((sale) => sale.completedAt >= dayAgo);
+    const productsUsedByOrg = new Map<string, number>();
+    for (const product of products) {
+      if (product.status === "archived") continue;
+      const key = String(product.organizationId);
+      productsUsedByOrg.set(key, (productsUsedByOrg.get(key) ?? 0) + 1);
+    }
+
+    let csvOnlyOrganizations = 0;
+    const orgsNearImportCap: Array<{
+      id: typeof organizations[number]["_id"];
+      name: string;
+      productsUsed: number;
+      productLimit: number;
+      maxImportRows: number;
+      percent: number;
+      productLimitOverridden: boolean;
+    }> = [];
+
+    for (const org of organizations) {
+      const plan = resolvePlan(org.planKey);
+      const limits = effectivePlanLimits(plan, org.backupLimitBytes, org.limitOverrides);
+      const caps = planCapabilities(plan.key, limits);
+      if (!caps.canExportXlsx) csvOnlyOrganizations += 1;
+      if (limits.products === null) continue;
+      const productsUsed = productsUsedByOrg.get(String(org._id)) ?? 0;
+      const percent = limits.products === 0 ? 100 : Math.round((productsUsed / limits.products) * 100);
+      if (percent < 80) continue;
+      orgsNearImportCap.push({
+        id: org._id,
+        name: org.name,
+        productsUsed,
+        productLimit: limits.products,
+        maxImportRows: caps.maxImportRows,
+        percent,
+        productLimitOverridden: org.limitOverrides?.products !== undefined,
+      });
+    }
+    orgsNearImportCap.sort((a, b) => b.percent - a.percent);
 
     return {
       organizationCount: organizations.length,
@@ -56,6 +104,12 @@ export const overview = query({
       branchCount: branches.length,
       saleCount: sales.length,
       salesLast24h: recentSales.length,
+      importJobCount: importJobs.length,
+      failedImportJobs: importJobs.filter((job) => job.status === "failed").length,
+      exportEventCount: exportEvents.length,
+      exportsByFormat: countExportFormats(exportEvents),
+      csvOnlyOrganizations,
+      orgsNearImportCap: orgsNearImportCap.slice(0, 8),
       recentOrganizations: organizations
         .sort((a, b) => b.createdAt - a.createdAt)
         .slice(0, 8)
@@ -80,25 +134,52 @@ export const listOrganizations = query({
       const q = args.search.trim().toLowerCase();
       orgs = orgs.filter((org) => org.name.toLowerCase().includes(q) || org.slug.includes(q));
     }
-    const profiles = await ctx.db.query("profiles").collect();
-    const sales = await ctx.db.query("sales").collect();
+    const [profiles, sales, products, importJobs, exportEvents] = await Promise.all([
+      ctx.db.query("profiles").collect(),
+      ctx.db.query("sales").collect(),
+      ctx.db.query("products").collect(),
+      ctx.db.query("importJobs").collect(),
+      ctx.db.query("exportEvents").collect(),
+    ]);
+    const jobsByOrg = groupRowsByOrganization(importJobs);
+    const exportsByOrg = groupRowsByOrganization(exportEvents);
+    const productsUsedByOrg = new Map<string, number>();
+    for (const product of products) {
+      if (product.status === "archived") continue;
+      const key = String(product.organizationId);
+      productsUsedByOrg.set(key, (productsUsedByOrg.get(key) ?? 0) + 1);
+    }
     return orgs
       .sort((a, b) => b.createdAt - a.createdAt)
       .map((org) => {
         const staff = profiles.filter((p) => p.organizationId === org._id);
         const orgSales = sales.filter((s) => s.organizationId === org._id);
+        const plan = resolvePlan(org.planKey);
+        const limits = effectivePlanLimits(plan, org.backupLimitBytes, org.limitOverrides);
+        const caps = planCapabilities(plan.key, limits);
+        const orgJobs = jobsByOrg.get(String(org._id)) ?? [];
+        const orgExports = exportsByOrg.get(String(org._id)) ?? [];
         return {
           id: org._id,
           name: org.name,
           slug: org.slug,
           status: org.status,
-          planKey: resolvePlan(org.planKey).key,
-          plan: resolvePlan(org.planKey).name,
+          planKey: plan.key,
+          plan: plan.name,
           currency: org.currency,
           createdAt: org.createdAt,
           trialEndsAt: org.trialEndsAt ?? null,
           userCount: staff.length,
           saleCount: orgSales.length,
+          productsUsed: productsUsedByOrg.get(String(org._id)) ?? 0,
+          productLimit: limits.products,
+          maxImportRows: caps.maxImportRows,
+          canExportXlsx: caps.canExportXlsx,
+          canExportPdf: caps.canExportPdf,
+          importJobCount: orgJobs.length,
+          failedImportCount: orgJobs.filter((job) => job.status === "failed").length,
+          exportEventCount: orgExports.length,
+          productLimitOverridden: org.limitOverrides?.products !== undefined,
         };
       });
   },
@@ -215,6 +296,14 @@ export const getOrganization = query({
     const activeDevices = devices.filter((d) => d.isActive);
     const lastSyncAt = devices.reduce((latest, d) => Math.max(latest, d.lastSeenAt ?? 0), 0);
     const license = await resolveLicense(ctx, org);
+    const productCount = products.filter((p) => p.status !== "archived").length;
+    const importExport = await loadOrganizationImportExport(ctx, {
+      organizationId: org._id,
+      planKey: license.planKey,
+      limits: license.limits,
+      productsUsed: productCount,
+      productLimitOverridden: org.limitOverrides?.products !== undefined,
+    });
 
     return {
       id: org._id,
@@ -251,7 +340,7 @@ export const getOrganization = query({
         managerCount: profiles.filter((p) => p.role === "manager").length,
         cashierCount: profiles.filter((p) => p.role === "cashier").length,
         branchCount: branches.length,
-        productCount: products.filter((p) => p.status !== "archived").length,
+        productCount,
         supplierCount: suppliers.length,
         customerCount: customers.length,
         saleCount: sales.length,
@@ -283,6 +372,7 @@ export const getOrganization = query({
           ...u,
           branchName: u.branchId ? (branchName.get(u.branchId) ?? null) : null,
         })),
+      importExport,
     };
   },
 });

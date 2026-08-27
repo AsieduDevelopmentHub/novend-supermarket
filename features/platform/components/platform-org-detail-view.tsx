@@ -33,6 +33,7 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePlatformOrgDetailData } from "@/hooks/use-platform-offline-data";
 import { PlatformLicensePanel } from "./platform-license-panel";
+import { PlatformImportExportCard } from "./platform-import-export-card";
 
 export function PlatformOrgDetailView({ organizationId }: { organizationId: string }) {
   const id = organizationId as Id<"organizations">;
@@ -229,6 +230,8 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
               )}
             </CardContent>
           </Card>
+
+          <PlatformImportExportCard snapshot={org.importExport} />
         </TabsContent>
 
         <TabsContent value="licence">
@@ -237,6 +240,7 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
             organizationName={org.name}
             status={org.status}
             limitOverrides={org.limitOverrides}
+            importExport={org.importExport}
           />
         </TabsContent>
 
@@ -349,6 +353,27 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
               title="Devices"
               value={String(org.kpis.deviceCount)}
               hint={`${org.kpis.deviceCountTotal} registered total`}
+            />
+          </Grid>
+          <Grid cols={2}>
+            <Kpi
+              title="Import row cap"
+              value={
+                org.importExport ? formatNumber(org.importExport.maxImportRows) : "—"
+              }
+              hint={
+                org.importExport?.productLimitOverridden
+                  ? "From the product override"
+                  : "From the product limit"
+              }
+            />
+            <Kpi
+              title="Imports / exports"
+              value={
+                org.importExport
+                  ? `${formatNumber(org.importExport.importJobs)} / ${formatNumber(org.importExport.exportEvents)}`
+                  : "—"
+              }
             />
           </Grid>
           <Card>

@@ -8,6 +8,9 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Added
 
+- Product **import** from CSV/Excel with Novend template, synonym header mapping, preview/validation, and Dexie+outbox writes. Quantity is opening stock on new SKUs only.
+- Shared **export** menu (CSV, Excel, PDF, JSON) on Products, Reports, and Analytics. Product export includes the live catalog fields (cost only when the role may see it). Excel/PDF follow Pro rank.
+- Plan **capabilities** on the licence snapshot (`canExportXlsx`, `maxImportRows`, …) so screens do not hard-code plan keys. Super Admin sees per-organization import/export limits, usage, recent jobs, and product-override history — not platform totals only.
 - Wholesale **Record purchase** sets catalog **cost** and **selling** prices so a supplier increase is what branches sell after issue. Recent purchases list those line prices. **New product** on the same dialog adds a catalog SKU (no opening branch stock); quantity is received into the warehouse.
 - Sales cart, discount, and attached customer stay in the tab when you leave Sales and come back. Checkout, hold, and sign-out clear that draft.
 - Sales product cards show **on-hand stock** so cashiers do not need Inventory to see quantity.
@@ -24,12 +27,10 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 - Platform super-admin sign-in opens `/platform` instead of tenant Dashboard (which threw `branches:list` Forbidden).
 - Settings → Devices marks and counts **this device** using a client fingerprint (it was previously an empty SSR value, so the current terminal did not match).
-
-### Fixed
-
-- Platform super-admin sign-in opens `/platform` instead of tenant Dashboard (which threw `branches:list` Forbidden).
-- Settings → Devices marks and counts **this device** using a client fingerprint (it was previously an empty SSR value, so the current terminal did not match).
 - Login → dashboard no longer flashes Chrome’s “This site can’t be reached” (`ERR_FAILED`). The service worker was intercepting `/login`, following the auth redirect, and returning a redirected document — Chrome rejects that for navigations. Auth pages now bypass the worker; other documents are network-first with redirects unwrapped.
+- Sync Center **Fix** opens the product when Convex rejects an upload (for example expiry date required on opening stock). Those rejections no longer sit in Waiting, retry the same payload forever, or block other queued products. Import requires YYYY-MM-DD when tracking expiry on opening stock.
+- Capacitor checkout **Pay** completes on the device first (same as other POS writes). A false-online network no longer sends the sale to Convex, fail, and then apply every tap when the device reconnects. Print failure no longer looks like a failed payment.
+- PDF exports use a spaced table layout. Image URLs are omitted unless the cell is an actual image file or data URI (CSV/Excel still include the URL).
 - Capacitor no longer registers the service worker (Android WebView treats the same redirect as a stuck `net::ERR_FAILED` on `/dashboard`). Offline on mobile stays Dexie + the local boot page. Cold start opens `/api/boot` first so an already-installed worker cannot intercept `/dashboard`.
 - Boot health checks no longer send `Cache-Control` (that forced a CORS preflight from `https://localhost`).
 

@@ -1,6 +1,6 @@
 # Billing, Plans & Activation
 
-Version: 1.3.1
+Version: 1.3.3
 
 Novend is sold as a subscription with a lifetime licence option. This document is
 the reference for how entitlements are defined, enforced and paid for.
@@ -21,6 +21,7 @@ licence so a terminal keeps selling offline, but it never decides access.
 
 | File                                     | Owns                                                                                         |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `convex/shared/capabilities.ts`  | Import/export capabilities derived from the plan catalog (`canExportXlsx`, `maxImportRows`, …) |
 | `convex/shared/plans.ts`                 | Plan catalog, prices, limits, cycle rules, limit messages                                    |
 | `convex/shared/licensing.ts`             | Pure access rules: `deriveAccess`, grace, usage levels, offline TTL                          |
 | `convex/shared/entitlements.ts`          | Database-backed licence resolution, usage counting, capacity checks                          |
@@ -57,6 +58,16 @@ administrator sets `organizations.backupLimitBytes` from the licence panel.
 
 `null` always means unlimited. Add a plan by editing `PLAN_CATALOG` and
 `planKeyValidator`, then run the gateway sync.
+
+Import and export formats are derived in `convex/shared/capabilities.ts` from this
+catalog — not from scattered `if (plan === "pro")` checks. CSV/JSON export and
+product import are available on every commercial plan. Excel and PDF follow Pro
+rank (the same cut as “Advanced analytics”). `maxImportRows` is the product
+limit, capped at 10,000 per file. A Super Admin product-limit override on an
+organization also changes that org’s import row cap; it does not unlock Excel or
+PDF. Super Admin org overview, licence, and the organizations list show the
+derived cap and recorded import/export activity (counts and filenames only).
+See [`IMPORT_EXPORT.md`](./IMPORT_EXPORT.md).
 
 # Access states
 

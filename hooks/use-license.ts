@@ -7,12 +7,14 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { loadLicenseSnapshot, saveLicenseSnapshot } from "@/lib/offline/license";
 import type { LicenseAccess, LicenseSnapshot } from "@/convex/shared/licensing";
 import { resolvePlan, type PlanKey, type PlanLimits } from "@/convex/shared/plans";
+import { planCapabilities, type PlanCapabilities } from "@/convex/shared/capabilities";
 
 export type LicenseState = {
   isLoading: boolean;
   planKey: PlanKey;
   planName: string;
   limits: PlanLimits;
+  capabilities: PlanCapabilities;
   features: string[];
   access: LicenseAccess;
   /** True when the licence came from the offline cache rather than Convex. */
@@ -20,6 +22,7 @@ export type LicenseState = {
   /** Cached licence that is too old to be trusted for writes. */
   stale: boolean;
   subscription: LicenseSnapshot["subscription"];
+  organizationId: string | null;
 };
 
 const DEFAULT_ACCESS: LicenseAccess = {
@@ -66,11 +69,13 @@ export function useLicense(): LicenseState {
       planKey: plan.key,
       planName: remote.planName,
       limits: remote.limits,
+      capabilities: remote.capabilities ?? planCapabilities(plan.key, remote.limits),
       features: remote.features,
       access: remote.access,
       fromCache: false,
       stale: false,
       subscription: remote.subscription,
+      organizationId: remote.organizationId,
     };
   }
 
@@ -81,11 +86,13 @@ export function useLicense(): LicenseState {
       planKey: plan.key,
       planName: cached.planName,
       limits: cached.limits,
+      capabilities: cached.capabilities ?? planCapabilities(plan.key, cached.limits),
       features: cached.features,
       access: cached.access,
       fromCache: true,
       stale: cached.access.stale,
       subscription: cached.subscription,
+      organizationId: cached.organizationId,
     };
   }
 
@@ -95,10 +102,12 @@ export function useLicense(): LicenseState {
     planKey: fallback.key,
     planName: fallback.name,
     limits: fallback.limits,
+    capabilities: planCapabilities(fallback.key, fallback.limits),
     features: fallback.features,
     access: DEFAULT_ACCESS,
     fromCache: false,
     stale: false,
     subscription: null,
+    organizationId: null,
   };
 }

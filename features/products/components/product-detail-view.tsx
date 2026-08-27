@@ -51,9 +51,14 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
   const branchScope = isAdmin ? undefined : (myBranchId ?? undefined);
   const remote = useQuery(
     api.products.getProduct,
-    online ? { id: productId, branchId: branchScope } : "skip",
+    online && !String(productId).startsWith("local_")
+      ? { id: productId, branchId: branchScope }
+      : "skip",
   );
-  const lots = useQuery(api.inventory.listLots, online ? { productId } : "skip");
+  const lots = useQuery(
+    api.inventory.listLots,
+    online && !String(productId).startsWith("local_") ? { productId } : "skip",
+  );
   const [local, setLocal] = useState<Awaited<ReturnType<typeof getMirroredProduct>> | undefined>(
     undefined,
   );

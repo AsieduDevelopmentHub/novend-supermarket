@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
@@ -16,10 +16,13 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { BranchFilter } from "@/components/filters/branch-filter";
+import { ExportMenu } from "@/components/export/export-menu";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useLicense } from "@/hooks/use-license";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { buildLocalSalesReport, type LocalSalesReport } from "@/lib/offline/ui-cache";
+import { salesReportExportTable } from "@/lib/export/sales-report";
 import { formatCurrency, formatNumber } from "@/lib/currency";
 import { toast } from "sonner";
 import {
@@ -59,6 +62,7 @@ export function ReportsView() {
   };
 
   const { isAdmin, isManager, branchName, branchId: myBranchId } = usePermissions();
+  const { capabilities, planName } = useLicense();
   const online = useConnectivity();
   const router = useRouter();
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
@@ -111,6 +115,18 @@ export function ReportsView() {
 
   const report =
     preferLocal || !online ? (localReport ?? remoteReport) : (remoteReport ?? localReport);
+  const recordExport = useMutation(api.imports.recordExport);
+  const exportTable = report
+    ? salesReportExportTable({
+        report,
+        start: applied.start,
+        end: applied.end,
+        branchLabel:
+          isAdmin && branchFilter !== "all"
+            ? branches?.find((b) => b.id === branchFilter)?.name
+            : branchName ?? undefined,
+      })
+    : null;
 
   function onGenerate() {
     const startDateObj = parseLocalDate(start);
@@ -148,7 +164,21 @@ export function ReportsView() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Reports" description="Sales performance over a selected period." />
+      <PageHeader
+        title="Reports"
+        description="Sales performance over a selected period."
+        actions={
+          <ExportMenu
+            table={exportTable}
+            capabilities={capabilities}
+            planName={planName}
+            disabled={!report}
+            onExported={(format, count) => {
+              void recordExport({ kind: "reports", format, rowCount: count }).catch(() => undefined);
+            }}
+          />
+        }
+      />
 
       <Card>
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">

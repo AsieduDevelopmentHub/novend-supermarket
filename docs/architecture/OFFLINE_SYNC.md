@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.8
+Version: 2.4.11
 
 ## Purpose
 
@@ -31,7 +31,9 @@ Convex (when online)
 2. Screens always render from Dexie when the replica is warm. Live Convex is
    used as a freshness shortcut, never as a gate to open the page.
 3. Writes apply locally, then enqueue an outbox event (`upsert_supplier`,
-   `record_wholesale_purchase`, `complete_sale`, …).
+   `record_wholesale_purchase`, `complete_sale`, `upsert_product`, …). Product
+   **imports** use the same outbox: Dexie first, then Convex `createProduct` /
+   `updateProduct`. Catalog CSV/Excel exports read the local list and work offline.
 4. `OfflineProvider` drains the outbox in the background. Forms return as soon as
    Dexie succeeds — loading spinners never wait on Convex.
 5. Product photos live in IndexedDB (`productImages`) as blobs plus thumbnails.
@@ -47,7 +49,10 @@ Convex (when online)
 
 `persistBusinessWrite` always applies the Dexie + outbox path, then asks the
 provider to flush while online. Branch create/update and product create (including
-photos) use that path. Returns always call `processReturnLocally`.
+photos) use that path. **Sales checkout (`Pay`) and returns always write locally
+first** (`completeSaleLocally` / `processReturnLocally`) so Capacitor cannot
+treat `navigator.onLine` as “Convex is reachable” and leave in-flight pays to
+complete later.
 
 ## Startup
 
@@ -92,7 +97,8 @@ sales, returns, reports, and analytics all continue on the device.
 ## Conflict policy
 
 Queue order + server validation. Inventory cannot become negative on Convex.
-Cashiers resolve failed syncs (retry or discard). Local `local_*` ids are
+Cashiers resolve failed syncs from Sync Center: **Fix** (open the record and
+change what the server asked for), then Retry, or Discard. Local `local_*` ids are
 remapped after creates succeed. Snapshot merge keeps only **pending** `local_*`
 rows so a synced wholesale purchase, expense, or supplier is not shown beside
 the server row.
@@ -107,8 +113,10 @@ ids are remapped) before the purchase mutation runs.
 The sidebar chip is the only always-on offline indicator. The top banner
 appears only for active uploads and sync conflicts. **Sync Center** (from the
 chip) lists waiting uploads, server conflicts, and recently synced events.
-**Sync now** bypasses retry backoff and re-queues failed rows. Forbidden,
-duplicate, and stock rejections stay as conflicts instead of silent pending.
+**Sync now** bypasses retry backoff and re-queues failed rows. Validation
+rejections (expiry, SKU, stock, forbidden) are conflicts — they do not stay in
+Waiting and they do not stop later events in the queue. Fix updates the same
+outbox payload so Retry does not resend the rejected data.
 
 ## Offline navigation
 

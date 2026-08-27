@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeOutboxEvent, outboxOpLabel } from "@/lib/offline/outbox-labels";
+import { describeOutboxEvent, outboxFixPath, outboxOpLabel } from "@/lib/offline/outbox-labels";
 import type { OutboxRow } from "@/lib/offline/types";
 
 function row(partial: Partial<OutboxRow> & Pick<OutboxRow, "type" | "payloadJson">): OutboxRow {
@@ -33,5 +33,16 @@ describe("describeOutboxEvent", () => {
 
   it("labels a branch", () => {
     expect(outboxOpLabel("upsert_branch")).toBe("Branch");
+  });
+
+  it("links a product outbox row to the product screen", () => {
+    expect(
+      outboxFixPath(
+        row({
+          type: "upsert_product",
+          payloadJson: JSON.stringify({ localId: "local_abc", name: "Juice" }),
+        }),
+      ),
+    ).toBe("/products/local_abc");
   });
 });

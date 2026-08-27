@@ -3,10 +3,13 @@
 import { useState, type ComponentType } from "react";
 import Link from "next/link";
 import {
+  AlertTriangle,
   Building2,
   Clock,
   CreditCard,
   Crown,
+  FileDown,
+  FileUp,
   GitBranch,
   HardDrive,
   MonitorSmartphone,
@@ -193,6 +196,36 @@ export function PlatformOverviewView() {
         />
       </Grid>
 
+      <Grid cols={4}>
+        <Kpi
+          title="Product imports"
+          value={formatNumber(overview.importJobCount ?? 0)}
+          hint="Completed jobs (counts only)"
+          icon={FileUp}
+        />
+        <Kpi
+          title="Failed imports"
+          value={formatNumber(overview.failedImportJobs ?? 0)}
+          icon={XCircle}
+        />
+        <Kpi
+          title="Exports recorded"
+          value={formatNumber(overview.exportEventCount ?? 0)}
+          hint={
+            overview.exportsByFormat
+              ? `CSV ${overview.exportsByFormat.csv} · XLSX ${overview.exportsByFormat.xlsx} · PDF ${overview.exportsByFormat.pdf} · JSON ${overview.exportsByFormat.json}`
+              : "Format usage, not a billed quota"
+          }
+          icon={FileDown}
+        />
+        <Kpi
+          title="CSV-only organizations"
+          value={formatNumber(overview.csvOnlyOrganizations ?? 0)}
+          hint="Below Pro — no Excel or PDF"
+          icon={FileDown}
+        />
+      </Grid>
+
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <Card className="min-w-0 overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between">
@@ -264,6 +297,52 @@ export function PlatformOverviewView() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Organizations near product / import cap
+          </CardTitle>
+          <Button asChild size="sm" variant="ghost">
+            <Link href="/platform/organizations">All</Link>
+          </Button>
+        </CardHeader>
+        <CardContent className="overflow-x-auto p-0">
+          {(overview.orgsNearImportCap ?? []).length === 0 ? (
+            <p className="text-muted-foreground p-6 text-sm">
+              No organization is at 80% or more of its product limit. Import row caps follow that
+              product limit (including Super Admin overrides).
+            </p>
+          ) : (
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead className="text-muted-foreground">
+                <tr className="border-border border-b">
+                  <th className="px-6 pb-2 font-medium">Business</th>
+                  <th className="px-4 pb-2 font-medium">Products</th>
+                  <th className="px-4 pb-2 font-medium">Import cap</th>
+                  <th className="px-4 pb-2 font-medium">Used</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(overview.orgsNearImportCap ?? []).map((org) => (
+                  <ClickableTableRow key={org.id} href={`/platform/${org.id}?tab=licence`}>
+                    <td className="px-6 py-3 font-medium">{org.name}</td>
+                    <td className="px-4 py-3">
+                      {formatNumber(org.productsUsed)} / {formatNumber(org.productLimit)}
+                      {org.productLimitOverridden ? (
+                        <span className="text-muted-foreground ml-1 text-xs">override</span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3">{formatNumber(org.maxImportRows)} rows / file</td>
+                    <td className="px-4 py-3">{org.percent}%</td>
+                  </ClickableTableRow>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

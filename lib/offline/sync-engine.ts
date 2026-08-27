@@ -46,6 +46,33 @@ function optionalText(value: string | undefined | null): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+async function hydrateUpsertProductPayload(
+  db: NonNullable<Awaited<ReturnType<typeof getOfflineDb>>>,
+  payload: UpsertProductPayload,
+): Promise<UpsertProductPayload> {
+  const local = await db.products.get(payload.localId);
+  if (!local) return payload;
+  const tracksExpiry = local.tracksExpiry === true;
+  return {
+    ...payload,
+    name: local.name,
+    sku: local.sku,
+    barcode: local.barcode ?? undefined,
+    categoryId: local.categoryId,
+    costPrice: local.costPrice,
+    sellingPrice: local.sellingPrice,
+    unit: local.unit,
+    lowStockThreshold: local.lowStockThreshold,
+    status: local.status === "archived" ? "inactive" : local.status,
+    description: local.description ?? undefined,
+    tracksExpiry,
+    expiryAlertDays: local.expiryAlertDays ?? undefined,
+    expiryDate: tracksExpiry
+      ? optionalText(payload.expiryDate) || optionalText(local.nearestExpiry)
+      : undefined,
+  };
+}
+
 export type CompleteSaleMutator = (args: {
   customerId?: Id<"customers">;
   customerName?: string;
@@ -248,7 +275,20 @@ export async function drainOutbox(options: {
     }
 
     const pending = await listPendingOutbox(db);
+    const conflictRows: typeof pending = [];
+    const uploadRows: typeof pending = [];
     for (const row of pending) {
+      if (!options.force && row.lastError && isSyncBusinessConflict(row.lastError)) {
+        conflictRows.push(row);
+      } else {
+        uploadRows.push(row);
+      }
+    }
+    for (const row of conflictRows) {
+      await markOutboxFailed(db, row.id, row.lastError ?? "Rejected");
+      failed += 1;
+    }
+    for (const row of uploadRows) {
       const claimed = await claimOutboxRow(db, row.id);
       if (!claimed) continue;
 
@@ -457,7 +497,10 @@ export async function drainOutbox(options: {
           processed += 1;
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "upsert_product") {
-          const payload = JSON.parse(claimed.payloadJson) as UpsertProductPayload;
+          const payload = await hydrateUpsertProductPayload(
+            db,
+            JSON.parse(claimed.payloadJson) as UpsertProductPayload,
+          );
           if (isLocalId(payload.categoryId)) {
             await markOutboxPending(db, claimed.id, "Waiting for the category to finish syncing.");
             continue;
@@ -519,6 +562,9 @@ export async function drainOutbox(options: {
               ...(barcode ? { barcode } : {}),
               ...(description ? { description } : {}),
               ...(imageStorageId ? { imageStorageId } : {}),
+              ...(payload.branchId && !isLocalId(payload.branchId)
+                ? { branchId: payload.branchId as Id<"branches"> }
+                : {}),
             });
             if (payload.localId.startsWith("local_")) {
               await rekeyProductImage(payload.localId, String(createdId));

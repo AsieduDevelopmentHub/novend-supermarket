@@ -20,6 +20,7 @@ import {
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { formatDateTime } from "@/lib/date";
+import { formatNumber } from "@/lib/currency";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -105,7 +106,7 @@ export function PlatformView() {
               <EmptyState icon={Building2} title="No organizations yet" />
             </div>
           ) : (
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[960px] text-left text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-medium">Business</th>
@@ -113,6 +114,8 @@ export function PlatformView() {
                   <th className="px-4 py-3 font-medium">Plan</th>
                   <th className="px-4 py-3 font-medium">Users</th>
                   <th className="px-4 py-3 font-medium">Sales</th>
+                  <th className="px-4 py-3 font-medium">Import</th>
+                  <th className="px-4 py-3 font-medium">Export</th>
                   <th className="px-4 py-3 font-medium">Created</th>
                   <th className="px-4 py-3 font-medium">Actions</th>
                 </tr>
@@ -132,6 +135,31 @@ export function PlatformView() {
                     <td className="px-4 py-3">{org.plan}</td>
                     <td className="px-4 py-3">{org.userCount}</td>
                     <td className="px-4 py-3">{org.saleCount}</td>
+                    <td className="px-4 py-3">
+                      <p>
+                        {formatNumber(org.importJobCount ?? 0)}
+                        {(org.failedImportCount ?? 0) > 0
+                          ? ` · ${formatNumber(org.failedImportCount ?? 0)} failed`
+                          : ""}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {org.maxImportRows != null
+                          ? `${formatNumber(org.maxImportRows)} row cap`
+                          : "—"}
+                        {org.productLimitOverridden ? " · override" : ""}
+                        {org.productsUsed != null
+                          ? ` · ${formatNumber(org.productsUsed)}${
+                              org.productLimit == null ? "" : ` / ${formatNumber(org.productLimit)}`
+                            } products`
+                          : ""}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p>{formatNumber(org.exportEventCount ?? 0)}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {org.canExportXlsx ? "Excel + PDF" : "CSV / JSON"}
+                      </p>
+                    </td>
                     <td className="px-4 py-3">{formatDateTime(org.createdAt)}</td>
                     <td className="px-4 py-3">
                       <Button asChild size="sm" variant="outline">

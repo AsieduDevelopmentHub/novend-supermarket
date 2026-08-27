@@ -24,6 +24,7 @@ import {
   getActiveSubscription,
   resolveLicense,
 } from "./shared/entitlements";
+import { planCapabilities } from "./shared/capabilities";
 import { GRACE_PERIOD_MS } from "./shared/licensing";
 import {
   DEFAULT_PLAN_KEY,
@@ -122,6 +123,7 @@ export const licenseSnapshot = query({
       planName: license.plan.name,
       access: license.access,
       limits: license.limits,
+      capabilities: planCapabilities(license.planKey, license.limits),
       features: license.plan.features,
       subscription: license.subscription
         ? {
@@ -1786,10 +1788,16 @@ export const organizationLicense = query({
       .withIndex("by_organization_createdAt", (q) => q.eq("organizationId", organization._id))
       .order("desc")
       .take(10);
+    const capabilities = planCapabilities(license.planKey, license.limits);
 
     return {
       planKey: license.planKey,
       planName: license.plan.name,
+      capabilities,
+      maxImportRows: capabilities.maxImportRows,
+      productsUsed: usage.products,
+      productLimit: license.limits.products,
+      productLimitOverridden: organization.limitOverrides?.products !== undefined,
       variableBackup: license.plan.variableBackup,
       backupLimitBytes: organization.backupLimitBytes ?? null,
       access: license.access,

@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { getDeviceFingerprint } from "@/lib/device";
 
-/** Client-only fingerprint. Avoids caching an empty SSR value in useMemo. */
+function subscribe() {
+  return () => {};
+}
+
+/** Client-only fingerprint. Empty during SSR so hydration does not cache a blank useMemo. */
 export function useDeviceFingerprint() {
-  const [fingerprint, setFingerprint] = useState("");
-  useEffect(() => {
-    setFingerprint(getDeviceFingerprint());
-  }, []);
-  return fingerprint;
+  return useSyncExternalStore(subscribe, getDeviceFingerprint, () => "");
 }

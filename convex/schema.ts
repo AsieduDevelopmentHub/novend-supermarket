@@ -704,6 +704,45 @@ export default defineSchema({
     .index("by_key", ["key"])
     .index("by_organization_key", ["organizationId", "key"]),
 
+  /** Completed catalog imports. Counts only — spreadsheets are never stored. */
+  importJobs: defineTable({
+    organizationId: v.id("organizations"),
+    actorId: v.id("users"),
+    kind: v.literal("products"),
+    fileName: v.string(),
+    status: v.union(v.literal("completed"), v.literal("failed")),
+    createdCount: v.number(),
+    updatedCount: v.number(),
+    skippedCount: v.number(),
+    failedCount: v.number(),
+    errorSummary: v.optional(v.string()),
+    createdAt: v.number(),
+    completedAt: v.number(),
+  })
+    .index("by_organization_createdAt", ["organizationId", "createdAt"])
+    .index("by_createdAt", ["createdAt"]),
+
+  importMappings: defineTable({
+    organizationId: v.id("organizations"),
+    kind: v.literal("products"),
+    name: v.string(),
+    mappingJson: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_organization_kind", ["organizationId", "kind"]),
+
+  /** Format usage for Super Admin visibility. Not a billed quota. */
+  exportEvents: defineTable({
+    organizationId: v.id("organizations"),
+    actorId: v.id("users"),
+    kind: v.string(),
+    format: v.string(),
+    rowCount: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_organization_createdAt", ["organizationId", "createdAt"])
+    .index("by_createdAt", ["createdAt"]),
+
   auditLogs: defineTable({
     organizationId: v.optional(v.id("organizations")),
     actorId: v.optional(v.id("users")),

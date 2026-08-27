@@ -124,6 +124,7 @@ export const getSnapshot = query({
           unit: product.unit,
           lowStockThreshold: product.lowStockThreshold,
           status: product.status as "active" | "inactive" | "archived",
+          description: product.description ?? null,
           imageUrl: product.imageStorageId
             ? await ctx.storage.getUrl(product.imageStorageId)
             : null,
