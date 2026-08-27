@@ -248,8 +248,18 @@ export type MirroredWholesaleStock = {
   barcode?: string | null;
   unit: string;
   costPrice: number;
+  sellingPrice: number;
   quantity: number;
   tracksExpiry: boolean;
+};
+
+export type MirroredWholesalePurchaseItem = {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitCost: number;
+  unitSellingPrice: number | null;
+  lineTotal: number;
 };
 
 export type MirroredWholesalePurchase = {
@@ -263,6 +273,7 @@ export type MirroredWholesalePurchase = {
   totalCost: number;
   notes: string | null;
   status: string;
+  items?: MirroredWholesalePurchaseItem[];
 };
 
 export type MirroredWholesaleTransfer = {
@@ -362,6 +373,7 @@ export type RecordWholesalePurchasePayload = {
     productId: string;
     quantity: number;
     unitCost: number;
+    sellingPrice?: number;
     expiryDate?: string;
   }>;
 };

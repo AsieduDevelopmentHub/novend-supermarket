@@ -2,7 +2,7 @@
 
 ## Business Glossary
 
-Version: 1.0.0
+Version: 1.0.1
 
 # Purpose
 
@@ -33,7 +33,13 @@ status. Distinct from Convex Auth `users`.
 
 A sellable SKU: name, category, SKU, cost, selling price, unit, status, optional
 image, optional expiry tracking. Catalog is organization-wide; quantity lives on
-branch stock.
+branch stock. Wholesale receive can create a product and update its cost and
+selling prices so branches inherit them on issue.
+
+# Wholesale warehouse
+
+Supplier stock held before it is issued to a branch. Not sold from the warehouse
+directly in this slice.
 
 # Category
 

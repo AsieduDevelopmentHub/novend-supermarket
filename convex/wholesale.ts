@@ -147,6 +147,7 @@ export const listStock = query({
         barcode: product?.barcode,
         unit: product?.unit ?? "",
         costPrice: product?.costPrice ?? 0,
+        sellingPrice: product?.sellingPrice ?? 0,
         quantity: row.quantity,
         value: row.quantity * (product?.costPrice ?? 0),
         tracksExpiry: product?.tracksExpiry ?? false,
@@ -198,21 +199,35 @@ export const listPurchases = query({
       .collect();
     const names = new Map(suppliers.map((s) => [s._id, s.name]));
     const limit = Math.min(args.limit ?? 80, 200);
-    return rows
-      .sort((a, b) => b.purchasedAt - a.purchasedAt)
-      .slice(0, limit)
-      .map((row) => ({
-        id: row._id,
-        reference: row.reference,
-        invoiceNumber: row.invoiceNumber ?? null,
-        supplierId: row.supplierId,
-        supplierName: names.get(row.supplierId) ?? "Supplier",
-        purchasedAt: row.purchasedAt,
-        itemCount: row.itemCount,
-        totalCost: row.totalCost,
-        notes: row.notes ?? null,
-        status: row.status,
-      }));
+    const sliced = rows.sort((a, b) => b.purchasedAt - a.purchasedAt).slice(0, limit);
+    const itemGroups = await Promise.all(
+      sliced.map((row) =>
+        ctx.db
+          .query("supplierPurchaseItems")
+          .withIndex("by_purchase", (q) => q.eq("purchaseId", row._id))
+          .collect(),
+      ),
+    );
+    return sliced.map((row, index) => ({
+      id: row._id,
+      reference: row.reference,
+      invoiceNumber: row.invoiceNumber ?? null,
+      supplierId: row.supplierId,
+      supplierName: names.get(row.supplierId) ?? "Supplier",
+      purchasedAt: row.purchasedAt,
+      itemCount: row.itemCount,
+      totalCost: row.totalCost,
+      notes: row.notes ?? null,
+      status: row.status,
+      items: (itemGroups[index] ?? []).map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitCost: item.unitCost,
+        unitSellingPrice: item.unitSellingPrice ?? null,
+        lineTotal: item.lineTotal,
+      })),
+    }));
   },
 });
 
@@ -228,6 +243,7 @@ export const recordPurchase = mutation({
         productId: v.id("products"),
         quantity: v.number(),
         unitCost: v.number(),
+        sellingPrice: v.optional(v.number()),
         expiryDate: v.optional(v.string()),
       }),
     ),
@@ -252,6 +268,7 @@ export const recordPurchase = mutation({
       product: Doc<"products">;
       quantity: number;
       unitCost: number;
+      sellingPrice: number;
       lineTotal: number;
       expiryDate?: string;
     }> = [];
@@ -261,6 +278,9 @@ export const recordPurchase = mutation({
         throw new Error("Quantity must be a positive integer");
       }
       assertPositiveMoney(item.unitCost, "unit cost");
+      if (item.sellingPrice !== undefined) {
+        assertPositiveMoney(item.sellingPrice, "selling price");
+      }
       const product = await ctx.db.get(item.productId);
       if (!product || product.organizationId !== organizationId || product.status === "archived") {
         throw new Error("Invalid product in purchase");
@@ -269,6 +289,7 @@ export const recordPurchase = mutation({
         throw new Error(`${product.name} requires an expiry date`);
       }
       const unitCost = roundMoney(item.unitCost);
+      const sellingPrice = roundMoney(item.sellingPrice ?? product.sellingPrice);
       const lineTotal = roundMoney(unitCost * item.quantity);
       totalCost += lineTotal;
       itemCount += item.quantity;
@@ -276,6 +297,7 @@ export const recordPurchase = mutation({
         product,
         quantity: item.quantity,
         unitCost,
+        sellingPrice,
         lineTotal,
         expiryDate: item.expiryDate,
       });
@@ -317,8 +339,17 @@ export const recordPurchase = mutation({
         quantity: item.quantity,
         unitCost: item.unitCost,
         lineTotal: item.lineTotal,
+        unitSellingPrice: item.sellingPrice,
         expiryDate: item.expiryDate,
       });
+      const costChanged = item.unitCost !== item.product.costPrice;
+      const sellingChanged = item.sellingPrice !== item.product.sellingPrice;
+      if (costChanged || sellingChanged) {
+        await ctx.db.patch(item.product._id, {
+          costPrice: item.unitCost,
+          sellingPrice: item.sellingPrice,
+        });
+      }
       await changeWholesale(ctx, {
         organizationId,
         productId: item.product._id,
@@ -344,7 +375,22 @@ export const recordPurchase = mutation({
       entityType: "supplierPurchases",
       entityId: purchaseId,
       organizationId,
-      metadata: { supplierId: args.supplierId, reference, totalCost },
+      metadata: {
+        supplierId: args.supplierId,
+        reference,
+        totalCost,
+        priceUpdates: prepared
+          .filter(
+            (item) =>
+              item.unitCost !== item.product.costPrice ||
+              item.sellingPrice !== item.product.sellingPrice,
+          )
+          .map((item) => ({
+            productId: item.product._id,
+            costPrice: item.unitCost,
+            sellingPrice: item.sellingPrice,
+          })),
+      },
     });
     const result = { purchaseId, reference };
     await rememberClientOp(ctx, {

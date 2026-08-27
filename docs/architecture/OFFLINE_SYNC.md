@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.6
+Version: 2.4.7
 
 ## Purpose
 
@@ -99,7 +99,9 @@ the server row.
 Outbox retries are idempotent: sales and returns use `saleClientOps` /
 `saleReturnClientOps`; wholesale, inventory, and expenses use
 `mutationClientOps` keyed by `(organizationId, clientOperationId)`. Online
-checkout also sends `clientOperationId` so a retried Pay is one sale.
+checkout also sends `clientOperationId` so a retried Pay is one sale. A wholesale
+purchase that creates a product waits for the product outbox row to sync (local
+ids are remapped) before the purchase mutation runs.
 
 The sidebar chip is the only always-on offline indicator. The top banner
 appears only for active uploads and sync conflicts. **Sync Center** (from the

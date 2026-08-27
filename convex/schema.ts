@@ -477,6 +477,7 @@ export default defineSchema({
     quantity: v.number(),
     unitCost: v.number(),
     lineTotal: v.number(),
+    unitSellingPrice: v.optional(v.number()),
     expiryDate: v.optional(v.string()),
   })
     .index("by_purchase", ["purchaseId"])

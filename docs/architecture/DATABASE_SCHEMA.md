@@ -1,6 +1,6 @@
 # Database Schema
 
-Version: 1.1.0
+Version: 1.1.1
 
 Defined in `convex/schema.ts`. See also [`MULTI_TENANT.md`](./MULTI_TENANT.md).
 
@@ -23,6 +23,9 @@ or drive hot queries **start with** `organizationId`.
 - `branches` — name, unique code per org, status (MVP: MAIN)
 - `categories` — name, slug unique per org
 - `products` — catalog (pricing, unit, low-stock, optional expiry tracking)
+- `branchStock` — per-branch on-hand quantity
+- `suppliers` / `supplierPurchases` / `supplierPurchaseItems` — warehouse buys; line `unitCost` and optional `unitSellingPrice` snapshot the catalog prices applied on receive
+- `wholesaleStock` / `wholesaleLots` — supplier stock before issue to a branch
 - `branchStock` — per-branch on-hand quantity
 - `inventoryLots` — dated batches; FEFO for dated SKUs
 - `inventoryHistory` — quantity changes with reason

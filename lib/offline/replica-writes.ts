@@ -4,6 +4,7 @@ import { enqueueOutbox } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
 import { putProductImage } from "./image-cache";
 import { BARCODE_ALREADY_ASSIGNED, barcodesEqual, normalizeBarcodeInput } from "./barcode-lookup";
+import { nextCatalogPrices } from "@/lib/wholesale/purchase-prices";
 import type {
   AdjustStockPayload,
   CreateCategoryPayload,
@@ -68,11 +69,49 @@ export async function queueWholesalePurchase(
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const localId = newClientId("local");
-  const first = payload.items[0];
-  const product = first ? await db.products.get(first.productId) : undefined;
   const supplier = await db.suppliers.get(payload.supplierId);
   const totalCost = payload.items.reduce((sum, item) => sum + item.unitCost * item.quantity, 0);
   const itemCount = payload.items.reduce((sum, item) => sum + item.quantity, 0);
+  const lineItems = [];
+  for (const item of payload.items) {
+    const rowProduct = await db.products.get(item.productId);
+    const prices = nextCatalogPrices({
+      unitCost: item.unitCost,
+      sellingPrice: item.sellingPrice,
+      currentSelling: rowProduct?.sellingPrice ?? item.unitCost,
+    });
+    lineItems.push({
+      productId: item.productId,
+      productName: rowProduct?.name ?? "Product",
+      quantity: item.quantity,
+      unitCost: item.unitCost,
+      unitSellingPrice: prices.sellingPrice,
+      lineTotal: item.unitCost * item.quantity,
+    });
+    if (rowProduct) {
+      await db.products.put({
+        ...rowProduct,
+        costPrice: prices.costPrice,
+        sellingPrice: prices.sellingPrice,
+        updatedAt: Date.now(),
+      });
+    }
+    const existing = (await db.wholesaleStock.toArray()).find(
+      (row) => row.productId === item.productId,
+    );
+    const nextQty = (existing?.quantity ?? 0) + item.quantity;
+    await db.wholesaleStock.put({
+      id: existing?.id ?? newClientId("local"),
+      productId: item.productId,
+      name: rowProduct?.name ?? existing?.name ?? "Product",
+      sku: rowProduct?.sku ?? existing?.sku ?? "",
+      unit: rowProduct?.unit ?? existing?.unit ?? "",
+      costPrice: prices.costPrice,
+      sellingPrice: prices.sellingPrice,
+      quantity: nextQty,
+      tracksExpiry: rowProduct?.tracksExpiry ?? existing?.tracksExpiry ?? false,
+    });
+  }
   await db.wholesalePurchases.put({
     id: localId,
     reference: `OFF-${localId.slice(-6).toUpperCase()}`,
@@ -84,23 +123,8 @@ export async function queueWholesalePurchase(
     totalCost,
     notes: payload.notes ?? null,
     status: "completed",
+    items: lineItems,
   });
-  if (first) {
-    const existing = (await db.wholesaleStock.toArray()).find(
-      (row) => row.productId === first.productId,
-    );
-    const nextQty = (existing?.quantity ?? 0) + first.quantity;
-    await db.wholesaleStock.put({
-      id: existing?.id ?? newClientId("local"),
-      productId: first.productId,
-      name: product?.name ?? existing?.name ?? "Product",
-      sku: product?.sku ?? existing?.sku ?? "",
-      unit: product?.unit ?? existing?.unit ?? "",
-      costPrice: first.unitCost,
-      quantity: nextQty,
-      tracksExpiry: product?.tracksExpiry ?? existing?.tracksExpiry ?? false,
-    });
-  }
   await enqueueOutbox(db, "record_wholesale_purchase", {
     ...payload,
     localId,

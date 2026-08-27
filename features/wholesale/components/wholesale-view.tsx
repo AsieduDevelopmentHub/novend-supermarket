@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -41,6 +42,7 @@ import { formatDateTime } from "@/lib/date";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { ArrowRightLeft, Plus, Truck, Warehouse } from "lucide-react";
+import { ProductFormDialog } from "@/features/products/components/product-form-dialog";
 import Link from "next/link";
 
 export function WholesaleView() {
@@ -68,7 +70,9 @@ export function WholesaleView() {
   const [productId, setProductId] = useState<string>("");
   const [quantity, setQuantity] = useState("1");
   const [unitCost, setUnitCost] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
+  const [productFormOpen, setProductFormOpen] = useState(false);
   const [issueProductId, setIssueProductId] = useState<string>("");
   const [issueQty, setIssueQty] = useState("1");
   const [issueBranchId, setIssueBranchId] = useState<string>("");
@@ -101,7 +105,11 @@ export function WholesaleView() {
         void kind;
       }
       if (!sid) throw new Error("Select or create a supplier");
-      if (!productId) throw new Error("Select a product");
+      if (!productId) throw new Error("Select or add a product");
+      const cost = Number(unitCost);
+      const sell = Number(sellingPrice);
+      if (!Number.isFinite(cost) || cost < 0) throw new Error("Enter a valid cost price");
+      if (!Number.isFinite(sell) || sell < 0) throw new Error("Enter a valid selling price");
       const purchaseArgs = {
         supplierId: sid as Id<"suppliers">,
         invoiceNumber: invoiceNumber || undefined,
@@ -110,7 +118,8 @@ export function WholesaleView() {
           {
             productId: productId as Id<"products">,
             quantity: Number(quantity),
-            unitCost: Number(unitCost),
+            unitCost: cost,
+            sellingPrice: sell,
             expiryDate: expiryDate || undefined,
           },
         ],
@@ -130,8 +139,10 @@ export function WholesaleView() {
       setBuyOpen(false);
       setQuantity("1");
       setUnitCost("");
+      setSellingPrice("");
       setInvoiceNumber("");
       setExpiryDate("");
+      setProductId("");
     } catch (error) {
       showError(error, "Could not record purchase");
     } finally {
@@ -176,7 +187,7 @@ export function WholesaleView() {
     <div className="space-y-6">
       <PageHeader
         title="Wholesale inventory"
-        description="Stock bought from suppliers sits here until it is issued to a branch."
+        description="Buy from suppliers, set catalog cost and selling prices, then issue stock to branches."
         compactActions={[
           { key: "suppliers", label: "Suppliers", icon: Truck, href: "/suppliers" },
           {
@@ -236,7 +247,7 @@ export function WholesaleView() {
         value={search}
         onChange={setSearch}
         placeholder="Search warehouse stock or scan barcode…"
-        listenHid={!buyOpen && !issueOpen}
+        listenHid={!buyOpen && !issueOpen && !productFormOpen}
       />
 
       <Card>
@@ -260,6 +271,8 @@ export function WholesaleView() {
                   <th className="px-4 py-3 font-medium">Product</th>
                   <th className="px-4 py-3 font-medium">SKU</th>
                   <th className="px-4 py-3 font-medium">Qty</th>
+                  <th className="px-4 py-3 font-medium">Cost</th>
+                  <th className="px-4 py-3 font-medium">Selling</th>
                   <th className="px-4 py-3 font-medium">Value</th>
                 </tr>
               </thead>
@@ -271,6 +284,8 @@ export function WholesaleView() {
                     <td className="px-4 py-3">
                       {row.quantity} {row.unit}
                     </td>
+                    <td className="px-4 py-3">{formatCurrency(row.costPrice)}</td>
+                    <td className="px-4 py-3">{formatCurrency(row.sellingPrice ?? 0)}</td>
                     <td className="px-4 py-3">{formatCurrency(row.value)}</td>
                   </tr>
                 ))}
@@ -287,13 +302,30 @@ export function WholesaleView() {
             {purchases?.length ? (
               <ul className="space-y-2 text-sm">
                 {purchases.slice(0, 8).map((row) => (
-                  <li key={row.id} className="flex justify-between gap-3">
-                    <span>
-                      {row.reference} · {row.supplierName}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {formatCurrency(row.totalCost)} · {formatDateTime(row.purchasedAt)}
-                    </span>
+                  <li key={row.id} className="border-border space-y-1 border-b pb-2 last:border-0">
+                    <div className="flex justify-between gap-3">
+                      <span className="font-medium">
+                        {row.reference} · {row.supplierName}
+                      </span>
+                      <span className="text-muted-foreground shrink-0">
+                        {formatCurrency(row.totalCost)} · {formatDateTime(row.purchasedAt)}
+                      </span>
+                    </div>
+                    {row.items?.length ? (
+                      <ul className="text-muted-foreground space-y-0.5 text-xs">
+                        {row.items.map((item) => (
+                          <li key={`${row.id}-${item.productId}-${item.quantity}-${item.unitCost}`}>
+                            {item.productName} · {item.quantity} · cost{" "}
+                            {formatCurrency(item.unitCost)}
+                            {item.unitSellingPrice != null
+                              ? ` · sell ${formatCurrency(item.unitSellingPrice)}`
+                              : null}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-muted-foreground text-xs">{row.itemCount} units</p>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -326,10 +358,14 @@ export function WholesaleView() {
       </div>
 
       <Dialog open={buyOpen} onOpenChange={setBuyOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <form onSubmit={(e) => void onPurchase(e)}>
             <DialogHeader>
               <DialogTitle>Record supplier purchase</DialogTitle>
+              <DialogDescription>
+                Cost and selling become the catalog prices used when this stock is issued to
+                branches.
+              </DialogDescription>
             </DialogHeader>
             <div className="grid gap-3 py-4">
               <div className="space-y-2">
@@ -346,6 +382,21 @@ export function WholesaleView() {
                   placeholder="Or type a new supplier name"
                 />
               </div>
+              <div className="flex items-end justify-between gap-2">
+                <p className="text-sm font-medium">Product</p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-primary h-auto px-0"
+                  onClick={() => {
+                    setBuyOpen(false);
+                    setProductFormOpen(true);
+                  }}
+                >
+                  New product
+                </Button>
+              </div>
               <ProductBarcodePicker
                 products={(products ?? []).map((product) => ({
                   id: product.id,
@@ -353,15 +404,16 @@ export function WholesaleView() {
                   sku: product.sku,
                   barcode: product.barcode,
                   costPrice: product.costPrice,
+                  sellingPrice: product.sellingPrice,
                 }))}
                 value={productId}
                 onValueChange={setProductId}
                 onProductResolved={(product) => {
-                  if (!unitCost && product.costPrice != null && product.costPrice > 0) {
-                    setUnitCost(String(product.costPrice));
-                  }
+                  if (product.costPrice != null) setUnitCost(String(product.costPrice));
+                  if (product.sellingPrice != null) setSellingPrice(String(product.sellingPrice));
                 }}
                 enabled={buyOpen}
+                label="Select existing product"
               />
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -375,7 +427,7 @@ export function WholesaleView() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Unit cost</Label>
+                  <Label>Cost price</Label>
                   <Input
                     type="number"
                     min={0}
@@ -385,6 +437,20 @@ export function WholesaleView() {
                     required
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Selling price</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={sellingPrice}
+                  onChange={(e) => setSellingPrice(e.target.value)}
+                  required
+                />
+                <p className="text-muted-foreground text-xs">
+                  Branches sell at this price after you issue the stock.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Invoice / reference</Label>
@@ -407,6 +473,21 @@ export function WholesaleView() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ProductFormDialog
+        open={productFormOpen}
+        onOpenChange={(open) => {
+          setProductFormOpen(open);
+          if (!open) setBuyOpen(true);
+        }}
+        productId={null}
+        warehouseIntake
+        onCreated={(created) => {
+          setProductId(created.id);
+          setUnitCost(String(created.costPrice));
+          setSellingPrice(String(created.sellingPrice));
+        }}
+      />
 
       <Dialog open={issueOpen} onOpenChange={setIssueOpen}>
         <DialogContent>

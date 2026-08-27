@@ -23,6 +23,7 @@ export type ProductPickerItem = {
   sku: string;
   barcode?: string | null;
   costPrice?: number;
+  sellingPrice?: number;
 };
 
 type Props = {
@@ -97,7 +98,11 @@ export function ProductBarcodePicker({
           label: `${product.name} (${product.sku})`,
         }))}
         value={value}
-        onValueChange={onValueChange}
+        onValueChange={(id) => {
+          onValueChange(id);
+          const product = products.find((row) => row.id === id);
+          if (product) onProductResolved?.(product);
+        }}
         placeholder={placeholder}
       />
       <BarcodeSearchField

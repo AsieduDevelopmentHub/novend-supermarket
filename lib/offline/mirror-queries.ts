@@ -362,11 +362,16 @@ export async function listMirroredWholesaleStock(search?: string) {
   if (!db) return [];
   let rows = await db.wholesaleStock.toArray();
   const products = await db.products.toArray();
-  const barcodeByProduct = new Map(products.map((p) => [p.id, p.barcode ?? null]));
-  const withBarcode = rows.map((row) => ({
-    ...row,
-    barcode: row.barcode ?? barcodeByProduct.get(row.productId) ?? null,
-  }));
+  const productById = new Map(products.map((p) => [p.id, p]));
+  const withBarcode = rows.map((row) => {
+    const product = productById.get(row.productId);
+    return {
+      ...row,
+      barcode: row.barcode ?? product?.barcode ?? null,
+      sellingPrice: row.sellingPrice ?? product?.sellingPrice ?? 0,
+      costPrice: row.costPrice || product?.costPrice || 0,
+    };
+  });
   if (search?.trim()) {
     rows = withBarcode.filter((row) => productMatchesQuery(row, search));
   } else {
