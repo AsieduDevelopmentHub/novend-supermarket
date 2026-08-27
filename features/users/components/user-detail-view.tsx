@@ -32,6 +32,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { formatDateTime, formatPresence } from "@/lib/date";
+import { deactivateAccountBlockReason } from "@/convex/shared/accountStatus";
 import { showError } from "@/lib/errors";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -43,7 +44,8 @@ import { ArrowLeft, KeyRound, Pencil, UserX, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
-  const { canManageUsers, isAdmin, isManager, branchId: myBranchId } = usePermissions();
+  const { canManageUsers, isAdmin, isManager, branchId: myBranchId, userId: actorUserId } =
+    usePermissions();
   const online = useConnectivity();
   const remote = useQuery(api.users.get, canManageUsers && online ? { id: profileId } : "skip");
   const branches = useBranchesList(false);
@@ -109,6 +111,16 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
   const roleOptions: AppRole[] = isAdmin ? ["administrator", "manager", "cashier"] : ["cashier"];
   const canToggleStatus = isAdmin || (isManager && profile.role === "cashier");
   const canResetPassword = isAdmin || (isManager && profile.role === "cashier");
+  const deactivateBlocked =
+    profile.status === "active" && actorUserId
+      ? deactivateAccountBlockReason({
+          actorUserId,
+          targetUserId: profile.userId,
+          ownerUserId: profile.isOwner ? profile.userId : null,
+          presence: presence.online ? "online" : "offline",
+        })
+      : null;
+  const canDisable = canToggleStatus && (profile.status !== "active" || !deactivateBlocked);
 
   function openEdit() {
     setName(profile.name);
@@ -123,6 +135,10 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
     event.preventDefault();
     if (!formBranchId) {
       toast.error("Select a branch");
+      return;
+    }
+    if (status === "inactive" && deactivateBlocked) {
+      toast.error(deactivateBlocked);
       return;
     }
     setPending(true);
@@ -147,6 +163,10 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
   async function onToggleStatus() {
     if (!profile.branchId) {
       toast.error("This user has no branch assignment");
+      return;
+    }
+    if (profile.status === "active" && deactivateBlocked) {
+      toast.error(deactivateBlocked);
       return;
     }
     setPending(true);
@@ -229,7 +249,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
                 Reset password
               </Button>
             ) : null}
-            {canToggleStatus ? (
+            {canToggleStatus && canDisable ? (
               <Button type="button" variant="outline" onClick={() => setStatusConfirm(true)}>
                 {profile.status === "active" ? (
                   <>
@@ -268,6 +288,9 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
             <Badge variant={profile.status === "active" ? "success" : "secondary"} className="mt-1">
               {profile.status}
             </Badge>
+            {deactivateBlocked ? (
+              <p className="text-muted-foreground mt-1 text-xs">{deactivateBlocked}</p>
+            ) : null}
           </div>
           <div>
             <p className="text-muted-foreground">Presence</p>
@@ -348,9 +371,14 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="inactive" disabled={Boolean(deactivateBlocked)}>
+                    Inactive
+                  </SelectItem>
                 </SelectContent>
               </Select>
+              {deactivateBlocked ? (
+                <p className="text-muted-foreground text-xs">{deactivateBlocked}</p>
+              ) : null}
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>

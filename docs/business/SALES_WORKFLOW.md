@@ -1,6 +1,6 @@
 # Sales Workflow
 
-Version: 1.1.0
+Version: 1.1.2
 
 Cashier POS: build a cart, optional customer, Hold or Pay. Completed sales are
 immutable and print a receipt.
@@ -10,6 +10,7 @@ immutable and print a receipt.
 ## Rules
 
 - Only `active` products with sellable stock > 0 appear in the catalog
+- Product cards show on-hand stock (and unit) on Sales so cashiers do not open Inventory to check quantity
 - Cart quantities cannot exceed sellable stock
 - Dated products allocate lots FEFO; expired units cannot be sold
 - Customer defaults to Walk-in
@@ -17,6 +18,9 @@ immutable and print a receipt.
 - Completed sales are immutable
 - Hold stores the cart; inventory is not reduced until checkout
 - Offline checkout writes Dexie + outbox, then syncs with `clientOperationId`
+- The working cart (items, discount, customer) is kept in the tab per cashier
+  and branch so leaving Sales and returning restores it. Checkout, hold, and
+  sign-out clear it.
 
 ## Flow
 

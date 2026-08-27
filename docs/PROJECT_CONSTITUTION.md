@@ -157,6 +157,9 @@ A user from Organization A must never read or write Organization B.
 | Manager                             | Assigned branch operations; catalog and inventory                |
 | Cashier                             | Sales, holds, receipts, customers; no catalog/pricing/user admin |
 
+Users cannot deactivate their own account. A signed-in account cannot be set
+inactive until they sign out.
+
 Permissions come from roles, not from hiding buttons.
 
 ---

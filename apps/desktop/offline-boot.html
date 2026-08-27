@@ -134,7 +134,7 @@
             go();
             return;
           }
-          var health = appUrl + "/api/health";
+          var health = appUrl + "/api/health?boot=" + Date.now();
           var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
           var timer = window.setTimeout(function () {
             if (controller) controller.abort();
@@ -142,7 +142,6 @@
           fetch(health, {
             method: "GET",
             credentials: "omit",
-            cache: "no-store",
             mode: "cors",
             signal: controller ? controller.signal : undefined,
           })

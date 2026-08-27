@@ -5,7 +5,8 @@ export function postLoginPath(
     needsOnboarding?: boolean | null;
     needsProfile?: boolean | null;
   } | null,
-): "/onboarding" | "/dashboard" {
+): "/onboarding" | "/dashboard" | "/platform" {
+  if (user?.isPlatformAdmin) return "/platform";
   if (user?.needsOnboarding || user?.needsProfile) return "/onboarding";
   return "/dashboard";
 }

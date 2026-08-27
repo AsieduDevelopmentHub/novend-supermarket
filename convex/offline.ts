@@ -261,6 +261,7 @@ export const getSnapshot = query({
       sku: string;
       unit: string;
       costPrice: number;
+      sellingPrice: number;
       quantity: number;
       tracksExpiry: boolean;
     }> = [];
@@ -275,6 +276,14 @@ export const getSnapshot = query({
       totalCost: number;
       notes: string | null;
       status: string;
+      items: Array<{
+        productId: string;
+        productName: string;
+        quantity: number;
+        unitCost: number;
+        unitSellingPrice: number | null;
+        lineTotal: number;
+      }>;
     }> = [];
     let wholesaleTransfers: Array<{
       id: string;
@@ -357,26 +366,41 @@ export const getSnapshot = query({
           sku: product?.sku ?? "",
           unit: product?.unit ?? "",
           costPrice: showCost ? (product?.costPrice ?? 0) : 0,
+          sellingPrice: product?.sellingPrice ?? 0,
           quantity: row.quantity,
           tracksExpiry: product?.tracksExpiry ?? false,
         };
       });
       const supplierName = new Map(supplierRows.map((s) => [s._id, s.name]));
-      wholesalePurchases = purchaseRows
-        .sort((a, b) => b.purchasedAt - a.purchasedAt)
-        .slice(0, 80)
-        .map((row) => ({
-          id: row._id as string,
-          reference: row.reference,
-          invoiceNumber: row.invoiceNumber ?? null,
-          supplierId: row.supplierId as string,
-          supplierName: supplierName.get(row.supplierId) ?? "Supplier",
-          purchasedAt: row.purchasedAt,
-          itemCount: row.itemCount,
-          totalCost: row.totalCost,
-          notes: row.notes ?? null,
-          status: row.status,
-        }));
+      const recentPurchases = purchaseRows.sort((a, b) => b.purchasedAt - a.purchasedAt).slice(0, 80);
+      const purchaseItemGroups = await Promise.all(
+        recentPurchases.map((row) =>
+          ctx.db
+            .query("supplierPurchaseItems")
+            .withIndex("by_purchase", (q) => q.eq("purchaseId", row._id))
+            .collect(),
+        ),
+      );
+      wholesalePurchases = recentPurchases.map((row, index) => ({
+        id: row._id as string,
+        reference: row.reference,
+        invoiceNumber: row.invoiceNumber ?? null,
+        supplierId: row.supplierId as string,
+        supplierName: supplierName.get(row.supplierId) ?? "Supplier",
+        purchasedAt: row.purchasedAt,
+        itemCount: row.itemCount,
+        totalCost: row.totalCost,
+        notes: row.notes ?? null,
+        status: row.status,
+        items: (purchaseItemGroups[index] ?? []).map((item) => ({
+          productId: item.productId as string,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitCost: item.unitCost,
+          unitSellingPrice: item.unitSellingPrice ?? null,
+          lineTotal: item.lineTotal,
+        })),
+      }));
       wholesaleTransfers = transferRows
         .filter((row) => (row.kind ?? "branch") === "wholesale")
         .sort((a, b) => b.createdAt - a.createdAt)

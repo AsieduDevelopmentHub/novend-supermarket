@@ -16,6 +16,7 @@ const isPublicRoute = createRouteMatcher([
   "/privacy",
   "/terms",
   "/api/health",
+  "/api/boot",
 ]);
 const isPlatformRoute = createRouteMatcher(["/platform(.*)"]);
 const isAdminOnly = createRouteMatcher(["/branches(.*)"]);
@@ -96,6 +97,12 @@ export default convexAuthNextjsMiddleware(
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-nonce", nonce);
 
+    // Let /api/boot set its own CSP (inline trampoline). Auth middleware still
+    // runs; the route is public so unauthenticated Cap cold-start can land.
+    if (request.nextUrl.pathname === "/api/boot") {
+      return NextResponse.next({ request: { headers: requestHeaders } });
+    }
+
     const authenticated = await convexAuth.isAuthenticated();
 
     if (isLoginPage(request) && authenticated) {
@@ -107,6 +114,8 @@ export default convexAuthNextjsMiddleware(
         fromBoot && !destination.includes("fromBoot=")
           ? `${destination}${destination.includes("?") ? "&" : "?"}fromBoot=1`
           : destination;
+      // 302 to /dashboard. public/sw.js must not intercept /login — returning
+      // this followed redirect as a navigation response paints Chrome ERR_FAILED.
       return withSecurityHeaders(redirectTo(request, href), nonce);
     }
 

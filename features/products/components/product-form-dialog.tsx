@@ -45,10 +45,20 @@ import {
   permissionDeniedMessage,
 } from "@novend/hardware";
 
+export type CreatedCatalogProduct = {
+  id: string;
+  name: string;
+  costPrice: number;
+  sellingPrice: number;
+};
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   productId: Id<"products"> | null;
+  /** Wholesale receive: catalog only, no opening branch stock. */
+  warehouseIntake?: boolean;
+  onCreated?: (product: CreatedCatalogProduct) => void;
 };
 
 type ProductDetails = {
@@ -70,7 +80,13 @@ type ProductDetails = {
   imageUrl?: string | null;
 };
 
-export function ProductFormDialog({ open, onOpenChange, productId }: Props) {
+export function ProductFormDialog({
+  open,
+  onOpenChange,
+  productId,
+  warehouseIntake = false,
+  onCreated,
+}: Props) {
   const online = useConnectivity();
   const categories = useCategoriesList();
   const mirrored = useMirroredProduct(open ? (productId as string | null) : null);
@@ -124,7 +140,9 @@ export function ProductFormDialog({ open, onOpenChange, productId }: Props) {
     <ResponsiveFormSurface
       open={open}
       onOpenChange={onOpenChange}
-      title={productId ? "Edit Product" : "Add Product"}
+      title={
+        productId ? "Edit Product" : warehouseIntake ? "Add product to catalog" : "Add Product"
+      }
       dialogClassName="max-w-3xl"
     >
       {!ready ? (
@@ -141,6 +159,8 @@ export function ProductFormDialog({ open, onOpenChange, productId }: Props) {
             ""
           }
           onOpenChange={onOpenChange}
+          warehouseIntake={warehouseIntake}
+          onCreated={onCreated}
         />
       )}
     </ResponsiveFormSurface>
@@ -153,12 +173,16 @@ function ProductFormBody({
   categories,
   initialCategoryId,
   onOpenChange,
+  warehouseIntake,
+  onCreated,
 }: {
   productId: Id<"products"> | null;
   initialProduct: ProductDetails | null;
   categories: Array<{ _id: Id<"categories">; name: string }>;
   initialCategoryId: string;
   onOpenChange: (open: boolean) => void;
+  warehouseIntake: boolean;
+  onCreated?: (product: CreatedCatalogProduct) => void;
 }) {
   const createProduct = useMutation(api.products.createProduct);
   const updateProduct = useMutation(api.products.updateProduct);
@@ -174,7 +198,9 @@ function ProductFormBody({
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [sellingPrice, setSellingPrice] = useState(String(initialProduct?.sellingPrice ?? 0));
   const [costPrice, setCostPrice] = useState(String(initialProduct?.costPrice ?? 0));
-  const [stockQuantity, setStockQuantity] = useState(String(initialProduct?.stockQuantity ?? 0));
+  const [stockQuantity, setStockQuantity] = useState(
+    String(warehouseIntake ? 0 : (initialProduct?.stockQuantity ?? 0)),
+  );
   const [unit, setUnit] = useState(initialProduct?.unit ?? "packs");
   const [lowStockThreshold, setLowStockThreshold] = useState(
     String(initialProduct?.lowStockThreshold ?? 10),
@@ -283,6 +309,7 @@ function ProductFormBody({
     }
     setPending(true);
     try {
+      let savedId = productId ?? "";
       const kind = await persistBusinessWrite({
         online,
         remote: () =>
@@ -310,7 +337,7 @@ function ProductFormBody({
                 categoryId: categoryId as Id<"categories">,
                 costPrice: Number(costPrice),
                 sellingPrice: Number(sellingPrice),
-                stockQuantity: Number(stockQuantity),
+                stockQuantity: warehouseIntake ? 0 : Number(stockQuantity),
                 unit,
                 lowStockThreshold: Number(lowStockThreshold),
                 status,
@@ -319,8 +346,8 @@ function ProductFormBody({
                 expiryAlertDays: tracksExpiry ? Number(expiryAlertDays) : undefined,
                 expiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
               }),
-        local: () =>
-          queueUpsertProduct({
+        local: async () => {
+          savedId = await queueUpsertProduct({
             serverId: productId ?? undefined,
             name,
             sku,
@@ -328,7 +355,7 @@ function ProductFormBody({
             categoryId,
             costPrice: Number(costPrice),
             sellingPrice: Number(sellingPrice),
-            stockQuantity: Number(stockQuantity),
+            stockQuantity: warehouseIntake ? 0 : Number(stockQuantity),
             unit,
             lowStockThreshold: Number(lowStockThreshold),
             status,
@@ -338,9 +365,18 @@ function ProductFormBody({
             expiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
             imageBlob: file ?? undefined,
             hasLocalImage: Boolean(file),
-          }),
+          });
+        },
       });
       toast.success(queuedSaveMessage(kind, productId ? "Product updated" : "Product created"));
+      if (!productId && savedId) {
+        onCreated?.({
+          id: savedId,
+          name: name.trim(),
+          costPrice: Number(costPrice),
+          sellingPrice: Number(sellingPrice),
+        });
+      }
       onOpenChange(false);
     } catch (error) {
       showError(error, "Save failed");
@@ -436,19 +472,28 @@ function ProductFormBody({
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="stock">Stock Quantity</Label>
-            <Input
-              id="stock"
-              type="number"
-              min="0"
-              step="1"
-              value={stockQuantity}
-              onChange={(e) => setStockQuantity(e.target.value)}
-              disabled={!!productId}
-              required={!productId}
-            />
-          </div>
+          {warehouseIntake ? (
+            <div className="space-y-2">
+              <Label>Opening branch stock</Label>
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                Stays 0. Warehouse quantity is added when you save the supplier purchase.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="stock">Stock Quantity</Label>
+              <Input
+                id="stock"
+                type="number"
+                min="0"
+                step="1"
+                value={stockQuantity}
+                onChange={(e) => setStockQuantity(e.target.value)}
+                disabled={!!productId}
+                required={!productId}
+              />
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="unit">Unit</Label>
             <Input id="unit" value={unit} onChange={(e) => setUnit(e.target.value)} required />

@@ -354,6 +354,12 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   }
 
   const isPlatformRoute = pathname.startsWith("/platform");
+  const platformAdminOnly = Boolean(user?.isPlatformAdmin) && !user?.role;
+
+  if (platformAdminOnly && !isPlatformRoute) {
+    return <AppSplash label="Opening platform…" />;
+  }
+
   const showPlatformShell =
     (Boolean(user?.isPlatformAdmin) && (!user?.role || isPlatformRoute)) ||
     (!online && isPlatformRoute && Boolean(platformSession));

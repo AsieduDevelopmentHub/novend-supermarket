@@ -1,6 +1,6 @@
 # Database Schema
 
-Version: 1.1.0
+Version: 1.1.1
 
 Defined in `convex/schema.ts`. See also [`MULTI_TENANT.md`](./MULTI_TENANT.md).
 
@@ -15,7 +15,8 @@ or drive hot queries **start with** `organizationId`.
   subscriptionId, trialEndsAt, backupLimitBytes (Enterprise quota override)
 - `plans` — catalog mirror of `convex/shared/plans.ts` plus gateway plan codes
 - `subscriptions` — one live licence per organization
-- `devices` — activated terminals counted against the plan
+- `devices` — activated terminals counted against the plan; shut-down rows can
+  be re-enabled or removed from Settings → Devices
 - `billingHistory` — checkout and webhook payment records
 - `cloudBackups` — cloud backup blobs counted against the storage quota
 - `users` / auth tables — Convex Auth (global identity)
@@ -23,6 +24,9 @@ or drive hot queries **start with** `organizationId`.
 - `branches` — name, unique code per org, status (MVP: MAIN)
 - `categories` — name, slug unique per org
 - `products` — catalog (pricing, unit, low-stock, optional expiry tracking)
+- `branchStock` — per-branch on-hand quantity
+- `suppliers` / `supplierPurchases` / `supplierPurchaseItems` — warehouse buys; line `unitCost` and optional `unitSellingPrice` snapshot the catalog prices applied on receive
+- `wholesaleStock` / `wholesaleLots` — supplier stock before issue to a branch
 - `branchStock` — per-branch on-hand quantity
 - `inventoryLots` — dated batches; FEFO for dated SKUs
 - `inventoryHistory` — quantity changes with reason

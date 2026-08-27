@@ -30,15 +30,20 @@ export function useDeviceActivation(enabled: boolean): DeviceActivation {
   const attempted = useRef(false);
 
   useEffect(() => {
-    if (!enabled || !online || attempted.current) return;
-    attempted.current = true;
+    if (!enabled || !online) return;
 
     let cancelled = false;
     let interval: number | undefined;
+    let registered = false;
 
     void (async () => {
+      if (attempted.current) return;
+      attempted.current = true;
       const identity = await describeClientDevice();
-      if (cancelled || !identity.fingerprint) return;
+      if (cancelled || !identity.fingerprint) {
+        attempted.current = false;
+        return;
+      }
       try {
         await registerDevice({
           fingerprint: identity.fingerprint,
@@ -47,7 +52,11 @@ export function useDeviceActivation(enabled: boolean): DeviceActivation {
           runtime: identity.runtime,
           appVersion: identity.appVersion,
         });
-        if (cancelled) return;
+        if (cancelled) {
+          attempted.current = false;
+          return;
+        }
+        registered = true;
         setStoredDeviceName(identity.name);
         setStatus("registered");
         setMessage(null);
@@ -57,17 +66,17 @@ export function useDeviceActivation(enabled: boolean): DeviceActivation {
           });
         }, TOUCH_INTERVAL_MS);
       } catch (error) {
+        attempted.current = false;
         if (cancelled) return;
         setStatus("blocked");
         setMessage(toUserMessage(error, "This device could not be activated."));
-        // Allow a retry after connectivity or plan changes.
-        attempted.current = false;
       }
     })();
 
     return () => {
       cancelled = true;
       if (interval !== undefined) window.clearInterval(interval);
+      if (!registered) attempted.current = false;
     };
   }, [enabled, online, registerDevice, touchDevice]);
 

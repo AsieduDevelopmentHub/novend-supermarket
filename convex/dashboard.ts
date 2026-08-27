@@ -126,8 +126,8 @@ export const summary = query({
 
     const topProducts = [...productSales.values()]
       .filter((row) => row.quantity > 0)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
+      .sort((a, b) => b.quantity - a.quantity || b.total - a.total)
+      .slice(0, 40);
 
     const recentSales = scoped
       .sort((a, b) => b.completedAt - a.completedAt)

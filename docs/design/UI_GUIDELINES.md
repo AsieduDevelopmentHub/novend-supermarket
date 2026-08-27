@@ -22,6 +22,7 @@ permission-denied where relevant.
 ## POS specifics
 
 - Search is the primary product entry
+- Product cards show on-hand stock so cashiers do not leave Sales to check inventory
 - Cart is always visible on desktop
 - Pay is the dominant action
 - Destructive actions confirm

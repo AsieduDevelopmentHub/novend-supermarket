@@ -1,6 +1,6 @@
 # Inventory Workflow
 
-Version: 1.1.0
+Version: 1.2.0
 
 ![Branch stock](../design/ui/inventory-stock.png)
 
@@ -24,6 +24,14 @@ Version: 1.1.0
 ![Adjust stock with a reason](../design/ui/inventory-adjust-stock-modal.png)
 
 ![Wholesale warehouse](../design/ui/inventory-wholesale.png)
+
+## Wholesale receive
+
+Administrators and managers record supplier purchases on Wholesale. Each line
+stores quantity, **cost**, and **selling** price; those prices become the
+product catalog so issue-to-branch uses the new sell price. A new SKU can be
+created from the purchase dialog (zero branch stock); warehouse quantity is
+added when the purchase is saved.
 
 ![Transfer stock between branches](../design/ui/inventory-transfer-stock-modal.png)
 

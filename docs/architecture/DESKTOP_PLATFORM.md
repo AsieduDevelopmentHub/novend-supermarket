@@ -1,6 +1,6 @@
 # Desktop platform (Electron)
 
-Version: 1.0.1
+Version: 1.0.2
 
 ## Purpose
 
@@ -36,7 +36,9 @@ Boot sequence (aligned with Princellen):
 1. Main loads local `offline-boot.html` (packaged under `extraResources`).
 2. The boot page CORS-probes `{host}/api/health`, then client-navigates to
    `/dashboard` on the hosted origin (or shows the branded retry UI).
-3. The registered service worker serves the cached document; Dexie restores the shell.
+3. The registered service worker serves the cached document **network-first**
+   and unwraps followed redirects so login → dashboard does not flash
+   Chrome’s `ERR_FAILED` page. Dexie restores the shell.
 4. `persist:novend` keeps SW + IndexedDB + auth cookies across launches.
 
 If the shell is not yet cached, recovery asks the cashier to connect once so the

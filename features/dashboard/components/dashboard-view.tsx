@@ -15,6 +15,14 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useBranchesList } from "@/hooks/use-offline-lists";
+import { useLocalStorage } from "@/hooks/use-ui";
+import {
+  parseTopSellingMetric,
+  sortTopSelling,
+  TOP_SELLING_METRIC_KEY,
+  type TopSellingMetric,
+} from "@/lib/dashboard/top-selling";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Area,
   AreaChart,
@@ -230,20 +238,47 @@ function KpiCard({
   );
 }
 
+function TopSellingMetricToggle({
+  value,
+  onChange,
+}: {
+  value: TopSellingMetric;
+  onChange: (value: TopSellingMetric) => void;
+}) {
+  return (
+    <Tabs
+      value={value}
+      onValueChange={(next) => onChange(parseTopSellingMetric(next))}
+    >
+      <TabsList className="h-8" aria-label="Rank top selling by">
+        <TabsTrigger value="quantity" className="h-6 px-2 text-xs">
+          Quantity
+        </TabsTrigger>
+        <TabsTrigger value="amount" className="h-6 px-2 text-xs">
+          Amount
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+  );
+}
+
 function TopSellingList({
   products,
+  metric,
   bordered = false,
 }: {
   products: Array<{ id: string; name: string; quantity: number; total: number }>;
+  metric: TopSellingMetric;
   bordered?: boolean;
 }) {
-  if (products.length === 0) {
+  const ranked = sortTopSelling(products, metric);
+  if (ranked.length === 0) {
     return <EmptyState title={bordered ? "No product sales yet" : "No products sold yet"} />;
   }
 
   return (
     <ul className="space-y-3">
-      {products.map((product) => (
+      {ranked.map((product) => (
         <li key={product.id}>
           <Link
             href={`/products/${product.id}`}
@@ -256,13 +291,17 @@ function TopSellingList({
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{product.name}</p>
               <p className="text-muted-foreground text-xs">
-                {product.quantity} {bordered ? "units" : "sold"}
+                {metric === "quantity"
+                  ? formatCurrency(product.total)
+                  : `${formatNumber(product.quantity)} ${bordered ? "units" : "sold"}`}
               </p>
             </div>
             <p
-              className={`shrink-0 text-sm font-semibold whitespace-nowrap ${bordered ? "text-primary" : ""}`}
+              className={`shrink-0 text-sm font-semibold whitespace-nowrap tabular-nums ${bordered ? "text-primary" : ""}`}
             >
-              {formatCurrency(product.total)}
+              {metric === "quantity"
+                ? `${formatNumber(product.quantity)} ${bordered ? "units" : "sold"}`
+                : formatCurrency(product.total)}
             </p>
           </Link>
         </li>
@@ -309,7 +348,12 @@ export function DashboardView() {
   const { isAdmin, isManager, branchName, branchId: myBranchId } = usePermissions();
   const online = useConnectivity();
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
-  const mirroredBranches = useBranchesList();
+  const [topSellingMetric, setTopSellingMetric] = useLocalStorage<TopSellingMetric>(
+    TOP_SELLING_METRIC_KEY,
+    "quantity",
+  );
+  const metric = parseTopSellingMetric(topSellingMetric);
+  const mirroredBranches = useBranchesList(false, Boolean(isAdmin || isManager));
   const branches = isAdmin || isManager ? mirroredBranches : undefined;
   const { data, loading } = useDashboardData(branchFilter);
 
@@ -422,10 +466,13 @@ export function DashboardView() {
         </Card>
 
         <Card className="min-w-0 overflow-hidden">
-          <CardHeader className="p-4 sm:p-6">
+          <CardHeader className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
             <CardTitle className="text-base sm:text-lg">
               {showOps ? "Sales by Category" : "Top Selling Products"}
             </CardTitle>
+            {showOps ? null : (
+              <TopSellingMetricToggle value={metric} onChange={setTopSellingMetric} />
+            )}
           </CardHeader>
           <CardContent className="min-w-0 overflow-y-auto p-3 pt-0 sm:p-6 sm:pt-0">
             {showOps ? (
@@ -454,7 +501,7 @@ export function DashboardView() {
               )
             ) : (
               <div className="max-h-52 min-w-0 overflow-y-auto sm:max-h-72">
-                <TopSellingList products={data.topProducts} />
+                <TopSellingList products={data.topProducts} metric={metric} />
               </div>
             )}
           </CardContent>
@@ -464,11 +511,12 @@ export function DashboardView() {
       {showOps ? (
         <div className="grid min-w-0 gap-4 xl:grid-cols-2">
           <Card className="min-w-0 overflow-hidden">
-            <CardHeader className="p-4 sm:p-6">
+            <CardHeader className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <CardTitle>Top Selling Products</CardTitle>
+              <TopSellingMetricToggle value={metric} onChange={setTopSellingMetric} />
             </CardHeader>
             <CardContent>
-              <TopSellingList products={data.topProducts} bordered />
+              <TopSellingList products={data.topProducts} metric={metric} bordered />
             </CardContent>
           </Card>
 

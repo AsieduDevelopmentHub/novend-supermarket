@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.5
+Version: 2.4.8
 
 ## Purpose
 
@@ -39,7 +39,8 @@ Convex (when online)
    replica has no photo yet.
 6. The dashboard is built only from Dexie (`buildLocalDashboardSummary`). It
    never calls Convex `dashboard.summary`. Restock, sales, and returns refresh it
-   via `replica-changed`.
+   via `replica-changed`. Top selling ranks locally (quantity by default; the
+   cashier can toggle amount). The ranking preference is stored on the device.
 7. Barcode scans look up `products.barcode` (then SKU) in Dexie only.
 
 ## Local writes
@@ -99,7 +100,9 @@ the server row.
 Outbox retries are idempotent: sales and returns use `saleClientOps` /
 `saleReturnClientOps`; wholesale, inventory, and expenses use
 `mutationClientOps` keyed by `(organizationId, clientOperationId)`. Online
-checkout also sends `clientOperationId` so a retried Pay is one sale.
+checkout also sends `clientOperationId` so a retried Pay is one sale. A wholesale
+purchase that creates a product waits for the product outbox row to sync (local
+ids are remapped) before the purchase mutation runs.
 
 The sidebar chip is the only always-on offline indicator. The top banner
 appears only for active uploads and sync conflicts. **Sync Center** (from the
@@ -115,8 +118,11 @@ plus `loading.tsx` flash). Inside the authenticated shell, in-app navigation use
 stays mounted and tab switches are instant. The URL remains the source of navigation
 state; the service worker may serve a cached shell HTML document for an uncached deep
 path without rewriting the browser location — `OfflineNavigationProvider` /
-`resolveOfflineView` honor `location.pathname`. Static assets and shell HTML use
-stale-while-revalidate (`novend-pos-v6`).
+`resolveOfflineView` honor `location.pathname`. Document navigations are
+**network-first** (`novend-pos-v9`): the worker unwraps followed redirects so
+Chrome does not paint `ERR_FAILED` on login → dashboard. `/login` and `/signup`
+are not intercepted. Capacitor WebViews do not register the worker (Dexie is
+the mobile offline replica). Static assets still use stale-while-revalidate.
 
 ### Deep links and return URL
 

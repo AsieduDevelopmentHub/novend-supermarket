@@ -44,6 +44,7 @@ import {
   queueCreateUser,
 } from "@/lib/offline/replica-writes";
 import { formatPresence } from "@/lib/date";
+import { deactivateAccountBlockReason } from "@/convex/shared/accountStatus";
 import type { AppRole } from "@/config/navigation";
 
 function userInitials(name: string) {
@@ -56,7 +57,8 @@ function userInitials(name: string) {
 }
 
 export function UsersView() {
-  const { canManageUsers, isAdmin, isManager, branchId: myBranchId } = usePermissions();
+  const { canManageUsers, isAdmin, isManager, branchId: myBranchId, userId: actorUserId } =
+    usePermissions();
   const online = useConnectivity();
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<Id<"profiles"> | null>(null);
@@ -76,6 +78,17 @@ export function UsersView() {
   const [pending, setPending] = useState(false);
 
   const formBranchId = isManager ? (myBranchId ?? "") : branchId || branches?.[0]?.id || "";
+  const editingUser = users?.find((row) => row.id === editingId);
+  const editingPresence = editingUser ? formatPresence(editingUser) : null;
+  const deactivateBlocked =
+    editingUser && editingUser.status === "active" && actorUserId
+      ? deactivateAccountBlockReason({
+          actorUserId,
+          targetUserId: editingUser.userId,
+          ownerUserId: editingUser.isOwner ? editingUser.userId : null,
+          presence: editingPresence?.online ? "online" : "offline",
+        })
+      : null;
 
   if (!canManageUsers) {
     return (
@@ -118,6 +131,10 @@ export function UsersView() {
     event.preventDefault();
     if (!editingId || !formBranchId) {
       toast.error("Select a branch");
+      return;
+    }
+    if (status === "inactive" && deactivateBlocked) {
+      toast.error(deactivateBlocked);
       return;
     }
     setPending(true);
@@ -424,15 +441,23 @@ export function UsersView() {
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as "active" | "inactive")}>
+              <Select
+                value={status}
+                onValueChange={(v) => setStatus(v as "active" | "inactive")}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="inactive" disabled={Boolean(deactivateBlocked)}>
+                    Inactive
+                  </SelectItem>
                 </SelectContent>
               </Select>
+              {deactivateBlocked ? (
+                <p className="text-muted-foreground text-xs">{deactivateBlocked}</p>
+              ) : null}
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditingId(null)}>

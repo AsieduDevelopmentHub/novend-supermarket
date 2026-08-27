@@ -329,6 +329,17 @@ export async function drainOutbox(options: {
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "record_wholesale_purchase") {
           const payload = JSON.parse(claimed.payloadJson) as RecordWholesalePurchasePayload;
+          if (
+            isLocalId(payload.supplierId) ||
+            payload.items.some((item) => isLocalId(item.productId))
+          ) {
+            await markOutboxPending(
+              db,
+              claimed.id,
+              "Waiting for the supplier or product to finish syncing.",
+            );
+            continue;
+          }
           await options.mutators.recordPurchase({
             ...payload,
             supplierId: payload.supplierId,
@@ -511,6 +522,7 @@ export async function drainOutbox(options: {
             });
             if (payload.localId.startsWith("local_")) {
               await rekeyProductImage(payload.localId, String(createdId));
+              await replaceIdInPendingOutbox(db, payload.localId, String(createdId));
               await db.products.delete(payload.localId);
             }
           }

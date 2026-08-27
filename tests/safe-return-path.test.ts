@@ -39,9 +39,9 @@ describe("resolvePostAuthPath", () => {
     expect(resolvePostAuthPath({ needsOnboarding: true }, "/sales")).toBe("/onboarding");
   });
 
-  it("does not restore platform routes for platform admins", () => {
-    expect(resolvePostAuthPath({ isPlatformAdmin: true }, "/platform/releases")).toBe("/dashboard");
-    expect(resolvePostAuthPath({ isPlatformAdmin: true }, "/sales")).toBe("/dashboard");
+  it("sends platform administrators to the platform console", () => {
+    expect(resolvePostAuthPath({ isPlatformAdmin: true }, "/platform/releases")).toBe("/platform");
+    expect(resolvePostAuthPath({ isPlatformAdmin: true }, "/sales")).toBe("/platform");
   });
 
   it("rejects platform next for tenant users", () => {

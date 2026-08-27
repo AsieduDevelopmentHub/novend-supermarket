@@ -34,6 +34,7 @@ import type * as reports from "../reports.js";
 import type * as returns from "../returns.js";
 import type * as sales from "../sales.js";
 import type * as settings from "../settings.js";
+import type * as shared_accountStatus from "../shared/accountStatus.js";
 import type * as shared_audit from "../shared/audit.js";
 import type * as shared_billingPeriod from "../shared/billingPeriod.js";
 import type * as shared_billingProvider from "../shared/billingProvider.js";
@@ -90,6 +91,7 @@ declare const fullApi: ApiFromModules<{
   returns: typeof returns;
   sales: typeof sales;
   settings: typeof settings;
+  "shared/accountStatus": typeof shared_accountStatus;
   "shared/audit": typeof shared_audit;
   "shared/billingPeriod": typeof shared_billingPeriod;
   "shared/billingProvider": typeof shared_billingProvider;

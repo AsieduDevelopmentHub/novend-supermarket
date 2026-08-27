@@ -3,6 +3,7 @@ import { clearLastRoute } from "@/lib/auth/last-route";
 import { clearPlatformOfflineSession } from "@/lib/offline/platform-cache";
 import { clearOfflineSession } from "@/lib/offline/session";
 import { clearShellProfile } from "@/lib/offline/shell-profile";
+import { clearCartDraft } from "@/lib/sales/cart-draft";
 
 type SignOutOptions = {
   signOut: () => Promise<void>;
@@ -19,6 +20,7 @@ export async function signOutAndRedirect({
   clearOfflineSession();
   clearPlatformOfflineSession();
   clearLastRoute();
+  clearCartDraft();
   void clearPresence?.().catch(() => {
     /* best-effort */
   });
