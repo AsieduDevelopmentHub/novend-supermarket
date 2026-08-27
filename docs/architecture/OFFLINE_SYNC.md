@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.5
+Version: 2.4.6
 
 ## Purpose
 
@@ -115,8 +115,11 @@ plus `loading.tsx` flash). Inside the authenticated shell, in-app navigation use
 stays mounted and tab switches are instant. The URL remains the source of navigation
 state; the service worker may serve a cached shell HTML document for an uncached deep
 path without rewriting the browser location — `OfflineNavigationProvider` /
-`resolveOfflineView` honor `location.pathname`. Static assets and shell HTML use
-stale-while-revalidate (`novend-pos-v6`).
+`resolveOfflineView` honor `location.pathname`. Document navigations are
+**network-first** (`novend-pos-v9`): the worker unwraps followed redirects so
+Chrome does not paint `ERR_FAILED` on login → dashboard. `/login` and `/signup`
+are not intercepted. Capacitor WebViews do not register the worker (Dexie is
+the mobile offline replica). Static assets still use stale-while-revalidate.
 
 ### Deep links and return URL
 

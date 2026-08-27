@@ -7,14 +7,18 @@ import { NextResponse } from "next/server";
  */
 export const dynamic = "force-dynamic";
 
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Cache-Control",
+  "Access-Control-Max-Age": "86400",
+  "Cache-Control": "no-store",
+};
+
+export function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: cors });
+}
+
 export function GET() {
-  return NextResponse.json(
-    { ok: true as const },
-    {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "no-store",
-      },
-    },
-  );
+  return NextResponse.json({ ok: true as const }, { headers: cors });
 }

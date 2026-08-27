@@ -1,6 +1,6 @@
 # Capacitor mobile platform
 
-Version: 1.5.3
+Version: 1.5.4
 
 ## Purpose
 
@@ -41,13 +41,16 @@ Aligned with Electron (`DESKTOP_PLATFORM.md`):
 1. Capacitor loads packaged `www/index.html` (baked `NOVEND_APP_URL` from
    `scripts/write-mobile-boot.mjs`).
 2. The boot page CORS-probes `{host}/api/health`. On success it client-navigates
-   to `/dashboard`; on failure it stays on the branded retry UI. Android
-   `onReceivedError` plus Capacitor `errorPath` (`www/error.html`) recover failed
-   hosted loads to `https://localhost/?stay=1` so Chrome’s
+   to `{host}/api/boot?entry=/dashboard` (not `/dashboard` directly). `/api/*`
+   is not intercepted by older hosted service workers, so a poisoned worker can
+   be unregistered before the shell loads. On failure it stays on the branded
+   retry UI. Android `onReceivedError` plus Capacitor `errorPath` (`www/error.html`)
+   recover failed hosted loads to `https://localhost/?stay=1` so Chrome’s
    “The webpage at https://… could not be loaded because: net::ERR_FAILED”
    sheet is never left on screen.
-3. The registered service worker serves the cached document; Dexie restores
-   session, organization, branch, role, and licence snapshot.
+3. Capacitor does **not** register the hosted service worker. Android WebView
+   treats SW-handled login→dashboard redirects as `net::ERR_FAILED`. Dexie
+   restores session, organization, branch, role, and licence snapshot.
 4. More, About, billing, and other shell routes render from IndexedDB. Payment
    and first login still need a network.
 

@@ -108,8 +108,9 @@
         // never paint the login brand chrome first.
         var entry = params.get("entry") || window.NOVEND_APP_ENTRY || "/dashboard";
         if (entry.charAt(0) !== "/") entry = "/" + entry;
-        var sep = entry.indexOf("?") >= 0 ? "&" : "?";
-        var target = appUrl + entry + sep + "fromBoot=1";
+        // /api/boot is not intercepted by the hosted service worker (v8 skipped
+        // /api/*). It unregisters a poisoned worker, then opens the shell.
+        var target = appUrl + "/api/boot?entry=" + encodeURIComponent(entry) + "&fromBoot=1";
 
         var booting = document.getElementById("booting");
         var failed = document.getElementById("failed");
@@ -119,7 +120,6 @@
         var settled = false;
         var requestInFlight = false;
         var stayOnBoot = params.get("stay") === "1";
-        var healthUrl = appUrl + "/api/health";
 
         function showFailed(message) {
           settled = true;
@@ -152,10 +152,12 @@
             if (controller) controller.abort();
           }, 8000);
 
+          // Query bust only — a fetch Cache-Control header is not CORS-safelisted
+          // and forces a preflight OPTIONS the boot origin may fail.
+          var healthUrl = appUrl + "/api/health?boot=" + Date.now();
           fetch(healthUrl, {
             method: "GET",
             credentials: "omit",
-            cache: "no-store",
             mode: "cors",
             signal: controller ? controller.signal : undefined,
           })
