@@ -33,7 +33,8 @@ function hasAdvancedReporting(planKey: PlanKey): boolean {
   return resolvePlan(planKey).sortOrder >= PLAN_CATALOG.pro.sortOrder;
 }
 
-function derivedMaxImportRows(productLimit: number | null): number {
+/** Import row cap from the (possibly overridden) product limit. */
+export function derivedMaxImportRows(productLimit: number | null): number {
   if (productLimit === null) return IMPORT_SAFETY_MAX_ROWS;
   return Math.min(productLimit, IMPORT_SAFETY_MAX_ROWS);
 }

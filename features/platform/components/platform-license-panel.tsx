@@ -29,11 +29,14 @@ import {
   type LimitResource,
   type PlanKey,
 } from "@/convex/shared/plans";
-import { formatCurrency } from "@/lib/currency";
+import { formatCurrency, formatNumber } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { showError } from "@/lib/errors";
 import { PlanUsageGrid } from "@/features/billing/components/plan-usage-grid";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { derivedMaxImportRows } from "@/convex/shared/capabilities";
+import type { OrgImportExportSnapshot } from "@/convex/shared/importExportSnapshot";
+import { PlatformImportExportCard } from "./platform-import-export-card";
 
 type LimitOverrides = {
   products?: number | null;
@@ -69,11 +72,13 @@ export function PlatformLicensePanel({
   organizationName,
   status,
   limitOverrides,
+  importExport,
 }: {
   organizationId: Id<"organizations">;
   organizationName: string;
   status: OrganizationStatus | "inactive";
   limitOverrides: LimitOverrides;
+  importExport?: OrgImportExportSnapshot | null;
 }) {
   const online = useConnectivity();
   const license = useQuery(api.billing.organizationLicense, online ? { organizationId } : "skip");
@@ -133,6 +138,7 @@ export function PlatformLicensePanel({
 
   return (
     <div className="space-y-4">
+      <PlatformImportExportCard snapshot={importExport} />
       <Card>
         <CardHeader>
           <CardTitle className="flex flex-wrap items-center gap-2">
@@ -183,6 +189,9 @@ export function PlatformLicensePanel({
             key={`${organizationId}-${JSON.stringify(limitOverrides)}`}
             overrides={limitOverrides}
             effectiveLimits={license.usage}
+            catalogProductLimit={
+              PLAN_LIST.find((plan) => plan.key === license.planKey)?.limits.products ?? null
+            }
             disabled={pending || !online}
             onSave={(payload) =>
               void run("Resource limits updated", () =>
@@ -476,11 +485,13 @@ type OverrideMode = "default" | "unlimited" | "custom";
 function LimitOverridesEditor({
   overrides,
   effectiveLimits,
+  catalogProductLimit,
   disabled,
   onSave,
 }: {
   overrides: LimitOverrides;
   effectiveLimits: Array<{ resource: LimitResource; limit: number | null }>;
+  catalogProductLimit: number | null;
   disabled: boolean;
   onSave: (payload: {
     products?: number | null;
@@ -539,10 +550,12 @@ function LimitOverridesEditor({
     <div className="border-border space-y-3 rounded-lg border p-4">
       <div className="space-y-1">
         <p className="text-sm font-medium">Resource limit overrides</p>
-        <p className="text-muted-foreground text-xs">
-          Overrides win over the plan default for this organization only. Existing records are never
-          removed if a lower limit is applied — only new creation is blocked.
-        </p>
+          <p className="text-muted-foreground text-xs">
+            Overrides win over the plan default for this organization only. Existing records are never
+            removed if a lower limit is applied — only new creation is blocked. The product override
+            also sets this organization’s import row cap (min of the product limit and 10,000). Excel
+            and PDF still follow the assigned plan.
+          </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {OVERRIDE_RESOURCES.map((resource) => {
@@ -594,6 +607,23 @@ function LimitOverridesEditor({
                   />
                 ) : null}
               </div>
+              {resource === "products" ? (
+                <p className="text-muted-foreground text-xs">
+                  Import row cap with this setting:{" "}
+                  {formatNumber(
+                    derivedMaxImportRows(
+                      entry.mode === "unlimited"
+                        ? null
+                        : entry.mode === "custom" &&
+                            Number.isInteger(Number(entry.value.trim())) &&
+                            Number(entry.value.trim()) > 0
+                          ? Number(entry.value.trim())
+                          : catalogProductLimit,
+                    ),
+                  )}{" "}
+                  per file.
+                </p>
+              ) : null}
             </div>
           );
         })}

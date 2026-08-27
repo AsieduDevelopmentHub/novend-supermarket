@@ -1788,10 +1788,16 @@ export const organizationLicense = query({
       .withIndex("by_organization_createdAt", (q) => q.eq("organizationId", organization._id))
       .order("desc")
       .take(10);
+    const capabilities = planCapabilities(license.planKey, license.limits);
 
     return {
       planKey: license.planKey,
       planName: license.plan.name,
+      capabilities,
+      maxImportRows: capabilities.maxImportRows,
+      productsUsed: usage.products,
+      productLimit: license.limits.products,
+      productLimitOverridden: organization.limitOverrides?.products !== undefined,
       variableBackup: license.plan.variableBackup,
       backupLimitBytes: organization.backupLimitBytes ?? null,
       access: license.access,

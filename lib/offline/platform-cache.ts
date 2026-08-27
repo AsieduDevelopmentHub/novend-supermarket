@@ -31,6 +31,23 @@ export type PlatformOverviewCache = {
   importJobCount?: number;
   failedImportJobs?: number;
   exportEventCount?: number;
+  exportsByFormat?: {
+    csv: number;
+    xlsx: number;
+    pdf: number;
+    json: number;
+    other: number;
+  };
+  csvOnlyOrganizations?: number;
+  orgsNearImportCap?: Array<{
+    id: string;
+    name: string;
+    productsUsed: number;
+    productLimit: number;
+    maxImportRows: number;
+    percent: number;
+    productLimitOverridden: boolean;
+  }>;
   recentOrganizations: Array<{
     id: string;
     name: string;
@@ -54,6 +71,15 @@ export type PlatformOrganizationListItem = {
   trialEndsAt: number | null;
   userCount: number;
   saleCount: number;
+  productsUsed?: number;
+  productLimit?: number | null;
+  maxImportRows?: number;
+  canExportXlsx?: boolean;
+  canExportPdf?: boolean;
+  importJobCount?: number;
+  failedImportCount?: number;
+  exportEventCount?: number;
+  productLimitOverridden?: boolean;
 };
 
 export type PlatformOrganizationsCache = {

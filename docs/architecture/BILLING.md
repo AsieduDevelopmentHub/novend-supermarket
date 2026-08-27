@@ -1,6 +1,6 @@
 # Billing, Plans & Activation
 
-Version: 1.3.2
+Version: 1.3.3
 
 Novend is sold as a subscription with a lifetime licence option. This document is
 the reference for how entitlements are defined, enforced and paid for.
@@ -63,7 +63,11 @@ Import and export formats are derived in `convex/shared/capabilities.ts` from th
 catalog — not from scattered `if (plan === "pro")` checks. CSV/JSON export and
 product import are available on every commercial plan. Excel and PDF follow Pro
 rank (the same cut as “Advanced analytics”). `maxImportRows` is the product
-limit, capped at 10,000 per file. See [`IMPORT_EXPORT.md`](./IMPORT_EXPORT.md).
+limit, capped at 10,000 per file. A Super Admin product-limit override on an
+organization also changes that org’s import row cap; it does not unlock Excel or
+PDF. Super Admin org overview, licence, and the organizations list show the
+derived cap and recorded import/export activity (counts and filenames only).
+See [`IMPORT_EXPORT.md`](./IMPORT_EXPORT.md).
 
 # Access states
 

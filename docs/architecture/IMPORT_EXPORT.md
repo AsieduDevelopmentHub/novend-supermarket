@@ -1,6 +1,6 @@
 # Product Import, Export & Plan Entitlements
 
-Version: 1.0.0
+Version: 1.1.0
 
 Architecture for catalog import, reusable export, and plan-gated formats.
 Business rules stay in Convex. Dexie remains the operational replica.
@@ -93,11 +93,26 @@ Capabilities (not raw plan keys in UI):
 - `canExportXlsx`, `canExportPdf`, `canAdvancedAnalytics` — Pro rank and above
   (sortOrder ≥ Pro), matching “Advanced analytics”
 - `maxImportRows` — derived from `limits.products`, capped at a safety maximum
-  (10,000). Not a separately priced quota.
+  (10,000). Not a separately priced quota. Super Admin product-limit overrides
+  change this cap for that organization only.
 - Product **count** remains the billed usage metric. Import/export **events**
   are recorded for Super Admin visibility, not as a billed `maxExportsPerPeriod`.
 
-## 9. Implementation phases
+## 9. Super Admin visibility
+
+Platform administrators (`requirePlatformAdmin`) see:
+
+| Surface | What is shown |
+| --- | --- |
+| Platform overview | Platform-wide job/export counts, format mix, CSV-only tenant count, organizations at ≥80% of their product/import cap |
+| Organizations list | Per-org import jobs, failed jobs, export events, import row cap, Excel/PDF entitlement, product override flag |
+| Organization overview & licence | Derived capabilities, product used vs limit, remaining creates, recent jobs (filename + counts), recent exports, audited limit-override history |
+
+Privacy: counts, filenames, formats, and row totals only. Spreadsheet contents are never stored. Platform admins without a tenant role still cannot run tenant import/export mutations.
+
+Excel/PDF follow plan rank (Pro and above). Changing a product override does **not** unlock those formats.
+
+## 10. Implementation phases
 
 1. Capabilities on the licence snapshot.
 2. Import engine (CSV/TSV/XLSX/SpreadsheetML) + mapping + validation.
@@ -105,7 +120,7 @@ Capabilities (not raw plan keys in UI):
 4. Reports and analytics wired to the same menu.
 5. Import wizard, job history, mapping templates, tests, docs.
 
-## 10. Tests required
+## 11. Tests required
 
 - Header synonym mapping and uncertain (unmapped) headers
 - Validation: missing required fields, duplicate SKU/barcode in file, money/qty

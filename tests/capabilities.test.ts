@@ -26,4 +26,18 @@ describe("planCapabilities", () => {
     expect(planCapabilities("pro").maxImportRows).toBe(resolvePlan("pro").limits.products);
     expect(planCapabilities("enterprise").maxImportRows).toBe(10_000);
   });
+
+  it("applies a Super Admin product override to the import row cap only", () => {
+    const pro = resolvePlan("pro");
+    const raised = planCapabilities("pro", { ...pro.limits, products: 80 });
+    expect(raised.maxImportRows).toBe(80);
+    expect(raised.canExportXlsx).toBe(true);
+    expect(raised.canExportPdf).toBe(true);
+
+    const basic = resolvePlan("basic");
+    const lifted = planCapabilities("basic", { ...basic.limits, products: 5_000 });
+    expect(lifted.maxImportRows).toBe(5_000);
+    expect(lifted.canExportXlsx).toBe(false);
+    expect(lifted.canExportPdf).toBe(false);
+  });
 });

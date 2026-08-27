@@ -44,6 +44,7 @@ import type * as shared_capabilities from "../shared/capabilities.js";
 import type * as shared_clientOps from "../shared/clientOps.js";
 import type * as shared_defaultBranch from "../shared/defaultBranch.js";
 import type * as shared_entitlements from "../shared/entitlements.js";
+import type * as shared_importExportSnapshot from "../shared/importExportSnapshot.js";
 import type * as shared_licensing from "../shared/licensing.js";
 import type * as shared_lots from "../shared/lots.js";
 import type * as shared_multiBranchBootstrap from "../shared/multiBranchBootstrap.js";
@@ -103,6 +104,7 @@ declare const fullApi: ApiFromModules<{
   "shared/clientOps": typeof shared_clientOps;
   "shared/defaultBranch": typeof shared_defaultBranch;
   "shared/entitlements": typeof shared_entitlements;
+  "shared/importExportSnapshot": typeof shared_importExportSnapshot;
   "shared/licensing": typeof shared_licensing;
   "shared/lots": typeof shared_lots;
   "shared/multiBranchBootstrap": typeof shared_multiBranchBootstrap;

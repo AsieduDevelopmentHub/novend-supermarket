@@ -1,6 +1,6 @@
 # Database Schema
 
-Version: 1.1.2
+Version: 1.1.3
 
 Defined in `convex/schema.ts`. See also [`MULTI_TENANT.md`](./MULTI_TENANT.md).
 
@@ -38,9 +38,9 @@ or drive hot queries **start with** `organizationId`.
 - `heldSales` — suspended carts
 - `receipts` — immutable JSON payloads
 - `settings` — key/value per organization
-- `importJobs` — catalog import results (counts only; spreadsheets are not stored)
+- `importJobs` — catalog import results (counts only; spreadsheets are not stored). Super Admin reads these per organization.
 - `importMappings` — saved product column mappings per organization
-- `exportEvents` — export format usage for Super Admin (not a billed quota)
+- `exportEvents` — export format usage for Super Admin (not a billed quota). Visible per organization on the platform org screens.
 - `auditLogs` — traceability
 - `loginAttempts` — brute-force protection
 
