@@ -17,7 +17,8 @@ import { isCapacitor } from "@novend/hardware";
  * Never restore /platform for a non–platform-admin session.
  * Cap/offline: use history + popstate so OfflineOutlet engages (not RSC).
  *
- * Not used after credential login — that always lands on Dashboard.
+ * Not used after credential login — tenant sessions land on Dashboard;
+ * platform administrators land on /platform.
  */
 function RestoreLastRouteInner() {
   const router = useRouter();
@@ -42,11 +43,19 @@ function RestoreLastRouteInner() {
     const safe = last ? safeInternalPath(last) : null;
     const isPlatformPath = Boolean(safe && (safe === "/platform" || safe.startsWith("/platform/")));
     const canRestorePlatform = Boolean(me?.isPlatformAdmin);
+    const platformOnly = Boolean(me?.isPlatformAdmin && !me?.role);
     const role =
       (me?.role as AppRole | undefined) ?? (readOfflineSession()?.role as AppRole | undefined);
     const roleOk =
       !safe || isPlatformPath || !role || pathAllowedForRole(safe.split("?")[0] || safe, role);
-    const allowed = safe && (!isPlatformPath || canRestorePlatform) && roleOk ? safe : null;
+    const allowed =
+      platformOnly && safe && !isPlatformPath
+        ? "/platform"
+        : safe && (!isPlatformPath || canRestorePlatform) && roleOk
+          ? safe
+          : platformOnly
+            ? "/platform"
+            : null;
 
     const target =
       allowed && allowed !== cleanedCurrent

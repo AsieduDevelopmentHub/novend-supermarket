@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { Laptop, MonitorSmartphone, Pencil, Power, PowerOff, Trash2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
@@ -23,8 +23,9 @@ import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useDeviceFingerprint } from "@/hooks/use-device-fingerprint";
 import { usePermissions } from "@/hooks/use-permissions";
-import { formatDeviceRuntime, getDeviceFingerprint } from "@/lib/device";
+import { formatDeviceRuntime } from "@/lib/device";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import { PlanLimitNotice } from "@/features/billing/components/plan-limit-notice";
@@ -51,8 +52,11 @@ function formatLastSeen(value: number) {
 export function DevicesPanel() {
   const online = useConnectivity();
   const { isAdmin } = usePermissions();
-  const fingerprint = useMemo(() => getDeviceFingerprint(), []);
-  const data = useQuery(api.devices.listDevices, online ? { fingerprint } : "skip");
+  const fingerprint = useDeviceFingerprint();
+  const data = useQuery(
+    api.devices.listDevices,
+    online && fingerprint ? { fingerprint } : "skip",
+  );
   const renameDevice = useMutation(api.devices.renameDevice);
   const deactivateDevice = useMutation(api.devices.deactivateDevice);
   const deactivateOtherDevices = useMutation(api.devices.deactivateOtherDevices);

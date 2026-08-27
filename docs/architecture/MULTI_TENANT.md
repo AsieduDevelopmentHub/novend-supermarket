@@ -55,6 +55,8 @@ One Convex Auth user belongs to exactly one organization
   scoped to the session organization (and branch for manager/cashier)
 
 Platform super-admin (`platformAdmins`) sits outside organization RBAC.
+Sign-in opens `/platform`, not tenant Dashboard. Tenant queries such as
+`branches:list` are not called for a platform-only session.
 Billing, plans and activation are documented in [`BILLING.md`](./BILLING.md).
 
 # IDOR test

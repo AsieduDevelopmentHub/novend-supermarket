@@ -353,7 +353,7 @@ export function DashboardView() {
     "quantity",
   );
   const metric = parseTopSellingMetric(topSellingMetric);
-  const mirroredBranches = useBranchesList();
+  const mirroredBranches = useBranchesList(false, Boolean(isAdmin || isManager));
   const branches = isAdmin || isManager ? mirroredBranches : undefined;
   const { data, loading } = useDashboardData(branchFilter);
 

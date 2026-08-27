@@ -22,6 +22,13 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Fixed
 
+- Platform super-admin sign-in opens `/platform` instead of tenant Dashboard (which threw `branches:list` Forbidden).
+- Settings → Devices marks and counts **this device** using a client fingerprint (it was previously an empty SSR value, so the current terminal did not match).
+
+### Fixed
+
+- Platform super-admin sign-in opens `/platform` instead of tenant Dashboard (which threw `branches:list` Forbidden).
+- Settings → Devices marks and counts **this device** using a client fingerprint (it was previously an empty SSR value, so the current terminal did not match).
 - Login → dashboard no longer flashes Chrome’s “This site can’t be reached” (`ERR_FAILED`). The service worker was intercepting `/login`, following the auth redirect, and returning a redirected document — Chrome rejects that for navigations. Auth pages now bypass the worker; other documents are network-first with redirects unwrapped.
 - Capacitor no longer registers the service worker (Android WebView treats the same redirect as a stuck `net::ERR_FAILED` on `/dashboard`). Offline on mobile stays Dexie + the local boot page. Cold start opens `/api/boot` first so an already-installed worker cannot intercept `/dashboard`.
 - Boot health checks no longer send `Cache-Control` (that forced a CORS preflight from `https://localhost`).

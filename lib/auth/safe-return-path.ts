@@ -71,8 +71,9 @@ export type PostAuthUser = {
 } | null;
 
 /**
- * Session-isolated post-login destination. Onboarding wins when required;
- * every other authenticated session starts at Dashboard.
+ * Session-isolated post-login destination. Platform administrators open the
+ * platform console. Onboarding wins for tenant users who still need a business.
+ * Everyone else starts at Dashboard.
  */
 export function resolvePostAuthPath(user: PostAuthUser, _next?: string | null): string {
   void _next;

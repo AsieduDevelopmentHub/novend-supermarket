@@ -589,7 +589,7 @@ export function useWholesaleLists(search: string) {
   };
 }
 
-export function useBranchesList(includeInactive = false) {
+export function useBranchesList(includeInactive = false, enabled = true) {
   const { online, ready } = useMirrorListGate();
   const local = useMirrorRows(() => listMirroredBranches(includeInactive), [includeInactive]);
   const mappedLocal = local?.map((row) => ({
@@ -600,7 +600,10 @@ export function useBranchesList(includeInactive = false) {
     phone: row.phone,
     status: row.status,
   }));
-  const remote = useQuery(api.branches.list, online && ready ? { includeInactive } : "skip");
+  const remote = useQuery(
+    api.branches.list,
+    enabled && online && ready ? { includeInactive } : "skip",
+  );
   if (mappedLocal && mappedLocal.length > 0) return mappedLocal;
   if (online && remote !== undefined) return remote;
   return mappedLocal ?? remote;

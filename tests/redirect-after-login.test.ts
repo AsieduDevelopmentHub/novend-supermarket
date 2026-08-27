@@ -11,7 +11,7 @@ describe("redirect-after-login", () => {
     const convex = {
       query: vi.fn().mockResolvedValue({ isPlatformAdmin: true }),
     };
-    await expect(resolvePostLoginPath(convex as never)).resolves.toBe("/dashboard");
+    await expect(resolvePostLoginPath(convex as never)).resolves.toBe("/platform");
   });
 
   it("resolvePostLoginPath ignores a previous route", async () => {
