@@ -21,8 +21,9 @@ should require internet before becoming usable after the first online sign-in.
 
 - [ ] Camera barcode scan from Products and Sales
 - [ ] Product Take Photo / Choose Gallery
-- [ ] Bluetooth discover → pair → test print → sale print
-- [ ] Receipt Share / Save PDF after checkout
+- [ ] Bluetooth discover → pair → test print → sale print (one copy)
+- [ ] After-sale mode: Automatic prints immediately; Manual offers Print first; Do not print does not auto-print
+- [ ] Receipt Share / Save PDF remain optional after checkout
 - [ ] Denied camera permission shows friendly copy (not raw OS error)
 
 ## Security & services

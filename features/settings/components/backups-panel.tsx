@@ -23,7 +23,8 @@ export function BackupsPanel() {
           <CardDescription>
             Every backup is encrypted with this password before it leaves the device. Saving a new
             copy requires a strong password and a match. Restoring needs the password that was used
-            when that copy was created.
+            when that copy was created. The file lists algorithm, salt, and IV so it can be opened
+            later — those are not secrets. Only this password protects the data.
           </CardDescription>
         </CardHeader>
         <CardContent>

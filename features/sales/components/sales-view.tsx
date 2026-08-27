@@ -48,6 +48,7 @@ import {
   resumeLocalHeldSale,
 } from "@/lib/offline/sales-repository";
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
+import { resolveReceiptPrintMode } from "@/lib/receipt-print-mode";
 import type { LocalHeldSale } from "@/lib/offline/types";
 import { ProductImage } from "@/components/media/product-image";
 import {
@@ -405,12 +406,23 @@ export function SalesView() {
 
   async function triggerPrint(payload: ReceiptPayload) {
     setLastReceipt(payload);
+    const printMode = resolveReceiptPrintMode(posPrefs);
     if (isCapacitor()) {
+      if (printMode === "automatic") {
+        const result = await printReceipt(payload);
+        if (result.printed) {
+          toast.success(
+            result.reason === "native" ? "Receipt sent to printer" : "Print dialog opened",
+          );
+        } else {
+          toast.error(
+            "Could not print. Pair a Bluetooth printer in Settings, or use Share / Save PDF.",
+          );
+        }
+      }
       setSaleCompleteOpen(true);
       return;
     }
-    const printMode =
-      posPrefs?.receiptPrintMode ?? (posPrefs?.autoPrintReceipt ? "automatic" : "manual");
     if (printMode === "never") {
       return;
     }
@@ -850,6 +862,7 @@ export function SalesView() {
         open={saleCompleteOpen}
         onOpenChange={setSaleCompleteOpen}
         payload={lastReceipt}
+        printMode={resolveReceiptPrintMode(posPrefs)}
       />
 
       <BarcodeMatchDialog

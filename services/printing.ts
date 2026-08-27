@@ -297,17 +297,18 @@ export async function printReceipt(
         console.warn("[print:bluetooth-missing]");
         // Fall through to browser print — Cap WebView may still open a print sheet.
       } else {
+        const copies = 1;
         const result = await Hardware.printer.printReceipt({
           escposBase64: escPosToBase64(bytes),
           invoiceNumber: payload.invoiceNumber,
-          copies: config.copies,
+          copies,
           connectionType: "bluetooth",
           bluetoothDeviceId: preferred.data.bluetoothDeviceId,
           paperWidthMm,
           openCashDrawer: config.openCashDrawer,
         });
         if (result.ok) {
-          return { printed: true, reason: "native", copies: config.copies };
+          return { printed: true, reason: "native", copies };
         }
         console.warn("[print:bluetooth-failed]", result.message);
       }

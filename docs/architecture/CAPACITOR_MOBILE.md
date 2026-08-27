@@ -1,6 +1,6 @@
 # Capacitor mobile platform
 
-Version: 1.5.1
+Version: 1.5.2
 
 ## Purpose
 
@@ -64,7 +64,9 @@ Web and Electron keep the existing sidebar unchanged.
 
 ## Native services (Phase 4)
 
-- Bluetooth thermal printing (Settings → Hardware)
+- Bluetooth thermal printing (Settings → Hardware). Checkout honors Automatic /
+  Manual / Do not print. Print (one copy) is the primary post-sale action;
+  share and PDF are optional.
 - Biometrics + secure unlock token (Settings → Security)
 - Local notification topic prefs (push delivery can plug in later)
 - Soft OTA check via `NEXT_PUBLIC_MOBILE_UPDATE_JSON` (Later / Update now)

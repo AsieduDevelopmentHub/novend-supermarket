@@ -47,7 +47,11 @@ describe("backup payload", () => {
       tables: { meta: [] },
     };
     const envelope = await encryptOfflineBackup(payload, STRONG);
-    const restored = await parseBackupPayload(JSON.stringify(envelope), STRONG);
+    expect(envelope.kdf.salt).toBeTruthy();
+    expect(envelope.cipher.iv).toBeTruthy();
+    const compact = JSON.stringify(envelope);
+    expect(compact).not.toMatch(/\n\s+/);
+    const restored = await parseBackupPayload(compact, STRONG);
     expect(restored.version).toBe(2);
     expect(restored.tables.meta).toEqual([]);
   });

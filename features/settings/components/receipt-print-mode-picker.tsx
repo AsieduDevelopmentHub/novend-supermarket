@@ -19,7 +19,7 @@ const OPTIONS: Array<{
   {
     value: "manual",
     title: "Manual print",
-    description: "Finish the sale, then print from the receipt dialog.",
+    description: "Finish the sale, then print from the receipt dialog. On phones, Print is first.",
     icon: Receipt,
   },
   {
@@ -34,19 +34,23 @@ export function ReceiptPrintModePicker({
   value,
   onChange,
   disabled = false,
+  showIntro = true,
 }: {
   value: ReceiptPrintMode;
   onChange: (mode: ReceiptPrintMode) => void;
   disabled?: boolean;
+  showIntro?: boolean;
 }) {
   return (
     <div className="space-y-3">
-      <div>
-        <p className="text-sm font-semibold">After a sale</p>
-        <p className="text-muted-foreground text-sm">
-          How this business handles receipts. Administrators and managers can change this.
-        </p>
-      </div>
+      {showIntro ? (
+        <div>
+          <p className="text-sm font-semibold">After a sale</p>
+          <p className="text-muted-foreground text-sm">
+            How this business handles receipts. Administrators and managers can change this.
+          </p>
+        </div>
+      ) : null}
       <div className="grid gap-3 md:grid-cols-3">
         {OPTIONS.map((option) => {
           const selected = value === option.value;

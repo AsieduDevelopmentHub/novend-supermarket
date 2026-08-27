@@ -42,6 +42,14 @@ export type OfflineBackupPayload = {
   tables: Record<string, unknown[]>;
 };
 
+/**
+ * Portable encrypted backup envelope.
+ *
+ * `kdf` / `cipher` (algorithm names, iteration count, salt, IV) are public
+ * parameters required to decrypt the file. They are not secrets and must stay
+ * in the file — security is the backup password plus PBKDF2 work factor.
+ * Ciphertext is AES-GCM; the key never leaves the Web Crypto API.
+ */
 type EncryptedBackupEnvelope = {
   format: typeof ENCRYPTED_BACKUP_FORMAT;
   version: 1;
@@ -49,6 +57,11 @@ type EncryptedBackupEnvelope = {
   cipher: { name: "AES-GCM"; iv: string };
   ciphertext: string;
 };
+
+/** Compact JSON so the envelope is a restore artifact, not a readable showcase. */
+function serializeEncryptedBackup(envelope: EncryptedBackupEnvelope): string {
+  return JSON.stringify(envelope);
+}
 
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
@@ -161,9 +174,9 @@ export async function exportOfflineBackup(): Promise<OfflineBackupPayload> {
   };
 }
 
-function downloadJson(filename: string, payload: unknown) {
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {
-    type: "application/json;charset=utf-8",
+function downloadJson(filename: string, payload: EncryptedBackupEnvelope) {
+  const blob = new Blob([serializeEncryptedBackup(payload)], {
+    type: "application/octet-stream",
   });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -215,8 +228,7 @@ export async function downloadOfflineBackup(passphrase: string) {
   const filename = brandedDocumentName("Offline-Backup", stamp, "novend-backup");
 
   if (isCapacitor()) {
-    const text = JSON.stringify(encrypted);
-    const bytes = new TextEncoder().encode(text);
+    const bytes = new TextEncoder().encode(serializeEncryptedBackup(encrypted));
     const saved = await Hardware.filesystem.saveImage(bytes, filename);
     if (!saved.ok) throw new Error(saved.message || "Could not save backup");
   } else {
