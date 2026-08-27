@@ -8,6 +8,9 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Added
 
+- Product **import** from CSV/Excel with Novend template, synonym header mapping, preview/validation, and Dexie+outbox writes. Quantity is opening stock on new SKUs only.
+- Shared **export** menu (CSV, Excel, PDF, JSON) on Products, Reports, and Analytics. Product export includes the live catalog fields (cost only when the role may see it). Excel/PDF follow Pro rank.
+- Plan **capabilities** on the licence snapshot (`canExportXlsx`, `maxImportRows`, …) so screens do not hard-code plan keys. Super Admin overview shows import/export job counts only.
 - Wholesale **Record purchase** sets catalog **cost** and **selling** prices so a supplier increase is what branches sell after issue. Recent purchases list those line prices. **New product** on the same dialog adds a catalog SKU (no opening branch stock); quantity is received into the warehouse.
 - Sales cart, discount, and attached customer stay in the tab when you leave Sales and come back. Checkout, hold, and sign-out clear that draft.
 - Sales product cards show **on-hand stock** so cashiers do not need Inventory to see quantity.
@@ -19,11 +22,6 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 - You cannot set your own account inactive, deactivate the organization owner, or deactivate a user who is currently signed in.
 - The device you are using cannot be shut down or removed. Other activated terminals still can.
 - Dashboard **Top Selling** ranks by quantity by default. Quantity / Amount is a device preference and works offline.
-
-### Fixed
-
-- Platform super-admin sign-in opens `/platform` instead of tenant Dashboard (which threw `branches:list` Forbidden).
-- Settings → Devices marks and counts **this device** using a client fingerprint (it was previously an empty SSR value, so the current terminal did not match).
 
 ### Fixed
 

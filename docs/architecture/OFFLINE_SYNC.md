@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.8
+Version: 2.4.9
 
 ## Purpose
 
@@ -31,7 +31,9 @@ Convex (when online)
 2. Screens always render from Dexie when the replica is warm. Live Convex is
    used as a freshness shortcut, never as a gate to open the page.
 3. Writes apply locally, then enqueue an outbox event (`upsert_supplier`,
-   `record_wholesale_purchase`, `complete_sale`, …).
+   `record_wholesale_purchase`, `complete_sale`, `upsert_product`, …). Product
+   **imports** use the same outbox: Dexie first, then Convex `createProduct` /
+   `updateProduct`. Catalog CSV/Excel exports read the local list and work offline.
 4. `OfflineProvider` drains the outbox in the background. Forms return as soon as
    Dexie succeeds — loading spinners never wait on Convex.
 5. Product photos live in IndexedDB (`productImages`) as blobs plus thumbnails.

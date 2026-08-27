@@ -2,7 +2,7 @@
 
 ## Repository Structure
 
-Version: 1.1.1
+Version: 1.1.2
 
 # Philosophy
 
@@ -19,7 +19,7 @@ novend-pos/
 ├── features/            # Feature UI, hooks, types (incl. marketing, more)
 ├── components/          # Shared, business-agnostic UI
 ├── convex/              # Schema, queries, mutations, auth
-├── lib/                 # Shared non-React utilities (including offline)
+├── lib/                 # Shared non-React utilities (including offline, import, export)
 ├── hooks/               # Shared generic React hooks
 ├── types/               # Shared TypeScript types
 ├── services/            # Print, hardware helpers, other integrations
@@ -44,7 +44,7 @@ novend-pos/
 | `features/`          | Feature UI and presentation logic (including `features/marketing`, `features/more`)                                          |
 | `components/`        | Shared UI — never Convex, never business rules                                                                               |
 | `convex/`            | Schema, auth, authorization, validation, integrity                                                                           |
-| `lib/`               | Shared non-React utilities                                                                                                   |
+| `lib/`               | Shared non-React utilities (offline replica, `lib/import`, `lib/export`)                                                     |
 | `hooks/`             | Shared generic React hooks                                                                                                   |
 | `providers/`         | App-wide providers only                                                                                                      |
 | `config/`            | Desktop nav groups + Capacitor bottom tabs (`mobile-navigation.ts`)                                                          |
