@@ -30,24 +30,18 @@ export async function uploadFileStub(file: File) {
   };
 }
 
+import { buildCsvText } from "@/lib/export/csv";
+import { downloadBlob } from "@/lib/export/download";
+
 export async function exportCsv(filename: string, rows: Record<string, unknown>[]) {
-  const headers = rows[0] ? Object.keys(rows[0]) : [];
-  const escape = (value: unknown) => {
-    const text = value == null ? "" : String(value);
-    if (/[",\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
-    return text;
-  };
-  const lines = [
-    headers.join(","),
-    ...rows.map((row) => headers.map((key) => escape(row[key])).join(",")),
-  ];
-  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+  const columns = Object.keys(rows[0] ?? {}).map((key) => ({ key, header: key }));
+  const csv = buildCsvText({
+    title: filename,
+    filenameKind: "Export",
+    columns,
+    rows,
+  });
+  downloadBlob(filename, new Blob([csv], { type: "text/csv;charset=utf-8" }));
   return { filename, rows: rows.length };
 }
 
