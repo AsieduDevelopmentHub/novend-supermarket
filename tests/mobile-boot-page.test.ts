@@ -11,9 +11,10 @@ describe("Capacitor local boot page", () => {
     expect(config).toContain('NOVEND_APP_ENTRY = "/dashboard"');
   });
 
-  it("probes the hosted origin without CORS and still hands off to the hosted shell", () => {
-    expect(source).toContain('mode: "no-cors"');
-    expect(source).toContain('response.type !== "opaque"');
-    expect(source).toMatch(/\.catch\(function \(\) \{[\s\S]*?leaveBoot\(\);/);
+  it("probes hosted health with CORS before navigating, and can stay on boot", () => {
+    expect(source).toContain("/api/health");
+    expect(source).toContain('mode: "cors"');
+    expect(source).toContain('params.get("stay") === "1"');
+    expect(source).toContain("showFailed");
   });
 });

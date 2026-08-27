@@ -175,6 +175,7 @@ export function SettingsView() {
                 long: "Future devices",
               },
               { value: "updates" as const, label: "Updates", long: "Desktop updates" },
+              { value: "desktop" as const, label: "Downloads", long: "Download apps" },
             ] as const)
           : onMobileShell
             ? ([
@@ -186,7 +187,7 @@ export function SettingsView() {
               ] as const)
             : ([
                 { value: "scanner" as const, label: "Scanner", long: "Barcode scanner" },
-                { value: "desktop" as const, label: "Desktop", long: "Download desktop app" },
+                { value: "desktop" as const, label: "Downloads", long: "Download apps" },
               ] as const)),
         { value: "backup" as const, label: "Backup", long: "Local backup" },
         { value: "appearance" as const, label: "Appearance", long: "Appearance" },
@@ -308,6 +309,9 @@ export function SettingsView() {
               </TabsContent>
               <TabsContent value="updates" className="mt-0">
                 <UpdatesPanel />
+              </TabsContent>
+              <TabsContent value="desktop" className="mt-0">
+                <DesktopDownloadPanel />
               </TabsContent>
             </>
           ) : onMobileShell ? (

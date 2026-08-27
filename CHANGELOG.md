@@ -6,6 +6,16 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ## Unreleased
 
+### Fixed
+
+- Cap/Electron boot checks `/api/health` before opening the hosted app, so a dead network shows Novend’s retry screen instead of Chrome’s “This page couldn’t load”.
+- Android WebView recovers failed hosted navigations onto the local boot page (`?stay=1`).
+- Service worker no longer rejects failed fetches (that also painted Chrome’s error sheet) and precaches Privacy, Terms, Help, and Download.
+
+### Changed
+
+- Settings → Downloads lists the Android APK (and iOS when published) next to desktop installers.
+
 ---
 
 ## v0.3.7 — 2026-08-26

@@ -1,6 +1,6 @@
 # Routing
 
-Version: 1.3.1
+Version: 1.3.2
 
 ## Public vs authenticated entry
 
@@ -18,9 +18,11 @@ users. Login and Get Started CTAs go to `/login` or `/signup`. After sign-in,
 platform administrators go to `/platform`; other users go to `/dashboard` (or
 `/onboarding` when they still need a business).
 
-**Downloads:** `/download` lists the latest stable desktop installers from the
-live release registry and reserves slots for future mobile builds. Marketing
-“Download” CTAs should point here — not only to `/#desktop`.
+**Downloads:** `/download` lists the latest stable desktop installers and mobile
+APK/store links from the live release registry. Settings → Downloads shows the
+same feeds inside the app. Marketing “Download” CTAs should point here — not
+only to `/#desktop`. `/api/health` is a public CORS probe used by Cap/Electron
+boot pages before they navigate to the hosted origin.
 
 **Desktop app:** Boots to `/dashboard` via `offline-boot.html` — never the
 landing page. The landing client also redirects if `window.novendDesktop` is

@@ -15,6 +15,7 @@ const isPublicRoute = createRouteMatcher([
   "/download",
   "/privacy",
   "/terms",
+  "/api/health",
 ]);
 const isPlatformRoute = createRouteMatcher(["/platform(.*)"]);
 const isAdminOnly = createRouteMatcher(["/branches(.*)"]);

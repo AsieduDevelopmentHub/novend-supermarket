@@ -1,6 +1,6 @@
 # Desktop platform (Electron)
 
-Version: 1.0.0
+Version: 1.0.1
 
 ## Purpose
 
@@ -34,7 +34,8 @@ Chromium fails that call even when the service worker already cached the app
 Boot sequence (aligned with Princellen):
 
 1. Main loads local `offline-boot.html` (packaged under `extraResources`).
-2. The boot page client-navigates to `/dashboard` on the hosted origin.
+2. The boot page CORS-probes `{host}/api/health`, then client-navigates to
+   `/dashboard` on the hosted origin (or shows the branded retry UI).
 3. The registered service worker serves the cached document; Dexie restores the shell.
 4. `persist:novend` keeps SW + IndexedDB + auth cookies across launches.
 
