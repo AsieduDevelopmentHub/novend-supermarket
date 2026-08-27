@@ -1,6 +1,6 @@
 # Hardware architecture
 
-Version: 1.4.3
+Version: 1.4.4
 
 ## Purpose
 
@@ -48,13 +48,14 @@ UI components must not call Electron preload or Capacitor plugins directly.
 
 | Feature                 | Behavior                                                                                                           |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Camera / gallery        | `@capacitor/camera` (DataUrl) → `File` → compress + Dexie image cache                                              |
+| Camera / gallery        | `@capacitor/camera` `getPhoto` (Base64). Permission is requested by the native camera, not a pre-check that can block launch. |
+| Save PDF                | Native `NovendPrint.savePdfToDownloads` (MediaStore Downloads) with Cache fallback                                          |
+| Share receipt           | Native share sheet with a PDF `files` URI (FileProvider). Text-only share is fallback only.                                 |
+| Print (no BLE printer)  | Android `PrintManager` via `NovendPrint.printPdf`. WebView `window.print()` is not used on Capacitor (it sticks on Opening…). |
 | Local image durability  | Also written under Capacitor `Directory.Data` (`product-images/`)                                                  |
 | Barcode (camera)        | Cap camera permission → getUserMedia → bundled **ZXing** (no Google ML Kit / HTTPS module)                         |
 | Barcode (HID)           | Terminal wedge config + `useBarcodeScanner` (desktop primary)                                                      |
 | Bluetooth thermal print | `@capacitor-community/bluetooth-le` ESC/POS write. After-sale print mode (automatic / manual / never) applies. One copy. |
-| Save PDF / backup JSON  | `Directory.Documents` via Filesystem (+ optional Share)                                                            |
-| Share receipt           | Optional native share sheet — Print is the primary post-sale action                                                |
 | Biometrics              | `@aparajita/capacitor-biometric-auth` — unlock token only (never password); maps supported / enrolled / available  |
 | Secure storage          | `@aparajita/capacitor-secure-storage` for unlock token                                                             |
 | Notifications           | `@capacitor/local-notifications` + Android channel + topic prefs (prompt / granted / denied / error / unavailable) |

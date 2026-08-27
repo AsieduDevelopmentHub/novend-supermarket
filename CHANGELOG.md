@@ -31,6 +31,11 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 - Sync Center **Fix** opens the product when Convex rejects an upload (for example expiry date required on opening stock). Those rejections no longer sit in Waiting, retry the same payload forever, or block other queued products. Import requires YYYY-MM-DD when tracking expiry on opening stock.
 - Capacitor checkout **Pay** completes on the device first (same as other POS writes). A false-online network no longer sends the sale to Convex, fail, and then apply every tap when the device reconnects. Print failure no longer looks like a failed payment.
 - Offline checkout keeps the **invoice printed on the receipt** after sync (`INV-…` prefix). Convex used to assign a new number, so paper receipts could not be looked up once the sale uploaded.
+- Capacitor camera, share, save PDF, print, and notifications failed at the native
+  bridge and were misreported (camera “turned off”, share/save generic retry,
+  print stuck on Opening…, Security freeze). Capture now opens the system camera;
+  receipts share/save as a PDF file; print uses Android PrintManager; Security
+  probes timeout instead of blocking the WebView.
 - PDF exports use a spaced table layout. Image URLs are omitted unless the cell is an actual image file or data URI (CSV/Excel still include the URL).
 - Capacitor no longer registers the service worker (Android WebView treats the same redirect as a stuck `net::ERR_FAILED` on `/dashboard`). Offline on mobile stays Dexie + the local boot page. Cold start opens `/api/boot` first so an already-installed worker cannot intercept `/dashboard`.
 - Boot health checks no longer send `Cache-Control` (that forced a CORS preflight from `https://localhost`).

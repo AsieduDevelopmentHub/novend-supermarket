@@ -320,9 +320,12 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
       }
     },
     async getTopicPrefs() {
-      const stored = await Preferences.get({ key: TOPIC_KEY });
-      if (!stored.value) return { ok: true, data: { ...DEFAULT_TOPICS } };
       try {
+        const stored = await withTimeout(
+          Preferences.get({ key: TOPIC_KEY }),
+          NATIVE_CALL_TIMEOUT_MS,
+        );
+        if (!stored.value) return { ok: true, data: { ...DEFAULT_TOPICS } };
         return {
           ok: true,
           data: {

@@ -152,7 +152,19 @@ export const notifications = {
       };
     }
     const mod = await capServices();
-    return mod.createCapacitorNotificationsAdapter().getTopicPrefs();
+    return withTimeoutFallback(
+      () => mod.createCapacitorNotificationsAdapter().getTopicPrefs(),
+      NATIVE_CALL_TIMEOUT_MS + 500,
+      {
+        ok: true as const,
+        data: {
+          stock_alerts: false,
+          daily_summary: false,
+          branch_transfers: false,
+          subscription_alerts: false,
+        } as Record<NotificationTopic, boolean>,
+      },
+    );
   },
   setTopicPrefs: async (prefs: Partial<Record<NotificationTopic, boolean>>) => {
     if (!isCapacitor()) return unsupported("Notifications");

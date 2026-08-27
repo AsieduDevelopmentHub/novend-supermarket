@@ -42,25 +42,41 @@ export function permissionDeniedMessage(kind: HardwarePermissionKind): string {
   return FRIENDLY[kind].denied;
 }
 
-export function friendlyHardwareMessage(raw: string | undefined, fallback: string): string {
+function permissionKindFromMessage(lower: string): HardwarePermissionKind | null {
+  if (lower.includes("photo") || lower.includes("gallery") || lower.includes("library")) {
+    return "photos";
+  }
+  if (lower.includes("notification")) return "notifications";
+  if (lower.includes("storage") || lower.includes("filesystem") || lower.includes("file")) {
+    return "storage";
+  }
+  if (lower.includes("camera")) return "camera";
+  return null;
+}
+
+export function friendlyHardwareMessage(
+  raw: string | undefined,
+  fallback: string,
+  kind?: HardwarePermissionKind,
+): string {
   if (!raw) return fallback;
   const lower = raw.toLowerCase();
   if (
+    lower.includes("not implemented") ||
+    lower.includes("unimplemented") ||
+    lower.includes("plugin is not available") ||
+    lower.includes("is not implemented on")
+  ) {
+    return fallback;
+  }
+  const looksLikePermission =
     lower.includes("permission") ||
     lower.includes("denied") ||
     lower.includes("not authorized") ||
-    lower.includes("access")
-  ) {
-    if (lower.includes("photo") || lower.includes("gallery") || lower.includes("library")) {
-      return FRIENDLY.photos.denied;
-    }
-    if (lower.includes("storage") || lower.includes("filesystem") || lower.includes("file")) {
-      return FRIENDLY.storage.denied;
-    }
-    return FRIENDLY.camera.denied;
-  }
-  if (lower.includes("not implemented") || lower.includes("unavailable")) {
-    return fallback;
+    lower.includes("user denied");
+  if (looksLikePermission) {
+    const inferred = permissionKindFromMessage(lower) ?? kind;
+    if (inferred) return FRIENDLY[inferred].denied;
   }
   // Avoid leaking raw plugin / OS strings into the UI when they look technical.
   if (/capacitor|plugin|exception|nullpointer|ecode/i.test(raw)) {
@@ -75,6 +91,10 @@ export function filesystemSaveFailedMessage(): string {
 
 export function shareFailedMessage(): string {
   return "Unable to share right now. Please try again.";
+}
+
+export function printFailedMessage(): string {
+  return "Could not open the print dialog. Try Share or Save PDF, or pair a Bluetooth printer in Settings.";
 }
 
 export function barcodeScanFailedMessage(): string {

@@ -12,13 +12,8 @@ import { Button } from "@/components/ui/button";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { ReceiptDocument } from "@/features/receipts/components/receipt-document";
 import { normalizeReceiptPayload, printReceipt } from "@/services/printing";
-import { buildReceiptPdfBytes, buildReceiptShareText } from "@/services/receipts/share";
-import {
-  Hardware,
-  filesystemSaveFailedMessage,
-  isCapacitor,
-  shareFailedMessage,
-} from "@novend/hardware";
+import { saveReceiptPdfOnDevice, shareReceiptOnDevice } from "@/services/receipts/share";
+import { filesystemSaveFailedMessage, isCapacitor, shareFailedMessage } from "@novend/hardware";
 import { toast } from "sonner";
 import { Check, FileDown, Printer, Share2 } from "lucide-react";
 import type { ReceiptPrintMode } from "@/lib/receipt-print-mode";
@@ -58,7 +53,11 @@ export function SaleCompletedDialog({
         );
       } else
         toast.success(
-          result.reason === "native" ? "Receipt sent to printer" : "Print dialog opened",
+          result.reason === "native"
+            ? "Receipt sent to printer"
+            : result.reason === "system"
+              ? "Print dialog opened"
+              : "Print dialog opened",
         );
     } finally {
       setBusy(null);
@@ -82,33 +81,9 @@ export function SaleCompletedDialog({
     if (!normalized) return;
     setBusy("share");
     try {
-      const text = buildReceiptShareText(normalized);
-      const result = await Hardware.share.shareReceipt(text, `Receipt ${normalized.invoiceNumber}`);
+      const result = await shareReceiptOnDevice(normalized);
       if (result.ok) toast.success("Receipt shared");
-      if (result.ok || result.message === "Cancelled") return;
-      if (isCapacitor()) {
-        try {
-          const bytes = await buildReceiptPdfBytes(normalized);
-          const saved = await Hardware.filesystem.savePDF(
-            bytes,
-            `receipt-${normalized.invoiceNumber}.pdf`,
-          );
-          const uri = saved.data?.pathOrName;
-          if (saved.ok && uri) {
-            const fileShare = await Hardware.share.shareImage(
-              uri,
-              `Receipt ${normalized.invoiceNumber}`,
-            );
-            if (fileShare.ok) {
-              toast.success("Receipt shared");
-              return;
-            }
-          }
-        } catch {
-          /* Fall through to the actionable error below. */
-        }
-      }
-      toast.error(result.message || shareFailedMessage());
+      else if (result.message !== "Cancelled") toast.error(result.message || shareFailedMessage());
     } finally {
       setBusy(null);
     }
@@ -118,14 +93,12 @@ export function SaleCompletedDialog({
     if (!normalized) return;
     setBusy("pdf");
     try {
-      const bytes = await buildReceiptPdfBytes(normalized);
-      const fileName = `receipt-${normalized.invoiceNumber}.pdf`;
-      const result = await Hardware.filesystem.savePDF(bytes, fileName);
+      const result = await saveReceiptPdfOnDevice(normalized);
       if (!result.ok) {
         toast.error(result.message || filesystemSaveFailedMessage());
         return;
       }
-      toast.success("Receipt PDF saved on this device");
+      toast.success("Receipt PDF saved to Downloads");
     } catch {
       toast.error(filesystemSaveFailedMessage());
     } finally {
