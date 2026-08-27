@@ -22,6 +22,13 @@ describe("product import mapping", () => {
     expect(mapping["Supplier Name"]).toBeNull();
   });
 
+  it("maps Expiry to expiry date, not tracks-expiry", () => {
+    const suggestions = suggestColumnMapping(["Expiry", "Tracks Expiry"]);
+    const mapping = mappingFromSuggestions(suggestions);
+    expect(mapping.Expiry).toBe("expiryDate");
+    expect(mapping["Tracks Expiry"]).toBe("tracksExpiry");
+  });
+
   it("leaves uncertain headers unmapped", () => {
     const suggestions = suggestColumnMapping(["FooBarBaz", "Category"]);
     expect(suggestions.find((row) => row.header === "FooBarBaz")?.field).toBeNull();

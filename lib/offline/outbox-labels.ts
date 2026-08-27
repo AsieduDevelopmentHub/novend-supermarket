@@ -49,6 +49,15 @@ function number(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+export function outboxFixPath(row: OutboxRow): string | null {
+  const payload = payloadRecord(row);
+  if (row.type === "upsert_product") {
+    const id = text(payload.localId) ?? text(payload.serverId);
+    return id ? `/products/${id}` : null;
+  }
+  return null;
+}
+
 /** Short cashier-facing title + detail for an outbox row. */
 export function describeOutboxEvent(row: OutboxRow): { title: string; detail: string } {
   const payload = payloadRecord(row);

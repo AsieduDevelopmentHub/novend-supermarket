@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, CloudOff, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, CloudOff, Loader2, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -16,15 +17,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateTime, formatRelative } from "@/lib/date";
 import { listOpenOutbox, listRecentSyncedOutbox } from "@/lib/offline/outbox";
 import { discardOutboxEvent, retryOutboxEvent } from "@/lib/offline/outbox-actions";
-import { describeOutboxEvent, outboxStatusLabel } from "@/lib/offline/outbox-labels";
+import { describeOutboxEvent, outboxFixPath, outboxStatusLabel } from "@/lib/offline/outbox-labels";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
+import { isSyncBusinessConflict } from "@/lib/offline/sync-errors";
 import type { OutboxRow } from "@/lib/offline/types";
 import { useOfflineStatus } from "@/providers/offline-provider";
 
-function statusVariant(status: OutboxRow["status"]) {
-  if (status === "failed") return "destructive" as const;
-  if (status === "syncing") return "warning" as const;
-  if (status === "synced") return "success" as const;
+function isDisplayedConflict(row: OutboxRow) {
+  if (row.status === "failed") return true;
+  return Boolean(row.lastError && isSyncBusinessConflict(row.lastError));
+}
+
+function statusVariant(row: OutboxRow) {
+  if (isDisplayedConflict(row)) return "destructive" as const;
+  if (row.status === "syncing") return "warning" as const;
+  if (row.status === "synced") return "success" as const;
   return "secondary" as const;
 }
 
@@ -33,19 +40,24 @@ function EventRow({
   busy,
   onRetry,
   onDiscard,
+  onFix,
 }: {
   row: OutboxRow;
   busy: boolean;
   onRetry?: (row: OutboxRow) => void;
   onDiscard?: (row: OutboxRow) => void;
+  onFix?: (href: string) => void;
 }) {
   const copy = describeOutboxEvent(row);
+  const fixHref = outboxFixPath(row);
   return (
     <li className="border-border flex flex-col gap-2 rounded-lg border px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-medium">{copy.title}</p>
-          <Badge variant={statusVariant(row.status)}>{outboxStatusLabel(row.status)}</Badge>
+          <Badge variant={statusVariant(row)}>
+            {isDisplayedConflict(row) ? "Needs a fix" : outboxStatusLabel(row.status)}
+          </Badge>
         </div>
         <p className="text-muted-foreground mt-0.5 truncate text-xs">{copy.detail}</p>
         {row.lastError ? <p className="text-destructive mt-1 text-xs">{row.lastError}</p> : null}
@@ -54,8 +66,19 @@ function EventRow({
           {row.attempts > 0 ? ` · ${row.attempts} attempt${row.attempts === 1 ? "" : "s"}` : ""}
         </p>
       </div>
-      {onRetry || onDiscard ? (
-        <div className="flex shrink-0 gap-2">
+      {onRetry || onDiscard || (fixHref && onFix) ? (
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {fixHref && onFix ? (
+            <Button
+              type="button"
+              size="sm"
+              disabled={busy || row.status === "syncing"}
+              onClick={() => onFix(fixHref)}
+            >
+              <Pencil className="size-3.5" aria-hidden />
+              Fix
+            </Button>
+          ) : null}
           {onRetry ? (
             <Button
               type="button"
@@ -94,6 +117,7 @@ function EmptyState({ children }: { children: string }) {
  * Cashier-facing queue: waiting uploads, conflicts, and recently synced events.
  */
 export function SyncCenterDialog() {
+  const router = useRouter();
   const {
     online,
     syncing,
@@ -125,9 +149,16 @@ export function SyncCenterDialog() {
 
   const reload = useCallback(async () => {
     const [open, synced] = await Promise.all([listOpenOutbox(), listRecentSyncedOutbox()]);
-    setWaiting(open.filter((row) => row.status === "pending" || row.status === "syncing"));
-    setConflicts(open.filter((row) => row.status === "failed"));
+    const conflictRows = open.filter(isDisplayedConflict);
+    const waitingRows = open.filter(
+      (row) => !isDisplayedConflict(row) && (row.status === "pending" || row.status === "syncing"),
+    );
+    setConflicts(conflictRows);
+    setWaiting(waitingRows);
     setRecent(synced);
+    if (conflictRows.length > 0 && waitingRows.length === 0) {
+      setTab("conflicts");
+    }
     await refreshStatus();
   }, [refreshStatus]);
 
@@ -163,6 +194,11 @@ export function SyncCenterDialog() {
     await reload();
   }
 
+  function onFix(href: string) {
+    closeSyncCenter();
+    router.push(href);
+  }
+
   async function onDiscard() {
     if (!discardTarget) return;
     setDiscardPending(true);
@@ -177,6 +213,7 @@ export function SyncCenterDialog() {
   }
 
   const discardCopy = discardTarget ? describeOutboxEvent(discardTarget) : null;
+  const needsFixCount = conflicts.length;
 
   return (
     <Dialog open={syncCenterOpen} onOpenChange={(open) => !open && closeSyncCenter()}>
@@ -194,8 +231,8 @@ export function SyncCenterDialog() {
             <p className="font-medium">
               {pendingCount > 0
                 ? `${pendingCount} waiting to upload`
-                : failedCount > 0
-                  ? `${failedCount} conflict${failedCount === 1 ? "" : "s"}`
+                : needsFixCount > 0
+                  ? `${needsFixCount} need${needsFixCount === 1 ? "s" : ""} a fix`
                   : "Everything is uploaded"}
             </p>
             <p className="text-muted-foreground truncate text-xs">
@@ -246,6 +283,7 @@ export function SyncCenterDialog() {
                       busy={syncing}
                       onRetry={online ? onRetry : undefined}
                       onDiscard={() => setDiscardTarget(row)}
+                      onFix={onFix}
                     />
                   ))}
                 </ul>
@@ -263,6 +301,7 @@ export function SyncCenterDialog() {
                       busy={syncing}
                       onRetry={online ? onRetry : undefined}
                       onDiscard={() => setDiscardTarget(row)}
+                      onFix={onFix}
                     />
                   ))}
                 </ul>
@@ -285,7 +324,8 @@ export function SyncCenterDialog() {
         {discardCopy ? (
           <div className="border-destructive/30 bg-destructive/5 flex flex-col gap-3 border-t px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm">
-              Discard {discardCopy.title.toLowerCase()}? {discardCopy.detail} will not upload.
+              Discard {discardCopy.title.toLowerCase()}? {discardCopy.detail} will not upload. Use
+              Fix to edit the product instead if the server asked for a change.
             </p>
             <div className="flex shrink-0 gap-2">
               <Button
@@ -311,8 +351,9 @@ export function SyncCenterDialog() {
         ) : conflicts.length > 0 ? (
           <p className="text-muted-foreground flex items-start gap-2 border-t px-6 py-3 text-xs">
             <AlertTriangle className="text-destructive mt-0.5 size-3.5 shrink-0" aria-hidden />
-            Conflicts were rejected by the server. Retry after you fix stock or data, or discard so
-            they stop blocking the queue.
+            The server rejected these. Open Fix to change the product (for example add an expiry
+            date or turn off expiry tracking), save, then Retry. Discard only if you do not want it
+            uploaded.
           </p>
         ) : null}
       </DialogContent>

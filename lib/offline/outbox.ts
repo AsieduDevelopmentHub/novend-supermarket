@@ -5,6 +5,7 @@ import type {
   ProcessReturnOutboxPayload,
   OutboxOpType,
   OutboxRow,
+  UpsertProductPayload,
 } from "./types";
 import { newClientId } from "./db";
 
@@ -124,6 +125,25 @@ export async function markOutboxPending(db: NovendOfflineDb, id: string, error?:
   });
 }
 
+const OPEN_STATUSES: OutboxRow["status"][] = ["pending", "syncing", "failed"];
+
+async function findOpenUpsertProduct(
+  db: NovendOfflineDb,
+  localId: string,
+): Promise<OutboxRow | undefined> {
+  const rows = await db.outbox.toArray();
+  return rows.find((row) => {
+    if (row.type !== "upsert_product") return false;
+    if (row.status !== "pending" && row.status !== "failed") return false;
+    try {
+      const payload = JSON.parse(row.payloadJson) as { localId?: string };
+      return payload.localId === localId;
+    } catch {
+      return false;
+    }
+  });
+}
+
 export async function enqueueOutbox(
   db: NovendOfflineDb,
   type: OutboxOpType,
@@ -132,6 +152,31 @@ export async function enqueueOutbox(
   options?: { notify?: boolean },
 ): Promise<OutboxRow> {
   const now = Date.now();
+  if (type === "upsert_product") {
+    const incoming = payload as UpsertProductPayload;
+    const existing = await findOpenUpsertProduct(db, incoming.localId);
+    if (existing) {
+      const previous = JSON.parse(existing.payloadJson) as UpsertProductPayload;
+      const merged: UpsertProductPayload = {
+        ...incoming,
+        stockQuantity: previous.stockQuantity || incoming.stockQuantity,
+        branchId: previous.branchId ?? incoming.branchId,
+        expiryDate: incoming.expiryDate ?? previous.expiryDate,
+      };
+      const next: OutboxRow = {
+        ...existing,
+        payloadJson: JSON.stringify(merged),
+        status: "pending",
+        lastError: undefined,
+        updatedAt: now,
+      };
+      await db.outbox.put(next);
+      if (options?.notify !== false) {
+        notifyReplicaChanged();
+      }
+      return next;
+    }
+  }
   const row: OutboxRow = {
     id: newClientId("outbox"),
     type,
@@ -186,8 +231,6 @@ export function parseCompleteSalePayload(row: OutboxRow): CompleteSaleOutboxPayl
 export function parseProcessReturnPayload(row: OutboxRow): ProcessReturnOutboxPayload {
   return JSON.parse(row.payloadJson) as ProcessReturnOutboxPayload;
 }
-
-const OPEN_STATUSES: OutboxRow["status"][] = ["pending", "syncing", "failed"];
 
 export async function listOpenOutbox(): Promise<OutboxRow[]> {
   const db = await getOfflineDb();

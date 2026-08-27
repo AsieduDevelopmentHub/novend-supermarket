@@ -37,6 +37,25 @@ export function parseBooleanCell(raw: string): boolean | null {
   return null;
 }
 
+/** Opening-stock expiry. Accepts YYYY-MM-DD (same as Convex lots). */
+export function parseExpiryDateCell(raw: string): string | null {
+  const text = stripCell(raw);
+  if (!text) return null;
+  const iso = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (!iso) return null;
+  const value = iso[1];
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return value;
+}
+
 export function parseStatusCell(raw: string): "active" | "inactive" | null {
   const text = stripCell(raw).toLowerCase();
   if (!text) return null;

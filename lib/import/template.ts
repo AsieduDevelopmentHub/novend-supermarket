@@ -20,6 +20,7 @@ function templateTable(): ExportTable {
     status: "active",
     tracksExpiry: "no",
     expiryAlertDays: "",
+    expiryDate: "",
   };
   return {
     title: "Product import template",

@@ -1,6 +1,6 @@
 # Product Import, Export & Plan Entitlements
 
-Version: 1.1.0
+Version: 1.1.1
 
 Architecture for catalog import, reusable export, and plan-gated formats.
 Business rules stay in Convex. Dexie remains the operational replica.
@@ -12,6 +12,10 @@ Business rules stay in Convex. Dexie remains the operational replica.
 - `organizationId`, `name`, `sku`, `barcode?`, `categoryId`
 - `costPrice`, `sellingPrice`, `stockQuantity`, `unit`, `lowStockThreshold`
 - `tracksExpiry?`, `expiryAlertDays?`, `status`, `description?`, `imageStorageId?`
+
+Opening stock on a **new** product that tracks expiry also needs an expiry date
+(`YYYY-MM-DD`) so Convex can create the first lot. Import validates that before
+writing Dexie.
 
 On-hand quantity also lives on `branchStock` (per branch). Convex `_creationTime`
 exists; there is no product `updatedAt`, brand, wholesale price, tax, or supplier

@@ -2,6 +2,7 @@ import type { ColumnMapping } from "./mapping";
 import type { ProductImportFieldKey } from "./product-fields";
 import {
   parseBooleanCell,
+  parseExpiryDateCell,
   parseIntegerCell,
   parseMoneyCell,
   parseStatusCell,
@@ -30,6 +31,7 @@ export type PreparedImportRow = {
   status: "active" | "inactive";
   tracksExpiry: boolean;
   expiryAlertDays?: number;
+  expiryDate?: string;
   existingId?: string;
   skipReason?: string;
   quantityIgnoredOnUpdate?: boolean;
@@ -119,6 +121,7 @@ export function prepareProductImport(args: {
     const statusRaw = mappedValue(record, args.mapping, "status");
     const tracksRaw = mappedValue(record, args.mapping, "tracksExpiry");
     const alertRaw = mappedValue(record, args.mapping, "expiryAlertDays");
+    const expiryRaw = mappedValue(record, args.mapping, "expiryDate");
 
     const empty =
       !name &&
@@ -205,6 +208,20 @@ export function prepareProductImport(args: {
       }
     }
 
+    let expiryDate: string | undefined;
+    if (stripCell(expiryRaw)) {
+      const parsed = parseExpiryDateCell(expiryRaw);
+      if (!parsed) {
+        rowIssues.push({
+          rowNumber,
+          field: "expiryDate",
+          message: "Expiry date must be YYYY-MM-DD.",
+        });
+      } else {
+        expiryDate = parsed;
+      }
+    }
+
     if (sku) {
       const prev = fileSkus.get(skuKey(sku));
       if (prev) {
@@ -242,6 +259,18 @@ export function prepareProductImport(args: {
       }
     }
 
+    if (expiryDate && !stripCell(tracksRaw)) {
+      tracksExpiry = true;
+    }
+    if (!existing && tracksExpiry && quantity > 0 && !expiryDate) {
+      rowIssues.push({
+        rowNumber,
+        field: "expiryDate",
+        message:
+          "Expiry date (YYYY-MM-DD) is required when tracking expiry on opening stock, or set quantity to 0.",
+      });
+    }
+
     if (rowIssues.length > 0) {
       issues.push(...rowIssues);
       return;
@@ -276,6 +305,7 @@ export function prepareProductImport(args: {
       status: status ?? "active",
       tracksExpiry,
       expiryAlertDays,
+      expiryDate,
       existingId: existing?.id,
       quantityIgnoredOnUpdate: action === "update" && quantity > 0,
     });

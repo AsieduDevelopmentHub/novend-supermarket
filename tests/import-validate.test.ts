@@ -72,4 +72,51 @@ describe("product import validation", () => {
     expect(preview.createCount).toBe(0);
     expect(preview.issues[0]?.message).toMatch(/limit/i);
   });
+
+  it("blocks opening stock on dated products without an expiry date", () => {
+    const preview = prepareProductImport({
+      mapping: { ...mapping, tracks: "tracksExpiry" },
+      maxRows: 500,
+      remainingCreates: 10,
+      existing: [],
+      records: [
+        {
+          name: "Juice",
+          sku: "JUC-1",
+          category: "Drinks",
+          cost: "2",
+          price: "4",
+          qty: "12",
+          barcode: "",
+          tracks: "yes",
+        },
+      ],
+    });
+    expect(preview.createCount).toBe(0);
+    expect(preview.issues[0]?.message).toMatch(/expiry date/i);
+  });
+
+  it("accepts YYYY-MM-DD expiry on opening stock", () => {
+    const preview = prepareProductImport({
+      mapping: { ...mapping, tracks: "tracksExpiry", expiry: "expiryDate" },
+      maxRows: 500,
+      remainingCreates: 10,
+      existing: [],
+      records: [
+        {
+          name: "Juice",
+          sku: "JUC-1",
+          category: "Drinks",
+          cost: "2",
+          price: "4",
+          qty: "12",
+          barcode: "",
+          tracks: "yes",
+          expiry: "2027-03-01",
+        },
+      ],
+    });
+    expect(preview.createCount).toBe(1);
+    expect(preview.rows[0]?.expiryDate).toBe("2027-03-01");
+  });
 });

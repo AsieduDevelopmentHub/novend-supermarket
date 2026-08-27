@@ -75,6 +75,7 @@ type ProductDetails = {
   lowStockThreshold: number;
   tracksExpiry?: boolean;
   expiryAlertDays?: number;
+  nearestExpiry?: string | null;
   status: "active" | "inactive" | "archived";
   description?: string;
   imageUrl?: string | null;
@@ -99,7 +100,13 @@ export function ProductFormDialog({
 
   const remoteProduct = useQuery(
     api.products.getProduct,
-    open && productId && online && mirroredRow === null ? { id: productId } : "skip",
+    open &&
+      productId &&
+      online &&
+      mirroredRow === null &&
+      !String(productId).startsWith("local_")
+      ? { id: productId }
+      : "skip",
   );
 
   const mappedLocal: ProductDetails | null | undefined =
@@ -121,6 +128,7 @@ export function ProductFormDialog({
             lowStockThreshold: mirroredRow.lowStockThreshold,
             tracksExpiry: mirroredRow.tracksExpiry,
             expiryAlertDays: mirroredRow.expiryAlertDays ?? undefined,
+            nearestExpiry: mirroredRow.nearestExpiry ?? null,
             status: mirroredRow.status === "inactive" ? "inactive" : "active",
             imageUrl: mirroredRow.imageUrl,
           };
@@ -209,7 +217,7 @@ function ProductFormBody({
   const [expiryAlertDays, setExpiryAlertDays] = useState(
     String(initialProduct?.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS),
   );
-  const [expiryDate, setExpiryDate] = useState("");
+  const [expiryDate, setExpiryDate] = useState(initialProduct?.nearestExpiry ?? "");
   const [status, setStatus] = useState<"active" | "inactive">(
     initialProduct?.status === "inactive" ? "inactive" : "active",
   );
@@ -553,13 +561,16 @@ function ProductFormBody({
                 />
               </div>
               {(!productId && Number(stockQuantity) > 0) ||
+              (productId?.startsWith("local_") && (initialProduct?.stockQuantity ?? 0) > 0) ||
               (productId &&
                 initialProduct &&
                 !initialProduct.tracksExpiry &&
                 initialProduct.stockQuantity > 0) ? (
                 <div className="space-y-2">
                   <Label htmlFor="opening-expiry">
-                    {productId ? "Opening expiry date" : "Expiry date"}
+                    {productId && !productId.startsWith("local_")
+                      ? "Opening expiry date"
+                      : "Expiry date"}
                   </Label>
                   <Input
                     id="opening-expiry"

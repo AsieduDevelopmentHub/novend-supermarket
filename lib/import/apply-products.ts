@@ -57,6 +57,7 @@ export async function applyProductImport(args: {
           description: row.description,
           tracksExpiry: row.tracksExpiry,
           expiryAlertDays: row.expiryAlertDays,
+          expiryDate: row.expiryDate,
           branchId: row.action === "create" ? args.branchId : undefined,
         },
         { notify: false },

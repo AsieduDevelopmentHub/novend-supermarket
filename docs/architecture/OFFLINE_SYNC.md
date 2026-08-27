@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.10
+Version: 2.4.11
 
 ## Purpose
 
@@ -97,7 +97,8 @@ sales, returns, reports, and analytics all continue on the device.
 ## Conflict policy
 
 Queue order + server validation. Inventory cannot become negative on Convex.
-Cashiers resolve failed syncs (retry or discard). Local `local_*` ids are
+Cashiers resolve failed syncs from Sync Center: **Fix** (open the record and
+change what the server asked for), then Retry, or Discard. Local `local_*` ids are
 remapped after creates succeed. Snapshot merge keeps only **pending** `local_*`
 rows so a synced wholesale purchase, expense, or supplier is not shown beside
 the server row.
@@ -112,8 +113,10 @@ ids are remapped) before the purchase mutation runs.
 The sidebar chip is the only always-on offline indicator. The top banner
 appears only for active uploads and sync conflicts. **Sync Center** (from the
 chip) lists waiting uploads, server conflicts, and recently synced events.
-**Sync now** bypasses retry backoff and re-queues failed rows. Forbidden,
-duplicate, and stock rejections stay as conflicts instead of silent pending.
+**Sync now** bypasses retry backoff and re-queues failed rows. Validation
+rejections (expiry, SKU, stock, forbidden) are conflicts — they do not stay in
+Waiting and they do not stop later events in the queue. Fix updates the same
+outbox payload so Retry does not resend the rejected data.
 
 ## Offline navigation
 

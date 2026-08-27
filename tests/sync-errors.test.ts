@@ -6,6 +6,9 @@ describe("isSyncBusinessConflict", () => {
     expect(isSyncBusinessConflict("Insufficient stock")).toBe(true);
     expect(isSyncBusinessConflict("Forbidden")).toBe(true);
     expect(isSyncBusinessConflict("SKU already exists")).toBe(true);
+    expect(
+      isSyncBusinessConflict("Expiry date is required when tracking expiry on initial stock"),
+    ).toBe(true);
   });
 
   it("leaves network errors as transient", () => {

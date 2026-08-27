@@ -17,6 +17,7 @@ export const PRODUCT_IMPORT_FIELD_KEYS = [
   "status",
   "tracksExpiry",
   "expiryAlertDays",
+  "expiryDate",
 ] as const;
 
 export type ProductImportFieldKey = (typeof PRODUCT_IMPORT_FIELD_KEYS)[number];
@@ -135,13 +136,27 @@ export const PRODUCT_IMPORT_FIELDS: ProductImportField[] = [
     key: "tracksExpiry",
     label: "Tracks Expiry",
     required: false,
-    synonyms: ["tracks expiry", "expiry", "expires", "dated", "has expiry"],
+    synonyms: ["tracks expiry", "track expiry", "expires", "dated", "has expiry"],
   },
   {
     key: "expiryAlertDays",
     label: "Expiry Alert Days",
     required: false,
     synonyms: ["expiry alert days", "alert days", "expiry days"],
+  },
+  {
+    key: "expiryDate",
+    label: "Expiry Date",
+    required: false,
+    synonyms: [
+      "expiry date",
+      "expiration date",
+      "best before",
+      "best before date",
+      "bbd",
+      "expiry",
+      "expires on",
+    ],
   },
 ];
 
