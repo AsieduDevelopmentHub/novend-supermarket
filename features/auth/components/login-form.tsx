@@ -116,17 +116,19 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     }
 
     redirectingRef.current = true;
-    setOpeningWorkspace(true);
-    navigateAfterLogin(
-      withBootMarker(
-        resolvePostAuthPath({
-          isPlatformAdmin: false,
-          needsOnboarding: false,
-          needsProfile: false,
-        }),
-      ),
-      router,
-    );
+    queueMicrotask(() => {
+      setOpeningWorkspace(true);
+      navigateAfterLogin(
+        withBootMarker(
+          resolvePostAuthPath({
+            isPlatformAdmin: false,
+            needsOnboarding: false,
+            needsProfile: false,
+          }),
+        ),
+        router,
+      );
+    });
   }, [online, fromBoot, isAuthenticated, authLoading, pending, router]);
 
   // Already signed in without submitting credentials.
@@ -134,11 +136,13 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   useEffect(() => {
     if (!isAuthenticated || authLoading || redirectingRef.current || pending) return;
     redirectingRef.current = true;
-    setOpeningWorkspace(true);
-    void (async () => {
-      const path = await resolvePostLoginPath(convex);
-      navigateAfterLogin(withBootMarker(path), router);
-    })();
+    queueMicrotask(() => {
+      setOpeningWorkspace(true);
+      void (async () => {
+        const path = await resolvePostLoginPath(convex);
+        navigateAfterLogin(withBootMarker(path), router);
+      })();
+    });
   }, [isAuthenticated, authLoading, convex, router, pending, fromBoot]);
 
   async function onSubmit(event: FormEvent) {

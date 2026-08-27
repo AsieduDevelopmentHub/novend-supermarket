@@ -73,7 +73,9 @@ export function DraggableCartFab({
   } | null>(null);
 
   useEffect(() => {
-    setPosition(readStoredPosition(bottomInsetPx));
+    queueMicrotask(() => {
+      setPosition(readStoredPosition(bottomInsetPx));
+    });
   }, [bottomInsetPx]);
 
   useEffect(() => {

@@ -197,12 +197,14 @@ export function SalesView() {
   useEffect(() => {
     if (!cashierId || !workingBranchId) return;
     const draft = readCartDraft(cashierId, workingBranchId);
-    setCart((draft?.items as CartItem[] | undefined) ?? []);
-    setDiscountMode(draft?.discountMode ?? "amount");
-    setDiscountField(draft?.discountField ?? 0);
-    setCustomer(draft?.customer ?? null);
-    setQtyDrafts({});
-    setHydratedCartScope(`${cashierId}:${workingBranchId}`);
+    queueMicrotask(() => {
+      setCart((draft?.items as CartItem[] | undefined) ?? []);
+      setDiscountMode(draft?.discountMode ?? "amount");
+      setDiscountField(draft?.discountField ?? 0);
+      setCustomer(draft?.customer ?? null);
+      setQtyDrafts({});
+      setHydratedCartScope(`${cashierId}:${workingBranchId}`);
+    });
   }, [cashierId, workingBranchId]);
 
   useEffect(() => {
