@@ -1,5 +1,6 @@
 import { getMeta, getOfflineDb, META_KEYS } from "./db";
 import { productMatchesQuery } from "./barcode-lookup";
+import { dedupeByProductId } from "./replica-dedupe";
 import {
   branchStockMapForBranch,
   branchStockMapOrgWide,
@@ -127,6 +128,7 @@ export async function listMirroredCustomers(options?: {
     db.orders.toArray(),
   ]);
 
+  const mirroredIds = new Set(mirroredOrders.map((o) => o.id));
   return customers
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((c) => {
@@ -141,7 +143,12 @@ export async function listMirroredCustomers(options?: {
       }
       const related = [
         ...mirroredOrders.filter((o) => o.customerId === c.id),
-        ...localSales.filter((s) => s.customerId === c.id),
+        ...localSales.filter(
+          (s) =>
+            s.customerId === c.id &&
+            s.syncStatus !== "synced" &&
+            !(s.serverSaleId && mirroredIds.has(s.serverSaleId)),
+        ),
       ].sort((a, b) => b.completedAt - a.completedAt);
       const last = related[0];
       return {
@@ -365,7 +372,7 @@ export async function listMirroredWholesaleStock(search?: string) {
   } else {
     rows = withBarcode;
   }
-  return rows
+  return dedupeByProductId(rows)
     .map((row) => ({ ...row, value: row.quantity * row.costPrice }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -460,6 +467,7 @@ export async function listMirroredReturns(options?: {
   if (!db) return [];
   const mirrored = await db.returns.toArray();
   const local = await db.localReturns.toArray();
+  const mirroredIds = new Set(mirrored.map((row) => row.id));
   let rows = [
     ...mirrored.map((row) => ({
       id: row.id,
@@ -478,7 +486,11 @@ export async function listMirroredReturns(options?: {
       status: row.status ?? "completed",
     })),
     ...local
-      .filter((row) => row.syncStatus !== "synced")
+      .filter(
+        (row) =>
+          row.syncStatus !== "synced" &&
+          !(row.serverReturnId && mirroredIds.has(row.serverReturnId)),
+      )
       .map((row) => ({
         id: row.id,
         returnNumber: row.returnNumber,

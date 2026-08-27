@@ -38,7 +38,7 @@ import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useNativeShell } from "@/hooks/use-native-shell";
-import { getMeta, getOfflineDb, META_KEYS } from "@/lib/offline/db";
+import { getMeta, getOfflineDb, META_KEYS, newClientId } from "@/lib/offline/db";
 import { cn } from "@/lib/utils";
 import {
   completeSaleLocally,
@@ -483,7 +483,10 @@ export function SalesView() {
     };
     try {
       if (online) {
-        const result = await completeSaleRemote(saleInput);
+        const result = await completeSaleRemote({
+          ...saleInput,
+          clientOperationId: newClientId("sale"),
+        });
         const receipt = result.receiptPayload as ReceiptPayload;
         await mirrorCompletedSale({
           saleId: String(result.saleId),

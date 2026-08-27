@@ -320,18 +320,21 @@ export const completeSale = mutation({
         .unique();
       if (existing) {
         const sale = await ctx.db.get(existing.saleId);
+        if (!sale || sale.organizationId !== profile.organizationId) {
+          throw new Error("This sale was already submitted and cannot be created again");
+        }
         const receipt = await ctx.db
           .query("receipts")
           .withIndex("by_sale", (q) => q.eq("saleId", existing.saleId))
           .unique();
-        if (sale && receipt) {
-          return {
-            saleId: sale._id,
-            invoiceNumber: sale.invoiceNumber,
-            total: sale.total,
-            receiptPayload: JSON.parse(receipt.payload) as unknown,
-          };
-        }
+        return {
+          saleId: sale._id,
+          invoiceNumber: sale.invoiceNumber,
+          total: sale.total,
+          receiptPayload: receipt
+            ? (JSON.parse(receipt.payload) as unknown)
+            : { invoiceNumber: sale.invoiceNumber, saleId: sale._id, total: sale.total },
+        };
       }
     }
 

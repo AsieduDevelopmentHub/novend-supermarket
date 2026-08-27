@@ -111,11 +111,12 @@ export type QueuedMutators = {
     notes?: string;
     status: "active" | "inactive";
   }) => Promise<Id<"suppliers">>;
-  recordPurchase: (args: RecordWholesalePurchasePayload) => Promise<unknown>;
+  recordPurchase: (args: RecordWholesalePurchasePayload & { clientOperationId?: string }) => Promise<unknown>;
   transferToBranch: (args: {
     productId: Id<"products">;
     branchId: Id<"branches">;
     quantity: number;
+    clientOperationId?: string;
   }) => Promise<unknown>;
   adjustStock: (args: AdjustStockPayload) => Promise<unknown>;
   transferStock: (args: TransferStockPayload) => Promise<unknown>;
@@ -319,6 +320,9 @@ export async function drainOutbox(options: {
               notes: payload.notes,
             });
             await replaceIdInPendingOutbox(db, payload.localId, id);
+            if (payload.localId.startsWith("local_")) {
+              await db.suppliers.delete(payload.localId);
+            }
           }
           await markOutboxSynced(db, claimed.id);
           processed += 1;
@@ -328,7 +332,11 @@ export async function drainOutbox(options: {
           await options.mutators.recordPurchase({
             ...payload,
             supplierId: payload.supplierId,
+            clientOperationId: claimed.clientOperationId,
           });
+          if (payload.localId.startsWith("local_")) {
+            await db.wholesalePurchases.delete(payload.localId);
+          }
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;
@@ -338,19 +346,29 @@ export async function drainOutbox(options: {
             productId: payload.productId as Id<"products">,
             branchId: payload.branchId as Id<"branches">,
             quantity: payload.quantity,
+            clientOperationId: claimed.clientOperationId,
           });
+          if (payload.localId.startsWith("local_")) {
+            await db.wholesaleTransfers.delete(payload.localId);
+          }
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "adjust_stock") {
           const payload = JSON.parse(claimed.payloadJson) as AdjustStockPayload;
-          await options.mutators.adjustStock(payload);
+          await options.mutators.adjustStock({
+            ...payload,
+            clientOperationId: claimed.clientOperationId,
+          });
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "transfer_stock") {
           const payload = JSON.parse(claimed.payloadJson) as TransferStockPayload;
-          await options.mutators.transferStock(payload);
+          await options.mutators.transferStock({
+            ...payload,
+            clientOperationId: claimed.clientOperationId,
+          });
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;
@@ -373,13 +391,22 @@ export async function drainOutbox(options: {
               notes: payload.notes,
             });
             await replaceIdInPendingOutbox(db, payload.localId, id);
+            if (payload.localId.startsWith("local_")) {
+              await db.customers.delete(payload.localId);
+            }
           }
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "create_expense") {
           const payload = JSON.parse(claimed.payloadJson) as CreateExpensePayload;
-          await options.mutators.createExpense(payload);
+          await options.mutators.createExpense({
+            ...payload,
+            clientOperationId: claimed.clientOperationId,
+          });
+          if (payload.localId.startsWith("local_")) {
+            await db.expenses.delete(payload.localId);
+          }
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;

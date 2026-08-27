@@ -169,6 +169,7 @@ export async function buildLocalAnalyticsSummary(args: {
     localSales,
     orderItems,
     localSaleItems,
+    mirroredReturns,
     localReturns,
     localReturnItems,
     expenses,
@@ -178,6 +179,7 @@ export async function buildLocalAnalyticsSummary(args: {
     db.localSales.toArray(),
     db.orderItems.toArray(),
     db.localSaleItems.toArray(),
+    db.returns.toArray(),
     db.localReturns.toArray(),
     db.localReturnItems.toArray(),
     db.expenses.toArray(),
@@ -236,7 +238,22 @@ export async function buildLocalAnalyticsSummary(args: {
   }
 
   const returns: ReturnRow[] = [];
+  const mirroredReturnIds = new Set<string>();
+  for (const row of mirroredReturns) {
+    if (row.completedAt < args.startDate || row.completedAt > args.endDate) continue;
+    if (args.branchId && row.branchId && row.branchId !== args.branchId) continue;
+    mirroredReturnIds.add(row.id);
+    returns.push({
+      id: row.id,
+      refundAmount: row.refundAmount,
+      itemCount: row.itemCount,
+      completedAt: row.completedAt,
+      branchId: row.branchId,
+    });
+  }
   for (const row of localReturns) {
+    if (row.syncStatus === "synced") continue;
+    if (row.serverReturnId && mirroredReturnIds.has(row.serverReturnId)) continue;
     if (row.completedAt < args.startDate || row.completedAt > args.endDate) continue;
     if (args.branchId) {
       const mirrored = mirroredOrders.find((order) => order.id === row.saleId);
@@ -537,6 +554,9 @@ export async function buildLocalAnalyticsDetails(args: {
   }
   for (const row of localReturns) {
     if (row.syncStatus === "synced") continue;
+    if (row.serverReturnId && returns.some((existing) => existing.id === row.serverReturnId)) {
+      continue;
+    }
     if (row.completedAt < args.startDate || row.completedAt > args.endDate) continue;
     const mirrored = mirroredOrders.find((order) => order.id === row.saleId);
     const local = localSales.find(

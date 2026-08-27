@@ -357,6 +357,7 @@ export type RecordWholesalePurchasePayload = {
   invoiceNumber?: string;
   purchasedAt: number;
   notes?: string;
+  clientOperationId?: string;
   items: Array<{
     productId: string;
     quantity: number;
@@ -370,6 +371,7 @@ export type WholesaleTransferPayload = {
   productId: string;
   branchId: string;
   quantity: number;
+  clientOperationId?: string;
 };
 
 export type AdjustStockPayload = {
@@ -379,6 +381,7 @@ export type AdjustStockPayload = {
   reason: "receive" | "adjustment" | "damage" | "return";
   note?: string;
   expiryDate?: string;
+  clientOperationId?: string;
 };
 
 export type TransferStockPayload = {
@@ -387,6 +390,7 @@ export type TransferStockPayload = {
   toBranchId: string;
   quantity: number;
   note?: string;
+  clientOperationId?: string;
 };
 
 export type UpsertCustomerPayload = {
@@ -406,6 +410,7 @@ export type CreateExpensePayload = {
   occurredAt: number;
   description?: string;
   branchId: string;
+  clientOperationId?: string;
 };
 
 export type RemoveExpensePayload = {

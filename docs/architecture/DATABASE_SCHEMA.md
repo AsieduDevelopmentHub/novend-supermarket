@@ -1,6 +1,6 @@
 # Database Schema
 
-Version: 1.0.0
+Version: 1.1.0
 
 Defined in `convex/schema.ts`. See also [`MULTI_TENANT.md`](./MULTI_TENANT.md).
 
@@ -29,6 +29,8 @@ or drive hot queries **start with** `organizationId`.
 - `customers` — organization-wide
 - `sales` / `saleItems` / `saleItemLots` — immutable completed transactions
 - `saleClientOps` — idempotency keys for `completeSale`
+- `saleReturnClientOps` — idempotency keys for `processReturn`
+- `mutationClientOps` — idempotency keys for wholesale, inventory, expenses, and other outbox mutations
 - `heldSales` — suspended carts
 - `receipts` — immutable JSON payloads
 - `settings` — key/value per organization

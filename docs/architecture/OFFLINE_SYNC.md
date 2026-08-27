@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.4
+Version: 2.4.5
 
 ## Purpose
 
@@ -92,7 +92,14 @@ sales, returns, reports, and analytics all continue on the device.
 
 Queue order + server validation. Inventory cannot become negative on Convex.
 Cashiers resolve failed syncs (retry or discard). Local `local_*` ids are
-remapped after creates succeed.
+remapped after creates succeed. Snapshot merge keeps only **pending** `local_*`
+rows so a synced wholesale purchase, expense, or supplier is not shown beside
+the server row.
+
+Outbox retries are idempotent: sales and returns use `saleClientOps` /
+`saleReturnClientOps`; wholesale, inventory, and expenses use
+`mutationClientOps` keyed by `(organizationId, clientOperationId)`. Online
+checkout also sends `clientOperationId` so a retried Pay is one sale.
 
 The sidebar chip is the only always-on offline indicator. The top banner
 appears only for active uploads and sync conflicts. **Sync Center** (from the
