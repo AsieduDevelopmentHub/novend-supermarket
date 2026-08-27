@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.11
+Version: 2.4.12
 
 ## Purpose
 
@@ -106,7 +106,9 @@ the server row.
 Outbox retries are idempotent: sales and returns use `saleClientOps` /
 `saleReturnClientOps`; wholesale, inventory, and expenses use
 `mutationClientOps` keyed by `(organizationId, clientOperationId)`. Online
-checkout also sends `clientOperationId` so a retried Pay is one sale. A wholesale
+checkout also sends `clientOperationId` so a retried Pay is one sale. The
+invoice (or return number) printed at checkout is sent on the outbox event and
+stored as the Convex invoice — sync must not mint a second number. A wholesale
 purchase that creates a product waits for the product outbox row to sync (local
 ids are remapped) before the purchase mutation runs.
 

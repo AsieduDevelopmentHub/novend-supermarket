@@ -15,14 +15,19 @@ function row(partial: Partial<OutboxRow> & Pick<OutboxRow, "type" | "payloadJson
 }
 
 describe("describeOutboxEvent", () => {
-  it("labels a sale with customer and payment", () => {
+  it("labels a sale with invoice, customer, and payment", () => {
     const copy = describeOutboxEvent(
       row({
         type: "complete_sale",
-        payloadJson: JSON.stringify({ customerName: "Ama", paymentMethod: "mobile_money" }),
+        payloadJson: JSON.stringify({
+          invoiceNumber: "INV-AABBCCDDEEFF0011",
+          customerName: "Ama",
+          paymentMethod: "mobile_money",
+        }),
       }),
     );
     expect(copy.title).toBe("Sale");
+    expect(copy.detail).toMatch(/INV-AABBCCDDEEFF0011/);
     expect(copy.detail).toMatch(/Ama/);
     expect(copy.detail).toMatch(/mobile money/);
   });

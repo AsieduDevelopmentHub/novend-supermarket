@@ -1,6 +1,7 @@
 import { MutationCtx, QueryCtx } from "../_generated/server";
 import { Doc, Id } from "../_generated/dataModel";
 import { roundMoney } from "./validation";
+import { allocateReturnNumber, sanitizeReturnNumber } from "./documentReferences";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -108,14 +109,25 @@ export async function loadReturnedLotQty(ctx: Ctx, saleItemId: Id<"saleItems">) 
   return byLot;
 }
 
-export async function nextReturnNumber(ctx: MutationCtx) {
+async function returnNumberTaken(ctx: MutationCtx, returnNumber: string) {
+  const existing = await ctx.db
+    .query("saleReturns")
+    .withIndex("by_returnNumber", (q) => q.eq("returnNumber", returnNumber))
+    .unique();
+  return existing !== null;
+}
+
+export async function nextReturnNumber(ctx: MutationCtx, requested?: string) {
+  if (requested?.trim()) {
+    const returnNumber = sanitizeReturnNumber(requested);
+    if (await returnNumberTaken(ctx, returnNumber)) {
+      throw new Error("This return number is already used");
+    }
+    return returnNumber;
+  }
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const reference = `RET-${crypto.randomUUID().replaceAll("-", "").slice(0, 16).toUpperCase()}`;
-    const existing = await ctx.db
-      .query("saleReturns")
-      .withIndex("by_returnNumber", (q) => q.eq("returnNumber", reference))
-      .unique();
-    if (!existing) return reference;
+    const reference = allocateReturnNumber();
+    if (!(await returnNumberTaken(ctx, reference))) return reference;
   }
   throw new Error("Could not allocate a unique return reference");
 }

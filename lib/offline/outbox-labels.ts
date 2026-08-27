@@ -66,13 +66,18 @@ export function describeOutboxEvent(row: OutboxRow): { title: string; detail: st
   if (row.type === "complete_sale") {
     const customer = text(payload.customerName);
     const method = text(payload.paymentMethod)?.replace(/_/g, " ");
+    const invoice = text(payload.invoiceNumber);
     return {
       title,
-      detail: [customer, method].filter(Boolean).join(" · ") || "Checkout waiting to upload",
+      detail:
+        [invoice, customer, method].filter(Boolean).join(" · ") || "Checkout waiting to upload",
     };
   }
   if (row.type === "process_return") {
-    return { title, detail: text(payload.reason) ?? "Return waiting to upload" };
+    return {
+      title,
+      detail: text(payload.returnNumber) ?? text(payload.reason) ?? "Return waiting to upload",
+    };
   }
   if (
     row.type === "upsert_supplier" ||

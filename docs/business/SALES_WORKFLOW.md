@@ -1,6 +1,6 @@
 # Sales Workflow
 
-Version: 1.1.2
+Version: 1.1.3
 
 Cashier POS: build a cart, optional customer, Hold or Pay. Completed sales are
 immutable and print a receipt.
@@ -18,6 +18,7 @@ immutable and print a receipt.
 - Completed sales are immutable
 - Hold stores the cart; inventory is not reduced until checkout
 - Offline checkout writes Dexie + outbox, then syncs with `clientOperationId`
+- The invoice printed on the receipt is the permanent invoice number (sync does not replace it)
 - The working cart (items, discount, customer) is kept in the tab per cashier
   and branch so leaving Sales and returning restores it. Checkout, hold, and
   sign-out clear it.

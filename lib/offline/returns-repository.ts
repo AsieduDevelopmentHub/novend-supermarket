@@ -1,5 +1,6 @@
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { getMeta, getOfflineDb, META_KEYS, newClientId, type NovendOfflineDb } from "./db";
+import { allocateReturnNumber } from "@/convex/shared/documentReferences";
 import { applyLocalBranchStockChange } from "./branch-stock";
 import { enqueueProcessReturn } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
@@ -116,8 +117,7 @@ export async function processReturnLocally(input: {
   const now = Date.now();
   const clientOperationId = newClientId("ret");
   const localReturnId = newClientId("lret");
-  const short = clientOperationId.replace(/-/g, "").slice(0, 6).toUpperCase();
-  const returnNumber = `RET-OFF-${short}`;
+  const returnNumber = allocateReturnNumber();
   const cashierName = (await getMeta(db, META_KEYS.profileName)) ?? "Cashier";
   const snapshot = await loadPrintSnapshot(db);
   const order = await db.orders.get(input.saleId);
@@ -193,6 +193,7 @@ export async function processReturnLocally(input: {
       await enqueueProcessReturn(db, clientOperationId, {
         localReturnId,
         saleId: input.saleId,
+        returnNumber,
         reason: input.reason,
         notes: input.notes,
         items: input.items.map((item) => ({
@@ -215,12 +216,19 @@ export async function markLocalReturnSynced(
   if (!db) return;
   const row = await db.localReturns.get(localReturnId);
   if (!row) return;
+  const returnNumber = row.returnNumber;
+  const stamped =
+    result.receiptPayload &&
+    typeof result.receiptPayload === "object" &&
+    !Array.isArray(result.receiptPayload)
+      ? { ...result.receiptPayload, returnNumber, invoiceNumber: returnNumber }
+      : result.receiptPayload;
   await db.localReturns.put({
     ...row,
     serverReturnId: result.returnId,
-    returnNumber: result.returnNumber,
+    returnNumber,
     syncStatus: "synced",
-    payloadJson: JSON.stringify(result.receiptPayload),
+    payloadJson: JSON.stringify(stamped),
     lastError: undefined,
   });
 }

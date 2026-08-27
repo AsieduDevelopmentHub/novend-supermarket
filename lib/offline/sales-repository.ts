@@ -32,6 +32,13 @@ function roundMoney(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+function stampPrintedInvoice(payload: unknown, invoiceNumber: string): unknown {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    return { ...payload, invoiceNumber };
+  }
+  return payload;
+}
+
 async function loadPrintSnapshot(db: NovendOfflineDb): Promise<PrintSnapshot> {
   const raw = await getMeta(db, META_KEYS.printSnapshot);
   if (raw) {
@@ -64,7 +71,7 @@ async function loadPrintSnapshot(db: NovendOfflineDb): Promise<PrintSnapshot> {
   };
 }
 
-/** Apply a completed sale locally + enqueue outbox op. Returns provisional receipt. */
+/** Apply a completed sale locally + enqueue outbox op. Receipt invoice is canonical. */
 export async function completeSaleLocally(input: {
   items: CartLineInput[];
   discount: number;
@@ -98,7 +105,7 @@ export async function completeSaleLocally(input: {
   const print = await loadPrintSnapshot(db);
   const clientOperationId = newClientId("sale");
   const localSaleId = newClientId("lsale");
-  const invoiceNumber = await nextProvisionalInvoice(db);
+  const invoiceNumber = nextProvisionalInvoice();
   const completedAt = Date.now();
 
   const lines: LocalSaleItem[] = [];
@@ -228,6 +235,7 @@ export async function completeSaleLocally(input: {
 
       const payload: CompleteSaleOutboxPayload = {
         localSaleId,
+        invoiceNumber,
         customerId: input.customerId,
         customerName,
         items: input.items.map((i) => ({
@@ -308,19 +316,22 @@ export async function markLocalSaleSynced(
   await db.transaction("rw", db.localSales, db.localReceipts, async () => {
     const sale = await db.localSales.get(localSaleId);
     if (!sale) return;
+    const invoiceNumber = sale.invoiceNumber.toUpperCase().startsWith("INV-")
+      ? sale.invoiceNumber
+      : result.invoiceNumber;
     await db.localSales.put({
       ...sale,
       syncStatus: "synced",
       serverSaleId: result.saleId,
-      invoiceNumber: result.invoiceNumber,
+      invoiceNumber,
       lastError: undefined,
     });
     const receipt = await db.localReceipts.where("localSaleId").equals(localSaleId).first();
     if (receipt) {
       await db.localReceipts.put({
         ...receipt,
-        invoiceNumber: result.invoiceNumber,
-        payloadJson: JSON.stringify(result.receiptPayload),
+        invoiceNumber,
+        payloadJson: JSON.stringify(stampPrintedInvoice(result.receiptPayload, invoiceNumber)),
       });
     }
   });
