@@ -1,6 +1,6 @@
 {
   "name": "@novend/mobile",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "private": true,
   "description": "Novend POS Capacitor shell (Android / iOS) — loads the shared hosted Next.js app",
   "scripts": {

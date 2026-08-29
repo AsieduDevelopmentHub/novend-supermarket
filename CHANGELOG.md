@@ -8,6 +8,21 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.10 — 2026-08-29
+
+Android APK and Convex mobile updates only. Desktop installers stay on v0.3.8 until the next full (`targets: all`) product release.
+
+### Added
+
+- Role-aware **product tours** (Driver.js) with Convex progress, a local Dexie mirror, and replay from Settings → Help, About, and the account menu.
+- Super Admin **platform monitoring**: privacy-first telemetry (90-day raw events + durable rollups), runtime mix (Web / PWA / Electron / Android / iOS), download tracking, activity, and branded PDF / Excel / CSV exports. Super Admin bypasses tenant plan export gates; jobs are audited.
+
+### Changed
+
+- Super Admin navigation consolidates into Executive dashboard, Monitoring, Activity, Exports, and Organizations. Revenue / subscriptions / health routes now open Monitoring.
+
+---
+
 ## v0.3.9 — 2026-08-27
 
 Android APK and Convex mobile updates only. Desktop installers stay on v0.3.8 until the next full (`targets: all`) product release.
