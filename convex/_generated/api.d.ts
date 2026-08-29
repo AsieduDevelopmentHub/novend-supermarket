@@ -31,6 +31,7 @@ import type * as organizations from "../organizations.js";
 import type * as passwordReset from "../passwordReset.js";
 import type * as platform from "../platform.js";
 import type * as platformAnalytics from "../platformAnalytics.js";
+import type * as platformMonitoring from "../platformMonitoring.js";
 import type * as products from "../products.js";
 import type * as profiles from "../profiles.js";
 import type * as reports from "../reports.js";
@@ -61,6 +62,7 @@ import type * as shared_paystack from "../shared/paystack.js";
 import type * as shared_permissions from "../shared/permissions.js";
 import type * as shared_planChange from "../shared/planChange.js";
 import type * as shared_plans from "../shared/plans.js";
+import type * as shared_platformTelemetry from "../shared/platformTelemetry.js";
 import type * as shared_presence from "../shared/presence.js";
 import type * as shared_provisionOrganization from "../shared/provisionOrganization.js";
 import type * as shared_returns from "../shared/returns.js";
@@ -71,6 +73,8 @@ import type * as shared_transactionalEmail from "../shared/transactionalEmail.js
 import type * as shared_validation from "../shared/validation.js";
 import type * as storageUploads from "../storageUploads.js";
 import type * as suppliers from "../suppliers.js";
+import type * as telemetry from "../telemetry.js";
+import type * as tours from "../tours.js";
 import type * as users from "../users.js";
 import type * as wholesale from "../wholesale.js";
 
@@ -104,6 +108,7 @@ declare const fullApi: ApiFromModules<{
   passwordReset: typeof passwordReset;
   platform: typeof platform;
   platformAnalytics: typeof platformAnalytics;
+  platformMonitoring: typeof platformMonitoring;
   products: typeof products;
   profiles: typeof profiles;
   reports: typeof reports;
@@ -134,6 +139,7 @@ declare const fullApi: ApiFromModules<{
   "shared/permissions": typeof shared_permissions;
   "shared/planChange": typeof shared_planChange;
   "shared/plans": typeof shared_plans;
+  "shared/platformTelemetry": typeof shared_platformTelemetry;
   "shared/presence": typeof shared_presence;
   "shared/provisionOrganization": typeof shared_provisionOrganization;
   "shared/returns": typeof shared_returns;
@@ -144,6 +150,8 @@ declare const fullApi: ApiFromModules<{
   "shared/validation": typeof shared_validation;
   storageUploads: typeof storageUploads;
   suppliers: typeof suppliers;
+  telemetry: typeof telemetry;
+  tours: typeof tours;
   users: typeof users;
   wholesale: typeof wholesale;
 }>;

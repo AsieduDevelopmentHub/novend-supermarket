@@ -11,6 +11,13 @@ Tag v* -> GitHub Actions builds Android APK (default)
         {CONVEX_SITE_URL}/mobile-updates/...
 ```
 
+## Download monitoring
+
+Mobile update checks and asset redirects record privacy-limited platform events
+before returning metadata or the GitHub redirect. Asset groups distinguish APK,
+AAB, and IPA files. A telemetry failure never blocks download or update checks.
+Historical GitHub asset totals can be imported once from Platform Exports.
+
 ## Convex environment
 
 Mobile publishing reuses the desktop release secrets:

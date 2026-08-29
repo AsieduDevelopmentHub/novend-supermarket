@@ -12,6 +12,7 @@
 
 import { APP_VERSION } from "@/constants/app";
 import { formatOperatingSystem, getDesktopBridge, isDesktopRuntime } from "@/lib/desktop";
+import { isStandaloneWebApp } from "@/lib/device-install";
 import { Hardware, getPlatform, isCapacitor } from "@novend/hardware";
 
 const FINGERPRINT_KEY = "novend.device.fingerprint";
@@ -19,14 +20,24 @@ const FINGERPRINT_KEY_CAP = "novend.device.fingerprint.native";
 const NAME_KEY = "novend.device.name";
 
 export type DeviceRuntime = "desktop" | "web" | "android" | "ios";
+export type DeviceDeliveryMode = "browser" | "pwa" | "electron" | "capacitor";
 
 export type DeviceIdentity = {
   fingerprint: string;
   name: string;
   platform: string;
   runtime: DeviceRuntime;
+  deliveryMode: DeviceDeliveryMode;
   appVersion?: string;
 };
+
+export function telemetryRuntimeForDevice(identity: DeviceIdentity) {
+  if (identity.runtime === "desktop") return "electron" as const;
+  if (identity.runtime === "web") {
+    return identity.deliveryMode === "pwa" ? ("pwa" as const) : ("web" as const);
+  }
+  return identity.runtime;
+}
 
 function randomId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -143,6 +154,7 @@ export async function describeClientDevice(): Promise<DeviceIdentity> {
       name: stored ?? `${platform} terminal`,
       platform,
       runtime: "desktop",
+      deliveryMode: "electron",
       appVersion,
     };
   }
@@ -169,6 +181,7 @@ export async function describeClientDevice(): Promise<DeviceIdentity> {
       name,
       platform,
       runtime,
+      deliveryMode: "capacitor",
       appVersion,
     };
   }
@@ -179,6 +192,7 @@ export async function describeClientDevice(): Promise<DeviceIdentity> {
     name: stored ?? `${detectBrowserName(userAgent)} on ${platform}`,
     platform,
     runtime: "web",
+    deliveryMode: isStandaloneWebApp() ? "pwa" : "browser",
     appVersion: APP_VERSION,
   };
 }

@@ -21,4 +21,11 @@ crons.interval(
   {},
 );
 
+crons.daily(
+  "platform telemetry retention",
+  { hourUTC: 3, minuteUTC: 0 },
+  internal.telemetry.maintenance,
+  {},
+);
+
 export default crons;

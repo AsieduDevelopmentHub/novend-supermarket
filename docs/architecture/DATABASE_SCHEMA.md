@@ -1,6 +1,6 @@
 # Database Schema
 
-Version: 1.1.4
+Version: 1.2.0
 
 Defined in `convex/schema.ts`. See also [`MULTI_TENANT.md`](./MULTI_TENANT.md).
 
@@ -42,6 +42,11 @@ or drive hot queries **start with** `organizationId`.
 - `importMappings` — saved product column mappings per organization
 - `exportEvents` — export format usage for Super Admin (not a billed quota). Visible per organization on the platform org screens.
 - `auditLogs` — traceability
+- `platformEvents` — 90-day privacy-limited product and operational telemetry
+- `platformDailyActiveUsers` — one pseudonymous active-user row per UTC day
+- `platformDailyRollups` — durable Super Admin monitoring aggregates
+- `releaseDownloadBaselines` — immutable historical GitHub asset totals
+- `userTourProgress` — versioned, user-owned onboarding progress
 - `loginAttempts` — brute-force protection
 
 Reports are derived queries, not a dedicated table.

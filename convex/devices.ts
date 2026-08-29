@@ -12,6 +12,12 @@ const runtimeValidator = v.union(
   v.literal("android"),
   v.literal("ios"),
 );
+const deliveryModeValidator = v.union(
+  v.literal("browser"),
+  v.literal("pwa"),
+  v.literal("electron"),
+  v.literal("capacitor"),
+);
 
 function requireFingerprint(value: string) {
   const fingerprint = value.trim();
@@ -41,6 +47,7 @@ export const registerDevice = mutation({
     name: v.string(),
     platform: v.string(),
     runtime: runtimeValidator,
+    deliveryMode: deliveryModeValidator,
     appVersion: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -79,6 +86,7 @@ export const registerDevice = mutation({
         ...(runtimeChanged || browserAutoName ? { name } : {}),
         platform,
         runtime: args.runtime,
+        deliveryMode: args.deliveryMode,
         appVersion: args.appVersion?.slice(0, 32),
         lastSeenAt: now,
         isActive: true,
@@ -98,6 +106,7 @@ export const registerDevice = mutation({
       fingerprint,
       platform,
       runtime: args.runtime,
+      deliveryMode: args.deliveryMode,
       appVersion: args.appVersion?.slice(0, 32),
       registeredAt: now,
       lastSeenAt: now,
@@ -110,7 +119,7 @@ export const registerDevice = mutation({
       action: "device_registered",
       entityType: "devices",
       entityId: deviceId,
-      metadata: { platform, runtime: args.runtime },
+      metadata: { platform, runtime: args.runtime, deliveryMode: args.deliveryMode },
     });
 
     return { deviceId, created: true as const };
@@ -171,6 +180,13 @@ export const listDevices = query({
           name: device.name,
           platform: device.platform,
           runtime: device.runtime,
+          deliveryMode:
+            device.deliveryMode ??
+            (device.runtime === "desktop"
+              ? "electron"
+              : device.runtime === "web"
+                ? "browser"
+                : "capacitor"),
           appVersion: device.appVersion ?? null,
           registeredAt: device.registeredAt,
           lastSeenAt: device.lastSeenAt,

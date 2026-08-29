@@ -1,4 +1,5 @@
 ﻿@import "tailwindcss";
+@import "driver.js/dist/driver.css";
 
 /* Class-based dark only — never follow OS prefers-color-scheme. */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -267,6 +268,48 @@
   opacity: 1;
   background: color-mix(in oklab, currentColor 12%, transparent) !important;
   border-color: transparent !important;
+}
+
+/* Product tours inherit Novend tokens instead of Driver.js defaults. */
+.driver-popover.novend-product-tour {
+  max-width: min(22rem, calc(100vw - 2rem));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-xl);
+}
+
+.driver-popover.novend-product-tour .driver-popover-title {
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.driver-popover.novend-product-tour .driver-popover-description,
+.driver-popover.novend-product-tour .driver-popover-progress-text {
+  color: var(--muted-foreground);
+}
+
+.driver-popover.novend-product-tour button {
+  min-height: 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  text-shadow: none;
+}
+
+.driver-popover.novend-product-tour .driver-popover-next-btn {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.driver-popover.novend-product-tour button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 @keyframes splash-in {

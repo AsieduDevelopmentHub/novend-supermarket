@@ -66,6 +66,30 @@ export const paymentGatewayValidator = v.union(
   v.literal("manual"),
 );
 
+export const telemetryRuntimeValidator = v.union(
+  v.literal("web"),
+  v.literal("pwa"),
+  v.literal("electron"),
+  v.literal("android"),
+  v.literal("ios"),
+);
+
+export const telemetryEventKindValidator = v.union(
+  v.literal("feature_used"),
+  v.literal("workflow_completed"),
+  v.literal("client_error"),
+  v.literal("sync_health"),
+  v.literal("release_download"),
+  v.literal("release_update_check"),
+  v.literal("platform_admin_export"),
+);
+
+export const tourStatusValidator = v.union(
+  v.literal("in_progress"),
+  v.literal("completed"),
+  v.literal("skipped"),
+);
+
 export const scheduledChangeValidator = v.object({
   type: v.literal("downgrade"),
   targetPlanKey: planKeyValidator,
@@ -222,6 +246,14 @@ export default defineSchema({
       v.literal("web"),
       v.literal("android"),
       v.literal("ios"),
+    ),
+    deliveryMode: v.optional(
+      v.union(
+        v.literal("browser"),
+        v.literal("pwa"),
+        v.literal("electron"),
+        v.literal("capacitor"),
+      ),
     ),
     appVersion: v.optional(v.string()),
     registeredAt: v.number(),
@@ -755,6 +787,86 @@ export default defineSchema({
     .index("by_organization", ["organizationId"])
     .index("by_actor", ["actorId"])
     .index("by_createdAt", ["createdAt"]),
+
+  /**
+   * Privacy-limited product and operational telemetry. Values are selected from
+   * server allowlists; business payloads, network addresses, and user agents are
+   * never stored here. Raw rows are retained for 90 days.
+   */
+  platformEvents: defineTable({
+    organizationId: v.optional(v.id("organizations")),
+    actorId: v.optional(v.id("users")),
+    kind: telemetryEventKindValidator,
+    feature: v.optional(v.string()),
+    action: v.optional(v.string()),
+    runtime: v.optional(telemetryRuntimeValidator),
+    appVersion: v.optional(v.string()),
+    releaseKind: v.optional(v.union(v.literal("desktop"), v.literal("mobile"))),
+    releaseVersion: v.optional(v.string()),
+    assetGroup: v.optional(v.string()),
+    source: v.optional(v.string()),
+    errorCode: v.optional(v.string()),
+    count: v.number(),
+    occurredAt: v.number(),
+  })
+    .index("by_kind_occurredAt", ["kind", "occurredAt"])
+    .index("by_feature_occurredAt", ["feature", "occurredAt"])
+    .index("by_organization_occurredAt", ["organizationId", "occurredAt"])
+    .index("by_occurredAt", ["occurredAt"]),
+
+  /** One pseudonymous row per user/day; deleted after the 90-day detail window. */
+  platformDailyActiveUsers: defineTable({
+    day: v.string(),
+    userId: v.id("users"),
+    organizationId: v.optional(v.id("organizations")),
+    runtime: telemetryRuntimeValidator,
+    appVersion: v.optional(v.string()),
+    firstSeenAt: v.number(),
+    lastSeenAt: v.number(),
+  })
+    .index("by_user_day", ["userId", "day"])
+    .index("by_day", ["day"])
+    .index("by_organization_day", ["organizationId", "day"]),
+
+  /** Durable aggregate series used by the Super Admin dashboard. */
+  platformDailyRollups: defineTable({
+    day: v.string(),
+    metric: v.string(),
+    dimension: v.string(),
+    value: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_day_metric_dimension", ["day", "metric", "dimension"])
+    .index("by_metric_day", ["metric", "day"]),
+
+  /** Imported GitHub totals at telemetry launch; local trends start from trackedAt. */
+  releaseDownloadBaselines: defineTable({
+    releaseKind: v.union(v.literal("desktop"), v.literal("mobile")),
+    releaseVersion: v.string(),
+    githubAssetId: v.number(),
+    fileName: v.string(),
+    assetGroup: v.string(),
+    downloadCount: v.number(),
+    trackedAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_asset", ["releaseKind", "githubAssetId"])
+    .index("by_release", ["releaseKind", "releaseVersion"]),
+
+  /** Cross-device, versioned product-tour state for tenant and platform-only users. */
+  userTourProgress: defineTable({
+    userId: v.id("users"),
+    organizationId: v.optional(v.id("organizations")),
+    tourId: v.string(),
+    version: v.number(),
+    status: tourStatusValidator,
+    lastStepId: v.optional(v.string()),
+    startedAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_user_tour", ["userId", "tourId"])
+    .index("by_user", ["userId"]),
 
   loginAttempts: defineTable({
     email: v.string(),

@@ -1,5 +1,5 @@
-import { PlatformRevenueView } from "@/features/platform/components/platform-revenue-view";
+import { PlatformMonitoringView } from "@/features/platform/components/platform-monitoring-view";
 
 export default function PlatformRevenuePage() {
-  return <PlatformRevenueView />;
+  return <PlatformMonitoringView />;
 }

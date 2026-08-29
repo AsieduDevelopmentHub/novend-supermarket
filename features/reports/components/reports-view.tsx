@@ -168,19 +168,23 @@ export function ReportsView() {
         title="Reports"
         description="Sales performance over a selected period."
         actions={
-          <ExportMenu
-            table={exportTable}
-            capabilities={capabilities}
-            planName={planName}
-            disabled={!report}
-            onExported={(format, count) => {
-              void recordExport({ kind: "reports", format, rowCount: count }).catch(() => undefined);
-            }}
-          />
+          <div data-tour="reports-export">
+            <ExportMenu
+              table={exportTable}
+              capabilities={capabilities}
+              planName={planName}
+              disabled={!report}
+              onExported={(format, count) => {
+                void recordExport({ kind: "reports", format, rowCount: count }).catch(
+                  () => undefined,
+                );
+              }}
+            />
+          </div>
         }
       />
 
-      <Card>
+      <Card data-tour="reports-range">
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="space-y-1">
             <p className="text-muted-foreground text-xs">Start</p>
@@ -219,7 +223,8 @@ export function ReportsView() {
         <LoadingState label="Generating report…" variant="cards" />
       ) : (
         <>
-          <Grid cols={4}>
+          <div data-tour="reports-summary">
+            <Grid cols={4}>
             <Kpi
               title="Gross Sales"
               value={formatCurrency(report.kpis.grossSales ?? report.kpis.totalSales)}
@@ -240,7 +245,8 @@ export function ReportsView() {
               value={formatNumber(report.kpis.totalOrders)}
               href={metricHref("orders")}
             />
-          </Grid>
+            </Grid>
+          </div>
           <Grid cols={4}>
             <Kpi
               title="Items Sold"
