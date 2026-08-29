@@ -9,6 +9,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { BiometricSecurityCard } from "@/features/settings/components/biometric-security-card";
 import { NotificationsSettingsCard } from "@/features/settings/components/notifications-settings-card";
+import { VerifyEmailDialog } from "@/features/auth/components/verify-email-dialog";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useNativeShell } from "@/hooks/use-native-shell";
 import { useCurrentUser } from "@/hooks/use-permissions";
@@ -38,7 +39,14 @@ export function SecurityPanel() {
         </>
       ) : null}
       {passwordReady ? (
-        <PasswordForm readOnly={!online} />
+        <>
+          <EmailVerificationCard
+            email={me?.email ?? null}
+            emailVerified={remote?.emailVerified === true}
+            online={online}
+          />
+          <PasswordForm readOnly={!online} />
+        </>
       ) : (
         <Card>
           <CardContent className="text-muted-foreground p-5 text-sm">
@@ -51,6 +59,37 @@ export function SecurityPanel() {
         </Card>
       )}
     </div>
+  );
+}
+
+function EmailVerificationCard({
+  email,
+  emailVerified,
+  online,
+}: {
+  email: string | null;
+  emailVerified: boolean;
+  online: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Email</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm">
+          {emailVerified ? "Your email is verified." : "Your email is not verified yet."}
+        </p>
+        {email ? <p className="text-muted-foreground text-sm">{email}</p> : null}
+        {!emailVerified ? (
+          <Button type="button" disabled={!online} onClick={() => setOpen(true)}>
+            Verify email
+          </Button>
+        ) : null}
+        <VerifyEmailDialog open={open} onOpenChange={setOpen} />
+      </CardContent>
+    </Card>
   );
 }
 

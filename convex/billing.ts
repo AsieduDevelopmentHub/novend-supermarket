@@ -649,6 +649,12 @@ export const startCheckout = action({
     if (!context.email) {
       throw new Error("Add an email address to your account before starting a payment.");
     }
+    const verification = await ctx.runQuery(internal.emailVerification.getState, {
+      userId: context.userId,
+    });
+    if (!verification.emailVerified) {
+      throw new Error("Verify your email before starting a payment.");
+    }
 
     const amount = preview.amountDueToday;
     const keepPeriod = preview.keepPeriod;

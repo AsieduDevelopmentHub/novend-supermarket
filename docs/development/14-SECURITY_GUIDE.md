@@ -25,8 +25,9 @@ Related: Convex guide, Constitution §10, `docs/architecture/MULTI_TENANT.md`
   15-minute lockout
 - Password reset is hashed, single-use, and expires in one hour
   (`/forgot-password`). Do not add a second recovery system.
-- Email verification and social login are **not** in this slice (see
-  AUTHENTICATION.md). Password remains the identity provider.
+- Email verification is a **soft**, server-owned 6-digit OTP. It does not block
+  signup, onboarding, or POS. Checkout requires a verified email. See
+  AUTHENTICATION.md. Social login is **not** in this slice.
 - `proxy.ts` enforces auth on app routes; Convex remains the API source of truth
 - First session on a device requires network; later offline refresh uses a
   cached shell profile

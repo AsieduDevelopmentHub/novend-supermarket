@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   escapeHtml,
+  renderEmailOtpEmail,
   renderPasswordChangedEmail,
   renderPasswordResetEmail,
 } from "@/convex/shared/emailTemplates";
-import { emailLogoUrl } from "@/convex/shared/transactionalEmail";
+import { EMAIL_LOGO_CONTENT_ID } from "@/convex/shared/emailLogoBase64";
 
 describe("transactional email templates", () => {
   it("renders a password-reset message with a CTA, expiry, and escaped URL", () => {
@@ -12,7 +13,6 @@ describe("transactional email templates", () => {
     const email = renderPasswordResetEmail({
       resetUrl,
       expiresInHours: 1,
-      logoUrl: "https://app.novend.app/branding/logo_horizontal_light.png",
     });
     expect(email.subject).toContain("password");
     expect(email.text).toContain(resetUrl);
@@ -21,7 +21,7 @@ describe("transactional email templates", () => {
     expect(email.html).toContain("expires in 1 hour");
     expect(email.html).toContain(escapeHtml(resetUrl));
     expect(email.html).not.toContain("<script>1");
-    expect(email.html).toContain("logo_horizontal_light.png");
+    expect(email.html).toContain(`cid:${EMAIL_LOGO_CONTENT_ID}`);
   });
 
   it("renders a password-changed notice with a recovery path", () => {
@@ -33,12 +33,15 @@ describe("transactional email templates", () => {
     expect(email.text).toContain("If you did not make this change");
     expect(email.html).toContain("/forgot-password");
     expect(email.html).toContain("Other signed-in devices were signed out");
+    expect(email.html).toContain(`cid:${EMAIL_LOGO_CONTENT_ID}`);
   });
 
-  it("does not attach a remote logo for localhost origins", () => {
-    expect(emailLogoUrl("http://localhost:3000")).toBeUndefined();
-    expect(emailLogoUrl("https://app.novend.app")).toBe(
-      "https://app.novend.app/branding/logo_horizontal_light.png",
-    );
+  it("renders a verification OTP without relying on a remote image URL", () => {
+    const email = renderEmailOtpEmail({ code: "482179", expiresInMinutes: 10 });
+    expect(email.text).toContain("482179");
+    expect(email.html).toContain("482179");
+    expect(email.html).toContain(`cid:${EMAIL_LOGO_CONTENT_ID}`);
+    expect(email.html).not.toContain("http://localhost");
+    expect(email.html).not.toContain("/branding/");
   });
 });

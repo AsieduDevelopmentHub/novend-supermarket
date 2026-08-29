@@ -2,9 +2,10 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { useAction, useConvexAuth } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useConvexAuth } from "convex/react";
 import Image from "next/image";
 import { Mail, User } from "lucide-react";
 import { toast } from "sonner";
@@ -42,6 +43,7 @@ export function SignupForm({ compact = false }: { compact?: boolean }) {
 
 function ConfiguredSignupForm({ compact }: { compact: boolean }) {
   const { signIn } = useAuthActions();
+  const requestVerification = useAction(api.emailVerification.requestEmailVerification);
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const router = useRouter();
   const redirectingRef = useRef(false);
@@ -79,6 +81,9 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
       formData.set("flow", "signUp");
       await signIn("password", formData);
       toast.success("Account created");
+      void requestVerification().catch(() => {
+        /* Banner can send the code later. Do not fail signup. */
+      });
     } catch (error) {
       showError(error, "Could not create account. Try a different email.");
       setPending(false);

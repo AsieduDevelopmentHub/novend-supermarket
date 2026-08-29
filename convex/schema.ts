@@ -791,6 +791,24 @@ export default defineSchema({
     .index("by_tokenHash", ["tokenHash"])
     .index("by_email_createdAt", ["email", "createdAt"]),
 
+  emailVerificationChallenges: defineTable({
+    userId: v.id("users"),
+    email: v.string(),
+    codeHash: v.string(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    usedAt: v.optional(v.number()),
+    attemptCount: v.number(),
+  })
+    .index("by_userId_createdAt", ["userId", "createdAt"])
+    .index("by_email_createdAt", ["email", "createdAt"]),
+
+  emailVerificationState: defineTable({
+    userId: v.id("users"),
+    email: v.string(),
+    verifiedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
   /**
    * Desktop release metadata for auto-update and in-app downloads.
    * Binaries stay on GitHub Releases; Convex is the public discovery + redirect layer

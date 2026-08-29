@@ -1,4 +1,5 @@
 import { renderPasswordChangedEmail, type RenderedEmail } from "./emailTemplates";
+import { EMAIL_LOGO_CONTENT_ID, EMAIL_LOGO_PNG_BASE64 } from "./emailLogoBase64";
 
 export function publicAppUrl(): string {
   return (
@@ -6,13 +7,6 @@ export function publicAppUrl(): string {
     process.env.NOVEND_APP_URL ||
     "http://localhost:3000"
   ).replace(/\/$/, "");
-}
-
-export function emailLogoUrl(origin = publicAppUrl()): string | undefined {
-  if (!origin || origin.includes("localhost") || origin.includes("127.0.0.1")) {
-    return undefined;
-  }
-  return `${origin}/branding/logo_horizontal_light.png`;
 }
 
 function emailFromAddress(): string {
@@ -41,6 +35,15 @@ export async function sendTransactionalEmail(
       "X-Entity-Ref-ID": tag,
     },
     tags: [{ name: "category", value: tag }],
+    attachments: [
+      {
+        filename: "novend-logo.png",
+        content: EMAIL_LOGO_PNG_BASE64,
+        content_id: EMAIL_LOGO_CONTENT_ID,
+        content_type: "image/png",
+        content_disposition: "inline",
+      },
+    ],
   };
   if (replyTo) {
     body.reply_to = replyTo;
@@ -79,7 +82,6 @@ export async function notifyPasswordChanged(email: string): Promise<void> {
     renderPasswordChangedEmail({
       signInUrl: `${origin}/login`,
       resetUrl: `${origin}/forgot-password`,
-      logoUrl: emailLogoUrl(origin),
     }),
     "password-changed",
   );

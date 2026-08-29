@@ -1,5 +1,7 @@
 /** HTML-safe transactional copy. Keep interpolation escaped — never trust URLs from callers blindly. */
 
+import { EMAIL_LOGO_CONTENT_ID } from "./emailLogoBase64";
+
 export const EMAIL_BRAND = {
   product: "Novend",
   productFull: "Novend POS",
@@ -25,13 +27,16 @@ export function escapeHtml(value: string): string {
 export type PasswordResetEmailInput = {
   resetUrl: string;
   expiresInHours: number;
-  logoUrl?: string;
 };
 
 export type PasswordChangedEmailInput = {
   signInUrl: string;
   resetUrl: string;
-  logoUrl?: string;
+};
+
+export type EmailOtpMessageInput = {
+  code: string;
+  expiresInMinutes: number;
 };
 
 export type RenderedEmail = {
@@ -41,16 +46,11 @@ export type RenderedEmail = {
   html: string;
 };
 
-function wrapLayout(args: {
-  title: string;
-  preheader: string;
-  bodyHtml: string;
-  logoUrl?: string;
-}): string {
-  const logo = args.logoUrl
-    ? `<img src="${escapeHtml(args.logoUrl)}" width="120" alt="${EMAIL_BRAND.product}" style="display:block;height:auto;border:0;max-width:120px;" />`
-    : `<span style="font-size:20px;font-weight:700;letter-spacing:-0.02em;color:#f8fafc;">${EMAIL_BRAND.product}</span>`;
+function logoBlock(): string {
+  return `<img src="cid:${EMAIL_LOGO_CONTENT_ID}" width="140" height="36" alt="${EMAIL_BRAND.product}" style="display:block;border:0;outline:none;text-decoration:none;height:36px;width:auto;max-width:140px;" />`;
+}
 
+function wrapLayout(args: { title: string; preheader: string; bodyHtml: string }): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -65,12 +65,12 @@ function wrapLayout(args: {
     <td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
         <tr>
-          <td style="background-color:${EMAIL_BRAND.navy};border-radius:16px 16px 0 0;padding:28px 32px;">
-            ${logo}
+          <td style="background-color:${EMAIL_BRAND.card};border:1px solid ${EMAIL_BRAND.border};border-bottom:0;border-radius:16px 16px 0 0;padding:24px 32px;">
+            ${logoBlock()}
           </td>
         </tr>
         <tr>
-          <td style="background-color:${EMAIL_BRAND.card};padding:32px;border:1px solid ${EMAIL_BRAND.border};border-top:0;border-radius:0 0 16px 16px;">
+          <td style="background-color:${EMAIL_BRAND.card};padding:8px 32px 32px;border:1px solid ${EMAIL_BRAND.border};border-top:0;border-radius:0 0 16px 16px;">
             ${args.bodyHtml}
             <p style="margin:32px 0 0;font-size:12px;line-height:1.6;color:${EMAIL_BRAND.muted};">
               ${EMAIL_BRAND.productFull} is a product of ${EMAIL_BRAND.company}. This is a transactional message about your account. If you did not expect it, you can ignore this email.
@@ -113,7 +113,6 @@ export function renderPasswordResetEmail(input: PasswordResetEmailInput): Render
   const html = wrapLayout({
     title: subject,
     preheader,
-    logoUrl: input.logoUrl,
     bodyHtml: `
       <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;letter-spacing:-0.02em;">Reset your password</h1>
       <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#334155;">
@@ -154,7 +153,6 @@ export function renderPasswordChangedEmail(input: PasswordChangedEmailInput): Re
   const html = wrapLayout({
     title: subject,
     preheader,
-    logoUrl: input.logoUrl,
     bodyHtml: `
       <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;letter-spacing:-0.02em;">Your password was changed</h1>
       <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#334155;">
@@ -166,6 +164,38 @@ export function renderPasswordChangedEmail(input: PasswordChangedEmailInput): Re
       </p>
       <p style="margin:16px 0 0;font-size:13px;line-height:1.6;">
         <a href="${escapeHtml(input.resetUrl)}" style="color:#0369a1;font-weight:600;">Reset password</a>
+      </p>
+    `,
+  });
+
+  return { subject, preheader, text, html };
+}
+
+export function renderEmailOtpEmail(input: EmailOtpMessageInput): RenderedEmail {
+  const subject = `Your ${EMAIL_BRAND.product} verification code`;
+  const preheader = `${input.code} expires in ${input.expiresInMinutes} minutes.`;
+  const text = [
+    `Your ${EMAIL_BRAND.productFull} verification code is ${input.code}.`,
+    "",
+    `This code expires in ${input.expiresInMinutes} minutes and can be used once.`,
+    "If you did not request this, you can ignore this email.",
+    "",
+    `— ${EMAIL_BRAND.product}`,
+  ].join("\n");
+
+  const html = wrapLayout({
+    title: subject,
+    preheader,
+    bodyHtml: `
+      <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;letter-spacing:-0.02em;">Verify your email</h1>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">
+        Use this code in Novend to confirm your email address.
+      </p>
+      <p style="margin:0 0 16px;font-size:32px;letter-spacing:0.28em;font-weight:700;color:${EMAIL_BRAND.navy};font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">
+        ${escapeHtml(input.code)}
+      </p>
+      <p style="margin:0;font-size:13px;line-height:1.6;color:${EMAIL_BRAND.muted};">
+        This code expires in ${input.expiresInMinutes} minutes and can be used only once. Never share it with anyone.
       </p>
     `,
   });

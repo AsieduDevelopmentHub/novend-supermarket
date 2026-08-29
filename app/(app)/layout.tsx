@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { SyncStatusBanner } from "@/components/offline/sync-status-banner";
 import { SyncCenterDialog } from "@/components/offline/sync-center-dialog";
 import { LicenseBanner } from "@/features/billing/components/license-banner";
+import { EmailVerificationBanner } from "@/features/auth/components/email-verification-banner";
 import { DeviceActivationGate } from "@/features/billing/components/device-activation-gate";
 import { InstallPromptDialog } from "@/components/install-prompt-dialog";
 import { OfflineProvider } from "@/providers/offline-provider";
@@ -452,6 +453,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                 </header>
               )}
               <LicenseBanner />
+              <EmailVerificationBanner />
               <SyncStatusBanner />
               {nativeShell ? (
                 <div id="native-page-header-host" className="native-page-header-host shrink-0" />

@@ -12,7 +12,6 @@ import {
 } from "./shared/passwordResetCrypto";
 import { renderPasswordResetEmail } from "./shared/emailTemplates";
 import {
-  emailLogoUrl,
   notifyPasswordChanged,
   publicAppUrl,
   sendTransactionalEmail,
@@ -131,7 +130,6 @@ export const requestPasswordReset = action({
         renderPasswordResetEmail({
           resetUrl,
           expiresInHours: 1,
-          logoUrl: emailLogoUrl(origin),
         }),
         "password-reset",
       );

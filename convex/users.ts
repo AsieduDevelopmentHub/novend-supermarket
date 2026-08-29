@@ -28,6 +28,7 @@ import { assertOrganizationCapacity, countUsage, resolveLicense } from "./shared
 import { limitReachedMessage } from "./shared/plans";
 import { presenceFromLastSeenAt } from "./shared/presence";
 import { deactivateAccountBlockReason } from "./shared/accountStatus";
+import { loadEmailVerification } from "./shared/emailVerificationLookup";
 
 export const me = query({
   args: {},
@@ -40,10 +41,12 @@ export const me = query({
 
     const profile = await getProfileByUserId(ctx, userId);
     const platformAdmin = await getPlatformAdmin(ctx, userId);
+    const verification = await loadEmailVerification(ctx, userId);
     if (!profile) {
       return {
         userId,
         email: user.email ?? null,
+        emailVerified: verification.emailVerified,
         needsProfile: !platformAdmin,
         needsOnboarding: !platformAdmin,
         isPlatformAdmin: Boolean(platformAdmin),
@@ -84,6 +87,7 @@ export const me = query({
     return {
       userId,
       email: user.email ?? null,
+      emailVerified: verification.emailVerified,
       needsProfile: false as const,
       needsOnboarding: false as const,
       organizationId: profile.organizationId,
