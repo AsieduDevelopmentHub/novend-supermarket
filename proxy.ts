@@ -4,11 +4,13 @@ import { type NextRequest, NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
 import { loginPathWithNext, resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 
-const isLoginPage = createRouteMatcher(["/login", "/signup"]);
+const isLoginPage = createRouteMatcher(["/login", "/signup", "/forgot-password", "/reset-password"]);
 const isPublicRoute = createRouteMatcher([
   "/",
   "/login",
   "/signup",
+  "/forgot-password",
+  "/reset-password",
   "/billing/callback",
   "/api/auth(.*)",
   "/docs(.*)",

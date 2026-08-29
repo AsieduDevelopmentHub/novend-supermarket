@@ -1,6 +1,6 @@
 import { postLoginPath } from "@/lib/auth/post-login-path";
 
-const AUTH_PAGES = new Set(["/login", "/signup"]);
+const AUTH_PAGES = new Set(["/login", "/signup", "/forgot-password", "/reset-password"]);
 
 /**
  * App and platform path prefixes that may be restored after login or cold start.

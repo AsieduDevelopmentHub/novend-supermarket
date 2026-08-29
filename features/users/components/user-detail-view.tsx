@@ -409,7 +409,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
                 onChange={(e) => setNewPassword(e.target.value)}
                 autoComplete="new-password"
                 required
-                minLength={8}
+                minLength={12}
               />
             </div>
             <div className="space-y-2">
@@ -420,7 +420,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
                 required
-                minLength={8}
+                minLength={12}
               />
             </div>
             <DialogFooter>

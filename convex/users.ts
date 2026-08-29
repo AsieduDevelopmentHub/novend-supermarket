@@ -21,6 +21,8 @@ import { roleValidator } from "./schema";
 import { writeAuditLog } from "./shared/audit";
 import { Id } from "./_generated/dataModel";
 import { assertStoredImage, sanitizePhone, sanitizeText, TEXT_LIMITS } from "./shared/validation";
+import { assertPasswordPolicy } from "./shared/passwordPolicy";
+import { assertOwnedStorage, beginStorageUploadSession } from "./shared/storageSessions";
 import { assertOrganizationCapacity, countUsage, resolveLicense } from "./shared/entitlements";
 import { limitReachedMessage } from "./shared/plans";
 import { presenceFromLastSeenAt } from "./shared/presence";
@@ -314,8 +316,17 @@ export const updateProfile = mutation({
 export const generateProfileUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireRole(ctx, ["administrator", "manager", "cashier"]);
-    return await ctx.storage.generateUploadUrl();
+    const { userId, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
+    const sessionId = await beginStorageUploadSession(ctx, {
+      organizationId,
+      userId,
+      purpose: "profileImage",
+    });
+    return { uploadUrl: await ctx.storage.generateUploadUrl(), sessionId };
   },
 });
 
@@ -342,6 +353,7 @@ export const updateOwnProfile = mutation({
       imageStorageId = undefined;
     } else if (args.imageStorageId) {
       await assertStoredImage(ctx, args.imageStorageId);
+      await assertOwnedStorage(ctx, args.imageStorageId, profile.organizationId);
       if (profile.imageStorageId && profile.imageStorageId !== args.imageStorageId) {
         try {
           await ctx.storage.delete(profile.imageStorageId);
@@ -428,17 +440,7 @@ export const changePassword = action({
     if (!me?.email || !me.userId) {
       throw new Error("You must be signed in to change your password");
     }
-    if (
-      !args.newPassword ||
-      args.newPassword.length < 12 ||
-      !/[A-Z]/.test(args.newPassword) ||
-      !/[a-z]/.test(args.newPassword) ||
-      !/\d/.test(args.newPassword)
-    ) {
-      throw new Error(
-        "New password must be at least 12 characters and include uppercase, lowercase, and a number",
-      );
-    }
+    assertPasswordPolicy(args.newPassword);
     if (args.currentPassword === args.newPassword) {
       throw new Error("New password must be different from the current password");
     }
@@ -600,17 +602,7 @@ export const createUserAccount = action({
     const password = args.password;
 
     if (!email || !name) throw new Error("Name and email are required");
-    if (
-      !password ||
-      password.length < 12 ||
-      !/[A-Z]/.test(password) ||
-      !/[a-z]/.test(password) ||
-      !/\d/.test(password)
-    ) {
-      throw new Error(
-        "Password must be at least 12 characters and include uppercase, lowercase, and a number",
-      );
-    }
+    assertPasswordPolicy(password);
 
     const me = await ctx.runQuery(api.users.me, {});
     if (!me || (me.role !== "administrator" && me.role !== "manager")) {
@@ -729,17 +721,7 @@ export const resetUserPassword = action({
     newPassword: v.string(),
   },
   handler: async (ctx, args) => {
-    if (
-      !args.newPassword ||
-      args.newPassword.length < 12 ||
-      !/[A-Z]/.test(args.newPassword) ||
-      !/[a-z]/.test(args.newPassword) ||
-      !/\d/.test(args.newPassword)
-    ) {
-      throw new Error(
-        "Password must be at least 12 characters and include uppercase, lowercase, and a number",
-      );
-    }
+    assertPasswordPolicy(args.newPassword);
 
     const me = await ctx.runQuery(api.users.me, {});
     if (!me || (me.role !== "administrator" && me.role !== "manager")) {

@@ -5,6 +5,7 @@ import { writeAuditLog } from "./shared/audit";
 import { countUsage, resolveLicense } from "./shared/entitlements";
 import { limitReachedMessage } from "./shared/plans";
 import { sanitizeText, TEXT_LIMITS } from "./shared/validation";
+import { assertOwnedStorage, beginStorageUploadSession } from "./shared/storageSessions";
 
 const MAX_BACKUP_BYTES = 200 * 1024 * 1024;
 
@@ -50,7 +51,7 @@ export const usage = query({
 export const generateBackupUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
-    const { organization, organizationId } = await requireRoleIgnoringLicense(ctx, [
+    const { organization, organizationId, userId } = await requireRoleIgnoringLicense(ctx, [
       "administrator",
     ]);
     const license = await resolveLicense(ctx, organization);
@@ -61,7 +62,12 @@ export const generateBackupUploadUrl = mutation({
         throw new Error(limitReachedMessage(license.planKey, "backupBytes", limit));
       }
     }
-    return await ctx.storage.generateUploadUrl();
+    const sessionId = await beginStorageUploadSession(ctx, {
+      organizationId,
+      userId,
+      purpose: "cloudBackup",
+    });
+    return { uploadUrl: await ctx.storage.generateUploadUrl(), sessionId };
   },
 });
 
@@ -78,6 +84,7 @@ export const recordBackup = mutation({
     ]);
     const metadata = await ctx.db.system.get(args.storageId);
     if (!metadata) throw new Error("Upload could not be found");
+    await assertOwnedStorage(ctx, args.storageId, organizationId);
 
     const sizeBytes = metadata.size;
     if (sizeBytes > MAX_BACKUP_BYTES) {

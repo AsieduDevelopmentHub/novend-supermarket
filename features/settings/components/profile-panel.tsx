@@ -15,6 +15,7 @@ import { useCurrentUser } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { assertValidImageFile, IMAGE_ACCEPT } from "@/lib/uploads/image";
+import { uploadAndClaimStorage } from "@/lib/uploads/convex-storage";
 import {
   persistBusinessWrite,
   queuedSaveMessage,
@@ -93,6 +94,7 @@ function ProfileForm({
 }) {
   const updateOwnProfile = useMutation(api.users.updateOwnProfile);
   const generateUploadUrl = useMutation(api.users.generateProfileUploadUrl);
+  const claimUpload = useMutation(api.storageUploads.claim);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(initialName);
@@ -131,15 +133,12 @@ function ProfileForm({
   async function uploadImage(): Promise<Id<"_storage"> | undefined> {
     if (!file) return undefined;
     await assertValidImageFile(file);
-    const uploadUrl = await generateUploadUrl({});
-    const result = await fetch(uploadUrl, {
-      method: "POST",
-      headers: { "Content-Type": file.type || "image/jpeg" },
+    return await uploadAndClaimStorage({
+      begin: () => generateUploadUrl({}),
+      claim: (args) => claimUpload(args),
       body: file,
+      contentType: file.type || "image/jpeg",
     });
-    if (!result.ok) throw new Error("Image upload failed");
-    const json = (await result.json()) as { storageId: Id<"_storage"> };
-    return json.storageId;
   }
 
   async function onSubmit(event: FormEvent) {

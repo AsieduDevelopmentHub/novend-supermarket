@@ -71,6 +71,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const createProduct = useMutation(api.products.createProduct);
   const updateProduct = useMutation(api.products.updateProduct);
   const generateUploadUrl = useMutation(api.products.generateUploadUrl);
+  const claimStorageUpload = useMutation(api.storageUploads.claim);
   const createBranch = useMutation(api.branches.create);
   const updateBranch = useMutation(api.branches.update);
   const [status, setStatus] = useState<OfflineStatus>(emptyStatus);
@@ -227,6 +228,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
               }),
             createCategory: (args) => createCategory({ name: args.name }),
             generateUploadUrl: () => generateUploadUrl({}),
+            claimStorageUpload: (args) => claimStorageUpload(args),
             createProduct: (args) => createProduct(args),
             updateProduct: (args) => updateProduct(args),
             createBranch: (args) => createBranch(args),
@@ -270,6 +272,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       createProduct,
       updateProduct,
       generateUploadUrl,
+      claimStorageUpload,
       createBranch,
       updateBranch,
       convex,

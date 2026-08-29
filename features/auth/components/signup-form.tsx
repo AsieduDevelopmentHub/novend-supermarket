@@ -17,6 +17,8 @@ import { Label } from "@/components/ui/label";
 import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { ROUTES } from "@/config/navigation";
+import { PasswordStrengthMeter } from "@/features/auth/components/password-strength";
+import { PASSWORD_MIN_LENGTH, passwordMeetsPolicy } from "@/convex/shared/passwordPolicy";
 import { navigateAfterLogin } from "@/lib/auth/redirect-after-login";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +64,12 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
       toast.error("Please accept the Terms of Service and Privacy Policy to continue.");
       return;
     }
+    if (!passwordMeetsPolicy(password)) {
+      toast.error(
+        `Password must be at least ${PASSWORD_MIN_LENGTH} characters and include uppercase, lowercase, and a number`,
+      );
+      return;
+    }
     setPending(true);
     try {
       const formData = new FormData();
@@ -86,6 +94,7 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
             alt=""
             fill
             priority
+            unoptimized
             sizes="64px"
             className="object-contain"
           />
@@ -147,8 +156,9 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
             onChange={(e) => setPassword(e.target.value)}
             className="bg-muted/50 h-11"
             required
-            minLength={8}
+            minLength={PASSWORD_MIN_LENGTH}
           />
+          <PasswordStrengthMeter password={password} />
         </div>
 
         <div className="flex items-start gap-3">
@@ -190,7 +200,7 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
         <Button
           type="submit"
           className="h-11 w-full text-[15px] font-semibold"
-          disabled={pending || !acceptedLegal}
+          disabled={pending || !acceptedLegal || !passwordMeetsPolicy(password)}
         >
           {pending ? "Creating account…" : "Start free trial"}
         </Button>

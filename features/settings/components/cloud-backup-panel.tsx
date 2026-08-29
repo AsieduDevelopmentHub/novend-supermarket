@@ -19,6 +19,7 @@ import {
   parseBackupPayload,
 } from "@/lib/offline/backup";
 import { showError } from "@/lib/errors";
+import { uploadAndClaimStorage } from "@/lib/uploads/convex-storage";
 import { toast } from "sonner";
 import { useConnectivity } from "@/hooks/use-connectivity";
 
@@ -47,6 +48,7 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
   const convex = useConvex();
   const usage = useQuery(api.cloudBackups.usage, online ? {} : "skip");
   const generateUploadUrl = useMutation(api.cloudBackups.generateBackupUploadUrl);
+  const claimUpload = useMutation(api.storageUploads.claimBackup);
   const recordBackup = useMutation(api.cloudBackups.recordBackup);
   const deleteBackup = useMutation(api.cloudBackups.deleteBackup);
   const [uploading, setUploading] = useState(false);
@@ -61,14 +63,12 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
       const payload = await exportOfflineBackup();
       const encrypted = await encryptOfflineBackup(payload, password);
       const blob = new Blob([JSON.stringify(encrypted)], { type: "application/octet-stream" });
-      const uploadUrl = await generateUploadUrl({});
-      const response = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "content-type": "application/octet-stream" },
+      const storageId = await uploadAndClaimStorage({
+        begin: () => generateUploadUrl({}),
+        claim: (args) => claimUpload(args),
         body: blob,
+        contentType: "application/octet-stream",
       });
-      if (!response.ok) throw new Error("Upload failed. Check your connection and try again.");
-      const { storageId } = (await response.json()) as { storageId: Id<"_storage"> };
       const fileName = `novend-backup-${new Date().toISOString().slice(0, 10)}.novend-backup`;
       await recordBackup({ storageId, fileName, kind: "manual" });
       toast.success("Backup saved to the cloud");

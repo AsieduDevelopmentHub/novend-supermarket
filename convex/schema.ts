@@ -764,6 +764,33 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_email", ["email"]),
 
+  storageUploadSessions: defineTable({
+    organizationId: v.id("organizations"),
+    userId: v.id("users"),
+    purpose: v.union(
+      v.literal("productImage"),
+      v.literal("profileImage"),
+      v.literal("cloudBackup"),
+    ),
+    storageId: v.optional(v.id("_storage")),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    claimedAt: v.optional(v.number()),
+  })
+    .index("by_storageId", ["storageId"])
+    .index("by_organization_createdAt", ["organizationId", "createdAt"]),
+
+  passwordResetTokens: defineTable({
+    email: v.string(),
+    userId: v.id("users"),
+    tokenHash: v.string(),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_tokenHash", ["tokenHash"])
+    .index("by_email_createdAt", ["email", "createdAt"]),
+
   /**
    * Desktop release metadata for auto-update and in-app downloads.
    * Binaries stay on GitHub Releases; Convex is the public discovery + redirect layer

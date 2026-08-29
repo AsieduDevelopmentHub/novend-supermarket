@@ -14,6 +14,8 @@ import { useNativeShell } from "@/hooks/use-native-shell";
 import { useCurrentUser } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import { PasswordStrengthMeter } from "@/features/auth/components/password-strength";
+import { PASSWORD_MIN_LENGTH, passwordMeetsPolicy } from "@/convex/shared/passwordPolicy";
 
 /**
  * Security settings. Native cards render immediately — never wait on Convex —
@@ -69,6 +71,12 @@ function PasswordForm({ readOnly = false }: { readOnly?: boolean }) {
       toast.error("New passwords do not match");
       return;
     }
+    if (!passwordMeetsPolicy(newPassword)) {
+      toast.error(
+        `Password must be at least ${PASSWORD_MIN_LENGTH} characters and include uppercase, lowercase, and a number`,
+      );
+      return;
+    }
     setSavingPassword(true);
     try {
       await changePassword({ currentPassword, newPassword });
@@ -115,7 +123,9 @@ function PasswordForm({ readOnly = false }: { readOnly?: boolean }) {
               onChange={(e) => setNewPassword(e.target.value)}
               required
               disabled={readOnly}
+              minLength={PASSWORD_MIN_LENGTH}
             />
+            <PasswordStrengthMeter password={newPassword} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm new password</Label>

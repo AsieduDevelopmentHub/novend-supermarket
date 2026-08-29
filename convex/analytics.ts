@@ -3,6 +3,7 @@ import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireRole, resolveBranchFilter, assertBranchAccess } from "./shared/permissions";
 import { writeAuditLog } from "./shared/audit";
+import { assertActiveOrgBranch } from "./shared/tenancy";
 import { rememberClientOp, replayClientOp } from "./shared/clientOps";
 import {
   assertPositiveMoney,
@@ -145,8 +146,7 @@ export const createExpense = mutation({
     if (!Number.isFinite(args.occurredAt)) throw new Error("Invalid expense date");
 
     const branch = await ctx.db.get(args.branchId);
-    if (!branch || branch.status !== "active") throw new Error("Invalid branch");
-    if (branch.organizationId !== organizationId) throw new Error("Not found");
+    assertActiveOrgBranch(branch, organizationId);
 
     const id = await ctx.db.insert("expenses", {
       organizationId,
@@ -199,7 +199,11 @@ export const updateExpense = mutation({
     if (args.amount <= 0) throw new Error("Expense amount must be greater than zero");
 
     const nextBranchId = args.branchId ?? existing.branchId;
-    if (nextBranchId) assertBranchAccess(profile, nextBranchId);
+    if (nextBranchId) {
+      const branch = await ctx.db.get(nextBranchId);
+      assertActiveOrgBranch(branch, organizationId);
+      assertBranchAccess(profile, nextBranchId);
+    }
 
     await ctx.db.patch(args.id, {
       amount: roundMoney(args.amount),
