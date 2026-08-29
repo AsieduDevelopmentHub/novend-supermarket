@@ -45,9 +45,10 @@ Offline: existing session → normal POS (no verification nag)
 Checkout (`billing.startCheckout`) requires a verified email. Selling, inventory,
 and offline use do not.
 
-Unverified users may change email from the verify dialog. That updates the
-Convex Auth password account id, invalidates old OTPs, and sends a new code.
-It must not create a second user.
+Users may change their sign-in email from Settings → Profile (or the verify
+dialog). The current password is required. That updates the Convex Auth
+password account id, clears verification, and sends a new OTP. It must not
+create a second user.
 
 ## Google OAuth / social login — wait
 

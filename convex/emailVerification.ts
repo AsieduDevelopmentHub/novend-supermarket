@@ -1,8 +1,9 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId, retrieveAccount } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { action, internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { writeAuditLog } from "./shared/audit";
 import { loadEmailVerification } from "./shared/emailVerificationLookup";
 import { renderEmailOtpEmail } from "./shared/emailTemplates";
 import { sendTransactionalEmail } from "./shared/transactionalEmail";
@@ -15,7 +16,6 @@ import {
   emailOtpGenericError,
   emailOtpRejectReason,
   hashEmailOtp,
-  isEmailVerifiedRecord,
   isWellFormedEmail,
   maskEmail,
   normalizeEmail,
@@ -125,7 +125,7 @@ export const consumeChallenge = internalMutation({
   },
 });
 
-export const applyUnverifiedEmailChange = internalMutation({
+export const applyOwnEmailChange = internalMutation({
   args: { userId: v.id("users"), newEmail: v.string() },
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.userId);
@@ -134,14 +134,6 @@ export const applyUnverifiedEmailChange = internalMutation({
     const newEmail = normalizeEmail(args.newEmail);
     if (currentEmail === newEmail) {
       return { ok: true as const, email: newEmail, unchanged: true as const };
-    }
-
-    const verified = await ctx.db
-      .query("emailVerificationState")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .unique();
-    if (verified && isEmailVerifiedRecord(verified, currentEmail ?? "")) {
-      return { ok: false as const, reason: "verified" as const };
     }
 
     const taken = await ctx.db
@@ -162,6 +154,11 @@ export const applyUnverifiedEmailChange = internalMutation({
 
     await ctx.db.patch(args.userId, { email: newEmail });
     await ctx.db.patch(account._id, { providerAccountId: newEmail });
+
+    const verified = await ctx.db
+      .query("emailVerificationState")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .unique();
     if (verified) {
       await ctx.db.delete(verified._id);
     }
@@ -173,6 +170,12 @@ export const applyUnverifiedEmailChange = internalMutation({
     for (const row of open) {
       if (!row.usedAt) await ctx.db.patch(row._id, { usedAt: now });
     }
+    await writeAuditLog(ctx, {
+      actorId: args.userId,
+      action: "change_email",
+      entityType: "users",
+      entityId: args.userId,
+    });
     return { ok: true as const, email: newEmail, unchanged: false as const };
   },
 });
@@ -253,26 +256,34 @@ export const verifyEmailOtp = action({
   },
 });
 
-export const changeUnverifiedEmail = action({
-  args: { email: v.string() },
+export const changeOwnEmail = action({
+  args: { email: v.string(), currentPassword: v.string() },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Sign in to update your email.");
     const email = normalizeEmail(args.email);
     if (!isWellFormedEmail(email)) throw new Error("Enter a valid email address.");
-    const changed = await ctx.runMutation(internal.emailVerification.applyUnverifiedEmailChange, {
+    const state = await ctx.runQuery(internal.emailVerification.getState, { userId });
+    if (!state.email) throw new Error("Add an email address before updating it.");
+    try {
+      await retrieveAccount(ctx, {
+        provider: "password",
+        account: { id: state.email, secret: args.currentPassword },
+      });
+    } catch {
+      throw new Error("Current password is incorrect");
+    }
+    const changed = await ctx.runMutation(internal.emailVerification.applyOwnEmailChange, {
       userId,
       newEmail: email,
     });
     if (!changed.ok) {
-      if (changed.reason === "verified") {
-        throw new Error("Verified accounts cannot change email from this screen.");
-      }
       throw new Error(GENERIC_CHANGE_ERROR);
     }
     const issued = await issueOtp(ctx, userId, changed.email);
     return {
       ok: true as const,
+      email: changed.email,
       maskedEmail: maskEmail(changed.email),
       retryAfterMs: issued.retryAfterMs,
     };

@@ -82,6 +82,9 @@ function EmailVerificationCard({
           {emailVerified ? "Your email is verified." : "Your email is not verified yet."}
         </p>
         {email ? <p className="text-muted-foreground text-sm">{email}</p> : null}
+        <p className="text-muted-foreground text-xs">
+          Change your sign-in email in Profile. We will send a code to verify the new address.
+        </p>
         {!emailVerified ? (
           <Button type="button" disabled={!online} onClick={() => setOpen(true)}>
             Verify email

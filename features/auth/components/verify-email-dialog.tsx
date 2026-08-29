@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Dialog,
   DialogContent,
@@ -21,18 +22,21 @@ import { toast } from "sonner";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Skip the automatic send when the caller already issued a code. */
+  autoRequest?: boolean;
 };
 
-export function VerifyEmailDialog({ open, onOpenChange }: Props) {
+export function VerifyEmailDialog({ open, onOpenChange, autoRequest = true }: Props) {
   const online = useConnectivity();
   const status = useQuery(api.emailVerification.status, open && online ? {} : "skip");
   const requestCode = useAction(api.emailVerification.requestEmailVerification);
   const verifyCode = useAction(api.emailVerification.verifyEmailOtp);
-  const changeEmail = useAction(api.emailVerification.changeUnverifiedEmail);
+  const changeEmail = useAction(api.emailVerification.changeOwnEmail);
   const [code, setCode] = useState("");
   const [pending, setPending] = useState(false);
   const [changingEmail, setChangingEmail] = useState(false);
   const [nextEmail, setNextEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [resendInMs, setResendInMs] = useState(0);
   const [maskedEmail, setMaskedEmail] = useState<string | null>(null);
 
@@ -41,6 +45,11 @@ export function VerifyEmailDialog({ open, onOpenChange }: Props) {
     setCode("");
     setChangingEmail(false);
     setNextEmail("");
+    setCurrentPassword("");
+    if (!autoRequest) {
+      setResendInMs(60_000);
+      return;
+    }
     void requestCode()
       .then((result) => {
         setMaskedEmail(result.maskedEmail);
@@ -54,7 +63,11 @@ export function VerifyEmailDialog({ open, onOpenChange }: Props) {
       .catch((error) => {
         showError(error, "Could not send a verification code right now.");
       });
-  }, [open, online, onOpenChange, requestCode]);
+  }, [open, online, autoRequest, onOpenChange, requestCode]);
+
+  useEffect(() => {
+    if (status?.maskedEmail) setMaskedEmail(status.maskedEmail);
+  }, [status?.maskedEmail]);
 
   useEffect(() => {
     if (resendInMs <= 0) return;
@@ -98,10 +111,11 @@ export function VerifyEmailDialog({ open, onOpenChange }: Props) {
     event.preventDefault();
     setPending(true);
     try {
-      const result = await changeEmail({ email: nextEmail });
+      const result = await changeEmail({ email: nextEmail, currentPassword });
       setMaskedEmail(result.maskedEmail);
       setChangingEmail(false);
       setNextEmail("");
+      setCurrentPassword("");
       setCode("");
       setResendInMs(result.retryAfterMs ?? 60_000);
       toast.success("We sent a new code to your updated email.");
@@ -136,6 +150,16 @@ export function VerifyEmailDialog({ open, onOpenChange }: Props) {
                 value={nextEmail}
                 onChange={(event) => setNextEmail(event.target.value)}
                 placeholder="you@business.com"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="verify-email-password">Current password</Label>
+              <PasswordInput
+                id="verify-email-password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
                 required
               />
             </div>

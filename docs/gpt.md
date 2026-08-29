@@ -1,299 +1,224 @@
+## Follow-up — Re-evaluate Email Verification for Novend
 
-## Novend — Production Email OTP Verification Flow
+I reviewed your AUTHENTICATION.md recommendation and agree that we should NOT introduce Google OAuth now and should NOT make email verification a hard blocker before the APK.
 
-Implement a professional email verification flow for new account registration.
+However, I still want us to implement a professional email verification capability as a non-blocking/soft verification system.
 
-### 1. Signup flow
+### Goal
 
-Change the new-account flow to:
+Keep the current:
 
 Signup
-→ Create account
-→ Send verification OTP
-→ Email Verification
-→ Existing New Business/Onboarding
+→ Onboarding
 → Dashboard
 
-Do not replace or redesign the existing onboarding. Verification should simply become the required step before entering it.
+flow intact.
 
----
+Do NOT make OTP verification mandatory before onboarding or offline POS access.
 
-### 2. OTP
+Instead:
 
-Use a fixed-length OTP: choose either 6 or 8 digits based on the existing auth/email architecture, but keep the length consistent everywhere.
+Signup
+→ Account created
+→ Existing onboarding
+→ Dashboard
+→ Email verification remains pending
+→ User can verify later
 
-The verification UI must use **separate OTP boxes**, not one unrestricted text input.
+### Email OTP
 
-Example for 6 digits:
+Implement a professional 6-digit OTP verification flow using the existing email infrastructure.
 
-[ 4 ][ 8 ][ 2 ][ 1 ][ 7 ][ 9 ]
+The verification screen should show:
+
+"Verify your email"
+
+"We sent a 6-digit verification code to"
+
+a masked version of the actual email address.
+
+OTP UI:
+
+[ 4 ] [ 8 ] [ 2 ] [ 1 ] [ 7 ] [ 9 ]
+
+NOT a single unrestricted input.
 
 Requirements:
 
-- One box per digit.
-- Numeric input only.
-- Automatically advance after entering a digit.
-- Backspace moves to the previous box when appropriate.
-- Pasting a complete OTP should populate all boxes.
-- Support keyboard navigation.
-- Clear visual focus state.
-- Invalid OTP should clearly indicate the error without destroying the user's input unnecessarily.
-- Proper mobile keyboard/input behavior.
-- Accessible labels and focus handling.
-- Responsive on Web, PWA, Electron and Capacitor.
+- One input box per digit.
+- Numeric keyboard on mobile.
+- Auto-advance.
+- Backspace navigation.
+- Full-code paste support.
+- Clear focus state.
+- Responsive on PWA, Capacitor, Electron and Web.
+- Accessible input behavior.
 
-Do not create an "infinite" input or rely on a single uncontrolled text field.
+### Verification actions
 
----
+The verification UI must provide:
 
-### 3. Verification screen
-
-Create a professional verification screen containing:
-
-**Verify your email**
-
-We've sent a verification code to:
-
-**a***@example.com**
-
-Use the actual user's email with appropriate masking.
-
-Actions:
-
-- OTP input
-- Verify button
+- Verify
 - Resend code
 - Change email
-- Back to Sign Up
+- Back/close where appropriate
 
-The user must always know which email the OTP was sent to.
+Show the email that the code was sent to.
 
----
+Resend must have:
 
-### 4. Change email
+- Countdown
+- Rate limiting
+- Expiration
+- Single-use OTP
+- Attempt limits
 
-If the user selected **Change email**:
+Do not expose internal errors.
 
-- Return to the appropriate signup/email step.
-- Allow the user to enter a different email.
-- Invalidate the previous verification attempt where appropriate.
-- Send a new OTP to the new address.
-- Continue verification using the new address.
+### Security
 
-Do not accidentally create multiple accounts for the same signup attempt.
+OTP generation and verification must happen server-side.
 
----
+Do not trust a client-side:
 
-### 5. Resend OTP
+emailVerified = true
 
-Implement a controlled resend mechanism.
+flag.
 
-Requirements:
+The backend must own the authoritative verification state.
 
-- Countdown before another resend is allowed.
-- Prevent OTP spam.
-- Generate a new OTP when appropriate.
-- Invalidate the previous OTP when the security model requires it.
-- Clearly show when the user can request another code.
-- Provide useful user-friendly error states.
+Implement:
 
-Example:
-
-`Resend code in 42s`
-
-then:
-
-`Resend code`
-
-Do not expose backend/rate-limit implementation details.
-
----
-
-### 6. OTP security
-
-Do not store or compare OTPs insecurely on the client.
-
-The backend should handle:
-
-- OTP generation
-- Secure storage/hashing where appropriate
+- Secure OTP generation
 - Expiration
 - Attempt limits
 - Resend limits
-- Verification
-- Invalidation after successful verification
-- Abuse/rate limiting
+- Single-use verification
+- Rate limiting
+- Verification invalidation
+- Proper session handling
 
-OTP should be short-lived and single-use.
+### Soft verification UX
 
-Do not trust a client-provided "verified" flag.
+After signup, show an unobtrusive verification reminder where appropriate.
 
----
+Example:
 
-### 7. Email state
+"Verify your email to secure your account."
 
-The backend should have an authoritative verification state.
+[Verify email]
 
-For example:
+Do not repeatedly interrupt the POS experience.
 
-`emailVerified = false`
+Do not show the verification screen on every app startup.
 
-until the OTP is successfully validated.
+Do not make offline operation depend on email verification.
 
-After successful verification:
+### When verification SHOULD matter
 
-`emailVerified = true`
+Use verification as a security/account-trust signal for future capabilities where appropriate, such as:
 
-The client must not be able to bypass verification simply by navigating directly to the onboarding route.
+- Password recovery confidence
+- Sensitive account changes
+- Billing/account ownership operations
+- Future MFA enrollment
+- Organization ownership transfer
+- Other high-risk account operations
 
----
+Do not arbitrarily block normal POS usage.
 
-### 8. Offline behavior
+### Change email
 
-Email verification requires network connectivity.
+Allow an unverified user to change their email.
 
-However, this must NOT damage Novend's offline-first POS architecture.
+When changed:
 
-The restriction applies only to the **new-account verification process**.
+- Update the pending email appropriately.
+- Invalidate the previous OTP.
+- Send a new OTP.
+- Do not accidentally create a second account.
+- Preserve the current signup/account session.
 
-After the account has been successfully verified, authenticated, and initialized:
+### Offline architecture
 
-`Verification → Authentication → Local session → Offline-first application`
+Email verification itself requires connectivity.
 
-Existing authenticated users must continue to use their locally available POS functionality offline.
+Once the account/session already exists:
 
-Do not introduce a global "must be online" gate into the application.
+Online:
+Signup / verification / authentication
+        ↓
+Authenticated session
+        ↓
+Local session + IndexedDB
+        ↓
+Offline POS
 
----
+Offline:
+Existing authenticated session
+        ↓
+Normal offline-first POS
 
-### 9. Successful verification
+Do NOT introduce a global:
 
-After successful OTP verification:
+"email must be verified before app can work"
 
-1. Mark the email verified server-side.
-2. Preserve the authenticated signup session.
-3. Navigate to the **existing new-business/onboarding flow**.
-4. Do not send the user to Dashboard prematurely.
-5. Existing onboarding should continue normally.
-6. Once onboarding is completed, continue to Dashboard as it currently does.
+gate.
 
----
+### Existing authentication architecture
 
-### 10. UX states
+Before implementation, inspect:
 
-Handle professionally:
+- AUTHENTICATION.md
+- Existing Convex Auth implementation
+- Existing password reset flow
+- Existing Resend/email infrastructure
+- User schema
+- Signup flow
+- Session handling
+- Onboarding routing
+- Offline session persistence
 
-- Sending OTP
-- OTP sent
-- Verifying
-- Invalid OTP
-- Expired OTP
-- Too many attempts
-- Resend cooldown
-- Email delivery failure
-- Network failure
-- Already verified
-- Session expired
-- Changed email
-- Successful verification
+Reuse the existing infrastructure.
 
-Do not display raw backend errors such as `ERR_*`, Convex errors, or internal exceptions.
+Do NOT create a second authentication system.
 
----
+### Important
 
-### 11. Routing/security
+Your previous recommendation said:
 
-Prevent users from bypassing verification by manually navigating to:
+"Do not add email verification before the APK."
 
-`/onboarding`
+I agree with not making it a blocking requirement.
 
-or other protected signup/onboarding routes.
+However, the requirement now is to build the underlying verification capability in a way that is compatible with the existing authentication architecture and can be enabled/enforced progressively later.
 
-The routing logic should understand:
+Do not implement Google OAuth.
 
+Do not change the existing onboarding flow.
 
-New account
-   ↓
-Email unverified
-   → /verify-email
+Do not break the existing password reset flow.
 
-Email verified
-   → /onboarding
+### Testing
 
-Existing authenticated account
-   → /dashboard
-````
+Add tests for:
 
-Ensure logout/login on the same device cannot restore another user's verification/onboarding route.
+- OTP generation
+- OTP expiration
+- Correct OTP
+- Incorrect OTP
+- OTP reuse
+- Resend
+- Rate limiting
+- Change email
+- Already verified user
+- Verification state persistence
+- Session handling
+- Offline authenticated session
+- Attempted client-side verification bypass
 
----
+Keep all existing tests passing.
 
-### 12. Audit before implementation
+Create a meaningful Git commit for the email-verification feature.
 
-First inspect the existing:
-
-* Signup flow
-* Authentication/session model
-* User schema
-* Email infrastructure
-* Existing onboarding routes
-* Routing guards
-* Error handling
-* Convex mutations/queries
-* Existing email templates
-
-Do not create duplicate authentication or email systems.
-
-Reuse the existing infrastructure where possible.
-
-Before large changes, provide a concise root-cause/design report explaining where email verification belongs in the current architecture.
-
-Then implement incrementally and add tests for:
-
-* Account creation
-* OTP generation
-* OTP expiration
-* Correct OTP
-* Incorrect OTP
-* OTP reuse
-* Resend
-* Rate limiting
-* Change email
-* Verification bypass attempts
-* Already verified accounts
-* Session expiration
-* Routing after verification
-
-Create a meaningful Git commit after the major authentication/email-verification implementation.
-
-```
-
-### One design decision I'd make
-
-I'd use **6 digits**, rather than 8.
-
-For a POS/SaaS onboarding flow:
-
-**6 digits = `482179`**
-
-is easier to read, type, remember, and enter on a phone while still giving you **1 million possible combinations**. The security should come primarily from **short expiry + attempt limits + rate limiting + single-use**, rather than making the user type an unnecessarily long code.
-
-And visually, the separate boxes will make a significant difference on Capacitor:
-
-**Verify your email**
-
-> We've sent a 6-digit code to  
-> **a••••@gmail.com**
-
-`[ 4 ] [ 8 ] [ 2 ] [ 1 ] [ 7 ] [ 9 ]`
-
-**[ Verify email ]**
-
-`Resend code in 32s`
-
-`Change email · Back to sign up`
-
-Then, after verification:
-
-**→ your existing business onboarding**, not another new onboarding experience.
-```
+Before implementation, briefly explain where the verification state and OTP flow will integrate into the current authentication architecture.
