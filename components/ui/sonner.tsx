@@ -1,14 +1,22 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import type { CSSProperties, MouseEvent } from "react";
+import { X } from "lucide-react";
 import { Toaster as SonnerToaster, toast } from "sonner";
+
+const toasterStyle = {
+  "--toast-close-button-start": "auto",
+  "--toast-close-button-end": "0.5rem",
+  "--toast-close-button-transform": "none",
+} as CSSProperties;
 
 /**
  * App-wide notifications.
  *
- * Top-right is the global default. An X dismisses on desktop; swipe still
- * works on mobile. Repeating toasts should pass a stable `id` so they replace
- * instead of stacking. Clicking a toast dismisses it.
+ * Top-right on desktop, top of the viewport on mobile. The close icon sits
+ * inside the toast. Swipe still dismisses on touch. Repeating toasts should
+ * pass a stable `id` so they replace instead of stacking. Clicking a toast
+ * dismisses it.
  */
 export function Toaster() {
   return (
@@ -22,15 +30,20 @@ export function Toaster() {
         gap={8}
         offset={16}
         mobileOffset={{
-          top: "calc(4.5rem + env(safe-area-inset-top, 0px))",
-          right: "0.75rem",
+          top: "max(16px, env(safe-area-inset-top, 0px))",
+          right: 16,
+          left: 16,
         }}
+        icons={{
+          close: <X className="size-5" strokeWidth={2.25} aria-hidden />,
+        }}
+        style={toasterStyle}
         toastOptions={{
           closeButton: true,
           classNames: {
             toast: "cursor-pointer",
             closeButton:
-              "bg-background! border-border! text-foreground! opacity-100! left-auto! right-0! translate-x-1/3! -translate-y-1/3!",
+              "static! order-last! top-auto! left-auto! size-5! shrink-0! rounded-md! border-0! bg-transparent! shadow-none! text-current! opacity-100 hover:bg-foreground/10!",
           },
         }}
       />
