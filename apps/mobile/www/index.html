@@ -150,7 +150,7 @@
           var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
           var timer = window.setTimeout(function () {
             if (controller) controller.abort();
-          }, 8000);
+          }, 2500);
 
           // Query bust only — a fetch Cache-Control header is not CORS-safelisted
           // and forces a preflight OPTIONS the boot origin may fail.

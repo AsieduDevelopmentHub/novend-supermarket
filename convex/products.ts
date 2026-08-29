@@ -10,6 +10,7 @@ import {
   resolveBranchFilter,
 } from "./shared/permissions";
 import { assertOrganizationCapacity } from "./shared/entitlements";
+import { assertOwnedStorage, beginStorageUploadSession } from "./shared/storageSessions";
 import {
   assertPositiveMoney,
   assertStoredImage,
@@ -182,9 +183,17 @@ export const getProduct = query({
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
-    const { profile } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+    ]);
     if (!canManageCatalog(profile)) throw new Error("Forbidden");
-    return await ctx.storage.generateUploadUrl();
+    const sessionId = await beginStorageUploadSession(ctx, {
+      organizationId,
+      userId,
+      purpose: "productImage",
+    });
+    return { uploadUrl: await ctx.storage.generateUploadUrl(), sessionId };
   },
 });
 
@@ -259,6 +268,7 @@ export const createProduct = mutation({
 
     if (args.imageStorageId) {
       await assertStoredImage(ctx, args.imageStorageId);
+      await assertOwnedStorage(ctx, args.imageStorageId, organizationId);
     }
 
     const unit = sanitizeText(args.unit || "units", "Unit", TEXT_LIMITS.unit);
@@ -428,6 +438,7 @@ export const updateProduct = mutation({
       imageStorageId = undefined;
     } else if (args.imageStorageId) {
       await assertStoredImage(ctx, args.imageStorageId);
+      await assertOwnedStorage(ctx, args.imageStorageId, organizationId);
       imageStorageId = args.imageStorageId;
     }
 

@@ -397,7 +397,7 @@ export function DashboardView() {
   ] as const;
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="min-w-0 space-y-6" data-tour="page-content">
       <PageHeader
         title="Dashboard"
         description={showOps ? "Business performance overview" : "Your sales activity today"}

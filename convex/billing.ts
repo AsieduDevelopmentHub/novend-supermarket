@@ -649,6 +649,12 @@ export const startCheckout = action({
     if (!context.email) {
       throw new Error("Add an email address to your account before starting a payment.");
     }
+    const verification = await ctx.runQuery(internal.emailVerification.getState, {
+      userId: context.userId,
+    });
+    if (!verification.emailVerified) {
+      throw new Error("Verify your email before starting a payment.");
+    }
 
     const amount = preview.amountDueToday;
     const keepPeriod = preview.keepPeriod;
@@ -1528,7 +1534,11 @@ export const syncGatewayPlansInternal = internalAction({
       );
     }
     await ctx.runMutation(internal.billing.ensurePlanCatalog, {});
-    const existing = await ctx.runQuery(internal.billing.storedGatewayPlanCodes, {});
+    const existing = (await ctx.runQuery(internal.billing.storedGatewayPlanCodes, {})) as Array<{
+      key: PlanKey;
+      monthlyCode: string | null;
+      yearlyCode: string | null;
+    }>;
     const byKey = new Map(existing.map((row) => [row.key, row]));
     const synced: string[] = [];
 

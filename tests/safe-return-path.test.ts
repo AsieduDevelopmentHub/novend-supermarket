@@ -17,6 +17,8 @@ describe("safeInternalPath", () => {
     expect(safeInternalPath("//evil.example/x")).toBeNull();
     expect(safeInternalPath("/login")).toBeNull();
     expect(safeInternalPath("/signup")).toBeNull();
+    expect(safeInternalPath("/forgot-password")).toBeNull();
+    expect(safeInternalPath("/reset-password")).toBeNull();
     expect(safeInternalPath("/")).toBeNull();
     expect(safeInternalPath("/docs")).toBeNull();
   });

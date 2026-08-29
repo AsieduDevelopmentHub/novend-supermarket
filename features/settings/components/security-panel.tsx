@@ -9,11 +9,14 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { BiometricSecurityCard } from "@/features/settings/components/biometric-security-card";
 import { NotificationsSettingsCard } from "@/features/settings/components/notifications-settings-card";
+import { VerifyEmailDialog } from "@/features/auth/components/verify-email-dialog";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useNativeShell } from "@/hooks/use-native-shell";
 import { useCurrentUser } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import { PasswordStrengthMeter } from "@/features/auth/components/password-strength";
+import { PASSWORD_MIN_LENGTH, passwordMeetsPolicy } from "@/convex/shared/passwordPolicy";
 
 /**
  * Security settings. Native cards render immediately — never wait on Convex —
@@ -36,7 +39,14 @@ export function SecurityPanel() {
         </>
       ) : null}
       {passwordReady ? (
-        <PasswordForm readOnly={!online} />
+        <>
+          <EmailVerificationCard
+            email={me?.email ?? null}
+            emailVerified={remote?.emailVerified === true}
+            online={online}
+          />
+          <PasswordForm readOnly={!online} />
+        </>
       ) : (
         <Card>
           <CardContent className="text-muted-foreground p-5 text-sm">
@@ -49,6 +59,40 @@ export function SecurityPanel() {
         </Card>
       )}
     </div>
+  );
+}
+
+function EmailVerificationCard({
+  email,
+  emailVerified,
+  online,
+}: {
+  email: string | null;
+  emailVerified: boolean;
+  online: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Email</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm">
+          {emailVerified ? "Your email is verified." : "Your email is not verified yet."}
+        </p>
+        {email ? <p className="text-muted-foreground text-sm">{email}</p> : null}
+        <p className="text-muted-foreground text-xs">
+          Change your sign-in email in Profile. We will send a code to verify the new address.
+        </p>
+        {!emailVerified ? (
+          <Button type="button" disabled={!online} onClick={() => setOpen(true)}>
+            Verify email
+          </Button>
+        ) : null}
+        <VerifyEmailDialog open={open} onOpenChange={setOpen} />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -69,13 +113,19 @@ function PasswordForm({ readOnly = false }: { readOnly?: boolean }) {
       toast.error("New passwords do not match");
       return;
     }
+    if (!passwordMeetsPolicy(newPassword)) {
+      toast.error(
+        `Password must be at least ${PASSWORD_MIN_LENGTH} characters and include uppercase, lowercase, and a number`,
+      );
+      return;
+    }
     setSavingPassword(true);
     try {
       await changePassword({ currentPassword, newPassword });
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      toast.success("Password updated");
+      toast.success("Password updated. We sent a confirmation to your email.");
     } catch (error) {
       showError(error, "Could not change password");
     } finally {
@@ -115,7 +165,9 @@ function PasswordForm({ readOnly = false }: { readOnly?: boolean }) {
               onChange={(e) => setNewPassword(e.target.value)}
               required
               disabled={readOnly}
+              minLength={PASSWORD_MIN_LENGTH}
             />
+            <PasswordStrengthMeter password={newPassword} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm new password</Label>

@@ -138,7 +138,7 @@
           var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
           var timer = window.setTimeout(function () {
             if (controller) controller.abort();
-          }, 8000);
+          }, 2500);
           fetch(health, {
             method: "GET",
             credentials: "omit",
@@ -168,7 +168,7 @@
           if (window.location.protocol === "file:") {
             showFailed();
           }
-        }, 8000);
+        }, 4000);
 
         goOnlineOrBoot();
       })();

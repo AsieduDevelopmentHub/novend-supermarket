@@ -19,6 +19,7 @@ export function MobileBottomNav() {
   return (
     <nav
       aria-label="Primary"
+      data-tour="mobile-bottom-navigation"
       className="pointer-events-none fixed inset-x-0 bottom-0 z-40 xl:hidden"
     >
       <div className="novend-mobile-tabbar pointer-events-auto">

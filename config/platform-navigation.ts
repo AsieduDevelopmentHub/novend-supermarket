@@ -1,27 +1,25 @@
 import {
   Activity,
+  BarChart3,
   Building2,
-  CreditCard,
+  FileDown,
   LayoutDashboard,
   Package,
   Receipt,
-  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 
-export type PlatformNavGroupId = "overview" | "analytics" | "tenants" | "product" | "system";
+export type PlatformNavGroupId = "overview" | "analytics" | "tenants";
 
 /** Collapsible Super Admin sidebar sections (Overview stays fixed). */
 export const PLATFORM_NAV_ACCORDION_GROUP_IDS = [
   "analytics",
   "tenants",
-  "product",
-  "system",
 ] as const;
 
 export type PlatformNavAccordionGroupId = (typeof PLATFORM_NAV_ACCORDION_GROUP_IDS)[number];
 
-export const DEFAULT_PLATFORM_NAV_ACCORDION_GROUP: PlatformNavAccordionGroupId = "tenants";
+export const DEFAULT_PLATFORM_NAV_ACCORDION_GROUP: PlatformNavAccordionGroupId = "analytics";
 
 export function isPlatformNavAccordionGroup(
   id: PlatformNavGroupId,
@@ -49,7 +47,7 @@ export const PLATFORM_NAV_GROUPS: PlatformNavGroup[] = [
     label: "Overview",
     items: [
       {
-        title: "Dashboard",
+        title: "Executive dashboard",
         href: "/platform",
         icon: LayoutDashboard,
         exact: true,
@@ -61,14 +59,19 @@ export const PLATFORM_NAV_GROUPS: PlatformNavGroup[] = [
     label: "Analytics",
     items: [
       {
-        title: "Revenue",
-        href: "/platform/revenue",
-        icon: TrendingUp,
+        title: "Monitoring",
+        href: "/platform/analytics",
+        icon: BarChart3,
       },
       {
-        title: "Operating costs",
-        href: "/platform/costs",
-        icon: Receipt,
+        title: "Activity",
+        href: "/platform/activity",
+        icon: Activity,
+      },
+      {
+        title: "Exports",
+        href: "/platform/exports",
+        icon: FileDown,
       },
     ],
   },
@@ -82,31 +85,14 @@ export const PLATFORM_NAV_GROUPS: PlatformNavGroup[] = [
         icon: Building2,
       },
       {
-        title: "Subscriptions",
-        href: "/platform/subscriptions",
-        icon: CreditCard,
-      },
-    ],
-  },
-  {
-    id: "product",
-    label: "Product",
-    items: [
-      {
-        title: "Downloads",
+        title: "Releases",
         href: "/platform/releases",
         icon: Package,
       },
-    ],
-  },
-  {
-    id: "system",
-    label: "System",
-    items: [
       {
-        title: "Health",
-        href: "/platform/health",
-        icon: Activity,
+        title: "Operating costs",
+        href: "/platform/costs",
+        icon: Receipt,
       },
     ],
   },
@@ -119,7 +105,18 @@ export function platformNavItemActive(pathname: string, item: PlatformNavItem): 
 
 export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | null {
   if (path.startsWith("/platform/payments/")) return "analytics";
-  if (path.startsWith("/platform/insights/")) return "overview";
+  if (path.startsWith("/platform/releases") || path.startsWith("/platform/costs")) {
+    return "tenants";
+  }
+  if (
+    path.startsWith("/platform/insights/") ||
+    path.startsWith("/platform/revenue") ||
+    path.startsWith("/platform/subscriptions") ||
+    path.startsWith("/platform/health") ||
+    path.startsWith("/platform/help")
+  ) {
+    return "analytics";
+  }
 
   const reserved = new Set([
     "organizations",
@@ -129,6 +126,10 @@ export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | 
     "subscriptions",
     "health",
     "payments",
+    "analytics",
+    "activity",
+    "exports",
+    "help",
   ]);
   const orgMatch = path.match(/^\/platform\/([^/]+)\/?$/);
   if (orgMatch && !reserved.has(orgMatch[1])) {

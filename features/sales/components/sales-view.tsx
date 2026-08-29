@@ -644,6 +644,7 @@ export function SalesView() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex max-w-lg flex-1 gap-2">
               <Input
+                data-tour="sales-search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search products…"
@@ -686,7 +687,10 @@ export function SalesView() {
           ) : catalog.length === 0 ? (
             <EmptyState icon={Package} title="No products available" />
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+            <div
+              data-tour="sales-catalog"
+              className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4"
+            >
               {catalog.map((product) => (
                 <button
                   key={product.id}
@@ -759,7 +763,10 @@ export function SalesView() {
           ) : null}
         </div>
 
-        <Card className="hidden h-fit self-start xl:sticky xl:top-4 xl:block xl:max-h-[calc(100dvh-5.5rem)] xl:overflow-y-auto">
+        <Card
+          data-tour="sales-cart"
+          className="hidden h-fit self-start xl:sticky xl:top-4 xl:block xl:max-h-[calc(100dvh-5.5rem)] xl:overflow-y-auto"
+        >
           <CardHeader className="bg-card/95 supports-[backdrop-filter]:bg-card/80 sticky top-0 z-10 backdrop-blur">
             <CardTitle className="flex items-center gap-2 text-base">
               <ShoppingCart className="h-4 w-4" />
@@ -1007,7 +1014,12 @@ function SalesCheckoutFields({
         <Button type="button" variant="secondary" disabled={!canCheckout || paying} onClick={onHold}>
           Hold
         </Button>
-        <Button type="button" disabled={!canCheckout || paying} onClick={onPay}>
+        <Button
+          type="button"
+          data-tour="sales-checkout"
+          disabled={!canCheckout || paying}
+          onClick={onPay}
+        >
           {paying ? "Saving…" : "Pay"}
         </Button>
       </div>

@@ -4,6 +4,8 @@ import { action, internalMutation, mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { getPlatformAdmin, requirePlatformAdmin } from "./shared/permissions";
+import { assertPasswordPolicy } from "./shared/passwordPolicy";
+import { notifyPasswordChanged } from "./shared/transactionalEmail";
 import { sanitizeOptionalText, TEXT_LIMITS } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
 import { planKeyValidator, billingCycleValidator } from "./schema";
@@ -613,9 +615,7 @@ export const bootstrap = action({
     const name = args.name.trim();
     const password = args.password;
     if (!email || !name) throw new Error("Name and email are required");
-    if (!password || password.length < 8) {
-      throw new Error("Password must be at least 8 characters");
-    }
+    assertPasswordPolicy(password);
     const created = await createAccount(ctx, {
       provider: "password",
       account: { id: email, secret: password },
@@ -747,9 +747,7 @@ export const resetOrganizationAdminPassword = action({
   handler: async (ctx, args) => {
     const gate = await ctx.runQuery(api.platform.me, {});
     if (!gate.isPlatformAdmin) throw new Error("Forbidden");
-    if (!args.newPassword || args.newPassword.length < 8) {
-      throw new Error("Password must be at least 8 characters");
-    }
+    assertPasswordPolicy(args.newPassword);
     const email = await ctx.runQuery(api.platform.ownerEmail, {
       organizationId: args.organizationId,
     });
@@ -758,6 +756,7 @@ export const resetOrganizationAdminPassword = action({
       provider: "password",
       account: { id: email, secret: args.newPassword },
     });
+    await notifyPasswordChanged(email);
     return { ok: true as const };
   },
 });

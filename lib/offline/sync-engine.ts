@@ -175,7 +175,14 @@ export type QueuedMutators = {
     phone?: string;
   }) => Promise<unknown>;
   createCategory: (args: { name: string }) => Promise<Id<"categories">>;
-  generateUploadUrl: () => Promise<string>;
+  generateUploadUrl: () => Promise<{
+    uploadUrl: string;
+    sessionId: Id<"storageUploadSessions">;
+  }>;
+  claimStorageUpload: (args: {
+    sessionId: Id<"storageUploadSessions">;
+    storageId: Id<"_storage">;
+  }) => Promise<unknown>;
   createProduct: (args: {
     name: string;
     sku: string;
@@ -520,8 +527,8 @@ export async function drainOutbox(options: {
           if (payload.hasLocalImage && !imageStorageId) {
             const cached = await db.productImages.get(payload.localId);
             if (cached) {
-              const uploadUrl = await options.mutators.generateUploadUrl();
-              const result = await fetch(uploadUrl, {
+              const started = await options.mutators.generateUploadUrl();
+              const result = await fetch(started.uploadUrl, {
                 method: "POST",
                 headers: { "Content-Type": cached.mimeType || "image/jpeg" },
                 body: cached.blob,
@@ -529,6 +536,10 @@ export async function drainOutbox(options: {
               if (result.ok) {
                 const json = (await result.json()) as { storageId: Id<"_storage"> };
                 imageStorageId = json.storageId;
+                await options.mutators.claimStorageUpload({
+                  sessionId: started.sessionId,
+                  storageId: json.storageId,
+                });
               }
             }
           }

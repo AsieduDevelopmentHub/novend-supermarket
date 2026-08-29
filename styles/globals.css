@@ -1,4 +1,5 @@
 ﻿@import "tailwindcss";
+@import "driver.js/dist/driver.css";
 
 /* Class-based dark only — never follow OS prefers-color-scheme. */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -230,10 +231,92 @@
   }
 }
 
+/*
+ * Sonner close control: keep the X inside the toast row instead of the default
+ * overlapping corner badge (translate(-35%, -35%)).
+ */
+[data-sonner-toast][data-styled="true"] [data-close-button] {
+  position: static !important;
+  order: 1;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  margin-inline-start: 0.25rem;
+  border: none !important;
+  border-radius: 0.375rem;
+  background: transparent !important;
+  box-shadow: none;
+  opacity: 1;
+  color: inherit;
+}
+
+[data-sonner-toast][data-styled="true"] [data-close-button] svg {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  stroke: currentColor;
+  stroke-width: 2.25;
+}
+
+[data-sonner-toast][data-styled="true"] [data-close-button]:hover,
+[data-sonner-toast][data-styled="true"]:hover [data-close-button]:hover {
+  opacity: 1;
+  background: color-mix(in oklab, currentColor 12%, transparent) !important;
+  border-color: transparent !important;
+}
+
+/* Product tours inherit Novend tokens instead of Driver.js defaults. */
+.driver-popover.novend-product-tour {
+  max-width: min(22rem, calc(100vw - 2rem));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-xl);
+}
+
+.driver-popover.novend-product-tour .driver-popover-title {
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.driver-popover.novend-product-tour .driver-popover-description,
+.driver-popover.novend-product-tour .driver-popover-progress-text {
+  color: var(--muted-foreground);
+}
+
+.driver-popover.novend-product-tour button {
+  min-height: 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  text-shadow: none;
+}
+
+.driver-popover.novend-product-tour .driver-popover-next-btn {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.driver-popover.novend-product-tour button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
 @keyframes splash-in {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -243,6 +326,7 @@
   from {
     opacity: 1;
   }
+
   to {
     opacity: 0;
   }
@@ -254,19 +338,24 @@
     opacity: 0;
     transform: translate3d(0, -42vh, 0) scale(0.96);
   }
+
   55% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
   }
+
   68% {
     transform: translate3d(0, -14px, 0) scale(1.02);
   }
+
   80% {
     transform: translate3d(0, 4px, 0) scale(0.99);
   }
+
   90% {
     transform: translate3d(0, -3px, 0) scale(1.005);
   }
+
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
@@ -275,15 +364,18 @@
 
 /* Soft radial flash at the moment of impact. */
 @keyframes splash-impact {
+
   0%,
   48% {
     opacity: 0;
     transform: scale(0.4);
   }
+
   55% {
     opacity: 0.22;
     transform: scale(1);
   }
+
   100% {
     opacity: 0;
     transform: scale(1.55);
@@ -292,15 +384,18 @@
 
 /* Minimal brand particles disperse then fade. */
 @keyframes splash-particle {
+
   0%,
   48% {
     opacity: 0;
     transform: translate3d(0, 0, 0) scale(0.4);
   }
+
   58% {
     opacity: 0.9;
     transform: translate3d(calc(var(--px) * 0.45), calc(var(--py) * 0.45), 0) scale(1);
   }
+
   100% {
     opacity: 0;
     transform: translate3d(var(--px), var(--py), 0) scale(0.35);
@@ -308,11 +403,13 @@
 }
 
 @keyframes splash-caption {
+
   0%,
   62% {
     opacity: 0;
     transform: translate3d(0, 8px, 0);
   }
+
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0);
@@ -328,11 +425,9 @@
 }
 
 .animate-splash-impact {
-  background: radial-gradient(
-    circle,
-    color-mix(in oklab, var(--primary) 55%, transparent) 0%,
-    transparent 70%
-  );
+  background: radial-gradient(circle,
+      color-mix(in oklab, var(--primary) 55%, transparent) 0%,
+      transparent 70%);
   animation: splash-impact 1.35s ease-out both;
 }
 
@@ -348,6 +443,7 @@
   from {
     stroke-dashoffset: 420;
   }
+
   to {
     stroke-dashoffset: 0;
   }
@@ -357,17 +453,20 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
 }
 
 @keyframes login-chart-pulse {
+
   0%,
   100% {
     opacity: 0.55;
     r: 3.5;
   }
+
   50% {
     opacity: 1;
     r: 5;
@@ -416,12 +515,10 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(224, 242, 254, 0.65) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(224, 242, 254, 0.65) 50%,
+      transparent 100%);
   background-size: 180% 100%;
   animation: login-grid-pulse 16s ease-in-out infinite;
 }
@@ -429,12 +526,10 @@
 .login-atmosphere-wave {
   position: absolute;
   inset: -40%;
-  background: linear-gradient(
-    115deg,
-    transparent 38%,
-    rgba(255, 255, 255, 0.7) 50%,
-    transparent 62%
-  );
+  background: linear-gradient(115deg,
+      transparent 38%,
+      rgba(255, 255, 255, 0.7) 50%,
+      transparent 62%);
   animation: login-wave 18s ease-in-out infinite;
 }
 
@@ -489,14 +584,13 @@
   height: 168px;
   animation: login-orb-float-a 22s ease-in-out infinite;
 }
+
 .login-orb-a .login-orb-glow {
-  background: radial-gradient(
-    circle at 32% 28%,
-    #ffffff 0%,
-    #e0f2fe 42%,
-    rgba(56, 189, 248, 0.45) 68%,
-    transparent 74%
-  );
+  background: radial-gradient(circle at 32% 28%,
+      #ffffff 0%,
+      #e0f2fe 42%,
+      rgba(56, 189, 248, 0.45) 68%,
+      transparent 74%);
 }
 
 .login-orb-b {
@@ -506,14 +600,13 @@
   height: 128px;
   animation: login-orb-float-b 18s ease-in-out infinite;
 }
+
 .login-orb-b .login-orb-glow {
-  background: radial-gradient(
-    circle at 32% 28%,
-    #ffffff 0%,
-    #bae6fd 48%,
-    rgba(14, 165, 233, 0.4) 70%,
-    transparent 76%
-  );
+  background: radial-gradient(circle at 32% 28%,
+      #ffffff 0%,
+      #bae6fd 48%,
+      rgba(14, 165, 233, 0.4) 70%,
+      transparent 76%);
 }
 
 .login-orb-c {
@@ -523,14 +616,13 @@
   height: 148px;
   animation: login-orb-float-c 26s ease-in-out infinite;
 }
+
 .login-orb-c .login-orb-glow {
-  background: radial-gradient(
-    circle at 32% 28%,
-    #ffffff 0%,
-    #f1f5f9 40%,
-    rgba(125, 211, 252, 0.5) 68%,
-    transparent 74%
-  );
+  background: radial-gradient(circle at 32% 28%,
+      #ffffff 0%,
+      #f1f5f9 40%,
+      rgba(125, 211, 252, 0.5) 68%,
+      transparent 74%);
 }
 
 .login-orb-d {
@@ -540,14 +632,13 @@
   height: 120px;
   animation: login-orb-float-d 20s ease-in-out infinite;
 }
+
 .login-orb-d .login-orb-glow {
-  background: radial-gradient(
-    circle at 32% 28%,
-    #ffffff 0%,
-    #e0f2fe 45%,
-    rgba(56, 189, 248, 0.42) 70%,
-    transparent 76%
-  );
+  background: radial-gradient(circle at 32% 28%,
+      #ffffff 0%,
+      #e0f2fe 45%,
+      rgba(56, 189, 248, 0.42) 70%,
+      transparent 76%);
 }
 
 .login-orb-e {
@@ -557,14 +648,13 @@
   height: 112px;
   animation: login-orb-float-b 24s ease-in-out infinite reverse;
 }
+
 .login-orb-e .login-orb-glow {
-  background: radial-gradient(
-    circle at 32% 28%,
-    #ffffff 0%,
-    #e0f2fe 46%,
-    rgba(14, 165, 233, 0.35) 70%,
-    transparent 76%
-  );
+  background: radial-gradient(circle at 32% 28%,
+      #ffffff 0%,
+      #e0f2fe 46%,
+      rgba(14, 165, 233, 0.35) 70%,
+      transparent 76%);
 }
 
 .login-orb-f {
@@ -574,22 +664,23 @@
   height: 118px;
   animation: login-orb-float-a 19s ease-in-out infinite reverse;
 }
+
 .login-orb-f .login-orb-glow {
-  background: radial-gradient(
-    circle at 32% 28%,
-    #ffffff 0%,
-    #bae6fd 44%,
-    rgba(56, 189, 248, 0.4) 70%,
-    transparent 76%
-  );
+  background: radial-gradient(circle at 32% 28%,
+      #ffffff 0%,
+      #bae6fd 44%,
+      rgba(56, 189, 248, 0.4) 70%,
+      transparent 76%);
 }
 
 @keyframes login-orb-label {
+
   0%,
   100% {
     opacity: 0.72;
     transform: translateY(0);
   }
+
   50% {
     opacity: 1;
     transform: translateY(-3px);
@@ -673,6 +764,7 @@
       14% 84%,
       0% 40%;
   }
+
   50% {
     transform: translate3d(-2%, 1.5%, 0) scale(1.06);
     background-position:
@@ -682,6 +774,7 @@
       78% 18%,
       100% 60%;
   }
+
   100% {
     transform: translate3d(0, 0, 0) scale(1);
     background-position:
@@ -698,10 +791,12 @@
     transform: translate3d(-18%, -8%, 0) rotate(8deg);
     opacity: 0.15;
   }
+
   50% {
     transform: translate3d(16%, 10%, 0) rotate(8deg);
     opacity: 0.4;
   }
+
   100% {
     transform: translate3d(-18%, -8%, 0) rotate(8deg);
     opacity: 0.15;
@@ -709,11 +804,13 @@
 }
 
 @keyframes login-grid-pulse {
+
   0%,
   100% {
     background-position: -40% 0;
     opacity: 0.15;
   }
+
   50% {
     background-position: 140% 0;
     opacity: 0.55;
@@ -721,40 +818,48 @@
 }
 
 @keyframes login-orb-float-a {
+
   0%,
   100% {
     transform: translate3d(0, 0, 0);
   }
+
   50% {
     transform: translate3d(28px, -22px, 0);
   }
 }
 
 @keyframes login-orb-float-b {
+
   0%,
   100% {
     transform: translate3d(0, 0, 0);
   }
+
   50% {
     transform: translate3d(-24px, 18px, 0);
   }
 }
 
 @keyframes login-orb-float-c {
+
   0%,
   100% {
     transform: translate3d(0, 0, 0);
   }
+
   50% {
     transform: translate3d(18px, 26px, 0);
   }
 }
 
 @keyframes login-orb-float-d {
+
   0%,
   100% {
     transform: translate3d(0, 0, 0);
   }
+
   50% {
     transform: translate3d(-16px, -20px, 0);
   }
@@ -764,6 +869,7 @@
   from {
     stroke-dashoffset: 0;
   }
+
   to {
     stroke-dashoffset: -240;
   }
@@ -774,14 +880,17 @@
     stroke-dashoffset: 420;
     opacity: 0.2;
   }
+
   22% {
     stroke-dashoffset: 0;
     opacity: 1;
   }
+
   72% {
     stroke-dashoffset: 0;
     opacity: 0.85;
   }
+
   100% {
     stroke-dashoffset: 0;
     opacity: 0.2;
@@ -789,10 +898,12 @@
 }
 
 @keyframes login-spark-fill {
+
   0%,
   100% {
     opacity: 0.08;
   }
+
   30%,
   70% {
     opacity: 1;
@@ -800,6 +911,7 @@
 }
 
 @media (max-width: 767px) {
+
   .login-sparkline,
   .login-graph,
   .login-orb-e,
@@ -812,6 +924,7 @@
   from {
     background-position: 0 0;
   }
+
   to {
     background-position: 28px 28px;
   }
@@ -846,6 +959,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .login-atmosphere-mesh,
   .login-atmosphere-grid,
   .login-atmosphere-grid::after,
@@ -906,6 +1020,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   [data-reveal],
   [data-depth-panel],
   [data-depth-card],
@@ -1090,6 +1205,7 @@
       100% 80%,
       0 0;
   }
+
   to {
     background-position:
       18% 28%,
@@ -1195,6 +1311,7 @@
   from {
     transform: translate3d(0, 0, 0);
   }
+
   to {
     transform: translate3d(-33.333%, 0, 0);
   }
@@ -1204,12 +1321,14 @@
   from {
     transform: translate3d(-33.333%, 0, 0);
   }
+
   to {
     transform: translate3d(0, 0, 0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .landing-marquee-row[data-direction="left"] .landing-marquee-track,
   .landing-marquee-row[data-direction="right"] .landing-marquee-track {
     animation: none;
@@ -1448,6 +1567,7 @@
   0% {
     transform: translate3d(0, 0, 0) scale(1);
   }
+
   100% {
     transform: translate3d(1.5%, -1%, 0) scale(1.03);
   }
@@ -1466,12 +1586,10 @@
 .landing-v2-stage-aura {
   position: absolute;
   inset: 0% -6% 20%;
-  background: radial-gradient(
-    ellipse 68% 52% at 50% 30%,
-    rgba(56, 189, 248, 0.16) 0%,
-    rgba(56, 189, 248, 0.06) 40%,
-    transparent 72%
-  );
+  background: radial-gradient(ellipse 68% 52% at 50% 30%,
+      rgba(56, 189, 248, 0.16) 0%,
+      rgba(56, 189, 248, 0.06) 40%,
+      transparent 72%);
   pointer-events: none;
   z-index: 0;
 }
@@ -1550,18 +1668,14 @@
   pointer-events: none;
   border-radius: 50%;
   background:
-    radial-gradient(
-      ellipse 58% 42% at 42% 45%,
+    radial-gradient(ellipse 58% 42% at 42% 45%,
       rgba(15, 23, 42, 0.22) 0%,
       rgba(15, 23, 42, 0.1) 38%,
-      transparent 72%
-    ),
-    radial-gradient(
-      ellipse 48% 36% at 72% 52%,
+      transparent 72%),
+    radial-gradient(ellipse 48% 36% at 72% 52%,
       rgba(15, 23, 42, 0.16) 0%,
       rgba(15, 23, 42, 0.06) 42%,
-      transparent 74%
-    );
+      transparent 74%);
   filter: blur(14px);
   transform-origin: center bottom;
   animation: landing-v2-device-shadow-float 5.2s ease-in-out infinite;
@@ -1584,10 +1698,12 @@
 }
 
 @keyframes landing-how-float {
+
   0%,
   100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-5px);
   }
@@ -1600,21 +1716,25 @@
 }
 
 @keyframes landing-v2-device-float {
+
   0%,
   100% {
     transform: translate3d(0, 0, 0) rotate(-0.8deg);
   }
+
   50% {
     transform: translate3d(0, -16px, 0) rotate(0.9deg);
   }
 }
 
 @keyframes landing-v2-device-shadow-float {
+
   0%,
   100% {
     opacity: 0.95;
     transform: skewX(-12deg) rotate(-2deg) scaleY(0.55) scaleX(1) translateY(0);
   }
+
   50% {
     opacity: 0.58;
     transform: skewX(-12deg) rotate(-2deg) scaleY(0.46) scaleX(0.9) translateY(4px);
@@ -1627,6 +1747,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .landing-v2-hero-mesh,
   .landing-v2-device-main,
   .landing-v2-device-shadow {
@@ -1678,7 +1799,8 @@
 
 @media (min-width: 1024px) {
   .landing-arch-section {
-    padding-block: 8.75rem; /* ~140px */
+    padding-block: 8.75rem;
+    /* ~140px */
   }
 }
 
@@ -1893,12 +2015,15 @@
 .landing-arch-chart-bars i:nth-child(1) {
   height: 35%;
 }
+
 .landing-arch-chart-bars i:nth-child(2) {
   height: 60%;
 }
+
 .landing-arch-chart-bars i:nth-child(3) {
   height: 45%;
 }
+
 .landing-arch-chart-bars i:nth-child(4) {
   height: 80%;
 }
@@ -2029,9 +2154,11 @@
     opacity: 0;
     transform: translateX(-30%) scaleX(0.35);
   }
+
   40% {
     opacity: 0.9;
   }
+
   100% {
     opacity: 0;
     transform: translateX(30%) scaleX(0.8);
@@ -2043,6 +2170,7 @@
     opacity: 0.7;
     transform: translate(-50%, -50%) scale(0.7);
   }
+
   100% {
     opacity: 0;
     transform: translate(-50%, -50%) scale(1.45);
@@ -2053,6 +2181,7 @@
   from {
     width: 8%;
   }
+
   to {
     width: 100%;
   }
@@ -2062,12 +2191,14 @@
   from {
     transform: translate(-50%, -46%) rotate(0deg);
   }
+
   to {
     transform: translate(-50%, -46%) rotate(360deg);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .landing-arch-particles-on,
   .landing-arch-pulse-ring-on,
   .landing-arch-progress-on::after,
@@ -2091,7 +2222,8 @@
   border-radius: 1.5rem;
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: #0f172a;
-  aspect-ratio: 16 / 9; /* match marketing UI screenshots */
+  aspect-ratio: 16 / 9;
+  /* match marketing UI screenshots */
   transition:
     transform 0.35s ease,
     box-shadow 0.35s ease;
@@ -2129,12 +2261,10 @@ button.landing-feature-frame {
   pointer-events: none;
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    105deg,
-    transparent 35%,
-    rgba(56, 189, 248, 0.12) 48%,
-    transparent 62%
-  );
+  background: linear-gradient(105deg,
+      transparent 35%,
+      rgba(56, 189, 248, 0.12) 48%,
+      transparent 62%);
   transform: translateX(-120%);
   animation: landing-feature-chart-sweep 2.4s ease-out 0.35s 1 both;
 }
@@ -2252,12 +2382,14 @@ button.landing-feature-frame {
   from {
     transform: translateX(-120%);
   }
+
   to {
     transform: translateX(120%);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .landing-feature-frame:hover,
   button.landing-feature-frame:hover {
     transform: none;
@@ -2369,6 +2501,7 @@ button.landing-feature-frame {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2380,6 +2513,7 @@ button.landing-feature-frame {
     opacity: 0.35;
     transform: translateY(4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2387,6 +2521,7 @@ button.landing-feature-frame {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .landing-industry-visual,
   .landing-industry-copy,
   .landing-industry-kpi dd {
@@ -2415,7 +2550,8 @@ button.landing-feature-frame {
   .landing-price-carousel {
     display: grid;
     overflow: visible;
-    padding-top: 0.75rem; /* room for overhanging plan badges */
+    padding-top: 0.75rem;
+    /* room for overhanging plan badges */
     padding-bottom: 0;
     scroll-snap-type: none;
   }
@@ -2671,13 +2807,11 @@ button.landing-feature-frame {
   border-radius: 9999px;
   opacity: 0;
   transform: scale(0.72);
-  background: radial-gradient(
-    circle at 35% 28%,
-    #e0f2fe 0%,
-    #7dd3fc 38%,
-    #38bdf8 72%,
-    #0ea5e9 100%
-  );
+  background: radial-gradient(circle at 35% 28%,
+      #e0f2fe 0%,
+      #7dd3fc 38%,
+      #38bdf8 72%,
+      #0ea5e9 100%);
   box-shadow:
     0 0 0 1px rgba(125, 211, 252, 0.35),
     0 4px 14px rgba(14, 165, 233, 0.45),
@@ -2725,6 +2859,7 @@ button.landing-feature-frame {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .novend-mobile-tab,
   .novend-mobile-tab-orb,
   .novend-mobile-tab-label,
@@ -2736,13 +2871,11 @@ button.landing-feature-frame {
 
 /* Floating cart FAB — candy blue so it doesn’t blend into the shell */
 .novend-cart-fab {
-  background: radial-gradient(
-    circle at 35% 28%,
-    #e0f2fe 0%,
-    #7dd3fc 38%,
-    #38bdf8 72%,
-    #0ea5e9 100%
-  );
+  background: radial-gradient(circle at 35% 28%,
+      #e0f2fe 0%,
+      #7dd3fc 38%,
+      #38bdf8 72%,
+      #0ea5e9 100%);
   transition:
     transform 160ms ease,
     box-shadow 160ms ease;

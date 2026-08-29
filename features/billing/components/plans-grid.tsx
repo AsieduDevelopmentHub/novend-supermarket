@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VerifyEmailDialog } from "@/features/auth/components/verify-email-dialog";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
 import { showError } from "@/lib/errors";
@@ -89,8 +90,10 @@ export function PlansGrid({
   const [pendingPlan, setPendingPlan] = useState<PlanKey | null>(null);
   const [offlineOpen, setOfflineOpen] = useState(false);
   const [dialogPlan, setDialogPlan] = useState<PlanDefinition | null>(null);
+  const [verifyOpen, setVerifyOpen] = useState(false);
   const startCheckout = useAction(api.billing.startCheckout);
   const scheduleDowngrade = useAction(api.billing.scheduleDowngrade);
+  const me = useQuery(api.users.me, online ? {} : "skip");
 
   const dialogCycle: BillingCycle = dialogPlan?.isLifetime ? "lifetime" : cycle;
   const preview = useQuery(
@@ -110,6 +113,12 @@ export function PlansGrid({
         });
         toast.success(`Your downgrade is scheduled for ${formatDate(result.effectiveAt)}.`);
         setDialogPlan(null);
+        return;
+      }
+      if (me?.emailVerified === false) {
+        setDialogPlan(null);
+        setVerifyOpen(true);
+        toast.error("Verify your email before starting a payment.");
         return;
       }
       const result = await startCheckout({ planKey: dialogPlan.key, cycle: chosenCycle });
@@ -249,6 +258,7 @@ export function PlansGrid({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <VerifyEmailDialog open={verifyOpen} onOpenChange={setVerifyOpen} />
     </div>
   );
 }

@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
+import { ROUTES } from "@/config/navigation";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
 import { isCapacitor } from "@novend/hardware";
@@ -256,7 +257,15 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="password">Password</Label>
+            <Link
+              href={ROUTES.forgotPassword}
+              className="text-primary text-sm font-medium hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <PasswordInput
             id="password"
             autoComplete="current-password"
@@ -264,7 +273,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
             onChange={(e) => setPassword(e.target.value)}
             className="bg-muted/50 h-11"
             required
-            minLength={8}
           />
         </div>
 
@@ -304,6 +312,7 @@ function FormHeader({ compact }: { compact: boolean }) {
           alt=""
           fill
           priority
+          unoptimized
           sizes="64px"
           className="object-contain"
         />

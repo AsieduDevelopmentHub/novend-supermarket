@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { SyncStatusBanner } from "@/components/offline/sync-status-banner";
 import { SyncCenterDialog } from "@/components/offline/sync-center-dialog";
 import { LicenseBanner } from "@/features/billing/components/license-banner";
+import { EmailVerificationBanner } from "@/features/auth/components/email-verification-banner";
 import { DeviceActivationGate } from "@/features/billing/components/device-activation-gate";
 import { InstallPromptDialog } from "@/components/install-prompt-dialog";
 import { OfflineProvider } from "@/providers/offline-provider";
@@ -37,6 +38,9 @@ import {
 import { bindOfflineOrganization } from "@/lib/offline/db";
 import { toUserMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
+import { describeClientDevice, telemetryRuntimeForDevice } from "@/lib/device";
+import { TelemetryProvider } from "@/providers/telemetry-provider";
+import { ProductTourProvider } from "@/features/tours/tour-provider";
 
 const OFFLINE_AUTH_BUDGET_MS = 1200;
 /** Cap/Web often look "online" while Convex never settles — fail soft into cache/login. */
@@ -246,13 +250,23 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const device = typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 80) : undefined;
-    void heartbeat({ device });
-    const interval = window.setInterval(() => {
-      void heartbeat({ device });
-    }, 30_000);
+    let cancelled = false;
+    let interval: number | undefined;
+    void describeClientDevice().then((identity) => {
+      if (cancelled) return;
+      const payload = {
+        device: identity.name,
+        runtime: telemetryRuntimeForDevice(identity),
+        appVersion: identity.appVersion,
+      };
+      void heartbeat(payload);
+      interval = window.setInterval(() => void heartbeat(payload), 30_000);
+    });
 
-    return () => window.clearInterval(interval);
+    return () => {
+      cancelled = true;
+      if (interval !== undefined) window.clearInterval(interval);
+    };
   }, [heartbeat, isAuthenticated, online, user]);
 
   useEffect(() => {
@@ -328,10 +342,12 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     (isAuthenticated || offlineAuthBudgetElapsed || !isLoading);
 
   const waitingForUser =
-    (online && isLoading && !onlineAuthBudgetElapsed) ||
-    (online && isAuthenticated && user === undefined && !onlineAuthBudgetElapsed) ||
-    (!online && !cacheReady) ||
-    (!online && isLoading && !cachedProfile && !platformSession && !offlineAuthBudgetElapsed);
+    !cachedProfile &&
+    !platformSession &&
+    ((online && isLoading && !onlineAuthBudgetElapsed) ||
+      (online && isAuthenticated && user === undefined && !onlineAuthBudgetElapsed) ||
+      (!online && !cacheReady) ||
+      (!online && isLoading && !offlineAuthBudgetElapsed));
 
   if (waitingForUser) {
     return <AppSplash label="Preparing workspace…" />;
@@ -369,14 +385,28 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       <NativeAppServices>
         <OfflineProvider key={replicaKey}>
           <OfflineNavigationProvider>
-            <RestoreLastRoute />
-            <PlatformShell
-              hasTenantRole={Boolean(user?.role ?? platformSession?.hasTenantRole)}
-              sessionName={user?.name ?? platformSession?.name}
-              sessionEmail={user?.email ?? platformSession?.email ?? null}
+            <ProductTourProvider
+              enabled={Boolean(isAuthenticated || platformSession)}
+              identityKey={
+                user?.userId
+                  ? String(user.userId)
+                  : platformSession?.email
+                    ? platformSession.email
+                    : null
+              }
+              role={(user?.role as AppRole | undefined) ?? null}
+              isPlatformAdmin={Boolean(user?.isPlatformAdmin || platformSession)}
             >
-              <OfflineOutlet>{children}</OfflineOutlet>
-            </PlatformShell>
+              <RestoreLastRoute />
+              <TelemetryProvider enabled={Boolean(isAuthenticated && online)} />
+              <PlatformShell
+                hasTenantRole={Boolean(user?.role ?? platformSession?.hasTenantRole)}
+                sessionName={user?.name ?? platformSession?.name}
+                sessionEmail={user?.email ?? platformSession?.email ?? null}
+              >
+                <OfflineOutlet>{children}</OfflineOutlet>
+              </PlatformShell>
+            </ProductTourProvider>
           </OfflineNavigationProvider>
         </OfflineProvider>
       </NativeAppServices>
@@ -423,8 +453,23 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     <NativeAppServices>
       <OfflineProvider key={replicaKey}>
         <OfflineNavigationProvider>
-          <RestoreLastRoute />
-          <div
+          <ProductTourProvider
+            enabled={Boolean(liveReady || offlineSessionOk)}
+            identityKey={
+              user?.userId
+                ? String(user.userId)
+                : cachedProfile?.userId
+                  ? String(cachedProfile.userId)
+                  : null
+            }
+            role={shellUser.role}
+            isPlatformAdmin={Boolean(
+              "isPlatformAdmin" in shellUser && shellUser.isPlatformAdmin,
+            )}
+          >
+            <RestoreLastRoute />
+            <TelemetryProvider enabled={Boolean(isAuthenticated && online)} />
+            <div
             className={cn(
               "bg-background flex h-dvh max-h-dvh overflow-hidden overscroll-none",
               nativeShell && "native-shell",
@@ -441,6 +486,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                     alt=""
                     width={32}
                     height={32}
+                    unoptimized
                     className="h-8 w-8 shrink-0 object-contain"
                   />
                   <p className="truncate text-base font-semibold">
@@ -449,12 +495,14 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                 </header>
               )}
               <LicenseBanner />
+              <EmailVerificationBanner />
               <SyncStatusBanner />
               {nativeShell ? (
                 <div id="native-page-header-host" className="native-page-header-host shrink-0" />
               ) : null}
               <main
                 data-novend-scroll-root
+                data-tour="page-content"
                 className={cn(
                   "min-h-0 min-w-0 flex-1 overscroll-y-contain",
                   nativeShell
@@ -468,9 +516,10 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             </div>
             {nativeShell ? <MobileBottomNav /> : null}
           </div>
-          <SyncCenterDialog />
-          <InstallPromptDialog />
-          <DeviceActivationGate enabled={Boolean(liveReady)} />
+            <SyncCenterDialog />
+            <InstallPromptDialog />
+            <DeviceActivationGate enabled={Boolean(liveReady)} />
+          </ProductTourProvider>
         </OfflineNavigationProvider>
       </OfflineProvider>
     </NativeAppServices>

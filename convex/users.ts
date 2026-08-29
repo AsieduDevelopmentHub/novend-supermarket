@@ -17,14 +17,19 @@ import {
   requireSessionIgnoringLicense,
   assertOrgDoc,
 } from "./shared/permissions";
-import { roleValidator } from "./schema";
+import { roleValidator, telemetryRuntimeValidator } from "./schema";
 import { writeAuditLog } from "./shared/audit";
 import { Id } from "./_generated/dataModel";
 import { assertStoredImage, sanitizePhone, sanitizeText, TEXT_LIMITS } from "./shared/validation";
+import { assertPasswordPolicy } from "./shared/passwordPolicy";
+import { notifyPasswordChanged } from "./shared/transactionalEmail";
+import { assertOwnedStorage, beginStorageUploadSession } from "./shared/storageSessions";
 import { assertOrganizationCapacity, countUsage, resolveLicense } from "./shared/entitlements";
 import { limitReachedMessage } from "./shared/plans";
 import { presenceFromLastSeenAt } from "./shared/presence";
 import { deactivateAccountBlockReason } from "./shared/accountStatus";
+import { loadEmailVerification } from "./shared/emailVerificationLookup";
+import { recordDailyActiveUser } from "./shared/platformTelemetry";
 
 export const me = query({
   args: {},
@@ -37,10 +42,12 @@ export const me = query({
 
     const profile = await getProfileByUserId(ctx, userId);
     const platformAdmin = await getPlatformAdmin(ctx, userId);
+    const verification = await loadEmailVerification(ctx, userId);
     if (!profile) {
       return {
         userId,
         email: user.email ?? null,
+        emailVerified: verification.emailVerified,
         needsProfile: !platformAdmin,
         needsOnboarding: !platformAdmin,
         isPlatformAdmin: Boolean(platformAdmin),
@@ -81,6 +88,7 @@ export const me = query({
     return {
       userId,
       email: user.email ?? null,
+      emailVerified: verification.emailVerified,
       needsProfile: false as const,
       needsOnboarding: false as const,
       organizationId: profile.organizationId,
@@ -314,8 +322,17 @@ export const updateProfile = mutation({
 export const generateProfileUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireRole(ctx, ["administrator", "manager", "cashier"]);
-    return await ctx.storage.generateUploadUrl();
+    const { userId, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
+    const sessionId = await beginStorageUploadSession(ctx, {
+      organizationId,
+      userId,
+      purpose: "profileImage",
+    });
+    return { uploadUrl: await ctx.storage.generateUploadUrl(), sessionId };
   },
 });
 
@@ -342,6 +359,7 @@ export const updateOwnProfile = mutation({
       imageStorageId = undefined;
     } else if (args.imageStorageId) {
       await assertStoredImage(ctx, args.imageStorageId);
+      await assertOwnedStorage(ctx, args.imageStorageId, profile.organizationId);
       if (profile.imageStorageId && profile.imageStorageId !== args.imageStorageId) {
         try {
           await ctx.storage.delete(profile.imageStorageId);
@@ -428,17 +446,7 @@ export const changePassword = action({
     if (!me?.email || !me.userId) {
       throw new Error("You must be signed in to change your password");
     }
-    if (
-      !args.newPassword ||
-      args.newPassword.length < 12 ||
-      !/[A-Z]/.test(args.newPassword) ||
-      !/[a-z]/.test(args.newPassword) ||
-      !/\d/.test(args.newPassword)
-    ) {
-      throw new Error(
-        "New password must be at least 12 characters and include uppercase, lowercase, and a number",
-      );
-    }
+    assertPasswordPolicy(args.newPassword);
     if (args.currentPassword === args.newPassword) {
       throw new Error("New password must be different from the current password");
     }
@@ -467,6 +475,8 @@ export const changePassword = action({
       userId: me.userId,
     });
 
+    await notifyPasswordChanged(me.email);
+
     return { ok: true as const };
   },
 });
@@ -485,9 +495,13 @@ export const writePasswordChangeAudit = internalMutation({
 });
 
 export const heartbeat = mutation({
-  args: { device: v.optional(v.string()) },
+  args: {
+    device: v.optional(v.string()),
+    runtime: v.optional(telemetryRuntimeValidator),
+    appVersion: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
-    const { profile } = await requireSessionIgnoringLicense(ctx);
+    const { profile, userId, organizationId } = await requireSessionIgnoringLicense(ctx);
     const now = Date.now();
     const sessionFresh = !profile.lastLoginAt || now - profile.lastLoginAt > 8 * 60 * 60 * 1000;
     await ctx.db.patch(profile._id, {
@@ -495,6 +509,15 @@ export const heartbeat = mutation({
       ...(args.device ? { lastDevice: args.device.slice(0, 120) } : {}),
       ...(sessionFresh ? { lastLoginAt: now } : {}),
     });
+    if (args.runtime) {
+      await recordDailyActiveUser(ctx, {
+        userId,
+        organizationId,
+        runtime: args.runtime,
+        appVersion: args.appVersion,
+        occurredAt: now,
+      });
+    }
   },
 });
 
@@ -600,17 +623,7 @@ export const createUserAccount = action({
     const password = args.password;
 
     if (!email || !name) throw new Error("Name and email are required");
-    if (
-      !password ||
-      password.length < 12 ||
-      !/[A-Z]/.test(password) ||
-      !/[a-z]/.test(password) ||
-      !/\d/.test(password)
-    ) {
-      throw new Error(
-        "Password must be at least 12 characters and include uppercase, lowercase, and a number",
-      );
-    }
+    assertPasswordPolicy(password);
 
     const me = await ctx.runQuery(api.users.me, {});
     if (!me || (me.role !== "administrator" && me.role !== "manager")) {
@@ -729,17 +742,7 @@ export const resetUserPassword = action({
     newPassword: v.string(),
   },
   handler: async (ctx, args) => {
-    if (
-      !args.newPassword ||
-      args.newPassword.length < 12 ||
-      !/[A-Z]/.test(args.newPassword) ||
-      !/[a-z]/.test(args.newPassword) ||
-      !/\d/.test(args.newPassword)
-    ) {
-      throw new Error(
-        "Password must be at least 12 characters and include uppercase, lowercase, and a number",
-      );
-    }
+    assertPasswordPolicy(args.newPassword);
 
     const me = await ctx.runQuery(api.users.me, {});
     if (!me || (me.role !== "administrator" && me.role !== "manager")) {
@@ -765,6 +768,8 @@ export const resetUserPassword = action({
     await ctx.runMutation(internal.users.writePasswordChangeAudit, {
       userId: me.userId,
     });
+
+    await notifyPasswordChanged(target.email);
 
     return { ok: true as const };
   },

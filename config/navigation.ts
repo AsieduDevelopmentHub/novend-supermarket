@@ -235,6 +235,8 @@ export function findNavGroupForPath(path: string): NavGroupId | null {
 export const ROUTES = {
   login: "/login",
   signup: "/signup",
+  forgotPassword: "/forgot-password",
+  resetPassword: "/reset-password",
   onboarding: "/onboarding",
   dashboard: "/dashboard",
   platform: "/platform",

@@ -1,5 +1,5 @@
-import { PlatformOverviewView } from "@/features/platform/components/platform-overview-view";
+import { PlatformMonitoringView } from "@/features/platform/components/platform-monitoring-view";
 
 export default function PlatformPage() {
-  return <PlatformOverviewView />;
+  return <PlatformMonitoringView />;
 }

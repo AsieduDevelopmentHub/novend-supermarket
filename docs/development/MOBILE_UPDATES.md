@@ -11,6 +11,13 @@ Tag v* -> GitHub Actions builds Android APK (default)
         {CONVEX_SITE_URL}/mobile-updates/...
 ```
 
+## Download monitoring
+
+Mobile update checks and asset redirects record privacy-limited platform events
+before returning metadata or the GitHub redirect. Asset groups distinguish APK,
+AAB, and IPA files. A telemetry failure never blocks download or update checks.
+Historical GitHub asset totals can be imported once from Platform Exports.
+
 ## Convex environment
 
 Mobile publishing reuses the desktop release secrets:
@@ -121,8 +128,8 @@ for release artifacts.
 After updating the package version and changelog, squash-merge to `main`, then tag:
 
 ```bash
-git tag v0.3.9
-git push origin v0.3.9
+git tag v0.3.10
+git push origin v0.3.10
 ```
 
 ## HTTP endpoints

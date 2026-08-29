@@ -33,13 +33,30 @@ public class NovendPrintPlugin extends Plugin {
 
     @PluginMethod
     public void printPdf(PluginCall call) {
-        String path = call.getString("path");
         String title = call.getString("title", "Receipt");
-        File file = resolveFile(path);
+        String data = call.getString("data");
+        File file = null;
+        if (data != null && !data.isEmpty()) {
+            try {
+                byte[] bytes = Base64.decode(data, Base64.DEFAULT);
+                File dir = getContext().getCacheDir();
+                file = File.createTempFile("novend-print-", ".pdf", dir);
+                try (OutputStream out = new FileOutputStream(file)) {
+                    out.write(bytes);
+                }
+            } catch (Exception error) {
+                call.reject("Could not prepare the receipt PDF.");
+                return;
+            }
+        } else {
+            String path = call.getString("path");
+            file = resolveFile(path);
+        }
         if (file == null || !file.isFile()) {
             call.reject("Receipt PDF was not found on this device.");
             return;
         }
+        final File pdfFile = file;
         getActivity()
             .runOnUiThread(() -> {
                 try {
@@ -53,7 +70,7 @@ public class NovendPrintPlugin extends Plugin {
                         .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
                         .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
                         .build();
-                    printer.print(title, new PdfFileAdapter(file), attrs);
+                    printer.print(title, new PdfFileAdapter(pdfFile), attrs);
                     call.resolve();
                 } catch (Exception error) {
                     call.reject(

@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation } from "convex/react";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, LogOut, Menu, Shield } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleHelp, LogOut, Menu, Shield } from "lucide-react";
 import type { AppRole } from "@/config/navigation";
 import { SidebarNavTree, SidebarSettingsLink } from "@/components/layout/sidebar-nav-tree";
 import { APP_BRAND } from "@/constants/app";
@@ -112,6 +112,7 @@ function SidebarBrand({
           alt=""
           fill
           priority
+          unoptimized
           className="object-contain"
           sizes="44px"
         />
@@ -173,6 +174,7 @@ function SidebarUser({ user, collapsed }: { user: ShellUser; collapsed?: boolean
         <DropdownMenuTrigger asChild>
           <button
             type="button"
+            data-tour="account-menu"
             className={cn(
               "flex w-full items-center rounded-full py-2 text-left transition-colors hover:bg-white/5",
               collapsed ? "justify-center px-0" : "gap-3 px-2",
@@ -211,6 +213,12 @@ function SidebarUser({ user, collapsed }: { user: ShellUser; collapsed?: boolean
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/settings?section=help">
+              <CircleHelp className="mr-2 h-4 w-4" />
+              Help &amp; tours
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem disabled={signingOut} onClick={() => void onSignOut()}>
             <LogOut className="mr-2 h-4 w-4" />
             {signingOut ? "Signing out…" : "Sign out"}
@@ -270,6 +278,7 @@ export function AppSidebar({ user }: { user: ShellUser }) {
   return (
     <TooltipProvider delayDuration={200}>
       <aside
+        data-tour="desktop-navigation"
         className={cn(
           "border-sidebar-border relative hidden h-full shrink-0 border-r transition-[width] duration-200 lg:block",
           collapsed ? "w-[76px]" : "w-[272px]",
@@ -310,7 +319,13 @@ export function MobileSidebar({ user }: { user: ShellUser }) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button type="button" variant="outline" size="icon" className="lg:hidden">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="lg:hidden"
+          data-tour="mobile-navigation-trigger"
+        >
           <Menu className="h-4 w-4" />
           <span className="sr-only">Open menu</span>
         </Button>

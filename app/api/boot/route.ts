@@ -41,16 +41,31 @@ export function GET(request: Request) {
       gone = true;
       location.replace(target);
     }
-    if (!("serviceWorker" in navigator)) {
-      go();
-    } else {
-      navigator.serviceWorker.getRegistrations()
-        .then(function (regs) {
-          return Promise.all(regs.map(function (reg) { return reg.unregister(); }));
-        })
-        .then(go, go);
+    function hasModernCache(keys) {
+      return keys.some(function (key) {
+        var match = /^novend-pos-v(\d+)$/.exec(key);
+        return match && Number(match[1]) >= 9;
+      });
     }
-    setTimeout(go, 2500);
+    function finish() {
+      if (!("serviceWorker" in navigator) || !("caches" in window)) {
+        go();
+        return;
+      }
+      caches.keys().then(function (keys) {
+        if (hasModernCache(keys)) {
+          go();
+          return;
+        }
+        navigator.serviceWorker.getRegistrations()
+          .then(function (regs) {
+            return Promise.all(regs.map(function (reg) { return reg.unregister(); }));
+          })
+          .then(go, go);
+      }, go);
+    }
+    finish();
+    setTimeout(go, 800);
   </script>
 </body>
 </html>`;

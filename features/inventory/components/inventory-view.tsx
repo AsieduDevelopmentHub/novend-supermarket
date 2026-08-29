@@ -288,7 +288,7 @@ function InventoryViewInner() {
         }
       />
 
-      <div className="space-y-3">
+      <div data-tour="inventory-filters" className="space-y-3">
         <BarcodeSearchField
           value={search}
           onChange={setSearch}
@@ -338,7 +338,7 @@ function InventoryViewInner() {
         </CollapsibleFilters>
       </div>
 
-      <Card>
+      <Card data-tour="inventory-summary">
         <CardContent className="overflow-x-auto p-0">
           {visibleRows === undefined ? (
             <div className="p-6">
@@ -420,6 +420,7 @@ function InventoryViewInner() {
                                 type="button"
                                 size="sm"
                                 variant="outline"
+                                data-tour="inventory-adjustment"
                                 onClick={() => openAdjust(row.id)}
                               >
                                 Adjust
@@ -475,6 +476,7 @@ function InventoryViewInner() {
                           type="button"
                           size="sm"
                           variant="outline"
+                        data-tour="inventory-adjustment"
                           onClick={() => openAdjust(row.id)}
                         >
                           Adjust

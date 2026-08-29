@@ -12,6 +12,7 @@ import {
   loadPlatformHealth,
   loadPlatformInsight,
   loadPlatformOperatingCosts,
+  loadPlatformMonitoring,
   loadPlatformOrgDetail,
   loadPlatformOrganizations,
   loadPlatformOverview,
@@ -24,6 +25,7 @@ import {
   savePlatformHealth,
   savePlatformInsight,
   savePlatformOperatingCosts,
+  savePlatformMonitoring,
   savePlatformOrgDetail,
   savePlatformOrganizations,
   savePlatformOverview,
@@ -37,7 +39,9 @@ import {
   type PlatformOperatingCostRow,
   type PlatformReleaseCacheItem,
   type PlatformRevenueRange,
+  type PlatformMonitoringRange,
 } from "@/lib/offline/platform-cache";
+import type { PlatformReportData } from "@/lib/export/platform";
 import type { PlatformInsightMetric } from "@/convex/platformAnalytics";
 
 type CacheSource = "live" | "cache";
@@ -208,6 +212,20 @@ export function usePlatformHealthData() {
     "health",
     () => loadPlatformHealth().then((row) => (row?.payload as typeof live) ?? null),
     (value) => savePlatformHealth(value),
+  );
+  return { data, loading, source };
+}
+
+export function usePlatformMonitoringData(range: PlatformMonitoringRange) {
+  const online = useConnectivity();
+  const live = useQuery(api.platformMonitoring.dashboard, online ? { range } : "skip");
+  const typedLive = live as PlatformReportData | undefined;
+  const { data, loading, source } = useLiveWithDiskCache(
+    typedLive,
+    range,
+    () =>
+      loadPlatformMonitoring(range).then((row) => (row?.payload as PlatformReportData) ?? null),
+    (value) => savePlatformMonitoring(range, value),
   );
   return { data, loading, source };
 }

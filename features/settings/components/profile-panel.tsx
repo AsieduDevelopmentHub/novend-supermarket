@@ -1,20 +1,23 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingState } from "@/components/feedback/loading-state";
+import { VerifyEmailDialog } from "@/features/auth/components/verify-email-dialog";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCurrentUser } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { assertValidImageFile, IMAGE_ACCEPT } from "@/lib/uploads/image";
+import { uploadAndClaimStorage } from "@/lib/uploads/convex-storage";
 import {
   persistBusinessWrite,
   queuedSaveMessage,
@@ -29,6 +32,103 @@ function initialsFromName(name: string) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+function EmailAccountCard({
+  email,
+  emailVerified,
+  online,
+}: {
+  email: string | null;
+  emailVerified: boolean;
+  online: boolean;
+}) {
+  const changeEmail = useAction(api.emailVerification.changeOwnEmail);
+  const [nextEmail, setNextEmail] = useState(email ?? "");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [autoRequest, setAutoRequest] = useState(true);
+  const dirty = nextEmail.trim().toLowerCase() !== (email ?? "").trim().toLowerCase();
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!online) {
+      toast.message("Reconnect to change your email");
+      return;
+    }
+    if (!dirty) {
+      setAutoRequest(true);
+      setVerifyOpen(true);
+      return;
+    }
+    setPending(true);
+    try {
+      await changeEmail({ email: nextEmail, currentPassword });
+      setCurrentPassword("");
+      setAutoRequest(false);
+      setVerifyOpen(true);
+      toast.success("We sent a verification code to your new email.");
+    } catch (error) {
+      showError(error, "Could not update your email.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Sign-in email</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form className="space-y-4" onSubmit={(event) => void onSubmit(event)}>
+          <div className="space-y-2">
+            <Label htmlFor="profileEmail">Email</Label>
+            <Input
+              id="profileEmail"
+              type="email"
+              autoComplete="email"
+              value={nextEmail}
+              onChange={(event) => setNextEmail(event.target.value)}
+              disabled={!online}
+              required
+            />
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              {emailVerified
+                ? "Verified. Changing this updates how you sign in and needs a new verification code."
+                : "Not verified yet. You can correct it here, then enter the code we send."}
+            </p>
+          </div>
+          {dirty ? (
+            <div className="space-y-2">
+              <Label htmlFor="profileEmailPassword">Current password</Label>
+              <PasswordInput
+                id="profileEmailPassword"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                required
+                disabled={!online}
+              />
+            </div>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {dirty ? (
+              <Button type="submit" disabled={pending || !online || !currentPassword}>
+                {pending ? "Updating…" : "Update email"}
+              </Button>
+            ) : emailVerified ? null : (
+              <Button type="submit" disabled={pending || !online}>
+                Verify email
+              </Button>
+            )}
+          </div>
+        </form>
+        <VerifyEmailDialog open={verifyOpen} onOpenChange={setVerifyOpen} autoRequest={autoRequest} />
+      </CardContent>
+    </Card>
+  );
 }
 
 export function ProfilePanel() {
@@ -64,27 +164,32 @@ export function ProfilePanel() {
   }
 
   return (
-    <ProfileForm
-      key={`${me.userId}:${me.name}:${me.phone ?? ""}:${me.imageUrl ?? ""}`}
-      email={me.email}
-      initialName={me.name}
-      initialPhone={me.phone ?? ""}
-      imageUrl={me.imageUrl}
-      readOnly={false}
-      online={online}
-    />
+    <div className="grid max-w-2xl gap-6">
+      <ProfileForm
+        key={`${me.userId}:${me.name}:${me.phone ?? ""}:${me.imageUrl ?? ""}`}
+        initialName={me.name}
+        initialPhone={me.phone ?? ""}
+        imageUrl={me.imageUrl}
+        readOnly={false}
+        online={online}
+      />
+      <EmailAccountCard
+        key={me.email ?? "none"}
+        email={me.email}
+        emailVerified={remote?.emailVerified === true}
+        online={online}
+      />
+    </div>
   );
 }
 
 function ProfileForm({
-  email,
   initialName,
   initialPhone,
   imageUrl,
   readOnly = false,
   online = true,
 }: {
-  email: string | null;
   initialName: string;
   initialPhone: string;
   imageUrl: string | null;
@@ -93,6 +198,7 @@ function ProfileForm({
 }) {
   const updateOwnProfile = useMutation(api.users.updateOwnProfile);
   const generateUploadUrl = useMutation(api.users.generateProfileUploadUrl);
+  const claimUpload = useMutation(api.storageUploads.claim);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(initialName);
@@ -131,15 +237,12 @@ function ProfileForm({
   async function uploadImage(): Promise<Id<"_storage"> | undefined> {
     if (!file) return undefined;
     await assertValidImageFile(file);
-    const uploadUrl = await generateUploadUrl({});
-    const result = await fetch(uploadUrl, {
-      method: "POST",
-      headers: { "Content-Type": file.type || "image/jpeg" },
+    return await uploadAndClaimStorage({
+      begin: () => generateUploadUrl({}),
+      claim: (args) => claimUpload(args),
       body: file,
+      contentType: file.type || "image/jpeg",
     });
-    if (!result.ok) throw new Error("Image upload failed");
-    const json = (await result.json()) as { storageId: Id<"_storage"> };
-    return json.storageId;
   }
 
   async function onSubmit(event: FormEvent) {
@@ -245,14 +348,6 @@ function ProfileForm({
               required
               disabled={readOnly}
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="profileEmail">Email</Label>
-            <Input id="profileEmail" value={email ?? ""} disabled />
-            <p className="text-muted-foreground text-xs">
-              Email is set when your account is created. Ask an administrator to change it.
-            </p>
           </div>
 
           <div className="space-y-2">

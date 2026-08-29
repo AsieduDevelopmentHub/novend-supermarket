@@ -16,12 +16,18 @@ Related: Convex guide, Constitution §10, `docs/architecture/MULTI_TENANT.md`
 
 # Authentication
 
-- Convex Auth Password provider with Next.js cookie sessions
+- Convex Auth Password provider with Next.js cookie sessions. See
+  `docs/architecture/AUTHENTICATION.md`.
 - Public **signup** is enabled for organization owners only (`/signup` →
   `/onboarding`). Staff cannot self-provision a profile.
 - Staff accounts are created by in-org administrators (or managers for cashiers)
 - Login is rate-limited by email (`loginAttempts`): 5 failures / 15 minutes →
   15-minute lockout
+- Password reset is hashed, single-use, and expires in one hour
+  (`/forgot-password`). Do not add a second recovery system.
+- Email verification is a **soft**, server-owned 6-digit OTP. It does not block
+  signup, onboarding, or POS. Checkout requires a verified email. See
+  AUTHENTICATION.md. Social login is **not** in this slice.
 - `proxy.ts` enforces auth on app routes; Convex remains the API source of truth
 - First session on a device requires network; later offline refresh uses a
   cached shell profile
@@ -95,6 +101,16 @@ readable showcase.
 | Privilege escalation | Server-side role + org checks                 |
 | IDOR                 | Org assertion after every get                 |
 | Mass assignment      | Explicit writable field allowlists            |
+
+# Platform telemetry privacy
+
+First-party platform telemetry is pseudonymous and allowlist-only. Client
+ingestion derives user and organization from the authenticated session and
+rejects arbitrary feature/action values. Never add names, emails, IP addresses,
+raw user agents, stack traces, search text, or tenant business payloads to
+`platformEvents`. Detailed rows expire after 90 days; durable rollups contain
+only counts and dimensions. Monitoring reads and report audit mutations require
+`requirePlatformAdmin`.
 
 # Review checklist
 

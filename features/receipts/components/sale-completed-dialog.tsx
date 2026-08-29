@@ -13,7 +13,7 @@ import type { ReceiptPayload } from "@/features/receipts/types";
 import { ReceiptDocument } from "@/features/receipts/components/receipt-document";
 import { normalizeReceiptPayload, printReceipt } from "@/services/printing";
 import { saveReceiptPdfOnDevice, shareReceiptOnDevice } from "@/services/receipts/share";
-import { filesystemSaveFailedMessage, isCapacitor, shareFailedMessage } from "@novend/hardware";
+import { filesystemSaveFailedMessage, isCapacitor, printFailedMessage, shareFailedMessage } from "@novend/hardware";
 import { toast } from "sonner";
 import { Check, FileDown, Printer, Share2 } from "lucide-react";
 import type { ReceiptPrintMode } from "@/lib/receipt-print-mode";
@@ -48,7 +48,7 @@ export function SaleCompletedDialog({
       if (!result.printed) {
         toast.error(
           isCapacitor()
-            ? "Could not print. Pair a Bluetooth printer in Settings, or use Share / Save PDF."
+            ? printFailedMessage()
             : "Could not print the receipt. Check printer settings or try again.",
         );
       } else

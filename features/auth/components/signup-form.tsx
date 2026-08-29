@@ -2,9 +2,10 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { useAction, useConvexAuth } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useConvexAuth } from "convex/react";
 import Image from "next/image";
 import { Mail, User } from "lucide-react";
 import { toast } from "sonner";
@@ -17,6 +18,8 @@ import { Label } from "@/components/ui/label";
 import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { ROUTES } from "@/config/navigation";
+import { PasswordStrengthMeter } from "@/features/auth/components/password-strength";
+import { PASSWORD_MIN_LENGTH, passwordMeetsPolicy } from "@/convex/shared/passwordPolicy";
 import { navigateAfterLogin } from "@/lib/auth/redirect-after-login";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +43,7 @@ export function SignupForm({ compact = false }: { compact?: boolean }) {
 
 function ConfiguredSignupForm({ compact }: { compact: boolean }) {
   const { signIn } = useAuthActions();
+  const requestVerification = useAction(api.emailVerification.requestEmailVerification);
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const router = useRouter();
   const redirectingRef = useRef(false);
@@ -62,6 +66,12 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
       toast.error("Please accept the Terms of Service and Privacy Policy to continue.");
       return;
     }
+    if (!passwordMeetsPolicy(password)) {
+      toast.error(
+        `Password must be at least ${PASSWORD_MIN_LENGTH} characters and include uppercase, lowercase, and a number`,
+      );
+      return;
+    }
     setPending(true);
     try {
       const formData = new FormData();
@@ -71,6 +81,9 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
       formData.set("flow", "signUp");
       await signIn("password", formData);
       toast.success("Account created");
+      void requestVerification().catch(() => {
+        /* Banner can send the code later. Do not fail signup. */
+      });
     } catch (error) {
       showError(error, "Could not create account. Try a different email.");
       setPending(false);
@@ -86,6 +99,7 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
             alt=""
             fill
             priority
+            unoptimized
             sizes="64px"
             className="object-contain"
           />
@@ -136,6 +150,9 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
               aria-hidden
             />
           </div>
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            Use a mailbox you can access. Password reset and security notices go here.
+          </p>
         </div>
 
         <div className="space-y-2">
@@ -147,8 +164,9 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
             onChange={(e) => setPassword(e.target.value)}
             className="bg-muted/50 h-11"
             required
-            minLength={8}
+            minLength={PASSWORD_MIN_LENGTH}
           />
+          <PasswordStrengthMeter password={password} />
         </div>
 
         <div className="flex items-start gap-3">
@@ -190,7 +208,7 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
         <Button
           type="submit"
           className="h-11 w-full text-[15px] font-semibold"
-          disabled={pending || !acceptedLegal}
+          disabled={pending || !acceptedLegal || !passwordMeetsPolicy(password)}
         >
           {pending ? "Creating account…" : "Start free trial"}
         </Button>

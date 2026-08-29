@@ -116,6 +116,12 @@ Privacy: counts, filenames, formats, and row totals only. Spreadsheet contents a
 
 Excel/PDF follow plan rank (Pro and above). Changing a product override does **not** unlock those formats.
 
+Platform monitoring reports are a separate Super Admin capability. They bypass
+tenant plan gates, contain only platform-safe aggregates, and are audit
+recorded. The executive PDF is presentation-oriented; the XLSX workbook uses
+separate summary, trend, runtime, adoption, release, operations, and
+organization sheets; CSV provides a portable executive KPI dataset.
+
 ## 10. Implementation phases
 
 1. Capabilities on the licence snapshot.

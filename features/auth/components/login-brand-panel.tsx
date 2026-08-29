@@ -40,7 +40,14 @@ export function LoginBrandPanel({ variant = "desktop", className }: Props) {
       >
         <div className="flex items-center gap-3">
           <div className={cn("relative shrink-0", isMobile ? "h-10 w-10" : "h-12 w-12")}>
-            <Image src={BRANDING.brandmark} alt="" fill sizes="48px" className="object-contain" />
+          <Image
+            src={BRANDING.brandmark}
+            alt=""
+            fill
+            sizes="48px"
+            unoptimized
+            className="object-contain"
+          />
           </div>
           <div>
             <p className="text-sm font-semibold tracking-[0.28em] uppercase">{APP_BRAND}</p>

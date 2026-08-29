@@ -207,7 +207,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
     setPending(true);
     try {
       await resetUserPassword({ profileId, newPassword });
-      toast.success("Password reset. Share the new credentials securely.");
+      toast.success("Password reset. They’ll get a confirmation email — share the new password securely.");
       setResetOpen(false);
       setNewPassword("");
       setConfirmPassword("");
@@ -409,7 +409,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
                 onChange={(e) => setNewPassword(e.target.value)}
                 autoComplete="new-password"
                 required
-                minLength={8}
+                minLength={12}
               />
             </div>
             <div className="space-y-2">
@@ -420,7 +420,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
                 required
-                minLength={8}
+                minLength={12}
               />
             </div>
             <DialogFooter>

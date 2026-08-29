@@ -22,8 +22,12 @@ describe("service worker navigation safety", () => {
     expect(sw).toContain("if (isAuthDocument(url)) return;");
   });
 
-  it("does not intercept Capacitor WebView requests", () => {
-    expect(sw).toContain("NovendCapacitor");
+  it("caches static branding for Capacitor instead of skipping the whole fetch handler", () => {
+    expect(sw).toContain("if (isStaticAsset(url))");
+    const staticIndex = sw.indexOf("if (isStaticAsset(url))");
+    const capIndex = sw.lastIndexOf('ua.includes("NovendCapacitor")');
+    expect(staticIndex).toBeGreaterThan(-1);
+    expect(capIndex).toBeGreaterThan(staticIndex);
   });
 
   it("leaves /api/ unintercepted so /api/boot can unregister a poisoned worker", () => {
@@ -36,7 +40,8 @@ describe("service worker navigation safety", () => {
   });
 
   it("does not precache gated app routes that 302 to login", () => {
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v9"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v10"');
+    expect(sw).toContain("/branding/logo_horizontal.png");
     expect(sw).not.toMatch(/PRECACHE = \[[^\]]*\/dashboard/);
   });
 });
