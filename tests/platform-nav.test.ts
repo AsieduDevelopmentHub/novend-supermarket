@@ -8,8 +8,8 @@ import {
 } from "@/config/platform-navigation";
 
 describe("platform nav accordion", () => {
-  it("defaults to tenants", () => {
-    expect(DEFAULT_PLATFORM_NAV_ACCORDION_GROUP).toBe("tenants");
+  it("defaults to analytics", () => {
+    expect(DEFAULT_PLATFORM_NAV_ACCORDION_GROUP).toBe("analytics");
   });
 
   it("treats overview as fixed, not accordion", () => {
@@ -18,7 +18,7 @@ describe("platform nav accordion", () => {
   });
 
   it("lists collapsible SaaS sections", () => {
-    expect(PLATFORM_NAV_ACCORDION_GROUP_IDS).toEqual(["analytics", "tenants", "product", "system"]);
+    expect(PLATFORM_NAV_ACCORDION_GROUP_IDS).toEqual(["analytics", "tenants"]);
   });
 
   it("matches overview exactly", () => {
@@ -45,6 +45,8 @@ describe("platform nav accordion", () => {
     expect(findPlatformNavGroupForPath("/platform/organizations")).toBe("tenants");
     expect(findPlatformNavGroupForPath("/platform/organizations/abc")).toBe("tenants");
     expect(findPlatformNavGroupForPath("/platform/revenue")).toBe("analytics");
-    expect(findPlatformNavGroupForPath("/platform/releases")).toBe("product");
+    expect(findPlatformNavGroupForPath("/platform/releases")).toBe("tenants");
+    expect(findPlatformNavGroupForPath("/platform/costs")).toBe("tenants");
+    expect(findPlatformNavGroupForPath("/platform/activity")).toBe("analytics");
   });
 });

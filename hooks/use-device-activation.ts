@@ -50,6 +50,7 @@ export function useDeviceActivation(enabled: boolean): DeviceActivation {
           name: identity.name,
           platform: identity.platform,
           runtime: identity.runtime,
+          deliveryMode: identity.deliveryMode,
           appVersion: identity.appVersion,
         });
         if (cancelled) {

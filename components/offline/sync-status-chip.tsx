@@ -54,6 +54,7 @@ export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
 
   return (
     <div
+      data-tour="sync-status"
       className={cn(
         "border-sidebar-border text-sidebar-muted border-t px-3 py-2.5",
         collapsed && "px-2",

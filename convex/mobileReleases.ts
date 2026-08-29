@@ -3,6 +3,7 @@ import { httpAction, internalMutation, internalQuery, query } from "./_generated
 import { internal } from "./_generated/api";
 import { Doc } from "./_generated/dataModel";
 import { requirePlatformAdmin } from "./shared/permissions";
+import { classifyReleaseAsset } from "./shared/platformTelemetry";
 
 const channelValidator = v.union(v.literal("stable"), v.literal("beta"));
 
@@ -505,6 +506,17 @@ export const assetHttp = httpAction(async (ctx, request) => {
     return new Response("Release not found", { status: 404 });
   }
 
+  try {
+    await ctx.runMutation(internal.telemetry.recordReleaseEvent, {
+      kind: "release_download",
+      releaseKind: "mobile",
+      releaseVersion: release.version,
+      assetGroup: classifyReleaseAsset(fileName),
+      source: "download",
+    });
+  } catch {
+    // Telemetry must never block installer downloads.
+  }
   return await redirectGithubAsset(release, fileName);
 });
 
@@ -534,6 +546,18 @@ export const latestMetaHttp = httpAction(async (ctx, request) => {
         "Access-Control-Allow-Origin": "*",
       },
     });
+  }
+
+  try {
+    await ctx.runMutation(internal.telemetry.recordReleaseEvent, {
+      kind: "release_update_check",
+      releaseKind: "mobile",
+      releaseVersion: release.version,
+      assetGroup: "update-manifest",
+      source: "updater",
+    });
+  } catch {
+    // Telemetry must never block update checks.
   }
 
   const androidApk = pickAsset(release.assets, "android", "apk");

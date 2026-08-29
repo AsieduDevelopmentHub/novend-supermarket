@@ -350,6 +350,8 @@ export const META_KEYS = {
   platformCostDraftQueue: "platformCostDraftQueue",
   platformInsight: "platformInsight",
   platformReleaseBundles: "platformReleaseBundles",
+  platformMonitoring: "platformMonitoring",
+  platformActivity: "platformActivity",
 } as const;
 
 /** Bump when Dexie adds replica tables so TTL snapshot skips cannot leave new stores empty. */

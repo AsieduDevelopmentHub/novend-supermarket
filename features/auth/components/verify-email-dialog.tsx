@@ -42,12 +42,14 @@ export function VerifyEmailDialog({ open, onOpenChange, autoRequest = true }: Pr
 
   useEffect(() => {
     if (!open || !online) return;
-    setCode("");
-    setChangingEmail(false);
-    setNextEmail("");
-    setCurrentPassword("");
+    queueMicrotask(() => {
+      setCode("");
+      setChangingEmail(false);
+      setNextEmail("");
+      setCurrentPassword("");
+      if (!autoRequest) setResendInMs(60_000);
+    });
     if (!autoRequest) {
-      setResendInMs(60_000);
       return;
     }
     void requestCode()
@@ -64,10 +66,6 @@ export function VerifyEmailDialog({ open, onOpenChange, autoRequest = true }: Pr
         showError(error, "Could not send a verification code right now.");
       });
   }, [open, online, autoRequest, onOpenChange, requestCode]);
-
-  useEffect(() => {
-    if (status?.maskedEmail) setMaskedEmail(status.maskedEmail);
-  }, [status?.maskedEmail]);
 
   useEffect(() => {
     if (resendInMs <= 0) return;
@@ -98,7 +96,7 @@ export function VerifyEmailDialog({ open, onOpenChange, autoRequest = true }: Pr
     try {
       const result = await requestCode();
       setMaskedEmail(result.maskedEmail);
-      setResendInMs(result.retryAfterMs ?? 60_000);
+      setResendInMs(result.alreadyVerified ? 0 : result.retryAfterMs);
       toast.success("If the mailbox exists, we sent a new code.");
     } catch (error) {
       showError(error, "Could not send a verification code right now.");

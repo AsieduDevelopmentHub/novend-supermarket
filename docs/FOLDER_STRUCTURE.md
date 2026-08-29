@@ -57,6 +57,8 @@ novend-pos/
 # Placement rules
 
 - Feature-specific code stays in `features/<feature>/`.
+- `features/tours/` owns the versioned product-tour registry, access filtering,
+  responsive anchor resolution, and the authenticated tour provider.
 - Business rules stay in `convex/`.
 - Do not create `misc`, `temp`, `new`, or `old` folders.
 - When adding a top-level folder, update this document in the same change.

@@ -59,9 +59,11 @@ import {
   UserRound,
   Wrench,
   Camera,
+  CircleHelp,
 } from "lucide-react";
 import { BillingPanel } from "@/features/billing/components/billing-panel";
 import { DevicesPanel } from "@/features/billing/components/devices-panel";
+import { HelpToursPanel } from "./help-tours-panel";
 
 type SettingsTab =
   | "profile"
@@ -78,7 +80,8 @@ type SettingsTab =
   | "desktop"
   | "backup"
   | "appearance"
-  | "security";
+  | "security"
+  | "help";
 
 export function SettingsView() {
   const { isAdmin, isManager, isLoading: permissionsLoading } = usePermissions();
@@ -192,6 +195,7 @@ export function SettingsView() {
         { value: "backup" as const, label: "Backups", long: "Backups" },
         { value: "appearance" as const, label: "Appearance", long: "Appearance" },
         { value: "security" as const, label: "Security", long: "Security" },
+        { value: "help" as const, label: "Help", long: "Help & tours" },
       ] as const,
     [isAdmin, isManager, isDesktop, onMobileShell],
   );
@@ -230,7 +234,7 @@ export function SettingsView() {
           onSelect={(value) => setTab(value)}
         />
         <div className="min-w-0 flex-1 space-y-4">
-          <div className="lg:hidden">
+          <div className="lg:hidden" data-tour="settings-sections">
             <Label htmlFor="settings-section" className="sr-only">
               Settings section
             </Label>
@@ -341,6 +345,10 @@ export function SettingsView() {
           <TabsContent value="security" className="mt-0">
             <SecurityPanel />
           </TabsContent>
+
+          <TabsContent value="help" className="mt-0">
+            <HelpToursPanel />
+          </TabsContent>
         </div>
       </Tabs>
     </div>
@@ -363,6 +371,7 @@ const SETTINGS_ICONS: Record<SettingsTab, typeof UserRound> = {
   backup: Download,
   appearance: Palette,
   security: Shield,
+  help: CircleHelp,
 };
 
 const HARDWARE_TABS: SettingsTab[] = ["printer", "scanner", "mobileHardware", "futureDevices"];
@@ -382,7 +391,10 @@ function SettingsTreeNav({
       label: "Account",
       items: sections.filter(
         (item) =>
-          item.value === "profile" || item.value === "appearance" || item.value === "security",
+          item.value === "profile" ||
+          item.value === "appearance" ||
+          item.value === "security" ||
+          item.value === "help",
       ),
     },
     {
@@ -412,7 +424,10 @@ function SettingsTreeNav({
   ].filter((group) => group.items.length > 0);
 
   return (
-    <nav className="border-border hidden w-56 shrink-0 lg:block">
+    <nav
+      data-tour="settings-sections"
+      className="border-border hidden w-56 shrink-0 lg:block"
+    >
       <div className="space-y-5">
         {groups.map((group) => (
           <div key={group.label}>

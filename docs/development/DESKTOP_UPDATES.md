@@ -9,6 +9,14 @@ Tag v* → GitHub Actions (desktop installers only when targets is all)
         {CONVEX_SITE_URL}/desktop-updates/...
 ```
 
+## Download monitoring
+
+Desktop update checks and asset redirects record privacy-limited platform events
+before returning the manifest or GitHub redirect. Events contain only release
+version, classified asset type, source category, count, and timestamp. A
+telemetry failure never blocks an update. Existing GitHub download totals can
+be imported once from Platform Exports as the historical baseline.
+
 ## Convex environment
 
 Generate the shared publish secret:

@@ -1,6 +1,6 @@
 import { getAuthUserId, retrieveAccount } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { action, internalMutation, internalQuery, query } from "./_generated/server";
+import { action, internalMutation, internalQuery, query, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { writeAuditLog } from "./shared/audit";
@@ -24,8 +24,6 @@ import {
 } from "./shared/emailOtp";
 
 const GENERIC_CHANGE_ERROR = "That email cannot be used.";
-
-type ActionCtx = Parameters<Parameters<typeof action>[0]["handler"]>[0];
 
 export const getState = internalQuery({
   args: { userId: v.id("users") },
@@ -189,7 +187,11 @@ export const status = query({
   },
 });
 
-async function issueOtp(ctx: ActionCtx, userId: Id<"users">, email: string) {
+async function issueOtp(
+  ctx: ActionCtx,
+  userId: Id<"users">,
+  email: string,
+): Promise<{ retryAfterMs: number; sent: boolean }> {
   const code = createEmailOtpCode();
   const now = Date.now();
   const inserted = await ctx.runMutation(internal.emailVerification.insertChallenge, {
@@ -219,19 +221,33 @@ async function issueOtp(ctx: ActionCtx, userId: Id<"users">, email: string) {
 
 export const requestEmailVerification = action({
   args: {},
-  handler: async (ctx) => {
+  handler: async (
+    ctx,
+  ): Promise<
+    | { ok: true; alreadyVerified: true; maskedEmail: string }
+    | {
+        ok: true;
+        alreadyVerified: false;
+        maskedEmail: string;
+        retryAfterMs: number;
+      }
+  > => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Sign in to verify your email.");
     const state = await ctx.runQuery(internal.emailVerification.getState, { userId });
     if (!state.email) throw new Error("Add an email address before verifying.");
     if (state.emailVerified) {
-      return { ok: true as const, alreadyVerified: true as const, maskedEmail: state.maskedEmail };
+      return {
+        ok: true as const,
+        alreadyVerified: true as const,
+        maskedEmail: state.maskedEmail ?? maskEmail(state.email),
+      };
     }
     const issued = await issueOtp(ctx, userId, state.email);
     return {
       ok: true as const,
       alreadyVerified: false as const,
-      maskedEmail: state.maskedEmail,
+      maskedEmail: state.maskedEmail ?? maskEmail(state.email),
       retryAfterMs: issued.retryAfterMs,
     };
   },
@@ -258,7 +274,10 @@ export const verifyEmailOtp = action({
 
 export const changeOwnEmail = action({
   args: { email: v.string(), currentPassword: v.string() },
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ ok: true; email: string; maskedEmail: string; retryAfterMs: number }> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Sign in to update your email.");
     const email = normalizeEmail(args.email);

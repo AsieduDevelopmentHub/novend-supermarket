@@ -208,7 +208,7 @@ export function UsersView() {
         }
         compactActions={[{ key: "add", label: "Add User", icon: Plus, onClick: openCreate }]}
         actions={
-          <Button type="button" onClick={openCreate}>
+          <Button type="button" data-tour="users-add" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Add User
           </Button>
@@ -224,7 +224,7 @@ export function UsersView() {
         className="max-w-md"
       />
 
-      <Card>
+      <Card data-tour="users-list">
         <CardContent className="overflow-x-auto p-0">
           {users === undefined ? (
             <div className="p-6">

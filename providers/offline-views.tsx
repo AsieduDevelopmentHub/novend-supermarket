@@ -26,14 +26,14 @@ import { SuppliersView } from "@/features/suppliers/components/suppliers-view";
 import { CustomerDetailView } from "@/features/customers/components/customer-detail-view";
 import { ProductDetailView } from "@/features/products/components/product-detail-view";
 import { UserDetailView } from "@/features/users/components/user-detail-view";
-import { PlatformOverviewView } from "@/features/platform/components/platform-overview-view";
+import { PlatformMonitoringView } from "@/features/platform/components/platform-monitoring-view";
+import { PlatformActivityView } from "@/features/platform/components/platform-activity-view";
+import { PlatformExportsView } from "@/features/platform/components/platform-exports-view";
+import { PlatformHelpView } from "@/features/platform/components/platform-help-view";
 import { PlatformView } from "@/features/platform/components/platform-view";
 import { PlatformReleasesView } from "@/features/platform/components/platform-releases-view";
 import { PlatformOrgDetailView } from "@/features/platform/components/platform-org-detail-view";
-import { PlatformRevenueView } from "@/features/platform/components/platform-revenue-view";
 import { PlatformCostsView } from "@/features/platform/components/platform-costs-view";
-import { PlatformSubscriptionsView } from "@/features/platform/components/platform-subscriptions-view";
-import { PlatformHealthView } from "@/features/platform/components/platform-health-view";
 import { PlatformPaymentDetailView } from "@/features/platform/components/platform-payment-detail-view";
 import { PlatformReleaseDetailView } from "@/features/platform/components/platform-release-detail-view";
 import { PlatformInsightDetailView } from "@/features/platform/components/platform-insight-detail-view";
@@ -59,13 +59,17 @@ const SHELL_VIEWS: Record<string, () => ReactNode> = {
   "/branches": () => <BranchesView />,
   "/wholesale": () => <WholesaleView />,
   "/suppliers": () => <SuppliersView />,
-  "/platform": () => <PlatformOverviewView />,
+  "/platform": () => <PlatformMonitoringView />,
+  "/platform/analytics": () => <PlatformMonitoringView />,
+  "/platform/activity": () => <PlatformActivityView />,
+  "/platform/exports": () => <PlatformExportsView />,
+  "/platform/help": () => <PlatformHelpView />,
   "/platform/organizations": () => <PlatformView />,
   "/platform/releases": () => <PlatformReleasesView />,
-  "/platform/revenue": () => <PlatformRevenueView />,
+  "/platform/revenue": () => <PlatformMonitoringView />,
   "/platform/costs": () => <PlatformCostsView />,
-  "/platform/subscriptions": () => <PlatformSubscriptionsView />,
-  "/platform/health": () => <PlatformHealthView />,
+  "/platform/subscriptions": () => <PlatformMonitoringView />,
+  "/platform/health": () => <PlatformMonitoringView />,
 };
 
 /** Resolve a client-side feature view for offline shell navigation. */

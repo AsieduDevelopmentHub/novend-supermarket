@@ -150,6 +150,7 @@ export function ProductsView() {
               />
               <Button
                 type="button"
+                data-tour="products-add"
                 onClick={() => {
                   setEditingId(null);
                   setOpen(true);
@@ -165,7 +166,10 @@ export function ProductsView() {
 
       <PlanLimitNotice resource="products" />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div
+        data-tour="products-search"
+        className="flex flex-col gap-3 sm:flex-row sm:items-end"
+      >
         <BarcodeSearchField
           value={search}
           onChange={setSearch}
@@ -189,7 +193,7 @@ export function ProductsView() {
         ) : null}
       </div>
 
-      <Card>
+      <Card data-tour="products-list">
         <CardContent className="overflow-x-auto p-0">
           {isLoading ? (
             <div className="p-6">

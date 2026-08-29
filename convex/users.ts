@@ -17,7 +17,7 @@ import {
   requireSessionIgnoringLicense,
   assertOrgDoc,
 } from "./shared/permissions";
-import { roleValidator } from "./schema";
+import { roleValidator, telemetryRuntimeValidator } from "./schema";
 import { writeAuditLog } from "./shared/audit";
 import { Id } from "./_generated/dataModel";
 import { assertStoredImage, sanitizePhone, sanitizeText, TEXT_LIMITS } from "./shared/validation";
@@ -29,6 +29,7 @@ import { limitReachedMessage } from "./shared/plans";
 import { presenceFromLastSeenAt } from "./shared/presence";
 import { deactivateAccountBlockReason } from "./shared/accountStatus";
 import { loadEmailVerification } from "./shared/emailVerificationLookup";
+import { recordDailyActiveUser } from "./shared/platformTelemetry";
 
 export const me = query({
   args: {},
@@ -494,9 +495,13 @@ export const writePasswordChangeAudit = internalMutation({
 });
 
 export const heartbeat = mutation({
-  args: { device: v.optional(v.string()) },
+  args: {
+    device: v.optional(v.string()),
+    runtime: v.optional(telemetryRuntimeValidator),
+    appVersion: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
-    const { profile } = await requireSessionIgnoringLicense(ctx);
+    const { profile, userId, organizationId } = await requireSessionIgnoringLicense(ctx);
     const now = Date.now();
     const sessionFresh = !profile.lastLoginAt || now - profile.lastLoginAt > 8 * 60 * 60 * 1000;
     await ctx.db.patch(profile._id, {
@@ -504,6 +509,15 @@ export const heartbeat = mutation({
       ...(args.device ? { lastDevice: args.device.slice(0, 120) } : {}),
       ...(sessionFresh ? { lastLoginAt: now } : {}),
     });
+    if (args.runtime) {
+      await recordDailyActiveUser(ctx, {
+        userId,
+        organizationId,
+        runtime: args.runtime,
+        appVersion: args.appVersion,
+        occurredAt: now,
+      });
+    }
   },
 });
 

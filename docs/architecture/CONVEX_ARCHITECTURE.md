@@ -8,7 +8,11 @@ Schema: [`DATABASE_SCHEMA.md`](./DATABASE_SCHEMA.md)
 
 Auth: `@convex-dev/auth` Password provider in `convex/auth.ts`.
 
-Shared helpers: `convex/shared/permissions.ts`, `validation.ts`, `audit.ts`.
+Shared helpers: `convex/shared/permissions.ts`, `validation.ts`, `audit.ts`,
+`platformTelemetry.ts`. Super Admin monitoring lives in `convex/telemetry.ts`,
+`convex/platformMonitoring.ts`, and `convex/tours.ts`. See
+[`PLATFORM_MONITORING.md`](./PLATFORM_MONITORING.md) and
+[`PRODUCT_TOURS.md`](./PRODUCT_TOURS.md).
 
 ## Ownership
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
-import { LogOut, Menu, Store } from "lucide-react";
+import { CircleHelp, LogOut, Menu, Store } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { APP_BRAND } from "@/constants/app";
@@ -35,7 +35,10 @@ export function PlatformShell({
 
   return (
     <div className="bg-background flex h-dvh max-h-dvh overflow-hidden">
-      <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground hidden w-[272px] shrink-0 flex-col border-r lg:flex">
+      <aside
+        data-tour="platform-navigation"
+        className="border-sidebar-border bg-sidebar text-sidebar-foreground hidden w-[272px] shrink-0 flex-col border-r lg:flex"
+      >
         <PlatformBrand />
         <div className="mx-4 h-px bg-white/10" />
         <PlatformNavTree className="min-h-0 flex-1 overflow-y-auto py-4" />
@@ -117,6 +120,12 @@ function PlatformSession({ name, email }: { name: string; email: string | null }
         <p className="truncate text-sm font-medium">{name}</p>
         {email ? <p className="text-sidebar-muted truncate text-xs">{email}</p> : null}
       </div>
+      <Button asChild variant="ghost" className="w-full justify-start text-sidebar-foreground">
+        <Link href="/platform/help">
+          <CircleHelp className="h-4 w-4" />
+          Help &amp; tours
+        </Link>
+      </Button>
       <Button
         type="button"
         variant="outline"
@@ -166,7 +175,7 @@ function MobilePlatformNav({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button type="button" variant="outline" size="icon">
+        <Button type="button" variant="outline" size="icon" data-tour="platform-navigation">
           <Menu className="h-4 w-4" />
           <span className="sr-only">Open platform menu</span>
         </Button>

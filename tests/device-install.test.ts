@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveInstallPromptKind, resolveMobileInstallOs } from "@/lib/device-install";
+import { telemetryRuntimeForDevice, type DeviceIdentity } from "@/lib/device";
 
 describe("install prompt device detection", () => {
   it("classifies Android phones as mobile android", () => {
@@ -21,5 +22,34 @@ describe("install prompt device detection", () => {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     expect(resolveInstallPromptKind(ua)).toBe("desktop");
     expect(resolveMobileInstallOs(ua)).toBeNull();
+  });
+});
+
+describe("analytics delivery mode vs licence runtime", () => {
+  function identity(partial: Partial<DeviceIdentity>): DeviceIdentity {
+    return {
+      fingerprint: "test",
+      name: "Terminal",
+      platform: "Windows",
+      runtime: "web",
+      deliveryMode: "browser",
+      ...partial,
+    };
+  }
+
+  it("keeps PWA distinct from browser while licensing stays web", () => {
+    expect(telemetryRuntimeForDevice(identity({ deliveryMode: "browser" }))).toBe("web");
+    expect(telemetryRuntimeForDevice(identity({ deliveryMode: "pwa" }))).toBe("pwa");
+  });
+
+  it("maps desktop installs to Electron and native apps to their OS", () => {
+    expect(
+      telemetryRuntimeForDevice(
+        identity({ runtime: "desktop", deliveryMode: "electron" }),
+      ),
+    ).toBe("electron");
+    expect(
+      telemetryRuntimeForDevice(identity({ runtime: "android", deliveryMode: "capacitor" })),
+    ).toBe("android");
   });
 });

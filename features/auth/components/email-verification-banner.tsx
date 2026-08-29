@@ -18,11 +18,13 @@ export function EmailVerificationBanner() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    try {
-      setDismissed(window.sessionStorage.getItem(DISMISS_KEY) === "1");
-    } catch {
-      setDismissed(false);
-    }
+    queueMicrotask(() => {
+      try {
+        setDismissed(window.sessionStorage.getItem(DISMISS_KEY) === "1");
+      } catch {
+        setDismissed(false);
+      }
+    });
   }, []);
 
   const visible = shouldShowEmailVerificationReminder({

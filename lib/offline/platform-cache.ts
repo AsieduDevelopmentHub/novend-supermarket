@@ -390,6 +390,31 @@ export type PlatformInsightCache = {
   cachedAt: number;
 };
 
+export type PlatformMonitoringRange = "7d" | "30d" | "90d" | "12m" | "all";
+
+export type PlatformMonitoringCache = {
+  range: PlatformMonitoringRange;
+  payload: unknown;
+  cachedAt: number;
+};
+
+export async function savePlatformMonitoring(
+  range: PlatformMonitoringRange,
+  payload: unknown,
+) {
+  await writeJsonMeta(`${META_KEYS.platformMonitoring}:${range}`, {
+    range,
+    payload,
+    cachedAt: Date.now(),
+  } satisfies PlatformMonitoringCache);
+}
+
+export async function loadPlatformMonitoring(
+  range: PlatformMonitoringRange,
+): Promise<PlatformMonitoringCache | null> {
+  return readJsonMeta<PlatformMonitoringCache>(`${META_KEYS.platformMonitoring}:${range}`);
+}
+
 export async function savePlatformInsight(metric: string, range: string, payload: unknown) {
   await writeJsonMeta(`${META_KEYS.platformInsight}:${metric}:${range}`, {
     metric,

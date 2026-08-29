@@ -138,6 +138,9 @@ export function AboutNovendView() {
             <Link href="/terms">Terms of Service</Link>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
+            <Link href="/settings?section=help">Help &amp; tours</Link>
+          </Button>
+          <Button asChild variant="outline" className="min-h-11 justify-start">
             <Link href="/docs/help">Help & support</Link>
           </Button>
           <Button

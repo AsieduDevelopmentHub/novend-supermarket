@@ -102,6 +102,16 @@ readable showcase.
 | IDOR                 | Org assertion after every get                 |
 | Mass assignment      | Explicit writable field allowlists            |
 
+# Platform telemetry privacy
+
+First-party platform telemetry is pseudonymous and allowlist-only. Client
+ingestion derives user and organization from the authenticated session and
+rejects arbitrary feature/action values. Never add names, emails, IP addresses,
+raw user agents, stack traces, search text, or tenant business payloads to
+`platformEvents`. Detailed rows expire after 90 days; durable rollups contain
+only counts and dimensions. Monitoring reads and report audit mutations require
+`requirePlatformAdmin`.
+
 # Review checklist
 
 - [ ] Auth required
