@@ -115,13 +115,9 @@ async function ensureCameraPermission(source: CameraSource): Promise<HardwareRes
 }
 
 async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCapture>> {
-  if (!isNativePluginAvailable("Camera")) {
-    return { ok: false, message: pluginUnavailableMessage("Camera") };
-  }
-
   try {
-    // getPhoto requests CAMERA itself. A separate checkPermissions can hang the
-    // bridge or report denied before the system camera ever opens.
+    // Always invoke the native plugin. isPluginAvailable() is unreliable after the
+    // WebView navigates from the local boot page to the hosted origin.
     const photo = await Camera.getPhoto({
       quality: 55,
       allowEditing: false,
@@ -161,9 +157,12 @@ async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCaptu
     if (/cancel/i.test(raw)) {
       return { ok: false, message: "Cancelled" };
     }
+    const permissionDenied =
+      /user denied|permission denied|not authorized/i.test(raw) &&
+      !/not implemented|not available|plugin|unimplemented/i.test(raw);
     return {
       ok: false,
-      message: /permission|denied|not authorized/i.test(raw)
+      message: permissionDenied
         ? permissionDeniedMessage(source === CameraSource.Photos ? "photos" : "camera")
         : friendlyHardwareMessage(raw, cameraCaptureFailedMessage(), "camera"),
     };
@@ -201,9 +200,6 @@ async function writeCachePdf(bytes: Uint8Array, fileName: string): Promise<Hardw
 }
 
 async function shareLocalFile(uri: string, title?: string): Promise<HardwareResult> {
-  if (!isNativePluginAvailable("Share")) {
-    return { ok: false, message: pluginUnavailableMessage("Share") };
-  }
   try {
     await Share.share({
       title: title ?? "Receipt",
@@ -338,46 +334,37 @@ export function createCapacitorAdapters(): HardwareAdapters {
     },
     filesystem: {
       async savePDF(bytes, fileName) {
-        const cached = await writeCachePdf(bytes, fileName);
-        if (isNativePluginAvailable("NovendPrint")) {
-          try {
-            const saved = await NovendPrint.savePdfToDownloads({
-              data: bytesToBase64(bytes),
-              fileName,
-            });
-            return {
-              ok: true,
-              data: { pathOrName: saved.uri || cached.data?.uri || fileName },
-            };
-          } catch (error) {
-            const raw = error instanceof Error ? error.message : String(error ?? "");
-            if (cached.ok && cached.data?.uri) {
-              return { ok: true, data: { pathOrName: cached.data.uri } };
-            }
-            return {
-              ok: false,
-              message: friendlyHardwareMessage(raw, filesystemSaveFailedMessage(), "storage"),
-            };
+        const encoded = bytesToBase64(bytes);
+        try {
+          const saved = await NovendPrint.savePdfToDownloads({
+            data: encoded,
+            fileName,
+          });
+          if (saved.uri) {
+            return { ok: true, data: { pathOrName: saved.uri } };
           }
+        } catch {
+          /* Cache fallback below */
         }
+        const cached = await writeCachePdf(bytes, fileName);
         if (!cached.ok) return { ok: false, message: cached.message };
         return { ok: true, data: { pathOrName: cached.data?.uri ?? fileName } };
       },
       async printPDF(bytes, title) {
-        const cached = await writeCachePdf(bytes, `${title || "receipt"}.pdf`);
-        if (!cached.ok || !cached.data?.uri) {
-          return { ok: false, message: cached.message || printFailedMessage() };
-        }
-        if (!isNativePluginAvailable("NovendPrint")) {
-          return shareLocalFile(cached.data.uri, title);
-        }
         try {
-          await NovendPrint.printPdf({ path: cached.data.uri, title });
+          await NovendPrint.printPdf({ data: bytesToBase64(bytes), title });
           return { ok: true };
         } catch (error) {
+          const cached = await writeCachePdf(bytes, `${title || "receipt"}.pdf`);
+          if (cached.ok && cached.data?.uri) {
+            try {
+              await NovendPrint.printPdf({ path: cached.data.uri, title });
+              return { ok: true };
+            } catch {
+              /* use the original error */
+            }
+          }
           const raw = error instanceof Error ? error.message : String(error ?? "");
-          const shared = await shareLocalFile(cached.data.uri, title);
-          if (shared.ok || shared.message === "Cancelled") return shared;
           return {
             ok: false,
             message: friendlyHardwareMessage(raw, printFailedMessage()),
@@ -432,11 +419,6 @@ export function createCapacitorAdapters(): HardwareAdapters {
     },
     share: {
       async shareReceipt(text, title) {
-        if (!isNativePluginAvailable("Share")) {
-          const webResult = await web.share.shareReceipt(text, title);
-          if (webResult.ok) return webResult;
-          return { ok: false, message: pluginUnavailableMessage("Share") };
-        }
         try {
           await Share.share({
             title: title ?? "Receipt",

@@ -288,32 +288,48 @@ export async function printReceipt(
   const payload = normalizeReceiptPayload(input);
   const config = loadTerminalPrinterConfig();
 
-  if (!options?.forceBrowser && isCapacitor() && config.preferNative) {
+  if (!options?.forceBrowser && isCapacitor()) {
     try {
-      const paperWidthMm = resolvePaperWidthMm(payload, config);
-      const bytes = buildEscPosReceipt(payload, paperWidthMm);
-      const preferred = await Hardware.printer.getDefaultPrinter();
-      if (!preferred.data?.bluetoothDeviceId) {
-        console.warn("[print:bluetooth-missing]");
-      } else {
-        const copies = 1;
-        const result = await Hardware.printer.printReceipt({
-          escposBase64: escPosToBase64(bytes),
-          invoiceNumber: payload.invoiceNumber,
-          copies,
-          connectionType: "bluetooth",
-          bluetoothDeviceId: preferred.data.bluetoothDeviceId,
-          paperWidthMm,
-          openCashDrawer: config.openCashDrawer,
-        });
-        if (result.ok) {
-          return { printed: true, reason: "native", copies };
-        }
-        console.warn("[print:bluetooth-failed]", result.message);
+      const { buildReceiptPdfBytes } = await import("@/services/receipts/share");
+      const pdf = await buildReceiptPdfBytes(payload);
+      const printed = await Hardware.filesystem.printPDF(
+        pdf,
+        `Receipt ${payload.invoiceNumber}`,
+      );
+      if (printed.ok) {
+        return { printed: true, reason: "system" };
       }
+      console.warn("[print:system-failed]", printed.message);
     } catch (error) {
-      console.warn("[print:bluetooth-error]", error);
+      console.warn("[print:system-error]", error);
     }
+
+    if (config.preferNative) {
+      try {
+        const paperWidthMm = resolvePaperWidthMm(payload, config);
+        const bytes = buildEscPosReceipt(payload, paperWidthMm);
+        const preferred = await Hardware.printer.getDefaultPrinter();
+        if (preferred.data?.bluetoothDeviceId) {
+          const result = await Hardware.printer.printReceipt({
+            escposBase64: escPosToBase64(bytes),
+            invoiceNumber: payload.invoiceNumber,
+            copies: 1,
+            connectionType: "bluetooth",
+            bluetoothDeviceId: preferred.data.bluetoothDeviceId,
+            paperWidthMm,
+            openCashDrawer: config.openCashDrawer,
+          });
+          if (result.ok) {
+            return { printed: true, reason: "native", copies: 1 };
+          }
+          console.warn("[print:bluetooth-failed]", result.message);
+        }
+      } catch (error) {
+        console.warn("[print:bluetooth-error]", error);
+      }
+    }
+
+    return { printed: false, reason: "native_unavailable" };
   }
 
   if (!options?.forceBrowser && config.preferNative) {
@@ -341,24 +357,6 @@ export async function printReceipt(
         console.warn("[print:native-error]", error);
       }
     }
-  }
-
-  if (!options?.forceBrowser && isCapacitor()) {
-    try {
-      const { buildReceiptPdfBytes } = await import("@/services/receipts/share");
-      const pdf = await buildReceiptPdfBytes(payload);
-      const printed = await Hardware.filesystem.printPDF(
-        pdf,
-        `Receipt ${payload.invoiceNumber}`,
-      );
-      if (printed.ok) {
-        return { printed: true, reason: "system" };
-      }
-      console.warn("[print:system-failed]", printed.message);
-    } catch (error) {
-      console.warn("[print:system-error]", error);
-    }
-    return { printed: false, reason: "native_unavailable" };
   }
 
   return printReceiptBrowser(payload);
