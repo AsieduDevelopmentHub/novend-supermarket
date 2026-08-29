@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v9";
+const CACHE_NAME = "novend-pos-v10";
 /**
  * Public documents + icons only. Do not precache /dashboard (and other gated
  * routes): cache.add follows the auth 302 and stores a redirected login
@@ -20,6 +20,10 @@ const PRECACHE = [
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/branding/brandmark.png",
+  "/branding/logo_horizontal.png",
+  "/branding/logo_horizontal_light.png",
+  "/branding/logo_vertical.png",
+  "/branding/login_hero.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -175,17 +179,7 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/") || url.hostname.includes("convex")) return;
 
   // Browser must follow the authenticated /login → /dashboard 302 itself.
-  // If the SW returns that followed response, Chrome paints ERR_FAILED.
   if (isAuthDocument(url)) return;
-
-  // Android WebView + SW navigation intercept is a known net::ERR_FAILED source.
-  const ua = request.headers.get("User-Agent") || "";
-  if (ua.includes("NovendCapacitor")) return;
-
-  if (isAppShellRequest(request, url)) {
-    event.respondWith(networkFirstDocument(request, url));
-    return;
-  }
 
   if (isStaticAsset(url)) {
     event.respondWith(
@@ -203,6 +197,15 @@ self.addEventListener("fetch", (event) => {
         return networkPromise;
       }),
     );
+    return;
+  }
+
+  // Android WebView + SW navigation intercept is a known net::ERR_FAILED source.
+  const ua = request.headers.get("User-Agent") || "";
+  if (ua.includes("NovendCapacitor")) return;
+
+  if (isAppShellRequest(request, url)) {
+    event.respondWith(networkFirstDocument(request, url));
     return;
   }
 

@@ -112,6 +112,7 @@ function SidebarBrand({
           alt=""
           fill
           priority
+          unoptimized
           className="object-contain"
           sizes="44px"
         />

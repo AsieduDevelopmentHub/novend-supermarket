@@ -328,10 +328,12 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     (isAuthenticated || offlineAuthBudgetElapsed || !isLoading);
 
   const waitingForUser =
-    (online && isLoading && !onlineAuthBudgetElapsed) ||
-    (online && isAuthenticated && user === undefined && !onlineAuthBudgetElapsed) ||
-    (!online && !cacheReady) ||
-    (!online && isLoading && !cachedProfile && !platformSession && !offlineAuthBudgetElapsed);
+    !cachedProfile &&
+    !platformSession &&
+    ((online && isLoading && !onlineAuthBudgetElapsed) ||
+      (online && isAuthenticated && user === undefined && !onlineAuthBudgetElapsed) ||
+      (!online && !cacheReady) ||
+      (!online && isLoading && !offlineAuthBudgetElapsed));
 
   if (waitingForUser) {
     return <AppSplash label="Preparing workspace…" />;
@@ -441,6 +443,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                     alt=""
                     width={32}
                     height={32}
+                    unoptimized
                     className="h-8 w-8 shrink-0 object-contain"
                   />
                   <p className="truncate text-base font-semibold">
