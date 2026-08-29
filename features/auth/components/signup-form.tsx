@@ -145,6 +145,9 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
               aria-hidden
             />
           </div>
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            Use a mailbox you can access. Password reset and security notices go here.
+          </p>
         </div>
 
         <div className="space-y-2">

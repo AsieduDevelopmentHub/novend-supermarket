@@ -207,7 +207,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
     setPending(true);
     try {
       await resetUserPassword({ profileId, newPassword });
-      toast.success("Password reset. Share the new credentials securely.");
+      toast.success("Password reset. They’ll get a confirmation email — share the new password securely.");
       setResetOpen(false);
       setNewPassword("");
       setConfirmPassword("");

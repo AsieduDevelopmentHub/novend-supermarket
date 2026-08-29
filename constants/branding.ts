@@ -14,7 +14,7 @@ export const BRANDING = {
   /** Real product dashboard — landing hero & analytics showcase. */
   dashboardHero: marketingAsset("/marketing/dashboard.png"),
   /** V3 landing device / diagram marketing assets (from ui_reference). */
-  landingHeroMonitor: marketingAsset("/marketing/v3/hero-shell-empty-no-bg.png"),
+  landingHeroMonitor: marketingAsset("/marketing/v3/hero-shell-empty-no-bg-v4.png"),
   landingHowItWorks: marketingAsset("/marketing/v3/how-it-works-diagram.png"),
   landingCtaDevices: marketingAsset("/marketing/v3/cta-devices.png"),
   landingFaqHeadset: marketingAsset("/marketing/v3/headset.png"),

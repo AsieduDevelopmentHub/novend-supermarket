@@ -1,253 +1,299 @@
-## Novend — P0 Production Fixes + Mobile Startup/Offline UX
 
-Start with ALL currently identified P0 issues. Do not choose only one.
+## Novend — Production Email OTP Verification Flow
 
-### P0 SECURITY / FUNCTIONAL FIXES
+Implement a professional email verification flow for new account registration.
 
-1. Password reset
-- Implement a complete owner password-reset/recovery flow.
-- Add /forgot-password and the required reset flow.
-- Follow the existing authentication architecture.
-- Do not create a parallel auth system.
-- Ensure reset tokens are secure, expire, and cannot be reused.
+### 1. Signup flow
 
-2. Two-organization IDOR tests
-- Add adversarial tests using at least two organizations.
-- Verify every patched tenant-sensitive write path cannot access or mutate another organization.
-- Cover products, profile/staff operations and the remaining sensitive Convex mutations.
-- Make these regression tests part of CI.
+Change the new-account flow to:
 
-3. Android Camera
-- Deeply debug the Capacitor native camera integration.
-- Fix the "camera access is turned off" false error.
-- Ensure runtime permission handling works.
-- Ensure the native camera actually launches.
-- Compare against the last known working implementation/release.
-- Do not solve this with a retry-only UI workaround.
+Signup
+→ Create account
+→ Send verification OTP
+→ Email Verification
+→ Existing New Business/Onboarding
+→ Dashboard
 
-4. Android Receipt Share / Save PDF / Print
-- Fix Share Receipt.
-- Fix Save as PDF.
-- Fix Print.
-- Trace the native Capacitor bridge, filesystem, URI/MIME handling, Android intents/plugins and receipt generation.
-- Print must actually launch the system print dialog.
-- Do not leave the UI stuck on "Opening...".
-- Errors must identify the real failure without exposing internal exceptions.
-
-5. Storage upload tenant binding
-- Ensure generated upload URLs/storage operations are organization-bound.
-- A storage ID from organization A must not be attachable to organization B.
-- Add regression tests.
-
-6. updateExpense branch authorization
-- Verify the new branchId belongs to the authenticated user's organization before updating an expense.
-- Add a regression test for cross-organization branch injection.
-
-7. Password policy
-- Align client validation with the server's actual password policy.
-- Do not allow the UI to advertise weaker requirements than the backend.
-- Show Users Strenght of their password to make it user friendly so users can know their passwords are accepted rather than later verification checks that showcase a toast.
+Do not replace or redesign the existing onboarding. Verification should simply become the required step before entering it.
 
 ---
 
-# MOBILE STARTUP / LOADING UX
+### 2. OTP
 
-There is currently too much sequential loading during Capacitor startup.
+Use a fixed-length OTP: choose either 6 or 8 digits based on the existing auth/email architecture, but keep the length consistent everywhere.
 
-Current experience is approximately:
+The verification UI must use **separate OTP boxes**, not one unrestricted text input.
 
-Open app
-→ "Preparing..."
-→ "Opening Novend..."
-→ startup animation
-→ authentication/session initialization
-→ dashboard loading
-→ finally dashboard
+Example for 6 digits:
 
-This feels slow and artificial even when the device is online.
+[ 4 ][ 8 ][ 2 ][ 1 ][ 7 ][ 9 ]
 
-Audit the entire Capacitor boot sequence and identify every loading/splash state.
+Requirements:
 
-### Goal
+- One box per digit.
+- Numeric input only.
+- Automatically advance after entering a digit.
+- Backspace moves to the previous box when appropriate.
+- Pasting a complete OTP should populate all boxes.
+- Support keyboard navigation.
+- Clear visual focus state.
+- Invalid OTP should clearly indicate the error without destroying the user's input unnecessarily.
+- Proper mobile keyboard/input behavior.
+- Accessible labels and focus handling.
+- Responsive on Web, PWA, Electron and Capacitor.
 
-Reduce unnecessary sequential loading.
-
-The desired experience should be closer to:
-
-Open app
-→ lightweight native/app startup
-→ immediately restore local shell/session
-→ render application/dashboard from local state
-→ refresh/sync data silently in background
-
-Do NOT remove legitimate initialization requirements. Instead, eliminate duplicated loading gates and unnecessary sequential waits.
-
-Investigate:
-
-- Capacitor app initialization
-- WebView startup
-- authentication restoration
-- IndexedDB initialization
-- Dexie initialization
-- Convex initialization
-- service worker
-- cached app shell
-- route restoration
-- dashboard data hydration
-- splash screen
-- startup animation
-- "Preparing..." state
-- "Opening Novend..." state
-- duplicate loading screens
-
-Determine which operations actually block application rendering and which can happen asynchronously.
-
-### Important
-
-Do not simply make the loading text disappear.
-
-Fix the architecture so the application becomes usable sooner.
-
-If local session/data exists:
-
-LOCAL STATE
-→ render immediately
-→ background synchronization
-
-rather than:
-
-INITIALIZE EVERYTHING
-→ wait
-→ fetch everything
-→ render application
-
-Keep a lightweight fallback/loading state only when absolutely necessary.
+Do not create an "infinite" input or rely on a single uncontrolled text field.
 
 ---
 
-# OFFLINE PUBLIC ASSETS
+### 3. Verification screen
 
-Public assets such as:
+Create a professional verification screen containing:
 
-- Novend logo
-- branding images
-- icons
-- application illustrations
-- other static public assets
+**Verify your email**
 
-sometimes do not render offline.
+We've sent a verification code to:
 
-This is particularly noticeable when the application has already been opened but the device later loses connectivity.
+**a***@example.com**
 
-Audit how these assets are loaded and cached.
+Use the actual user's email with appropriate masking.
 
-Determine whether they are:
+Actions:
 
-- remote URLs
-- Vercel-hosted assets
-- Next.js static assets
-- service-worker cached assets
-- dynamically fetched resources
+- OTP input
+- Verify button
+- Resend code
+- Change email
+- Back to Sign Up
 
-The application shell and required branding assets should be available offline after the application has been properly initialized at least once.
-
-### Requirements
-
-- Cache required static application assets.
-- Do not make the application request a remote public image every time it renders.
-- Avoid breaking cache invalidation when assets are updated.
-- Do not cache user-specific/private assets as public assets.
-- Ensure Capacitor and PWA use the appropriate caching mechanism.
-- Verify that the logo and core branding remain visible when the device transitions from online → offline.
-
-Do not blindly cache every image. Identify the minimum required offline application shell/assets.
+The user must always know which email the OTP was sent to.
 
 ---
 
-# OFFLINE-FIRST STARTUP
+### 4. Change email
 
-The startup changes must preserve Novend's offline-first architecture.
+If the user selected **Change email**:
 
-After the application has been initialized once:
+- Return to the appropriate signup/email step.
+- Allow the user to enter a different email.
+- Invalidate the previous verification attempt where appropriate.
+- Send a new OTP to the new address.
+- Continue verification using the new address.
 
-Online:
-  Local shell/session/data
-        ↓
-  Immediate render
-        ↓
-  Background sync
-
-Offline:
-  Local shell/session/data
-        ↓
-  Immediate render
-        ↓
-  Offline state / queued sync
-
-There should NOT be a requirement to reconnect merely to render the application shell.
+Do not accidentally create multiple accounts for the same signup attempt.
 
 ---
 
-# TEST MATRIX
+### 5. Resend OTP
 
-Test at minimum:
+Implement a controlled resend mechanism.
 
-### Capacitor
-- Fresh install online
-- Login online
-- Close/reopen online
-- Close/reopen offline
-- Online → offline after login
-- Offline → online
-- Camera permission denied
-- Camera permission granted
-- Share receipt
-- Save PDF
-- Print receipt
+Requirements:
 
-### PWA
-- First load online
-- Reload online
-- Online → offline
-- Reload offline
-- Logo/static assets offline
-- Dashboard offline
+- Countdown before another resend is allowed.
+- Prevent OTP spam.
+- Generate a new OTP when appropriate.
+- Invalidate the previous OTP when the security model requires it.
+- Clearly show when the user can request another code.
+- Provide useful user-friendly error states.
 
-### Security
-- Organization A attempting organization B access
-- Cross-org storage attachment
-- Cross-org branch assignment
-- Password reset
-- Expired reset token
-- Reused reset token
+Example:
 
-### Startup performance
+`Resend code in 42s`
 
-Measure the actual sequence and identify unnecessary blocking operations.
+then:
 
-The goal is not merely a faster animation. The goal is a faster **time-to-usable-application**.
+`Resend code`
+
+Do not expose backend/rate-limit implementation details.
 
 ---
 
-# IMPLEMENTATION RULE
+### 6. OTP security
 
-Before changing code, provide a concise root-cause report covering:
+Do not store or compare OTPs insecurely on the client.
 
-1. Password recovery gap.
-2. Remaining tenancy/IDOR risks.
-3. Android camera failure.
-4. Android receipt failures.
-5. Storage binding vulnerability.
-6. updateExpense branch authorization.
-7. Password policy mismatch.
-8. Capacitor startup/loading chain.
-9. Offline public/static asset loading.
-10. Any additional P0/P1 issues discovered while tracing these paths.
+The backend should handle:
 
-Then implement the fixes.
+- OTP generation
+- Secure storage/hashing where appropriate
+- Expiration
+- Attempt limits
+- Resend limits
+- Verification
+- Invalidation after successful verification
+- Abuse/rate limiting
 
-Use the existing architecture wherever possible. Do not create duplicate services, authentication systems, caching systems, or native integrations.
+OTP should be short-lived and single-use.
 
-Create a meaningful Git commit after each major feature/fix/refactor/chore.
+Do not trust a client-provided "verified" flag.
 
-After implementation, run the existing test suite and add the missing regression tests. The existing 205 passing tests must remain passing, except where a test correctly reflects intentionally changed behavior.
+---
+
+### 7. Email state
+
+The backend should have an authoritative verification state.
+
+For example:
+
+`emailVerified = false`
+
+until the OTP is successfully validated.
+
+After successful verification:
+
+`emailVerified = true`
+
+The client must not be able to bypass verification simply by navigating directly to the onboarding route.
+
+---
+
+### 8. Offline behavior
+
+Email verification requires network connectivity.
+
+However, this must NOT damage Novend's offline-first POS architecture.
+
+The restriction applies only to the **new-account verification process**.
+
+After the account has been successfully verified, authenticated, and initialized:
+
+`Verification → Authentication → Local session → Offline-first application`
+
+Existing authenticated users must continue to use their locally available POS functionality offline.
+
+Do not introduce a global "must be online" gate into the application.
+
+---
+
+### 9. Successful verification
+
+After successful OTP verification:
+
+1. Mark the email verified server-side.
+2. Preserve the authenticated signup session.
+3. Navigate to the **existing new-business/onboarding flow**.
+4. Do not send the user to Dashboard prematurely.
+5. Existing onboarding should continue normally.
+6. Once onboarding is completed, continue to Dashboard as it currently does.
+
+---
+
+### 10. UX states
+
+Handle professionally:
+
+- Sending OTP
+- OTP sent
+- Verifying
+- Invalid OTP
+- Expired OTP
+- Too many attempts
+- Resend cooldown
+- Email delivery failure
+- Network failure
+- Already verified
+- Session expired
+- Changed email
+- Successful verification
+
+Do not display raw backend errors such as `ERR_*`, Convex errors, or internal exceptions.
+
+---
+
+### 11. Routing/security
+
+Prevent users from bypassing verification by manually navigating to:
+
+`/onboarding`
+
+or other protected signup/onboarding routes.
+
+The routing logic should understand:
+
+
+New account
+   ↓
+Email unverified
+   → /verify-email
+
+Email verified
+   → /onboarding
+
+Existing authenticated account
+   → /dashboard
+````
+
+Ensure logout/login on the same device cannot restore another user's verification/onboarding route.
+
+---
+
+### 12. Audit before implementation
+
+First inspect the existing:
+
+* Signup flow
+* Authentication/session model
+* User schema
+* Email infrastructure
+* Existing onboarding routes
+* Routing guards
+* Error handling
+* Convex mutations/queries
+* Existing email templates
+
+Do not create duplicate authentication or email systems.
+
+Reuse the existing infrastructure where possible.
+
+Before large changes, provide a concise root-cause/design report explaining where email verification belongs in the current architecture.
+
+Then implement incrementally and add tests for:
+
+* Account creation
+* OTP generation
+* OTP expiration
+* Correct OTP
+* Incorrect OTP
+* OTP reuse
+* Resend
+* Rate limiting
+* Change email
+* Verification bypass attempts
+* Already verified accounts
+* Session expiration
+* Routing after verification
+
+Create a meaningful Git commit after the major authentication/email-verification implementation.
+
+```
+
+### One design decision I'd make
+
+I'd use **6 digits**, rather than 8.
+
+For a POS/SaaS onboarding flow:
+
+**6 digits = `482179`**
+
+is easier to read, type, remember, and enter on a phone while still giving you **1 million possible combinations**. The security should come primarily from **short expiry + attempt limits + rate limiting + single-use**, rather than making the user type an unnecessarily long code.
+
+And visually, the separate boxes will make a significant difference on Capacitor:
+
+**Verify your email**
+
+> We've sent a 6-digit code to  
+> **a••••@gmail.com**
+
+`[ 4 ] [ 8 ] [ 2 ] [ 1 ] [ 7 ] [ 9 ]`
+
+**[ Verify email ]**
+
+`Resend code in 32s`
+
+`Change email · Back to sign up`
+
+Then, after verification:
+
+**→ your existing business onboarding**, not another new onboarding experience.
+```

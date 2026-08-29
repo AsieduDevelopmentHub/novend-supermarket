@@ -22,6 +22,7 @@ import { writeAuditLog } from "./shared/audit";
 import { Id } from "./_generated/dataModel";
 import { assertStoredImage, sanitizePhone, sanitizeText, TEXT_LIMITS } from "./shared/validation";
 import { assertPasswordPolicy } from "./shared/passwordPolicy";
+import { notifyPasswordChanged } from "./shared/transactionalEmail";
 import { assertOwnedStorage, beginStorageUploadSession } from "./shared/storageSessions";
 import { assertOrganizationCapacity, countUsage, resolveLicense } from "./shared/entitlements";
 import { limitReachedMessage } from "./shared/plans";
@@ -469,6 +470,8 @@ export const changePassword = action({
       userId: me.userId,
     });
 
+    await notifyPasswordChanged(me.email);
+
     return { ok: true as const };
   },
 });
@@ -747,6 +750,8 @@ export const resetUserPassword = action({
     await ctx.runMutation(internal.users.writePasswordChangeAudit, {
       userId: me.userId,
     });
+
+    await notifyPasswordChanged(target.email);
 
     return { ok: true as const };
   },

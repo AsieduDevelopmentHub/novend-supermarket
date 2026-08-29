@@ -10,6 +10,13 @@ import {
   hashPasswordResetToken,
   passwordResetRejectReason,
 } from "./shared/passwordResetCrypto";
+import { renderPasswordResetEmail } from "./shared/emailTemplates";
+import {
+  emailLogoUrl,
+  notifyPasswordChanged,
+  publicAppUrl,
+  sendTransactionalEmail,
+} from "./shared/transactionalEmail";
 
 const GENERIC_REQUEST_OK = {
   ok: true as const,
@@ -56,14 +63,24 @@ export const insertResetToken = internalMutation({
         await ctx.db.patch(row._id, { usedAt: args.createdAt });
       }
     }
-    await ctx.db.insert("passwordResetTokens", {
+    const tokenId = await ctx.db.insert("passwordResetTokens", {
       email: args.email,
       userId: args.userId,
       tokenHash: args.tokenHash,
       expiresAt: args.expiresAt,
       createdAt: args.createdAt,
     });
-    return { throttled: false as const };
+    return { throttled: false as const, tokenId };
+  },
+});
+
+export const discardUnusedResetToken = internalMutation({
+  args: { tokenId: v.id("passwordResetTokens") },
+  handler: async (ctx, args) => {
+    const row = await ctx.db.get(args.tokenId);
+    if (row && !row.usedAt) {
+      await ctx.db.delete(args.tokenId);
+    }
   },
 });
 
@@ -81,45 +98,6 @@ export const consumeResetToken = internalMutation({
     return { ok: true as const, email: row.email, userId: row.userId };
   },
 });
-
-async function sendResetEmail(email: string, resetUrl: string) {
-  const apiKey = process.env.AUTH_RESEND_KEY ?? process.env.RESEND_API_KEY;
-  const from = process.env.AUTH_EMAIL_FROM ?? "Novend POS <noreply@novend.app>";
-  if (!apiKey) {
-    console.warn("[password-reset] AUTH_RESEND_KEY is not set; email was not sent.");
-    return;
-  }
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to: [email],
-      subject: "Reset your Novend password",
-      text: [
-        "Reset your Novend POS password using this link:",
-        resetUrl,
-        "",
-        "This link expires in one hour and can be used only once.",
-        "If you did not request this, you can ignore this email.",
-      ].join("\n"),
-    }),
-  });
-  if (!response.ok) {
-    throw new Error("Could not send the reset email. Try again in a few minutes.");
-  }
-}
-
-function publicAppUrl() {
-  return (
-    process.env.SITE_URL ||
-    process.env.NOVEND_APP_URL ||
-    "http://localhost:3000"
-  ).replace(/\/$/, "");
-}
 
 export const requestPasswordReset = action({
   args: { email: v.string() },
@@ -145,8 +123,24 @@ export const requestPasswordReset = action({
     if (inserted.throttled) {
       return GENERIC_REQUEST_OK;
     }
-    const resetUrl = `${publicAppUrl()}/reset-password?token=${encodeURIComponent(token)}`;
-    await sendResetEmail(email, resetUrl);
+    const origin = publicAppUrl();
+    const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(token)}`;
+    try {
+      await sendTransactionalEmail(
+        email,
+        renderPasswordResetEmail({
+          resetUrl,
+          expiresInHours: 1,
+          logoUrl: emailLogoUrl(origin),
+        }),
+        "password-reset",
+      );
+    } catch (error) {
+      await ctx.runMutation(internal.passwordReset.discardUnusedResetToken, {
+        tokenId: inserted.tokenId,
+      });
+      throw error;
+    }
     return GENERIC_REQUEST_OK;
   },
 });
@@ -172,6 +166,7 @@ export const completePasswordReset = action({
       account: { id: consumed.email, secret: args.newPassword },
     });
     await invalidateSessions(ctx, { userId: consumed.userId });
+    await notifyPasswordChanged(consumed.email);
     return { ok: true as const };
   },
 });

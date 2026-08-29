@@ -5,6 +5,7 @@ import { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { getPlatformAdmin, requirePlatformAdmin } from "./shared/permissions";
 import { assertPasswordPolicy } from "./shared/passwordPolicy";
+import { notifyPasswordChanged } from "./shared/transactionalEmail";
 import { sanitizeOptionalText, TEXT_LIMITS } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
 import { planKeyValidator, billingCycleValidator } from "./schema";
@@ -755,6 +756,7 @@ export const resetOrganizationAdminPassword = action({
       provider: "password",
       account: { id: email, secret: args.newPassword },
     });
+    await notifyPasswordChanged(email);
     return { ok: true as const };
   },
 });

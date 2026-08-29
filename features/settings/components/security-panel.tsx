@@ -83,7 +83,7 @@ function PasswordForm({ readOnly = false }: { readOnly?: boolean }) {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      toast.success("Password updated");
+      toast.success("Password updated. We sent a confirmation to your email.");
     } catch (error) {
       showError(error, "Could not change password");
     } finally {

@@ -16,12 +16,17 @@ Related: Convex guide, Constitution §10, `docs/architecture/MULTI_TENANT.md`
 
 # Authentication
 
-- Convex Auth Password provider with Next.js cookie sessions
+- Convex Auth Password provider with Next.js cookie sessions. See
+  `docs/architecture/AUTHENTICATION.md`.
 - Public **signup** is enabled for organization owners only (`/signup` →
   `/onboarding`). Staff cannot self-provision a profile.
 - Staff accounts are created by in-org administrators (or managers for cashiers)
 - Login is rate-limited by email (`loginAttempts`): 5 failures / 15 minutes →
   15-minute lockout
+- Password reset is hashed, single-use, and expires in one hour
+  (`/forgot-password`). Do not add a second recovery system.
+- Email verification and social login are **not** in this slice (see
+  AUTHENTICATION.md). Password remains the identity provider.
 - `proxy.ts` enforces auth on app routes; Convex remains the API source of truth
 - First session on a device requires network; later offline refresh uses a
   cached shell profile

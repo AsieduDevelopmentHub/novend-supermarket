@@ -1,6 +1,6 @@
 # Routing
 
-Version: 1.3.3
+Version: 1.3.4
 
 ## Public vs authenticated entry
 
@@ -8,6 +8,8 @@ Version: 1.3.3
 /                    Public SaaS landing (web only)
 /login               Authentication
 /signup              Account creation (requires Terms + Privacy acceptance)
+/forgot-password     Password reset request (generic success; no email enumeration)
+/reset-password      Complete reset with a single-use token
 /download            Public app downloads (live release feed)
 /docs, /privacy…     Public marketing site pages
 /(app)/*             Authenticated POS shell
@@ -43,6 +45,8 @@ app/(site)/privacy
 app/(site)/terms
 app/(auth)/login
 app/(auth)/signup
+app/(auth)/forgot-password
+app/(auth)/reset-password
 app/(auth)/onboarding
 app/(app)/platform
 app/(app)/dashboard
@@ -65,8 +69,8 @@ Navigation: `config/navigation.ts` (permission-aware). Marketing copy:
 ## Gates
 
 - Unauthenticated on protected routes → `/login`
-- Unauthenticated may access `/`, `/login`, `/signup`, `/download`, `/docs(.*)`,
-  `/privacy`, and `/terms`
+- Unauthenticated may access `/`, `/login`, `/signup`, `/forgot-password`,
+  `/reset-password`, `/download`, `/docs(.*)`, `/privacy`, and `/terms`
 - Authenticated may still open `/` (landing is never redirected away)
 - Authenticated on `/login` or `/signup` → `/platform` (platform admin),
   `/onboarding` (needs a business), or `/dashboard`

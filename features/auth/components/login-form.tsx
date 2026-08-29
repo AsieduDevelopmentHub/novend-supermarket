@@ -257,7 +257,15 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="password">Password</Label>
+            <Link
+              href={ROUTES.forgotPassword}
+              className="text-primary text-sm font-medium hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <PasswordInput
             id="password"
             autoComplete="current-password"
@@ -281,12 +289,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
           {pending ? "Signing in…" : "Sign in"}
         </Button>
       </form>
-
-      <p className="text-muted-foreground mt-4 text-center text-sm">
-        <Link href={ROUTES.forgotPassword} className="text-primary font-medium hover:underline">
-          Forgot password?
-        </Link>
-      </p>
 
       <p className="text-muted-foreground mt-6 text-center text-sm">
         New business?{" "}
