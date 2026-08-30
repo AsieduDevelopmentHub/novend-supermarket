@@ -48,13 +48,26 @@ async function mapMirroredProductRows(
   );
 }
 
-/** Active (or all non-archived) products from the Dexie mirror. */
-export async function listMirroredProducts(options?: {
+type ListMirroredProductsOptions = {
   search?: string;
   includeInactive?: boolean;
   categoryId?: string;
   branchId?: string | null;
-}): Promise<MirroredProductRow[] | null> {
+  page?: number;
+  pageSize?: number;
+};
+
+export type PagedMirroredProducts = {
+  items: MirroredProductRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+/** Active (or all non-archived) products from the Dexie mirror. */
+export async function listMirroredProducts(
+  options?: ListMirroredProductsOptions,
+): Promise<MirroredProductRow[] | PagedMirroredProducts | null> {
   const db = await getOfflineDb();
   if (!db) return null;
 
@@ -73,10 +86,18 @@ export async function listMirroredProducts(options?: {
     products = products.filter((p) => productMatchesQuery(p, options.search!));
   }
 
-  const rows = await mapMirroredProductRows(
-    products.sort((a, b) => a.name.localeCompare(b.name)),
-    options?.branchId,
-  );
+  products.sort((a, b) => a.name.localeCompare(b.name));
+  const pageSize = options?.pageSize;
+  const page = options?.page ?? 1;
+  const total = products.length;
+  const sliced =
+    pageSize && pageSize > 0
+      ? products.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize)
+      : products;
+  const rows = await mapMirroredProductRows(sliced, options?.branchId);
+  if (pageSize && pageSize > 0) {
+    return { items: rows, total, page, pageSize };
+  }
   return rows;
 }
 

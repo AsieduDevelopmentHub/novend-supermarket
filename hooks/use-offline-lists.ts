@@ -14,6 +14,7 @@ import {
   getMirroredProduct,
   listMirroredExpenses,
   listMirroredProducts,
+  type PagedMirroredProducts,
   listMirroredReturns,
   listMirroredSuppliers,
   listMirroredUsers,
@@ -102,24 +103,36 @@ function useMirrorListGate() {
  * Local-first products list.
  * Warm Dexie mirror skips the live Convex subscription; snapshot sync keeps data fresh.
  */
+function isPagedProducts(
+  value: Awaited<ReturnType<typeof listMirroredProducts>>,
+): value is PagedMirroredProducts {
+  return Boolean(value && !Array.isArray(value) && "items" in value);
+}
+
 export function useProductsList(options: {
   search: string;
   includeInactive: boolean;
   branchId?: Id<"branches">;
   canViewCost: boolean;
   preferLocal?: boolean;
+  page?: number;
+  pageSize?: number;
 }) {
-  const { online, ready, lastSyncAt } = useMirrorListGate();
+  const { online, serveLocal, ready, lastSyncAt } = useMirrorListGate();
   const [local, setLocal] = useState<ProductListRow[] | null>(null);
+  const [localTotal, setLocalTotal] = useState(0);
+  const skipLive = !online || !ready || serveLocal;
   const remote = useQuery(
     api.products.listProducts,
-    online && ready
-      ? {
+    skipLive
+      ? "skip"
+      : {
           search: options.search || undefined,
           includeInactive: options.includeInactive,
           branchId: options.branchId,
-        }
-      : "skip",
+          page: options.page,
+          pageSize: options.pageSize,
+        },
   );
   useEffect(() => {
     let cancelled = false;
@@ -128,9 +141,17 @@ export function useProductsList(options: {
         search: options.search || undefined,
         includeInactive: options.includeInactive,
         branchId: options.branchId ?? null,
+        page: options.page,
+        pageSize: options.pageSize,
       }).then((rows) => {
         if (cancelled || rows == null) return;
+        if (isPagedProducts(rows)) {
+          setLocal(rows.items.map((r) => mapProduct(r, options.canViewCost)));
+          setLocalTotal(rows.total);
+          return;
+        }
         setLocal(rows.map((r) => mapProduct(r, options.canViewCost)));
+        setLocalTotal(rows.length);
       });
     };
     load();
@@ -144,18 +165,26 @@ export function useProductsList(options: {
     options.includeInactive,
     options.canViewCost,
     options.branchId,
+    options.page,
+    options.pageSize,
     remote,
     lastSyncAt,
   ]);
 
-  if (online && remote !== undefined) {
-    return { products: remote, loading: false, source: "remote" as const };
+  if (online && !serveLocal && remote !== undefined) {
+    return {
+      products: remote.items,
+      total: remote.total,
+      loading: false,
+      source: "remote" as const,
+    };
   }
   if (local != null) {
-    return { products: local, loading: false, source: "local" as const };
+    return { products: local, total: localTotal, loading: false, source: "local" as const };
   }
   return {
     products: [] as ProductListRow[],
+    total: 0,
     loading: true,
     source: "local" as const,
   };
@@ -186,10 +215,10 @@ export function useInventoryList(options: {
   categoryId?: Id<"categories">;
   branchId?: Id<"branches">;
 }) {
-  const { online, ready, lastSyncAt } = useMirrorListGate();
+  const { online, serveLocal, ready, lastSyncAt } = useMirrorListGate();
   const remote = useQuery(
     api.inventory.list,
-    online && ready
+    online && ready && !serveLocal
       ? {
           search: options.search || undefined,
           categoryId: options.categoryId,
@@ -207,7 +236,7 @@ export function useInventoryList(options: {
         categoryId: options.categoryId,
         branchId: options.branchId ?? null,
       }).then((rows) => {
-        if (cancelled || rows == null) return;
+        if (cancelled || rows == null || !Array.isArray(rows)) return;
         setLocal(
           rows.map((r) => ({
             id: r.id as Id<"products">,
@@ -243,7 +272,7 @@ export function useInventoryList(options: {
     };
   }, [options.search, options.categoryId, options.branchId, remote, lastSyncAt]);
 
-  if (online && remote !== undefined) {
+  if (online && !serveLocal && remote !== undefined) {
     return { rows: remote, loading: false, source: "remote" as const };
   }
   if (local != null) {
@@ -309,10 +338,10 @@ export function useMirroredProduct(productId: string | null, branchId?: Id<"bran
 }
 
 export function useCustomersList(options: { search: string; includeInactive: boolean }) {
-  const { online, ready, lastSyncAt } = useMirrorListGate();
+  const { online, serveLocal, ready, lastSyncAt } = useMirrorListGate();
   const remote = useQuery(
     api.customers.list,
-    online && ready
+    online && ready && !serveLocal
       ? {
           search: options.search || undefined,
           includeInactive: options.includeInactive,
@@ -377,9 +406,9 @@ export type OrdersListOptions = {
 };
 
 export function useOrdersList(options: OrdersListOptions) {
-  const { online, ready, lastSyncAt } = useMirrorListGate();
+  const { online, serveLocal, ready, lastSyncAt } = useMirrorListGate();
   const [local, setLocal] = useState<Awaited<ReturnType<typeof listLocalOrders>>>(null);
-  const useRemote = online && ready;
+  const useRemote = online && ready && !serveLocal;
   const remote = useQuery(
     api.sales.listOrders,
     useRemote
@@ -453,7 +482,7 @@ export function useOrdersList(options: OrdersListOptions) {
     };
   }
 
-  if (online && remote !== undefined) {
+  if (online && !serveLocal && remote !== undefined) {
     const refundById = new Map((local ?? []).map((o) => [o.id, o.refundedAmount] as const));
     const mergedRemote = remote.map((o) => ({
       ...o,
@@ -524,10 +553,10 @@ function useMirrorRows<T>(loader: () => Promise<T[]>, deps: unknown[]) {
 }
 
 export function useSuppliersList(options: { search: string; includeInactive: boolean }) {
-  const { online, ready } = useMirrorListGate();
+  const { online, serveLocal, ready } = useMirrorListGate();
   const remote = useQuery(
     api.suppliers.list,
-    online && ready
+    online && ready && !serveLocal
       ? { search: options.search || undefined, includeInactive: options.includeInactive }
       : "skip",
   );
@@ -556,11 +585,12 @@ export function useSuppliersList(options: { search: string; includeInactive: boo
 }
 
 export function useWholesaleLists(search: string) {
-  const { online, ready } = useMirrorListGate();
-  const stock = useQuery(api.wholesale.listStock, online && ready ? { search } : "skip");
-  const summary = useQuery(api.wholesale.summary, online && ready ? {} : "skip");
-  const purchases = useQuery(api.wholesale.listPurchases, online && ready ? {} : "skip");
-  const transfers = useQuery(api.wholesale.listTransfers, online && ready ? {} : "skip");
+  const { online, serveLocal, ready } = useMirrorListGate();
+  const live = online && ready && !serveLocal;
+  const stock = useQuery(api.wholesale.listStock, live ? { search } : "skip");
+  const summary = useQuery(api.wholesale.summary, live ? {} : "skip");
+  const purchases = useQuery(api.wholesale.listPurchases, live ? {} : "skip");
+  const transfers = useQuery(api.wholesale.listTransfers, live ? {} : "skip");
   const localStock = useMirrorRows(() => listMirroredWholesaleStock(search), [search]);
   const localPurchases = useMirrorRows(() => listMirroredWholesalePurchases(), []);
   const localTransfers = useMirrorRows(() => listMirroredWholesaleTransfers(), []);

@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/select";
 import { useCurrentUser, usePermissions } from "@/hooks/use-permissions";
 import { useBranchesList, useOrdersList, useUsersList } from "@/hooks/use-offline-lists";
+import { ListPagination } from "@/components/ui/list-pagination";
+import { useClientPagedRows } from "@/hooks/use-ui";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime, rangeForDatePreset, type DateRangePreset } from "@/lib/date";
 import { Plus } from "lucide-react";
@@ -134,6 +136,17 @@ export function OrdersView() {
     paymentMethod: filters.paymentMethod === "all" ? undefined : filters.paymentMethod,
     returnStatus: filters.returnStatus === "all" ? undefined : filters.returnStatus,
   });
+  const {
+    paged: pageRows,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    total,
+  } = useClientPagedRows(
+    orders,
+    `${filters.search}|${filters.branchId}|${filters.cashierId}|${filters.datePreset}|${filters.paymentMethod}|${filters.returnStatus}|${filters.minAmount}|${filters.maxAmount}`,
+  );
 
   const cashiers = useMemo(() => {
     if (!staff) return undefined;
@@ -393,7 +406,7 @@ export function OrdersView() {
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.map((order) => (
+                    {(pageRows ?? []).map((order) => (
                       <ClickableTableRow key={order.id} href={`/orders/${order.id}`}>
                         <td className="px-4 py-3 font-medium">{order.invoiceNumber}</td>
                         <td className="px-4 py-3">{formatDateTime(order.completedAt)}</td>
@@ -445,10 +458,19 @@ export function OrdersView() {
           </div>
 
           <div className="space-y-3 md:hidden">
-            {orders.map((order) => (
+            {(pageRows ?? []).map((order) => (
               <OrderMobileCard key={order.id} order={order} />
             ))}
           </div>
+          {total > 0 ? (
+            <ListPagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
+          ) : null}
         </>
       )}
     </div>

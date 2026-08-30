@@ -35,6 +35,8 @@ import { formatDateTime } from "@/lib/date";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCustomersList } from "@/hooks/use-offline-lists";
+import { ListPagination } from "@/components/ui/list-pagination";
+import { useClientPagedRows } from "@/hooks/use-ui";
 import { Eye, Pencil, Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -57,6 +59,14 @@ export function CustomersView() {
     search,
     includeInactive: isAdmin,
   });
+  const {
+    paged: pageRows,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    total,
+  } = useClientPagedRows(customers, `${search}|${isAdmin}`);
   const history = useQuery(
     api.customers.purchaseHistory,
     online && detailId ? { customerId: detailId, limit: 20 } : "skip",
@@ -219,7 +229,7 @@ export function CustomersView() {
                     </tr>
                   </thead>
                   <tbody>
-                    {customers.map((row) => (
+                    {(pageRows ?? []).map((row) => (
                       <ClickableTableRow key={row.id} href={`/customers/${row.id}`}>
                         <td className="px-4 py-3">
                           <p className="font-medium">{row.name}</p>
@@ -284,8 +294,17 @@ export function CustomersView() {
                   </tbody>
                 </table>
               </div>
+              {total > 0 ? (
+                <ListPagination
+                  page={page}
+                  pageSize={pageSize}
+                  total={total}
+                  onPageChange={setPage}
+                  onPageSizeChange={setPageSize}
+                />
+              ) : null}
               <div className="space-y-3 p-3 md:hidden">
-                {customers.map((row) => (
+                {(pageRows ?? []).map((row) => (
                   <div key={row.id} className="border-border space-y-2 rounded-xl border p-3">
                     <div className="flex items-start justify-between gap-2">
                       <Link href={`/customers/${row.id}`} className="font-medium hover:underline">
