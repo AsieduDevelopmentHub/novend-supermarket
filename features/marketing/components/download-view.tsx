@@ -2,9 +2,8 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { useQuery } from "convex/react";
 import { Apple, Download, Monitor, Smartphone, Globe, Loader2 } from "lucide-react";
-import { api } from "@/convex/_generated/api";
+import { useReleaseOffers } from "@/hooks/use-release-offers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MarketingSitePage } from "@/features/marketing/components/marketing-site-page";
@@ -73,21 +72,8 @@ const MOBILE_PLATFORM_META = [
 export function DownloadView() {
   const target = useSyncExternalStore(subscribeNoop, getBrowserTargetSnapshot, () => null);
   const preferredArch = target?.arch ?? "x64";
-  const offer = useQuery(api.desktopReleases.getInstallOffer, {
-    preferredArch,
-    channel: "stable",
-  });
-  const mobileOffer = useQuery(api.mobileReleases.getInstallOffer, {
-    channel: "stable",
-  });
-  const desktopRecent = useQuery(api.desktopReleases.listPublicRecent, {
-    channel: "stable",
-    limit: 5,
-  });
-  const mobileRecent = useQuery(api.mobileReleases.listPublicRecent, {
-    channel: "stable",
-    limit: 5,
-  });
+  const { desktop: offer, mobile: mobileOffer, desktopRecent, mobileRecent } =
+    useReleaseOffers(preferredArch, { recentLimit: 5 });
 
   const recent = useMemo(() => {
     const combined = [...(desktopRecent ?? []), ...(mobileRecent ?? [])];
