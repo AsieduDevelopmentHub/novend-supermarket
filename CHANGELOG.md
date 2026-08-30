@@ -8,6 +8,23 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.11 — 2026-08-30
+
+Full product release: Android APK, desktop installers (Windows / macOS / Linux), and Convex update metadata.
+
+### Fixed
+
+- Capacitor and Electron boot no longer wait on `/api/health`. Weak or dead radio used to show “Can’t reach Novend” even after a prior online login. Both shells open `/dashboard?fromBoot=1` so the service worker can serve Cache Storage; Dexie restores the session.
+- Capacitor registers the hosted service worker after one online open (it previously unregistered the worker, so offline cold start could never leave the local boot page).
+- Take Photo, receipt Share / Print / Save PDF, and Notification Check stay on WebView paths that already work. Native Camera / Print / Share / permission probes were hanging the Capacitor bridge after the hosted origin loaded.
+- Bottom tabs sit above Android gesture and 3-button navigation (`--novend-system-nav-inset`).
+
+### Changed
+
+- Receipt print/save on Capacitor downloads a PDF (same path as Reports export). Share uses the Web Share API when the OS allows file share.
+
+---
+
 ## v0.3.10 — 2026-08-29
 
 Android APK and Convex mobile updates only. Desktop installers stay on v0.3.8 until the next full (`targets: all`) product release.
