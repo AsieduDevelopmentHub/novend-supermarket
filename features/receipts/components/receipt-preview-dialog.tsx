@@ -40,12 +40,14 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
       if (!result.printed) {
         toast.error(
           mobile
-            ? "Could not print. Pair a Bluetooth printer in Settings, or try Share / Save PDF."
+            ? "Could not save the receipt PDF. Try Share or Save PDF."
             : "Could not print the receipt. Check printer settings or try again.",
         );
         return;
       }
-      if (result.reason === "native" || result.reason === "system") {
+      if (result.reason === "download") {
+        toast.success("Receipt PDF saved. Open it to print.");
+      } else if (result.reason === "native" || result.reason === "system") {
         toast.success(
           result.copies && result.copies > 1
             ? `Receipt sent to printer (${result.copies} copies)`
@@ -64,7 +66,9 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
     setBusy("share");
     try {
       const result = await shareReceiptOnDevice(normalized);
-      if (result.ok) toast.success("Receipt shared");
+      if (result.ok) {
+        toast.success(result.via === "download" ? "Receipt PDF saved" : "Receipt shared");
+      }
       else if (result.message !== "Cancelled") toast.error(result.message || shareFailedMessage());
     } finally {
       setBusy(null);
@@ -80,7 +84,7 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
         toast.error(result.message || filesystemSaveFailedMessage());
         return;
       }
-      toast.success("Receipt PDF saved to Downloads");
+      toast.success("Receipt PDF saved");
     } catch {
       toast.error(filesystemSaveFailedMessage());
     } finally {

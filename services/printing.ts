@@ -16,7 +16,7 @@ import {
   resolvePaperWidthMm,
   type PrintResult,
 } from "./print/terminal-config";
-import { Hardware, isCapacitor } from "@novend/hardware";
+import { isCapacitor } from "@novend/hardware";
 
 function escapeHtml(value: string) {
   return value
@@ -290,45 +290,14 @@ export async function printReceipt(
 
   if (!options?.forceBrowser && isCapacitor()) {
     try {
-      const { buildReceiptPdfBytes } = await import("@/services/receipts/share");
-      const pdf = await buildReceiptPdfBytes(payload);
-      const printed = await Hardware.filesystem.printPDF(
-        pdf,
-        `Receipt ${payload.invoiceNumber}`,
-      );
-      if (printed.ok) {
-        return { printed: true, reason: "system" };
+      const { saveReceiptPdfOnDevice } = await import("@/services/receipts/share");
+      const saved = await saveReceiptPdfOnDevice(payload);
+      if (saved.ok) {
+        return { printed: true, reason: "download" };
       }
-      console.warn("[print:system-failed]", printed.message);
     } catch (error) {
-      console.warn("[print:system-error]", error);
+      console.warn("[print:download-error]", error);
     }
-
-    if (config.preferNative) {
-      try {
-        const paperWidthMm = resolvePaperWidthMm(payload, config);
-        const bytes = buildEscPosReceipt(payload, paperWidthMm);
-        const preferred = await Hardware.printer.getDefaultPrinter();
-        if (preferred.data?.bluetoothDeviceId) {
-          const result = await Hardware.printer.printReceipt({
-            escposBase64: escPosToBase64(bytes),
-            invoiceNumber: payload.invoiceNumber,
-            copies: 1,
-            connectionType: "bluetooth",
-            bluetoothDeviceId: preferred.data.bluetoothDeviceId,
-            paperWidthMm,
-            openCashDrawer: config.openCashDrawer,
-          });
-          if (result.ok) {
-            return { printed: true, reason: "native", copies: 1 };
-          }
-          console.warn("[print:bluetooth-failed]", result.message);
-        }
-      } catch (error) {
-        console.warn("[print:bluetooth-error]", error);
-      }
-    }
-
     return { printed: false, reason: "native_unavailable" };
   }
 

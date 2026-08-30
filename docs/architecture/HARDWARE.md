@@ -1,6 +1,6 @@
 # Hardware architecture
 
-Version: 1.4.6
+Version: 1.4.7
 
 ## Purpose
 
@@ -48,28 +48,32 @@ UI components must not call Electron preload or Capacitor plugins directly.
 
 | Feature                 | Behavior                                                                                                           |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Camera / gallery        | Android `NovendCamera` (`ACTION_IMAGE_CAPTURE`). Official Camera plugin is fallback only. |
-| Save PDF                | Native `NovendPrint.savePdfToDownloads` (MediaStore Downloads) with Cache fallback                                          |
-| Share receipt           | `NovendPrint.sharePdf` (Android share sheet + FileProvider). Text-only is fallback only. |
-| Print (no BLE printer)  | Android `PrintManager` via `NovendPrint.printPdf` (base64 or resolved `_capacitor_file_` path). Not `window.print()`.       |
+| Camera / Take Photo     | **WebView `getUserMedia`** (same dialog as barcode). Do not call `NovendCamera` / `@capacitor/camera` after the hosted origin loads — those hang the bridge. |
+| Save / print receipt PDF | Same as Reports export: `downloadBlob` (anchor + object URL). No Filesystem / NovendPrint. |
+| Share receipt           | Web Share API (`navigator.share` + files) when available; otherwise `downloadBlob`. |
 | Local image durability  | Also written under Capacitor `Directory.Data` (`product-images/`)                                                  |
-| Barcode (camera)        | Cap camera permission → getUserMedia → bundled **ZXing** (no Google ML Kit / HTTPS module)                         |
+| Barcode (camera)        | getUserMedia → bundled **ZXing** (no Google ML Kit / HTTPS module)                         |
 | Barcode (HID)           | Terminal wedge config + `useBarcodeScanner` (desktop primary)                                                      |
-| Bluetooth thermal print | `@capacitor-community/bluetooth-le` ESC/POS write. After-sale print mode (automatic / manual / never) applies. One copy. |
+| Bluetooth thermal print | Settings test path only. After-sale print downloads a PDF instead of calling BLE / PrintManager (those hang the hosted WebView). |
 | Biometrics              | `@aparajita/capacitor-biometric-auth` — unlock token only (never password); maps supported / enrolled / available  |
 | Secure storage          | `@aparajita/capacitor-secure-storage` for unlock token                                                             |
-| Notifications           | `NovendPermissions` Android 13+ prompt (LocalNotifications fallback) + channel + topic prefs                       |
+| Notifications           | Check is JS-only (never probes native). Enable opens Android app settings via intent. Topic prefs use `localStorage`. |
 | Deep links              | `novend://sale/…`, `novend://product/…` via `Hardware.app`                                                         |
 | Soft updates            | Optional `NEXT_PUBLIC_MOBILE_UPDATE_JSON` vs native version                                                        |
 
 Permissions are requested on tap (or when enabling a feature), never at cold
 start except optional biometric unlock when the user opted in.
 
-`MainActivity` registers `NovendPermissions`, `NovendPrint`, and `NovendCamera`.
-Official Camera / Share / Filesystem / LocalNotifications are not used on the
-Security or receipt critical path — those plugins can hang the WebView bridge
-after the hosted origin loads. Settings probes are exclusive (one native call
-at a time). BLE Discover uses the system device picker when available.
+After the WebView leaves `https://localhost` for the hosted origin, official
+Capacitor plugins and custom Novend plugins often hang the **single-threaded
+bridge**. `withTimeout` does not cancel the native call — the UI stays frozen
+until the app is force-closed.
+
+Critical paths therefore stay in the WebView: getUserMedia for camera, 
+`downloadBlob` / Web Share for receipts, and no native probe on Notification
+Check. Enable Notifications opens `APPLICATION_DETAILS_SETTINGS` for
+`com.novend.pos` without `App.getInfo()`. Settings biometric probes stay
+exclusive. BLE Discover uses the system device picker when available.
 
 ## Desktop registry
 

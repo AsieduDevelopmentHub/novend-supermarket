@@ -69,8 +69,8 @@ async function openCameraStream(): Promise<MediaStream> {
 }
 
 /**
- * Webcam capture for product images (Electron + PWA).
- * Opens after an explicit tap on Take photo; camera starts automatically.
+ * In-app getUserMedia capture for product images (Capacitor, Electron, PWA).
+ * Same camera path as barcode — do not use native Camera plugins here.
  */
 export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
