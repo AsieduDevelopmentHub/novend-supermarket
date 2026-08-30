@@ -44,8 +44,12 @@ Optional:
 
 ## Local Android build
 
-Use **JDK 21** (same as CI). Android Studio's bundled JBR may be newer (for example 25) and
-will fail Gradle 8.11 with `Unsupported class file major version`.
+Use **JDK 21** (same as CI and Capacitor 7 `sourceCompatibility`). `pnpm mobile:run:android`
+and `pnpm mobile:build:android:release` resolve Temurin / Microsoft / Android Studio JDK 21
+even if the shell `JAVA_HOME` is still 17. Android Studio must also use Gradle JDK 21
+(see `docs/architecture/CAPACITOR_MOBILE.md`); `#JAVA_HOME` / Temurin 17 produces
+`invalid source release: 21`. Android Studio's bundled JBR may be newer (for example 25)
+and will fail Gradle 8.11 with `Unsupported class file major version`.
 
 Create a release keystore once, then copy the signing variables from `.env.example` into the
 ignored `.env.local` file. Keep the keystore and passwords out of source control.

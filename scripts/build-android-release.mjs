@@ -2,6 +2,7 @@ import { existsSync, statSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { envWithJava21 } from "./java21-home.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const localEnvPath = resolve(repoRoot, ".env.local");
@@ -34,10 +35,16 @@ if (!existsSync(keystorePath) || !statSync(keystorePath).isFile()) {
   process.exit(1);
 }
 
-const env = {
-  ...process.env,
-  ANDROID_KEYSTORE_PATH: keystorePath,
-};
+let env;
+try {
+  env = {
+    ...envWithJava21(process.env),
+    ANDROID_KEYSTORE_PATH: keystorePath,
+  };
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+}
 
 function run(command, args, cwd = repoRoot) {
   const result = spawnSync(command, args, {
