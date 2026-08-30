@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.13
+Version: 2.4.14
 
 ## Purpose
 
@@ -53,6 +53,22 @@ photos) use that path. **Sales checkout (`Pay`) and returns always write locally
 first** (`completeSaleLocally` / `processReturnLocally`) so Capacitor cannot
 treat `navigator.onLine` as “Convex is reachable” and leave in-flight pays to
 complete later.
+
+## List reads
+
+Catalog and history screens (Products, Inventory, Customers, Orders) **page**
+the replica. Products also paginate the Convex `listProducts` query so a cold
+online paint does not `getUrl` every image. Default page size is 20
+(`constants/list-page.ts`). Sales POS search stays unpaged.
+
+When the Dexie mirror is warm (`canServeListsFromMirror`), list hooks **skip**
+the live Convex subscription. Snapshot sync + `novend:replica-changed` keep
+the replica current. Local joins (product → category / branch stock / lots)
+stay in `lib/offline/mirror-queries.ts` — do not add a second query language.
+
+Downloads / Releases use Convex `useQuery` as the pub/sub. Publishing a
+release updates the documents; subscribed clients refresh without an interval
+poll. See `hooks/use-release-offers.ts`.
 
 ## Startup
 

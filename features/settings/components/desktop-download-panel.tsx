@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
-import { useQuery } from "convex/react";
 import { Download, Monitor, Smartphone } from "lucide-react";
-import { api } from "@/convex/_generated/api";
+import { useReleaseOffers } from "@/hooks/use-release-offers";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -64,13 +63,7 @@ function isAndroidDevice(): boolean {
 export function DesktopDownloadPanel() {
   const target = useSyncExternalStore(subscribeNoop, getBrowserTargetSnapshot, () => null);
   const preferredArch = target?.arch ?? "x64";
-  const offer = useQuery(api.desktopReleases.getInstallOffer, {
-    preferredArch,
-    channel: "stable",
-  });
-  const mobileOffer = useQuery(api.mobileReleases.getInstallOffer, {
-    channel: "stable",
-  });
+  const { desktop: offer, mobile: mobileOffer } = useReleaseOffers(preferredArch);
 
   const installers = useMemo(() => offer?.installers ?? [], [offer]);
   const releasedLabel = formatReleasedAt(offer?.releasedAt);

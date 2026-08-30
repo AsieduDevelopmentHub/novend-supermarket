@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -45,6 +45,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { triggerLightHaptic } from "@/lib/haptics";
 import { useRouter } from "next/navigation";
+import { ListPagination } from "@/components/ui/list-pagination";
+import { useLocalStorage, usePagination } from "@/hooks/use-ui";
+import {
+  clampListPageSize,
+  DEFAULT_LIST_PAGE_SIZE,
+  type ListPageSize,
+} from "@/constants/list-page";
 
 export function ProductsView() {
   const {
@@ -57,6 +64,12 @@ export function ProductsView() {
   const { capabilities, planName } = useLicense();
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [storedPageSize, setStoredPageSize] = useLocalStorage(
+    "novend.listPageSize",
+    DEFAULT_LIST_PAGE_SIZE,
+  );
+  const pageSize = clampListPageSize(storedPageSize);
+  const { page, setPage, reset } = usePagination(1, pageSize);
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editingId, setEditingId] = useState<Id<"products"> | null>(null);
@@ -68,24 +81,38 @@ export function ProductsView() {
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all" | null>(myBranchId);
   const mirroredBranches = useBranchesList();
   const branches = isAdmin ? mirroredBranches : undefined;
-  const { products, loading: isLoading } = useProductsList({
+  const listBranchId =
+    isAdmin && branchFilter && branchFilter !== "all" ? branchFilter : undefined;
+  const { products, total, loading: isLoading } = useProductsList({
     search,
     includeInactive: canManageProducts,
-    branchId: isAdmin && branchFilter && branchFilter !== "all" ? branchFilter : undefined,
+    branchId: listBranchId,
+    canViewCost,
+    page,
+    pageSize,
+  });
+  const { products: exportRows } = useProductsList({
+    search,
+    includeInactive: canManageProducts,
+    branchId: listBranchId,
     canViewCost,
   });
   const archiveProduct = useMutation(api.products.archiveProduct);
   const recordExport = useMutation(api.imports.recordExport);
 
   const rows = useMemo(() => products ?? [], [products]);
+
+  useEffect(() => {
+    reset();
+  }, [search, branchFilter, reset]);
   const exportTable = useMemo(
     () =>
       productExportTable({
-        rows,
+        rows: exportRows ?? [],
         canViewCost,
         branchLabel: isAdmin && branchFilter && branchFilter !== "all" ? undefined : (branchName ?? undefined),
       }),
-    [rows, canViewCost, isAdmin, branchFilter, branchName],
+    [exportRows, canViewCost, isAdmin, branchFilter, branchName],
   );
 
   async function confirmArchive() {
@@ -324,6 +351,18 @@ export function ProductsView() {
                 </table>
               </div>
 
+              {total > 0 ? (
+                <ListPagination
+                  page={page}
+                  pageSize={pageSize}
+                  total={total}
+                  onPageChange={setPage}
+                  onPageSizeChange={(size: ListPageSize) => {
+                    setStoredPageSize(size);
+                    setPage(1);
+                  }}
+                />
+              ) : null}
               <div className="space-y-3 p-3 md:hidden">
                 {rows.map((product) => (
                   <div

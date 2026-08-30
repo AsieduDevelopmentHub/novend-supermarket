@@ -41,6 +41,8 @@ import { ArrowLeftRight, Boxes, Eye, Package } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { ProductImage } from "@/components/media/product-image";
+import { ListPagination } from "@/components/ui/list-pagination";
+import { useClientPagedRows } from "@/hooks/use-ui";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
 import { isBarcodeScanningEnabled } from "@/services/hardware";
@@ -118,6 +120,17 @@ function InventoryViewInner() {
         ? rows.filter((row) => row.isLowStock)
         : rows;
   }, [rows, lowOnly, expiryOnly]);
+  const {
+    paged: pageRows,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    total,
+  } = useClientPagedRows(
+    visibleRows,
+    `${search}|${categoryId}|${String(listBranchId)}|${lowOnly}|${expiryOnly}`,
+  );
 
   const selected = useMemo(
     () => visibleRows?.find((row) => row.id === adjustId) ?? null,
@@ -364,7 +377,7 @@ function InventoryViewInner() {
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleRows.map((row) => (
+                    {(pageRows ?? []).map((row) => (
                       <ClickableTableRow key={row.id} href={`/products/${row.id}`}>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
@@ -443,9 +456,18 @@ function InventoryViewInner() {
                   </tbody>
                 </table>
               </div>
+              {total > 0 ? (
+                <ListPagination
+                  page={page}
+                  pageSize={pageSize}
+                  total={total}
+                  onPageChange={setPage}
+                  onPageSizeChange={setPageSize}
+                />
+              ) : null}
 
               <div className="space-y-3 p-3 md:hidden">
-                {visibleRows.map((row) => (
+                {(pageRows ?? []).map((row) => (
                   <div key={row.id} className="border-border space-y-2 rounded-xl border p-3">
                     <div className="flex items-start justify-between gap-2">
                       <Link href={`/products/${row.id}`} className="font-medium hover:underline">

@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { clampListPageSize, DEFAULT_LIST_PAGE_SIZE, type ListPageSize } from "@/constants/list-page";
+import { pageSlice } from "@/lib/offline/page-slice";
 
 export function useDebounce<T>(value: T, delay = 300) {
   const [debounced, setDebounced] = useState(value);
@@ -45,9 +47,40 @@ export function useMediaQuery(query: string) {
   return matches;
 }
 
-export function usePagination(initialPage = 1, pageSize = 20) {
+export function usePagination(initialPage = 1, pageSize = DEFAULT_LIST_PAGE_SIZE) {
   const [page, setPage] = useState(initialPage);
   const [size, setSize] = useState(pageSize);
   const reset = useCallback(() => setPage(1), []);
   return { page, setPage, pageSize: size, setPageSize: setSize, reset };
+}
+
+const PAGE_SIZE_KEY = "novend.listPageSize";
+
+/** Persist page size and slice an already-filtered client list. */
+export function useClientPagedRows<T>(rows: T[] | undefined, resetKey: string) {
+  const [stored, setStored] = useLocalStorage<number>(PAGE_SIZE_KEY, DEFAULT_LIST_PAGE_SIZE);
+  const pageSize = clampListPageSize(stored);
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [resetKey]);
+
+  const total = rows?.length ?? 0;
+  const paged = useMemo(
+    () => (rows ? pageSlice(rows, page, pageSize).items : undefined),
+    [rows, page, pageSize],
+  );
+
+  return {
+    page,
+    setPage,
+    pageSize,
+    setPageSize: (size: ListPageSize) => {
+      setStored(size);
+      setPage(1);
+    },
+    total,
+    paged,
+  };
 }

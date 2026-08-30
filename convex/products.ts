@@ -61,6 +61,8 @@ export const listProducts = query({
     categoryId: v.optional(v.id("categories")),
     includeInactive: v.optional(v.boolean()),
     branchId: v.optional(v.id("branches")),
+    page: v.optional(v.number()),
+    pageSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { profile, organizationId } = await requireRole(ctx, [
@@ -92,6 +94,12 @@ export const listProducts = query({
       );
     }
 
+    products.sort((a, b) => a.name.localeCompare(b.name));
+    const total = products.length;
+    const pageSize = args.pageSize && args.pageSize > 0 ? Math.min(args.pageSize, 100) : total;
+    const page = pageSize > 0 ? Math.min(Math.max(args.page ?? 1, 1), Math.max(1, Math.ceil(total / pageSize))) : 1;
+    const pageRows = pageSize > 0 ? products.slice((page - 1) * pageSize, page * pageSize) : products;
+
     const branchId = resolveBranchFilter(profile, args.branchId ?? null);
     const stockByProduct = branchId
       ? await stockMapForBranch(ctx, branchId)
@@ -99,10 +107,8 @@ export const listProducts = query({
     const summaries = await lotSummaries(ctx, branchId, organizationId);
 
     const showCost = canViewCostPrice(profile);
-    return await Promise.all(
-      products
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map(async (product) => {
+    const items = await Promise.all(
+      pageRows.map(async (product) => {
           const imageUrl = product.imageStorageId
             ? await ctx.storage.getUrl(product.imageStorageId)
             : null;
@@ -134,6 +140,7 @@ export const listProducts = query({
           };
         }),
     );
+    return { items, total, page, pageSize: pageSize || total };
   },
 });
 
