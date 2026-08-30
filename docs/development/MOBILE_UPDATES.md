@@ -132,8 +132,8 @@ for release artifacts.
 After updating the package version and changelog, squash-merge to `main`, then tag:
 
 ```bash
-git tag v0.3.11
-git push origin v0.3.11
+git tag v0.3.12
+git push origin v0.3.12
 ```
 
 ## HTTP endpoints

@@ -30,14 +30,14 @@ function templateTable(): ExportTable {
   };
 }
 
-export function downloadProductImportTemplate(format: "csv" | "xlsx") {
+export async function downloadProductImportTemplate(format: "csv" | "xlsx") {
   const table = templateTable();
   const filename = brandedDocumentName("Product-Import-Template", undefined, format);
   if (format === "csv") {
-    downloadBlob(filename, new Blob([buildCsvText(table)], { type: "text/csv;charset=utf-8" }));
+    await downloadBlob(filename, new Blob([buildCsvText(table)], { type: "text/csv;charset=utf-8" }));
     return;
   }
-  downloadBlob(
+  await downloadBlob(
     filename,
     bytesToBlob(buildXlsxBytes(table), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
   );

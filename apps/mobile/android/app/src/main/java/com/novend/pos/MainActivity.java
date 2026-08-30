@@ -3,6 +3,7 @@ package com.novend.pos;
 import android.os.Bundle;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
@@ -11,6 +12,10 @@ public class MainActivity extends BridgeActivity {
 
     /** Local boot page with auto-nav disabled so Chrome's neterror sheet is never left on screen. */
     private static final String LOCAL_RECOVERY = "https://localhost/?stay=1";
+
+    private boolean nativeBridgeAttached = false;
+    private boolean recovering = false;
+    private int hostedFailures = 0;
 
     public MainActivity() {
         // Official / community plugins load from capacitor.plugins.json.
@@ -23,14 +28,29 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        attachNativeBridge();
         installErrorRecovery();
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        // Capacitor may replace the WebViewClient after onCreate — re-install.
+        attachNativeBridge();
         installErrorRecovery();
+    }
+
+    private void attachNativeBridge() {
+        if (this.bridge == null || this.bridge.getWebView() == null) {
+            return;
+        }
+        WebView webView = this.bridge.getWebView();
+        WebSettings settings = webView.getSettings();
+        settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
+        if (!nativeBridgeAttached) {
+            webView.addJavascriptInterface(new NovendNativeBridge(this), "NovendNative");
+            nativeBridgeAttached = true;
+        }
     }
 
     private void installErrorRecovery() {
@@ -40,10 +60,22 @@ public class MainActivity extends BridgeActivity {
         this.bridge.setWebViewClient(
                 new BridgeWebViewClient(this.bridge) {
                     @Override
+                    public void onPageFinished(WebView view, String url) {
+                        if (url != null
+                                && !url.contains("stay=1")
+                                && !url.contains("error.html")) {
+                            hostedFailures = 0;
+                        }
+                        super.onPageFinished(view, url);
+                    }
+
+                    @Override
                     public void onReceivedError(
                             WebView view, WebResourceRequest request, WebResourceError error) {
                         if (shouldRecover(request)) {
-                            loadRecovery(view);
+                            loadRecovery(view, request.getUrl() != null
+                                    ? request.getUrl().toString()
+                                    : null);
                             return;
                         }
                         super.onReceivedError(view, request, error);
@@ -54,7 +86,7 @@ public class MainActivity extends BridgeActivity {
                     public void onReceivedError(
                             WebView view, int errorCode, String description, String failingUrl) {
                         if (shouldRecoverUrl(failingUrl)) {
-                            loadRecovery(view);
+                            loadRecovery(view, failingUrl);
                             return;
                         }
                         super.onReceivedError(view, errorCode, description, failingUrl);
@@ -82,10 +114,37 @@ public class MainActivity extends BridgeActivity {
         return url.startsWith("https://") || url.startsWith("http://");
     }
 
-    private static void loadRecovery(WebView view) {
-        if (view == null) {
+    /**
+     * Real-device airplane-mode cold start often fires onReceivedError before the
+     * hosted service worker is running. Retry once with cache-else-network so a
+     * previously opened workspace can load; only then fall back to stay=1.
+     */
+    private void loadRecovery(WebView view, String failingUrl) {
+        if (view == null || recovering) {
             return;
         }
-        view.post(() -> view.loadUrl(LOCAL_RECOVERY));
+        recovering = true;
+        hostedFailures += 1;
+        if (hostedFailures <= 1 && failingUrl != null && !failingUrl.contains("localhost")) {
+            view.postDelayed(
+                    () -> {
+                        try {
+                            view.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+                            view.loadUrl(failingUrl);
+                        } finally {
+                            recovering = false;
+                        }
+                    },
+                    400);
+            return;
+        }
+        hostedFailures = 0;
+        view.post(() -> {
+            try {
+                view.loadUrl(LOCAL_RECOVERY);
+            } finally {
+                recovering = false;
+            }
+        });
     }
 }

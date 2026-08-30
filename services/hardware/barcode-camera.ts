@@ -5,6 +5,7 @@
  * Web / Electron prefer native `BarcodeDetector` when present, else ZXing.
  */
 
+import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { isCapacitor, isElectron } from "@novend/hardware";
 
 export const CAMERA_BARCODE_FORMATS = [
@@ -96,13 +97,41 @@ export function createBarcodeDetector(): BarcodeDetectorLike | null {
 
 let zxingReaderPromise: Promise<ZxingReader> | null = null;
 
+function zxingHints(): Map<DecodeHintType, unknown> {
+  const hints = new Map<DecodeHintType, unknown>();
+  hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+    BarcodeFormat.EAN_13,
+    BarcodeFormat.EAN_8,
+    BarcodeFormat.UPC_A,
+    BarcodeFormat.UPC_E,
+    BarcodeFormat.CODE_128,
+    BarcodeFormat.CODE_39,
+    BarcodeFormat.CODABAR,
+    BarcodeFormat.ITF,
+    BarcodeFormat.QR_CODE,
+  ]);
+  hints.set(DecodeHintType.TRY_HARDER, false);
+  return hints;
+}
+
 async function loadZxingReader(): Promise<ZxingReader> {
   if (!zxingReaderPromise) {
     zxingReaderPromise = import("@zxing/browser").then(({ BrowserMultiFormatReader }) => {
-      return new BrowserMultiFormatReader() as unknown as ZxingReader;
+      return new BrowserMultiFormatReader(zxingHints(), {
+        delayBetweenScanAttempts: 50,
+        delayBetweenScanSuccess: 0,
+      }) as unknown as ZxingReader;
     });
   }
   return zxingReaderPromise;
+}
+
+/** Warm the ZXing bundle so the first Sales scan does not pay import cost. */
+export function warmupBarcodeScanner(): void {
+  if (!isBrowser()) return;
+  void loadZxingReader().catch(() => {
+    zxingReaderPromise = null;
+  });
 }
 
 function stopVideoStream(video: HTMLVideoElement) {
@@ -151,16 +180,21 @@ export async function openBarcodeCameraStream(deviceId?: string): Promise<MediaS
     throw new Error("Camera is not available in this browser");
   }
 
+  const compact = isCapacitor();
+  const width = compact ? 640 : 1280;
+  const height = compact ? 480 : 720;
+  const videoBase = {
+    width: { ideal: width },
+    height: { ideal: height },
+    frameRate: { ideal: compact ? 24 : 30 },
+  };
+
   const buildConstraints = (withDevice: boolean): MediaStreamConstraints => ({
     audio: false,
     video:
       withDevice && deviceId
-        ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-        : {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
+        ? { deviceId: { exact: deviceId }, ...videoBase }
+        : { facingMode: { ideal: "environment" }, ...videoBase },
   });
 
   try {

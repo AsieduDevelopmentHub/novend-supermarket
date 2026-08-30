@@ -54,9 +54,9 @@ function receiptPdfFile(bytes: Uint8Array, fileName: string): File {
 }
 
 /**
- * WebView-only PDF handoff — the same path as Reports export PDF.
- * Capacitor Camera / Share / Filesystem / NovendPrint hang the bridge after
- * the hosted origin loads; do not call them here.
+ * PDF handoff. Share uses the Web Share API when the sheet can take a file.
+ * Save / share-fallback go through `downloadBlob`, which writes Downloads on
+ * Capacitor via the native JavascriptInterface (not the hung plugin bridge).
  */
 async function offerReceiptPdf(
   bytes: Uint8Array,
@@ -84,7 +84,7 @@ async function offerReceiptPdf(
       if (/cancel/i.test(raw)) return { ok: false, message: "Cancelled" };
     }
   }
-  downloadBlob(fileName, blob);
+  await downloadBlob(fileName, blob);
   return { ok: true, via: "download" };
 }
 

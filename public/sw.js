@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v10";
+const CACHE_NAME = "novend-pos-v11";
 /**
  * Public documents + icons only. Do not precache /dashboard (and other gated
  * routes): cache.add follows the auth 302 and stores a redirected login
@@ -175,6 +175,30 @@ async function matchNavigation(request, url) {
   return undefined;
 }
 
+function isColdBootNavigation(url) {
+  return url.searchParams.get("fromBoot") === "1";
+}
+
+/**
+ * Cap/Electron cold start: prefer the cached shell immediately so the WebView
+ * does not wait on a dead radio (which triggers Android onReceivedError).
+ */
+async function cacheFirstDocument(request, url) {
+  const cached = await matchNavigation(request, url);
+  if (cached) {
+    void fetchFollowRedirects(request)
+      .then((response) => {
+        cachePut(request, response);
+        if (request.mode === "navigate" || request.destination === "document") {
+          cachePut(new Request(url.pathname), response);
+        }
+      })
+      .catch(() => undefined);
+    return cached;
+  }
+  return networkFirstDocument(request, url);
+}
+
 /** Network first for documents so a cached login 302 never paints ERR_FAILED. */
 async function networkFirstDocument(request, url) {
   try {
@@ -237,7 +261,11 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isAppShellRequest(request, url)) {
-    event.respondWith(networkFirstDocument(request, url));
+    event.respondWith(
+      isColdBootNavigation(url)
+        ? cacheFirstDocument(request, url)
+        : networkFirstDocument(request, url),
+    );
     return;
   }
 

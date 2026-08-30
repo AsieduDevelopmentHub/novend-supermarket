@@ -183,7 +183,7 @@ function reportFilename(range: string, extension: string) {
   return `${APP_BRAND}-Platform-Report-${range}-${day}.${extension}`;
 }
 
-export function downloadPlatformWorkbook(data: PlatformReportData) {
+export async function downloadPlatformWorkbook(data: PlatformReportData) {
   const tables = platformReportTables(data);
   const bytes = buildMultiSheetXlsxBytes(
     Object.values(tables).map((reportTable) => ({
@@ -191,15 +191,15 @@ export function downloadPlatformWorkbook(data: PlatformReportData) {
       table: reportTable,
     })),
   );
-  downloadBlob(
+  await downloadBlob(
     reportFilename(data.range, "xlsx"),
     bytesToBlob(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
   );
 }
 
-export function downloadPlatformCsv(data: PlatformReportData) {
+export async function downloadPlatformCsv(data: PlatformReportData) {
   const csv = buildCsvText(platformReportTables(data).summary);
-  downloadBlob(reportFilename(data.range, "csv"), new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  await downloadBlob(reportFilename(data.range, "csv"), new Blob([csv], { type: "text/csv;charset=utf-8" }));
 }
 
 export function buildPlatformExecutivePdf(data: PlatformReportData) {
@@ -310,6 +310,6 @@ export function buildPlatformExecutivePdf(data: PlatformReportData) {
   return doc.output("blob");
 }
 
-export function downloadPlatformExecutivePdf(data: PlatformReportData) {
-  downloadBlob(reportFilename(data.range, "pdf"), buildPlatformExecutivePdf(data));
+export async function downloadPlatformExecutivePdf(data: PlatformReportData) {
+  await downloadBlob(reportFilename(data.range, "pdf"), buildPlatformExecutivePdf(data));
 }

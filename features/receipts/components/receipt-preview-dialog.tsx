@@ -67,7 +67,7 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
     try {
       const result = await shareReceiptOnDevice(normalized);
       if (result.ok) {
-        toast.success(result.via === "download" ? "Receipt PDF saved" : "Receipt shared");
+        toast.success(result.via === "download" ? "Receipt PDF saved to Downloads" : "Receipt shared");
       }
       else if (result.message !== "Cancelled") toast.error(result.message || shareFailedMessage());
     } finally {
@@ -84,7 +84,7 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
         toast.error(result.message || filesystemSaveFailedMessage());
         return;
       }
-      toast.success("Receipt PDF saved");
+      toast.success(mobile ? "Receipt PDF saved to Downloads" : "Receipt PDF saved");
     } catch {
       toast.error(filesystemSaveFailedMessage());
     } finally {
@@ -132,15 +132,17 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
                 </Button>
               </>
             ) : null}
-            <Button
-              type="button"
-              variant={mobile ? "outline" : "default"}
-              disabled={!normalized || busy !== null}
-              onClick={() => void onPrint()}
-            >
-              <Printer className="h-4 w-4" />
-              {busy === "print" ? "Printing…" : "Print receipt"}
-            </Button>
+            {mobile ? null : (
+              <Button
+                type="button"
+                variant="default"
+                disabled={!normalized || busy !== null}
+                onClick={() => void onPrint()}
+              >
+                <Printer className="h-4 w-4" />
+                {busy === "print" ? "Printing…" : "Print receipt"}
+              </Button>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>

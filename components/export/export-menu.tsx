@@ -47,7 +47,7 @@ export function ExportMenu({
     setPending(true);
     try {
       const result = await runExport({ table, format, capabilities, planName });
-      toast.success("Export downloaded");
+      toast.success("Export saved");
       onExported?.(format, result.rows);
     } catch (error) {
       showError(error, "Export failed");

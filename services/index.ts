@@ -41,7 +41,7 @@ export async function exportCsv(filename: string, rows: Record<string, unknown>[
     columns,
     rows,
   });
-  downloadBlob(filename, new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  await downloadBlob(filename, new Blob([csv], { type: "text/csv;charset=utf-8" }));
   return { filename, rows: rows.length };
 }
 

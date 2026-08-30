@@ -149,7 +149,7 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
               onDetect(code);
               stopScanner();
               onOpenChange(false);
-            }, 350);
+            }, native ? 80 : 200);
           },
         });
         if (gen !== startGenRef.current) {

@@ -29,6 +29,7 @@ export {
   openBarcodeCameraStream,
   listVideoInputDevices,
   startCameraBarcodeScanning,
+  warmupBarcodeScanner,
   cameraErrorMessage,
   scannerInitErrorMessage,
   type DetectedBarcode,
