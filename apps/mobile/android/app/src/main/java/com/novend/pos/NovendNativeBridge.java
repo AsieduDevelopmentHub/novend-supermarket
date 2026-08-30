@@ -51,7 +51,14 @@ public class NovendNativeBridge {
             if (pending == null) {
                 return;
             }
-            pending.write(Base64.decode(base64, Base64.DEFAULT));
+            try {
+                byte[] chunk = Base64.decode(base64, Base64.DEFAULT);
+                pending.write(chunk, 0, chunk.length);
+            } catch (IllegalArgumentException ignored) {
+                pending = null;
+                pendingName = null;
+                pendingMime = null;
+            }
         }
     }
 
