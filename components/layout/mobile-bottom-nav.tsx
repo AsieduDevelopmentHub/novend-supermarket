@@ -58,7 +58,7 @@ export function MobileBottomNav() {
                   />
                   <Icon
                     className={cn(
-                      "relative z-10 h-4 w-4 transition-colors duration-200",
+                      "relative z-10 h-5 w-5 transition-colors duration-200",
                       isActive ? "text-slate-950" : "text-current",
                     )}
                     aria-hidden
