@@ -1,6 +1,6 @@
 # Hardware architecture
 
-Version: 1.4.7
+Version: 1.4.8
 
 ## Purpose
 
@@ -49,12 +49,13 @@ UI components must not call Electron preload or Capacitor plugins directly.
 | Feature                 | Behavior                                                                                                           |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Camera / Take Photo     | **WebView `getUserMedia`** (same dialog as barcode). Do not call `NovendCamera` / `@capacitor/camera` after the hosted origin loads — those hang the bridge. |
-| Save / print receipt PDF | Same as Reports export: `downloadBlob` (anchor + object URL). No Filesystem / NovendPrint. |
-| Share receipt           | Web Share API (`navigator.share` + files) when available; otherwise `downloadBlob`. |
+| Save receipt / export   | `downloadBlob` writes Android **Downloads** via `window.NovendNative` (WebView JavascriptInterface). Do not call Capacitor Filesystem / NovendPrint after the hosted origin loads. |
+| Share receipt           | Web Share API (`navigator.share` + files) when available; otherwise the same Downloads write. |
+| Print receipt           | Hidden on Capacitor. Desktop / web keep print. |
 | Local image durability  | Also written under Capacitor `Directory.Data` (`product-images/`)                                                  |
 | Barcode (camera)        | getUserMedia → bundled **ZXing** (no Google ML Kit / HTTPS module)                         |
 | Barcode (HID)           | Terminal wedge config + `useBarcodeScanner` (desktop primary)                                                      |
-| Bluetooth thermal print | Settings test path only. After-sale print downloads a PDF instead of calling BLE / PrintManager (those hang the hosted WebView). |
+| Bluetooth thermal print | Settings test path only. After-sale print is not offered on Capacitor. |
 | Biometrics              | `@aparajita/capacitor-biometric-auth` — unlock token only (never password); maps supported / enrolled / available  |
 | Secure storage          | `@aparajita/capacitor-secure-storage` for unlock token                                                             |
 | Notifications           | Check is JS-only (never probes native). Enable opens Android app settings via intent. Topic prefs use `localStorage`. |
@@ -69,11 +70,12 @@ Capacitor plugins and custom Novend plugins often hang the **single-threaded
 bridge**. `withTimeout` does not cancel the native call — the UI stays frozen
 until the app is force-closed.
 
-Critical paths therefore stay in the WebView: getUserMedia for camera, 
-`downloadBlob` / Web Share for receipts, and no native probe on Notification
-Check. Enable Notifications opens `APPLICATION_DETAILS_SETTINGS` for
-`com.novend.pos` without `App.getInfo()`. Settings biometric probes stay
-exclusive. BLE Discover uses the system device picker when available.
+Critical paths stay off the hung plugin bridge: getUserMedia for camera,
+`window.NovendNative` for Downloads writes, Web Share for receipts, and no
+native probe on Notification Check. Enable Notifications opens
+`APPLICATION_DETAILS_SETTINGS` for `com.novend.pos` without `App.getInfo()`.
+Settings biometric probes stay exclusive. BLE Discover uses the system device
+picker when available.
 
 ## Desktop registry
 
@@ -86,7 +88,7 @@ entry point behind the Electron adapter.
 Barcode service (services/hardware)
  ├── HID / keyboard wedge (Electron + browser)
  ├── Camera web (Barcode Detection API / ZXing)
- └── Capacitor camera (ZXing only — offline-safe)
+ └── Capacitor camera (ZXing, 640×480, 50ms decode interval — offline-safe)
 ```
 
 - Optional `products.barcode`, unique per organization

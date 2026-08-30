@@ -40,9 +40,9 @@ export function PlatformExportsView() {
     if (!data) return;
     setPending(format);
     try {
-      if (format === "pdf") downloadPlatformExecutivePdf(data);
-      else if (format === "xlsx") downloadPlatformWorkbook(data);
-      else downloadPlatformCsv(data);
+      if (format === "pdf") await downloadPlatformExecutivePdf(data);
+      else if (format === "xlsx") await downloadPlatformWorkbook(data);
+      else await downloadPlatformCsv(data);
       if (online) await recordExport({ format, range });
       toast.success(`${format.toUpperCase()} platform report downloaded`);
     } catch (error) {

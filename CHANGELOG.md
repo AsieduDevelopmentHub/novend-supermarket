@@ -8,6 +8,22 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.12 — 2026-08-30
+
+Android APK and Convex mobile updates only. Desktop installers stay on v0.3.11 until the next full (`targets: all`) product release.
+
+### Fixed
+
+- Camera barcode decode on Capacitor is much faster (640×480 stream, 50ms ZXing interval, warmed reader on Sales).
+- Real-device airplane-mode cold start no longer dies on the first hosted `onReceivedError`. `fromBoot=1` is cache-first, and Android retries once with cache-else-network before “Can’t reach Novend.”
+- Receipt, export, and order file “saved” toasts now wait until the file is written to Android Downloads via `window.NovendNative` (WebView JavascriptInterface, not the hung Capacitor plugin bridge).
+
+### Changed
+
+- Print receipt is hidden on Capacitor. Post-sale is Share and Save PDF only.
+
+---
+
 ## v0.3.11 — 2026-08-30
 
 Full product release: Android APK, desktop installers (Windows / macOS / Linux), and Convex update metadata.

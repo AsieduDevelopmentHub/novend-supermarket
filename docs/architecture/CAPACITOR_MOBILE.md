@@ -1,6 +1,6 @@
 # Capacitor mobile platform
 
-Version: 1.5.9
+Version: 1.6.0
 
 ## Purpose
 
@@ -46,12 +46,14 @@ Aligned with Electron (`DESKTOP_PLATFORM.md`):
    network-only because the worker skips `/api/*`).
 3. After one successful online open, `PwaRegister` installs `public/sw.js` on
    the hosted origin. Offline, that worker serves the cached shell
-   (network-first, unwraps redirects, never caches login HTML under
-   `/dashboard`). Dexie + `novend.offlineSession` restore the workspace.
-4. If the hosted document cannot load (first run, or no cache yet), Android
-   `onReceivedError` plus `www/error.html` recover to
-   `https://localhost/?stay=1` so Chrome’s `net::ERR_FAILED` sheet is never
-   left on screen. Try again navigates to the shell once more.
+   (cache-first when `fromBoot=1`, otherwise network-first; unwraps redirects;
+   never caches login HTML under `/dashboard`). Dexie + `novend.offlineSession`
+   restore the workspace.
+4. If the hosted document cannot load, Android retries once with
+   `LOAD_CACHE_ELSE_NETWORK` so a previously opened workspace can come back
+   while the worker starts. Only a second failure plus `www/error.html` recover
+   to `https://localhost/?stay=1`. First run with no cache still needs one
+   online open.
 5. More, About, billing, and other shell routes render from IndexedDB. Payment
    and first login still need a network.
 
@@ -73,10 +75,9 @@ Web and Electron keep the existing sidebar unchanged.
 
 ## Native services (Phase 4)
 
-- Bluetooth thermal printing (Settings → Hardware). Checkout honors Automatic /
-  Manual / Do not print. Print (one copy) is the primary post-sale action;
-  share and PDF are optional. Without a paired BLE printer, Android opens
-  `PrintManager` (not WebView `window.print()`, which never leaves “Opening…”).
+- Bluetooth thermal printing stays on Settings → Hardware (test path). Checkout
+  on Capacitor does **not** offer Print receipt. Share and Save PDF write to
+  Android Downloads via `window.NovendNative`.
 - Biometrics + secure unlock token (Settings → Security)
 - Local notification topic prefs (push delivery can plug in later)
 - Soft OTA check via `NEXT_PUBLIC_MOBILE_UPDATE_JSON` (Later / Update now)

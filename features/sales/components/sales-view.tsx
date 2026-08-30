@@ -55,6 +55,7 @@ import {
   isBarcodeScanningEnabled,
   playScanSuccessBeep,
   shouldShowCameraBarcodeButton,
+  warmupBarcodeScanner,
 } from "@/services/hardware";
 import { ScanBarcodeCameraDialog } from "@/components/hardware/scan-barcode-camera-dialog";
 import {
@@ -183,6 +184,10 @@ export function SalesView() {
     setDiscountField(0);
     setDiscountMode("amount");
   }
+
+  useEffect(() => {
+    warmupBarcodeScanner();
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -448,18 +453,6 @@ export function SalesView() {
     setLastReceipt(payload);
     const printMode = resolveReceiptPrintMode(posPrefs);
     if (isCapacitor()) {
-      if (printMode === "automatic") {
-        const result = await printReceipt(payload);
-        if (result.printed) {
-          toast.success(
-            result.reason === "native" ? "Receipt sent to printer" : "Print dialog opened",
-          );
-        } else {
-          toast.error(
-            "Could not print. Pair a Bluetooth printer in Settings, or use Share / Save PDF.",
-          );
-        }
-      }
       setSaleCompleteOpen(true);
       return;
     }

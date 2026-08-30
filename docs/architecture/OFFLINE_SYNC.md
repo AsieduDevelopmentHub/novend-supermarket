@@ -145,8 +145,10 @@ stays mounted and tab switches are instant. The URL remains the source of naviga
 state; the service worker may serve a cached shell HTML document for an uncached deep
 path without rewriting the browser location — `OfflineNavigationProvider` /
 `resolveOfflineView` honor `location.pathname`. Document navigations are
-**network-first** (`novend-pos-v9`): the worker unwraps followed redirects so
-Chrome does not paint `ERR_FAILED` on login → dashboard. `/login` and `/signup`
+**network-first** (`novend-pos-v11`), except Capacitor/Electron `?fromBoot=1`
+navigations which are **cache-first** so a dead radio does not stall cold
+start: the worker unwraps followed redirects so Chrome does not paint
+`ERR_FAILED` on login → dashboard. `/login` and `/signup`
 are not intercepted. Capacitor registers the same worker after one online
 open so cold start can load Cache Storage; Dexie remains the operational
 replica. The worker never stores a followed `/login` document under an

@@ -1,6 +1,6 @@
 # Desktop platform (Electron)
 
-Version: 1.0.3
+Version: 1.0.4
 
 ## Purpose
 
@@ -37,7 +37,8 @@ Boot sequence (aligned with Princellen):
 2. The boot page **immediately** client-navigates to `/dashboard?fromBoot=1`.
    It does not wait on `/api/health` — `navigator.onLine` is true on a weak
    or dead radio, and that probe was the “Can’t start offline” screen.
-3. The registered service worker serves the cached document **network-first**
+3. The registered service worker serves the cached document **cache-first**
+   when `fromBoot=1`, otherwise **network-first**
    and unwraps followed redirects so login → dashboard does not flash
    Chrome’s `ERR_FAILED` page. Dexie restores the shell.
 4. `persist:novend` keeps SW + IndexedDB + auth cookies across launches.

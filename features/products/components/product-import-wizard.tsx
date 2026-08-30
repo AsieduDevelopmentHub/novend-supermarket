@@ -209,7 +209,7 @@ export function ProductImportWizard({
     }
   }
 
-  function downloadIssues() {
+  async function downloadIssues() {
     if (!preview) return;
     const table = {
       title: "Import issues",
@@ -225,7 +225,7 @@ export function ProductImportWizard({
         message: issue.message,
       })),
     };
-    downloadBlob(
+    await downloadBlob(
       brandedDocumentName("Product-Import-Issues", undefined, "csv"),
       new Blob([buildCsvText(table)], { type: "text/csv;charset=utf-8" }),
     );
@@ -286,7 +286,7 @@ export function ProductImportWizard({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => downloadProductImportTemplate("csv")}
+                onClick={() => void downloadProductImportTemplate("csv")}
               >
                 Download CSV template
               </Button>
@@ -294,7 +294,7 @@ export function ProductImportWizard({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => downloadProductImportTemplate("xlsx")}
+                  onClick={() => void downloadProductImportTemplate("xlsx")}
                 >
                   Download Excel template
                 </Button>
@@ -463,7 +463,7 @@ export function ProductImportWizard({
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm font-medium">Validation issues</p>
-                  <Button type="button" variant="outline" size="sm" onClick={downloadIssues}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => void downloadIssues()}>
                     Download issues
                   </Button>
                 </div>

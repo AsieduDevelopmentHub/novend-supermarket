@@ -40,20 +40,20 @@ export async function runExport(args: {
 
   const filename = exportFilename(table, format);
   if (format === "csv") {
-    downloadBlob(filename, new Blob([buildCsvText(table)], { type: "text/csv;charset=utf-8" }));
+    await downloadBlob(filename, new Blob([buildCsvText(table)], { type: "text/csv;charset=utf-8" }));
   } else if (format === "json") {
-    downloadBlob(
+    await downloadBlob(
       filename,
       new Blob([buildJsonText(table)], { type: "application/json;charset=utf-8" }),
     );
   } else if (format === "xlsx") {
     const bytes = buildXlsxBytes(table);
-    downloadBlob(
+    await downloadBlob(
       filename,
       bytesToBlob(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
     );
   } else {
-    downloadBlob(filename, buildPdfBlob(table));
+    await downloadBlob(filename, buildPdfBlob(table));
   }
   return { filename, rows: table.rows.length };
 }
