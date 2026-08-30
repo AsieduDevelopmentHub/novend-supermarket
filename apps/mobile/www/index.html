@@ -147,9 +147,18 @@
           leaveBoot();
         });
 
+        window.setTimeout(function () {
+          if (!booting || booting.classList.contains("hidden")) return;
+          var copy = booting.querySelector("p");
+          if (copy) {
+            copy.textContent =
+              "Still opening the hosted app. The first emulator load can take a minute.";
+          }
+        }, 8000);
+
         if (stayOnBoot) {
           showFailed(
-            "Novend could not open the cached workspace. Connect once while online, then this device can start without a signal.",
+            "Novend could not open the local workspace. Connect once while online, then this device can start without a signal.",
           );
         } else {
           leaveBoot();

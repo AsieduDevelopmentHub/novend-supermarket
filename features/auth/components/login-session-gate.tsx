@@ -1,30 +1,33 @@
 "use client";
 
-import { Suspense, type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useConvexAuth } from "convex/react";
-import { useSearchParams } from "next/navigation";
-import { isCapacitor } from "@novend/hardware";
 import { AppSplash } from "@/features/auth/components/app-splash";
-import { hasOfflineSession } from "@/lib/offline/session";
+
+/** Cap/emulator Convex often stays isLoading forever — never cover the login form past this. */
+const AUTH_COVER_BUDGET_MS = 4000;
 
 /**
- * Covers the login brand chrome while a live or cached session is still settling.
+ * Covers the login brand chrome while a live session is still settling.
  * Children stay mounted (hidden) so LoginForm redirect effects still run.
  */
-function LoginSessionGateInner({ children }: { children: ReactNode }) {
+export function LoginSessionGate({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const searchParams = useSearchParams();
-  const fromBoot = searchParams.get("fromBoot") === "1";
-  const cached = typeof window !== "undefined" && hasOfflineSession();
-  const native = typeof window !== "undefined" && isCapacitor();
+  const [coverBudgetElapsed, setCoverBudgetElapsed] = useState(false);
 
-  const coverAuthenticated = isAuthenticated;
-  const coverCachedResume = cached && (fromBoot || native || isLoading);
-  const coverBootAuthWait = (fromBoot || native) && isLoading && !cached;
-  const cover = coverAuthenticated || coverCachedResume || coverBootAuthWait;
+  useEffect(() => {
+    const timer = window.setTimeout(() => setCoverBudgetElapsed(true), AUTH_COVER_BUDGET_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
 
-  const label =
-    coverAuthenticated || coverCachedResume ? "Opening workspace…" : "Starting Novend POS…";
+  // Cover only while Convex is actually settling or a live session is about to
+  // leave /login. Do not pin the splash to Capacitor, fromBoot, or a leftover
+  // Dexie flag — those stay true after auth has already failed.
+  const coverAuthenticated = isAuthenticated && !coverBudgetElapsed;
+  const coverWhileLoading = isLoading && !coverBudgetElapsed;
+  const cover = coverAuthenticated || coverWhileLoading;
+
+  const label = coverAuthenticated ? "Opening workspace…" : "Starting Novend POS…";
 
   return (
     <>
@@ -33,13 +36,5 @@ function LoginSessionGateInner({ children }: { children: ReactNode }) {
       </div>
       {cover ? <AppSplash label={label} /> : null}
     </>
-  );
-}
-
-export function LoginSessionGate({ children }: { children: ReactNode }) {
-  return (
-    <Suspense fallback={<AppSplash label="Starting Novend POS…" />}>
-      <LoginSessionGateInner>{children}</LoginSessionGateInner>
-    </Suspense>
   );
 }

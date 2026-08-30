@@ -135,13 +135,27 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Only force login while online and there is no local offline session.
-  // Cap often flickers "online" without a Convex token — never kick a cached cashier out.
+  // Cap/emulator often look "online" while Convex stays isLoading forever —
+  // never kick a cached cashier out, but never freeze the brand splash either.
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && online && !hasOfflineSession()) {
-      router.replace("/login");
-      multiBranchReady.current = false;
-    }
-  }, [isAuthenticated, isLoading, online, router]);
+    if (!online || isAuthenticated) return;
+    if (hasOfflineSession()) return;
+    if (isLoading && !onlineAuthBudgetElapsed) return;
+
+    router.replace("/login");
+    multiBranchReady.current = false;
+
+    const hardNav = window.setTimeout(() => {
+      if (window.location.pathname.startsWith("/login")) return;
+      const next = new URL("/login", window.location.origin);
+      if (new URLSearchParams(window.location.search).get("fromBoot") === "1") {
+        next.searchParams.set("fromBoot", "1");
+      }
+      window.location.assign(`${next.pathname}${next.search}`);
+    }, 1600);
+
+    return () => window.clearTimeout(hardNav);
+  }, [isAuthenticated, isLoading, online, onlineAuthBudgetElapsed, router]);
 
   useEffect(() => {
     if (online || (!isLoading && isAuthenticated)) {
@@ -323,7 +337,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     online &&
     onlineAuthBudgetElapsed &&
     Boolean(cachedProfile) &&
-    (isLoading || (isAuthenticated && user === undefined));
+    (isLoading || !isAuthenticated || user === undefined);
 
   const shellFromCache =
     (!online || cachedShellWhileOnlineHung) && cachedProfile
@@ -353,7 +367,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return <AppSplash label="Preparing workspace…" />;
   }
 
-  if (!isAuthenticated && online && !cachedShellWhileOnlineHung) {
+  if (!isAuthenticated && online && !cachedShellWhileOnlineHung && !cachedProfile) {
     return <AppSplash label="Redirecting to login…" />;
   }
 
@@ -430,6 +444,10 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
           />
         </div>
       );
+    }
+
+    if (onlineAuthBudgetElapsed && !cachedProfile && !platformSession) {
+      return <AppSplash label="Redirecting to login…" />;
     }
 
     return <AppSplash label="Setting up your account…" />;
