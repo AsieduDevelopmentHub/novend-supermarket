@@ -65,7 +65,7 @@ On Capacitor only:
 - Floating Onyx bottom tabs: Dashboard · Sales · Inventory · Orders · More
 - `/more` groups remaining destinations by role (includes About)
 - Tab icons/labels sit above Android gesture and 3-button navigation
-  (`--novend-system-nav-inset`: `max(env(safe-area-inset-bottom), 3rem)`).
+  (`--novend-system-nav-inset`: `max(env(safe-area-inset-bottom), 1.75rem)`).
   The bar background fills the system-nav region. Main content uses
   `--novend-tabbar-offset`.
 

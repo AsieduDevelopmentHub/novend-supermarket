@@ -2652,12 +2652,11 @@ button.landing-feature-frame {
 :root {
   --novend-tabbar-stack: 5.25rem;
   /*
-   * 3-button / 2-button Android nav is ~48dp. Gesture is smaller.
-   * Capacitor WebView often reports env(safe-area-inset-bottom) as 0 after
-   * the hosted origin loads, so keep a 48px floor. The bar background
-   * fills the inset; icons and labels sit above the system nav.
+   * Gesture / 3-button clearance. Capacitor WebView often reports
+   * env(safe-area-inset-bottom) as 0 after the hosted origin loads, so keep
+   * a 28px floor. The bar background fills the inset; icons sit above it.
    */
-  --novend-system-nav-inset: max(env(safe-area-inset-bottom, 0px), 3rem);
+  --novend-system-nav-inset: max(env(safe-area-inset-bottom, 0px), 1.75rem);
   --novend-tabbar-offset: calc(var(--novend-tabbar-stack) + var(--novend-system-nav-inset));
 }
 
