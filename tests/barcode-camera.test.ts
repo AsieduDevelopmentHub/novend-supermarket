@@ -1,5 +1,9 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { cameraErrorMessage, isCameraBarcodeSupported } from "@/services/hardware/barcode-camera";
+import {
+  cameraErrorMessage,
+  canUseLiveCamera,
+  isCameraBarcodeSupported,
+} from "@/services/hardware/barcode-camera";
 
 describe("camera barcode support", () => {
   const originalNavigator = globalThis.navigator;
@@ -39,7 +43,19 @@ describe("camera barcode support", () => {
 
   it("is unsupported without getUserMedia", () => {
     vi.stubGlobal("navigator", { mediaDevices: {} });
+    expect(canUseLiveCamera()).toBe(false);
     expect(isCameraBarcodeSupported()).toBe(false);
+  });
+
+  it("does not treat Cap HTTP live-reload as a live camera", () => {
+    vi.stubGlobal("window", {
+      isSecureContext: false,
+      location: { hostname: "10.0.2.2" },
+      Capacitor: { isNativePlatform: () => true, getPlatform: () => "android" },
+    });
+    vi.stubGlobal("navigator", { mediaDevices: {} });
+    expect(canUseLiveCamera()).toBe(false);
+    expect(isCameraBarcodeSupported()).toBe(true);
   });
 
   it("maps permission errors to friendly copy", () => {

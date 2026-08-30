@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { postLoginPath } from "@/lib/auth/post-login-path";
 import {
   consumeSkipStartupSplash,
   markSkipStartupSplash,
+  prepareHardNavigation,
   resolvePostLoginPath,
 } from "@/lib/auth/redirect-after-login";
 
@@ -51,5 +54,21 @@ describe("redirect-after-login", () => {
 
   it("postLoginPath(null) still lands on dashboard", () => {
     expect(postLoginPath(null)).toBe("/dashboard");
+  });
+
+  it("prepareHardNavigation is a no-op without a document", () => {
+    expect(() => prepareHardNavigation()).not.toThrow();
+  });
+
+  it("hard Cap login nav clears unload state before location.replace", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "lib/auth/redirect-after-login.ts"),
+      "utf8",
+    );
+    expect(source).toContain("export function prepareHardNavigation");
+    expect(source).toContain("element.defaultValue = element.value");
+    expect(source).toContain("window.onbeforeunload = null");
+    expect(source).toContain("prepareHardNavigation()");
+    expect(source).toContain("window.location.replace(path)");
   });
 });

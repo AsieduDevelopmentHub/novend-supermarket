@@ -64,19 +64,32 @@ function isDesktopShell(): boolean {
 }
 
 function hasGetUserMedia(): boolean {
-  return Boolean(navigator.mediaDevices?.getUserMedia);
+  return typeof navigator.mediaDevices?.getUserMedia === "function";
+}
+
+function isLocalDevHost(): boolean {
+  if (!isBrowser()) return false;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+}
+
+/**
+ * Live preview via getUserMedia. False on Cap HTTP live-reload (10.0.2.2) —
+ * that origin is not a secure context, so the emulator has no camera API.
+ */
+export function canUseLiveCamera(): boolean {
+  if (!isBrowser() || !hasGetUserMedia()) return false;
+  if (window.isSecureContext) return true;
+  if (isDesktopShell()) return true;
+  return isLocalDevHost();
 }
 
 /** Camera APIs are available in this runtime (independent of BarcodeDetector). */
 export function isCameraBarcodeSupported(): boolean {
-  if (!isBrowser() || !hasGetUserMedia()) return false;
-  if (window.isSecureContext) return true;
-  // Packaged Electron and localhost dev still expose media devices.
-  if (isDesktopShell()) return true;
-  // Capacitor WebView uses https://localhost — treat as supported when Cap runtime is present.
-  if (isCapacitor()) return true;
-  const host = window.location.hostname;
-  return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+  if (!isBrowser()) return false;
+  if (canUseLiveCamera()) return true;
+  // HTTP Cap live-reload: system camera still + ZXing on the photo.
+  return isCapacitor();
 }
 
 function nativeDetectorCtor(): BarcodeDetectorCtor | undefined {
@@ -385,4 +398,20 @@ export async function startCameraBarcodeScanning(options: {
   }
 
   return startZxingScanning(options);
+}
+
+/** Decode one still (native Cap camera when getUserMedia is missing). */
+export async function decodeBarcodeFromImage(source: Blob): Promise<string | null> {
+  const { BrowserMultiFormatReader } = await import("@zxing/browser");
+  const reader = new BrowserMultiFormatReader(zxingHints());
+  const url = URL.createObjectURL(source);
+  try {
+    const result = await reader.decodeFromImageUrl(url);
+    const text = result.getText()?.trim();
+    return text || null;
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }

@@ -5,7 +5,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Allow LAN devices to use HMR when opening the app via local IP.
-  allowedDevOrigins: ["192.168.1.202", "127.0.0.1", "localhost"],
+  allowedDevOrigins: ["192.168.1.202", "127.0.0.1", "localhost", "10.0.2.2"],
   images: {
     // Next 16 requires an explicit allowlist for <Image quality={…}>.
     qualities: [75, 90, 100],

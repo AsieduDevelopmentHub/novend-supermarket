@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,28 +11,82 @@ import {
 import { Button } from "@/components/ui/button";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { ReceiptDocument } from "@/features/receipts/components/receipt-document";
-import { normalizeReceiptPayload } from "@/services/printing";
+import { normalizeReceiptPayload, printReceipt } from "@/services/printing";
 import { saveReceiptPdfOnDevice, shareReceiptOnDevice } from "@/services/receipts/share";
-import { filesystemSaveFailedMessage, shareFailedMessage } from "@novend/hardware";
+import {
+  filesystemSaveFailedMessage,
+  printFailedMessage,
+  shareFailedMessage,
+} from "@novend/hardware";
 import { toast } from "sonner";
-import { Check, FileDown, Share2 } from "lucide-react";
+import { Check, FileDown, Printer, Share2 } from "lucide-react";
 import type { ReceiptPrintMode } from "@/lib/receipt-print-mode";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   payload: ReceiptPayload | null;
-  /** Kept for caller compatibility. Print is not offered on Capacitor. */
   printMode?: ReceiptPrintMode;
 };
 
+function modeCopy(mode: ReceiptPrintMode): string {
+  if (mode === "automatic") {
+    return "Printing one copy where a printer is available. You can still share or save a PDF.";
+  }
+  if (mode === "never") {
+    return "This sale is complete. Share or save a PDF if the customer needs a copy.";
+  }
+  return "Print if you need a copy, or share / save a PDF.";
+}
+
 /**
- * Post-sale sheet for Capacitor. Print is omitted — Share and Save PDF write
- * to Downloads via the native JavascriptInterface.
+ * Post-sale sheet for Capacitor. Print follows Settings → Receipt template
+ * (`resolveReceiptPrintMode`): auto / manual / do not print.
  */
-export function SaleCompletedDialog({ open, onOpenChange, payload }: Props) {
+export function SaleCompletedDialog({
+  open,
+  onOpenChange,
+  payload,
+  printMode = "manual",
+}: Props) {
   const normalized = payload ? normalizeReceiptPayload(payload) : null;
-  const [busy, setBusy] = useState<"share" | "pdf" | null>(null);
+  const [busy, setBusy] = useState<"share" | "pdf" | "print" | null>(null);
+  const autoPrintedInvoice = useRef<string | null>(null);
+  const showPrint = printMode !== "never";
+
+  async function onPrint() {
+    if (!normalized) return;
+    setBusy("print");
+    try {
+      const result = await printReceipt(normalized);
+      if (!result.printed) {
+        toast.error(printFailedMessage());
+        return;
+      }
+      toast.success(
+        result.reason === "native"
+          ? "Receipt sent to printer"
+          : result.reason === "download"
+            ? "Receipt PDF saved to Downloads"
+            : "Print dialog opened",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!open) {
+      autoPrintedInvoice.current = null;
+      return;
+    }
+    if (printMode !== "automatic" || !normalized) return;
+    if (autoPrintedInvoice.current === normalized.invoiceNumber) return;
+    autoPrintedInvoice.current = normalized.invoiceNumber;
+    void onPrint();
+    // Print once per opened invoice; onPrint reads the current normalized receipt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- invoice identity, not callback identity
+  }, [open, printMode, normalized?.invoiceNumber]);
 
   async function onShare() {
     if (!normalized) return;
@@ -78,9 +132,7 @@ export function SaleCompletedDialog({ open, onOpenChange, payload }: Props) {
               Invoice {normalized.invoiceNumber} · {normalized.itemCount} item
               {normalized.itemCount === 1 ? "" : "s"}
             </p>
-            <p className="text-muted-foreground text-sm">
-              This sale is complete. Share or save a PDF if the customer needs a copy.
-            </p>
+            <p className="text-muted-foreground text-sm">{modeCopy(printMode)}</p>
             <div className="bg-muted/40 flex justify-center rounded-xl p-4">
               <ReceiptDocument preview payload={normalized} />
             </div>
@@ -89,6 +141,17 @@ export function SaleCompletedDialog({ open, onOpenChange, payload }: Props) {
           <p className="text-muted-foreground text-sm">No receipt available.</p>
         )}
         <DialogFooter className="flex-col gap-2 sm:flex-col">
+          {showPrint ? (
+            <Button
+              type="button"
+              variant={printMode === "automatic" ? "default" : "outline"}
+              disabled={!normalized || busy !== null}
+              onClick={() => void onPrint()}
+            >
+              <Printer className="h-4 w-4" />
+              {busy === "print" ? "Printing…" : "Print receipt"}
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="secondary"

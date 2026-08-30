@@ -524,7 +524,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                 className={cn(
                   "min-h-0 min-w-0 flex-1 overscroll-y-contain",
                   nativeShell
-                    ? "overflow-x-clip overflow-y-auto px-[var(--mobile-page-pad)] pt-3 pb-5"
+                    ? "max-w-full overflow-x-clip overflow-y-auto px-[var(--mobile-page-pad)] pt-3 pb-5"
                     : "overflow-x-hidden overflow-y-auto px-4 py-6 lg:px-8",
                   nativeShell && "pb-[var(--novend-tabbar-offset)]",
                 )}

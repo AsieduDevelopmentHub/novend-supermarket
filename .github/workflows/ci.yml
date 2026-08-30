@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [main, staging]
 
+# Required check name for branch protection / rulesets: "quality"
 jobs:
   quality:
     runs-on: ubuntu-latest

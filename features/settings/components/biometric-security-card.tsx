@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Hardware, type BiometricAvailability } from "@novend/hardware";
+import { randomUuid } from "@/convex/shared/randomId";
 import { Fingerprint, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -108,7 +109,7 @@ export function BiometricSecurityCard() {
           if (auth.message !== "Cancelled") toast.error(auth.message || "Biometrics failed");
           return;
         }
-        const token = `novend-unlock-${crypto.randomUUID()}`;
+        const token = `novend-unlock-${randomUuid()}`;
         const stored = await Hardware.biometrics.storeUnlockToken(token);
         if (!stored.ok) {
           toast.error(stored.message || "Could not enable biometrics");

@@ -17,7 +17,11 @@ describe("Capacitor Downloads bridge", () => {
     expect(download).toContain("NovendNative");
     expect(download).toContain("beginSave");
     expect(download).toContain("finishSave");
+    expect(download).toContain("finishShare");
+    expect(download).toContain("export async function shareBlob");
     expect(bridge).toContain('@JavascriptInterface');
+    expect(bridge).toContain("finishShare");
+    expect(bridge).toContain("ACTION_SEND");
     expect(bridge).toContain("MediaStore.Downloads");
     expect(activity).toContain('addJavascriptInterface(new NovendNativeBridge(this), "NovendNative")');
   });
@@ -26,5 +30,11 @@ describe("Capacitor Downloads bridge", () => {
     expect(activity).toContain("LOAD_CACHE_ELSE_NETWORK");
     expect(activity).toContain("hostedFailures");
     expect(activity).toContain("https://localhost/?stay=1");
+  });
+
+  it("auto-confirms Android leave-page so login replace is not blocked", () => {
+    expect(activity).toContain("onJsBeforeUnload");
+    expect(activity).toContain("result.confirm()");
+    expect(activity).toContain("installLeavePageBypass");
   });
 });

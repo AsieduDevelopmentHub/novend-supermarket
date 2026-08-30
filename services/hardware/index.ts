@@ -25,10 +25,12 @@ export {
 
 export {
   isCameraBarcodeSupported,
+  canUseLiveCamera,
   createBarcodeDetector,
   openBarcodeCameraStream,
   listVideoInputDevices,
   startCameraBarcodeScanning,
+  decodeBarcodeFromImage,
   warmupBarcodeScanner,
   cameraErrorMessage,
   scannerInitErrorMessage,

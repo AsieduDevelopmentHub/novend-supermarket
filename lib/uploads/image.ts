@@ -130,6 +130,43 @@ export async function compressProductImage(
   }
 }
 
+/**
+ * Center-crop a video frame or canvas to 1:1 so capture matches product /
+ * profile `aspect-square` frames.
+ */
+export function cropCanvasToSquare(source: HTMLCanvasElement | HTMLVideoElement): HTMLCanvasElement {
+  const width =
+    source instanceof HTMLVideoElement ? source.videoWidth || source.clientWidth : source.width;
+  const height =
+    source instanceof HTMLVideoElement ? source.videoHeight || source.clientHeight : source.height;
+  const size = Math.max(1, Math.min(width, height));
+  const sx = Math.floor((width - size) / 2);
+  const sy = Math.floor((height - size) / 2);
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not crop image");
+  ctx.drawImage(source, sx, sy, size, size, 0, 0, size, size);
+  return canvas;
+}
+
+/** Center-crop an image file to 1:1 (native Cap stills, gallery picks). */
+export async function cropFileToSquare(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    throw new Error("Could not crop image");
+  }
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return canvasToProductImageFile(cropCanvasToSquare(canvas), file.name || undefined);
+}
+
 /** Build a JPEG File from a webcam capture canvas. */
 export async function canvasToProductImageFile(
   canvas: HTMLCanvasElement,

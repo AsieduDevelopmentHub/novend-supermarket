@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/select";
 import {
   cameraErrorMessage,
+  canUseLiveCamera,
+  decodeBarcodeFromImage,
   isCameraBarcodeSupported,
   listVideoInputDevices,
   playScanSuccessBeep,
@@ -26,7 +28,7 @@ import {
   startCameraBarcodeScanning,
   type CameraScannerSession,
 } from "@/services/hardware";
-import { isCapacitor, permissionNeedMessage } from "@novend/hardware";
+import { Hardware, isCapacitor, permissionNeedMessage } from "@novend/hardware";
 import { Loader2, ScanBarcode } from "lucide-react";
 
 type Props = {
@@ -101,6 +103,44 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
     onOpenChange(next);
   }
 
+  const captureNativeBarcode = useCallback(
+    async (gen: number) => {
+      try {
+        const photo = await Hardware.camera.capturePhoto();
+        if (gen !== startGenRef.current) return;
+        if (!photo.ok || !photo.data?.file) {
+          if (photo.ok === false && /cancel/i.test(photo.message ?? "")) {
+            onOpenChange(false);
+            return;
+          }
+          setError(photo.ok === false ? photo.message : "Could not open camera");
+          return;
+        }
+        const code = await decodeBarcodeFromImage(photo.data.file);
+        if (gen !== startGenRef.current) return;
+        if (!code) {
+          setError("No barcode found in that photo. Try again closer and in better light.");
+          return;
+        }
+        setSuccessCode(code);
+        playScanSuccessBeep();
+        onDetect(code);
+        onOpenChange(false);
+      } catch (err) {
+        if (gen !== startGenRef.current) return;
+        const message = err instanceof Error ? err.message : "";
+        if (/cancel/i.test(message)) {
+          onOpenChange(false);
+          return;
+        }
+        setError(cameraErrorMessage(err));
+      } finally {
+        if (gen === startGenRef.current) setStarting(false);
+      }
+    },
+    [onDetect, onOpenChange],
+  );
+
   const startWebScanner = useCallback(
     async (deviceId?: string) => {
       const gen = ++startGenRef.current;
@@ -112,6 +152,16 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
       stopScanner();
       const abortController = new AbortController();
       scanAbortRef.current = abortController;
+
+      if (!canUseLiveCamera()) {
+        setError(
+          isCapacitor()
+            ? "Live scan needs a secure connection. Photograph the barcode, or open Novend over HTTPS."
+            : permissionNeedMessage("camera"),
+        );
+        setStarting(false);
+        return;
+      }
 
       if (!isCameraBarcodeSupported()) {
         setError(permissionNeedMessage("camera"));
@@ -175,20 +225,24 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
         if (gen === startGenRef.current) setStarting(false);
       }
     },
-    [onDetect, onOpenChange],
+    [native, onDetect, onOpenChange],
   );
+
+  const startWebScannerRef = useRef(startWebScanner);
+  startWebScannerRef.current = startWebScanner;
 
   useEffect(() => {
     if (!open) return;
+    if (!canUseLiveCamera()) return;
     const timer = window.setTimeout(() => {
-      void startWebScanner();
+      void startWebScannerRef.current();
     }, 50);
     return () => {
       window.clearTimeout(timer);
       startGenRef.current += 1;
       stopScanner();
     };
-  }, [open, session, startWebScanner]);
+  }, [open, session]);
 
   async function switchCamera(nextDeviceId: string) {
     if (!nextDeviceId || nextDeviceId === selectedDeviceId) return;
@@ -223,25 +277,51 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
 
         <div className="bg-muted relative aspect-video overflow-hidden rounded-lg">
           <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
-          {error ? (
+          {error || !canUseLiveCamera() ? (
             <div className="bg-muted absolute inset-0 grid place-items-center gap-3 p-4 text-center">
-              <p className="text-muted-foreground text-sm">{error}</p>
-              {supported ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void startWebScanner(selectedDeviceId || undefined)}
-                  disabled={starting}
-                >
-                  {starting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <ScanBarcode className="mr-2 h-4 w-4" />
-                  )}
-                  Try again
-                </Button>
-              ) : null}
+              <p className="text-muted-foreground text-sm">
+                {error ??
+                  "Live scan needs a secure connection. Photograph the barcode, or open Novend over HTTPS."}
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {supported && canUseLiveCamera() ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void startWebScanner(selectedDeviceId || undefined)}
+                    disabled={starting}
+                  >
+                    {starting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <ScanBarcode className="mr-2 h-4 w-4" />
+                    )}
+                    Try again
+                  </Button>
+                ) : null}
+                {native && !canUseLiveCamera() ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const gen = ++startGenRef.current;
+                      setStarting(true);
+                      setError(null);
+                      void captureNativeBarcode(gen);
+                    }}
+                    disabled={starting}
+                  >
+                    {starting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <ScanBarcode className="mr-2 h-4 w-4" />
+                    )}
+                    Photograph barcode
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ) : null}
           {starting && !ready ? (
@@ -280,7 +360,9 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
         </div>
 
         <p className="text-muted-foreground text-center text-xs">
-          Point the camera at a barcode. Scanning stops when a code is detected.
+          {canUseLiveCamera()
+            ? "Point the camera at a barcode. Scanning stops when a code is detected."
+            : "This connection cannot preview the camera. Photograph the barcode instead."}
         </p>
 
         <DialogFooter>

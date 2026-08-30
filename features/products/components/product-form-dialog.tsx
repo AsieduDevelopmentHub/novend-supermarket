@@ -271,8 +271,8 @@ function ProductFormBody({
   }
 
   async function onTakePhoto() {
-    // Same in-app getUserMedia camera as barcode. Native Camera / NovendCamera
-    // hangs the Capacitor bridge after the hosted origin loads.
+    // Dialog uses getUserMedia on secure origins; Cap HTTP live-reload falls
+    // back to NovendCamera still capture inside the same dialog.
     setCameraOpen(true);
   }
 
