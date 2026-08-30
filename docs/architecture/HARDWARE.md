@@ -1,6 +1,6 @@
 # Hardware architecture
 
-Version: 1.4.4
+Version: 1.4.5
 
 ## Purpose
 
@@ -50,20 +50,25 @@ UI components must not call Electron preload or Capacitor plugins directly.
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Camera / gallery        | `@capacitor/camera` `getPhoto` (Base64). Permission is requested by the native camera, not a pre-check that can block launch. |
 | Save PDF                | Native `NovendPrint.savePdfToDownloads` (MediaStore Downloads) with Cache fallback                                          |
-| Share receipt           | Native share sheet with a PDF `files` URI (FileProvider). Text-only share is fallback only.                                 |
-| Print (no BLE printer)  | Android `PrintManager` via `NovendPrint.printPdf`. WebView `window.print()` is not used on Capacitor (it sticks on Opening…). |
+| Share receipt           | Cache PDF + `file://` FileProvider URI (never MediaStore `content://` from Downloads). Text-only is fallback only.          |
+| Print (no BLE printer)  | Android `PrintManager` via `NovendPrint.printPdf` (base64 or resolved `_capacitor_file_` path). Not `window.print()`.       |
 | Local image durability  | Also written under Capacitor `Directory.Data` (`product-images/`)                                                  |
 | Barcode (camera)        | Cap camera permission → getUserMedia → bundled **ZXing** (no Google ML Kit / HTTPS module)                         |
 | Barcode (HID)           | Terminal wedge config + `useBarcodeScanner` (desktop primary)                                                      |
 | Bluetooth thermal print | `@capacitor-community/bluetooth-le` ESC/POS write. After-sale print mode (automatic / manual / never) applies. One copy. |
 | Biometrics              | `@aparajita/capacitor-biometric-auth` — unlock token only (never password); maps supported / enrolled / available  |
 | Secure storage          | `@aparajita/capacitor-secure-storage` for unlock token                                                             |
-| Notifications           | `@capacitor/local-notifications` + Android channel + topic prefs (prompt / granted / denied / error / unavailable) |
+| Notifications           | `NovendPermissions` Android 13+ prompt (LocalNotifications fallback) + channel + topic prefs                       |
 | Deep links              | `novend://sale/…`, `novend://product/…` via `Hardware.app`                                                         |
 | Soft updates            | Optional `NEXT_PUBLIC_MOBILE_UPDATE_JSON` vs native version                                                        |
 
 Permissions are requested on tap (or when enabling a feature), never at cold
 start except optional biometric unlock when the user opted in.
+
+`MainActivity` registers only `NovendPermissions` and `NovendPrint`. Camera,
+Share, BLE, biometrics, and Local Notifications load from `capacitor.plugins.json`.
+Do not re-register those to “fix” unimplemented errors — that usually means the
+WebView left the local boot origin without plugin allow-navigation.
 
 ## Desktop registry
 

@@ -42,6 +42,9 @@ type NovendPermissionsPlugin = {
     state: "granted" | "denied" | "not-requested" | "permanently-denied";
   }>;
   markNotificationPermissionRequested: () => Promise<void>;
+  requestNotificationPermission: () => Promise<{
+    state: "granted" | "denied" | "not-requested" | "permanently-denied";
+  }>;
 };
 
 const NovendPermissions = registerPlugin<NovendPermissionsPlugin>("NovendPermissions");
@@ -258,14 +261,23 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
     async requestPermissions() {
       try {
         await ensureNotificationChannel();
-        const status = await withTimeout(
-          LocalNotifications.requestPermissions(),
-          NATIVE_AVAILABILITY_TIMEOUT_MS,
-        );
-        await NovendPermissions.markNotificationPermissionRequested().catch(() => undefined);
+        let state: NotificationPermissionState | null = null;
+        try {
+          const native = await withTimeout(
+            NovendPermissions.requestNotificationPermission(),
+            NATIVE_AVAILABILITY_TIMEOUT_MS,
+          );
+          state = native.state;
+        } catch {
+          const status = await withTimeout(
+            LocalNotifications.requestPermissions(),
+            NATIVE_AVAILABILITY_TIMEOUT_MS,
+          );
+          await NovendPermissions.markNotificationPermissionRequested().catch(() => undefined);
+          state = mapNotificationDisplayState(status.display, true);
+        }
         await Preferences.set({ key: NOTIFICATION_PERMISSION_REQUESTED_KEY, value: "true" });
-        const state =
-          (await nativeNotificationState()) ?? mapNotificationDisplayState(status.display, true);
+        state = (await nativeNotificationState()) ?? state ?? "error";
         if (state !== "granted") {
           return {
             ok: false,

@@ -49,12 +49,9 @@ export async function shareReceiptOnDevice(
   const payload = normalizeReceiptPayload(input);
   const title = `Receipt ${payload.invoiceNumber}`;
   const bytes = await buildReceiptPdfBytes(payload);
-  const saved = await Hardware.filesystem.savePDF(bytes, `receipt-${payload.invoiceNumber}.pdf`);
-  const uri = saved.data?.pathOrName;
-  if (uri) {
-    const fileShare = await Hardware.share.shareFile(uri, title);
-    if (fileShare.ok || fileShare.message === "Cancelled") return fileShare;
-  }
+  const fileName = `receipt-${payload.invoiceNumber}.pdf`;
+  const pdfShare = await Hardware.share.sharePdf(bytes, title, fileName);
+  if (pdfShare.ok || pdfShare.message === "Cancelled") return pdfShare;
   const text = buildReceiptShareText(payload);
   return Hardware.share.shareReceipt(text, title);
 }

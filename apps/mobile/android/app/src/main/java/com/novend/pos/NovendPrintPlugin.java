@@ -66,6 +66,7 @@ public class NovendPrintPlugin extends Plugin {
                         call.reject("Printing is not available on this device.");
                         return;
                     }
+
                     PrintAttributes attrs = new PrintAttributes.Builder()
                         .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
                         .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
@@ -158,6 +159,9 @@ public class NovendPrintPlugin extends Plugin {
             return null;
         }
         String normalized = path;
+        if (normalized.contains("_capacitor_file_")) {
+            normalized = normalized.substring(normalized.indexOf("_capacitor_file_") + 16);
+        }
         if (normalized.startsWith("file://")) {
             normalized = Uri.parse(normalized).getPath();
         }

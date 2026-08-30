@@ -11,13 +11,13 @@ import {
   printFailedMessage,
   shareFailedMessage,
 } from "../permissions";
-import { isNativePluginAvailable, pluginUnavailableMessage } from "../plugin-available";
 import {
   NATIVE_AVAILABILITY_TIMEOUT_MS,
   isNativeTimeoutError,
   withTimeout,
 } from "../timeout";
 import { NovendPrint } from "./cap-print";
+import { isMediaStoreUri, toShareableFileUri } from "./cap-uri";
 import { createWebAdapters } from "./web";
 import {
   bluetoothTestPrint,
@@ -82,9 +82,6 @@ async function persistProductImageFromBytes(
 
 async function ensureCameraPermission(source: CameraSource): Promise<HardwareResult> {
   if (source === CameraSource.Photos) return { ok: true };
-  if (!isNativePluginAvailable("Camera")) {
-    return { ok: false, message: pluginUnavailableMessage("Camera") };
-  }
 
   try {
     const permission = await withTimeout(Camera.checkPermissions(), NATIVE_AVAILABILITY_TIMEOUT_MS);
@@ -100,16 +97,18 @@ async function ensureCameraPermission(source: CameraSource): Promise<HardwareRes
     }
     return { ok: false, message: permissionDeniedMessage("camera") };
   } catch (error) {
-    if (isNativeTimeoutError(error)) {
-      return {
-        ok: false,
-        message: "Camera permission timed out. Try again or enable it in device settings.",
-      };
-    }
+    // Hosted-origin `isPluginAvailable` / unimplemented checks are unreliable.
+    // Let getPhoto open the system camera, which requests permission itself.
     const raw = error instanceof Error ? error.message : String(error ?? "");
+    if (
+      isNativeTimeoutError(error) ||
+      /not implemented|not available|unimplemented|plugin/i.test(raw)
+    ) {
+      return { ok: true };
+    }
     return {
       ok: false,
-      message: friendlyHardwareMessage(raw, pluginUnavailableMessage("Camera"), "camera"),
+      message: friendlyHardwareMessage(raw, cameraCaptureFailedMessage(), "camera"),
     };
   }
 }
@@ -170,9 +169,6 @@ async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCaptu
 }
 
 async function writeCachePdf(bytes: Uint8Array, fileName: string): Promise<HardwareResult<{ uri: string }>> {
-  if (!isNativePluginAvailable("Filesystem")) {
-    return { ok: false, message: pluginUnavailableMessage("Files") };
-  }
   try {
     const safeName = fileName.replace(/[^\w.\-]+/g, "_");
     const path = `receipts/${safeName.endsWith(".pdf") ? safeName : `${safeName}.pdf`}`;
@@ -189,7 +185,7 @@ async function writeCachePdf(bytes: Uint8Array, fileName: string): Promise<Hardw
     if (!uri) {
       return { ok: false, message: filesystemSaveFailedMessage() };
     }
-    return { ok: true, data: { uri } };
+    return { ok: true, data: { uri: toShareableFileUri(uri) } };
   } catch (error) {
     const raw = error instanceof Error ? error.message : String(error ?? "");
     return {
@@ -200,10 +196,13 @@ async function writeCachePdf(bytes: Uint8Array, fileName: string): Promise<Hardw
 }
 
 async function shareLocalFile(uri: string, title?: string): Promise<HardwareResult> {
+  if (isMediaStoreUri(uri)) {
+    return { ok: false, message: shareFailedMessage() };
+  }
   try {
     await Share.share({
       title: title ?? "Receipt",
-      files: [uri],
+      files: [toShareableFileUri(uri)],
       dialogTitle: title ?? "Share receipt",
     });
     return { ok: true };
@@ -442,6 +441,13 @@ export function createCapacitorAdapters(): HardwareAdapters {
       },
       async shareFile(uri, title) {
         return shareLocalFile(uri, title);
+      },
+      async sharePdf(bytes, title, fileName) {
+        const cached = await writeCachePdf(bytes, fileName);
+        if (!cached.ok || !cached.data?.uri) {
+          return { ok: false, message: cached.message || shareFailedMessage() };
+        }
+        return shareLocalFile(cached.data.uri, title);
       },
     },
   };

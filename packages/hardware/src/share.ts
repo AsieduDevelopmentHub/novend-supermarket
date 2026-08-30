@@ -16,3 +16,13 @@ export async function shareFile(uri: string, title?: string): Promise<HardwareRe
   if (adapters.share.shareFile) return adapters.share.shareFile(uri, title);
   return adapters.share.shareImage(uri, title);
 }
+
+export async function sharePdf(
+  bytes: Uint8Array,
+  title: string,
+  fileName: string,
+): Promise<HardwareResult> {
+  const adapters = await getHardwareAdapters();
+  if (adapters.share.sharePdf) return adapters.share.sharePdf(bytes, title, fileName);
+  return { ok: false, message: "Share is not available on this device." };
+}
