@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import {
   Hardware,
+  hasNovendNativeSecurity,
   permissionDeniedMessage,
   permissionNeedMessage,
   type NotificationPermissionState,
@@ -45,9 +46,9 @@ const EMPTY_PREFS: Record<NotificationTopic, boolean> = {
 };
 
 /**
- * Local notification prefs. Never auto-probe Cap permission on mount —
- * LocalNotifications / NovendPermissions can block the WebView bridge and
- * freeze Security (spinners die within ~1s). Load Preferences only; probe on tap.
+ * Local notification prefs. Permission state comes from NovendNative
+ * (NotificationManagerCompat). Enable opens Android notification settings —
+ * never an in-app prompt and never a Capacitor plugin call.
  */
 export function NotificationsSettingsCard() {
   const [state, setState] = useState<NotificationPermissionState>("not-requested");
@@ -56,22 +57,6 @@ export function NotificationsSettingsCard() {
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const topics = await Hardware.notifications.getTopicPrefs();
-        if (cancelled) return;
-        if (topics.data) setPrefs(topics.data);
-      } catch {
-        /* prefs are best-effort */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const refreshPermission = useCallback(async () => {
     setChecking(true);
@@ -91,6 +76,30 @@ export function NotificationsSettingsCard() {
       setChecking(false);
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const topics = await Hardware.notifications.getTopicPrefs();
+        if (cancelled) return;
+        if (topics.data) setPrefs(topics.data);
+      } catch {
+        /* prefs are best-effort */
+      }
+      if (!cancelled && hasNovendNativeSecurity()) await refreshPermission();
+    })();
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && hasNovendNativeSecurity()) {
+        void refreshPermission();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [refreshPermission]);
 
   async function enableNotifications() {
     setBusy(true);

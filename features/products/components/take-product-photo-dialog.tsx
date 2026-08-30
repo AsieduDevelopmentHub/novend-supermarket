@@ -169,7 +169,7 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
       if (closingRef.current) return;
       if (!result.ok || !result.data?.file) {
         if (result.ok === false && /cancel/i.test(result.message ?? "")) return;
-        setError(result.ok === false ? result.message : "Could not open camera");
+        setError(result.message ?? "Could not open camera");
         return;
       }
       const file = await cropFileToSquare(result.data.file);

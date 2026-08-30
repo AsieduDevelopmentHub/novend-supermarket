@@ -20,7 +20,8 @@ feature/*  →  PR  →  staging  →  CI / review  →  PR  →  main  →  tag
   stacking version/`CHANGELOG` conflicts on the next release. The sync PR
   itself must not be squashed.
 - Purpose-based short-lived branches are fine; merge into `staging` first when possible.
-- Commit only when asked. Messages explain why.
+- Commit only when asked. Messages use
+  `feat|fix|refactor|chore|docs|release: short why`.
 - Never commit secrets.
 - Small, reviewable diffs. Include summary, test plan, and docs when architecture or business rules change.
 - Product releases: bump versions on `staging`, open PR → `main`, then tag `v*` (on the merged main commit preferred) to run Product Release.
