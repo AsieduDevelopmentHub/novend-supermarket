@@ -9,7 +9,7 @@
     "sync": "pnpm run generate-icons && pnpm run write-boot && npx cap sync android",
     "sync:ios": "pnpm run generate-icons && pnpm run write-boot && npx cap sync ios",
     "sync:all": "pnpm run generate-icons && pnpm run write-boot && npx cap sync",
-    "open:android": "npx cap open android",
+    "open:android": "node ../../scripts/configure-android-studio-jdk.mjs && npx cap open android",
     "open:ios": "npx cap open ios",
     "add:android": "npx cap add android",
     "add:ios": "npx cap add ios"

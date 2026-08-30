@@ -134,7 +134,7 @@ export function BluetoothPrinterCard() {
           Bluetooth printer
         </CardTitle>
         <CardDescription>
-          Pair a 58mm or 80mm thermal printer for silent receipt printing on this device.
+          Pair a 58mm or 80mm thermal printer. Discover opens the system Bluetooth picker.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

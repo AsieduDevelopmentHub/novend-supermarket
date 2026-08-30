@@ -6,6 +6,7 @@ type NovendPrintPlugin = {
     uri: string;
     fileName: string;
   }>;
+  sharePdf: (options: { data: string; fileName: string; title?: string }) => Promise<void>;
 };
 
 export const NovendPrint = registerPlugin<NovendPrintPlugin>("NovendPrint");

@@ -94,7 +94,7 @@ export function shareFailedMessage(): string {
 }
 
 export function printFailedMessage(): string {
-  return "Could not open the print dialog. Try Share or Save PDF, or pair a Bluetooth printer in Settings.";
+  return "Could not open the print dialog. Try again, or use Share / Save PDF.";
 }
 
 export function barcodeScanFailedMessage(): string {

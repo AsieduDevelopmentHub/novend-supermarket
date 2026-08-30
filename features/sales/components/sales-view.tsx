@@ -634,7 +634,7 @@ export function SalesView() {
     <div
       className={cn(
         "space-y-6 xl:pb-0",
-        nativeShell ? "pb-[calc(8.5rem+env(safe-area-inset-bottom,0px))]" : "pb-24",
+        nativeShell ? "pb-[calc(var(--novend-tabbar-offset)+3.75rem)]" : "pb-24",
       )}
     >
       <PageHeader title="Sales" description="Create a new wholesale or retail sale." />

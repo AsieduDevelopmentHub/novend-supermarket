@@ -17,6 +17,7 @@ import type {
   UpdateInfo,
 } from "../native-types";
 import { friendlyHardwareMessage, permissionDeniedMessage } from "../permissions";
+import { runExclusiveNative } from "../native-lock";
 import {
   NATIVE_AVAILABILITY_TIMEOUT_MS,
   NATIVE_CALL_TIMEOUT_MS,
@@ -25,10 +26,6 @@ import {
   withTimeout,
 } from "../timeout";
 import { compareAppVersions, normalizeAppVersion } from "../version";
-import {
-  mapNotificationDisplayState,
-  resolveNotificationPermissionState,
-} from "../notification-permission";
 
 const TOPIC_KEY = "novend.notifications.topics";
 const BIOMETRIC_ENABLED_KEY = "novend.biometric.enabled";
@@ -42,6 +39,9 @@ type NovendPermissionsPlugin = {
     state: "granted" | "denied" | "not-requested" | "permanently-denied";
   }>;
   markNotificationPermissionRequested: () => Promise<void>;
+  requestNotificationPermission: () => Promise<{
+    state: "granted" | "denied" | "not-requested" | "permanently-denied";
+  }>;
 };
 
 const NovendPermissions = registerPlugin<NovendPermissionsPlugin>("NovendPermissions");
@@ -72,59 +72,61 @@ function mapBiometry(type: BiometryType): BiometricAvailability["biometryType"] 
 
 export function createCapacitorBiometricsAdapter(): BiometricsAdapter {
   return {
-    async checkAvailability() {
-      try {
-        // Keep Settings probes short — a hung Cap call blocks the whole WebView bridge.
-        const result = await withTimeout(BiometricAuth.checkBiometry(), NATIVE_SETTINGS_PROBE_MS);
-        const biometryType = mapBiometry(result.biometryType);
-        const biometryTypes = Array.isArray(result.biometryTypes) ? result.biometryTypes : [];
-        const alternateType = biometryTypes
-          .map((type) => mapBiometry(type))
-          .find((type) => type !== "none");
-        const resolvedBiometryType =
-          biometryType !== "none" ? biometryType : (alternateType ?? "none");
-        const supported = resolvedBiometryType !== "none";
-        // The plugin documents isAvailable as the enrolled-and-usable signal.
-        // strongBiometryIsAvailable is a safe fallback for older native builds.
-        const available = Boolean(result.isAvailable || result.strongBiometryIsAvailable);
-        const enrolled = available;
-
-        return {
-          ok: true,
-          data: {
-            available,
-            supported,
-            enrolled,
-            biometryType: supported ? resolvedBiometryType : "none",
-            reason: result.reason || undefined,
-          } satisfies BiometricAvailability,
-        };
-      } catch (error) {
-        if (isNativeTimeoutError(error)) {
-          return {
-            ok: false,
-            message: "Biometrics took too long to respond. Try again.",
-            data: {
-              available: false,
-              supported: false,
-              enrolled: false,
-              biometryType: "none",
-            },
-          };
-        }
-        const raw = error instanceof Error ? error.message : String(error ?? "");
-        return {
-          ok: false,
-          message: friendlyHardwareMessage(raw, "Could not check biometrics on this device."),
-          data: {
-            available: false,
-            supported: false,
-            enrolled: false,
-            biometryType: "none",
-            reason: raw || undefined,
-          },
-        };
-      }
+    async checkAvailability(): Promise<HardwareResult<BiometricAvailability>> {
+      const unavailable = (
+        message: string,
+        reason?: string,
+      ): HardwareResult<BiometricAvailability> => ({
+        ok: false,
+        message,
+        data: {
+          available: false,
+          supported: false,
+          enrolled: false,
+          biometryType: "none",
+          reason,
+        },
+      });
+      return runExclusiveNative(
+        async () => {
+          try {
+            const result = await withTimeout(
+              BiometricAuth.checkBiometry(),
+              NATIVE_SETTINGS_PROBE_MS,
+            );
+            const biometryType = mapBiometry(result.biometryType);
+            const biometryTypes = Array.isArray(result.biometryTypes) ? result.biometryTypes : [];
+            const alternateType = biometryTypes
+              .map((type) => mapBiometry(type))
+              .find((type) => type !== "none");
+            const resolvedBiometryType =
+              biometryType !== "none" ? biometryType : (alternateType ?? "none");
+            const supported = resolvedBiometryType !== "none";
+            const available = Boolean(result.isAvailable || result.strongBiometryIsAvailable);
+            return {
+              ok: true,
+              data: {
+                available,
+                supported,
+                enrolled: available,
+                biometryType: supported ? resolvedBiometryType : "none",
+                reason: result.reason || undefined,
+              },
+            };
+          } catch (error) {
+            if (isNativeTimeoutError(error)) {
+              return unavailable("Biometrics took too long to respond. Try again.");
+            }
+            const raw = error instanceof Error ? error.message : String(error ?? "");
+            return unavailable(
+              friendlyHardwareMessage(raw, "Could not check biometrics on this device."),
+              raw || undefined,
+            );
+          }
+        },
+        unavailable("Device security is busy. Wait a moment, then try again."),
+        { cooldownMs: 800 },
+      );
     },
     async authenticate(reason) {
       try {
@@ -223,49 +225,44 @@ async function nativeNotificationState(): Promise<NotificationPermissionState | 
 
 export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
   return {
-    async checkPermissions() {
-      try {
-        // Do not createChannel on status checks — that Cap call can stall the bridge
-        // on Security open and freeze camera/gallery afterward.
-        const requestedValue = await withTimeout(
-          Preferences.get({ key: NOTIFICATION_PERMISSION_REQUESTED_KEY }),
-          NATIVE_CALL_TIMEOUT_MS,
-        );
-        const requested = requestedValue.value === "true";
-        const nativeState = await nativeNotificationState();
-        const status = await withTimeout(
-          LocalNotifications.checkPermissions(),
-          NATIVE_SETTINGS_PROBE_MS,
-        );
-        const state = resolveNotificationPermissionState(status.display, requested, nativeState);
-        return { ok: true, data: { granted: state === "granted", state } };
-      } catch (error) {
-        if (isNativeTimeoutError(error)) {
-          return {
-            ok: false,
-            message: "Notification permission check timed out. Try again.",
-            data: { granted: false, state: "error" as const },
-          };
-        }
-        const raw = error instanceof Error ? error.message : String(error ?? "");
-        return {
-          ok: false,
-          message: friendlyHardwareMessage(raw, "Could not check notification permission."),
-          data: { granted: false, state: "error" as const },
-        };
-      }
+    async checkPermissions(): Promise<
+      HardwareResult<{ granted: boolean; state: NotificationPermissionState }>
+    > {
+      const failed = (
+        message: string,
+      ): HardwareResult<{ granted: boolean; state: NotificationPermissionState }> => ({
+        ok: false,
+        message,
+        data: { granted: false, state: "error" },
+      });
+      return runExclusiveNative(
+        async () => {
+          try {
+            const nativeState = await nativeNotificationState();
+            const state = nativeState ?? "not-requested";
+            return { ok: true, data: { granted: state === "granted", state } };
+          } catch (error) {
+            if (isNativeTimeoutError(error)) {
+              return failed("Notification permission check timed out. Try again.");
+            }
+            const raw = error instanceof Error ? error.message : String(error ?? "");
+            return failed(
+              friendlyHardwareMessage(raw, "Could not check notification permission."),
+            );
+          }
+        },
+        failed("Device security is busy. Wait a moment, then try again."),
+        { cooldownMs: 800 },
+      );
     },
     async requestPermissions() {
       try {
-        await ensureNotificationChannel();
-        const status = await withTimeout(
-          LocalNotifications.requestPermissions(),
-          NATIVE_AVAILABILITY_TIMEOUT_MS,
+        const native = await withTimeout(
+          NovendPermissions.requestNotificationPermission(),
+          30_000,
         );
-        await NovendPermissions.markNotificationPermissionRequested().catch(() => undefined);
         await Preferences.set({ key: NOTIFICATION_PERMISSION_REQUESTED_KEY, value: "true" });
-        const state =
-          (await nativeNotificationState()) ?? mapNotificationDisplayState(status.display, true);
+        const state = native.state;
         if (state !== "granted") {
           return {
             ok: false,

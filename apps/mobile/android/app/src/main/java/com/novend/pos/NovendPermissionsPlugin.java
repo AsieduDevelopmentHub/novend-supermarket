@@ -13,9 +13,18 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
 
 /** Native permission facts that LocalNotifications does not expose. */
-@CapacitorPlugin(name = "NovendPermissions")
+@CapacitorPlugin(
+    name = "NovendPermissions",
+    permissions = {
+        @Permission(
+            alias = "POST_NOTIFICATIONS",
+            strings = { Manifest.permission.POST_NOTIFICATIONS }
+        )
+    }
+)
 public class NovendPermissionsPlugin extends Plugin {
 
     private static final String PREFS = "novend.native.permissions";
@@ -60,13 +69,32 @@ public class NovendPermissionsPlugin extends Plugin {
         call.resolve(result);
     }
 
+    private void markRequested() {
+        getContext()
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(NOTIFICATIONS_REQUESTED, true)
+            .apply();
+    }
+
     @PluginMethod
     public void markNotificationPermissionRequested(PluginCall call) {
-        getContext()
-                .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit()
-                .putBoolean(NOTIFICATIONS_REQUESTED, true)
-                .apply();
+        markRequested();
         call.resolve();
+    }
+
+    @PluginMethod
+    public void requestNotificationPermission(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            markRequested();
+            requestPermissionForAlias("POST_NOTIFICATIONS", call, "permissionCallback");
+            return;
+        }
+        checkNotificationPermission(call);
+    }
+
+    @com.getcapacitor.annotation.PermissionCallback
+    private void permissionCallback(PluginCall call) {
+        checkNotificationPermission(call);
     }
 }

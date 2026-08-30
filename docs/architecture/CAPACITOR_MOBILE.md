@@ -1,6 +1,6 @@
 # Capacitor mobile platform
 
-Version: 1.5.5
+Version: 1.5.7
 
 ## Purpose
 
@@ -93,6 +93,24 @@ migration. Backups exclude image blobs by design.
 ## Location
 
 `apps/mobile/` — Capacitor config, `www/` fallback, Android / iOS projects.
+
+Local Android builds need **JDK 21** (`pnpm mobile:run:android` selects it). Do not run
+`cap run android` against JAVA_HOME 17 — Capacitor 7 compiles with `JavaVersion.VERSION_21`.
+
+Android Studio uses its own Gradle JDK (this project previously used `#JAVA_HOME` →
+Temurin 17, which produces `invalid source release: 21`). Set it once:
+
+1. Open `apps/mobile/android` (`pnpm mobile:open:android`).
+2. **File → Settings** (Ctrl+Alt+S) → **Build, Execution, Deployment → Build Tools → Gradle**.
+3. **Gradle JDK** → **Add JDK…** (or **Download JDK…**) →
+   `C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot`.
+   Do **not** leave this on `JAVA_HOME` or `temurin-17`.
+4. **File → Project Structure** (Ctrl+Alt+Shift+S) → **Project**: SDK and language level **21**.
+5. **File → Sync Project with Gradle Files**. If a 17 daemon is still running, use the
+   Android Studio terminal: `.\gradlew --stop`, then sync again.
+
+Dismiss **AGP Upgrade Assistant**. Capacitor 7.6 expects Android Gradle Plugin **8.7.2**;
+that banner is not the compile error.
 
 On Windows, `pnpm mobile:sync` runs icon generation then `cap sync android` only.
 A partial `ios/` tree without a Podfile makes full `cap sync` fail — use

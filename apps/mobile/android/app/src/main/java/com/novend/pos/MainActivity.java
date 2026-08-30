@@ -13,8 +13,11 @@ public class MainActivity extends BridgeActivity {
     private static final String LOCAL_RECOVERY = "https://localhost/?stay=1";
 
     public MainActivity() {
+        // Official / community plugins load from capacitor.plugins.json.
+        // Only Novend-owned plugins need an explicit register.
         registerPlugin(NovendPermissionsPlugin.class);
         registerPlugin(NovendPrintPlugin.class);
+        registerPlugin(NovendCameraPlugin.class);
     }
 
     @Override
