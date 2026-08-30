@@ -72,66 +72,61 @@ function mapBiometry(type: BiometryType): BiometricAvailability["biometryType"] 
 
 export function createCapacitorBiometricsAdapter(): BiometricsAdapter {
   return {
-    async checkAvailability() {
-      const busy = {
-        ok: false as const,
-        message: "Device security is busy. Wait a moment, then try again.",
+    async checkAvailability(): Promise<HardwareResult<BiometricAvailability>> {
+      const unavailable = (
+        message: string,
+        reason?: string,
+      ): HardwareResult<BiometricAvailability> => ({
+        ok: false,
+        message,
         data: {
           available: false,
           supported: false,
           enrolled: false,
-          biometryType: "none" as const,
+          biometryType: "none",
+          reason,
         },
-      };
-      return runExclusiveNative(async () => {
-        try {
-          const result = await withTimeout(BiometricAuth.checkBiometry(), NATIVE_SETTINGS_PROBE_MS);
-          const biometryType = mapBiometry(result.biometryType);
-          const biometryTypes = Array.isArray(result.biometryTypes) ? result.biometryTypes : [];
-          const alternateType = biometryTypes
-            .map((type) => mapBiometry(type))
-            .find((type) => type !== "none");
-          const resolvedBiometryType =
-            biometryType !== "none" ? biometryType : (alternateType ?? "none");
-          const supported = resolvedBiometryType !== "none";
-          const available = Boolean(result.isAvailable || result.strongBiometryIsAvailable);
-          return {
-            ok: true as const,
-            data: {
-              available,
-              supported,
-              enrolled: available,
-              biometryType: supported ? resolvedBiometryType : "none",
-              reason: result.reason || undefined,
-            } satisfies BiometricAvailability,
-          };
-        } catch (error) {
-          if (isNativeTimeoutError(error)) {
+      });
+      return runExclusiveNative(
+        async () => {
+          try {
+            const result = await withTimeout(
+              BiometricAuth.checkBiometry(),
+              NATIVE_SETTINGS_PROBE_MS,
+            );
+            const biometryType = mapBiometry(result.biometryType);
+            const biometryTypes = Array.isArray(result.biometryTypes) ? result.biometryTypes : [];
+            const alternateType = biometryTypes
+              .map((type) => mapBiometry(type))
+              .find((type) => type !== "none");
+            const resolvedBiometryType =
+              biometryType !== "none" ? biometryType : (alternateType ?? "none");
+            const supported = resolvedBiometryType !== "none";
+            const available = Boolean(result.isAvailable || result.strongBiometryIsAvailable);
             return {
-              ok: false as const,
-              message: "Biometrics took too long to respond. Try again.",
+              ok: true,
               data: {
-                available: false,
-                supported: false,
-                enrolled: false,
-                biometryType: "none" as const,
+                available,
+                supported,
+                enrolled: available,
+                biometryType: supported ? resolvedBiometryType : "none",
+                reason: result.reason || undefined,
               },
             };
+          } catch (error) {
+            if (isNativeTimeoutError(error)) {
+              return unavailable("Biometrics took too long to respond. Try again.");
+            }
+            const raw = error instanceof Error ? error.message : String(error ?? "");
+            return unavailable(
+              friendlyHardwareMessage(raw, "Could not check biometrics on this device."),
+              raw || undefined,
+            );
           }
-          const raw = error instanceof Error ? error.message : String(error ?? "");
-          return {
-            ok: false as const,
-            message: friendlyHardwareMessage(raw, "Could not check biometrics on this device."),
-            data: {
-              available: false,
-              supported: false,
-              enrolled: false,
-              biometryType: "none" as const,
-              reason: raw || undefined,
-            },
-          };
-        }
-      }, busy, { cooldownMs: 800 });
+        },
+        unavailable("Device security is busy. Wait a moment, then try again."),
+        { cooldownMs: 800 },
+      );
     },
     async authenticate(reason) {
       try {
@@ -230,33 +225,35 @@ async function nativeNotificationState(): Promise<NotificationPermissionState | 
 
 export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
   return {
-    async checkPermissions() {
-      const busy = {
-        ok: false as const,
-        message: "Device security is busy. Wait a moment, then try again.",
-        data: { granted: false, state: "error" as const },
-      };
-      return runExclusiveNative(async () => {
-        try {
-          const nativeState = await nativeNotificationState();
-          const state = nativeState ?? "not-requested";
-          return { ok: true as const, data: { granted: state === "granted", state } };
-        } catch (error) {
-          if (isNativeTimeoutError(error)) {
-            return {
-              ok: false as const,
-              message: "Notification permission check timed out. Try again.",
-              data: { granted: false, state: "error" as const },
-            };
+    async checkPermissions(): Promise<
+      HardwareResult<{ granted: boolean; state: NotificationPermissionState }>
+    > {
+      const failed = (
+        message: string,
+      ): HardwareResult<{ granted: boolean; state: NotificationPermissionState }> => ({
+        ok: false,
+        message,
+        data: { granted: false, state: "error" },
+      });
+      return runExclusiveNative(
+        async () => {
+          try {
+            const nativeState = await nativeNotificationState();
+            const state = nativeState ?? "not-requested";
+            return { ok: true, data: { granted: state === "granted", state } };
+          } catch (error) {
+            if (isNativeTimeoutError(error)) {
+              return failed("Notification permission check timed out. Try again.");
+            }
+            const raw = error instanceof Error ? error.message : String(error ?? "");
+            return failed(
+              friendlyHardwareMessage(raw, "Could not check notification permission."),
+            );
           }
-          const raw = error instanceof Error ? error.message : String(error ?? "");
-          return {
-            ok: false as const,
-            message: friendlyHardwareMessage(raw, "Could not check notification permission."),
-            data: { granted: false, state: "error" as const },
-          };
-        }
-      }, busy, { cooldownMs: 800 });
+        },
+        failed("Device security is busy. Wait a moment, then try again."),
+        { cooldownMs: 800 },
+      );
     },
     async requestPermissions() {
       try {
