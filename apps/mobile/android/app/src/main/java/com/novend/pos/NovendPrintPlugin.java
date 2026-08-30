@@ -1,7 +1,9 @@
 package com.novend.pos;
 
+import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -13,6 +15,7 @@ import android.print.PrintDocumentInfo;
 import android.print.PrintManager;
 import android.provider.MediaStore;
 import android.util.Base64;
+import androidx.core.content.FileProvider;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -57,11 +60,15 @@ public class NovendPrintPlugin extends Plugin {
             return;
         }
         final File pdfFile = file;
-        getActivity()
-            .runOnUiThread(() -> {
+        Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("Could not open the print dialog.");
+            return;
+        }
+        activity.runOnUiThread(() -> {
                 try {
                     PrintManager printer =
-                        (PrintManager) getActivity().getSystemService(Context.PRINT_SERVICE);
+                        (PrintManager) activity.getSystemService(Context.PRINT_SERVICE);
                     if (printer == null) {
                         call.reject("Printing is not available on this device.");
                         return;
@@ -115,6 +122,57 @@ public class NovendPrintPlugin extends Plugin {
                 error.getMessage() != null
                     ? error.getMessage()
                     : "Could not save the receipt PDF."
+            );
+        }
+    }
+
+    @PluginMethod
+    public void sharePdf(PluginCall call) {
+        String title = call.getString("title", "Receipt");
+        String fileName = call.getString("fileName", "receipt.pdf");
+        String data = call.getString("data");
+        if (data == null || data.isEmpty()) {
+            call.reject("Receipt PDF data is missing.");
+            return;
+        }
+        Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("Unable to share right now. Please try again.");
+            return;
+        }
+        byte[] bytes;
+        try {
+            bytes = Base64.decode(data, Base64.DEFAULT);
+        } catch (IllegalArgumentException error) {
+            call.reject("Receipt PDF data is invalid.");
+            return;
+        }
+        String safeName = fileName.replaceAll("[^A-Za-z0-9._-]+", "_");
+        if (!safeName.toLowerCase().endsWith(".pdf")) {
+            safeName = safeName + ".pdf";
+        }
+        try {
+            File file = new File(getContext().getCacheDir(), safeName);
+            try (OutputStream out = new FileOutputStream(file)) {
+                out.write(bytes);
+            }
+            Uri uri = FileProvider.getUriForFile(
+                getContext(),
+                getContext().getPackageName() + ".fileprovider",
+                file
+            );
+            Intent share = new Intent(Intent.ACTION_SEND);
+            share.setType("application/pdf");
+            share.putExtra(Intent.EXTRA_STREAM, uri);
+            share.putExtra(Intent.EXTRA_SUBJECT, title);
+            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            activity.startActivity(Intent.createChooser(share, title));
+            call.resolve();
+        } catch (Exception error) {
+            call.reject(
+                error.getMessage() != null
+                    ? error.getMessage()
+                    : "Unable to share right now. Please try again."
             );
         }
     }

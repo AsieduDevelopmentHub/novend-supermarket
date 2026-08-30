@@ -16,6 +16,7 @@ import {
   isNativeTimeoutError,
   withTimeout,
 } from "../timeout";
+import { NovendCamera } from "./cap-camera";
 import { NovendPrint } from "./cap-print";
 import { isMediaStoreUri, toShareableFileUri } from "./cap-uri";
 import { createWebAdapters } from "./web";
@@ -113,10 +114,44 @@ async function ensureCameraPermission(source: CameraSource): Promise<HardwareRes
   }
 }
 
+async function captureViaNovendCamera(): Promise<HardwareResult<PhotoCapture>> {
+  const photo = await NovendCamera.capturePhoto();
+  const encoded = photo.base64?.trim();
+  if (!encoded) {
+    return { ok: false, message: cameraCaptureFailedMessage() };
+  }
+  const mimeType = photo.mimeType || "image/jpeg";
+  const bytes = base64ToBytes(encoded);
+  if (bytes.byteLength === 0) {
+    return { ok: false, message: cameraCaptureFailedMessage() };
+  }
+  const fileName = `product-${Date.now()}.jpg`;
+  const file = fileFromBytes(bytes, fileName, mimeType);
+  const localPath = await persistProductImageFromBytes(bytes, mimeType);
+  return {
+    ok: true,
+    data: {
+      uri: localPath || `data:${mimeType};base64,${encoded}`,
+      mimeType,
+      file,
+      localPath,
+    },
+  };
+}
+
 async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCapture>> {
+  if (source === CameraSource.Camera) {
+    try {
+      return await captureViaNovendCamera();
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : String(error ?? "");
+      if (/cancel/i.test(raw)) {
+        return { ok: false, message: "Cancelled" };
+      }
+      /* Official Camera plugin is the fallback if this APK predates NovendCamera. */
+    }
+  }
   try {
-    // Always invoke the native plugin. isPluginAvailable() is unreliable after the
-    // WebView navigates from the local boot page to the hosted origin.
     const photo = await Camera.getPhoto({
       quality: 55,
       allowEditing: false,
@@ -354,16 +389,8 @@ export function createCapacitorAdapters(): HardwareAdapters {
           await NovendPrint.printPdf({ data: bytesToBase64(bytes), title });
           return { ok: true };
         } catch (error) {
-          const cached = await writeCachePdf(bytes, `${title || "receipt"}.pdf`);
-          if (cached.ok && cached.data?.uri) {
-            try {
-              await NovendPrint.printPdf({ path: cached.data.uri, title });
-              return { ok: true };
-            } catch {
-              /* use the original error */
-            }
-          }
           const raw = error instanceof Error ? error.message : String(error ?? "");
+          if (/cancel/i.test(raw)) return { ok: false, message: "Cancelled" };
           return {
             ok: false,
             message: friendlyHardwareMessage(raw, printFailedMessage()),
@@ -443,11 +470,26 @@ export function createCapacitorAdapters(): HardwareAdapters {
         return shareLocalFile(uri, title);
       },
       async sharePdf(bytes, title, fileName) {
-        const cached = await writeCachePdf(bytes, fileName);
-        if (!cached.ok || !cached.data?.uri) {
-          return { ok: false, message: cached.message || shareFailedMessage() };
+        try {
+          await NovendPrint.sharePdf({
+            data: bytesToBase64(bytes),
+            fileName,
+            title,
+          });
+          return { ok: true };
+        } catch (error) {
+          const raw = error instanceof Error ? error.message : String(error ?? "");
+          if (/cancel/i.test(raw)) return { ok: false, message: "Cancelled" };
+          const cached = await writeCachePdf(bytes, fileName);
+          if (cached.ok && cached.data?.uri) {
+            const shared = await shareLocalFile(cached.data.uri, title);
+            if (shared.ok || shared.message === "Cancelled") return shared;
+          }
+          return {
+            ok: false,
+            message: friendlyHardwareMessage(raw, shareFailedMessage()),
+          };
         }
-        return shareLocalFile(cached.data.uri, title);
       },
     },
   };

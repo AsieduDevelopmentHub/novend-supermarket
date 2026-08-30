@@ -17,6 +17,7 @@ public class MainActivity extends BridgeActivity {
         // Only Novend-owned plugins need an explicit register.
         registerPlugin(NovendPermissionsPlugin.class);
         registerPlugin(NovendPrintPlugin.class);
+        registerPlugin(NovendCameraPlugin.class);
     }
 
     @Override

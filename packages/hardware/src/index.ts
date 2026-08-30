@@ -78,6 +78,7 @@ export {
 } from "./permissions";
 
 export { isNativePluginAvailable, pluginUnavailableMessage } from "./plugin-available";
+export { isNativeBridgeBusy, runExclusiveNative } from "./native-lock";
 export { isMediaStoreUri, toNativeFilePath, toShareableFileUri } from "./adapters/cap-uri";
 
 export {

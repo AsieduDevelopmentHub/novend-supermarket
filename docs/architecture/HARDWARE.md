@@ -1,6 +1,6 @@
 # Hardware architecture
 
-Version: 1.4.5
+Version: 1.4.6
 
 ## Purpose
 
@@ -48,9 +48,9 @@ UI components must not call Electron preload or Capacitor plugins directly.
 
 | Feature                 | Behavior                                                                                                           |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Camera / gallery        | `@capacitor/camera` `getPhoto` (Base64). Permission is requested by the native camera, not a pre-check that can block launch. |
+| Camera / gallery        | Android `NovendCamera` (`ACTION_IMAGE_CAPTURE`). Official Camera plugin is fallback only. |
 | Save PDF                | Native `NovendPrint.savePdfToDownloads` (MediaStore Downloads) with Cache fallback                                          |
-| Share receipt           | Cache PDF + `file://` FileProvider URI (never MediaStore `content://` from Downloads). Text-only is fallback only.          |
+| Share receipt           | `NovendPrint.sharePdf` (Android share sheet + FileProvider). Text-only is fallback only. |
 | Print (no BLE printer)  | Android `PrintManager` via `NovendPrint.printPdf` (base64 or resolved `_capacitor_file_` path). Not `window.print()`.       |
 | Local image durability  | Also written under Capacitor `Directory.Data` (`product-images/`)                                                  |
 | Barcode (camera)        | Cap camera permission → getUserMedia → bundled **ZXing** (no Google ML Kit / HTTPS module)                         |
@@ -65,10 +65,11 @@ UI components must not call Electron preload or Capacitor plugins directly.
 Permissions are requested on tap (or when enabling a feature), never at cold
 start except optional biometric unlock when the user opted in.
 
-`MainActivity` registers only `NovendPermissions` and `NovendPrint`. Camera,
-Share, BLE, biometrics, and Local Notifications load from `capacitor.plugins.json`.
-Do not re-register those to “fix” unimplemented errors — that usually means the
-WebView left the local boot origin without plugin allow-navigation.
+`MainActivity` registers `NovendPermissions`, `NovendPrint`, and `NovendCamera`.
+Official Camera / Share / Filesystem / LocalNotifications are not used on the
+Security or receipt critical path — those plugins can hang the WebView bridge
+after the hosted origin loads. Settings probes are exclusive (one native call
+at a time). BLE Discover uses the system device picker when available.
 
 ## Desktop registry
 

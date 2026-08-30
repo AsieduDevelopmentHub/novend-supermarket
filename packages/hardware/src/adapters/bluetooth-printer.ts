@@ -144,6 +144,38 @@ export function createBluetoothPrinterControls(): BluetoothPrinterControls {
       const ready = await ensureBle();
       if (!ready.ok) return ready as HardwareResult<{ devices: BluetoothPrinterDevice[] }>;
 
+      try {
+        const picker = BleClient as typeof BleClient & {
+          requestDevice?: (options?: {
+            optionalServices?: string[];
+          }) => Promise<{ deviceId: string; name?: string }>;
+        };
+        if (typeof picker.requestDevice === "function") {
+          const device = await picker.requestDevice({
+            optionalServices: PRINT_SERVICE_CANDIDATES,
+          });
+          if (device?.deviceId) {
+            return {
+              ok: true,
+              data: {
+                devices: [
+                  {
+                    id: device.deviceId,
+                    name: device.name?.trim() || "Bluetooth printer",
+                  },
+                ],
+              },
+            };
+          }
+        }
+      } catch (error) {
+        const raw = error instanceof Error ? error.message : String(error ?? "");
+        if (/cancel/i.test(raw)) {
+          return { ok: false, message: "Cancelled", data: { devices: [] } };
+        }
+        /* Fall through to a background scan if the system picker is unavailable. */
+      }
+
       const devices: BluetoothPrinterDevice[] = [];
       const seen = new Set<string>();
       try {
@@ -151,7 +183,6 @@ export function createBluetoothPrinterControls(): BluetoothPrinterControls {
           const id = result.device.deviceId;
           const name = result.device.name || result.localName || "Bluetooth printer";
           if (!id || seen.has(id)) return;
-          // Prefer devices that look like printers; still keep unnamed for manual pick.
           seen.add(id);
           devices.push({ id, name });
         });
