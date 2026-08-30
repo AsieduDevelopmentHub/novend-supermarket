@@ -8,6 +8,16 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.13 — 2026-08-30
+
+Android APK and Convex mobile updates only. Desktop installers stay on v0.3.11 until the next full (`targets: all`) product release.
+
+### Fixed
+
+- Release APK compile: `NovendNativeBridge.appendChunk` now writes the decoded chunk without an uncaught `IOException` (`v0.3.12` Product Release failed on `:app:compileReleaseJavaWithJavac`).
+
+---
+
 ## v0.3.12 — 2026-08-30
 
 Android APK and Convex mobile updates only. Desktop installers stay on v0.3.11 until the next full (`targets: all`) product release.
