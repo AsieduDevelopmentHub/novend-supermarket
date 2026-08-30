@@ -161,11 +161,11 @@ password, license edits) still requires a connection.
 ## Desktop and Capacitor
 
 Electron first-run must load the hosted app so the service worker and Dexie
-initialize. Later launches client-navigate from a local boot page. See
-`DESKTOP_PLATFORM.md`.
+initialize. Later launches client-navigate from `offline-boot.html` straight
+to `/dashboard?fromBoot=1` (no `/api/health` gate). See `DESKTOP_PLATFORM.md`.
 
-Capacitor Android/iOS use the same boot pattern (`apps/mobile/www/index.html`)
-instead of a remote `server.url` load. See `CAPACITOR_MOBILE.md`.
+Capacitor Android/iOS use the same cache-first boot (`apps/mobile/www/index.html`).
+See `CAPACITOR_MOBILE.md`.
 
 ## Billing (offline-aware)
 

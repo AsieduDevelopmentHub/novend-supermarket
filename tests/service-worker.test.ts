@@ -50,14 +50,12 @@ describe("service worker navigation safety", () => {
 });
 
 describe("boot health probe", () => {
-  it("does not send Cache-Control via fetch cache mode (avoids CORS preflight)", () => {
+  it("Capacitor and Electron boot do not gate on /api/health", () => {
     expect(boot).not.toContain('cache: "no-store"');
     expect(electronBoot).not.toContain('cache: "no-store"');
-    expect(electronBoot).toContain("/api/health?boot=");
-  });
-
-  it("Capacitor boot does not gate on /api/health (weak signal reports online)", () => {
     expect(boot).not.toContain("/api/health?boot=");
+    expect(electronBoot).not.toContain("/api/health?boot=");
     expect(boot).toContain("fromBoot=1");
+    expect(electronBoot).toContain("fromBoot=1");
   });
 });
