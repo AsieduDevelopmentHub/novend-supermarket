@@ -24,6 +24,7 @@ import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { buildLocalSalesReport, type LocalSalesReport } from "@/lib/offline/ui-cache";
 import { salesReportExportTable } from "@/lib/export/sales-report";
 import { formatCurrency, formatNumber } from "@/lib/currency";
+import { useNarrowScreen } from "@/hooks/use-narrow-screen";
 import { toast } from "sonner";
 import {
   Area,
@@ -65,6 +66,7 @@ export function ReportsView() {
   const { capabilities, planName } = useLicense();
   const online = useConnectivity();
   const router = useRouter();
+  const narrow = useNarrowScreen();
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
   const [start, setStart] = useState(weekAgoLocal);
   const [end, setEnd] = useState(todayLocal);
@@ -163,7 +165,7 @@ export function ReportsView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6 overflow-x-hidden">
       <PageHeader
         title="Reports"
         description="Sales performance over a selected period."
@@ -188,11 +190,21 @@ export function ReportsView() {
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="space-y-1">
             <p className="text-muted-foreground text-xs">Start</p>
-            <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            <Input
+              type="date"
+              className="w-full min-w-0 max-w-full"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+            />
           </div>
           <div className="space-y-1">
             <p className="text-muted-foreground text-xs">End</p>
-            <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+            <Input
+              type="date"
+              className="w-full min-w-0 max-w-full"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+            />
           </div>
           {isAdmin && online ? (
             <BranchFilter
@@ -265,17 +277,18 @@ export function ReportsView() {
             />
           </Grid>
 
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader>
               <CardTitle>Sales Over Time</CardTitle>
             </CardHeader>
-            <CardContent className="h-72 cursor-pointer">
+            <CardContent className="h-52 min-w-0 cursor-pointer overflow-hidden sm:h-72">
               {report.trend.length === 0 ? (
                 <EmptyState title="No sales in this range" />
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={report.trend}
+                    margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
                     onClick={(state) => {
                       const date = state?.activeLabel;
                       if (typeof date === "string") router.push(dayHref(date));
@@ -289,7 +302,7 @@ export function ReportsView() {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="date" tickFormatter={(v) => String(v).slice(5)} fontSize={12} />
-                    <YAxis fontSize={12} />
+                    <YAxis hide={narrow} width={36} fontSize={12} />
                     <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                     <Area
                       type="monotone"
@@ -303,43 +316,69 @@ export function ReportsView() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader>
               <CardTitle>Daily breakdown</CardTitle>
               <CardDescription>Open a day to see its orders and refunds.</CardDescription>
             </CardHeader>
-            <CardContent className="overflow-x-auto p-0">
+            <CardContent className="min-w-0 p-0">
               {report.daily.length === 0 ? (
                 <div className="p-6">
                   <EmptyState title="No rows" />
                 </div>
               ) : (
-                <table className="w-full min-w-[560px] text-left text-sm">
-                  <thead className="text-muted-foreground">
-                    <tr>
-                      <th className="px-4 pt-1 pb-2 font-medium">Date</th>
-                      <th className="px-4 pt-1 pb-2 font-medium">Orders</th>
-                      <th className="px-4 pt-1 pb-2 font-medium">Items Sold</th>
-                      <th className="px-4 pt-1 pb-2 font-medium">Total Sales</th>
-                      <th className="px-4 pt-1 pb-2 font-medium">Refunds</th>
-                      <th className="px-4 pt-1 pb-2 font-medium">
-                        <span className="sr-only">Open</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <>
+                  <div className="hidden max-w-full overflow-x-auto md:block">
+                    <table className="w-full min-w-[560px] text-left text-sm">
+                      <thead className="text-muted-foreground">
+                        <tr>
+                          <th className="px-4 pt-1 pb-2 font-medium">Date</th>
+                          <th className="px-4 pt-1 pb-2 font-medium">Orders</th>
+                          <th className="px-4 pt-1 pb-2 font-medium">Items Sold</th>
+                          <th className="px-4 pt-1 pb-2 font-medium">Total Sales</th>
+                          <th className="px-4 pt-1 pb-2 font-medium">Refunds</th>
+                          <th className="px-4 pt-1 pb-2 font-medium">
+                            <span className="sr-only">Open</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {report.daily.map((row) => (
+                          <ClickableTableRow key={row.date} href={dayHref(row.date)}>
+                            <td className="px-4 py-2.5 font-medium">{row.date}</td>
+                            <td className="px-4 py-2.5">{row.orders}</td>
+                            <td className="px-4 py-2.5">{row.itemsSold}</td>
+                            <td className="px-4 py-2.5">{formatCurrency(row.totalSales)}</td>
+                            <td className="px-4 py-2.5">{formatCurrency(row.refunds ?? 0)}</td>
+                            <td className="text-primary px-4 py-2.5 text-xs font-medium">
+                              View →
+                            </td>
+                          </ClickableTableRow>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="space-y-2 p-3 md:hidden">
                     {report.daily.map((row) => (
-                      <ClickableTableRow key={row.date} href={dayHref(row.date)}>
-                        <td className="px-4 py-2.5 font-medium">{row.date}</td>
-                        <td className="px-4 py-2.5">{row.orders}</td>
-                        <td className="px-4 py-2.5">{row.itemsSold}</td>
-                        <td className="px-4 py-2.5">{formatCurrency(row.totalSales)}</td>
-                        <td className="px-4 py-2.5">{formatCurrency(row.refunds ?? 0)}</td>
-                        <td className="text-primary px-4 py-2.5 text-xs font-medium">View →</td>
-                      </ClickableTableRow>
+                      <Link
+                        key={row.date}
+                        href={dayHref(row.date)}
+                        className="border-border hover:border-primary block min-w-0 rounded-lg border px-3 py-2.5"
+                      >
+                        <div className="flex justify-between gap-2">
+                          <p className="min-w-0 truncate font-medium">{row.date}</p>
+                          <p className="shrink-0 font-semibold whitespace-nowrap">
+                            {formatCurrency(row.totalSales)}
+                          </p>
+                        </div>
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          {row.orders} orders · {row.itemsSold} items ·{" "}
+                          {formatCurrency(row.refunds ?? 0)} refunds
+                        </p>
+                      </Link>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

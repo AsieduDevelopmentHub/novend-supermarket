@@ -173,6 +173,8 @@
   /* Fallback when WebView reports 0 inset (common with remote server.url). */
   --native-status-pad: max(env(safe-area-inset-top, 0px), 1.75rem);
   --native-header-row: 2.75rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* Solid status strip — light background so system icons stay dark/readable. */

@@ -9,7 +9,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { canvasToProductImageFile } from "@/lib/uploads/image";
+import {
+  canvasToProductImageFile,
+  cropCanvasToSquare,
+  cropFileToSquare,
+} from "@/lib/uploads/image";
+import { canUseLiveCamera } from "@/services/hardware";
+import { Hardware, isCapacitor } from "@novend/hardware";
 import { showError } from "@/lib/errors";
 import { Camera, Loader2 } from "lucide-react";
 
@@ -42,7 +48,7 @@ function cameraErrorMessage(err: unknown): string {
 }
 
 async function openCameraStream(): Promise<MediaStream> {
-  if (!navigator.mediaDevices?.getUserMedia) {
+  if (!canUseLiveCamera()) {
     throw new Error("Camera is not available in this browser");
   }
 
@@ -56,7 +62,6 @@ async function openCameraStream(): Promise<MediaStream> {
       audio: false,
     });
   } catch (firstError) {
-    // Desktop webcams often reject facingMode=environment — fall back to any camera.
     try {
       return await navigator.mediaDevices.getUserMedia({
         video: true,
@@ -70,16 +75,23 @@ async function openCameraStream(): Promise<MediaStream> {
 
 /**
  * In-app getUserMedia capture for product images (Capacitor, Electron, PWA).
- * Same camera path as barcode — do not use native Camera plugins here.
+ * Native still capture is a manual fallback only — never auto-launched on
+ * open, or a finished shot retriggers the system camera.
  */
 export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const onCaptureRef = useRef(onCapture);
+  const closingRef = useRef(false);
   const [session, setSession] = useState(0);
   const [ready, setReady] = useState(false);
   const [starting, setStarting] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const live = canUseLiveCamera();
+  const nativeFallback = isCapacitor() && !live;
+
+  onCaptureRef.current = onCapture;
 
   function stopStream() {
     const stream = streamRef.current;
@@ -99,12 +111,14 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
 
   function handleOpenChange(next: boolean) {
     if (!next) {
+      closingRef.current = true;
       stopStream();
       setReady(false);
       setStarting(false);
       setError(null);
       setPending(false);
     } else {
+      closingRef.current = false;
       setSession((n) => n + 1);
       setReady(false);
       setStarting(false);
@@ -114,7 +128,8 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
     onOpenChange(next);
   }
 
-  const startCamera = useCallback(async () => {
+  const startLiveCamera = useCallback(async () => {
+    if (closingRef.current) return;
     setStarting(true);
     setError(null);
     setReady(false);
@@ -129,6 +144,10 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
 
     try {
       const stream = await openCameraStream();
+      if (closingRef.current) {
+        for (const track of stream.getTracks()) track.stop();
+        return;
+      }
       streamRef.current = stream;
       video.srcObject = stream;
       await video.play();
@@ -141,27 +160,51 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
     }
   }, []);
 
+  const captureNativeStill = useCallback(async () => {
+    if (closingRef.current) return;
+    setStarting(true);
+    setError(null);
+    try {
+      const result = await Hardware.camera.capturePhoto();
+      if (closingRef.current) return;
+      if (!result.ok || !result.data?.file) {
+        if (result.ok === false && /cancel/i.test(result.message ?? "")) return;
+        setError(result.ok === false ? result.message : "Could not open camera");
+        return;
+      }
+      const file = await cropFileToSquare(result.data.file);
+      if (closingRef.current) return;
+      onCaptureRef.current(file);
+      handleOpenChange(false);
+    } catch (err) {
+      if (closingRef.current) return;
+      const message = err instanceof Error ? err.message : "";
+      if (/cancel/i.test(message)) return;
+      setError(cameraErrorMessage(err));
+    } finally {
+      setStarting(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      closingRef.current = false;
+      return;
+    }
+    if (!live) return;
     const timer = window.setTimeout(() => {
-      void startCamera();
+      void startLiveCamera();
     }, 50);
     return () => window.clearTimeout(timer);
-  }, [open, session, startCamera]);
+  }, [open, session, live, startLiveCamera]);
 
   async function onSnap() {
     const video = videoRef.current;
-    if (!video || !ready) return;
+    if (!video || !ready || closingRef.current) return;
     setPending(true);
     try {
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth || 1280;
-      canvas.height = video.videoHeight || 720;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Could not capture frame");
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const file = await canvasToProductImageFile(canvas);
-      onCapture(file);
+      const file = await canvasToProductImageFile(cropCanvasToSquare(video));
+      onCaptureRef.current(file);
       handleOpenChange(false);
     } catch (err) {
       showError(err, "Could not capture photo");
@@ -176,36 +219,56 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
         <DialogHeader>
           <DialogTitle>Take photo</DialogTitle>
         </DialogHeader>
-        <div className="bg-muted relative aspect-video overflow-hidden rounded-lg">
+        <div className="bg-muted relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-lg">
           <video
             ref={videoRef}
             className={ready ? "h-full w-full object-cover" : "hidden"}
             playsInline
             muted
           />
-          {error ? (
+          {error || nativeFallback ? (
             <div className="bg-muted absolute inset-0 grid place-items-center gap-3 p-4 text-center">
-              <p className="text-muted-foreground text-sm">{error}</p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void startCamera()}
-                disabled={starting}
-              >
-                {starting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Camera className="mr-2 h-4 w-4" />
-                )}
-                Try again
-              </Button>
-              <p className="text-muted-foreground text-xs">
-                If the prompt never appears, open site settings and set Camera to Allow, then retry.
+              <p className="text-muted-foreground text-sm">
+                {error ??
+                  "Live camera preview needs a secure connection. Use the device camera, or open Novend over HTTPS."}
               </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {live ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void startLiveCamera()}
+                    disabled={starting}
+                  >
+                    {starting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="mr-2 h-4 w-4" />
+                    )}
+                    Try again
+                  </Button>
+                ) : null}
+                {nativeFallback ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void captureNativeStill()}
+                    disabled={starting}
+                  >
+                    {starting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="mr-2 h-4 w-4" />
+                    )}
+                    Device camera
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ) : null}
-          {starting && !ready ? (
+          {starting && !ready && live ? (
             <div className="bg-muted/80 absolute inset-0 grid place-items-center">
               <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
             </div>

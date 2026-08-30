@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, MouseEvent } from "react";
+import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
 import { X } from "lucide-react";
 import { Toaster as SonnerToaster, toast } from "sonner";
 
@@ -19,6 +19,12 @@ const toasterStyle = {
  * dismisses it.
  */
 export function Toaster() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted) return null;
+
   return (
     <div onClick={onToastClick}>
       <SonnerToaster

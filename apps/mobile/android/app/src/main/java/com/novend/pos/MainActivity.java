@@ -1,11 +1,13 @@
 package com.novend.pos;
 
 import android.os.Bundle;
+import android.webkit.JsResult;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.BridgeWebChromeClient;
 import com.getcapacitor.BridgeWebViewClient;
 
 public class MainActivity extends BridgeActivity {
@@ -14,6 +16,7 @@ public class MainActivity extends BridgeActivity {
     private static final String LOCAL_RECOVERY = "https://localhost/?stay=1";
 
     private boolean nativeBridgeAttached = false;
+    private boolean leavePageBypassInstalled = false;
     private boolean recovering = false;
     private int hostedFailures = 0;
 
@@ -29,6 +32,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         attachNativeBridge();
+        installLeavePageBypass();
         installErrorRecovery();
     }
 
@@ -36,6 +40,7 @@ public class MainActivity extends BridgeActivity {
     public void onStart() {
         super.onStart();
         attachNativeBridge();
+        installLeavePageBypass();
         installErrorRecovery();
     }
 
@@ -51,6 +56,27 @@ public class MainActivity extends BridgeActivity {
             webView.addJavascriptInterface(new NovendNativeBridge(this), "NovendNative");
             nativeBridgeAttached = true;
         }
+    }
+
+    /**
+     * Login uses location.replace after the user typed credentials. Android's
+     * default WebChromeClient then shows Stay / Leave. Always leave — this is
+     * an in-app navigation, not a lost-form warning the cashier can act on.
+     */
+    private void installLeavePageBypass() {
+        if (leavePageBypassInstalled || this.bridge == null || this.bridge.getWebView() == null) {
+            return;
+        }
+        this.bridge.getWebView().setWebChromeClient(
+                new BridgeWebChromeClient(this.bridge) {
+                    @Override
+                    public boolean onJsBeforeUnload(
+                            WebView view, String url, String message, JsResult result) {
+                        result.confirm();
+                        return true;
+                    }
+                });
+        leavePageBypassInstalled = true;
     }
 
     private void installErrorRecovery() {

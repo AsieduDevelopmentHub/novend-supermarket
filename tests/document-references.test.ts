@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   allocateInvoiceNumber,
   allocateReturnNumber,
@@ -13,6 +13,17 @@ describe("document references", () => {
     expect(invoice).toMatch(/^INV-[A-F0-9]{16}$/);
     expect(ret).toMatch(/^RET-[A-F0-9]{16}$/);
     expect(invoice).not.toBe(allocateInvoiceNumber());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("allocates invoices when crypto.randomUUID is missing", () => {
+    const getRandomValues = globalThis.crypto.getRandomValues.bind(globalThis.crypto);
+    vi.stubGlobal("crypto", { getRandomValues });
+    const invoice = allocateInvoiceNumber();
+    expect(invoice).toMatch(/^INV-[A-F0-9]{16}$/);
   });
 
   it("accepts the INV- number printed at checkout", () => {

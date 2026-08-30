@@ -20,7 +20,7 @@ export function MobileBottomNav() {
     <nav
       aria-label="Primary"
       data-tour="mobile-bottom-navigation"
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 xl:hidden"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 w-full max-w-[100svw] xl:hidden"
     >
       <div className="novend-mobile-tabbar pointer-events-auto">
         <div className="novend-mobile-tabbar-inner">

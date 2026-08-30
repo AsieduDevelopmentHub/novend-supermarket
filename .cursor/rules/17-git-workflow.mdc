@@ -5,11 +5,16 @@ alwaysApply: false
 
 # Git Workflow
 
-- **Default integration branch:** `staging` (day-to-day commits). CI runs on
-  `staging` and `main`.
-- **`main`:** protected production branch — update only via PR from `staging`
-  (or a focused fix branch). Squash-merge that PR so `main` stays one commit
-  per release.
+```text
+feature/*  →  PR  →  staging  →  CI / review  →  PR  →  main  →  tag v* / production
+```
+
+- **Never push directly to `main`.** Production changes land only through a
+  pull request. The required CI job name is **`quality`** (`.github/workflows/ci.yml`).
+- **Default integration branch:** `staging`. Day-to-day work and feature PRs
+  target `staging`. CI runs on `staging` and `main`.
+- **`main`:** production. Prefer a squash-merge from `staging` (or a focused
+  release branch) so `main` stays one commit per release.
 - After `main` updates, `sync-staging.yml` **merge-commits** `main` back into
   `staging` (or opens a PR if it conflicts). That is what keeps squash from
   stacking version/`CHANGELOG` conflicts on the next release. The sync PR
@@ -19,3 +24,6 @@ alwaysApply: false
 - Never commit secrets.
 - Small, reviewable diffs. Include summary, test plan, and docs when architecture or business rules change.
 - Product releases: bump versions on `staging`, open PR → `main`, then tag `v*` (on the merged main commit preferred) to run Product Release.
+- GitHub branch protection / rulesets need a public repo or GitHub Pro on a
+  private repo. Until that is enabled, treat the policy above as mandatory
+  and do not use `git push origin main`.

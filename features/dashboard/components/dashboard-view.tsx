@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import { formatCurrency, formatNumber } from "@/lib/currency";
 import { formatTime } from "@/lib/date";
@@ -16,6 +16,7 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { useLocalStorage } from "@/hooks/use-ui";
+import { useNarrowScreen } from "@/hooks/use-narrow-screen";
 import {
   parseTopSellingMetric,
   sortTopSelling,
@@ -49,18 +50,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const PIE_COLORS = ["#38bdf8", "#0ea5e9", "#111827", "#16a34a"];
-
-function useNarrowScreen() {
-  const [narrow, setNarrow] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 640px)");
-    const update = () => setNarrow(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-  return narrow;
-}
 
 function RecentSalesTable({
   sales,

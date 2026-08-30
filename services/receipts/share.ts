@@ -1,7 +1,8 @@
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
-import { bytesToBlob, downloadBlob } from "@/lib/export/download";
+import { bytesToBlob, downloadBlob, shareBlob } from "@/lib/export/download";
+import { isCapacitor } from "@novend/hardware";
 import { normalizeReceiptPayload } from "@/services/printing";
 
 /** Plain-text receipt for the native share sheet (WhatsApp, Messages, email, …). */
@@ -54,9 +55,9 @@ function receiptPdfFile(bytes: Uint8Array, fileName: string): File {
 }
 
 /**
- * PDF handoff. Share uses the Web Share API when the sheet can take a file.
- * Save / share-fallback go through `downloadBlob`, which writes Downloads on
- * Capacitor via the native JavascriptInterface (not the hung plugin bridge).
+ * PDF handoff. Capacitor share opens the Android ACTION_SEND sheet via
+ * `window.NovendNative` (not the hung Capacitor Share plugin). Web/Electron
+ * use the Web Share API when it can take a file, then `downloadBlob`.
  */
 async function offerReceiptPdf(
   bytes: Uint8Array,
@@ -67,6 +68,12 @@ async function offerReceiptPdf(
 ): Promise<{ ok: boolean; message?: string; via?: "share" | "download" }> {
   const blob = bytesToBlob(bytes, "application/pdf");
   const file = receiptPdfFile(bytes, fileName);
+
+  if (preferShare && isCapacitor()) {
+    if (await shareBlob(fileName, blob)) return { ok: true, via: "share" };
+    return { ok: false, message: "Could not open the share sheet. Update Novend POS and try again." };
+  }
+
   if (preferShare && typeof navigator !== "undefined") {
     try {
       const canShareFiles =

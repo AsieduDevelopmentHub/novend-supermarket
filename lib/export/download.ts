@@ -10,6 +10,7 @@ type NativeDownloads = {
   beginSave: (fileName: string, mimeType: string) => void;
   appendChunk: (base64: string) => void;
   finishSave: () => boolean;
+  finishShare?: () => boolean;
 };
 
 function nativeDownloads(): NativeDownloads | null {
@@ -38,7 +39,11 @@ function bytesToBase64(bytes: Uint8Array): string {
 /** ~24KB raw → ~32KB base64, well under the Android binder transaction limit. */
 const NATIVE_CHUNK_BYTES = 24 * 1024;
 
-async function saveViaNativeBridge(filename: string, blob: Blob): Promise<boolean> {
+async function pushViaNativeBridge(
+  filename: string,
+  blob: Blob,
+  finish: (bridge: NativeDownloads) => boolean,
+): Promise<boolean> {
   const bridge = nativeDownloads();
   if (!bridge) return false;
   const buffer = new Uint8Array(await blob.arrayBuffer());
@@ -47,7 +52,19 @@ async function saveViaNativeBridge(filename: string, blob: Blob): Promise<boolea
   for (let offset = 0; offset < buffer.length; offset += NATIVE_CHUNK_BYTES) {
     bridge.appendChunk(bytesToBase64(buffer.subarray(offset, offset + NATIVE_CHUNK_BYTES)));
   }
-  return bridge.finishSave();
+  return finish(bridge);
+}
+
+async function saveViaNativeBridge(filename: string, blob: Blob): Promise<boolean> {
+  return pushViaNativeBridge(filename, blob, (bridge) => bridge.finishSave());
+}
+
+/** Open the Android share sheet with this file. Returns false when the bridge is missing. */
+export async function shareBlob(filename: string, blob: Blob): Promise<boolean> {
+  return pushViaNativeBridge(filename, blob, (bridge) => {
+    if (typeof bridge.finishShare !== "function") return false;
+    return bridge.finishShare();
+  });
 }
 
 function triggerAnchorDownload(filename: string, blob: Blob) {

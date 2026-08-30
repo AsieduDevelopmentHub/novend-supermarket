@@ -94,6 +94,35 @@ export async function resolvePostLoginPath(
 }
 
 /**
+ * Chrome / Android WebView treat a typed login form as unsaved edits. A
+ * following `location.replace` then shows “Leave this page?”. Syncing each
+ * field's default to its current value marks the document clean.
+ */
+export function prepareHardNavigation(): void {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  window.onbeforeunload = null;
+  const active = document.activeElement;
+  if (active instanceof HTMLElement) active.blur();
+  for (const form of Array.from(document.forms)) {
+    for (const element of Array.from(form.elements)) {
+      if (element instanceof HTMLInputElement) {
+        if (element.type === "checkbox" || element.type === "radio") {
+          element.defaultChecked = element.checked;
+        } else {
+          element.defaultValue = element.value;
+        }
+      } else if (element instanceof HTMLTextAreaElement) {
+        element.defaultValue = element.value;
+      } else if (element instanceof HTMLSelectElement) {
+        for (const option of Array.from(element.options)) {
+          option.defaultSelected = option.selected;
+        }
+      }
+    }
+  }
+}
+
+/**
  * Leave auth pages for the app shell.
  *
  * Capacitor / offline: SoftNav is not mounted on `/login`, so history+popstate
@@ -106,6 +135,7 @@ export function navigateAfterLogin(path: string, router: AppRouter): void {
   markSkipStartupSplash();
 
   if (typeof window !== "undefined" && (isCapacitor() || !navigator.onLine)) {
+    prepareHardNavigation();
     window.location.replace(path);
     return;
   }
@@ -117,6 +147,7 @@ export function navigateAfterLogin(path: string, router: AppRouter): void {
   window.setTimeout(() => {
     const here = window.location.pathname;
     if (here === "/login" || here === "/signup") {
+      prepareHardNavigation();
       window.location.assign(path);
     }
   }, HARD_NAV_FALLBACK_MS);

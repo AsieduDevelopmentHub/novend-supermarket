@@ -26,6 +26,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
+import { useNarrowScreen } from "@/hooks/use-narrow-screen";
 import { useOfflineAnalytics } from "@/hooks/use-offline-analytics";
 import { useLocalExpenses } from "@/hooks/use-offline-lists";
 import {
@@ -76,6 +77,7 @@ export function AnalyticsView() {
   const { isAdmin, isManager, branchName, branchId: myBranchId } = usePermissions();
   const { capabilities, planName } = useLicense();
   const online = useConnectivity();
+  const narrow = useNarrowScreen();
   const today = localIso(new Date());
   const weekAgo = (() => {
     const d = new Date();
@@ -443,16 +445,16 @@ export function AnalyticsView() {
               </Link>
             </div>
 
-            <Card>
+            <Card className="min-w-0">
               <CardHeader>
                 <CardTitle>Profit trend</CardTitle>
               </CardHeader>
-              <CardContent className="h-72">
+              <CardContent className="h-72 min-w-0 overflow-hidden">
                 {summary.trend.length === 0 ? (
                   <EmptyState title="No activity in this range" />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={summary.trend}>
+                    <AreaChart data={summary.trend} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="netFill" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.35} />
@@ -461,7 +463,7 @@ export function AnalyticsView() {
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                       <XAxis dataKey="period" fontSize={12} />
-                      <YAxis fontSize={12} />
+                      <YAxis hide={narrow} width={36} fontSize={12} />
                       <Tooltip
                         formatter={(value) => formatCurrency(Number(value))}
                         labelFormatter={(label) => String(label)}

@@ -6,6 +6,7 @@ import { applyBranchStockChange } from "./shared/branchStock";
 import { increaseLot, productTracksExpiry } from "./shared/lots";
 import { writeAuditLog } from "./shared/audit";
 import { rememberClientOp, replayClientOp } from "./shared/clientOps";
+import { randomHexId } from "./shared/randomId";
 import {
   productMatchesLookup,
   assertPositiveMoney,
@@ -305,7 +306,7 @@ export const recordPurchase = mutation({
 
     let reference: string | null = null;
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const candidate = `PO-${crypto.randomUUID().replaceAll("-", "").slice(0, 16).toUpperCase()}`;
+      const candidate = `PO-${randomHexId(16)}`;
       const existing = await ctx.db
         .query("supplierPurchases")
         .withIndex("by_reference", (q) => q.eq("reference", candidate))

@@ -1,6 +1,6 @@
 # Capacitor mobile platform
 
-Version: 1.6.0
+Version: 1.6.1
 
 ## Purpose
 
@@ -76,8 +76,9 @@ Web and Electron keep the existing sidebar unchanged.
 ## Native services (Phase 4)
 
 - Bluetooth thermal printing stays on Settings → Hardware (test path). Checkout
-  on Capacitor does **not** offer Print receipt. Share and Save PDF write to
-  Android Downloads via `window.NovendNative`.
+  honors Settings → Receipt template (`automatic` / `manual` / `never`). Print
+  on Capacitor uses the PDF Downloads handoff. Share opens the Android share
+  sheet via `window.NovendNative.finishShare`.
 - Biometrics + secure unlock token (Settings → Security)
 - Local notification topic prefs (push delivery can plug in later)
 - Soft OTA check via `NEXT_PUBLIC_MOBILE_UPDATE_JSON` (Later / Update now)
@@ -149,9 +150,10 @@ Fix checklist:
 3. Restart `pnpm dev` after `pnpm install` (applies the patch).
 4. Force-close the app and sign in again (clears stale WebView cookie state).
 
-Post-login redirect uses Next.js client navigation (not `window.location`) so
-Convex Auth's in-flight token refresh does not trigger Android's native
-"Confirm navigation" dialog.
+Post-login on Capacitor uses `location.replace` so the auth layout cannot
+stack over the dashboard (SoftNav is not mounted on `/login`). Before that
+replace, `prepareHardNavigation` marks the login form clean. Android also
+auto-confirms `onJsBeforeUnload` so WebView never shows Stay / Leave.
 
 ```bash
 npx convex env set SITE_URL http://192.168.1.202:3000

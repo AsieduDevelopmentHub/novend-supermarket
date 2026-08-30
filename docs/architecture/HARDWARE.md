@@ -1,6 +1,6 @@
 # Hardware architecture
 
-Version: 1.4.8
+Version: 1.4.10
 
 ## Purpose
 
@@ -48,12 +48,12 @@ UI components must not call Electron preload or Capacitor plugins directly.
 
 | Feature                 | Behavior                                                                                                           |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Camera / Take Photo     | **WebView `getUserMedia`** (same dialog as barcode). Do not call `NovendCamera` / `@capacitor/camera` after the hosted origin loads — those hang the bridge. |
+| Camera / Take Photo     | **In-dialog `getUserMedia`** on HTTPS / localhost. Native still is a **manual** button only when live preview is missing (Cap HTTP). Never auto-launch the system camera on open. |
 | Save receipt / export   | `downloadBlob` writes Android **Downloads** via `window.NovendNative` (WebView JavascriptInterface). Do not call Capacitor Filesystem / NovendPrint after the hosted origin loads. |
-| Share receipt           | Web Share API (`navigator.share` + files) when available; otherwise the same Downloads write. |
-| Print receipt           | Hidden on Capacitor. Desktop / web keep print. |
+| Share receipt           | Capacitor: Android share sheet via `window.NovendNative.finishShare` (PDF + FileProvider). Web/Electron: Web Share API when it can take a file; otherwise Downloads. |
+| Print receipt           | Settings `receiptPrintMode`: auto prints once, manual shows Print, never hides it. Capacitor print still uses the PDF/Downloads handoff (BLE stays on Settings). |
 | Local image durability  | Also written under Capacitor `Directory.Data` (`product-images/`)                                                  |
-| Barcode (camera)        | getUserMedia → bundled **ZXing** (no Google ML Kit / HTTPS module)                         |
+| Barcode (camera)        | In-dialog getUserMedia → bundled **ZXing**. Photograph-barcode is a manual fallback only. |
 | Barcode (HID)           | Terminal wedge config + `useBarcodeScanner` (desktop primary)                                                      |
 | Bluetooth thermal print | Settings test path only. After-sale print is not offered on Capacitor. |
 | Biometrics              | `@aparajita/capacitor-biometric-auth` — unlock token only (never password); maps supported / enrolled / available  |

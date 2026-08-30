@@ -1,10 +1,11 @@
+import { randomHexId } from "./randomId";
 import { TEXT_LIMITS, sanitizeText } from "./validation";
 
 const INVOICE_PREFIX = "INV-";
 const RETURN_PREFIX = "RET-";
 
 function allocateReference(prefix: "INV" | "RET"): string {
-  return `${prefix}-${crypto.randomUUID().replaceAll("-", "").slice(0, 16).toUpperCase()}`;
+  return `${prefix}-${randomHexId(16)}`;
 }
 
 function sanitizeReference(value: string, label: string, prefix: string): string {

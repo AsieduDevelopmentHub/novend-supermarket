@@ -370,7 +370,7 @@ export async function ensureDeviceId(db: NovendOfflineDb): Promise<string> {
   const existing = await getMeta(db, META_KEYS.deviceId);
   if (existing) return existing;
   const id =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : `dev-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   await setMeta(db, META_KEYS.deviceId, id);
@@ -383,7 +383,7 @@ export function nextProvisionalInvoice(): string {
 }
 
 export function newClientId(prefix = "op"): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return `${prefix}_${crypto.randomUUID()}`;
   }
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
