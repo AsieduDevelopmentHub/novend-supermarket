@@ -1,6 +1,6 @@
 # Capacitor mobile platform
 
-Version: 1.5.7
+Version: 1.5.8
 
 ## Purpose
 
@@ -63,7 +63,10 @@ On Capacitor only:
 - Desktop sidebar is hidden
 - Floating Onyx bottom tabs: Dashboard · Sales · Inventory · Orders · More
 - `/more` groups remaining destinations by role (includes About)
-- Main content pads above the tab bar + safe area
+- Tab icons/labels sit above Android gesture and 3-button navigation
+  (`--novend-system-nav-inset`: `max(env(safe-area-inset-bottom), 3rem)`).
+  The bar background fills the system-nav region. Main content uses
+  `--novend-tabbar-offset`.
 
 Web and Electron keep the existing sidebar unchanged.
 
