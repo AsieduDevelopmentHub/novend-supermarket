@@ -89,8 +89,8 @@
       <div id="failed" class="hidden">
         <h1>Can’t reach Novend right now</h1>
         <p id="failed-detail">
-          Check your internet connection, then try again. After you open Novend once while online,
-          this device can start from the local cache.
+          After you open Novend once while online, this device starts from the local
+          cache. Connect and try again if this is the first open on this phone.
         </p>
         <button type="button" id="retry">Try again</button>
       </div>
@@ -108,21 +108,20 @@
         // never paint the login brand chrome first.
         var entry = params.get("entry") || window.NOVEND_APP_ENTRY || "/dashboard";
         if (entry.charAt(0) !== "/") entry = "/" + entry;
-        // /api/boot is not intercepted by the hosted service worker (v8 skipped
-        // /api/*). It unregisters a poisoned worker, then opens the shell.
-        var target = appUrl + "/api/boot?entry=" + encodeURIComponent(entry) + "&fromBoot=1";
+        // Open the hosted shell directly. /api/boot is network-only (SW skips
+        // /api/*) so it can never succeed offline. After one online open the
+        // hosted service worker serves Cache Storage; Dexie restores the session.
+        var dest =
+          appUrl + entry + (entry.indexOf("?") >= 0 ? "&" : "?") + "fromBoot=1";
 
         var booting = document.getElementById("booting");
         var failed = document.getElementById("failed");
         var failedDetail = document.getElementById("failed-detail");
         var retry = document.getElementById("retry");
         var navigated = false;
-        var settled = false;
-        var requestInFlight = false;
         var stayOnBoot = params.get("stay") === "1";
 
         function showFailed(message) {
-          settled = true;
           booting.classList.add("hidden");
           failed.classList.remove("hidden");
           if (message && failedDetail) failedDetail.textContent = message;
@@ -131,92 +130,29 @@
         function leaveBoot() {
           if (navigated) return;
           navigated = true;
-          window.location.replace(target);
-        }
-
-        function go() {
-          if (requestInFlight || navigated) return;
-
-          // Offline-first: still hand off to the hosted origin so the service
-          // worker can serve the cached shell.
-          if (navigator.onLine === false) {
-            leaveBoot();
-            return;
-          }
-
-          // CORS health check — opaque no-cors fetch cannot detect a dead origin,
-          // and navigating anyway paints Chrome's "This page couldn't load".
-          requestInFlight = true;
-          var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-          var timer = window.setTimeout(function () {
-            if (controller) controller.abort();
-          }, 2500);
-
-          // Query bust only — a fetch Cache-Control header is not CORS-safelisted
-          // and forces a preflight OPTIONS the boot origin may fail.
-          var healthUrl = appUrl + "/api/health?boot=" + Date.now();
-          fetch(healthUrl, {
-            method: "GET",
-            credentials: "omit",
-            mode: "cors",
-            signal: controller ? controller.signal : undefined,
-          })
-            .then(function (response) {
-              window.clearTimeout(timer);
-              requestInFlight = false;
-              if (!response.ok) {
-                showFailed("Novend could not open. Check your connection and try again.");
-                return;
-              }
-              leaveBoot();
-            })
-            .catch(function () {
-              window.clearTimeout(timer);
-              requestInFlight = false;
-              if (navigator.onLine === false) {
-                leaveBoot();
-                return;
-              }
-              showFailed("Novend could not open. Check your connection and try again.");
-            });
+          window.location.replace(dest);
         }
 
         retry.addEventListener("click", function () {
           failed.classList.add("hidden");
           booting.classList.remove("hidden");
-          settled = false;
           navigated = false;
-          go();
+          leaveBoot();
         });
 
         window.addEventListener("online", function () {
           if (navigated) return;
           failed.classList.add("hidden");
           booting.classList.remove("hidden");
-          settled = false;
-          go();
+          leaveBoot();
         });
 
-        window.setTimeout(function () {
-          if (settled || navigated) return;
-          var host = window.location.hostname;
-          if (
-            host === "localhost" ||
-            host === "capacitor" ||
-            window.location.protocol === "file:"
-          ) {
-            showFailed(
-              navigator.onLine === false
-                ? "This device looks offline. Connect to the internet and try again."
-                : "Novend could not open. Check your connection and try again.",
-            );
-          }
-        }, 10000);
-
         if (stayOnBoot) {
-          showFailed("Novend could not open. Check your connection and try again.");
+          showFailed(
+            "Novend could not open the cached workspace. Connect once while online, then this device can start without a signal.",
+          );
         } else {
-          go();
+          leaveBoot();
         }
       })();
     </script>

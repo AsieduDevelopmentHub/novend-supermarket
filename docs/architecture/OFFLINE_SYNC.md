@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.12
+Version: 2.4.13
 
 ## Purpose
 
@@ -131,8 +131,10 @@ path without rewriting the browser location — `OfflineNavigationProvider` /
 `resolveOfflineView` honor `location.pathname`. Document navigations are
 **network-first** (`novend-pos-v9`): the worker unwraps followed redirects so
 Chrome does not paint `ERR_FAILED` on login → dashboard. `/login` and `/signup`
-are not intercepted. Capacitor WebViews do not register the worker (Dexie is
-the mobile offline replica). Static assets still use stale-while-revalidate.
+are not intercepted. Capacitor registers the same worker after one online
+open so cold start can load Cache Storage; Dexie remains the operational
+replica. The worker never stores a followed `/login` document under an
+app-shell URL. Static assets still use stale-while-revalidate.
 
 ### Deep links and return URL
 

@@ -6,8 +6,10 @@ const source = readFileSync(resolve(process.cwd(), "apps/mobile/www/index.html")
 const config = readFileSync(resolve(process.cwd(), "apps/mobile/www/app-config.js"), "utf8");
 
 describe("Capacitor local boot page", () => {
-  it("boots via /api/boot so an old service worker cannot intercept dashboard", () => {
-    expect(source).toContain("/api/boot?entry=");
+  it("opens the hosted dashboard directly so Cache Storage can serve offline", () => {
+    expect(source).toContain("fromBoot=1");
+    expect(source).not.toContain("/api/boot?entry=");
+    expect(source).not.toContain("/api/health");
     expect(config).toContain('NOVEND_APP_ENTRY = "/dashboard"');
   });
 
@@ -16,11 +18,9 @@ describe("Capacitor local boot page", () => {
     expect(config).toContain('NOVEND_APP_ENTRY = "/dashboard"');
   });
 
-  it("probes hosted health with CORS before navigating, and can stay on boot", () => {
-    expect(source).toContain("/api/health");
-    expect(source).toContain('mode: "cors"');
-    expect(source).not.toContain('cache: "no-store"');
+  it("only shows the connect-once screen after a WebView load failure (stay=1)", () => {
     expect(source).toContain('params.get("stay") === "1"');
     expect(source).toContain("showFailed");
+    expect(source).toContain("leaveBoot");
   });
 });

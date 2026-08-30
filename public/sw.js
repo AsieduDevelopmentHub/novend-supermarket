@@ -92,10 +92,32 @@ function fetchFollowRedirects(request) {
   }).then(unwrapRedirect);
 }
 
+const SHELL_PATHS = [
+  "/",
+  "/dashboard",
+  "/sales",
+  "/orders",
+  "/returns",
+  "/inventory",
+  "/wholesale",
+  "/customers",
+  "/products",
+  "/reports",
+  "/analytics",
+  "/settings",
+  "/more",
+  "/about",
+  "/users",
+  "/branches",
+  "/suppliers",
+  "/platform",
+];
+
 function isAppShellRequest(request, url) {
   if (request.mode === "navigate" || request.destination === "document") return true;
   if (request.headers.get("RSC") === "1") return true;
   if (url.searchParams.has("_rsc")) return true;
+  if (SHELL_PATHS.includes(url.pathname)) return true;
   return false;
 }
 
@@ -115,8 +137,19 @@ function isStaticAsset(url) {
   );
 }
 
+function isLoginDocumentUrl(urlString) {
+  try {
+    const parsed = new URL(urlString, self.location.origin);
+    return parsed.pathname === "/login" || parsed.pathname === "/signup";
+  } catch {
+    return false;
+  }
+}
+
 function cachePut(request, response) {
   if (!response || !response.ok || response.type === "opaque") return;
+  // Never store a followed login 302 under /dashboard (ERR_FAILED on Cap).
+  if (response.url && isLoginDocumentUrl(response.url)) return;
   const copy = unwrapRedirect(response.clone());
   void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
 }
@@ -176,7 +209,10 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (url.pathname.startsWith("/api/") || url.hostname.includes("convex")) return;
+  // /api/boot is the only API document older Capacitor APKs navigate to.
+  // Cache it so airplane-mode cold start can leave the local boot page.
+  if (url.hostname.includes("convex")) return;
+  if (url.pathname.startsWith("/api/") && url.pathname !== "/api/boot") return;
 
   // Browser must follow the authenticated /login → /dashboard 302 itself.
   if (isAuthDocument(url)) return;
@@ -199,10 +235,6 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
-
-  // Android WebView + SW navigation intercept is a known net::ERR_FAILED source.
-  const ua = request.headers.get("User-Agent") || "";
-  if (ua.includes("NovendCapacitor")) return;
 
   if (isAppShellRequest(request, url)) {
     event.respondWith(networkFirstDocument(request, url));
