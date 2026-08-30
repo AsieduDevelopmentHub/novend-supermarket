@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Hardware, type BiometricAvailability } from "@novend/hardware";
+import { Hardware, hasNovendNativeSecurity, type BiometricAvailability } from "@novend/hardware";
 import { randomUuid } from "@/convex/shared/randomId";
 import { Fingerprint, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,10 +19,7 @@ type BiometricUiState =
 
 /**
  * Optional biometric unlock — never stores the account password.
- * Secure storage keeps only a device unlock token after the user opts in.
- *
- * Never auto-call Cap biometry on mount — checkBiometry can block the WebView
- * bridge and freeze Settings (spinners stop, touches jam). Probe only on tap.
+ * Status and the system prompt go through window.NovendNative, not Cap plugins.
  */
 export function BiometricSecurityCard() {
   const [uiState, setUiState] = useState<BiometricUiState>("idle");
@@ -32,23 +29,6 @@ export function BiometricSecurityCard() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const checkGenerationRef = useRef(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const prefs = await Hardware.biometrics.getPrefs();
-        if (cancelled) return;
-        setEnabled(prefs.enabled);
-        setRequireOnLaunch(prefs.requireOnLaunch);
-      } catch {
-        /* prefs are best-effort */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const refreshAvailability = useCallback(async () => {
     const generation = ++checkGenerationRef.current;
@@ -93,6 +73,24 @@ export function BiometricSecurityCard() {
       setMessage("Could not check biometrics on this device.");
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const prefs = await Hardware.biometrics.getPrefs();
+        if (cancelled) return;
+        setEnabled(prefs.enabled);
+        setRequireOnLaunch(prefs.requireOnLaunch);
+      } catch {
+        /* prefs are best-effort */
+      }
+      if (!cancelled && hasNovendNativeSecurity()) await refreshAvailability();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshAvailability]);
 
   async function onToggleEnabled(next: boolean) {
     if (busy) return;

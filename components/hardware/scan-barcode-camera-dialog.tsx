@@ -113,7 +113,7 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
             onOpenChange(false);
             return;
           }
-          setError(photo.ok === false ? photo.message : "Could not open camera");
+          setError(photo.message ?? "Could not open camera");
           return;
         }
         const code = await decodeBarcodeFromImage(photo.data.file);

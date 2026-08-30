@@ -80,6 +80,7 @@ export {
 export { isNativePluginAvailable, pluginUnavailableMessage } from "./plugin-available";
 export { isNativeBridgeBusy, runExclusiveNative } from "./native-lock";
 export { isMediaStoreUri, toNativeFilePath, toShareableFileUri } from "./adapters/cap-uri";
+export { hasNovendNativeSecurity } from "./adapters/novend-native-security";
 
 export {
   withTimeout,

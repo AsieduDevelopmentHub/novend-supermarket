@@ -1,6 +1,6 @@
 # Hardware architecture
 
-Version: 1.4.10
+Version: 1.4.11
 
 ## Purpose
 
@@ -19,8 +19,9 @@ services/print · services/hardware · services/receipts
         ├── Web adapter
         ├── Electron adapter → window.novendDesktop
         └── Capacitor adapter → Camera, in-app ZXing barcode, BLE print,
-                                Filesystem, Share, Biometrics, Secure Storage,
-                                Local Notifications, App deep links
+                                Filesystem, Share, Secure Storage, App deep links
+                                + window.NovendNative (Downloads, share,
+                                notification state, biometrics)
         ↓
 apps/desktop IPC → hardware/registry   (Electron only)
 apps/mobile      → native plugins      (Capacitor)
@@ -56,9 +57,9 @@ UI components must not call Electron preload or Capacitor plugins directly.
 | Barcode (camera)        | In-dialog getUserMedia → bundled **ZXing**. Photograph-barcode is a manual fallback only. |
 | Barcode (HID)           | Terminal wedge config + `useBarcodeScanner` (desktop primary)                                                      |
 | Bluetooth thermal print | Settings test path only. After-sale print is not offered on Capacitor. |
-| Biometrics              | `@aparajita/capacitor-biometric-auth` — unlock token only (never password); maps supported / enrolled / available  |
+| Biometrics              | Status + prompt via `window.NovendNative` (`BiometricManager` / `BiometricPrompt`). Unlock token only. |
 | Secure storage          | `@aparajita/capacitor-secure-storage` for unlock token                                                             |
-| Notifications           | Check is JS-only (never probes native). Enable opens Android app settings via intent. Topic prefs use `localStorage`. |
+| Notifications           | Check/open via `window.NovendNative` (`NotificationManagerCompat` + system notification settings). Topic prefs use `localStorage`. |
 | Deep links              | `novend://sale/…`, `novend://product/…` via `Hardware.app`                                                         |
 | Soft updates            | Optional `NEXT_PUBLIC_MOBILE_UPDATE_JSON` vs native version                                                        |
 
@@ -71,11 +72,8 @@ bridge**. `withTimeout` does not cancel the native call — the UI stays frozen
 until the app is force-closed.
 
 Critical paths stay off the hung plugin bridge: getUserMedia for camera,
-`window.NovendNative` for Downloads writes, Web Share for receipts, and no
-native probe on Notification Check. Enable Notifications opens
-`APPLICATION_DETAILS_SETTINGS` for `com.novend.pos` without `App.getInfo()`.
-Settings biometric probes stay exclusive. BLE Discover uses the system device
-picker when available.
+`window.NovendNative` for Downloads, share, notification state, and biometric
+status/prompt. BLE Discover uses the system device picker when available.
 
 ## Desktop registry
 

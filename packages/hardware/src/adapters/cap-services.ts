@@ -1,4 +1,3 @@
-import { BiometricAuth, BiometryType } from "@aparajita/capacitor-biometric-auth";
 import { SecureStorage } from "@aparajita/capacitor-secure-storage";
 import { App } from "@capacitor/app";
 import { LocalNotifications } from "@capacitor/local-notifications";
@@ -7,7 +6,6 @@ import type { HardwareResult } from "../types";
 import type {
   AppInfo,
   AppServicesAdapter,
-  BiometricAvailability,
   BiometricsAdapter,
   NotificationPermissionState,
   NotificationTopic,
@@ -15,13 +13,16 @@ import type {
   SecureStorageAdapter,
   UpdateInfo,
 } from "../native-types";
+import {
+  authenticateNativeBiometric,
+  openNativeNotificationSettings,
+  readNativeBiometricStatus,
+  readNativeNotificationState,
+} from "./novend-native-security";
 import { friendlyHardwareMessage } from "../permissions";
-import { runExclusiveNative } from "../native-lock";
 import {
   NATIVE_AVAILABILITY_TIMEOUT_MS,
   NATIVE_CALL_TIMEOUT_MS,
-  NATIVE_SETTINGS_PROBE_MS,
-  isNativeTimeoutError,
   withTimeout,
 } from "../timeout";
 import { compareAppVersions, normalizeAppVersion } from "../version";
@@ -39,108 +40,29 @@ const DEFAULT_TOPICS: Record<NotificationTopic, boolean> = {
   subscription_alerts: true,
 };
 
-function mapBiometry(type: BiometryType): BiometricAvailability["biometryType"] {
-  switch (type) {
-    case BiometryType.touchId:
-    case BiometryType.fingerprintAuthentication:
-      return "fingerprint";
-    case BiometryType.faceId:
-    case BiometryType.faceAuthentication:
-      return "face";
-    case BiometryType.irisAuthentication:
-      return "iris";
-    case BiometryType.none:
-      return "none";
-    default:
-      return "unknown";
-  }
-}
+const NATIVE_SECURITY_UPDATE_MESSAGE =
+  "This Novend build cannot use device security. Install the latest app.";
 
 export function createCapacitorBiometricsAdapter(): BiometricsAdapter {
   return {
-    async checkAvailability(): Promise<HardwareResult<BiometricAvailability>> {
-      const unavailable = (
-        message: string,
-        reason?: string,
-      ): HardwareResult<BiometricAvailability> => ({
+    async checkAvailability() {
+      const native = readNativeBiometricStatus();
+      if (native) return { ok: true, data: native };
+      return {
         ok: false,
-        message,
+        message: NATIVE_SECURITY_UPDATE_MESSAGE,
         data: {
           available: false,
           supported: false,
           enrolled: false,
-          biometryType: "none",
-          reason,
+          biometryType: "none" as const,
         },
-      });
-      return runExclusiveNative(
-        async () => {
-          try {
-            const result = await withTimeout(
-              BiometricAuth.checkBiometry(),
-              NATIVE_SETTINGS_PROBE_MS,
-            );
-            const biometryType = mapBiometry(result.biometryType);
-            const biometryTypes = Array.isArray(result.biometryTypes) ? result.biometryTypes : [];
-            const alternateType = biometryTypes
-              .map((type) => mapBiometry(type))
-              .find((type) => type !== "none");
-            const resolvedBiometryType =
-              biometryType !== "none" ? biometryType : (alternateType ?? "none");
-            const supported = resolvedBiometryType !== "none";
-            const available = Boolean(result.isAvailable || result.strongBiometryIsAvailable);
-            return {
-              ok: true,
-              data: {
-                available,
-                supported,
-                enrolled: available,
-                biometryType: supported ? resolvedBiometryType : "none",
-                reason: result.reason || undefined,
-              },
-            };
-          } catch (error) {
-            if (isNativeTimeoutError(error)) {
-              return unavailable("Biometrics took too long to respond. Try again.");
-            }
-            const raw = error instanceof Error ? error.message : String(error ?? "");
-            return unavailable(
-              friendlyHardwareMessage(raw, "Could not check biometrics on this device."),
-              raw || undefined,
-            );
-          }
-        },
-        unavailable("Device security is busy. Wait a moment, then try again."),
-        { cooldownMs: 800 },
-      );
+      };
     },
     async authenticate(reason) {
-      try {
-        await withTimeout(
-          BiometricAuth.authenticate({
-            reason,
-            cancelTitle: "Use password",
-            allowDeviceCredential: true,
-          }),
-          30_000,
-        );
-        return { ok: true };
-      } catch (error) {
-        if (isNativeTimeoutError(error)) {
-          return { ok: false, message: "Biometric unlock timed out. Try again." };
-        }
-        const raw = error instanceof Error ? error.message : String(error ?? "");
-        if (/cancel|user.?cancel/i.test(raw)) {
-          return { ok: false, message: "Cancelled" };
-        }
-        return {
-          ok: false,
-          message: friendlyHardwareMessage(
-            raw,
-            "Could not verify your identity. Try again or sign in with your password.",
-          ),
-        };
-      }
+      const native = authenticateNativeBiometric(reason);
+      if (native) return native;
+      return { ok: false, message: NATIVE_SECURITY_UPDATE_MESSAGE };
     },
   };
 }
@@ -211,27 +133,32 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
     async checkPermissions(): Promise<
       HardwareResult<{ granted: boolean; state: NotificationPermissionState }>
     > {
-      // Do not call NovendPermissions / LocalNotifications here. A hung Cap
-      // plugin freezes the whole WebView until the app is force-closed.
+      const native = readNativeNotificationState();
+      if (native) {
+        return { ok: true, data: { granted: native === "granted", state: native } };
+      }
       return {
-        ok: true,
-        data: { granted: false, state: "not-requested" },
+        ok: false,
+        message: NATIVE_SECURITY_UPDATE_MESSAGE,
+        data: { granted: false, state: "error" },
       };
     },
     async requestPermissions() {
-      const opened = await createCapacitorAppServicesAdapter().openAppSettings();
-      if (!opened.ok) {
+      if (openNativeNotificationSettings()) {
+        const native = readNativeNotificationState();
         return {
-          ok: false,
-          message:
-            opened.message ||
-            "Open Android Settings → Apps → Novend → Notifications.",
-          data: { granted: false, state: "error" as const },
+          ok: true,
+          data: {
+            granted: native === "granted",
+            state: native === "granted" ? "granted" : "denied",
+          },
         };
       }
       return {
-        ok: true,
-        data: { granted: false, state: "prompt" },
+        ok: false,
+        message:
+          "Could not open Android notification settings. Install the latest Novend app.",
+        data: { granted: false, state: "error" as const },
       };
     },
     async scheduleLocal({ title, body, id }) {
