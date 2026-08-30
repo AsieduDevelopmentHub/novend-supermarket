@@ -1,7 +1,6 @@
 import { BiometricAuth, BiometryType } from "@aparajita/capacitor-biometric-auth";
 import { SecureStorage } from "@aparajita/capacitor-secure-storage";
 import { App } from "@capacitor/app";
-import { registerPlugin } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { Preferences } from "@capacitor/preferences";
 import type { HardwareResult } from "../types";
@@ -16,7 +15,7 @@ import type {
   SecureStorageAdapter,
   UpdateInfo,
 } from "../native-types";
-import { friendlyHardwareMessage, permissionDeniedMessage } from "../permissions";
+import { friendlyHardwareMessage } from "../permissions";
 import { runExclusiveNative } from "../native-lock";
 import {
   NATIVE_AVAILABILITY_TIMEOUT_MS,
@@ -32,19 +31,6 @@ const BIOMETRIC_ENABLED_KEY = "novend.biometric.enabled";
 const BIOMETRIC_REQUIRE_LAUNCH_KEY = "novend.biometric.requireOnLaunch";
 const BIOMETRIC_UNLOCK_TOKEN_KEY = "novend.biometric.unlockToken";
 const NOTIFICATION_CHANNEL_ID = "novend_alerts";
-const NOTIFICATION_PERMISSION_REQUESTED_KEY = "novend.notifications.permissionRequested";
-
-type NovendPermissionsPlugin = {
-  checkNotificationPermission: () => Promise<{
-    state: "granted" | "denied" | "not-requested" | "permanently-denied";
-  }>;
-  markNotificationPermissionRequested: () => Promise<void>;
-  requestNotificationPermission: () => Promise<{
-    state: "granted" | "denied" | "not-requested" | "permanently-denied";
-  }>;
-};
-
-const NovendPermissions = registerPlugin<NovendPermissionsPlugin>("NovendPermissions");
 
 const DEFAULT_TOPICS: Record<NotificationTopic, boolean> = {
   stock_alerts: true,
@@ -209,17 +195,14 @@ async function ensureNotificationChannel(): Promise<void> {
   }
 }
 
-async function nativeNotificationState(): Promise<NotificationPermissionState | null> {
+function readTopicPrefsFromStorage(): Record<NotificationTopic, boolean> {
+  if (typeof localStorage === "undefined") return { ...DEFAULT_TOPICS };
   try {
-    const result = await withTimeout(
-      NovendPermissions.checkNotificationPermission(),
-      NATIVE_CALL_TIMEOUT_MS,
-    );
-    return result.state;
+    const raw = localStorage.getItem(TOPIC_KEY);
+    if (!raw) return { ...DEFAULT_TOPICS };
+    return { ...DEFAULT_TOPICS, ...(JSON.parse(raw) as Record<NotificationTopic, boolean>) };
   } catch {
-    // Older shells do not include the optional probe. LocalNotifications is
-    // still the source of truth in those builds.
-    return null;
+    return { ...DEFAULT_TOPICS };
   }
 }
 
@@ -228,70 +211,28 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
     async checkPermissions(): Promise<
       HardwareResult<{ granted: boolean; state: NotificationPermissionState }>
     > {
-      const failed = (
-        message: string,
-      ): HardwareResult<{ granted: boolean; state: NotificationPermissionState }> => ({
-        ok: false,
-        message,
-        data: { granted: false, state: "error" },
-      });
-      return runExclusiveNative(
-        async () => {
-          try {
-            const nativeState = await nativeNotificationState();
-            const state = nativeState ?? "not-requested";
-            return { ok: true, data: { granted: state === "granted", state } };
-          } catch (error) {
-            if (isNativeTimeoutError(error)) {
-              return failed("Notification permission check timed out. Try again.");
-            }
-            const raw = error instanceof Error ? error.message : String(error ?? "");
-            return failed(
-              friendlyHardwareMessage(raw, "Could not check notification permission."),
-            );
-          }
-        },
-        failed("Device security is busy. Wait a moment, then try again."),
-        { cooldownMs: 800 },
-      );
+      // Do not call NovendPermissions / LocalNotifications here. A hung Cap
+      // plugin freezes the whole WebView until the app is force-closed.
+      return {
+        ok: true,
+        data: { granted: false, state: "not-requested" },
+      };
     },
     async requestPermissions() {
-      try {
-        const native = await withTimeout(
-          NovendPermissions.requestNotificationPermission(),
-          30_000,
-        );
-        await Preferences.set({ key: NOTIFICATION_PERMISSION_REQUESTED_KEY, value: "true" });
-        const state = native.state;
-        if (state !== "granted") {
-          return {
-            ok: false,
-            message:
-              state === "permanently-denied"
-                ? "Notifications are blocked. Enable them in device settings."
-                : permissionDeniedMessage("notifications"),
-            data: { granted: false, state },
-          };
-        }
-        return { ok: true, data: { granted: true, state } };
-      } catch (error) {
-        if (isNativeTimeoutError(error)) {
-          return {
-            ok: false,
-            message: "Notification permission timed out. Try again from device settings.",
-            data: { granted: false, state: "error" as const },
-          };
-        }
-        const raw = error instanceof Error ? error.message : String(error ?? "");
+      const opened = await createCapacitorAppServicesAdapter().openAppSettings();
+      if (!opened.ok) {
         return {
           ok: false,
-          message: friendlyHardwareMessage(
-            raw,
-            "Novend needs notification permission to send stock and subscription alerts.",
-          ),
+          message:
+            opened.message ||
+            "Open Android Settings → Apps → Novend → Notifications.",
           data: { granted: false, state: "error" as const },
         };
       }
+      return {
+        ok: true,
+        data: { granted: false, state: "prompt" },
+      };
     },
     async scheduleLocal({ title, body, id }) {
       try {
@@ -317,27 +258,15 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
       }
     },
     async getTopicPrefs() {
-      try {
-        const stored = await withTimeout(
-          Preferences.get({ key: TOPIC_KEY }),
-          NATIVE_CALL_TIMEOUT_MS,
-        );
-        if (!stored.value) return { ok: true, data: { ...DEFAULT_TOPICS } };
-        return {
-          ok: true,
-          data: {
-            ...DEFAULT_TOPICS,
-            ...(JSON.parse(stored.value) as Record<NotificationTopic, boolean>),
-          },
-        };
-      } catch {
-        return { ok: true, data: { ...DEFAULT_TOPICS } };
-      }
+      return { ok: true, data: readTopicPrefsFromStorage() };
     },
     async setTopicPrefs(prefs) {
-      const current = await this.getTopicPrefs();
-      const next = { ...(current.data ?? DEFAULT_TOPICS), ...prefs };
-      await Preferences.set({ key: TOPIC_KEY, value: JSON.stringify(next) });
+      const next = { ...readTopicPrefsFromStorage(), ...prefs };
+      try {
+        localStorage.setItem(TOPIC_KEY, JSON.stringify(next));
+      } catch {
+        /* quota / private mode — prefs are best-effort */
+      }
       return { ok: true };
     },
   };
@@ -519,10 +448,9 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
     },
     async openAppSettings() {
       try {
-        const info = await App.getInfo();
         const isAndroid = typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
         const settingsUrl = isAndroid
-          ? `intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:${info.id};end`
+          ? "intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:com.novend.pos;end"
           : "app-settings:";
         window.open(settingsUrl, "_system");
         return { ok: true as const };

@@ -55,8 +55,8 @@ export function SaleCompletedDialog({
         toast.success(
           result.reason === "native"
             ? "Receipt sent to printer"
-            : result.reason === "system"
-              ? "Print dialog opened"
+            : result.reason === "download"
+              ? "Receipt PDF saved. Open it to print."
               : "Print dialog opened",
         );
     } finally {
@@ -82,7 +82,9 @@ export function SaleCompletedDialog({
     setBusy("share");
     try {
       const result = await shareReceiptOnDevice(normalized);
-      if (result.ok) toast.success("Receipt shared");
+      if (result.ok) {
+        toast.success(result.via === "download" ? "Receipt PDF saved" : "Receipt shared");
+      }
       else if (result.message !== "Cancelled") toast.error(result.message || shareFailedMessage());
     } finally {
       setBusy(null);
@@ -98,7 +100,7 @@ export function SaleCompletedDialog({
         toast.error(result.message || filesystemSaveFailedMessage());
         return;
       }
-      toast.success("Receipt PDF saved to Downloads");
+      toast.success("Receipt PDF saved");
     } catch {
       toast.error(filesystemSaveFailedMessage());
     } finally {

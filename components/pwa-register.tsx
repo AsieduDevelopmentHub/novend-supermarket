@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { isCapacitor } from "@novend/hardware";
 
 const SHELL_ROUTES = [
   "/dashboard",
@@ -24,12 +23,13 @@ const SHELL_ROUTES = [
 ];
 
 function shouldRegisterServiceWorker() {
-  // Android/iOS WebView + SW navigation intercept paints net::ERR_FAILED.
-  // Offline on Cap is Dexie + the local boot page, not Cache Storage.
-  if (typeof window !== "undefined" && isCapacitor()) return false;
   if (process.env.NODE_ENV === "production") return true;
   // Opt-in for local offline-refresh testing (Turbopack + SW can otherwise fight).
   return process.env.NEXT_PUBLIC_OFFLINE_SW === "1";
+}
+
+function isAuthPath(pathname: string) {
+  return pathname === "/login" || pathname === "/signup";
 }
 
 async function unregisterServiceWorkers() {
@@ -42,9 +42,10 @@ async function unregisterServiceWorkers() {
 }
 
 /**
- * Register the service worker so a full offline refresh can load the cached shell.
- * Development: off by default (unregister) unless NEXT_PUBLIC_OFFLINE_SW=1.
- * Capacitor: never register — WebView treats SW-handled redirects as ERR_FAILED.
+ * Register the service worker so Capacitor and the web PWA can open from
+ * Cache Storage after one online visit. Development stays off unless
+ * NEXT_PUBLIC_OFFLINE_SW=1. Do not warm shell routes from /login — that
+ * would cache a login document under /dashboard.
  */
 export function PwaRegister() {
   useEffect(() => {
@@ -62,8 +63,9 @@ export function PwaRegister() {
       .then(async (registration) => {
         await registration.update().catch(() => undefined);
         await navigator.serviceWorker.ready;
-        if (!navigator.onLine) return registration;
-        // Warm shell HTML + trigger static asset caching in the background.
+        if (!navigator.onLine || isAuthPath(window.location.pathname)) {
+          return registration;
+        }
         void Promise.all(
           SHELL_ROUTES.map((path) =>
             fetch(path, { credentials: "same-origin" }).catch(() => undefined),

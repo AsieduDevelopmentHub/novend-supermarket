@@ -38,12 +38,6 @@ import {
   queueCreateCategory,
   queueUpsertProduct,
 } from "@/lib/offline/replica-writes";
-import {
-  Hardware,
-  cameraCaptureFailedMessage,
-  isCapacitor,
-} from "@novend/hardware";
-
 export type CreatedCatalogProduct = {
   id: string;
   name: string;
@@ -276,26 +270,9 @@ function ProductFormBody({
     }
   }
 
-  async function applyHardwarePhoto(): Promise<void> {
-    const result = await Hardware.camera.capturePhoto();
-    if (!result.ok) {
-      if (result.message === "Cancelled") return;
-      toast.error(result.message || cameraCaptureFailedMessage());
-      return;
-    }
-    const next = result.data?.file;
-    if (!next) {
-      toast.error(cameraCaptureFailedMessage());
-      return;
-    }
-    await applyImageFile(next);
-  }
-
   async function onTakePhoto() {
-    if (isCapacitor()) {
-      await applyHardwarePhoto();
-      return;
-    }
+    // Same in-app getUserMedia camera as barcode. Native Camera / NovendCamera
+    // hangs the Capacitor bridge after the hosted origin loads.
     setCameraOpen(true);
   }
 

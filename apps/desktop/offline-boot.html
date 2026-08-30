@@ -119,6 +119,7 @@
         }
 
         function go() {
+          if (navigated) return;
           navigated = true;
           window.location.replace(target);
         }
@@ -126,51 +127,17 @@
         retry.addEventListener("click", function () {
           failed.classList.add("hidden");
           booting.classList.remove("hidden");
-          goOnlineOrBoot();
+          navigated = false;
+          go();
         });
 
-        function goOnlineOrBoot() {
-          if (navigator.onLine === false) {
-            go();
-            return;
-          }
-          var health = appUrl + "/api/health?boot=" + Date.now();
-          var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-          var timer = window.setTimeout(function () {
-            if (controller) controller.abort();
-          }, 2500);
-          fetch(health, {
-            method: "GET",
-            credentials: "omit",
-            mode: "cors",
-            signal: controller ? controller.signal : undefined,
-          })
-            .then(function (response) {
-              window.clearTimeout(timer);
-              if (!response.ok) {
-                showFailed();
-                return;
-              }
-              go();
-            })
-            .catch(function () {
-              window.clearTimeout(timer);
-              if (navigator.onLine === false) {
-                go();
-                return;
-              }
-              showFailed();
-            });
-        }
-
         window.setTimeout(function () {
-          if (!navigated) return;
           if (window.location.protocol === "file:") {
             showFailed();
           }
         }, 4000);
 
-        goOnlineOrBoot();
+        go();
       })();
     </script>
   </body>

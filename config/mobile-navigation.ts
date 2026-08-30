@@ -80,5 +80,5 @@ export function resolveMobileTab(pathname: string): MobileTabId {
   return "more";
 }
 
-/** Bottom inset for content above the curved Cap tab bar (+ safe area). */
+/** Bottom inset for content above the curved Cap tab bar + system nav. */
 export const MOBILE_TAB_BAR_OFFSET = "var(--novend-tabbar-offset)";

@@ -100,11 +100,11 @@ export function NotificationsSettingsCard() {
       setState(next);
       setPermissionKnown(true);
       setErrorMessage(result.ok ? null : result.message || null);
-      if (!result.ok || !result.data?.granted) {
-        toast.error(result.message || permissionDeniedMessage("notifications"));
+      if (!result.ok) {
+        toast.error(result.message || "Could not open device settings.");
         return false;
       }
-      toast.success("Notifications enabled");
+      toast.success("Opened device settings. Enable Notifications for Novend, then return.");
       return true;
     } finally {
       setBusy(false);
@@ -159,7 +159,8 @@ export function NotificationsSettingsCard() {
           Notifications
         </CardTitle>
         <CardDescription>
-          Local alerts on this device. Cloud push delivery can be connected later.
+          Choose which local alerts you want. Check, then open Android settings
+          to allow notifications for Novend.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -195,7 +196,7 @@ export function NotificationsSettingsCard() {
               disabled={busy}
               onClick={() => void enableNotifications()}
             >
-              Enable notifications
+              Open notification settings
             </Button>
           </div>
         ) : null}

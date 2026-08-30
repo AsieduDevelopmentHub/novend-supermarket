@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.12
+Version: 2.4.13
 
 ## Purpose
 
@@ -131,8 +131,10 @@ path without rewriting the browser location — `OfflineNavigationProvider` /
 `resolveOfflineView` honor `location.pathname`. Document navigations are
 **network-first** (`novend-pos-v9`): the worker unwraps followed redirects so
 Chrome does not paint `ERR_FAILED` on login → dashboard. `/login` and `/signup`
-are not intercepted. Capacitor WebViews do not register the worker (Dexie is
-the mobile offline replica). Static assets still use stale-while-revalidate.
+are not intercepted. Capacitor registers the same worker after one online
+open so cold start can load Cache Storage; Dexie remains the operational
+replica. The worker never stores a followed `/login` document under an
+app-shell URL. Static assets still use stale-while-revalidate.
 
 ### Deep links and return URL
 
@@ -159,11 +161,11 @@ password, license edits) still requires a connection.
 ## Desktop and Capacitor
 
 Electron first-run must load the hosted app so the service worker and Dexie
-initialize. Later launches client-navigate from a local boot page. See
-`DESKTOP_PLATFORM.md`.
+initialize. Later launches client-navigate from `offline-boot.html` straight
+to `/dashboard?fromBoot=1` (no `/api/health` gate). See `DESKTOP_PLATFORM.md`.
 
-Capacitor Android/iOS use the same boot pattern (`apps/mobile/www/index.html`)
-instead of a remote `server.url` load. See `CAPACITOR_MOBILE.md`.
+Capacitor Android/iOS use the same cache-first boot (`apps/mobile/www/index.html`).
+See `CAPACITOR_MOBILE.md`.
 
 ## Billing (offline-aware)
 

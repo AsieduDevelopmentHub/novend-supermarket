@@ -1,6 +1,6 @@
 # Desktop platform (Electron)
 
-Version: 1.0.2
+Version: 1.0.3
 
 ## Purpose
 
@@ -34,12 +34,16 @@ Chromium fails that call even when the service worker already cached the app
 Boot sequence (aligned with Princellen):
 
 1. Main loads local `offline-boot.html` (packaged under `extraResources`).
-2. The boot page CORS-probes `{host}/api/health`, then client-navigates to
-   `/dashboard` on the hosted origin (or shows the branded retry UI).
+2. The boot page **immediately** client-navigates to `/dashboard?fromBoot=1`.
+   It does not wait on `/api/health` — `navigator.onLine` is true on a weak
+   or dead radio, and that probe was the “Can’t start offline” screen.
 3. The registered service worker serves the cached document **network-first**
    and unwraps followed redirects so login → dashboard does not flash
    Chrome’s `ERR_FAILED` page. Dexie restores the shell.
 4. `persist:novend` keeps SW + IndexedDB + auth cookies across launches.
+   If the document never leaves `file:` (first run, no cache), the boot page
+   shows the connect-once retry. `did-fail-load` on the hosted origin does
+   the same.
 
 If the shell is not yet cached, recovery asks the cashier to connect once so the
 terminal can cache Novend POS. After that, offline launch uses Cache Storage —

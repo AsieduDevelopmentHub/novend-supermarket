@@ -22,16 +22,19 @@ describe("service worker navigation safety", () => {
     expect(sw).toContain("if (isAuthDocument(url)) return;");
   });
 
-  it("caches static branding for Capacitor instead of skipping the whole fetch handler", () => {
-    expect(sw).toContain("if (isStaticAsset(url))");
-    const staticIndex = sw.indexOf("if (isStaticAsset(url))");
-    const capIndex = sw.lastIndexOf('ua.includes("NovendCapacitor")');
-    expect(staticIndex).toBeGreaterThan(-1);
-    expect(capIndex).toBeGreaterThan(staticIndex);
+  it("does not skip Capacitor document fetches so offline boot can use Cache Storage", () => {
+    expect(sw).toContain("if (isAppShellRequest(request, url))");
+    expect(sw).not.toMatch(/if \(ua\.includes\("NovendCapacitor"\)\) return;/);
   });
 
-  it("leaves /api/ unintercepted so /api/boot can unregister a poisoned worker", () => {
+  it("never caches a followed login document under an app-shell URL", () => {
+    expect(sw).toContain("function isLoginDocumentUrl");
+    expect(sw).toContain("if (response.url && isLoginDocumentUrl(response.url)) return;");
+  });
+
+  it("leaves JSON /api/ unintercepted but can cache /api/boot for older Capacitor APKs", () => {
     expect(sw).toContain('url.pathname.startsWith("/api/")');
+    expect(sw).toContain('url.pathname !== "/api/boot"');
   });
 
   it("uses network-first for documents, not cache-first HTML", () => {
@@ -47,10 +50,12 @@ describe("service worker navigation safety", () => {
 });
 
 describe("boot health probe", () => {
-  it("does not send Cache-Control via fetch cache mode (avoids CORS preflight)", () => {
+  it("Capacitor and Electron boot do not gate on /api/health", () => {
     expect(boot).not.toContain('cache: "no-store"');
     expect(electronBoot).not.toContain('cache: "no-store"');
-    expect(boot).toContain("/api/health?boot=");
-    expect(electronBoot).toContain("/api/health?boot=");
+    expect(boot).not.toContain("/api/health?boot=");
+    expect(electronBoot).not.toContain("/api/health?boot=");
+    expect(boot).toContain("fromBoot=1");
+    expect(electronBoot).toContain("fromBoot=1");
   });
 });

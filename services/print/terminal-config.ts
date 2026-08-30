@@ -84,7 +84,14 @@ export function saveTerminalPrinterConfig(config: TerminalPrinterConfig) {
 
 export type PrintResult = {
   printed: boolean;
-  reason: "native" | "system" | "iframe" | "iframe_failed" | "ssr" | "native_unavailable";
+  reason:
+    | "native"
+    | "system"
+    | "download"
+    | "iframe"
+    | "iframe_failed"
+    | "ssr"
+    | "native_unavailable";
   copies?: number;
 };
 

@@ -1,6 +1,6 @@
 # Routing
 
-Version: 1.3.4
+Version: 1.3.5
 
 ## Public vs authenticated entry
 
@@ -23,11 +23,11 @@ platform administrators go to `/platform`; other users go to `/dashboard` (or
 **Downloads:** `/download` lists the latest stable desktop installers and mobile
 APK/store links from the live release registry. Settings → Downloads shows the
 same feeds inside the app. Marketing “Download” CTAs should point here — not
-only to `/#desktop`. `/api/health` is a public CORS probe used by Cap/Electron
-boot pages before they navigate to the hosted origin. Capacitor then opens
-`/api/boot` (public HTML trampoline) so an old service worker can be unregistered
-before `/dashboard` — older workers skip `/api/*` and would otherwise paint
-`ERR_FAILED` on the login → dashboard redirect.
+only to `/#desktop`. Capacitor and Electron boot pages do not wait on
+`/api/health` — they open `/dashboard?fromBoot=1` so a registered service
+worker can serve Cache Storage on a weak or dead radio. `/api/health` remains
+a public CORS probe for diagnostics. `/api/boot` remains a trampoline for
+poisoned older workers (they skip `/api/*`).
 
 **Desktop app:** Boots to `/dashboard` via `offline-boot.html` — never the
 landing page. The landing client also redirects if `window.novendDesktop` is

@@ -2650,8 +2650,15 @@ button.landing-feature-frame {
 
 /* —— Capacitor bottom navigation (login-sheet curvature + candy orb) —— */
 :root {
-  --novend-tabbar-stack: 5.5rem;
-  --novend-tabbar-offset: calc(var(--novend-tabbar-stack) + env(safe-area-inset-bottom, 0px));
+  --novend-tabbar-stack: 5.25rem;
+  /*
+   * 3-button / 2-button Android nav is ~48dp. Gesture is smaller.
+   * Capacitor WebView often reports env(safe-area-inset-bottom) as 0 after
+   * the hosted origin loads, so keep a 48px floor. The bar background
+   * fills the inset; icons and labels sit above the system nav.
+   */
+  --novend-system-nav-inset: max(env(safe-area-inset-bottom, 0px), 3rem);
+  --novend-tabbar-offset: calc(var(--novend-tabbar-stack) + var(--novend-system-nav-inset));
 }
 
 .novend-mobile-tabbar {
@@ -2666,7 +2673,7 @@ button.landing-feature-frame {
   box-shadow:
     0 -10px 36px rgba(15, 23, 42, 0.32),
     0 -1px 0 rgba(255, 255, 255, 0.08) inset;
-  padding: 0.5rem 0.4rem max(0.35rem, env(safe-area-inset-bottom, 0px));
+  padding: 0.5rem 0.4rem var(--novend-system-nav-inset);
 }
 
 .novend-mobile-tabbar::before {

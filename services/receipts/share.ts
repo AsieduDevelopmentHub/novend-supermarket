@@ -1,7 +1,7 @@
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
-import { Hardware } from "@novend/hardware";
+import { bytesToBlob, downloadBlob } from "@/lib/export/download";
 import { normalizeReceiptPayload } from "@/services/printing";
 
 /** Plain-text receipt for the native share sheet (WhatsApp, Messages, email, …). */
@@ -43,25 +43,68 @@ export function buildReceiptShareText(input: ReceiptPayload | Record<string, unk
   return lines.join("\n");
 }
 
+function receiptPdfFile(bytes: Uint8Array, fileName: string): File {
+  const blob = bytesToBlob(bytes, "application/pdf");
+  try {
+    return new File([blob], fileName, { type: "application/pdf", lastModified: Date.now() });
+  } catch {
+    Object.defineProperty(blob, "name", { value: fileName, configurable: true });
+    return blob as File;
+  }
+}
+
+/**
+ * WebView-only PDF handoff — the same path as Reports export PDF.
+ * Capacitor Camera / Share / Filesystem / NovendPrint hang the bridge after
+ * the hosted origin loads; do not call them here.
+ */
+async function offerReceiptPdf(
+  bytes: Uint8Array,
+  fileName: string,
+  title: string,
+  text: string,
+  preferShare: boolean,
+): Promise<{ ok: boolean; message?: string; via?: "share" | "download" }> {
+  const blob = bytesToBlob(bytes, "application/pdf");
+  const file = receiptPdfFile(bytes, fileName);
+  if (preferShare && typeof navigator !== "undefined") {
+    try {
+      const canShareFiles =
+        typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
+      if (canShareFiles && typeof navigator.share === "function") {
+        await navigator.share({ files: [file], title });
+        return { ok: true, via: "share" };
+      }
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title, text });
+        return { ok: true, via: "share" };
+      }
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : String(error ?? "");
+      if (/cancel/i.test(raw)) return { ok: false, message: "Cancelled" };
+    }
+  }
+  downloadBlob(fileName, blob);
+  return { ok: true, via: "download" };
+}
+
 export async function shareReceiptOnDevice(
   input: ReceiptPayload | Record<string, unknown>,
-): Promise<{ ok: boolean; message?: string }> {
+): Promise<{ ok: boolean; message?: string; via?: "share" | "download" }> {
   const payload = normalizeReceiptPayload(input);
   const title = `Receipt ${payload.invoiceNumber}`;
   const bytes = await buildReceiptPdfBytes(payload);
   const fileName = `receipt-${payload.invoiceNumber}.pdf`;
-  const pdfShare = await Hardware.share.sharePdf(bytes, title, fileName);
-  if (pdfShare.ok || pdfShare.message === "Cancelled") return pdfShare;
-  const text = buildReceiptShareText(payload);
-  return Hardware.share.shareReceipt(text, title);
+  return offerReceiptPdf(bytes, fileName, title, buildReceiptShareText(payload), true);
 }
 
 export async function saveReceiptPdfOnDevice(
   input: ReceiptPayload | Record<string, unknown>,
-): Promise<{ ok: boolean; message?: string }> {
+): Promise<{ ok: boolean; message?: string; via?: "share" | "download" }> {
   const payload = normalizeReceiptPayload(input);
   const bytes = await buildReceiptPdfBytes(payload);
-  return Hardware.filesystem.savePDF(bytes, `receipt-${payload.invoiceNumber}.pdf`);
+  const fileName = `receipt-${payload.invoiceNumber}.pdf`;
+  return offerReceiptPdf(bytes, fileName, `Receipt ${payload.invoiceNumber}`, "", false);
 }
 
 /** Build a compact PDF receipt for save / share on mobile. */

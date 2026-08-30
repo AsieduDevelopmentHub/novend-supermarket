@@ -1,6 +1,6 @@
 # Capacitor mobile platform
 
-Version: 1.5.7
+Version: 1.5.9
 
 ## Purpose
 
@@ -40,18 +40,19 @@ Aligned with Electron (`DESKTOP_PLATFORM.md`):
 
 1. Capacitor loads packaged `www/index.html` (baked `NOVEND_APP_URL` from
    `scripts/write-mobile-boot.mjs`).
-2. The boot page CORS-probes `{host}/api/health`. On success it client-navigates
-   to `{host}/api/boot?entry=/dashboard` (not `/dashboard` directly). `/api/*`
-   is not intercepted by older hosted service workers, so a poisoned worker can
-   be unregistered before the shell loads. On failure it stays on the branded
-   retry UI. Android `onReceivedError` plus Capacitor `errorPath` (`www/error.html`)
-   recover failed hosted loads to `https://localhost/?stay=1` so Chrome’s
-   “The webpage at https://… could not be loaded because: net::ERR_FAILED”
-   sheet is never left on screen.
-3. Capacitor does **not** register the hosted service worker. Android WebView
-   treats SW-handled login→dashboard redirects as `net::ERR_FAILED`. Dexie
-   restores session, organization, branch, role, and licence snapshot.
-4. More, About, billing, and other shell routes render from IndexedDB. Payment
+2. The boot page **immediately** client-navigates to `{host}/dashboard?fromBoot=1`.
+   It does **not** wait on `/api/health` (Android often reports online on a
+   weak or dead radio) and does **not** open `/api/boot` (that path is
+   network-only because the worker skips `/api/*`).
+3. After one successful online open, `PwaRegister` installs `public/sw.js` on
+   the hosted origin. Offline, that worker serves the cached shell
+   (network-first, unwraps redirects, never caches login HTML under
+   `/dashboard`). Dexie + `novend.offlineSession` restore the workspace.
+4. If the hosted document cannot load (first run, or no cache yet), Android
+   `onReceivedError` plus `www/error.html` recover to
+   `https://localhost/?stay=1` so Chrome’s `net::ERR_FAILED` sheet is never
+   left on screen. Try again navigates to the shell once more.
+5. More, About, billing, and other shell routes render from IndexedDB. Payment
    and first login still need a network.
 
 Do not create a second mobile database. Dexie is shared with Electron and web.
@@ -63,7 +64,10 @@ On Capacitor only:
 - Desktop sidebar is hidden
 - Floating Onyx bottom tabs: Dashboard · Sales · Inventory · Orders · More
 - `/more` groups remaining destinations by role (includes About)
-- Main content pads above the tab bar + safe area
+- Tab icons/labels sit above Android gesture and 3-button navigation
+  (`--novend-system-nav-inset`: `max(env(safe-area-inset-bottom), 3rem)`).
+  The bar background fills the system-nav region. Main content uses
+  `--novend-tabbar-offset`.
 
 Web and Electron keep the existing sidebar unchanged.
 
