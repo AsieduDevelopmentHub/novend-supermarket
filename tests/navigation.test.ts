@@ -3,7 +3,9 @@ import {
   defaultNavGroupExpanded,
   findNavGroupForPath,
   flatNavForRole,
+  isPlatformAppPath,
   navGroupsForRole,
+  pathAllowedForRole,
   SETTINGS_ITEM,
 } from "@/config/navigation";
 
@@ -49,5 +51,14 @@ describe("navigation tree", () => {
     expect(findNavGroupForPath("/orders/abc")).toBe("sales");
     expect(findNavGroupForPath("/products/abc")).toBe("inventory");
     expect(findNavGroupForPath("/settings")).toBe(null);
+  });
+
+  it("keeps Super Admin routes out of tenant role ACL", () => {
+    expect(isPlatformAppPath("/platform")).toBe(true);
+    expect(isPlatformAppPath("/platform/organizations")).toBe(true);
+    expect(isPlatformAppPath("/platform/releases/0.3.16")).toBe(true);
+    expect(isPlatformAppPath("/dashboard")).toBe(false);
+    expect(pathAllowedForRole("/platform", "administrator")).toBe(false);
+    expect(pathAllowedForRole("/platform/organizations", "administrator")).toBe(false);
   });
 });

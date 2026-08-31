@@ -15,7 +15,7 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { persistLastRoute } from "@/lib/auth/last-route";
 import { useForceClientShell } from "@/hooks/use-force-client-shell";
 import { usePermissions } from "@/hooks/use-permissions";
-import { pathAllowedForRole } from "@/config/navigation";
+import { isPlatformAppPath, pathAllowedForRole } from "@/config/navigation";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { resolveOfflineView } from "@/providers/offline-views";
 
@@ -221,6 +221,12 @@ export function OfflineOutlet({ children }: { children: ReactNode }) {
   const { clientRouting, activePath } = useOfflineNavigation();
   const { role, isLoading } = usePermissions();
   if (clientRouting && activePath) {
+    // Super Admin console is not in tenant nav. Applying pathAllowedForRole
+    // here blocked every /platform/* click (Access Denied) or, for
+    // platform-only sessions with no tenant role, left the first RSC page stuck.
+    if (isPlatformAppPath(activePath)) {
+      return <>{resolveOfflineView(activePath)}</>;
+    }
     // Do not evaluate AccessDenied until the session identity is restored.
     // Cached Dexie roles from the previous user caused a "You don't have access"
     // flash, then splash, then the correct screen.
