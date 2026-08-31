@@ -4,7 +4,8 @@ import { allocateReturnNumber } from "@/convex/shared/documentReferences";
 import { applyLocalBranchStockChange } from "./branch-stock";
 import { enqueueProcessReturn } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
-import { estimateReturnRefund, roundMoney } from "@/lib/sales/returns";
+import { estimateReturnRefund } from "@/lib/sales/returns";
+import { roundMoney } from "@/lib/currency";
 import type { LocalReturn, LocalReturnItem, PrintSnapshot } from "./types";
 
 export type LocalReturnLineInput = {

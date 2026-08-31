@@ -12,8 +12,6 @@ export {
   isHardwareBarcodeScannerActive,
   shouldShowCameraBarcodeButton,
   getScannerConnectionState,
-  getActiveBarcodeProviderKind,
-  listAvailableBarcodeProviders,
   rememberLastScan,
   playScanSuccessBeep,
   BARCODE_HID_CAPTURE_MS,

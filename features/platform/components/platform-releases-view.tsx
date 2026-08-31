@@ -114,9 +114,12 @@ export function PlatformReleasesView() {
                   <div className="border-border bg-muted/20 flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm">
                     <div className="flex items-center gap-2">
                       <Smartphone className="text-muted-foreground h-4 w-4" />
-                      <span className="font-medium">{RELEASE_GROUP_LABELS.ios}</span>
+                    <div className="min-w-0">
+                      <p className="font-medium">{RELEASE_GROUP_LABELS.ios}</p>
+                      <p className="text-muted-foreground text-xs">Home Screen PWA</p>
                     </div>
-                    <Badge variant="secondary">Coming soon</Badge>
+                    </div>
+                    <Badge variant="secondary">PWA</Badge>
                   </div>
                 ) : null}
               </CardContent>

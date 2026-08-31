@@ -12,8 +12,8 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { Grid, PageHeader } from "@/components/layout/primitives";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { usePermissions } from "@/hooks/use-permissions";
-import { useConnectivity } from "@/hooks/use-connectivity";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
+import { DASHBOARD_OPS_WINDOW_DAYS } from "@/lib/dashboard/window";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { useLocalStorage } from "@/hooks/use-ui";
 import { useNarrowScreen } from "@/hooks/use-narrow-screen";
@@ -235,10 +235,7 @@ function TopSellingMetricToggle({
   onChange: (value: TopSellingMetric) => void;
 }) {
   return (
-    <Tabs
-      value={value}
-      onValueChange={(next) => onChange(parseTopSellingMetric(next))}
-    >
+    <Tabs value={value} onValueChange={(next) => onChange(parseTopSellingMetric(next))}>
       <TabsList className="h-8" aria-label="Rank top selling by">
         <TabsTrigger value="quantity" className="h-6 px-2 text-xs">
           Quantity
@@ -335,7 +332,6 @@ function SalesOverviewChart({ data }: { data: Array<{ date: string; total: numbe
 
 export function DashboardView() {
   const { isAdmin, isManager, branchName, branchId: myBranchId } = usePermissions();
-  const online = useConnectivity();
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
   const [topSellingMetric, setTopSellingMetric] = useLocalStorage<TopSellingMetric>(
     TOP_SELLING_METRIC_KEY,
@@ -351,16 +347,22 @@ export function DashboardView() {
   }
 
   const showOps = data.role === "administrator" || data.role === "manager";
+  const inventoryAlertHref = (kind: "low" | "expiry") => {
+    const params = new URLSearchParams({ filter: kind });
+    const branch = branchFilter !== "all" ? branchFilter : myBranchId;
+    if (branch) params.set("branch", String(branch));
+    return `/inventory?${params.toString()}`;
+  };
 
   const kpis = [
     {
-      title: showOps ? "Total Sales" : "Today's Sales",
+      title: showOps ? `Sales (${DASHBOARD_OPS_WINDOW_DAYS} days)` : "Today's Sales",
       value: formatCurrency(data.kpis.revenue),
       icon: Wallet,
       href: "/orders",
     },
     {
-      title: showOps ? "Total Orders" : "Today's Orders",
+      title: showOps ? `Orders (${DASHBOARD_OPS_WINDOW_DAYS} days)` : "Today's Orders",
       value: formatNumber(data.kpis.orders),
       icon: ShoppingBag,
       href: "/orders",
@@ -375,13 +377,13 @@ export function DashboardView() {
       title: "Low Stock Items",
       value: formatNumber(data.kpis.lowStockCount),
       icon: AlertTriangle,
-      href: "/inventory?filter=low",
+      href: inventoryAlertHref("low"),
     },
     {
       title: "Expiring / Expired",
       value: formatNumber(data.kpis.expiringCount ?? 0),
       icon: CalendarClock,
-      href: "/inventory?filter=expiry",
+      href: inventoryAlertHref("expiry"),
     },
   ] as const;
 
@@ -389,14 +391,18 @@ export function DashboardView() {
     <div className="min-w-0 space-y-6" data-tour="page-content">
       <PageHeader
         title="Dashboard"
-        description={showOps ? "Business performance overview" : "Your sales activity today"}
+        description={
+          showOps
+            ? `Last ${DASHBOARD_OPS_WINDOW_DAYS} days of sales, plus stock alerts`
+            : "Your sales activity today"
+        }
         compactActions={[
           { key: "inventory", label: "Inventory", icon: Package, href: "/inventory" },
           { key: "sale", label: "New Sale", icon: ShoppingBag, href: "/sales" },
         ]}
         actions={
           <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 sm:w-auto">
-            {isAdmin && online ? (
+            {isAdmin ? (
               <BranchFilter
                 inline
                 branches={branches}
@@ -440,7 +446,9 @@ export function DashboardView() {
       <div className="grid min-w-0 gap-4 xl:grid-cols-3">
         <Card className="min-w-0 overflow-hidden xl:col-span-2">
           <CardHeader className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-            <CardTitle>Sales Overview</CardTitle>
+            <CardTitle>
+              {showOps ? `Sales Overview (${DASHBOARD_OPS_WINDOW_DAYS} days)` : "Sales Overview"}
+            </CardTitle>
             <Button asChild size="sm" variant="ghost" className="self-start sm:self-auto">
               <Link href="/reports">Reports</Link>
             </Button>

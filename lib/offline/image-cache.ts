@@ -58,15 +58,24 @@ export async function putProductImage(args: {
     localFilePath: args.localFilePath ?? null,
     updatedAt: Date.now(),
   };
-  await db.productImages.put(row);
-  rememberUrl(args.productId, thumbnailBlob ?? args.blob, row.updatedAt);
+  try {
+    await db.productImages.put(row);
+    rememberUrl(args.productId, thumbnailBlob ?? args.blob, row.updatedAt);
+  } catch {
+    /* Schema repair in getOfflineDb; skip cache until the replica is rebuilt. */
+  }
 }
 
 export async function rekeyProductImage(fromId: string, toId: string) {
   if (!fromId || fromId === toId) return;
   const db = await getOfflineDb();
   if (!db) return;
-  const row = await db.productImages.get(fromId);
+  let row: ProductImageCache | undefined;
+  try {
+    row = await db.productImages.get(fromId);
+  } catch {
+    return;
+  }
   if (!row) return;
   await db.productImages.put({ ...row, id: toId });
   await db.productImages.delete(fromId);
@@ -110,10 +119,14 @@ export async function resolveProductImageSrc(
 ): Promise<string | null> {
   const db = await getOfflineDb();
   if (db) {
-    const row = await db.productImages.get(productId);
-    if (row) {
-      const blob = options?.thumbnail && row.thumbnailBlob ? row.thumbnailBlob : row.blob;
-      return rememberUrl(`${productId}:${options?.thumbnail ? "t" : "f"}`, blob, row.updatedAt);
+    try {
+      const row = await db.productImages.get(productId);
+      if (row) {
+        const blob = options?.thumbnail && row.thumbnailBlob ? row.thumbnailBlob : row.blob;
+        return rememberUrl(`${productId}:${options?.thumbnail ? "t" : "f"}`, blob, row.updatedAt);
+      }
+    } catch {
+      /* Schema repair in getOfflineDb; fall through to the remote URL. */
     }
   }
   if (remoteUrl && /^https?:\/\//i.test(remoteUrl)) return remoteUrl;

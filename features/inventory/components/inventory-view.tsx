@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useMemo, useState, Suspense } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UnsignedQuantityInput } from "@/components/ui/unsigned-quantity-input";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +39,13 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCategoriesList, useInventoryList, useBranchesList } from "@/hooks/use-offline-lists";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
 import { formatExpiryDate } from "@/lib/expiry";
+import { signedStockDelta } from "@/lib/quantity";
+import {
+  alignDirectionToReason,
+  alignReasonToDirection,
+  type StockAdjustReason,
+  type StockDirection,
+} from "@/features/inventory/stock-adjust";
 import { ArrowLeftRight, Boxes, Eye, Package } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -62,21 +71,26 @@ function InventoryViewInner() {
     branchName,
   } = usePermissions();
   const online = useConnectivity();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const filter = searchParams.get("filter");
+  const branchParam = searchParams.get("branch");
   const lowOnly = filter === "low";
   const expiryOnly = filter === "expiry";
+  const stockFilter = lowOnly ? "low" : expiryOnly ? "expiry" : "all";
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string>("all");
   /** Admin override; default `all` = organization-wide stock totals. */
-  const [branchOverride, setBranchOverride] = useState<Id<"branches"> | "all">("all");
+  const [branchOverride, setBranchOverride] = useState<Id<"branches"> | "all">(() =>
+    branchParam && branchParam !== "all" ? (branchParam as Id<"branches">) : "all",
+  );
   const [adjustId, setAdjustId] = useState<Id<"products"> | null>(null);
   const [adjustBranchId, setAdjustBranchId] = useState<Id<"branches"> | "">("");
   const [transferOpen, setTransferOpen] = useState(false);
-  const [quantityChange, setQuantityChange] = useState("0");
-  const [reason, setReason] = useState<"receive" | "adjustment" | "damage" | "return">(
-    "adjustment",
-  );
+  const [quantity, setQuantity] = useState("");
+  const [direction, setDirection] = useState<StockDirection>("add");
+  const [reason, setReason] = useState<StockAdjustReason>("receive");
   const [note, setNote] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
 
@@ -85,6 +99,42 @@ function InventoryViewInner() {
   const [transferProductId, setTransferProductId] = useState<Id<"products"> | "">("");
   const [transferQty, setTransferQty] = useState("1");
   const [transferNote, setTransferNote] = useState("");
+  const appliedAlertBranch = useRef(false);
+  const landedWithStockAlert = useRef(lowOnly || expiryOnly);
+
+  function replaceInventoryQuery(next: { filter?: string | null; branch?: string | null }) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next.filter === undefined) {
+      /* keep */
+    } else if (next.filter) {
+      params.set("filter", next.filter);
+    } else {
+      params.delete("filter");
+    }
+    if (next.branch === undefined) {
+      /* keep */
+    } else if (next.branch && next.branch !== "all") {
+      params.set("branch", next.branch);
+    } else {
+      params.delete("branch");
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
+
+  useEffect(() => {
+    if (!isAdmin || !myBranchId) return;
+    if (branchParam && branchParam !== "all") {
+      setBranchOverride(branchParam as Id<"branches">);
+      appliedAlertBranch.current = true;
+      return;
+    }
+    if (appliedAlertBranch.current) return;
+    if (landedWithStockAlert.current && !branchParam) {
+      setBranchOverride(myBranchId);
+      appliedAlertBranch.current = true;
+    }
+  }, [isAdmin, myBranchId, branchParam]);
 
   const branches = useBranchesList(false);
   const transferBranches = branches;
@@ -164,13 +214,18 @@ function InventoryViewInner() {
       toast.error("Select a branch for this adjustment");
       return;
     }
+    const quantityChange = signedStockDelta(direction, quantity);
+    if (quantityChange === null) {
+      toast.error("Enter how many units to add or remove");
+      return;
+    }
     try {
       const kind = await persistBusinessWrite({
         online,
         remote: () =>
           adjustStock({
             productId: adjustId,
-            quantityChange: Number(quantityChange),
+            quantityChange,
             reason,
             note: note || undefined,
             branchId,
@@ -180,7 +235,7 @@ function InventoryViewInner() {
           queueAdjustStock({
             productId: adjustId,
             branchId,
-            quantityChange: Number(quantityChange),
+            quantityChange,
             reason,
             note: note || undefined,
             expiryDate: expiryDate || undefined,
@@ -189,7 +244,9 @@ function InventoryViewInner() {
       toast.success(queuedSaveMessage(kind, "Stock updated"));
       setAdjustId(null);
       setAdjustBranchId("");
-      setQuantityChange("0");
+      setQuantity("");
+      setDirection("add");
+      setReason("receive");
       setNote("");
       setExpiryDate("");
     } catch (error) {
@@ -200,6 +257,9 @@ function InventoryViewInner() {
   function openAdjust(productId: Id<"products">) {
     setAdjustId(productId);
     setAdjustBranchId(listBranchId ?? myBranchId ?? "");
+    setQuantity("");
+    setDirection("add");
+    setReason("receive");
     setExpiryDate("");
   }
 
@@ -255,9 +315,13 @@ function InventoryViewInner() {
         title="Inventory"
         description={
           expiryOnly
-            ? "Showing expired and expiring lots."
+            ? branchOverride === "all" && isAdmin
+              ? "Showing expired and expiring lots."
+              : "Showing expired and expiring lots at this branch."
             : lowOnly
-              ? "Showing low-stock items only."
+              ? branchOverride === "all" && isAdmin
+                ? "Showing low-stock items."
+                : "Showing low-stock items at this branch."
               : "Track available stock, low-stock, and expiry alerts."
         }
         compactActions={
@@ -309,14 +373,35 @@ function InventoryViewInner() {
           listenHid={!adjustId && !transferOpen}
         />
         <CollapsibleFilters
+          defaultOpen={stockFilter !== "all"}
           activeCount={
-            (categoryId !== "all" ? 1 : 0) + (isAdmin && branchOverride !== "all" ? 1 : 0)
+            (categoryId !== "all" ? 1 : 0) +
+            (isAdmin && branchOverride !== "all" ? 1 : 0) +
+            (stockFilter !== "all" ? 1 : 0)
           }
           onReset={() => {
             setCategoryId("all");
             if (isAdmin) setBranchOverride("all");
+            replaceInventoryQuery({ filter: null, branch: null });
           }}
         >
+          <Select
+            value={stockFilter}
+            onValueChange={(value) => {
+              replaceInventoryQuery({
+                filter: value === "low" || value === "expiry" ? value : null,
+              });
+            }}
+          >
+            <SelectTrigger className="min-h-11 w-full sm:w-48" aria-label="Stock status">
+              <SelectValue placeholder="Stock status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All stock</SelectItem>
+              <SelectItem value="low">Low stock</SelectItem>
+              <SelectItem value="expiry">Expiring / expired</SelectItem>
+            </SelectContent>
+          </Select>
           <SearchableSelect
             className="w-full sm:w-56"
             options={[
@@ -335,7 +420,11 @@ function InventoryViewInner() {
             <BranchFilter
               branches={branches}
               value={branchFilter}
-              onChange={setBranchOverride}
+              onChange={(value) => {
+                setBranchOverride(value);
+                appliedAlertBranch.current = true;
+                replaceInventoryQuery({ branch: value === "all" ? null : String(value) });
+              }}
               allowAll
               className="w-full sm:w-auto"
             />
@@ -359,7 +448,16 @@ function InventoryViewInner() {
             </div>
           ) : visibleRows.length === 0 ? (
             <div className="p-6">
-              <EmptyState icon={Boxes} title="No inventory rows" />
+              <EmptyState
+                icon={Boxes}
+                title={
+                  expiryOnly
+                    ? "No expiring lots"
+                    : lowOnly
+                      ? "No low-stock items"
+                      : "No inventory rows"
+                }
+              />
             </div>
           ) : (
             <>
@@ -498,7 +596,7 @@ function InventoryViewInner() {
                           type="button"
                           size="sm"
                           variant="outline"
-                        data-tour="inventory-adjustment"
+                          data-tour="inventory-adjustment"
                           onClick={() => openAdjust(row.id)}
                         >
                           Adjust
@@ -536,17 +634,36 @@ function InventoryViewInner() {
               </div>
             ) : null}
             <div className="space-y-2">
-              <Label htmlFor="qty">Quantity change</Label>
-              <Input
+              <Label>Direction</Label>
+              <Tabs
+                value={direction}
+                onValueChange={(value) => {
+                  const next = value as StockDirection;
+                  setDirection(next);
+                  setReason(alignReasonToDirection(next, reason));
+                }}
+              >
+                <TabsList className="w-full">
+                  <TabsTrigger value="add" className="flex-1">
+                    Add stock
+                  </TabsTrigger>
+                  <TabsTrigger value="remove" className="flex-1">
+                    Remove stock
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="qty">Quantity</Label>
+              <UnsignedQuantityInput
                 id="qty"
-                type="number"
-                step="1"
-                value={quantityChange}
-                onChange={(e) => setQuantityChange(e.target.value)}
+                value={quantity}
+                onValueChange={setQuantity}
+                placeholder="How many units"
                 required
               />
             </div>
-            {selected?.tracksExpiry && Number(quantityChange) > 0 ? (
+            {selected?.tracksExpiry && direction === "add" ? (
               <div className="space-y-2">
                 <Label htmlFor="expiry">Expiry date</Label>
                 <Input
@@ -560,15 +677,30 @@ function InventoryViewInner() {
             ) : null}
             <div className="space-y-2">
               <Label>Reason</Label>
-              <Select value={reason} onValueChange={(v) => setReason(v as typeof reason)}>
+              <Select
+                value={reason}
+                onValueChange={(value) => {
+                  const next = value as StockAdjustReason;
+                  setReason(next);
+                  setDirection(alignDirectionToReason(next, direction));
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="receive">Found stock</SelectItem>
-                  <SelectItem value="adjustment">Adjustment</SelectItem>
-                  <SelectItem value="damage">Damage</SelectItem>
-                  <SelectItem value="return">Return</SelectItem>
+                  {direction === "add" ? (
+                    <>
+                      <SelectItem value="receive">Found stock</SelectItem>
+                      <SelectItem value="return">Customer return</SelectItem>
+                      <SelectItem value="adjustment">Adjustment</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="damage">Damage</SelectItem>
+                      <SelectItem value="adjustment">Adjustment</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -658,13 +790,10 @@ function InventoryViewInner() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="transfer-qty">Quantity</Label>
-              <Input
+              <UnsignedQuantityInput
                 id="transfer-qty"
-                type="number"
-                min="1"
-                step="1"
                 value={transferQty}
-                onChange={(e) => setTransferQty(e.target.value)}
+                onValueChange={setTransferQty}
                 required
               />
             </div>

@@ -42,7 +42,7 @@ async function mapMirroredProductRows(
         sellableQuantity: resolved.sellableQuantity,
         isExpiring: resolved.isExpiring ?? false,
         isExpired: resolved.isExpired ?? false,
-        isLowStock: resolved.stockQuantity <= product.lowStockThreshold,
+        isLowStock: resolved.sellableQuantity <= product.lowStockThreshold,
       };
     }),
   );
@@ -445,6 +445,20 @@ export async function getMirroredBranch(id: string) {
   const db = await getOfflineDb();
   if (!db) return null;
   return (await db.branches.get(id)) ?? null;
+}
+
+export async function listMirroredLots(productId: string, branchId?: string | null) {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  try {
+    let rows = await db.lots.where("productId").equals(productId).toArray();
+    if (branchId) rows = rows.filter((row) => row.branchId === branchId);
+    return rows
+      .filter((row) => row.quantity > 0)
+      .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate) || a.receivedAt - b.receivedAt);
+  } catch {
+    return [];
+  }
 }
 
 export async function listMirroredUsers(search?: string) {

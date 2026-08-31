@@ -1,12 +1,14 @@
 # Capacitor mobile platform
 
-Version: 1.6.1
+Version: 1.6.2
 
 ## Purpose
 
-Ship Novend POS on Android and iOS via **Capacitor** while keeping a single
-Next.js codebase. The WebView loads the hosted Next app; Dexie / outbox /
-Convex stay unchanged. All native access goes through `@novend/hardware`.
+Ship Novend POS on **Android** via **Capacitor** while keeping a single Next.js
+codebase. Customer **iOS** is a Safari Home Screen PWA; `apps/mobile/ios` is a
+future native tree and is not an App Store client. The Android WebView loads
+the hosted Next app; Dexie / outbox / Convex stay unchanged. All native access
+goes through `@novend/hardware`.
 
 ## Hosted origin
 
@@ -85,8 +87,8 @@ Web and Electron keep the existing sidebar unchanged.
 - Deep links: `novend://sale/{id}`, `novend://product/{id}`, …
 - Offline backup / restore (Documents on device)
 - About page: `/about`
-- Android package: `com.novend.pos`. The authoritative version is the root/mobile `package.json`; release CI verifies the Android `versionName` before publishing.
-  already present — do not publish until QA sign-off
+- Android package: `com.novend.pos`. The authoritative version is the root/mobile
+  `package.json`; release CI verifies the Android `versionName` before publishing.
 
 See `docs/architecture/HARDWARE.md` and `docs/architecture/MOBILE_QA.md`.
 

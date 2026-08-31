@@ -5,6 +5,7 @@ import { PLAN_CATALOG, resolvePlan, type PlanKey } from "./shared/plans";
 import { platformCostCategoryValidator } from "./schema";
 import { sanitizeText } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
+import { utcDay } from "./shared/platformTelemetry";
 
 const RANGE_MS = {
   today: 24 * 60 * 60 * 1000,
@@ -478,6 +479,11 @@ const insightMetricValidator = v.union(
   v.literal("lifetime-licenses"),
   v.literal("active-devices"),
   v.literal("cloud-storage"),
+  v.literal("mau"),
+  v.literal("downloads"),
+  v.literal("gross-revenue"),
+  v.literal("staff-accounts"),
+  v.literal("client-errors"),
 );
 
 export type PlatformInsightMetric =
@@ -488,7 +494,12 @@ export type PlatformInsightMetric =
   | "expired-subscriptions"
   | "lifetime-licenses"
   | "active-devices"
-  | "cloud-storage";
+  | "cloud-storage"
+  | "mau"
+  | "downloads"
+  | "gross-revenue"
+  | "staff-accounts"
+  | "client-errors";
 
 const INSIGHT_COPY: Record<PlatformInsightMetric, { title: string; description: string }> = {
   mrr: {
@@ -522,6 +533,26 @@ const INSIGHT_COPY: Record<PlatformInsightMetric, { title: string; description: 
   "cloud-storage": {
     title: "Cloud Storage Used",
     description: "Total backup storage consumed across every organization.",
+  },
+  mau: {
+    title: "Monthly Active Users",
+    description: "Distinct authenticated users seen in the last 30 days (pseudonymous daily rows).",
+  },
+  downloads: {
+    title: "Installer Downloads",
+    description: "GitHub baseline plus Novend-tracked installer and update-manifest downloads.",
+  },
+  "gross-revenue": {
+    title: "Gross Revenue",
+    description: "Successful billing payments in the selected range (not MRR run-rate).",
+  },
+  "staff-accounts": {
+    title: "Staff Accounts",
+    description: "Tenant profiles across every organization.",
+  },
+  "client-errors": {
+    title: "Client Errors",
+    description: "Sanitized client-error rollups. Codes are categories, not stack traces.",
   },
 };
 
@@ -711,6 +742,171 @@ export const getInsightDetail = query({
             const org = orgLookup.get(orgId);
             return { organizationId: orgId, name: org?.name ?? "Unknown", bytes };
           });
+        break;
+      }
+      case "mau": {
+        const sinceDay = utcDay(since);
+        const activeUsers = await ctx.db
+          .query("platformDailyActiveUsers")
+          .withIndex("by_day", (q) => q.gte("day", sinceDay))
+          .collect();
+        value = new Set(activeUsers.map((row) => String(row.userId))).size;
+        const byDay = new Map<string, Set<string>>();
+        const byOrg = new Map<string, Set<string>>();
+        for (const row of activeUsers) {
+          const dayUsers = byDay.get(row.day) ?? new Set<string>();
+          dayUsers.add(String(row.userId));
+          byDay.set(row.day, dayUsers);
+          if (row.organizationId) {
+            const orgUsers = byOrg.get(String(row.organizationId)) ?? new Set<string>();
+            orgUsers.add(String(row.userId));
+            byOrg.set(String(row.organizationId), orgUsers);
+          }
+        }
+        trend = [...byDay.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([day, users]) => ({
+            month: day,
+            label: day,
+            value: users.size,
+          }));
+        rowsLabel = "Active users by organization";
+        rows = [...byOrg.entries()]
+          .sort((a, b) => b[1].size - a[1].size)
+          .slice(0, 50)
+          .map(([orgId, users]) => {
+            const org = orgLookup.get(orgId);
+            return {
+              organizationId: orgId,
+              name: org?.name ?? "Unknown",
+              slug: org?.slug ?? "",
+              plan: org ? resolvePlan(org.planKey).name : "—",
+              createdAt: org?.createdAt ?? 0,
+              count: users.size,
+            };
+          });
+        break;
+      }
+      case "downloads": {
+        const sinceDay = utcDay(since);
+        const [rollups, baselines] = await Promise.all([
+          ctx.db
+            .query("platformDailyRollups")
+            .withIndex("by_metric_day", (q) =>
+              q.eq("metric", "release_download").gte("day", sinceDay),
+            )
+            .collect(),
+          ctx.db.query("releaseDownloadBaselines").collect(),
+        ]);
+        const tracked = rollups
+          .filter((row) => row.dimension === "all")
+          .reduce((sum, row) => sum + row.value, 0);
+        const baseline = baselines.reduce((sum, row) => sum + row.downloadCount, 0);
+        value = baseline + tracked;
+        const byDay = new Map<string, number>();
+        const byDimension = new Map<string, number>();
+        for (const row of rollups) {
+          if (row.dimension === "all") {
+            byDay.set(row.day, (byDay.get(row.day) ?? 0) + row.value);
+          } else {
+            byDimension.set(row.dimension, (byDimension.get(row.dimension) ?? 0) + row.value);
+          }
+        }
+        trend = [...byDay.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([day, amount]) => ({ month: day, label: day, value: amount }));
+        rowsLabel = "Downloads by asset";
+        rows = [
+          ...[...byDimension.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 40)
+            .map(([name, count]) => ({ name, count })),
+          ...(baseline > 0 ? [{ name: "Historical GitHub baseline", count: baseline }] : []),
+        ];
+        break;
+      }
+      case "gross-revenue": {
+        const successfulPayments = billing.filter(
+          (row) => row.status === "success" && (row.paidAt ?? row.createdAt) >= since,
+        );
+        value = successfulPayments.reduce((sum, row) => sum + row.amount, 0);
+        trend = monthlySeries(
+          successfulPayments.map((row) => row.paidAt ?? row.createdAt),
+          () => 0,
+        ).map((point) => ({
+          ...point,
+          value: successfulPayments
+            .filter((row) => monthKey(row.paidAt ?? row.createdAt) === point.month)
+            .reduce((sum, row) => sum + row.amount, 0),
+        }));
+        rowsLabel = "Successful payments";
+        rows = successfulPayments
+          .sort((a, b) => (b.paidAt ?? b.createdAt) - (a.paidAt ?? a.createdAt))
+          .slice(0, 50)
+          .map((row) => {
+            const org = orgLookup.get(String(row.organizationId));
+            return {
+              organizationId: row.organizationId,
+              name: org?.name ?? "Unknown",
+              slug: org?.slug ?? "",
+              plan: row.planKey ? resolvePlan(row.planKey).name : org ? resolvePlan(org.planKey).name : "—",
+              amount: row.amount,
+              createdAt: row.paidAt ?? row.createdAt,
+            };
+          });
+        break;
+      }
+      case "staff-accounts": {
+        const profiles = await ctx.db.query("profiles").collect();
+        value = profiles.length;
+        const byOrg = new Map<string, number>();
+        for (const profile of profiles) {
+          const key = String(profile.organizationId);
+          byOrg.set(key, (byOrg.get(key) ?? 0) + 1);
+        }
+        trend = monthlySeries(profiles.map((profile) => profile.lastSeenAt ?? 0).filter((ts) => ts > 0));
+        rowsLabel = "Staff by organization";
+        rows = [...byOrg.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 50)
+          .map(([orgId, count]) => {
+            const org = orgLookup.get(orgId);
+            return {
+              organizationId: orgId,
+              name: org?.name ?? "Unknown",
+              slug: org?.slug ?? "",
+              plan: org ? resolvePlan(org.planKey).name : "—",
+              createdAt: org?.createdAt ?? 0,
+              count,
+            };
+          });
+        break;
+      }
+      case "client-errors": {
+        const sinceDay = utcDay(since);
+        const rollups = await ctx.db
+          .query("platformDailyRollups")
+          .withIndex("by_metric_day", (q) => q.eq("metric", "client_error").gte("day", sinceDay))
+          .collect();
+        const totals = rollups.filter((row) => row.dimension === "all");
+        value = totals.reduce((sum, row) => sum + row.value, 0);
+        const byDay = new Map<string, number>();
+        const byCode = new Map<string, number>();
+        for (const row of rollups) {
+          if (row.dimension === "all") {
+            byDay.set(row.day, (byDay.get(row.day) ?? 0) + row.value);
+          } else {
+            byCode.set(row.dimension, (byCode.get(row.dimension) ?? 0) + row.value);
+          }
+        }
+        trend = [...byDay.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([day, amount]) => ({ month: day, label: day, value: amount }));
+        rowsLabel = "Errors by code";
+        rows = [...byCode.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 50)
+          .map(([name, count]) => ({ name, count }));
         break;
       }
     }

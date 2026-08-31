@@ -185,7 +185,7 @@ jobs:
 
   build-android:
     name: Build Android APK
-    needs: [verify, github-release]
+    needs: [verify]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -202,14 +202,12 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - uses: actions/setup-java@v4
+      - name: Setup Android build cache
+        uses: ./.github/actions/setup-android-build
         with:
-          distribution: temurin
-          # Match local Android Studio / Microsoft OpenJDK builds (Gradle 8.11).
-          java-version: 21
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+          # Tag refs cannot seed a cache that later tags can read. Restore
+          # the Gradle User Home written by CI on main.
+          cache-read-only: "true"
 
       - name: Install
         run: pnpm install --frozen-lockfile

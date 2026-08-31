@@ -24,6 +24,7 @@ import {
   lotSummaries,
   productExpiryAlertDays,
   productTracksExpiry,
+  relabelLotExpiry,
   todayDateString,
   writeOffExpiredLots,
 } from "./shared/lots";
@@ -361,6 +362,52 @@ export const listLots = query({
         receivedAt: lot.receivedAt,
         status: lotStatus(lot.expiryDate, alertDays, today),
       }));
+  },
+});
+
+export const updateLotExpiry = mutation({
+  args: {
+    lotId: v.id("inventoryLots"),
+    expiryDate: v.string(),
+    clientOperationId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+    ]);
+    const replayed = await replayClientOp<string>(ctx, organizationId, args.clientOperationId);
+    if (replayed !== null) return replayed;
+
+    const lot = await ctx.db.get(args.lotId);
+    if (!lot || lot.organizationId !== organizationId) throw new Error("Lot not found");
+    assertBranchAccess(profile, lot.branchId);
+    const product = await ctx.db.get(lot.productId);
+    if (!product || product.organizationId !== organizationId) throw new Error("Product not found");
+    if (!productTracksExpiry(product)) {
+      throw new Error("This product does not track expiry");
+    }
+
+    const nextId = await relabelLotExpiry(ctx, {
+      lotId: args.lotId,
+      expiryDate: args.expiryDate,
+    });
+
+    await writeAuditLog(ctx, {
+      actorId: userId,
+      action: "update_lot_expiry",
+      entityType: "inventoryLots",
+      entityId: nextId,
+      metadata: { productId: lot.productId, from: lot.expiryDate, to: args.expiryDate },
+    });
+
+    await rememberClientOp(ctx, {
+      organizationId,
+      clientOperationId: args.clientOperationId,
+      kind: "update_lot_expiry",
+      result: nextId,
+    });
+    return nextId;
   },
 });
 

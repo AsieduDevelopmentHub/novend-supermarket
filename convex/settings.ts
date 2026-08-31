@@ -200,7 +200,7 @@ export async function loadPrintSnapshot(
 export const getBusiness = query({
   args: {},
   handler: async (ctx) => {
-    const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const { organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     return parseBusiness(await getSettingValue(ctx, organizationId, BUSINESS_KEY));
   },
 });

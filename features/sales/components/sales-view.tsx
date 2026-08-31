@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
 import { Input } from "@/components/ui/input";
+import { UnsignedQuantityInput } from "@/components/ui/unsigned-quantity-input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,11 +64,7 @@ import {
   type BarcodeMatchProduct,
 } from "@/features/sales/components/barcode-match-dialog";
 import { DraggableCartFab } from "@/features/sales/components/draggable-cart-fab";
-import {
-  readCartDraft,
-  writeCartDraft,
-  type CartDraftItem,
-} from "@/lib/sales/cart-draft";
+import { readCartDraft, writeCartDraft, type CartDraftItem } from "@/lib/sales/cart-draft";
 
 type DiscountMode = "amount" | "percent";
 
@@ -224,15 +221,7 @@ export function SalesView() {
       customer,
       savedAt: Date.now(),
     });
-  }, [
-    cart,
-    discountMode,
-    discountField,
-    customer,
-    cashierId,
-    workingBranchId,
-    hydratedCartScope,
-  ]);
+  }, [cart, discountMode, discountField, customer, cashierId, workingBranchId, hydratedCartScope]);
 
   async function refreshLocalHeld() {
     const rows = await listLocalHeldSales(cashierId ?? undefined);
@@ -1004,7 +993,12 @@ function SalesCheckoutFields({
   const actions = (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
-        <Button type="button" variant="secondary" disabled={!canCheckout || paying} onClick={onHold}>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={!canCheckout || paying}
+          onClick={onHold}
+        >
           Hold
         </Button>
         <Button
@@ -1121,14 +1115,11 @@ function SalesCheckoutFields({
                 >
                   <Minus className="h-3 w-3" />
                 </Button>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
+                <UnsignedQuantityInput
                   aria-label={`Quantity for ${item.name}`}
-                  className="h-7 w-14 px-1 text-center text-sm tabular-nums"
+                  className="h-7 w-14 px-1 text-center text-sm"
                   value={qtyDrafts[item.productId] ?? String(item.quantity)}
-                  onChange={(e) => onSetCartQuantity(item.productId, e.target.value)}
+                  onValueChange={(next) => onSetCartQuantity(item.productId, next)}
                   onBlur={() => onCommitCartQuantity(item.productId)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {

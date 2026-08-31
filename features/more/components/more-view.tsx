@@ -15,6 +15,31 @@ import { signOutAndRedirect } from "@/lib/auth/sign-out";
 import { ChevronRight, CreditCard, HelpCircle, Info, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+function PublicOrAppLink({
+  href,
+  className,
+  children,
+}: {
+  href: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  const publicDoc =
+    href === "/privacy" || href === "/terms" || href.startsWith("/docs");
+  if (publicDoc) {
+    return (
+      <a href={href} className={className}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  );
+}
+
 const EXTRA_SYSTEM = [
   { title: "About Novend", href: "/about", icon: Info },
   { title: "Billing", href: "/settings?section=billing", icon: CreditCard },
@@ -115,7 +140,7 @@ export function MoreView() {
                 {EXTRA_SYSTEM.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <Link
+                    <PublicOrAppLink
                       key={item.href}
                       href={item.href}
                       className={cn(
@@ -133,7 +158,7 @@ export function MoreView() {
                         className="text-muted-foreground h-4 w-4 shrink-0"
                         aria-hidden
                       />
-                    </Link>
+                    </PublicOrAppLink>
                   );
                 })}
                 {renderSignOutRow()}
@@ -154,7 +179,7 @@ export function MoreView() {
             {EXTRA_SYSTEM.map((item) => {
               const Icon = item.icon;
               return (
-                <Link
+                <PublicOrAppLink
                   key={item.href}
                   href={item.href}
                   className={cn(
@@ -167,7 +192,7 @@ export function MoreView() {
                   </span>
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.title}</span>
                   <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden />
-                </Link>
+                </PublicOrAppLink>
               );
             })}
             {renderSignOutRow()}

@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.14
+Version: 2.4.18
 
 ## Purpose
 
@@ -27,11 +27,12 @@ Convex (when online)
 
 1. While online, `offline.getSnapshot` pulls a branch-scoped replica into IndexedDB
    (catalog, customers, orders, suppliers, wholesale, branches, users, expenses,
-   returns, product photos).
+   returns, expiry lots, product photos).
 2. Screens always render from Dexie when the replica is warm. Live Convex is
    used as a freshness shortcut, never as a gate to open the page.
 3. Writes apply locally, then enqueue an outbox event (`upsert_supplier`,
-   `record_wholesale_purchase`, `complete_sale`, `upsert_product`, …). Product
+   `record_wholesale_purchase`, `complete_sale`, `upsert_product`,
+   `update_lot_expiry`, …). Product
    **imports** use the same outbox: Dexie first, then Convex `createProduct` /
    `updateProduct`. Catalog CSV/Excel exports read the local list and work offline.
 4. `OfflineProvider` drains the outbox in the background. Forms return as soon as
@@ -41,8 +42,12 @@ Convex (when online)
    replica has no photo yet.
 6. The dashboard is built only from Dexie (`buildLocalDashboardSummary`). It
    never calls Convex `dashboard.summary`. Restock, sales, and returns refresh it
-   via `replica-changed`. Top selling ranks locally (quantity by default; the
-   cashier can toggle amount). The ranking preference is stored on the device.
+   via `replica-changed`. Administrators and managers see a **rolling last 7 days**
+   of sales and orders (not all-time totals). Cashiers see **today** from midnight.
+   The replica also keeps only the most recent ~200 completed sales, so older
+   orders drop out of the dashboard even inside that window. Top selling ranks
+   locally (quantity by default; the cashier can toggle amount). The ranking
+   preference is stored on the device.
 7. Barcode scans look up `products.barcode` (then SKU) in Dexie only.
 
 ## Local writes
@@ -108,7 +113,11 @@ first login on a new device, after an explicit Sign out, or when the offline
 session expires.
 
 Name, phone, catalog, inventory, wholesale, suppliers, customers, expenses,
-sales, returns, reports, and analytics all continue on the device.
+sales, returns, reports, analytics, **admin/manager branch switching**, and
+**per-batch expiry edits** all continue on the device. Branch pickers read the
+Dexie `branches` table — they must not wait on `navigator.onLine`. A stuck
+IndexedDB upgrade (missing `meta` / `productImages` / `lots`) rebuilds that
+replica on open, then the next snapshot refill.
 
 ## Conflict policy
 
@@ -145,7 +154,7 @@ stays mounted and tab switches are instant. The URL remains the source of naviga
 state; the service worker may serve a cached shell HTML document for an uncached deep
 path without rewriting the browser location — `OfflineNavigationProvider` /
 `resolveOfflineView` honor `location.pathname`. Document navigations are
-**network-first** (`novend-pos-v11`), except Capacitor/Electron `?fromBoot=1`
+**network-first** (`novend-pos-v12`), except Capacitor/Electron `?fromBoot=1`
 navigations which are **cache-first** so a dead radio does not stall cold
 start: the worker unwraps followed redirects so Chrome does not paint
 `ERR_FAILED` on login → dashboard. `/login` and `/signup`

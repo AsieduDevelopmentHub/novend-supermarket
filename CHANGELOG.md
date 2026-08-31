@@ -8,6 +8,31 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.15 — 2026-08-31
+
+Android APK and Convex mobile updates only. Desktop installers stay on v0.3.11 until the next full (`targets: all`) product release.
+
+### Added
+
+- Super Admin monitoring KPI cards open live insight screens (MAU, downloads, gross revenue, staff accounts, client errors).
+- Marketing landing uses shipped product screens; Downloads and Releases stay in sync with Convex.
+- Inventory Filters: All stock, Low stock, and Expiring. The dashboard low-stock KPI uses the same rule as the list.
+- Tour skip/complete persists in IndexedDB and Convex so first-run progress survives reload.
+
+### Changed
+
+- Admin dashboard sales and orders KPIs are labeled as a 7-day window; cashiers stay on today.
+- Capacitor Settings and About fail-soft when Convex hangs; About estimates storage without exporting the whole Dexie backup.
+- Privacy, Terms, and docs open from the cached document when offline (service worker v12).
+- About update check reports offline, not configured, or could not reach the server instead of a generic failure.
+
+### Fixed
+
+- Return and stock quantity fields no longer accept signed or negative keypad input.
+- Admin branch switching and lot expiry keep working when Convex is unreachable.
+
+---
+
 ## v0.3.14 — 2026-08-30
 
 Android APK and Convex mobile updates only. Desktop installers stay on v0.3.11 until the next full (`targets: all`) product release.

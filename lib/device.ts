@@ -126,6 +126,7 @@ function runtimeLabel(runtime: DeviceRuntime): string {
 
 /** Human label for activated-device lists. */
 export function formatDeviceRuntime(runtime: string | null | undefined): string {
+  if (runtime === "pwa") return "Home Screen PWA";
   if (runtime === "desktop" || runtime === "android" || runtime === "ios" || runtime === "web") {
     return runtimeLabel(runtime);
   }

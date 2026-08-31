@@ -29,6 +29,16 @@ export function LandingDesktop() {
           <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:text-base">
             {desktop.detail}
           </p>
+          <ul className="mt-4 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+            {desktop.platforms.map((platform) => (
+              <li
+                key={platform.id}
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700"
+              >
+                {platform.label}
+              </li>
+            ))}
+          </ul>
         </div>
         <Button asChild className="shrink-0 font-semibold">
           <Link href={desktop.href}>{desktop.cta}</Link>

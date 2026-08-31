@@ -8,6 +8,7 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { ResponsiveFormSurface } from "@/components/layout/responsive-form-surface";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { UnsignedQuantityInput } from "@/components/ui/unsigned-quantity-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -93,11 +94,7 @@ export function ProductFormDialog({
 
   const remoteProduct = useQuery(
     api.products.getProduct,
-    open &&
-      productId &&
-      online &&
-      mirroredRow === null &&
-      !String(productId).startsWith("local_")
+    open && productId && online && mirroredRow === null && !String(productId).startsWith("local_")
       ? { id: productId }
       : "skip",
   );
@@ -365,8 +362,11 @@ function ProductFormBody({
   }
 
   return (
-    <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
-      <div className="space-y-4">
+    <form
+      className="grid w-full min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]"
+      onSubmit={onSubmit}
+    >
+      <div className="min-w-0 space-y-4">
         <div className="space-y-2">
           <Label htmlFor="name">Product Name</Label>
           <Input id="name" value={name} onChange={(e) => onNameChange(e.target.value)} required />
@@ -424,7 +424,7 @@ function ProductFormBody({
             />
           )}
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="sell">Selling Price (GHC)</Label>
             <Input
@@ -450,7 +450,7 @@ function ProductFormBody({
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
           {warehouseIntake ? (
             <div className="space-y-2">
               <Label>Opening branch stock</Label>
@@ -461,13 +461,10 @@ function ProductFormBody({
           ) : (
             <div className="space-y-2">
               <Label htmlFor="stock">Stock Quantity</Label>
-              <Input
+              <UnsignedQuantityInput
                 id="stock"
-                type="number"
-                min="0"
-                step="1"
                 value={stockQuantity}
-                onChange={(e) => setStockQuantity(e.target.value)}
+                onValueChange={setStockQuantity}
                 disabled={!!productId}
                 required={!productId}
               />
@@ -478,16 +475,13 @@ function ProductFormBody({
             <Input id="unit" value={unit} onChange={(e) => setUnit(e.target.value)} required />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="low">Low Stock Alert</Label>
-            <Input
+            <UnsignedQuantityInput
               id="low"
-              type="number"
-              min="0"
-              step="1"
               value={lowStockThreshold}
-              onChange={(e) => setLowStockThreshold(e.target.value)}
+              onValueChange={setLowStockThreshold}
               required
             />
           </div>
@@ -509,7 +503,7 @@ function ProductFormBody({
         </div>
         <div className="border-border space-y-3 rounded-lg border p-3">
           <div className="flex items-center justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <Label htmlFor="tracks-expiry">Track expiry dates</Label>
               <p className="text-muted-foreground text-xs">
                 Receive stock in dated lots. Sales use the soonest expiry first.
@@ -518,14 +512,15 @@ function ProductFormBody({
             <Switch id="tracks-expiry" checked={tracksExpiry} onCheckedChange={setTracksExpiry} />
           </div>
           {tracksExpiry ? (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="min-w-0 space-y-2">
                 <Label htmlFor="alert-days">Alert days before expiry</Label>
                 <Input
                   id="alert-days"
                   type="number"
                   min="0"
                   step="1"
+                  className="w-full min-w-0"
                   value={expiryAlertDays}
                   onChange={(e) => setExpiryAlertDays(e.target.value)}
                   required
@@ -537,7 +532,7 @@ function ProductFormBody({
                 initialProduct &&
                 !initialProduct.tracksExpiry &&
                 initialProduct.stockQuantity > 0) ? (
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <Label htmlFor="opening-expiry">
                     {productId && !productId.startsWith("local_")
                       ? "Opening expiry date"
@@ -546,11 +541,16 @@ function ProductFormBody({
                   <Input
                     id="opening-expiry"
                     type="date"
+                    className="w-full min-w-0"
                     value={expiryDate}
                     onChange={(e) => setExpiryDate(e.target.value)}
                     required
                   />
                 </div>
+              ) : productId ? (
+                <p className="text-muted-foreground text-xs sm:col-span-2">
+                  Edit each batch&apos;s expiry on the product page under Expiry lots.
+                </p>
               ) : null}
             </div>
           ) : null}
@@ -565,7 +565,7 @@ function ProductFormBody({
           />
         </div>
       </div>
-      <div className="space-y-3">
+      <div className="min-w-0 space-y-3">
         <Label>Product Image</Label>
         <div className="border-border bg-muted/30 relative flex min-h-48 flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed p-4 text-center">
           {previewUrl ? (
@@ -636,7 +636,7 @@ function ProductFormBody({
           }}
         />
       </div>
-      <DialogFooter className="md:col-span-2">
+      <DialogFooter className="col-span-full">
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
           Cancel
         </Button>

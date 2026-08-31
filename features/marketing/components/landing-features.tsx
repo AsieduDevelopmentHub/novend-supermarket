@@ -12,7 +12,7 @@ const BLOCK_ALT: Record<(typeof landingCopy.features.blocks)[number]["id"], stri
   inventory: "Novend inventory stock table with quantities, SKUs, and low-stock alerts",
   wholesale: "Novend wholesale warehouse with branch stock and valuation",
   analytics: "Novend analytics dashboard with KPIs, charts, and best sellers",
-  relationships: "Novend customer profile and supplier directory",
+  relationships: "Novend customer profile with purchase history and outstanding balances",
   reports: "Novend business reports with export and print options",
 };
 
@@ -101,49 +101,6 @@ type FeatureVisualProps = {
 function FeatureVisual({ blockId, alt, animateCharts = false }: FeatureVisualProps) {
   const screen = FEATURE_BLOCK_SCREENS[blockId];
 
-  if (typeof screen === "object") {
-    return (
-      <div className="landing-feature-frame landing-feature-frame-split landing-shadow-card">
-        <ExpandableScreenshot
-          src={screen.primary}
-          alt="Novend customer profile with purchase history"
-          className="landing-feature-split-pane"
-        >
-          <span className="landing-feature-split-label">Customer</span>
-          <Image
-            src={screen.primary}
-            alt="Novend customer profile with purchase history"
-            width={1920}
-            height={1080}
-            quality={100}
-            unoptimized
-            className="landing-feature-shot"
-            sizes="(max-width: 1024px) 100vw, 520px"
-            draggable={false}
-          />
-        </ExpandableScreenshot>
-        <ExpandableScreenshot
-          src={screen.secondary}
-          alt="Novend supplier directory and contacts"
-          className="landing-feature-split-pane"
-        >
-          <span className="landing-feature-split-label">Supplier</span>
-          <Image
-            src={screen.secondary}
-            alt="Novend supplier directory and contacts"
-            width={1920}
-            height={1080}
-            quality={100}
-            unoptimized
-            className="landing-feature-shot"
-            sizes="(max-width: 1024px) 100vw, 520px"
-            draggable={false}
-          />
-        </ExpandableScreenshot>
-      </div>
-    );
-  }
-
   return (
     <ExpandableScreenshot
       src={screen}
@@ -161,7 +118,7 @@ function FeatureVisual({ blockId, alt, animateCharts = false }: FeatureVisualPro
         quality={100}
         unoptimized
         className="landing-feature-shot"
-        sizes="(max-width: 1024px) 100vw, 560px"
+        sizes="(max-width: 1024px) 100vw, 640px"
         draggable={false}
       />
       {blockId === "reports" ? (

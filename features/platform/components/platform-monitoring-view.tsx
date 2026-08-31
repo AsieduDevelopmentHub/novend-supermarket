@@ -162,18 +162,21 @@ export function PlatformMonitoringView() {
           value={formatCurrency(data.kpis.mrr)}
           hint={`ARR ${formatCurrency(data.kpis.arr)}`}
           icon={Wallet}
+          href="/platform/insights/mrr"
         />
         <PlatformKpiCard
           label="Active organizations"
           value={formatNumber(data.kpis.activeOrganizations)}
           hint={`${formatNumber(data.kpis.organizations)} total · ${formatComparison(data.comparisons.organizationGrowth)}`}
           icon={Building2}
+          href="/platform/insights/active-organizations"
         />
         <PlatformKpiCard
           label="Monthly active users"
           value={formatNumber(data.kpis.mau)}
           hint={`DAU ${formatNumber(data.kpis.dau)} · WAU ${formatNumber(data.kpis.wau)}`}
           icon={Users}
+          href="/platform/insights/mau"
         />
         <PlatformKpiCard
           label="Lifetime downloads"
@@ -184,6 +187,7 @@ export function PlatformMonitoringView() {
               : `Tracking begins with baseline import · ${formatComparison(data.comparisons.downloads)}`
           }
           icon={CloudDownload}
+          href="/platform/insights/downloads"
         />
       </Grid>
 
@@ -193,18 +197,21 @@ export function PlatformMonitoringView() {
           value={formatNumber(data.kpis.activeDevices)}
           hint={`${formatNumber(data.operations.devicesSeenLast24h)} seen in 24h`}
           icon={MonitorSmartphone}
+          href="/platform/insights/active-devices"
         />
         <PlatformKpiCard
           label="Gross revenue"
           value={formatCurrency(data.kpis.grossRevenue)}
           hint={`${formatComparison(data.comparisons.revenue)} vs previous period`}
           icon={CreditCard}
+          href="/platform/insights/gross-revenue"
         />
         <PlatformKpiCard
           label="Staff accounts"
           value={formatNumber(data.kpis.staffAccounts)}
           hint="Across all organizations"
           icon={Users}
+          href="/platform/insights/staff-accounts"
         />
         <PlatformKpiCard
           label="Client errors"
@@ -212,6 +219,7 @@ export function PlatformMonitoringView() {
           hint={`${formatComparison(data.comparisons.clientErrors)} vs previous period`}
           icon={Activity}
           tone={data.operations.clientErrors > 0 ? "warning" : "default"}
+          href="/platform/insights/client-errors"
         />
       </Grid>
 

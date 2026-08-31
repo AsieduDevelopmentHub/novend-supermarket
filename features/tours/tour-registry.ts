@@ -40,9 +40,9 @@ export const TOUR_REGISTRY: TourDefinition[] = [
       {
         id: "navigation",
         anchors: [
-          '[data-tour="desktop-navigation"]',
           '[data-tour="mobile-bottom-navigation"]',
           '[data-tour="mobile-navigation-trigger"]',
+          '[data-tour="desktop-navigation"]',
         ],
         title: "Your workspace",
         description: "Use the navigation to move between the tools available to your role.",
@@ -64,7 +64,11 @@ export const TOUR_REGISTRY: TourDefinition[] = [
       },
       {
         id: "account",
-        anchors: ['[data-tour="account-menu"]'],
+        anchors: [
+          '[data-tour="mobile-more"]',
+          '[data-tour="account-menu"]',
+          '[data-tour="mobile-navigation-trigger"]',
+        ],
         title: "Account and help",
         description: "Open your account menu for settings, tours, and sign out.",
         side: "top",
@@ -282,6 +286,91 @@ export function tourForPath(pathname: string, role: AppRole | null, isPlatformAd
     .find((tour) => pathname === tour.path || pathname.startsWith(`${tour.path}/`));
 }
 
-export function resolveStepAnchor(step: TourStepDefinition, root: ParentNode = document) {
-  return step.anchors.find((selector) => root.querySelector(selector)) ?? step.anchors[0];
+export const ONBOARDING_TOUR_ORDER: TourId[] = [
+  "shell",
+  "sales",
+  "products",
+  "inventory",
+  "reports",
+  "users",
+  "settings",
+  "platform",
+];
+
+/** First-run walkthrough order, filtered to the caller's role. */
+export function onboardingQueue(role: AppRole | null, isPlatformAdmin: boolean): TourId[] {
+  const allowed = new Set(toursForAccess(role, isPlatformAdmin).map((tour) => tour.id));
+  return ONBOARDING_TOUR_ORDER.filter((id) => allowed.has(id));
+}
+
+export function hasTourProgress(
+  progress: ReadonlyArray<{ tourId: string }>,
+  available: ReadonlyArray<{ id: TourId }>,
+) {
+  const ids = new Set(available.map((tour) => tour.id));
+  return progress.some((row) => ids.has(row.tourId as TourId));
+}
+
+type TourQueryRoot = {
+  querySelector(selector: string): unknown;
+  querySelectorAll?(selector: string): ArrayLike<unknown>;
+};
+
+/** True when the node is painted and large enough to highlight. Test doubles count as visible. */
+export function isElementTourable(node: unknown): boolean {
+  if (!node || typeof node !== "object") return false;
+  if (typeof Element === "undefined" || !(node instanceof Element)) return true;
+  const style = window.getComputedStyle(node);
+  if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) {
+    return false;
+  }
+  const rect = node.getBoundingClientRect();
+  if (rect.width < 2 || rect.height < 2) return false;
+  return true;
+}
+
+export function queryTourable(
+  selector: string,
+  root: TourQueryRoot = document,
+  isTourable: (node: unknown) => boolean = isElementTourable,
+): unknown {
+  if (typeof root.querySelectorAll === "function") {
+    const matches = root.querySelectorAll(selector);
+    for (let index = 0; index < matches.length; index += 1) {
+      const node = matches[index];
+      if (isTourable(node)) return node;
+    }
+    return null;
+  }
+  const node = root.querySelector(selector);
+  return node && isTourable(node) ? node : null;
+}
+
+export function resolveStepAnchor(
+  step: TourStepDefinition,
+  root: TourQueryRoot = document,
+  isTourable: (node: unknown) => boolean = isElementTourable,
+) {
+  return (
+    step.anchors.find((selector) => queryTourable(selector, root, isTourable)) ?? step.anchors[0]
+  );
+}
+
+export function popoverSideForStep(
+  step: TourStepDefinition,
+  element: Element | null,
+): NonNullable<TourStepDefinition["side"]> {
+  if (element) {
+    const tourId = element.getAttribute("data-tour");
+    if (
+      tourId === "mobile-bottom-navigation" ||
+      (typeof element.closest === "function" &&
+        element.closest('[data-tour="mobile-bottom-navigation"]'))
+    ) {
+      return "top";
+    }
+    if (tourId === "mobile-more") return "top";
+    if (tourId === "mobile-navigation-trigger") return "bottom";
+  }
+  return step.side ?? "bottom";
 }

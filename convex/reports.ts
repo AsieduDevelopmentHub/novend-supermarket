@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireRole, resolveBranchFilter, isAdmin, isManager } from "./shared/permissions";
 import { completedReturnsInRange } from "./shared/returns";
+import { collectSalesInCompletedAtRange } from "./shared/salesRange";
 import { roundMoney } from "./shared/validation";
 
 export const salesSummary = query({
@@ -21,12 +22,8 @@ export const salesSummary = query({
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
 
     const sales = (
-      await ctx.db
-        .query("sales")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect()
+      await collectSalesInCompletedAtRange(ctx, organizationId, args.startDate, args.endDate)
     ).filter((sale) => {
-      if (sale.completedAt < args.startDate || sale.completedAt > args.endDate) return false;
       if (branchFilter && sale.branchId !== branchFilter) return false;
       if (!isAdmin(profile) && !isManager(profile) && sale.cashierId !== userId) return false;
       return true;
@@ -126,12 +123,8 @@ export const details = query({
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
 
     const sales = (
-      await ctx.db
-        .query("sales")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect()
+      await collectSalesInCompletedAtRange(ctx, organizationId, args.startDate, args.endDate)
     ).filter((sale) => {
-      if (sale.completedAt < args.startDate || sale.completedAt > args.endDate) return false;
       if (branchFilter && sale.branchId !== branchFilter) return false;
       if (!isAdmin(profile) && !isManager(profile) && sale.cashierId !== userId) return false;
       return true;
@@ -240,12 +233,8 @@ export const dayDetails = query({
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
 
     const sales = (
-      await ctx.db
-        .query("sales")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect()
+      await collectSalesInCompletedAtRange(ctx, organizationId, startDate, endDate)
     ).filter((sale) => {
-      if (sale.completedAt < startDate || sale.completedAt > endDate) return false;
       if (branchFilter && sale.branchId !== branchFilter) return false;
       if (!isAdmin(profile) && !isManager(profile) && sale.cashierId !== userId) return false;
       return true;

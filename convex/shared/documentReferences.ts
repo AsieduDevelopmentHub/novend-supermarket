@@ -3,8 +3,9 @@ import { TEXT_LIMITS, sanitizeText } from "./validation";
 
 const INVOICE_PREFIX = "INV-";
 const RETURN_PREFIX = "RET-";
+const PURCHASE_PREFIX = "PO-";
 
-function allocateReference(prefix: "INV" | "RET"): string {
+function allocateReference(prefix: "INV" | "RET" | "PO"): string {
   return `${prefix}-${randomHexId(16)}`;
 }
 
@@ -36,4 +37,13 @@ export function allocateReturnNumber(): string {
 
 export function sanitizeReturnNumber(value: string): string {
   return sanitizeReference(value, "Return number", RETURN_PREFIX);
+}
+
+/** Canonical supplier purchase reference. */
+export function allocatePurchaseReference(): string {
+  return allocateReference("PO");
+}
+
+export function sanitizePurchaseReference(value: string): string {
+  return sanitizeReference(value, "Purchase reference", PURCHASE_PREFIX);
 }

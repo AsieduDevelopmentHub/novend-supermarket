@@ -265,8 +265,9 @@ Novend is divided into several major layers.
 | Repository Layer    | Local data access abstraction                          |
 | Sync Engine         | Offline synchronization and conflict management        |
 | Convex              | Cloud synchronization, backup and remote data services |
-| Electron            | Desktop capabilities                                   |
-| PWA                 | Mobile/installable experience                          |
+| Electron            | Desktop app (Windows, macOS, Linux)                    |
+| Capacitor           | Native Android app                                     |
+| PWA                 | iOS Home Screen install                                |
 
 ### Important Architectural Principle
 
@@ -316,15 +317,19 @@ Desktop capabilities include:
 - Automatic updates
 - Improved POS experience
 
-Windows is the primary desktop target, with other platforms possible later.
+Windows is the primary counter target. macOS and Linux installers ship from the same Downloads page.
 
 ---
 
-## Mobile PWA
+## Android app
 
-Novend can be installed directly from the browser as a Progressive Web App.
+Novend ships a native Android app (Capacitor) from Downloads. It uses the same account, catalog, Dexie cache, and Convex sync as desktop and web.
 
-Mobile functionality can include:
+## iOS (PWA)
+
+On iPhone and iPad, add Novend to the Home Screen from Safari as a Progressive Web App. A native App Store client is not published yet.
+
+Mobile functionality includes:
 
 - Product lookup
 - Barcode scanning
@@ -334,7 +339,7 @@ Mobile functionality can include:
 - Stock management
 - Business monitoring
 
-The goal is to avoid maintaining completely separate applications for every platform.
+One Next.js codebase serves web, PWA, desktop, and Android — native shells add hardware and installers, not a second product.
 
 ---
 
@@ -1108,7 +1113,8 @@ The architecture allows Novend to maintain one shared business logic layer while
 
 ### Mobile
 
-- Progressive Web App
+- Capacitor (Android)
+- Progressive Web App (iOS Home Screen)
 
 ### Package Management
 
@@ -1122,30 +1128,31 @@ The architecture should keep business logic independent from the presentation la
 
 | Phase                                | Status  |
 | ------------------------------------ | ------- |
-| Product Architecture                 | Planned |
-| Commercial Multi-Tenant Foundation   | Planned |
-| Authentication & Organization System | Planned |
-| Offline Database                     | Planned |
-| Repository Layer                     | Planned |
-| Sync Engine                          | Planned |
-| POS                                  | Planned |
-| Inventory                            | Planned |
-| Products & Categories                | Planned |
-| Customers                            | Planned |
-| Suppliers                            | Planned |
-| Purchases                            | Planned |
-| Returns                              | Planned |
-| Expenses                             | Planned |
-| Multi-Branch                         | Planned |
-| RBAC                                 | Planned |
-| Analytics                            | Planned |
-| Reports                              | Planned |
-| Receipt Engine                       | Planned |
-| Electron Desktop                     | Planned |
-| PWA Mobile                           | Planned |
-| Cloud Synchronization                | Planned |
-| Remote Business Dashboard            | Planned |
-| Commercial Deployment                | Planned |
+| Product Architecture                 | Shipped |
+| Commercial Multi-Tenant Foundation   | Shipped |
+| Authentication & Organization System | Shipped |
+| Offline Database                     | Shipped |
+| Repository Layer                     | Shipped |
+| Sync Engine                          | Shipped |
+| POS                                  | Shipped |
+| Inventory                            | Shipped |
+| Products & Categories                | Shipped |
+| Customers                            | Shipped |
+| Suppliers                            | Shipped |
+| Purchases                            | Shipped |
+| Returns                              | Shipped |
+| Expenses                             | Shipped |
+| Multi-Branch                         | Shipped |
+| RBAC                                 | Shipped |
+| Analytics                            | Shipped |
+| Reports                              | Shipped |
+| Receipt Engine                       | Shipped |
+| Electron Desktop                     | Shipped |
+| Android native app                   | Shipped |
+| PWA (iOS Home Screen)                | Shipped |
+| Cloud Synchronization                | Shipped |
+| Remote Business Dashboard            | Shipped |
+| Commercial Deployment                | Shipped |
 
 ---
 
@@ -1171,7 +1178,8 @@ Princellen POS
        ├── Offline-First
        ├── Web
        ├── Desktop
-       ├── PWA
+       ├── Android
+       ├── PWA (iOS)
        └── Cloud Synchronization
 ```
 

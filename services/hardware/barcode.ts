@@ -35,16 +35,6 @@ const HID_FALLBACK_SCANNERS: DiscoveredScanner[] = [
   },
 ];
 
-export function listAvailableBarcodeProviders(): BarcodeProviderKind[] {
-  const providers: BarcodeProviderKind[] = ["hid"];
-  if (isCameraBarcodeSupported()) providers.push("camera");
-  return providers;
-}
-
-export function getActiveBarcodeProviderKind(): BarcodeProviderKind {
-  return "hid";
-}
-
 export function isBarcodeScanningEnabled(config = loadTerminalScannerConfig()): boolean {
   return config.enabled;
 }

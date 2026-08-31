@@ -18,6 +18,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SyncStatusBanner } from "@/components/offline/sync-status-banner";
+import { SyncStatusHeaderButton } from "@/components/offline/sync-status-chip";
 import { SyncCenterDialog } from "@/components/offline/sync-center-dialog";
 import { LicenseBanner } from "@/features/billing/components/license-banner";
 import { EmailVerificationBanner } from "@/features/auth/components/email-verification-banner";
@@ -410,6 +411,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
               }
               role={(user?.role as AppRole | undefined) ?? null}
               isPlatformAdmin={Boolean(user?.isPlatformAdmin || platformSession)}
+              initialProgress={user?.tourProgress}
             >
               <RestoreLastRoute />
               <TelemetryProvider enabled={Boolean(isAuthenticated && online)} />
@@ -484,6 +486,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             isPlatformAdmin={Boolean(
               "isPlatformAdmin" in shellUser && shellUser.isPlatformAdmin,
             )}
+            initialProgress={user?.tourProgress}
           >
             <RestoreLastRoute />
             <TelemetryProvider enabled={Boolean(isAuthenticated && online)} />
@@ -507,16 +510,20 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                     unoptimized
                     className="h-8 w-8 shrink-0 object-contain"
                   />
-                  <p className="truncate text-base font-semibold">
+                  <p className="min-w-0 flex-1 truncate text-base font-semibold">
                     {shellUser.organizationName?.trim() || APP_BRAND}
                   </p>
+                  <SyncStatusHeaderButton />
                 </header>
               )}
               <LicenseBanner />
               <EmailVerificationBanner />
               <SyncStatusBanner />
               {nativeShell ? (
-                <div id="native-page-header-host" className="native-page-header-host shrink-0" />
+                <div className="native-page-header-row shrink-0">
+                  <div id="native-page-header-host" className="native-page-header-host min-w-0 flex-1" />
+                  <SyncStatusHeaderButton />
+                </div>
               ) : null}
               <main
                 data-novend-scroll-root

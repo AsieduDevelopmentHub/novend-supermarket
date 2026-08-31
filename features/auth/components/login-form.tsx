@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvex, useConvexAuth, useQuery } from "convex/react";
+import { useConvex, useConvexAuth } from "convex/react";
 import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { SERVER_UNREACHABLE_MESSAGE, showError } from "@/lib/errors";
 import Image from "next/image";
 import { Mail } from "lucide-react";
-import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -59,15 +58,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const searchParams = useSearchParams();
   const fromBoot = searchParams.get("fromBoot") === "1";
   const redirectingRef = useRef(false);
-  const registration = useQuery(api.users.registrationStatus);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [pending, setPending] = useState(false);
   const [openingWorkspace, setOpeningWorkspace] = useState(false);
-
-  const isProvisioned = registration?.hasUsers === true;
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -148,8 +144,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!isProvisioned || pending || redirectingRef.current) {
-      if (!isProvisioned) toast.error("This business isn't set up yet. Contact Novend support.");
+    if (pending || redirectingRef.current) {
       return;
     }
 
@@ -197,30 +192,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       }
       setPending(false);
     }
-  }
-
-  if (registration === undefined) {
-    return (
-      <div className="w-full max-w-[360px] py-10">
-        <LoadingState label="Loading…" variant="form" />
-      </div>
-    );
-  }
-
-  if (!isProvisioned) {
-    return (
-      <div className="mx-auto w-full max-w-[360px]">
-        <div className={cn("text-center", compact ? "mb-6 space-y-1" : "mb-8 space-y-1")}>
-          <h1 className="text-foreground text-2xl font-semibold tracking-tight">
-            System not provisioned
-          </h1>
-          <p className="text-muted-foreground text-sm">{APP_NAME}</p>
-        </div>
-        <p className="bg-muted text-muted-foreground rounded-lg px-3 py-3 text-left text-sm leading-relaxed">
-          No administrator exists yet. Ask the system owner to finish setup, then try again.
-        </p>
-      </div>
-    );
   }
 
   if (openingWorkspace) {

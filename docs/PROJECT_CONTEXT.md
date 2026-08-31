@@ -2,7 +2,7 @@
 
 ## Project Context
 
-Version: 1.1.0
+Version: 1.1.1
 
 # Purpose
 
@@ -44,12 +44,12 @@ Index: [`design/ui/README.md`](./design/ui/README.md).
 1. Create an account (accept Terms & Privacy)
 2. Create their business (organization + MAIN branch)
 3. Add staff
-4. Add categories and products
+4. Add categories and products (including CSV/Excel catalog import)
 5. Receive / adjust stock; wholesale and transfers where enabled
 6. Sell at the POS
 7. Print a receipt
 8. Complete a sale while offline (after an online login), then sync
-9. Review orders, returns, customers, analytics, and reports as entitled
+9. Review orders, returns, customers, analytics, and export reports as entitled
 
 # Stakeholders
 
@@ -63,9 +63,9 @@ Index: [`design/ui/README.md`](./design/ui/README.md).
 # Deployment targets
 
 - **Web** — browsers and tablets
-- **PWA** — installable; service worker for offline shell
+- **PWA** — iOS Home Screen install; service worker for offline shell
 - **Desktop (Electron)** — Windows / macOS / Linux installers via Downloads
-- **Mobile apps** — roadmap (publish on the Download page when ready)
+- **Android** — native app via Downloads (Capacitor)
 
 # Success for the business
 

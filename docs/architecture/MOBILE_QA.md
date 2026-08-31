@@ -1,11 +1,13 @@
 # Mobile QA checklist (Phase 4)
 
-Manual production audit before Play Store / App Store submission. No feature
-should require internet before becoming usable after the first online sign-in.
+Manual production audit for the **Android** Capacitor app (sideloaded APK today;
+Play Store when published). iOS customers use the Home Screen PWA — this
+checklist is not an App Store gate. No feature should require internet before
+becoming usable after the first online sign-in.
 
 ## Device prep
 
-- [ ] Fresh install of Capacitor Android build (`versionName` 0.4.0+)
+- [ ] Fresh install of Capacitor Android build (`versionName` matches root `package.json`)
 - [ ] Sign in once online, then enable airplane mode for offline checks
 - [ ] Pair a 58mm or 80mm Bluetooth ESC/POS printer (optional for print rows)
 

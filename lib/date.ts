@@ -1,4 +1,5 @@
 import { format, formatDistanceToNow } from "date-fns";
+import { ONLINE_WINDOW_MS } from "@/lib/presence";
 
 export type DateRangePreset = "today" | "yesterday" | "7d" | "30d" | "month" | "custom" | "all";
 
@@ -80,8 +81,6 @@ export function formatRelative(value: number | Date) {
   return formatDistanceToNow(value, { addSuffix: true });
 }
 
-const ONLINE_MS = 2 * 60 * 1000;
-
 export function formatPresence(args: {
   presence?: "online" | "offline";
   lastSeenAt?: number | null;
@@ -91,7 +90,7 @@ export function formatPresence(args: {
   const seenAt =
     !clearedSeen && args.lastSeenAt != null && args.lastSeenAt > 0 ? args.lastSeenAt : null;
   const online =
-    args.presence === "online" || (seenAt !== null && Date.now() - seenAt <= ONLINE_MS);
+    args.presence === "online" || (seenAt !== null && Date.now() - seenAt <= ONLINE_WINDOW_MS);
   if (online) return { online: true, label: "Online" };
   const stamp = seenAt ?? (clearedSeen ? null : (args.lastLoginAt ?? null));
   if (!stamp || stamp <= 0) return { online: false, label: "Never seen" };

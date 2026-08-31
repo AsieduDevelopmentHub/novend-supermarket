@@ -54,7 +54,8 @@ More UI captures: [`docs/design/ui/README.md`](./docs/design/ui/README.md).
 - Offline-first checkout with cloud sync when the network returns
 - Inventory, wholesale storage, branch transfers, and adjustments with history
 - Customers, suppliers, returns, analytics, and printable reports
-- Desktop installers (Windows / macOS / Linux) plus web — mobile apps on the roadmap
+- Catalog import (CSV / Excel) and report export (CSV, Excel, PDF)
+- Desktop (Windows / macOS / Linux), Android app, and iOS as a Home Screen PWA
 - Roles for cashier, manager, administrator, and owner — always organization-scoped
 
 ## Stack

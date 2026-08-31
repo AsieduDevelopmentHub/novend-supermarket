@@ -633,6 +633,7 @@ export const listOrders = query({
 
     const startDate = args.startDate;
     const endDate = args.endDate;
+    const fetchCap = Math.min(Math.max(limit * 8, 400), 2000);
     let sales;
     if (startDate !== undefined && endDate !== undefined) {
       sales = await ctx.db
@@ -643,26 +644,30 @@ export const listOrders = query({
             .gte("completedAt", startDate)
             .lte("completedAt", endDate),
         )
-        .collect();
+        .order("desc")
+        .take(fetchCap);
     } else if (startDate !== undefined) {
       sales = await ctx.db
         .query("sales")
         .withIndex("by_organization_completedAt", (q) =>
           q.eq("organizationId", organizationId).gte("completedAt", startDate),
         )
-        .collect();
+        .order("desc")
+        .take(fetchCap);
     } else if (endDate !== undefined) {
       sales = await ctx.db
         .query("sales")
         .withIndex("by_organization_completedAt", (q) =>
           q.eq("organizationId", organizationId).lte("completedAt", endDate),
         )
-        .collect();
+        .order("desc")
+        .take(fetchCap);
     } else {
       sales = await ctx.db
         .query("sales")
         .withIndex("by_organization_completedAt", (q) => q.eq("organizationId", organizationId))
-        .collect();
+        .order("desc")
+        .take(fetchCap);
     }
 
     if (branchFilter) {

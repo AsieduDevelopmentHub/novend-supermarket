@@ -29,6 +29,7 @@ import type {
   RecordWholesalePurchasePayload,
   RemoveExpensePayload,
   TransferStockPayload,
+  UpdateLotExpiryPayload,
   UpdateProfilePayload,
   UpsertCustomerPayload,
   UpsertProductPayload,
@@ -140,7 +141,9 @@ export type QueuedMutators = {
     notes?: string;
     status: "active" | "inactive";
   }) => Promise<Id<"suppliers">>;
-  recordPurchase: (args: RecordWholesalePurchasePayload & { clientOperationId?: string }) => Promise<unknown>;
+  recordPurchase: (
+    args: RecordWholesalePurchasePayload & { clientOperationId?: string },
+  ) => Promise<unknown>;
   transferToBranch: (args: {
     productId: Id<"products">;
     branchId: Id<"branches">;
@@ -148,6 +151,7 @@ export type QueuedMutators = {
     clientOperationId?: string;
   }) => Promise<unknown>;
   adjustStock: (args: AdjustStockPayload) => Promise<unknown>;
+  updateLotExpiry: (args: UpdateLotExpiryPayload) => Promise<unknown>;
   transferStock: (args: TransferStockPayload) => Promise<unknown>;
   createCustomer: (args: {
     name: string;
@@ -423,6 +427,17 @@ export async function drainOutbox(options: {
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;
+        } else if (claimed.type === "update_lot_expiry") {
+          const payload = JSON.parse(claimed.payloadJson) as UpdateLotExpiryPayload;
+          await options.mutators.updateLotExpiry({
+            lotId: payload.lotId,
+            productId: payload.productId,
+            expiryDate: payload.expiryDate,
+            clientOperationId: claimed.clientOperationId,
+          });
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
         } else if (claimed.type === "transfer_stock") {
           const payload = JSON.parse(claimed.payloadJson) as TransferStockPayload;
           await options.mutators.transferStock({
@@ -675,12 +690,4 @@ export async function drainOutbox(options: {
   }
 
   return { processed, failed, skipped: false };
-}
-
-export function isSyncEngineBusy() {
-  return draining;
-}
-
-export function getSyncBackoffRemainingMs() {
-  return Math.max(0, backoffUntil - Date.now());
 }

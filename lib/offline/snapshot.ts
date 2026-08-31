@@ -21,6 +21,12 @@ import {
 } from "./branch-stock";
 import { saveShellProfile } from "./shell-profile";
 import {
+  mergeTourProgress,
+  parseTourProgress,
+  saveTourProgress,
+  type StoredTourProgress,
+} from "./tour-progress-cache";
+import {
   mergeServerAndLocalById,
   mergeWholesaleStock,
   overlayPendingBranchStock,
@@ -33,6 +39,7 @@ import type {
   MirroredCategory,
   MirroredCustomer,
   MirroredExpense,
+  MirroredLot,
   MirroredOrder,
   MirroredOrderItem,
   MirroredProduct,
@@ -106,21 +113,26 @@ export async function pullOfflineSnapshot(
   await ensureDeviceId(db);
 
   if (!options.force) {
-    const lastAt = await getLastSnapshotAt();
-    const replicaVersion = await getMeta(db, META_KEYS.replicaSchemaVersion);
-    const branchCount = await db.branches.count();
-    const replicaComplete = replicaVersion === REPLICA_SCHEMA_VERSION && branchCount > 0;
-    if (lastAt && Date.now() - lastAt < SNAPSHOT_PULL_TTL_MS && replicaComplete) {
-      const [productCount, customerCount, orderCount] = await Promise.all([
-        db.products.count(),
-        db.customers.count(),
-        db.orders.count(),
-      ]);
-      if (productCount > 0) {
-        // Late dashboard subscribers still need a refresh signal.
-        notifyReplicaChanged();
-        return { productCount, customerCount, orderCount, skipped: true };
+    try {
+      const lastAt = await getLastSnapshotAt();
+      const replicaVersion = await getMeta(db, META_KEYS.replicaSchemaVersion);
+      const branchCount = await db.branches.count();
+      // Throws if the lots store is missing (stuck upgrade) so we pull a full snapshot.
+      await db.lots.limit(1).count();
+      const replicaComplete = replicaVersion === REPLICA_SCHEMA_VERSION && branchCount > 0;
+      if (lastAt && Date.now() - lastAt < SNAPSHOT_PULL_TTL_MS && replicaComplete) {
+        const [productCount, customerCount, orderCount] = await Promise.all([
+          db.products.count(),
+          db.customers.count(),
+          db.orders.count(),
+        ]);
+        if (productCount > 0) {
+          notifyReplicaChanged();
+          return { productCount, customerCount, orderCount, skipped: true };
+        }
       }
+    } catch {
+      /* Missing stores — fall through to a full snapshot after Dexie repair. */
     }
   }
 
@@ -152,6 +164,7 @@ export async function applySnapshot(
     users?: MirroredUser[];
     expenses?: MirroredExpense[];
     returns?: MirroredReturn[];
+    lots?: MirroredLot[];
     print: PrintSnapshot;
     profile: {
       userId: string;
@@ -180,6 +193,7 @@ export async function applySnapshot(
     db.users,
     db.expenses,
     db.returns,
+    db.lots,
     db.meta,
   ];
   await db.transaction("rw", tables, async () => {
@@ -218,8 +232,16 @@ export async function applySnapshot(
       overlayPendingWholesaleStock(snapshot.wholesaleStock ?? [], openOutbox),
       pendingLocalIds,
     );
-    await replaceServerRows(db.wholesalePurchases, snapshot.wholesalePurchases ?? [], pendingLocalIds);
-    await replaceServerRows(db.wholesaleTransfers, snapshot.wholesaleTransfers ?? [], pendingLocalIds);
+    await replaceServerRows(
+      db.wholesalePurchases,
+      snapshot.wholesalePurchases ?? [],
+      pendingLocalIds,
+    );
+    await replaceServerRows(
+      db.wholesaleTransfers,
+      snapshot.wholesaleTransfers ?? [],
+      pendingLocalIds,
+    );
     const branchRows =
       snapshot.branches && snapshot.branches.length > 0
         ? snapshot.branches
@@ -239,6 +261,7 @@ export async function applySnapshot(
     await replaceServerRows(db.users, snapshot.users ?? [], pendingLocalIds);
     await replaceServerRows(db.expenses, snapshot.expenses ?? [], pendingLocalIds);
     await replaceServerRows(db.returns, snapshot.returns ?? [], pendingLocalIds);
+    await replaceServerRows(db.lots, snapshot.lots ?? [], pendingLocalIds);
     await setMeta(db, META_KEYS.printSnapshot, JSON.stringify(snapshot.print));
     await setMeta(db, META_KEYS.profileUserId, snapshot.profile.userId);
     await setMeta(db, META_KEYS.profileName, snapshot.profile.name);
@@ -250,6 +273,21 @@ export async function applySnapshot(
     }
     if (snapshot.profile.branchName) {
       await setMeta(db, META_KEYS.profileBranchName, snapshot.profile.branchName);
+    }
+    const incomingTours = parseTourProgress(
+      "tourProgress" in snapshot.profile ? snapshot.profile.tourProgress : [],
+    );
+    if (incomingTours.length > 0) {
+      const existingRaw = await getMeta(db, META_KEYS.tourProgress);
+      let existing: StoredTourProgress[] = [];
+      if (existingRaw) {
+        try {
+          existing = parseTourProgress(JSON.parse(existingRaw) as unknown);
+        } catch {
+          existing = [];
+        }
+      }
+      await saveTourProgress(mergeTourProgress(existing, incomingTours));
     }
     await setMeta(db, META_KEYS.lastSnapshotAt, String(now));
     await setMeta(db, META_KEYS.replicaSchemaVersion, REPLICA_SCHEMA_VERSION);

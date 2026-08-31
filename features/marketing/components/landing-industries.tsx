@@ -112,7 +112,7 @@ export function LandingIndustries() {
           data-reveal
           className="landing-shadow-card mt-8 overflow-hidden rounded-3xl border border-slate-200/80 bg-white sm:mt-10"
         >
-          <div className="grid lg:grid-cols-2">
+          <div className="grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
             <div
               key={`copy-${active.id}`}
               className="order-2 flex flex-col justify-center p-6 sm:p-8 lg:order-1 lg:p-10"
@@ -140,24 +140,28 @@ export function LandingIndustries() {
               </a>
             </div>
 
-            <div className="order-1 border-b border-slate-100 bg-[#0f172a] p-3 sm:p-4 lg:order-2 lg:border-b-0 lg:border-l">
-              <div key={active.id} className="landing-industry-visual">
-                <ExpandableScreenshot
-                  src={screen}
-                  alt={SCREEN_ALT[active.id]}
-                  className="landing-industry-shot-frame"
-                >
-                  <Image
+            <div className="order-1 flex items-center justify-center bg-slate-100 p-5 sm:p-7 lg:order-2 lg:p-8">
+              <div key={active.id} className="landing-monitor">
+                <div className="landing-monitor-bezel">
+                  <ExpandableScreenshot
                     src={screen}
                     alt={SCREEN_ALT[active.id]}
-                    width={1920}
-                    height={1080}
-                    quality={90}
-                    className="landing-industry-shot"
-                    sizes="(max-width: 1024px) 100vw, 560px"
-                    draggable={false}
-                  />
-                </ExpandableScreenshot>
+                    className="landing-industry-shot-frame"
+                  >
+                    <Image
+                      src={screen}
+                      alt={SCREEN_ALT[active.id]}
+                      fill
+                      quality={90}
+                      className="landing-industry-shot"
+                      sizes="(max-width: 1024px) 100vw, 720px"
+                      draggable={false}
+                    />
+                  </ExpandableScreenshot>
+                  <div className="landing-monitor-chin" aria-hidden />
+                </div>
+                <div className="landing-monitor-stand" aria-hidden />
+                <div className="landing-monitor-base" aria-hidden />
               </div>
             </div>
           </div>

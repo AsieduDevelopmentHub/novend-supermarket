@@ -18,6 +18,11 @@ import {
   unitCostForLine,
   cogsForLines,
 } from "./shared/returns";
+import {
+  collectExpensesInOccurredAtRange,
+  collectSaleItemsForSales,
+  collectSalesInCompletedAtRange,
+} from "./shared/salesRange";
 
 export type ExpenseCategory =
   "salaries" | "transport" | "utilities" | "supplies" | "maintenance" | "misc";
@@ -256,22 +261,16 @@ export const summary = query({
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
 
     const sales = (
-      await ctx.db
-        .query("sales")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect()
+      await collectSalesInCompletedAtRange(ctx, organizationId, args.startDate, args.endDate)
     ).filter((s) => {
-      if (s.completedAt < args.startDate || s.completedAt > args.endDate) return false;
       if (branchFilter && s.branchId !== branchFilter) return false;
       return true;
     });
 
-    const saleIds = new Set(sales.map((s) => s._id));
-    const allItems = await ctx.db
-      .query("saleItems")
-      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-      .collect();
-    const items = allItems.filter((i) => saleIds.has(i.saleId));
+    const items = await collectSaleItemsForSales(
+      ctx,
+      sales.map((s) => s._id),
+    );
 
     const returns = await completedReturnsInRange(ctx, {
       startDate: args.startDate,
@@ -287,11 +286,15 @@ export const summary = query({
     const productIds = [
       ...new Set([...items.map((i) => i.productId), ...returnItems.map((i) => i.productId)]),
     ];
-    const costByProduct = new Map<Id<"products">, number>();
-    for (const productId of productIds) {
-      const product = await ctx.db.get(productId);
-      if (product) costByProduct.set(productId, product.costPrice);
-    }
+    const products = await ctx.db
+      .query("products")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
+    const costByProduct = new Map(
+      products
+        .filter((product) => productIds.includes(product._id))
+        .map((p) => [p._id, p.costPrice]),
+    );
 
     const revenueGross = roundMoney(sales.reduce((sum, s) => sum + s.total, 0));
     const totalRefunds = roundMoney(returns.reduce((sum, row) => sum + row.refundAmount, 0));
@@ -304,15 +307,8 @@ export const summary = query({
     const cogs = roundMoney(soldCogs - returnedCogs);
 
     const expenses = (
-      await ctx.db
-        .query("expenses")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect()
-    ).filter((e) => {
-      if (e.occurredAt < args.startDate || e.occurredAt > args.endDate) return false;
-      if (branchFilter && e.branchId !== branchFilter) return false;
-      return true;
-    });
+      await collectExpensesInOccurredAtRange(ctx, organizationId, args.startDate, args.endDate)
+    ).filter((e) => !branchFilter || e.branchId === branchFilter);
     const operatingExpenses = roundMoney(expenses.reduce((sum, e) => sum + e.amount, 0));
 
     const grossProfit = roundMoney(revenue - cogs);
@@ -454,12 +450,8 @@ export const details = query({
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
 
     const sales = (
-      await ctx.db
-        .query("sales")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect()
+      await collectSalesInCompletedAtRange(ctx, organizationId, args.startDate, args.endDate)
     ).filter((s) => {
-      if (s.completedAt < args.startDate || s.completedAt > args.endDate) return false;
       if (branchFilter && s.branchId !== branchFilter) return false;
       return true;
     });
@@ -470,23 +462,13 @@ export const details = query({
       branchId: branchFilter,
     });
     const expenses = (
-      await ctx.db
-        .query("expenses")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect()
-    ).filter((e) => {
-      if (e.occurredAt < args.startDate || e.occurredAt > args.endDate) return false;
-      if (branchFilter && e.branchId !== branchFilter) return false;
-      return true;
-    });
+      await collectExpensesInOccurredAtRange(ctx, organizationId, args.startDate, args.endDate)
+    ).filter((e) => !branchFilter || e.branchId === branchFilter);
 
-    const saleIds = new Set(sales.map((s) => s._id));
-    const items = (
-      await ctx.db
-        .query("saleItems")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect()
-    ).filter((i) => saleIds.has(i.saleId));
+    const items = await collectSaleItemsForSales(
+      ctx,
+      sales.map((s) => s._id),
+    );
     const returnItems = await loadItemsForReturns(
       ctx,
       returns.map((row) => row._id),

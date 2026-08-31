@@ -1,6 +1,6 @@
 # Convex Architecture
 
-Version: 1.0.0
+Version: 1.0.1
 
 Engineering practices: [`docs/development/06-CONVEX_GUIDE.md`](../development/06-CONVEX_GUIDE.md)
 
@@ -9,8 +9,9 @@ Schema: [`DATABASE_SCHEMA.md`](./DATABASE_SCHEMA.md)
 Auth: `@convex-dev/auth` Password provider in `convex/auth.ts`.
 
 Shared helpers: `convex/shared/permissions.ts`, `validation.ts`, `audit.ts`,
-`platformTelemetry.ts`. Super Admin monitoring lives in `convex/telemetry.ts`,
-`convex/platformMonitoring.ts`, and `convex/tours.ts`. See
+`platformTelemetry.ts`, `salesRange.ts` (org-scoped date-range reads). Super
+Admin monitoring lives in `convex/telemetry.ts`, `convex/platformMonitoring.ts`,
+and `convex/tours.ts`. See
 [`PLATFORM_MONITORING.md`](./PLATFORM_MONITORING.md) and
 [`PRODUCT_TOURS.md`](./PRODUCT_TOURS.md).
 

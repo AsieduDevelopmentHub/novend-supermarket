@@ -31,9 +31,9 @@ Desktop:
 ## Deployment targets
 
 - **Web** — browsers, tablets
-- **PWA** — cached shell + Dexie for offline selling
+- **PWA** — iOS Home Screen install; cached shell + Dexie for offline selling
 - **Desktop** — Electron shell at `apps/desktop`; first launch needs the hosted app, then offline from cache + Dexie
-- **Mobile** — Capacitor shell at `apps/mobile`; same hosted Next app + `@novend/hardware` (camera, barcode, BLE print, biometrics, backup). See `CAPACITOR_MOBILE.md`.
+- **Android** — Capacitor shell at `apps/mobile`; same hosted Next app + `@novend/hardware`. See `CAPACITOR_MOBILE.md`.
 
 Hardware access for all targets goes through `packages/hardware` (`@novend/hardware`).
 
@@ -53,7 +53,7 @@ Dexie is the operational cache. See `OFFLINE_SYNC.md`, `MULTI_TENANT.md`, and `D
 ## MVP modules
 
 - Auth, onboarding, app shell
-- Dashboard (today summary)
+- Dashboard (7-day ops summary; today for cashiers)
 - Products, categories, inventory
 - POS, holds, receipts, orders
 - Customers (light)

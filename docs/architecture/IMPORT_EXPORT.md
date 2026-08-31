@@ -1,6 +1,6 @@
 # Product Import, Export & Plan Entitlements
 
-Version: 1.1.1
+Version: 1.1.3
 
 Architecture for catalog import, reusable export, and plan-gated formats.
 Business rules stay in Convex. Dexie remains the operational replica.
@@ -26,11 +26,14 @@ supplier, tax) are skipped with an explanation, not invented.
 
 ## 2. Current import / export
 
-- **Import:** none. Catalog writes go through `createProduct` / `updateProduct`
-  and the Dexie outbox (`upsert_product`, `create_category`).
-- **Export:** `services.exportCsv` is a thin CSV download. Products exported
-  name / SKU / stock only. Analytics built an ad-hoc CSV and print HTML.
-  `jspdf` is already a dependency. No shared format adapters.
+- **Import:** administrators and managers import products from CSV or Excel via
+  `features/products` (`ProductImportWizard`) and `lib/import` (parse → map →
+  validate → preview → Dexie apply). Templates download as CSV/XLSX. Opening
+  stock applies on **create** only. Spreadsheet bytes are not stored; Convex
+  keeps job counts, filenames, and reusable column mappings.
+- **Export:** shared adapters in `lib/export` for CSV, JSON, XLSX, and PDF.
+  Reports, analytics, and catalogs use `ExportMenu`. CSV/JSON are on every
+  commercial plan; Excel and PDF follow Pro+ via `planCapabilities`.
 
 ## 3. Current reporting / analytics
 
@@ -67,14 +70,17 @@ Dexie + outbox. Product creates/updates already queue `upsert_product`. Imports
 write locally, then drain. Exports of on-device lists and reports run offline.
 Job history and mapping sync to Convex when online.
 
-## 7. Gaps and risks
+## 7. Remaining risks
 
-- Thin product CSV; no mapping engine; no file/row guards; CSV formula injection.
-- Plan format gates (XLSX/PDF) were undefined.
+Mapping, plan format gates, file/row guards, and formula-injection prefixes
+are shipped (see §2 and `lib/import`). Remaining constraints:
+
+- Catalog import is limited to the current product schema (no brand, supplier,
+  or tax columns on the row).
 - Opening stock on **update** must not silently rewrite inventory (immutable
   history). Quantity applies on **create** only; updates skip quantity.
-- Large PDFs on the client; cap PDF row count.
-- Malformed xlsx/zip bombs: size, row, and unzip limits.
+- Large PDFs on the client; keep the PDF row cap.
+- Malformed xlsx/zip bombs: keep size, row, and unzip limits.
 
 ## 8. Proposed reusable architecture
 
@@ -122,7 +128,10 @@ recorded. The executive PDF is presentation-oriented; the XLSX workbook uses
 separate summary, trend, runtime, adoption, release, operations, and
 organization sheets; CSV provides a portable executive KPI dataset.
 
-## 10. Implementation phases
+## 10. Implementation status
+
+Phases 1–5 are **shipped** (capabilities, import engine, export adapters,
+wizard, tests). Keep this list as the architecture map, not a backlog:
 
 1. Capabilities on the licence snapshot.
 2. Import engine (CSV/TSV/XLSX/SpreadsheetML) + mapping + validation.

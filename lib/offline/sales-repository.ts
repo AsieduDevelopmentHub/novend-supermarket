@@ -1,3 +1,4 @@
+import { roundMoney } from "@/lib/currency";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import {
   getMeta,
@@ -27,10 +28,6 @@ export type CartLineInput = {
   quantity: number;
   discount: number;
 };
-
-function roundMoney(n: number) {
-  return Math.round(n * 100) / 100;
-}
 
 function stampPrintedInvoice(payload: unknown, invoiceNumber: string): unknown {
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {

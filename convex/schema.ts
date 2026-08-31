@@ -90,6 +90,16 @@ export const tourStatusValidator = v.union(
   v.literal("skipped"),
 );
 
+export const tourProgressEntryValidator = v.object({
+  tourId: v.string(),
+  version: v.number(),
+  status: tourStatusValidator,
+  lastStepId: v.optional(v.string()),
+  startedAt: v.number(),
+  updatedAt: v.number(),
+  completedAt: v.optional(v.number()),
+});
+
 export const scheduledChangeValidator = v.object({
   type: v.literal("downgrade"),
   targetPlanKey: planKeyValidator,
@@ -363,6 +373,8 @@ export default defineSchema({
       v.union(v.literal("light"), v.literal("dark"), v.literal("system")),
     ),
     appearanceFontSize: v.optional(v.union(v.literal("sm"), v.literal("md"), v.literal("lg"))),
+    /** Compact denormalized copy of userTourProgress for session + snapshot bootstrap. */
+    tourProgress: v.optional(v.array(tourProgressEntryValidator)),
   })
     .index("by_userId", ["userId"])
     .index("by_organization", ["organizationId"])
@@ -499,7 +511,8 @@ export default defineSchema({
     .index("by_organization", ["organizationId"])
     .index("by_supplier", ["supplierId"])
     .index("by_purchasedAt", ["purchasedAt"])
-    .index("by_reference", ["reference"]),
+    .index("by_reference", ["reference"])
+    .index("by_organization_reference", ["organizationId", "reference"]),
 
   supplierPurchaseItems: defineTable({
     organizationId: v.id("organizations"),
@@ -606,6 +619,8 @@ export default defineSchema({
   })
     .index("by_organization", ["organizationId"])
     .index("by_returnNumber", ["returnNumber"])
+    .index("by_organization_returnNumber", ["organizationId", "returnNumber"])
+    .index("by_organization_completedAt", ["organizationId", "completedAt"])
     .index("by_sale", ["saleId"])
     .index("by_branch", ["branchId"])
     .index("by_completedAt", ["completedAt"])
@@ -666,6 +681,7 @@ export default defineSchema({
   })
     .index("by_organization", ["organizationId"])
     .index("by_occurredAt", ["occurredAt"])
+    .index("by_organization_occurredAt", ["organizationId", "occurredAt"])
     .index("by_category", ["category"])
     .index("by_branch", ["branchId"]),
 

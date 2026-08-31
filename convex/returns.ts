@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, MutationCtx, QueryCtx } from "./_generated/server";
-import { requireRole, assertBranchAccess, resolveBranchFilter } from "./shared/permissions";
+import { requireRole, assertBranchAccess, resolveBranchFilter, canViewCostPrice } from "./shared/permissions";
 import {
   assertPositiveQuantity,
   roundMoney,
@@ -43,9 +43,10 @@ async function requireReturnableSale(ctx: DbCtx, saleId: Id<"sales">) {
 export const preview = query({
   args: { saleId: v.id("sales") },
   handler: async (ctx, args) => {
-    const { sale } = await requireReturnableSale(ctx, args.saleId);
+    const { sale, profile } = await requireReturnableSale(ctx, args.saleId);
     const { items, refundedAmount, returns } = await loadReturnableLines(ctx, sale._id);
     const remainingRefundable = roundMoney(Math.max(0, sale.total - refundedAmount));
+    const showCost = canViewCostPrice(profile);
     return {
       saleId: sale._id,
       invoiceNumber: sale.invoiceNumber,
@@ -56,7 +57,9 @@ export const preview = query({
       refundedAmount,
       remainingRefundable,
       canReturn: items.some((item) => item.remainingQuantity > 0),
-      items,
+      items: items.map((item) =>
+        showCost ? item : { ...item, unitCost: undefined },
+      ),
       returns: returns.map((row) => ({
         id: row._id,
         returnNumber: row.returnNumber,
@@ -161,7 +164,7 @@ export const processReturn = mutation({
       throw new Error("Invalid refund amount");
     }
 
-    const returnNumber = await nextReturnNumber(ctx, args.returnNumber);
+    const returnNumber = await nextReturnNumber(ctx, organizationId, args.returnNumber);
     const completedAt = Date.now();
     const snapshot = await loadPrintSnapshot(ctx, organizationId, branchId);
 

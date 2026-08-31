@@ -192,15 +192,31 @@
 /*
  * Title bar lives outside <main> (see #native-page-header-host) so it never scrolls.
  */
-.native-shell .native-page-header-host {
+.native-shell .native-page-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   background-color: #ffffff;
   border-bottom: 1px solid var(--border);
   min-height: var(--native-header-row);
+  padding-right: var(--mobile-page-pad);
+}
+
+.native-shell.dark .native-page-header-row,
+.dark .native-shell .native-page-header-row {
+  background-color: #0b1f33;
+}
+
+.native-shell .native-page-header-host {
+  background-color: transparent;
+  min-height: var(--native-header-row);
+  min-width: 0;
+  flex: 1;
 }
 
 .native-shell.dark .native-page-header-host,
 .dark .native-shell .native-page-header-host {
-  background-color: #0b1f33;
+  background-color: transparent;
 }
 
 .native-shell .native-page-header {
@@ -208,7 +224,7 @@
   display: flex;
   align-items: center;
   padding-left: var(--mobile-page-pad);
-  padding-right: var(--mobile-page-pad);
+  padding-right: 0;
   background-color: #ffffff;
 }
 
@@ -275,22 +291,42 @@
 /* Product tours inherit Novend tokens instead of Driver.js defaults. */
 .driver-popover.novend-product-tour {
   max-width: min(22rem, calc(100vw - 2rem));
-  border: 1px solid var(--border);
+  border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: var(--radius-xl);
-  background: var(--popover);
-  color: var(--popover-foreground);
-  box-shadow: var(--shadow-xl);
+  background: #ffffff;
+  color: #0f172a;
+  opacity: 1 !important;
+  z-index: 1000000001;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.06),
+    0 10px 15px -8px rgba(15, 23, 42, 0.18),
+    0 28px 48px -16px rgba(15, 23, 42, 0.4);
+}
+
+.dark .driver-popover.novend-product-tour {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.7),
+    0 28px 48px -12px rgba(0, 0, 0, 0.7);
 }
 
 .driver-popover.novend-product-tour .driver-popover-title {
   font-size: 1rem;
   font-weight: 650;
   line-height: 1.35;
+  color: inherit;
 }
 
 .driver-popover.novend-product-tour .driver-popover-description,
 .driver-popover.novend-product-tour .driver-popover-progress-text {
-  color: var(--muted-foreground);
+  color: #475569;
+}
+
+.dark .driver-popover.novend-product-tour .driver-popover-description,
+.dark .driver-popover.novend-product-tour .driver-popover-progress-text {
+  color: #cbd5e1;
 }
 
 .driver-popover.novend-product-tour button {
@@ -301,6 +337,7 @@
   color: var(--foreground);
   font: inherit;
   text-shadow: none;
+  opacity: 1;
 }
 
 .driver-popover.novend-product-tour .driver-popover-next-btn {
@@ -309,9 +346,43 @@
   color: var(--primary-foreground);
 }
 
+.driver-popover.novend-product-tour .driver-popover-skip-btn {
+  margin-right: auto;
+  border-color: transparent;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.dark .driver-popover.novend-product-tour .driver-popover-skip-btn {
+  color: #94a3b8;
+}
+
+.driver-popover.novend-product-tour .driver-popover-skip-btn:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+.dark .driver-popover.novend-product-tour .driver-popover-skip-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .driver-popover.novend-product-tour button:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .driver-popover.novend-product-tour {
+    max-width: min(20.5rem, calc(100vw - 1.25rem));
+  }
+
+  .driver-popover.novend-product-tour .driver-popover-footer {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
 }
 
 @keyframes splash-in {
@@ -366,7 +437,6 @@
 
 /* Soft radial flash at the moment of impact. */
 @keyframes splash-impact {
-
   0%,
   48% {
     opacity: 0;
@@ -386,7 +456,6 @@
 
 /* Minimal brand particles disperse then fade. */
 @keyframes splash-particle {
-
   0%,
   48% {
     opacity: 0;
@@ -405,7 +474,6 @@
 }
 
 @keyframes splash-caption {
-
   0%,
   62% {
     opacity: 0;
@@ -427,9 +495,11 @@
 }
 
 .animate-splash-impact {
-  background: radial-gradient(circle,
-      color-mix(in oklab, var(--primary) 55%, transparent) 0%,
-      transparent 70%);
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--primary) 55%, transparent) 0%,
+    transparent 70%
+  );
   animation: splash-impact 1.35s ease-out both;
 }
 
@@ -462,7 +532,6 @@
 }
 
 @keyframes login-chart-pulse {
-
   0%,
   100% {
     opacity: 0.55;
@@ -517,10 +586,12 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg,
-      transparent 0%,
-      rgba(224, 242, 254, 0.65) 50%,
-      transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(224, 242, 254, 0.65) 50%,
+    transparent 100%
+  );
   background-size: 180% 100%;
   animation: login-grid-pulse 16s ease-in-out infinite;
 }
@@ -528,10 +599,12 @@
 .login-atmosphere-wave {
   position: absolute;
   inset: -40%;
-  background: linear-gradient(115deg,
-      transparent 38%,
-      rgba(255, 255, 255, 0.7) 50%,
-      transparent 62%);
+  background: linear-gradient(
+    115deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.7) 50%,
+    transparent 62%
+  );
   animation: login-wave 18s ease-in-out infinite;
 }
 
@@ -588,11 +661,13 @@
 }
 
 .login-orb-a .login-orb-glow {
-  background: radial-gradient(circle at 32% 28%,
-      #ffffff 0%,
-      #e0f2fe 42%,
-      rgba(56, 189, 248, 0.45) 68%,
-      transparent 74%);
+  background: radial-gradient(
+    circle at 32% 28%,
+    #ffffff 0%,
+    #e0f2fe 42%,
+    rgba(56, 189, 248, 0.45) 68%,
+    transparent 74%
+  );
 }
 
 .login-orb-b {
@@ -604,11 +679,13 @@
 }
 
 .login-orb-b .login-orb-glow {
-  background: radial-gradient(circle at 32% 28%,
-      #ffffff 0%,
-      #bae6fd 48%,
-      rgba(14, 165, 233, 0.4) 70%,
-      transparent 76%);
+  background: radial-gradient(
+    circle at 32% 28%,
+    #ffffff 0%,
+    #bae6fd 48%,
+    rgba(14, 165, 233, 0.4) 70%,
+    transparent 76%
+  );
 }
 
 .login-orb-c {
@@ -620,11 +697,13 @@
 }
 
 .login-orb-c .login-orb-glow {
-  background: radial-gradient(circle at 32% 28%,
-      #ffffff 0%,
-      #f1f5f9 40%,
-      rgba(125, 211, 252, 0.5) 68%,
-      transparent 74%);
+  background: radial-gradient(
+    circle at 32% 28%,
+    #ffffff 0%,
+    #f1f5f9 40%,
+    rgba(125, 211, 252, 0.5) 68%,
+    transparent 74%
+  );
 }
 
 .login-orb-d {
@@ -636,11 +715,13 @@
 }
 
 .login-orb-d .login-orb-glow {
-  background: radial-gradient(circle at 32% 28%,
-      #ffffff 0%,
-      #e0f2fe 45%,
-      rgba(56, 189, 248, 0.42) 70%,
-      transparent 76%);
+  background: radial-gradient(
+    circle at 32% 28%,
+    #ffffff 0%,
+    #e0f2fe 45%,
+    rgba(56, 189, 248, 0.42) 70%,
+    transparent 76%
+  );
 }
 
 .login-orb-e {
@@ -652,11 +733,13 @@
 }
 
 .login-orb-e .login-orb-glow {
-  background: radial-gradient(circle at 32% 28%,
-      #ffffff 0%,
-      #e0f2fe 46%,
-      rgba(14, 165, 233, 0.35) 70%,
-      transparent 76%);
+  background: radial-gradient(
+    circle at 32% 28%,
+    #ffffff 0%,
+    #e0f2fe 46%,
+    rgba(14, 165, 233, 0.35) 70%,
+    transparent 76%
+  );
 }
 
 .login-orb-f {
@@ -668,15 +751,16 @@
 }
 
 .login-orb-f .login-orb-glow {
-  background: radial-gradient(circle at 32% 28%,
-      #ffffff 0%,
-      #bae6fd 44%,
-      rgba(56, 189, 248, 0.4) 70%,
-      transparent 76%);
+  background: radial-gradient(
+    circle at 32% 28%,
+    #ffffff 0%,
+    #bae6fd 44%,
+    rgba(56, 189, 248, 0.4) 70%,
+    transparent 76%
+  );
 }
 
 @keyframes login-orb-label {
-
   0%,
   100% {
     opacity: 0.72;
@@ -806,7 +890,6 @@
 }
 
 @keyframes login-grid-pulse {
-
   0%,
   100% {
     background-position: -40% 0;
@@ -820,7 +903,6 @@
 }
 
 @keyframes login-orb-float-a {
-
   0%,
   100% {
     transform: translate3d(0, 0, 0);
@@ -832,7 +914,6 @@
 }
 
 @keyframes login-orb-float-b {
-
   0%,
   100% {
     transform: translate3d(0, 0, 0);
@@ -844,7 +925,6 @@
 }
 
 @keyframes login-orb-float-c {
-
   0%,
   100% {
     transform: translate3d(0, 0, 0);
@@ -856,7 +936,6 @@
 }
 
 @keyframes login-orb-float-d {
-
   0%,
   100% {
     transform: translate3d(0, 0, 0);
@@ -900,7 +979,6 @@
 }
 
 @keyframes login-spark-fill {
-
   0%,
   100% {
     opacity: 0.08;
@@ -913,7 +991,6 @@
 }
 
 @media (max-width: 767px) {
-
   .login-sparkline,
   .login-graph,
   .login-orb-e,
@@ -961,7 +1038,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .login-atmosphere-mesh,
   .login-atmosphere-grid,
   .login-atmosphere-grid::after,
@@ -1022,7 +1098,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   [data-reveal],
   [data-depth-panel],
   [data-depth-card],
@@ -1033,36 +1108,6 @@
   [data-outbox-item] {
     opacity: 1;
   }
-}
-
-.landing-perspective {
-  perspective: 1200px;
-  transform-style: preserve-3d;
-}
-
-.landing-depth-preserve {
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-
-.landing-atmosphere-frame {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  opacity: 0.72;
-}
-
-.landing-atmosphere-frame-soft {
-  opacity: 0.35;
-}
-
-.landing-atmosphere-frame .login-atmosphere {
-  background-color: transparent;
-}
-
-.landing-atmosphere-lite .login-sparkline {
-  opacity: 0.35;
 }
 
 /* Vital-Go hero structure â€” Novend Candy Blue / Cloud White */
@@ -1162,29 +1207,6 @@
   background: rgba(14, 165, 233, 0.1);
 }
 
-.landing-pos-stage {
-  transform-origin: center center;
-  padding: 0;
-}
-
-.landing-dashboard-stage {
-  transform-origin: center center;
-  transform: rotateY(-4deg) rotateX(3deg);
-}
-
-.landing-dashboard-glow {
-  position: absolute;
-  inset: 8% 4% 4%;
-  border-radius: 1.5rem;
-  background: radial-gradient(ellipse at 50% 40%, rgba(56, 189, 248, 0.22), transparent 68%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.landing-dashboard-frame {
-  transform: translateZ(0);
-}
-
 .landing-nav-glass {
   background: rgba(248, 250, 252, 0.82);
 }
@@ -1227,16 +1249,6 @@
     0 1px 0 rgba(255, 255, 255, 0.85) inset,
     0 20px 40px -16px rgba(15, 23, 42, 0.16),
     0 8px 16px -8px rgba(56, 189, 248, 0.2);
-}
-
-@media (min-width: 768px) {
-  .landing-pos-stage {
-    padding: 3.25rem 3rem;
-  }
-
-  .landing-dashboard-stage {
-    padding: 1.5rem 1rem;
-  }
 }
 
 @media (max-width: 640px) {
@@ -1330,7 +1342,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .landing-marquee-row[data-direction="left"] .landing-marquee-track,
   .landing-marquee-row[data-direction="right"] .landing-marquee-track {
     animation: none;
@@ -1588,10 +1599,12 @@
 .landing-v2-stage-aura {
   position: absolute;
   inset: 0% -6% 20%;
-  background: radial-gradient(ellipse 68% 52% at 50% 30%,
-      rgba(56, 189, 248, 0.16) 0%,
-      rgba(56, 189, 248, 0.06) 40%,
-      transparent 72%);
+  background: radial-gradient(
+    ellipse 68% 52% at 50% 30%,
+    rgba(56, 189, 248, 0.16) 0%,
+    rgba(56, 189, 248, 0.06) 40%,
+    transparent 72%
+  );
   pointer-events: none;
   z-index: 0;
 }
@@ -1670,14 +1683,18 @@
   pointer-events: none;
   border-radius: 50%;
   background:
-    radial-gradient(ellipse 58% 42% at 42% 45%,
+    radial-gradient(
+      ellipse 58% 42% at 42% 45%,
       rgba(15, 23, 42, 0.22) 0%,
       rgba(15, 23, 42, 0.1) 38%,
-      transparent 72%),
-    radial-gradient(ellipse 48% 36% at 72% 52%,
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 48% 36% at 72% 52%,
       rgba(15, 23, 42, 0.16) 0%,
       rgba(15, 23, 42, 0.06) 42%,
-      transparent 74%);
+      transparent 74%
+    );
   filter: blur(14px);
   transform-origin: center bottom;
   animation: landing-v2-device-shadow-float 5.2s ease-in-out infinite;
@@ -1700,7 +1717,6 @@
 }
 
 @keyframes landing-how-float {
-
   0%,
   100% {
     transform: translateY(0);
@@ -1718,7 +1734,6 @@
 }
 
 @keyframes landing-v2-device-float {
-
   0%,
   100% {
     transform: translate3d(0, 0, 0) rotate(-0.8deg);
@@ -1730,7 +1745,6 @@
 }
 
 @keyframes landing-v2-device-shadow-float {
-
   0%,
   100% {
     opacity: 0.95;
@@ -1749,7 +1763,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .landing-v2-hero-mesh,
   .landing-v2-device-main,
   .landing-v2-device-shadow {
@@ -2200,7 +2213,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .landing-arch-particles-on,
   .landing-arch-pulse-ring-on,
   .landing-arch-progress-on::after,
@@ -2225,10 +2237,23 @@
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: #0f172a;
   aspect-ratio: 16 / 9;
+  min-height: 220px;
   /* match marketing UI screenshots */
   transition:
     transform 0.35s ease,
     box-shadow 0.35s ease;
+}
+
+@media (min-width: 640px) {
+  .landing-feature-frame {
+    min-height: 280px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-feature-frame {
+    min-height: 360px;
+  }
 }
 
 .landing-feature-frame:hover,
@@ -2263,10 +2288,12 @@ button.landing-feature-frame {
   pointer-events: none;
   position: absolute;
   inset: 0;
-  background: linear-gradient(105deg,
-      transparent 35%,
-      rgba(56, 189, 248, 0.12) 48%,
-      transparent 62%);
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(56, 189, 248, 0.12) 48%,
+    transparent 62%
+  );
   transform: translateX(-120%);
   animation: landing-feature-chart-sweep 2.4s ease-out 0.35s 1 both;
 }
@@ -2391,7 +2418,6 @@ button.landing-feature-frame {
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .landing-feature-frame:hover,
   button.landing-feature-frame:hover {
     transform: none;
@@ -2422,19 +2448,68 @@ button.landing-feature-frame {
   position: relative;
   display: block;
   overflow: hidden;
-  border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
+  border-radius: 5px;
+  border: 0;
   background: #0f172a;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
 }
 
 .landing-industry-shot {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  object-position: center;
+  object-fit: cover;
+  object-position: top center;
   display: block;
-  background: #0f172a;
+}
+
+.landing-monitor {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+}
+
+.landing-monitor-bezel {
+  width: 100%;
+  border-radius: 14px 14px 10px 10px;
+  background: #1e293b;
+  padding: 8px 8px 0;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 18px 40px -18px rgba(15, 23, 42, 0.45);
+}
+
+.landing-monitor-chin {
+  display: flex;
+  justify-content: center;
+  padding: 7px 0 8px;
+}
+
+.landing-monitor-chin::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #475569;
+}
+
+.landing-monitor-stand {
+  width: 22%;
+  height: 10px;
+  margin-top: -1px;
+  background: linear-gradient(#cbd5e1, #94a3b8);
+  clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
+}
+
+.landing-monitor-base {
+  width: 36%;
+  height: 4px;
+  margin-top: 2px;
+  border-radius: 3px;
+  background: #64748b;
 }
 
 .landing-docs-shot-frame {
@@ -2523,7 +2598,6 @@ button.landing-feature-frame {
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .landing-industry-visual,
   .landing-industry-copy,
   .landing-industry-kpi dd {
@@ -2819,11 +2893,13 @@ button.landing-feature-frame {
   border-radius: 9999px;
   opacity: 0;
   transform: scale(0.72);
-  background: radial-gradient(circle at 35% 28%,
-      #e0f2fe 0%,
-      #7dd3fc 38%,
-      #38bdf8 72%,
-      #0ea5e9 100%);
+  background: radial-gradient(
+    circle at 35% 28%,
+    #e0f2fe 0%,
+    #7dd3fc 38%,
+    #38bdf8 72%,
+    #0ea5e9 100%
+  );
   box-shadow:
     0 0 0 1px rgba(125, 211, 252, 0.35),
     0 4px 14px rgba(14, 165, 233, 0.45),
@@ -2871,7 +2947,6 @@ button.landing-feature-frame {
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .novend-mobile-tab,
   .novend-mobile-tab-orb,
   .novend-mobile-tab-label,
@@ -2883,11 +2958,13 @@ button.landing-feature-frame {
 
 /* Floating cart FAB — candy blue so it doesn’t blend into the shell */
 .novend-cart-fab {
-  background: radial-gradient(circle at 35% 28%,
-      #e0f2fe 0%,
-      #7dd3fc 38%,
-      #38bdf8 72%,
-      #0ea5e9 100%);
+  background: radial-gradient(
+    circle at 35% 28%,
+    #e0f2fe 0%,
+    #7dd3fc 38%,
+    #38bdf8 72%,
+    #0ea5e9 100%
+  );
   transition:
     transform 160ms ease,
     box-shadow 160ms ease;

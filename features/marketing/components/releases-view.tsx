@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
@@ -15,30 +16,61 @@ function formatReleasedAt(timestamp: number | undefined) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(timestamp));
 }
 
-/** Release notes from the same live feed as Downloads. */
+type PublicRelease = {
+  version: string;
+  tag: string;
+  channel: string;
+  notes?: string | null;
+  releasedAt: number;
+  mandatory: boolean;
+  surface: "Desktop" | "Android";
+};
+
+function mergePublicReleases(
+  desktop: ReadonlyArray<Omit<PublicRelease, "surface">> | undefined,
+  mobile: ReadonlyArray<Omit<PublicRelease, "surface">> | undefined,
+  limit: number,
+): PublicRelease[] {
+  const combined: PublicRelease[] = [
+    ...(desktop ?? []).map((row) => ({ ...row, surface: "Desktop" as const })),
+    ...(mobile ?? []).map((row) => ({ ...row, surface: "Android" as const })),
+  ];
+  return combined.sort((a, b) => b.releasedAt - a.releasedAt).slice(0, limit);
+}
+
+/** Release notes from the same live desktop + Android feeds as Downloads. */
 export function ReleasesView() {
   const page = sitePages.releases;
-  const recent = useQuery(api.desktopReleases.listPublicRecent, {
+  const desktopRecent = useQuery(api.desktopReleases.listPublicRecent, {
     channel: "stable",
     limit: 20,
   });
+  const mobileRecent = useQuery(api.mobileReleases.listPublicRecent, {
+    channel: "stable",
+    limit: 20,
+  });
+  const recent = useMemo(
+    () => mergePublicReleases(desktopRecent, mobileRecent, 20),
+    [desktopRecent, mobileRecent],
+  );
+  const loading = desktopRecent === undefined || mobileRecent === undefined;
 
   return (
     <MarketingSitePage badge={page.badge} title={page.title} subtitle={page.subtitle}>
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-4">
         <p className="text-sm leading-relaxed text-slate-600">
-          These notes update automatically from the same release feed as{" "}
+          These notes update automatically from the same desktop and Android release feeds as{" "}
           <Link href="/download" className="text-primary font-medium hover:underline">
             Downloads
           </Link>
-          .
+          . iPhone and iPad install Novend as a Home Screen PWA from Safari.
         </p>
         <Button asChild size="sm" className="shrink-0 font-semibold">
           <Link href="/download">Go to downloads</Link>
         </Button>
       </div>
 
-      {recent === undefined ? (
+      {loading ? (
         <div className="flex items-center gap-2 text-sm text-slate-600">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           Loading release notes…
@@ -47,8 +79,8 @@ export function ReleasesView() {
         <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center">
           <p className="text-base font-semibold text-[#111827]">No published releases yet</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-600">
-            When a new version is published, notes will appear here automatically — matching the
-            Download page.
+            When a new desktop or Android version is published, notes will appear here automatically
+            — matching the Download page.
           </p>
           <Button asChild className="mt-5" size="sm">
             <Link href="/download">Check downloads</Link>
@@ -60,21 +92,16 @@ export function ReleasesView() {
             const highlights = sanitizeReleaseNoteLines(entry.notes);
             return (
               <li
-                key={entry.tag}
+                key={`${entry.surface}-${entry.tag}`}
                 className="landing-shadow-card rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8"
               >
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="bg-primary text-primary-foreground rounded-full px-3 py-1 text-xs font-bold tracking-wide">
                     {entry.tag.startsWith("v") ? entry.tag : `v${entry.version}`}
                   </span>
-                  <Badge variant="secondary" className="text-xs">
-                    {entry.channel}
-                  </Badge>
-                  {entry.mandatory ? (
-                    <Badge variant="outline" className="text-xs">
-                      Mandatory
-                    </Badge>
-                  ) : null}
+                  <Badge variant="secondary">{entry.surface}</Badge>
+                  <Badge variant="outline">{entry.channel}</Badge>
+                  {entry.mandatory ? <Badge variant="outline">Mandatory</Badge> : null}
                   <span className="text-sm text-slate-500">
                     {formatReleasedAt(entry.releasedAt) ?? "Date pending"}
                   </span>

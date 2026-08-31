@@ -448,8 +448,11 @@ export const applySuccessfulPayment = internalMutation({
       return { applied: false as const };
     }
 
+    if (!record) {
+      return { applied: false as const };
+    }
+
     if (
-      record &&
       args.gateway === "paystack" &&
       (Math.abs(args.amount - record.amount) > 0.01 ||
         args.currency.toUpperCase() !== record.currency.toUpperCase())
@@ -457,35 +460,17 @@ export const applySuccessfulPayment = internalMutation({
       throw new Error("Payment amount or currency does not match the checkout");
     }
 
-    if (record?.status === "success") {
+    if (record.status === "success") {
       return { applied: false as const, alreadyApplied: true as const };
     }
 
     const now = Date.now();
-    if (record) {
-      await ctx.db.patch(record._id, {
-        status: "success",
-        amount: args.amount || record.amount,
-        paidAt: args.paidAt ?? now,
-        updatedAt: now,
-      });
-    } else {
-      await ctx.db.insert("billingHistory", {
-        organizationId,
-        planKey,
-        billingCycle: cycle,
-        amount: args.amount,
-        currency: args.currency,
-        gateway: args.gateway,
-        reference: args.reference,
-        status: "success",
-        description: `${PLAN_CATALOG[planKey].name} — ${cycle}`,
-        kind: args.keepPeriod ? "upgrade" : "purchase",
-        paidAt: args.paidAt ?? now,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
+    await ctx.db.patch(record._id, {
+      status: "success",
+      amount: args.amount || record.amount,
+      paidAt: args.paidAt ?? now,
+      updatedAt: now,
+    });
 
     let keepPeriod = args.keepPeriod === true;
     if (record?.metadata) {
