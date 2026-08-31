@@ -289,7 +289,11 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           return {
             ok: false,
             message: "Could not reach the update server.",
-            data: { available: false, status: "unknown" },
+            data: {
+              available: false,
+              status: "unknown",
+              notes: "Could not reach the update server.",
+            },
           };
         }
         const remote = (await response.json()) as {
@@ -329,7 +333,11 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
         return {
           ok: false,
           message: "Could not reach the update server.",
-          data: { available: false, status: "unknown" },
+          data: {
+            available: false,
+            status: "unknown",
+            notes: "Could not reach the update server.",
+          },
         };
       }
     },

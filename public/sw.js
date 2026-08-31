@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v11";
+const CACHE_NAME = "novend-pos-v12";
 /**
  * Public documents + icons only. Do not precache /dashboard (and other gated
  * routes): cache.add follows the auth 302 and stores a redirected login
@@ -14,6 +14,7 @@ const PRECACHE = [
   "/terms",
   "/docs",
   "/docs/help",
+  "/docs/releases",
   "/unauthorized",
   "/manifest.webmanifest",
   "/favicon.png",
@@ -210,7 +211,13 @@ async function networkFirstDocument(request, url) {
     return response;
   } catch {
     const isRsc = request.headers.get("RSC") === "1" || url.searchParams.has("_rsc");
-    if (isRsc) {
+    const publicLegal =
+      url.pathname === "/privacy" ||
+      url.pathname === "/terms" ||
+      url.pathname === "/docs" ||
+      url.pathname === "/docs/help" ||
+      url.pathname === "/docs/releases";
+    if (isRsc && !publicLegal) {
       return new Response("Offline", {
         status: 503,
         statusText: "Offline",

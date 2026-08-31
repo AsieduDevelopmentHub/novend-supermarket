@@ -21,6 +21,11 @@ It does not store names, email addresses, IP addresses, user-agent strings,
 stack traces, search text, sale lines, products, customers, or payment payloads.
 Client timestamps are clamped to a narrow ingestion window.
 
+Monitoring KPI cards on `/platform` open `/platform/insights/[metric]` for
+MRR, active organizations, MAU, downloads, devices, gross revenue, staff
+accounts, and client errors. Detail queries reuse `getInsightDetail` and the
+Dexie platform insight cache.
+
 ## Metrics
 
 - DAU, WAU, and MAU count distinct authenticated users.

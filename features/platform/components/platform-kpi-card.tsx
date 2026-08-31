@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -8,17 +9,20 @@ export function PlatformKpiCard({
   hint,
   icon: Icon,
   tone = "default",
+  href,
 }: {
   label: string;
   value: string;
   hint?: string;
   icon: LucideIcon;
   tone?: "default" | "warning" | "danger";
+  href?: string;
 }) {
-  return (
+  const card = (
     <Card
       className={cn(
         "min-w-0 border-l-[3px]",
+        href && "hover:bg-muted/40 transition-colors",
         tone === "default" && "border-l-primary",
         tone === "warning" && "border-l-warning",
         tone === "danger" && "border-l-destructive",
@@ -35,5 +39,14 @@ export function PlatformKpiCard({
         </div>
       </CardContent>
     </Card>
+  );
+  if (!href) return card;
+  return (
+    <Link
+      href={href}
+      className="block min-w-0 rounded-xl focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
+    >
+      {card}
+    </Link>
   );
 }

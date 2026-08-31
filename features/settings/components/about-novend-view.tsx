@@ -19,6 +19,37 @@ import { estimateBackupSize } from "@/lib/offline/backup";
 import { APP_BRAND, APP_NAME, APP_VERSION } from "@/constants/app";
 import { Info } from "lucide-react";
 
+const LAST_UPDATE_KEY = "novend.mobileUpdate.last";
+
+function readCachedUpdate(): UpdateInfo | null {
+  try {
+    const raw = window.localStorage.getItem(LAST_UPDATE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as UpdateInfo;
+  } catch {
+    return null;
+  }
+}
+
+function cacheSuccessfulUpdate(info: UpdateInfo) {
+  if (info.status !== "available" && info.status !== "latest") return;
+  try {
+    window.localStorage.setItem(LAST_UPDATE_KEY, JSON.stringify(info));
+  } catch {
+    /* private mode */
+  }
+}
+
+function updateCheckLabel(checking: boolean, online: boolean, update: UpdateInfo | null) {
+  if (checking) return "Checking…";
+  if (update?.status === "available") return `v${update.version ?? "new release"} available`;
+  if (update?.status === "latest") return "Latest verified";
+  if (!online) return "Offline — check when connected";
+  const notes = update?.notes?.trim();
+  if (notes) return notes;
+  return "Unable to verify right now";
+}
+
 export function AboutNovendView() {
   const { role, branchName } = usePermissions();
   const offline = useOfflineStatus();
@@ -29,20 +60,26 @@ export function AboutNovendView() {
   const [storageLabel, setStorageLabel] = useState<string>("Calculating…");
 
   useEffect(() => {
+    if (isCapacitor()) setUpdate(readCachedUpdate());
     void (async () => {
-      const app = await Hardware.app.getInfo();
+      const [app, profile] = await Promise.all([Hardware.app.getInfo(), loadShellProfile()]);
       if (app.data) setInfo(app.data);
+      setOrgName(profile?.organizationName ?? null);
       if (isCapacitor()) {
         setUpdateChecking(true);
         try {
           const checked = await Hardware.app.checkForUpdate();
-          setUpdate(checked.data ?? { available: false, status: "unknown" });
+          const next = checked.data ?? { available: false, status: "unknown" as const };
+          if (checked.ok && (next.status === "available" || next.status === "latest")) {
+            cacheSuccessfulUpdate(next);
+            setUpdate(next);
+          } else {
+            setUpdate((current) => current ?? next);
+          }
         } finally {
           setUpdateChecking(false);
         }
       }
-      const profile = await loadShellProfile();
-      setOrgName(profile?.organizationName ?? null);
       try {
         const bytes = await estimateBackupSize();
         const mb = bytes / (1024 * 1024);
@@ -101,13 +138,7 @@ export function AboutNovendView() {
             <p>
               Update check:{" "}
               <span className="text-foreground font-medium">
-                {updateChecking
-                  ? "Checking…"
-                  : update?.status === "available"
-                    ? `v${update.version ?? "new release"} available`
-                    : update?.status === "latest"
-                      ? "Latest verified"
-                      : "Unable to verify right now"}
+                {updateCheckLabel(updateChecking, offline.online, update)}
               </span>
             </p>
           ) : null}
@@ -132,16 +163,16 @@ export function AboutNovendView() {
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <Link href="/privacy">Privacy Policy</Link>
+            <a href="/privacy">Privacy Policy</a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <Link href="/terms">Terms of Service</Link>
+            <a href="/terms">Terms of Service</a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
             <Link href="/settings?section=help">Help &amp; tours</Link>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <Link href="/docs/help">Help & support</Link>
+            <a href="/docs/help">Help & support</a>
           </Button>
           <Button
             type="button"

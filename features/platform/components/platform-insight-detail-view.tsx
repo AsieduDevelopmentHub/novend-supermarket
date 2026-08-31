@@ -33,7 +33,7 @@ const RANGES: { id: PlatformRevenueRange; label: string }[] = [
   { id: "12m", label: "12 months" },
 ];
 
-const MONEY_METRICS = new Set<PlatformInsightMetric>(["mrr", "arr"]);
+const MONEY_METRICS = new Set<PlatformInsightMetric>(["mrr", "arr", "gross-revenue"]);
 const BYTES_METRICS = new Set<PlatformInsightMetric>(["cloud-storage"]);
 
 function formatMetricValue(metric: PlatformInsightMetric, value: number) {
@@ -183,6 +183,89 @@ function InsightRowsTable({
             <tr key={String(row.name)} className="border-border border-t">
               <td className="px-4 py-3 font-medium">{String(row.name)}</td>
               <td className="px-4 py-3">{formatCurrency(Number(row.amount))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
+  if (metric === "downloads" || metric === "client-errors") {
+    return (
+      <table className="w-full min-w-[360px] text-left text-sm">
+        <thead className="bg-muted/50 text-muted-foreground">
+          <tr>
+            <th className="px-4 py-3 font-medium">{metric === "downloads" ? "Asset" : "Error code"}</th>
+            <th className="px-4 py-3 font-medium">Count</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={String(row.name)} className="border-border border-t">
+              <td className="px-4 py-3 font-medium">{String(row.name)}</td>
+              <td className="px-4 py-3">{formatNumber(Number(row.count))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
+  if (metric === "gross-revenue") {
+    return (
+      <table className="w-full min-w-[560px] text-left text-sm">
+        <thead className="bg-muted/50 text-muted-foreground">
+          <tr>
+            <th className="px-4 py-3 font-medium">Organization</th>
+            <th className="px-4 py-3 font-medium">Plan</th>
+            <th className="px-4 py-3 font-medium">Amount</th>
+            <th className="px-4 py-3 font-medium">Paid</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} className="border-border border-t">
+              <td className="px-4 py-3">
+                <Link
+                  href={`/platform/${String(row.organizationId)}`}
+                  className="font-medium hover:underline"
+                >
+                  {String(row.name)}
+                </Link>
+              </td>
+              <td className="px-4 py-3">{String(row.plan)}</td>
+              <td className="px-4 py-3">{formatCurrency(Number(row.amount))}</td>
+              <td className="px-4 py-3">{formatDateTime(Number(row.createdAt))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
+  if (metric === "staff-accounts" || metric === "mau") {
+    return (
+      <table className="w-full min-w-[560px] text-left text-sm">
+        <thead className="bg-muted/50 text-muted-foreground">
+          <tr>
+            <th className="px-4 py-3 font-medium">Organization</th>
+            <th className="px-4 py-3 font-medium">Plan</th>
+            <th className="px-4 py-3 font-medium">Users</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} className="border-border border-t">
+              <td className="px-4 py-3">
+                <Link
+                  href={`/platform/${String(row.organizationId)}`}
+                  className="font-medium hover:underline"
+                >
+                  {String(row.name)}
+                </Link>
+              </td>
+              <td className="px-4 py-3">{String(row.plan)}</td>
+              <td className="px-4 py-3">{formatNumber(Number(row.count))}</td>
             </tr>
           ))}
         </tbody>

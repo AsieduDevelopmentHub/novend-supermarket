@@ -40,6 +40,7 @@ export function useCurrentUser() {
   const remote = useQuery(api.users.me, online ? {} : "skip");
   const [cached, setCached] = useState<ShellProfile | null>(null);
   const [cacheReady, setCacheReady] = useState(false);
+  const [remoteBudgetElapsed, setRemoteBudgetElapsed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,14 +54,26 @@ export function useCurrentUser() {
     };
   }, []);
 
-  const readyRemote = remote && !remote.needsProfile && remote.role ? remote : null;
-  const offlineUser = !online && cached ? shellToUser(cached) : null;
-  // Prefer live when online; always fall back to Dexie cache offline.
-  const user = online
-    ? ((readyRemote as CurrentUser | null) ?? null)
-    : (offlineUser ?? (readyRemote as CurrentUser | null));
+  useEffect(() => {
+    if (!online || remote !== undefined) {
+      queueMicrotask(() => setRemoteBudgetElapsed(false));
+      return;
+    }
+    const timer = window.setTimeout(() => setRemoteBudgetElapsed(true), 2500);
+    return () => window.clearTimeout(timer);
+  }, [online, remote]);
 
-  const waitingOnRemote = remote === undefined && online;
+  const readyRemote = remote && !remote.needsProfile && remote.role ? remote : null;
+  const cachedUser = cached ? shellToUser(cached) : null;
+  const offlineUser = !online && cachedUser ? cachedUser : null;
+  const liveUser = readyRemote as CurrentUser | null;
+  // Prefer live when online; fall back to Dexie after a short hang so Capacitor
+  // does not block Settings/More on a stuck Convex subscription.
+  const user = online
+    ? (liveUser ?? (remoteBudgetElapsed ? cachedUser : null))
+    : (offlineUser ?? liveUser);
+
+  const waitingOnRemote = remote === undefined && online && !remoteBudgetElapsed;
   const waitingOnCache = !online && !cacheReady;
 
   return {

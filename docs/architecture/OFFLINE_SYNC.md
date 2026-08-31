@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.17
+Version: 2.4.18
 
 ## Purpose
 
@@ -154,7 +154,7 @@ stays mounted and tab switches are instant. The URL remains the source of naviga
 state; the service worker may serve a cached shell HTML document for an uncached deep
 path without rewriting the browser location — `OfflineNavigationProvider` /
 `resolveOfflineView` honor `location.pathname`. Document navigations are
-**network-first** (`novend-pos-v11`), except Capacitor/Electron `?fromBoot=1`
+**network-first** (`novend-pos-v12`), except Capacitor/Electron `?fromBoot=1`
 navigations which are **cache-first** so a dead radio does not stall cold
 start: the worker unwraps followed redirects so Chrome does not paint
 `ERR_FAILED` on login → dashboard. `/login` and `/signup`

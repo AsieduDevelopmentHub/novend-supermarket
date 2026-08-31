@@ -219,8 +219,14 @@ export async function getLastBackupAt(): Promise<number | null> {
 }
 
 export async function estimateBackupSize(): Promise<number> {
-  const payload = await exportOfflineBackup();
-  return new Blob([JSON.stringify(payload)]).size;
+  if (typeof navigator !== "undefined" && navigator.storage?.estimate) {
+    const estimate = await navigator.storage.estimate();
+    if (typeof estimate.usage === "number") return estimate.usage;
+  }
+  const db = await getOfflineDb();
+  if (!db) return 0;
+  const counts = await Promise.all(TABLE_NAMES.map((name) => db.table(name).count().catch(() => 0)));
+  return counts.reduce((sum, count) => sum + count, 0) * 256;
 }
 
 export async function downloadOfflineBackup(passphrase: string) {
