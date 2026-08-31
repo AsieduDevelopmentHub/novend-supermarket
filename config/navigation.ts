@@ -206,6 +206,12 @@ export function flatNavForRole(role: AppRole): NavItem[] {
   return items;
 }
 
+/** Super Admin console paths. Tenant role ACL does not cover these. */
+export function isPlatformAppPath(path: string): boolean {
+  const pathname = path.split("?")[0] || path;
+  return pathname === "/platform" || pathname.startsWith("/platform/");
+}
+
 /** True when `path` is allowed for this role (nav + settings). Platform is separate. */
 export function pathAllowedForRole(path: string, role: AppRole): boolean {
   const pathname = path.split("?")[0] || path;
