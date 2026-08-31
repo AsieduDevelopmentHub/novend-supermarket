@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   getTourDefinition,
+  hasTourProgress,
+  onboardingQueue,
+  queryTourable,
   resolveStepAnchor,
   tourForPath,
   toursForAccess,
 } from "@/features/tours/tour-registry";
+import { mergeTourProgress, parseTourProgress } from "@/lib/offline/tour-progress-cache";
 
 describe("product tour access", () => {
   it("never exposes management tours to cashiers", () => {
@@ -39,12 +43,65 @@ describe("product tour access", () => {
     expect(getTourDefinition("shell")?.version).toBeGreaterThan(0);
   });
 
+  it("walks cashiers through sales and settings after the shell", () => {
+    expect(onboardingQueue("cashier", false)).toEqual(["shell", "sales", "settings"]);
+  });
+
+  it("walks administrators through every operational page", () => {
+    expect(onboardingQueue("administrator", false)).toEqual([
+      "shell",
+      "sales",
+      "products",
+      "inventory",
+      "reports",
+      "users",
+      "settings",
+    ]);
+  });
+
+  it("does not treat empty progress as an existing tour record", () => {
+    expect(hasTourProgress([], toursForAccess("cashier", false))).toBe(false);
+    expect(
+      hasTourProgress([{ tourId: "shell" }], toursForAccess("cashier", false)),
+    ).toBe(true);
+  });
+
+  it("prefers a later visible navigation anchor over a hidden sidebar", () => {
+    const hidden = { hidden: true };
+    const visible = { hidden: false };
+    const root = {
+      querySelector() {
+        return hidden;
+      },
+      querySelectorAll(selector: string) {
+        if (selector === '[data-tour="desktop-navigation"]') return [hidden];
+        if (selector === '[data-tour="mobile-bottom-navigation"]') return [visible];
+        return [];
+      },
+    };
+    expect(
+      resolveStepAnchor(
+        {
+          id: "navigation",
+          anchors: [
+            '[data-tour="desktop-navigation"]',
+            '[data-tour="mobile-bottom-navigation"]',
+          ],
+          title: "Workspace",
+          description: "Move between tools.",
+        },
+        root,
+        (node) => !(node as { hidden: boolean }).hidden,
+      ),
+    ).toBe('[data-tour="mobile-bottom-navigation"]');
+  });
+
   it("resolves the first matching responsive anchor", () => {
     const root = {
       querySelector(selector: string) {
         return selector === '[data-tour="mobile-bottom-navigation"]' ? {} : null;
       },
-    } as unknown as ParentNode;
+    };
     expect(
       resolveStepAnchor(
         {
@@ -59,5 +116,85 @@ describe("product tour access", () => {
         root,
       ),
     ).toBe('[data-tour="mobile-bottom-navigation"]');
+  });
+
+  it("skips hidden matches when querying a shared tour attribute", () => {
+    const hidden = { hidden: true };
+    const visible = { hidden: false };
+    const root = {
+      querySelector() {
+        return hidden;
+      },
+      querySelectorAll() {
+        return [hidden, visible];
+      },
+    };
+    expect(queryTourable('[data-tour="sync-status"]', root, (node) => !(node as { hidden: boolean }).hidden)).toBe(
+      visible,
+    );
+  });
+});
+
+describe("tour progress merge", () => {
+  it("keeps a newer dirty local skip over a stale remote in-progress row", () => {
+    const merged = mergeTourProgress(
+      [
+        {
+          tourId: "shell",
+          version: 1,
+          status: "skipped",
+          lastStepId: "navigation",
+          updatedAt: 200,
+          dirty: true,
+        },
+      ],
+      [
+        {
+          tourId: "shell",
+          version: 1,
+          status: "in_progress",
+          lastStepId: "welcome",
+          updatedAt: 100,
+        },
+      ],
+    );
+    expect(merged).toEqual([
+      expect.objectContaining({ tourId: "shell", status: "skipped", dirty: true }),
+    ]);
+  });
+
+  it("prefers remote when local is not dirty", () => {
+    const merged = mergeTourProgress(
+      [
+        {
+          tourId: "sales",
+          version: 1,
+          status: "in_progress",
+          lastStepId: "cart",
+          updatedAt: 300,
+        },
+      ],
+      [
+        {
+          tourId: "sales",
+          version: 1,
+          status: "completed",
+          lastStepId: "pay",
+          updatedAt: 100,
+        },
+      ],
+    );
+    expect(merged[0]?.status).toBe("completed");
+    expect(merged[0]?.dirty).toBe(false);
+  });
+
+  it("ignores malformed stored JSON", () => {
+    expect(parseTourProgress(null)).toEqual([]);
+    expect(parseTourProgress([{ tourId: "shell" }])).toEqual([]);
+    expect(
+      parseTourProgress([
+        { tourId: "shell", version: 1, status: "completed", lastStepId: "done", updatedAt: 1 },
+      ]),
+    ).toHaveLength(1);
   });
 });

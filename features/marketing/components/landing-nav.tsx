@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useState, type ReactNode, type RefObject, forwardRef } from "react";
 import { ChevronDown, Menu } from "lucide-react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -29,34 +29,70 @@ type Props = {
   scrollRootRef: RefObject<HTMLElement | null>;
 };
 
-function NavHref({
-  href,
-  className,
-  onClick,
-  children,
-}: {
-  href: string;
-  className?: string;
-  onClick?: () => void;
-  children: ReactNode;
-}) {
+const NavHref = forwardRef<
+  HTMLAnchorElement,
+  {
+    href: string;
+    className?: string;
+    onClick?: () => void;
+    children: ReactNode;
+  }
+>(function NavHref({ href, className, onClick, children }, ref) {
   const isHash = href.includes("#");
   if (isHash) {
     return (
-      <a href={href} className={className} onClick={onClick}>
+      <a ref={ref} href={href} className={className} onClick={onClick}>
         {children}
       </a>
     );
   }
   return (
-    <Link href={href} className={className} onClick={onClick}>
+    <Link ref={ref} href={href} className={className} onClick={onClick}>
       {children}
     </Link>
   );
-}
+});
 
 const linkClass =
   "text-slate-600 hover:text-[#111827] rounded-full px-3.5 py-2 text-sm font-medium transition-colors";
+
+function NavDropdown({
+  label,
+  items,
+}: {
+  label: string;
+  items: ReadonlyArray<{ href: string; label: string }>;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger className={cn(linkClass, "inline-flex items-center gap-1 outline-none")}>
+        {label}
+        <ChevronDown className="h-3.5 w-3.5 opacity-70" aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="min-w-[11rem]"
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
+        {items.map((item) => (
+          <DropdownMenuItem
+            key={item.label}
+            onSelect={(event) => {
+              event.preventDefault();
+              setOpen(false);
+              window.setTimeout(() => {
+                window.location.assign(item.href);
+              }, 0);
+            }}
+          >
+            {item.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 /** Floating pill nav — Features, Industries/Resources dropdowns, Get Started. */
 export function LandingNav({ scrollRootRef }: Props) {
@@ -105,41 +141,13 @@ export function LandingNav({ scrollRootRef }: Props) {
             {nav.features.label}
           </NavHref>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className={cn(linkClass, "inline-flex items-center gap-1 outline-none")}
-            >
-              {nav.industries.label}
-              <ChevronDown className="h-3.5 w-3.5 opacity-70" aria-hidden />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-[11rem]">
-              {nav.industries.items.map((item) => (
-                <DropdownMenuItem key={item.label} asChild>
-                  <NavHref href={item.href}>{item.label}</NavHref>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <NavDropdown label={nav.industries.label} items={nav.industries.items} />
 
           <NavHref href={nav.pricing.href} className={linkClass}>
             {nav.pricing.label}
           </NavHref>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className={cn(linkClass, "inline-flex items-center gap-1 outline-none")}
-            >
-              {nav.resources.label}
-              <ChevronDown className="h-3.5 w-3.5 opacity-70" aria-hidden />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-[11rem]">
-              {nav.resources.items.map((item) => (
-                <DropdownMenuItem key={item.label} asChild>
-                  <NavHref href={item.href}>{item.label}</NavHref>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <NavDropdown label={nav.resources.label} items={nav.resources.items} />
 
           <NavHref href={nav.desktop.href} className={linkClass}>
             {nav.desktop.label}

@@ -90,6 +90,16 @@ export const tourStatusValidator = v.union(
   v.literal("skipped"),
 );
 
+export const tourProgressEntryValidator = v.object({
+  tourId: v.string(),
+  version: v.number(),
+  status: tourStatusValidator,
+  lastStepId: v.optional(v.string()),
+  startedAt: v.number(),
+  updatedAt: v.number(),
+  completedAt: v.optional(v.number()),
+});
+
 export const scheduledChangeValidator = v.object({
   type: v.literal("downgrade"),
   targetPlanKey: planKeyValidator,
@@ -363,6 +373,8 @@ export default defineSchema({
       v.union(v.literal("light"), v.literal("dark"), v.literal("system")),
     ),
     appearanceFontSize: v.optional(v.union(v.literal("sm"), v.literal("md"), v.literal("lg"))),
+    /** Compact denormalized copy of userTourProgress for session + snapshot bootstrap. */
+    tourProgress: v.optional(v.array(tourProgressEntryValidator)),
   })
     .index("by_userId", ["userId"])
     .index("by_organization", ["organizationId"])

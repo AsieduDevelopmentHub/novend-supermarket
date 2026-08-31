@@ -91,8 +91,8 @@ export function AboutNovendView() {
           </p>
           {!versionsMatch ? (
             <p className="text-xs text-amber-700 dark:text-amber-400">
-              Shell build differs from the hosted app version — update the Android/iOS app when a
-              newer release is available.
+              Shell build differs from the hosted app version — update this app when a newer
+              release is available.
             </p>
           ) : null}
           <p>Platform: {platform}</p>

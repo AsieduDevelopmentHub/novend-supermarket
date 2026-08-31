@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
-import { Download, Monitor, Smartphone } from "lucide-react";
+import { Download, Monitor } from "lucide-react";
 import { useReleaseOffers } from "@/hooks/use-release-offers";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -166,8 +166,8 @@ export function DesktopDownloadPanel() {
             <div className="space-y-1">
               <CardTitle>Mobile app</CardTitle>
               <CardDescription>
-                Sideload the Android APK for phones and tablets. Same account, catalog, and sync as
-                desktop and web.
+                Download the Android app for phones and tablets. On iPhone and iPad, add Novend to
+                your Home Screen as a PWA. Same account, catalog, and sync as desktop and web.
               </CardDescription>
             </div>
             {mobileOffer ? <Badge variant="secondary">v{mobileOffer.version}</Badge> : null}
@@ -178,17 +178,7 @@ export function DesktopDownloadPanel() {
             <p className="text-muted-foreground text-xs">Released {mobileReleasedLabel}</p>
           ) : null}
 
-          {!android && !androidStore && !ios && !iosStore ? (
-            <Alert>
-              <Smartphone className="size-4" />
-              <AlertTitle>No mobile installers yet</AlertTitle>
-              <AlertDescription>
-                An Android APK hasn&apos;t been published to this environment yet. After the next
-                product release, it will appear here automatically.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <ul className="space-y-3">
+          <ul className="space-y-3">
               <li
                 className={cn(
                   "border-border flex flex-col gap-3 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between",
@@ -233,33 +223,35 @@ export function DesktopDownloadPanel() {
                   </Badge>
                 )}
               </li>
-              {ios || iosStore ? (
-                <li className="border-border flex flex-col gap-3 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0 space-y-1">
-                    <p className="text-sm font-medium">iPhone &amp; iPad</p>
-                    <p className="text-muted-foreground text-xs leading-relaxed">
-                      Native apps for Apple devices
-                      {ios ? ` · ${formatBytes(ios.size) ?? "IPA"}` : ""}
-                    </p>
-                  </div>
-                  {ios?.url ? (
-                    <Button asChild className="shrink-0" size="sm">
-                      <a href={ios.url} download={ios.fileName}>
-                        <Download className="mr-2 size-4" aria-hidden />
-                        Download
-                      </a>
-                    </Button>
-                  ) : (
-                    <Button asChild className="shrink-0" size="sm" variant="outline">
-                      <a href={iosStore} target="_blank" rel="noopener noreferrer">
-                        Open in store
-                      </a>
-                    </Button>
-                  )}
-                </li>
-              ) : null}
+              <li className="border-border flex flex-col gap-3 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 space-y-1">
+                  <p className="text-sm font-medium">iPhone &amp; iPad</p>
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    {ios || iosStore
+                      ? `Native app for Apple devices${ios ? ` · ${formatBytes(ios.size) ?? "IPA"}` : ""}`
+                      : "Add Novend to your Home Screen from Safari as a PWA"}
+                  </p>
+                </div>
+                {ios?.url ? (
+                  <Button asChild className="shrink-0" size="sm">
+                    <a href={ios.url} download={ios.fileName}>
+                      <Download className="mr-2 size-4" aria-hidden />
+                      Download
+                    </a>
+                  </Button>
+                ) : iosStore ? (
+                  <Button asChild className="shrink-0" size="sm" variant="outline">
+                    <a href={iosStore} target="_blank" rel="noopener noreferrer">
+                      Open in store
+                    </a>
+                  </Button>
+                ) : (
+                  <Badge variant="secondary" className="w-fit text-xs">
+                    PWA
+                  </Badge>
+                )}
+              </li>
             </ul>
-          )}
         </CardContent>
       </Card>
     </div>

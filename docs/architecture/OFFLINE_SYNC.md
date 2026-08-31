@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.16
+Version: 2.4.17
 
 ## Purpose
 
@@ -42,8 +42,12 @@ Convex (when online)
    replica has no photo yet.
 6. The dashboard is built only from Dexie (`buildLocalDashboardSummary`). It
    never calls Convex `dashboard.summary`. Restock, sales, and returns refresh it
-   via `replica-changed`. Top selling ranks locally (quantity by default; the
-   cashier can toggle amount). The ranking preference is stored on the device.
+   via `replica-changed`. Administrators and managers see a **rolling last 7 days**
+   of sales and orders (not all-time totals). Cashiers see **today** from midnight.
+   The replica also keeps only the most recent ~200 completed sales, so older
+   orders drop out of the dashboard even inside that window. Top selling ranks
+   locally (quantity by default; the cashier can toggle amount). The ranking
+   preference is stored on the device.
 7. Barcode scans look up `products.barcode` (then SKU) in Dexie only.
 
 ## Local writes

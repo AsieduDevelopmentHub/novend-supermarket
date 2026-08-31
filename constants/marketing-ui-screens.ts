@@ -18,7 +18,7 @@ export const MARKETING_UI_SCREENS = {
   inventorySuppliers: "/marketing/ui/inventory-suppliers.png",
   inventoryProductDetail: "/marketing/ui/inventory-product-detail.png",
   inventoryProductDetailExpiry: "/marketing/ui/inventory-product-detail-expiry.png",
-  inventoryProductEditModal: "/marketing/ui/inventory-product-edit-modal.png",
+  inventoryProductImportModal: "/marketing/ui/inventory-product-import-modal.png",
   inventoryAdjustStockModal: "/marketing/ui/inventory-adjust-stock-modal.png",
   inventoryTransferStockModal: "/marketing/ui/inventory-transfer-stock-modal.png",
   inventoryWholesaleIssueModal: "/marketing/ui/inventory-wholesale-issue-modal.png",
@@ -66,10 +66,7 @@ export const FEATURE_BLOCK_SCREENS = {
   inventory: MARKETING_UI_SCREENS.inventoryStock,
   wholesale: MARKETING_UI_SCREENS.inventoryWholesale,
   analytics: MARKETING_UI_SCREENS.businessAnalyticsOverview,
-  relationships: {
-    primary: MARKETING_UI_SCREENS.salesCustomerDetail,
-    secondary: MARKETING_UI_SCREENS.inventorySuppliers,
-  },
+  relationships: MARKETING_UI_SCREENS.salesCustomerDetail,
   reports: MARKETING_UI_SCREENS.businessReports,
 } as const;
 
@@ -145,6 +142,18 @@ export const DOCS_SECTION_DEMOS: Record<string, readonly DocsDemoShot[]> = {
       src: MARKETING_UI_SCREENS.inventoryWholesale,
       alt: "Novend wholesale warehouse inventory",
       caption: "Wholesale storage separate from the floor",
+    },
+  ],
+  "catalog-import": [
+    {
+      src: MARKETING_UI_SCREENS.inventoryProductImportModal,
+      alt: "Novend product import wizard — upload CSV or Excel",
+      caption: "Products → Import: template, map columns, then preview",
+    },
+    {
+      src: MARKETING_UI_SCREENS.inventoryProducts,
+      alt: "Novend product catalog after import",
+      caption: "Imported SKUs appear in Products with the same catalog fields",
     },
   ],
   transfers: [

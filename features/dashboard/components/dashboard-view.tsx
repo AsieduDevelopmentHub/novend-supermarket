@@ -13,6 +13,7 @@ import { Grid, PageHeader } from "@/components/layout/primitives";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
+import { DASHBOARD_OPS_WINDOW_DAYS } from "@/lib/dashboard/window";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { useLocalStorage } from "@/hooks/use-ui";
 import { useNarrowScreen } from "@/hooks/use-narrow-screen";
@@ -346,16 +347,22 @@ export function DashboardView() {
   }
 
   const showOps = data.role === "administrator" || data.role === "manager";
+  const inventoryAlertHref = (kind: "low" | "expiry") => {
+    const params = new URLSearchParams({ filter: kind });
+    const branch = branchFilter !== "all" ? branchFilter : myBranchId;
+    if (branch) params.set("branch", String(branch));
+    return `/inventory?${params.toString()}`;
+  };
 
   const kpis = [
     {
-      title: showOps ? "Total Sales" : "Today's Sales",
+      title: showOps ? `Sales (${DASHBOARD_OPS_WINDOW_DAYS} days)` : "Today's Sales",
       value: formatCurrency(data.kpis.revenue),
       icon: Wallet,
       href: "/orders",
     },
     {
-      title: showOps ? "Total Orders" : "Today's Orders",
+      title: showOps ? `Orders (${DASHBOARD_OPS_WINDOW_DAYS} days)` : "Today's Orders",
       value: formatNumber(data.kpis.orders),
       icon: ShoppingBag,
       href: "/orders",
@@ -370,13 +377,13 @@ export function DashboardView() {
       title: "Low Stock Items",
       value: formatNumber(data.kpis.lowStockCount),
       icon: AlertTriangle,
-      href: "/inventory?filter=low",
+      href: inventoryAlertHref("low"),
     },
     {
       title: "Expiring / Expired",
       value: formatNumber(data.kpis.expiringCount ?? 0),
       icon: CalendarClock,
-      href: "/inventory?filter=expiry",
+      href: inventoryAlertHref("expiry"),
     },
   ] as const;
 
@@ -384,7 +391,11 @@ export function DashboardView() {
     <div className="min-w-0 space-y-6" data-tour="page-content">
       <PageHeader
         title="Dashboard"
-        description={showOps ? "Business performance overview" : "Your sales activity today"}
+        description={
+          showOps
+            ? `Last ${DASHBOARD_OPS_WINDOW_DAYS} days of sales, plus stock alerts`
+            : "Your sales activity today"
+        }
         compactActions={[
           { key: "inventory", label: "Inventory", icon: Package, href: "/inventory" },
           { key: "sale", label: "New Sale", icon: ShoppingBag, href: "/sales" },
@@ -435,7 +446,9 @@ export function DashboardView() {
       <div className="grid min-w-0 gap-4 xl:grid-cols-3">
         <Card className="min-w-0 overflow-hidden xl:col-span-2">
           <CardHeader className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-            <CardTitle>Sales Overview</CardTitle>
+            <CardTitle>
+              {showOps ? `Sales Overview (${DASHBOARD_OPS_WINDOW_DAYS} days)` : "Sales Overview"}
+            </CardTitle>
             <Button asChild size="sm" variant="ghost" className="self-start sm:self-auto">
               <Link href="/reports">Reports</Link>
             </Button>

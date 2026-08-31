@@ -17,4 +17,5 @@ scripts/.auth-keys.*
 *.logs
 *.keystore
 *.jks
+tmp
 .tmp-vitalgo/

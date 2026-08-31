@@ -143,30 +143,30 @@ export const landingCopy = {
     badge: "Built for the Real World",
     title: "Offline-First. Always Reliable.",
     subtitle:
-      "Novend saves every sale, inventory update, customer, and receipt directly on your device. When internet becomes available, everything synchronizes automatically without interrupting business.",
+      "Work offline, save locally, automatically sync, and stay updated. Novend writes every sale, inventory update, customer, and receipt on your device. When internet returns, everything synchronizes without interrupting the counter.",
     flow: [
       {
         id: "device",
-        title: "Your Device",
-        label: "Work locally",
-        detail: "Sales, products and inventory stay available at all times.",
+        title: "Work Offline",
+        label: "Step 01",
+        detail: "Keep selling and managing stock on this device when the internet is down.",
       },
       {
         id: "local",
-        title: "Local Database",
-        label: "Saved instantly",
-        detail: "Every sale and stock change is written on the device before anything else.",
+        title: "Save Locally",
+        label: "Step 02",
+        detail: "Every sale, receipt, and stock change is written on the device first.",
       },
       {
         id: "sync",
-        title: "Smart Sync Engine",
-        label: "Syncs quietly",
-        detail: "When you reconnect, pending work uploads in the background.",
+        title: "Automatically Sync",
+        label: "Step 03",
+        detail: "When you reconnect, pending work uploads in the background without interrupting the counter.",
       },
       {
         id: "dashboard",
-        title: "Cloud Database",
-        label: "Access anywhere",
+        title: "Stay Updated",
+        label: "Step 04",
         detail: "Managers see branches, revenue, and stock from any connected device.",
       },
     ],
@@ -225,8 +225,8 @@ export const landingCopy = {
         id: "inventory",
         title: "Inventory Without Guesswork",
         detail:
-          "Track stock movement, valuation, adjustments, batches, and low-stock alerts from one centralized inventory system.",
-        bullets: ["Stock adjustments", "Low stock alerts", "SKU & barcode", "Product images"],
+          "Track stock movement, valuation, adjustments, batches, and low-stock alerts. Bring an existing catalog in with CSV or Excel import.",
+        bullets: ["CSV & Excel import", "Stock adjustments", "Low stock alerts", "SKU & barcode"],
       },
       {
         id: "wholesale",
@@ -246,7 +246,7 @@ export const landingCopy = {
         id: "relationships",
         title: "Build Stronger Customer & Supplier Relationships",
         detail:
-          "Keep complete customer histories, supplier records, outstanding balances, and purchase activity in one connected system.",
+          "Keep complete customer histories, outstanding balances, and supplier records in one connected system.",
         bullets: [
           "Customer history",
           "Supplier management",
@@ -258,8 +258,8 @@ export const landingCopy = {
         id: "reports",
         title: "Professional Reports in One Click",
         detail:
-          "Generate printable sales, inventory, returns, expenses, and branch reports for smarter business decisions.",
-        bullets: ["PDF exports", "Excel exports", "Inventory reports", "Branch reports"],
+          "Generate printable sales, inventory, returns, expenses, and branch reports, then export CSV, Excel, or PDF for review and submission.",
+        bullets: ["CSV exports", "Excel & PDF", "Inventory reports", "Branch reports"],
       },
     ],
   },
@@ -478,11 +478,19 @@ export const landingCopy = {
       },
       {
         q: "Can I import my existing inventory?",
-        a: "Novend currently supports structured exports. Assisted inventory migration is available through Novend support while self-service import is being prepared.",
+        a: "Yes. Administrators and managers can import products from CSV or Excel. Download a template, map your columns, preview creates and updates, then import. Opening stock applies to new products only, and your plan’s product limit still applies.",
+      },
+      {
+        q: "Can I export reports and product lists?",
+        a: "Yes. Reports and catalogs download as CSV on every plan. Excel and PDF exports are included on Pro and above, and you can still print from the same views.",
       },
       {
         q: "Does Novend support barcode scanners and receipt printers?",
         a: "Yes. Camera scanning, hardware barcode scanners, and thermal receipt printing are supported.",
+      },
+      {
+        q: "Does Novend work on phones and tablets?",
+        a: "Yes. Download the Android app from the Download page. On iPhone and iPad, open Novend in Safari and add it to your Home Screen as a PWA. Use the desktop app on the counter when you need printers and barcode hardware.",
       },
       {
         q: "Which businesses is Novend designed for?",
@@ -502,9 +510,14 @@ export const landingCopy = {
   desktop: {
     id: "desktop",
     badge: "Apps & Downloads",
-    title: "Run Novend on every counter — and soon every pocket",
+    title: "Run Novend on every counter — and in every pocket",
     detail:
-      "Install the desktop app for Windows, macOS, and Linux today. Use the web app anywhere. Mobile apps for iPhone, iPad, and Android will appear on the same download page when ready.",
+      "Install the desktop app for Windows, macOS, and Linux. Download the Android app for phones and tablets. On iPhone and iPad, add Novend to your Home Screen as a PWA. One account works across the counter, the web, and your pocket.",
+    platforms: [
+      { id: "desktop", label: "Windows, macOS & Linux" },
+      { id: "android", label: "Android app" },
+      { id: "ios", label: "iPhone & iPad (PWA)" },
+    ],
     cta: "Go to downloads",
     href: "/download",
   },

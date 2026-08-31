@@ -2,6 +2,11 @@ import type { AppRole } from "@/config/navigation";
 import { getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
 import type { PrintSnapshot } from "./types";
 import { collectTopSellingCandidates } from "@/lib/dashboard/top-selling";
+import { DASHBOARD_OPS_WINDOW_DAYS } from "@/lib/dashboard/window";
+import {
+  availableStockQuantity,
+  isBelowLowStockThreshold,
+} from "@/lib/stock-status";
 
 export type DashboardSummaryCache = {
   role: AppRole | string;
@@ -82,7 +87,10 @@ export async function loadPrintSnapshotMeta(): Promise<PrintSnapshot | null> {
   }
 }
 
-/** Build the dashboard from Dexie products, mirrored orders, and unsynced local sales. */
+/** Build the dashboard from Dexie products, mirrored orders, and unsynced local sales.
+ * Admin/manager sales and order KPIs are a rolling last `DASHBOARD_OPS_WINDOW_DAYS`
+ * days — not all-time totals. Cashiers are scoped to today (local midnight).
+ */
 export async function buildLocalDashboardSummary(
   role: AppRole,
   branchId?: string,
@@ -92,7 +100,7 @@ export async function buildLocalDashboardSummary(
   const startToday = new Date();
   startToday.setHours(0, 0, 0, 0);
   const sinceToday = startToday.getTime();
-  const since7 = now - 7 * 24 * 60 * 60 * 1000;
+  const since7 = now - DASHBOARD_OPS_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const showOps = role === "administrator" || role === "manager";
 
   if (!db) {
@@ -120,19 +128,51 @@ export async function buildLocalDashboardSummary(
   ]);
 
   const activeProducts = products.filter((p) => p.status === "active");
+  const branchStock = branchId ? await db.branchStock.toArray() : [];
   const lowStock = activeProducts
     .filter((p) => {
-      const available = p.tracksExpiry ? (p.sellableQuantity ?? 0) : p.stockQuantity;
-      return available <= p.lowStockThreshold;
+      if (branchId) {
+        const row = branchStock.find(
+          (item) => item.productId === p.id && item.branchId === branchId,
+        );
+        const available = row
+          ? availableStockQuantity({
+              tracksExpiry: p.tracksExpiry,
+              stockQuantity: row.quantity,
+              sellableQuantity: row.sellableQuantity,
+            })
+          : availableStockQuantity(p);
+        return isBelowLowStockThreshold(available, p.lowStockThreshold);
+      }
+      return isBelowLowStockThreshold(availableStockQuantity(p), p.lowStockThreshold);
     })
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      stockQuantity: p.sellableQuantity ?? p.stockQuantity,
-      unit: p.unit,
-      lowStockThreshold: p.lowStockThreshold,
-      costPrice: showOps ? p.costPrice : undefined,
-    }));
+    .map((p) => {
+      if (!branchId) {
+        return {
+          id: p.id,
+          name: p.name,
+          stockQuantity: availableStockQuantity(p),
+          unit: p.unit,
+          lowStockThreshold: p.lowStockThreshold,
+          costPrice: showOps ? p.costPrice : undefined,
+        };
+      }
+      const row = branchStock.find((item) => item.productId === p.id && item.branchId === branchId);
+      return {
+        id: p.id,
+        name: p.name,
+        stockQuantity: row
+          ? availableStockQuantity({
+              tracksExpiry: p.tracksExpiry,
+              stockQuantity: row.quantity,
+              sellableQuantity: row.sellableQuantity,
+            })
+          : availableStockQuantity(p),
+        unit: p.unit,
+        lowStockThreshold: p.lowStockThreshold,
+        costPrice: showOps ? p.costPrice : undefined,
+      };
+    });
   const expiringCount = activeProducts.filter((p) => p.isExpired || p.isExpiring).length;
 
   const mirroredIds = new Set(mirroredOrders.map((o) => o.id));

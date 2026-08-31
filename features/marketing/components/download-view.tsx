@@ -63,7 +63,7 @@ const MOBILE_PLATFORM_META = [
   {
     id: "ios" as const,
     label: "iPhone & iPad",
-    detail: "Native apps for Apple devices.",
+    detail: "Add Novend to your Home Screen from Safari as a PWA.",
     icon: Apple,
   },
 ] as const;
@@ -98,7 +98,7 @@ export function DownloadView() {
     <MarketingSitePage
       badge="Downloads"
       title={`Download ${APP_NAME}`}
-      subtitle="Install Novend on the counter PC, sideload the Android app, or run it in the browser — all from one account."
+      subtitle="Install Novend on the counter PC, download the Android app, or add it to an iPhone Home Screen as a PWA — all from one account."
       maxWidthClassName="max-w-5xl"
       meta={
         offer
@@ -111,7 +111,7 @@ export function DownloadView() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <span className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-xl">
+                <span className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
                   <Monitor className="h-5 w-5" aria-hidden />
                 </span>
                 <div>
@@ -204,21 +204,25 @@ export function DownloadView() {
           ) : null}
         </section>
 
-        <section className="landing-shadow-card rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8">
+        <section
+          id="mobile"
+          className="landing-shadow-card rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8"
+        >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-xl">
+              <span className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
                 <Smartphone className="h-5 w-5" aria-hidden />
               </span>
               <div>
                 <h2 className="text-xl font-semibold tracking-tight text-[#111827]">Mobile</h2>
                 <p className="text-sm text-slate-600">
                   {mobileOffer
-                    ? `Latest stable ${mobileOffer.version}${mobileReleasedLabel ? ` · Released ${mobileReleasedLabel}` : ""}`
-                    : "Android APK and store links publish here with each release."}
+                    ? `Android app and iOS Home Screen PWA${mobileReleasedLabel ? ` · Released ${mobileReleasedLabel}` : ""}`
+                    : "Android app downloads publish here with each release. iPhone and iPad use a Home Screen PWA today."}
                 </p>
               </div>
             </div>
+            {mobileOffer ? <Badge variant="secondary">v{mobileOffer.version}</Badge> : null}
           </div>
 
           {mobileLoading ? (
@@ -233,31 +237,35 @@ export function DownloadView() {
                 const download = mobileOffer?.downloads[platform.id];
                 const storeUrl = mobileOffer?.storeUrls[platform.id];
                 const available = Boolean(download?.url || storeUrl);
+                const iosPwa = platform.id === "ios" && !available;
+                const sizeLabel = formatBytes(download?.size);
 
                 return (
                   <li
                     key={platform.id}
                     className={cn(
                       "rounded-2xl border px-4 py-5",
-                      available
+                      available || iosPwa
                         ? "border-slate-200/80 bg-white"
                         : "border-dashed border-slate-200 bg-slate-50",
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <Icon className="h-5 w-5 text-slate-700" aria-hidden />
-                      <p className="text-sm font-semibold text-[#111827]">{platform.label}</p>
-                      {!available ? (
-                        <Badge variant="outline" className="ml-auto text-xs">
-                          Coming soon
-                        </Badge>
-                      ) : download ? (
-                        <Badge variant="secondary" className="ml-auto text-xs">
-                          {formatBytes(download.size) ?? "APK"}
-                        </Badge>
+                      <Icon className="h-5 w-5 shrink-0 text-slate-700" aria-hidden />
+                      <p className="min-w-0 flex-1 text-sm font-semibold text-[#111827]">
+                        {platform.label}
+                      </p>
+                      {iosPwa ? (
+                        <Badge variant="default">PWA</Badge>
+                      ) : !available ? (
+                        <Badge variant="outline">Coming soon</Badge>
                       ) : null}
                     </div>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{platform.detail}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                      {sizeLabel
+                        ? `${platform.detail.replace(/\.$/, "")} · ${sizeLabel}`
+                        : platform.detail}
+                    </p>
                     {download?.url ? (
                       <Button asChild size="sm" className="mt-4 w-full sm:w-auto">
                         <a href={download.url} download={download.fileName}>
@@ -270,6 +278,10 @@ export function DownloadView() {
                         <a href={storeUrl} target="_blank" rel="noopener noreferrer">
                           Open in store
                         </a>
+                      </Button>
+                    ) : iosPwa ? (
+                      <Button asChild size="sm" className="mt-4 w-full sm:w-auto">
+                        <Link href="/login">Open in Safari</Link>
                       </Button>
                     ) : null}
                   </li>

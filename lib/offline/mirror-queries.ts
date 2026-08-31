@@ -42,7 +42,7 @@ async function mapMirroredProductRows(
         sellableQuantity: resolved.sellableQuantity,
         isExpiring: resolved.isExpiring ?? false,
         isExpired: resolved.isExpired ?? false,
-        isLowStock: resolved.stockQuantity <= product.lowStockThreshold,
+        isLowStock: resolved.sellableQuantity <= product.lowStockThreshold,
       };
     }),
   );

@@ -2,7 +2,8 @@
 
 Android APKs (and optional store links) publish through the same release pipeline as desktop
 installers. Convex stores metadata and redirects downloads; clients never call the GitHub
-Releases API directly.
+Releases API directly. Customer iOS is a Home Screen PWA; `MOBILE_IOS_STORE_URL` stays unused
+until a native iOS package is published.
 
 ```
 Tag v* -> GitHub Actions builds Android APK (default)

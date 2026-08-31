@@ -30,6 +30,7 @@ import { presenceFromLastSeenAt } from "./shared/presence";
 import { deactivateAccountBlockReason } from "./shared/accountStatus";
 import { loadEmailVerification } from "./shared/emailVerificationLookup";
 import { recordDailyActiveUser } from "./shared/platformTelemetry";
+import { loadTourProgressForUser } from "./shared/tourProgress";
 
 export const me = query({
   args: {},
@@ -44,6 +45,7 @@ export const me = query({
     const platformAdmin = await getPlatformAdmin(ctx, userId);
     const verification = await loadEmailVerification(ctx, userId);
     if (!profile) {
+      const tourProgress = await loadTourProgressForUser(ctx, userId, null);
       return {
         userId,
         email: user.email ?? null,
@@ -61,6 +63,7 @@ export const me = query({
         appearanceFontSize: null,
         imageUrl: null,
         organizationName: null,
+        tourProgress,
       };
     }
 
@@ -84,6 +87,7 @@ export const me = query({
     const imageUrl = profile.imageStorageId
       ? await ctx.storage.getUrl(profile.imageStorageId)
       : null;
+    const tourProgress = await loadTourProgressForUser(ctx, userId, profile);
 
     return {
       userId,
@@ -103,6 +107,7 @@ export const me = query({
       appearanceTheme: profile.appearanceTheme ?? null,
       appearanceFontSize: profile.appearanceFontSize ?? null,
       imageUrl,
+      tourProgress,
     };
   },
 });

@@ -21,6 +21,12 @@ import {
 } from "./branch-stock";
 import { saveShellProfile } from "./shell-profile";
 import {
+  mergeTourProgress,
+  parseTourProgress,
+  saveTourProgress,
+  type StoredTourProgress,
+} from "./tour-progress-cache";
+import {
   mergeServerAndLocalById,
   mergeWholesaleStock,
   overlayPendingBranchStock,
@@ -267,6 +273,21 @@ export async function applySnapshot(
     }
     if (snapshot.profile.branchName) {
       await setMeta(db, META_KEYS.profileBranchName, snapshot.profile.branchName);
+    }
+    const incomingTours = parseTourProgress(
+      "tourProgress" in snapshot.profile ? snapshot.profile.tourProgress : [],
+    );
+    if (incomingTours.length > 0) {
+      const existingRaw = await getMeta(db, META_KEYS.tourProgress);
+      let existing: StoredTourProgress[] = [];
+      if (existingRaw) {
+        try {
+          existing = parseTourProgress(JSON.parse(existingRaw) as unknown);
+        } catch {
+          existing = [];
+        }
+      }
+      await saveTourProgress(mergeTourProgress(existing, incomingTours));
     }
     await setMeta(db, META_KEYS.lastSnapshotAt, String(now));
     await setMeta(db, META_KEYS.replicaSchemaVersion, REPLICA_SCHEMA_VERSION);

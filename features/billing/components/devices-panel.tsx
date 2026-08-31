@@ -172,7 +172,7 @@ export function DevicesPanel() {
             </Badge>
           </CardTitle>
           <CardDescription>
-            Every signed-in installation uses one slot — desktop app, Android/iOS app, or browser.
+            Every signed-in installation uses one slot — desktop app, Android app, iOS PWA, or browser.
             You cannot shut down or remove this device while you are using it. Shut-down terminals
             can be re-enabled or removed from the list.
           </CardDescription>

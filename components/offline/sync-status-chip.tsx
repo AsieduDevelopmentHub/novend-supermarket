@@ -21,6 +21,39 @@ function SyncGlyph({
   return <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />;
 }
 
+/** Compact header control so mobile web and Capacitor can highlight sync without the sidebar. */
+export function SyncStatusHeaderButton() {
+  const { online, pendingCount, failedCount, syncing, lastError, openSyncCenter } =
+    useOfflineStatus();
+  const failed = online && failedCount > 0;
+  const activeSync = online && syncing && pendingCount > 0;
+  const label = !online
+    ? "Offline"
+    : failed
+      ? `${failedCount} conflict${failedCount === 1 ? "" : "s"}`
+      : activeSync
+        ? "Syncing"
+        : pendingCount > 0
+          ? `${pendingCount} pending`
+          : "Synced";
+
+  return (
+    <button
+      type="button"
+      data-tour="sync-status"
+      className={cn(
+        "text-muted-foreground hover:bg-muted flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+        !online && "text-foreground",
+        failed && "text-destructive",
+      )}
+      aria-label={`${label}${lastError ? `. ${lastError}` : ""}. Open sync center.`}
+      onClick={openSyncCenter}
+    >
+      <SyncGlyph online={online} syncing={activeSync} failed={failed} />
+    </button>
+  );
+}
+
 /**
  * Compact sync indicator for the sidebar — always visible, non-intrusive.
  * Opens Sync Center for queue details, conflicts, and a forced upload.

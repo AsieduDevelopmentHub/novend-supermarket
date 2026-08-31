@@ -6,7 +6,7 @@ export const sitePages = {
     badge: "Documentation",
     title: "Novend Documentation",
     subtitle:
-      "A practical guide to setting up your organization, selling on the counter, managing inventory and wholesale stock, syncing offline work, connecting hardware, and administering users, branches, and billing — on desktop, web, and future mobile clients.",
+      "A practical guide to setting up your organization, selling on the counter, managing inventory and wholesale stock, syncing offline work, connecting hardware, and administering users, branches, and billing — on desktop, web, Android, and iOS (PWA).",
     sections: [
       {
         id: "getting-started",
@@ -19,7 +19,7 @@ export const sitePages = {
           "Add your first branch, products, and activate a selling device from Settings when ready",
           "Invite cashiers and managers with the correct roles — never share owner credentials",
           "Run a test sale, print or preview a receipt, then verify the order and inventory movement",
-          "Use Sign in next time, or grab the desktop app from Downloads for the counter",
+          "Use Sign in next time, or get the desktop app, Android app, or iOS Home Screen PWA from Downloads",
         ],
       },
       {
@@ -43,10 +43,25 @@ export const sitePages = {
           "Products, stock levels, valuation, and wholesale storage you can trust at the counter.",
         items: [
           "Track quantity, cost, and sell price per product — stock cannot go negative",
-          "Receive supplier deliveries and record purchases so valuation stays accurate",
+          "Import an existing catalog from CSV or Excel: Products → Import, download the template, map columns, preview, then import",
+          "Opening stock on new products applies to the branch you choose; updates never silently rewrite on-hand quantity",
           "Keep wholesale / warehouse inventory separate from branch floor stock",
           "Use low-stock thresholds and archive products instead of deleting history",
           "Pharmacy workflows can use batch and expiry detail where enabled",
+        ],
+      },
+      {
+        id: "catalog-import",
+        title: "Catalog Import",
+        detail:
+          "Bring an existing product list into Novend with a guided CSV or Excel wizard. Administrators and managers only.",
+        items: [
+          "Open Products and choose Import. Download the CSV template (Excel on Pro and above) so headers match Novend fields",
+          "Required columns: Product Name, SKU, Category, Cost Price, and Selling Price. Optional: barcode, quantity, unit, minimum stock, description, status, and expiry fields",
+          "Map each spreadsheet column to a Novend field. Saved mappings can be reused on the next file",
+          "Preview creates vs updates. Opening stock applies on new products only, to the branch you select — existing SKUs are not restocked by import",
+          "Your plan’s product limit still applies. Spreadsheet files are not stored; Novend keeps job counts, filenames, and your column mapping",
+          "Cashiers cannot import. Cost prices in the file follow the same visibility rules as the rest of the catalog",
         ],
       },
       {
@@ -70,7 +85,7 @@ export const sitePages = {
           "Sales and inventory updates save on the device first so the counter stays fast",
           "Pending changes upload when connectivity returns",
           "Watch sync status in the app — do not edit completed sales to “fix” sync",
-          "Desktop and web use the same account and sync model",
+          "Desktop and web use the same account and sync model — including the Android app and iOS Home Screen PWA",
         ],
       },
       {
@@ -80,8 +95,8 @@ export const sitePages = {
         items: [
           "USB and camera barcode capture search the same product catalog",
           "Thermal receipt printing from the POS using your branch receipt template",
-          "Activate devices within your plan’s device limit from Settings",
-          "Prefer the desktop app for dedicated counters that need printers and offline reliability",
+          "Activate desktop, Android, and iOS PWA devices within your plan’s device limit from Settings",
+          "Prefer the desktop app for dedicated counters that need printers and barcode hardware",
         ],
       },
       {
@@ -100,11 +115,11 @@ export const sitePages = {
         id: "analytics",
         title: "Analytics & Reports",
         detail:
-          "See revenue, profit, and operational reports without exporting every day into spreadsheets.",
+          "See revenue, profit, and operational reports — then export CSV, Excel, or PDF when you need a file.",
         items: [
           "Monitor KPIs and trends from the analytics overview",
           "Review expenses and profit & loss views as your plan allows",
-          "Generate printable and exportable sales, inventory, and branch reports",
+          "Export sales, inventory, and branch reports as CSV on every plan, plus Excel and PDF on Pro and above",
           "Use daily breakdowns when you need to drill into a specific day",
         ],
       },
@@ -168,6 +183,10 @@ export const sitePages = {
         title: "Stock & branches",
         items: [
           {
+            q: "How do I import products from Excel or CSV?",
+            a: "Administrators and managers open Products → Import. Download the Novend template, upload your file, map columns (name, SKU, category, cost, selling price are required), preview creates and updates, choose the branch for opening stock on new products, then import. Existing SKUs update catalog fields only — quantity on the spreadsheet does not rewrite on-hand stock. Excel import and the Excel template follow your plan; CSV import is available on commercial plans.",
+          },
+          {
             q: "Inventory looks wrong after a transfer",
             a: "Open the transfer history for that branch and confirm quantities issued and received. Stock never changes without a recorded reason. If a transfer was incomplete, finish or reverse it through supported inventory actions — do not adjust blindly without a reason code.",
           },
@@ -190,19 +209,19 @@ export const sitePages = {
         items: [
           {
             q: "Where do I download the desktop app?",
-            a: "Open the Download page from the website menu. Installers for Windows, macOS, and Linux update automatically when we publish a new version. The page also shows upcoming iPhone, iPad, and Android apps, plus a link to use Novend in the browser.",
+            a: "Open the Download page from the website menu. Installers for Windows, macOS, and Linux update automatically when we publish a new version. The same page has the Android app. iPhone and iPad use Novend as a Home Screen PWA from Safari.",
           },
           {
             q: "How do I add another device?",
-            a: "Activate the device from Settings once your plan has available device capacity. Desktop, web, and future mobile sessions may count toward your plan limit depending on entitlements.",
+            a: "Activate the device from Settings once your plan has available device capacity. Desktop, web, Android, and iOS PWA sessions may count toward your plan limit depending on entitlements.",
           },
           {
             q: "The printer isn’t printing",
             a: "Confirm the receipt printer is connected, selected in hardware settings, and that the desktop app (when used) has permission to access it. Reprint from the order if the sale already completed.",
           },
           {
-            q: "When will mobile apps be available?",
-            a: "iPhone, iPad, and Android apps are on the roadmap and will appear on the Download page next to desktop installers. Until then, use the web app on a phone or tablet, or install the desktop app on a counter PC.",
+            q: "How do I run Novend on a phone?",
+            a: "Download the Android app from the Download page. On iPhone and iPad, open Novend in Safari, then Share → Add to Home Screen to install it as a PWA. Use the desktop app on a counter PC when you need printers and barcode hardware.",
           },
         ],
       },
@@ -240,7 +259,7 @@ export const sitePages = {
           },
           {
             q: "How do I request data export or account closure?",
-            a: "Contact support with your organization name and the email on the owner account. We retain data as described in the Privacy Policy for legal and operational needs.",
+            a: "Administrators and managers can export reports and catalogs from the product. For account closure or a fuller data-export request, contact support with your organization name and the owner account email. We retain data as described in the Privacy Policy for legal and operational needs.",
           },
         ],
       },
@@ -257,7 +276,7 @@ export const sitePages = {
     badge: "Release Notes",
     title: "What’s new in Novend",
     subtitle:
-      "Live product updates from the same release feed that powers Downloads — desktop today, mobile apps when published.",
+      "Live product updates from the same release feed that powers Downloads — desktop, Android, and the web PWA.",
     entries: [] as Array<{
       version: string;
       date: string;
@@ -268,9 +287,9 @@ export const sitePages = {
   privacy: {
     badge: "Legal",
     title: "Privacy Policy",
-    effective: "Effective August 22, 2026",
+    effective: "Effective August 31, 2026",
     intro:
-      "This Privacy Policy explains how Asiedu Development Hub (“we”, “us”, “our”) collects, uses, stores, shares, and protects information when you access Novend POS and related websites, desktop clients, and future mobile applications (together, the “Service”). Please read it carefully. By creating an account or using Novend, you acknowledge this Policy.",
+      "This Privacy Policy explains how Asiedu Development Hub (“we”, “us”, “our”) collects, uses, stores, shares, and protects information when you access Novend POS and related websites, the web application, desktop applications, the Android application, and the iOS Progressive Web App (together, the “Service”). Additional native applications we publish later remain covered. Please read it carefully. By creating an account or using Novend, you acknowledge this Policy.",
     sections: [
       {
         title: "1. Who we are and how to contact us",
@@ -283,7 +302,7 @@ export const sitePages = {
       {
         title: "2. Scope of this Policy",
         paragraphs: [
-          "This Policy covers information processed through novendpos.com (and related domains), the Novend web application, desktop applications, and future mobile apps that connect to the same Novend service.",
+          "This Policy covers information processed through novendpos.com (and related domains), the Novend web application, desktop applications for Windows, macOS, and Linux, the Android application, and the iOS Progressive Web App (Home Screen install) that connect to the same Novend service.",
           "It does not cover third-party websites or services that we do not control, even if linked from Novend. Those services have their own privacy practices.",
         ],
       },
@@ -292,7 +311,8 @@ export const sitePages = {
         paragraphs: [
           "Account and profile information: name, email address, phone number (if provided), organization name, role, and authentication credentials (passwords are stored using secure hashing via our auth provider — we do not store plaintext passwords).",
           "Business operational data you and your staff enter: products, categories, SKUs, barcodes, pricing, inventory quantities and movements, sales, receipts, returns, customers, suppliers, branches, users, expenses, analytics inputs, and related notes.",
-          "Device and technical information: device activation identifiers, app or client version, operating system hints, sync status, approximate timestamps, and diagnostic logs needed to operate and secure the Service.",
+          "Device and technical information: device activation identifiers, app or client version, operating system hints, whether you are using the web app, desktop app, Android app, or iOS PWA, sync status, approximate timestamps, and diagnostic logs needed to operate and secure the Service.",
+          "Catalog import files you choose to upload (CSV or Excel) are processed so your organization can create or update products. We do not retain the original spreadsheet as a stored catalog file. Import summaries such as filename, row counts, and saved column mappings may be kept for support, plan administration, and to let you reuse mappings.",
           "Billing and commercial information: plan selection, subscription or lifetime licence status, invoices and payment references processed through our payment providers, and related support history.",
           "Communications: messages you send to support or sales, and feedback you provide about the product.",
           "We do not intentionally collect special categories of personal data beyond what you choose to store in your own business records (for example customer phone numbers). You are responsible for lawful collection of your customers’ data at the counter.",
@@ -301,7 +321,7 @@ export const sitePages = {
       {
         title: "4. How we use information",
         paragraphs: [
-          "To provide, maintain, and improve offline-first POS, inventory, wholesale, sync, analytics, reporting, and support features.",
+          "To provide, maintain, and improve offline-first POS, inventory, wholesale, catalog import, report and catalog export, sync, analytics, reporting, and support features.",
           "To authenticate users, enforce roles and organization isolation, apply plan limits, and protect accounts against unauthorized access.",
           "To process billing, trials, upgrades, and related customer communications.",
           "To diagnose outages, prevent abuse, and improve reliability and performance.",
@@ -322,7 +342,7 @@ export const sitePages = {
         title: "6. Sharing and processors",
         paragraphs: [
           "We share information with infrastructure, authentication, analytics (if enabled), and payment providers strictly as needed to operate Novend under appropriate agreements.",
-          "Desktop and mobile installers may be delivered through our secure download channels. Version details and release notes may be stored in our systems so the Download page stays up to date.",
+          "Desktop and Android installers may be delivered through our secure download channels. The iOS client is currently a Progressive Web App you install from the browser; a native iOS application, if published later, is delivered the same way as other official packages. Version details and release notes may be stored in our systems so the Download page stays up to date.",
           "We may disclose information if required by applicable law, regulation, legal process, or to protect the rights, safety, and integrity of the Service, our users, or the public.",
           "Organization administrators control which staff can access business data inside their Novend workspace. We do not grant other Novend customers access to your organization data.",
           "If we engage in a merger, acquisition, or asset transfer, information may transfer as part of that transaction subject to continued confidentiality commitments where required.",
@@ -339,7 +359,7 @@ export const sitePages = {
         title: "8. Retention",
         paragraphs: [
           "We retain account and business data for as long as your organization uses Novend and as reasonably needed afterward for legitimate business, security, dispute resolution, backup, and legal compliance purposes.",
-          "You may request account closure or assistance with data export by contacting support. Some records may remain in backups or audit logs for a limited period after deletion requests, consistent with operational and legal needs.",
+          "You may request account closure or assistance with data export by contacting support. Administrators and managers can also export reports and catalogs from the product (CSV on every plan; Excel and PDF according to plan entitlements). Some records may remain in backups or audit logs for a limited period after deletion requests, consistent with operational and legal needs.",
           "Completed sales and receipts are designed to remain immutable for integrity; corrections are handled through return and related workflows rather than silent edits.",
         ],
       },
@@ -347,7 +367,7 @@ export const sitePages = {
         title: "9. Security",
         paragraphs: [
           "We use administrative, technical, and organizational measures designed to protect information, including authentication, access control, transport encryption for network traffic to our services, and least-privilege practices for staff tools.",
-          "No method of transmission or storage is perfectly secure. You should use strong passwords, limit admin access, keep clients updated from official download channels, and report suspected unauthorized access promptly.",
+          "No method of transmission or storage is perfectly secure. You should use strong passwords, limit admin access, keep clients updated from official download channels (including the Android app), and report suspected unauthorized access promptly.",
         ],
       },
       {
@@ -376,9 +396,9 @@ export const sitePages = {
   terms: {
     badge: "Legal",
     title: "Terms of Service",
-    effective: "Effective August 22, 2026",
+    effective: "Effective August 31, 2026",
     intro:
-      "These Terms of Service (“Terms”) form a binding agreement between you and Asiedu Development Hub governing access to and use of Novend POS, including the website, web application, desktop applications, future mobile applications, documentation, and related services (the “Service”). By creating an account, clicking to accept, or using Novend, you agree to these Terms.",
+      "These Terms of Service (“Terms”) form a binding agreement between you and Asiedu Development Hub governing access to and use of Novend POS, including the website, web application, desktop applications, Android application, iOS Progressive Web App, documentation, and related services (the “Service”). Additional native applications we publish later remain part of the Service. By creating an account, clicking to accept, or using Novend, you agree to these Terms.",
     sections: [
       {
         title: "1. Agreement and eligibility",
@@ -392,7 +412,7 @@ export const sitePages = {
         title: "2. The Service",
         paragraphs: [
           "Novend provides commercial Point of Sale, inventory, wholesale, analytics, reporting, multi-branch, offline-capable sync, and related business tools.",
-          "Clients may include web browsers, desktop applications for Windows, macOS, and Linux, and future mobile apps for phones and tablets. Feature availability can vary by device and plan.",
+          "Clients may include web browsers; desktop applications for Windows, macOS, and Linux; the Android application; and an iOS Progressive Web App installed from the browser. A native iOS application, if published, is covered by these Terms. Feature availability can vary by device and plan.",
           "We may modify, add, or remove features to improve the Service, address security, or reflect plan entitlements. We will not remove core paid capabilities without a commercially reasonable notice where practical.",
           "Beta or preview features may be unstable and are provided as-is.",
         ],
@@ -431,14 +451,14 @@ export const sitePages = {
         paragraphs: [
           "Novend supports offline operation. You acknowledge that local device storage, timely sync, and device security are part of normal use.",
           "The Novend cloud is the authority for committed synchronized business state. On-device storage helps you keep selling offline, but it is not a substitute for proper device care and timely sync.",
-          "We work to protect synchronized data with commercially reasonable measures, but you should maintain operational practices: control staff access, keep devices updated from official channels, and export or back up critical records according to your own compliance needs.",
+          "We work to protect synchronized data with commercially reasonable measures, but you should maintain operational practices: control staff access, keep devices updated from official channels, and export or back up critical records according to your own compliance needs. In-app catalog import (CSV or Excel) and report export are tools your authorized staff operate; you remain responsible for the files you import and the records you export.",
           "Our Privacy Policy describes how we process personal data and is incorporated by reference.",
         ],
       },
       {
         title: "7. Software downloads and updates",
         paragraphs: [
-          "Desktop (and future mobile) installers made available on the Download page or in-product update channels are licensed for use with your valid Novend account and plan — not for redistribution.",
+          "Desktop and Android installers made available on the Download page or in-product update channels are licensed for use with your valid Novend account and plan — not for redistribution. The iOS client is currently a Progressive Web App you add to the Home Screen from the browser; a native iOS package, if published, is licensed the same way as other official installers.",
           "You agree to install security and mandatory updates when prompted. Outdated clients may be restricted from connecting if they pose a risk.",
           "Release details and download links may be served through our cloud service. Availability of a specific platform build depends on whether that version has been published.",
         ],

@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useMemo, useState, Suspense } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -71,14 +71,20 @@ function InventoryViewInner() {
     branchName,
   } = usePermissions();
   const online = useConnectivity();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const filter = searchParams.get("filter");
+  const branchParam = searchParams.get("branch");
   const lowOnly = filter === "low";
   const expiryOnly = filter === "expiry";
+  const stockFilter = lowOnly ? "low" : expiryOnly ? "expiry" : "all";
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string>("all");
   /** Admin override; default `all` = organization-wide stock totals. */
-  const [branchOverride, setBranchOverride] = useState<Id<"branches"> | "all">("all");
+  const [branchOverride, setBranchOverride] = useState<Id<"branches"> | "all">(() =>
+    branchParam && branchParam !== "all" ? (branchParam as Id<"branches">) : "all",
+  );
   const [adjustId, setAdjustId] = useState<Id<"products"> | null>(null);
   const [adjustBranchId, setAdjustBranchId] = useState<Id<"branches"> | "">("");
   const [transferOpen, setTransferOpen] = useState(false);
@@ -93,6 +99,42 @@ function InventoryViewInner() {
   const [transferProductId, setTransferProductId] = useState<Id<"products"> | "">("");
   const [transferQty, setTransferQty] = useState("1");
   const [transferNote, setTransferNote] = useState("");
+  const appliedAlertBranch = useRef(false);
+  const landedWithStockAlert = useRef(lowOnly || expiryOnly);
+
+  function replaceInventoryQuery(next: { filter?: string | null; branch?: string | null }) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next.filter === undefined) {
+      /* keep */
+    } else if (next.filter) {
+      params.set("filter", next.filter);
+    } else {
+      params.delete("filter");
+    }
+    if (next.branch === undefined) {
+      /* keep */
+    } else if (next.branch && next.branch !== "all") {
+      params.set("branch", next.branch);
+    } else {
+      params.delete("branch");
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
+
+  useEffect(() => {
+    if (!isAdmin || !myBranchId) return;
+    if (branchParam && branchParam !== "all") {
+      setBranchOverride(branchParam as Id<"branches">);
+      appliedAlertBranch.current = true;
+      return;
+    }
+    if (appliedAlertBranch.current) return;
+    if (landedWithStockAlert.current && !branchParam) {
+      setBranchOverride(myBranchId);
+      appliedAlertBranch.current = true;
+    }
+  }, [isAdmin, myBranchId, branchParam]);
 
   const branches = useBranchesList(false);
   const transferBranches = branches;
@@ -273,9 +315,13 @@ function InventoryViewInner() {
         title="Inventory"
         description={
           expiryOnly
-            ? "Showing expired and expiring lots."
+            ? branchOverride === "all" && isAdmin
+              ? "Showing expired and expiring lots."
+              : "Showing expired and expiring lots at this branch."
             : lowOnly
-              ? "Showing low-stock items only."
+              ? branchOverride === "all" && isAdmin
+                ? "Showing low-stock items."
+                : "Showing low-stock items at this branch."
               : "Track available stock, low-stock, and expiry alerts."
         }
         compactActions={
@@ -327,14 +373,35 @@ function InventoryViewInner() {
           listenHid={!adjustId && !transferOpen}
         />
         <CollapsibleFilters
+          defaultOpen={stockFilter !== "all"}
           activeCount={
-            (categoryId !== "all" ? 1 : 0) + (isAdmin && branchOverride !== "all" ? 1 : 0)
+            (categoryId !== "all" ? 1 : 0) +
+            (isAdmin && branchOverride !== "all" ? 1 : 0) +
+            (stockFilter !== "all" ? 1 : 0)
           }
           onReset={() => {
             setCategoryId("all");
             if (isAdmin) setBranchOverride("all");
+            replaceInventoryQuery({ filter: null, branch: null });
           }}
         >
+          <Select
+            value={stockFilter}
+            onValueChange={(value) => {
+              replaceInventoryQuery({
+                filter: value === "low" || value === "expiry" ? value : null,
+              });
+            }}
+          >
+            <SelectTrigger className="min-h-11 w-full sm:w-48" aria-label="Stock status">
+              <SelectValue placeholder="Stock status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All stock</SelectItem>
+              <SelectItem value="low">Low stock</SelectItem>
+              <SelectItem value="expiry">Expiring / expired</SelectItem>
+            </SelectContent>
+          </Select>
           <SearchableSelect
             className="w-full sm:w-56"
             options={[
@@ -353,7 +420,11 @@ function InventoryViewInner() {
             <BranchFilter
               branches={branches}
               value={branchFilter}
-              onChange={setBranchOverride}
+              onChange={(value) => {
+                setBranchOverride(value);
+                appliedAlertBranch.current = true;
+                replaceInventoryQuery({ branch: value === "all" ? null : String(value) });
+              }}
               allowAll
               className="w-full sm:w-auto"
             />
@@ -377,7 +448,16 @@ function InventoryViewInner() {
             </div>
           ) : visibleRows.length === 0 ? (
             <div className="p-6">
-              <EmptyState icon={Boxes} title="No inventory rows" />
+              <EmptyState
+                icon={Boxes}
+                title={
+                  expiryOnly
+                    ? "No expiring lots"
+                    : lowOnly
+                      ? "No low-stock items"
+                      : "No inventory rows"
+                }
+              />
             </div>
           ) : (
             <>

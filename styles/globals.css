@@ -192,15 +192,31 @@
 /*
  * Title bar lives outside <main> (see #native-page-header-host) so it never scrolls.
  */
-.native-shell .native-page-header-host {
+.native-shell .native-page-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   background-color: #ffffff;
   border-bottom: 1px solid var(--border);
   min-height: var(--native-header-row);
+  padding-right: var(--mobile-page-pad);
+}
+
+.native-shell.dark .native-page-header-row,
+.dark .native-shell .native-page-header-row {
+  background-color: #0b1f33;
+}
+
+.native-shell .native-page-header-host {
+  background-color: transparent;
+  min-height: var(--native-header-row);
+  min-width: 0;
+  flex: 1;
 }
 
 .native-shell.dark .native-page-header-host,
 .dark .native-shell .native-page-header-host {
-  background-color: #0b1f33;
+  background-color: transparent;
 }
 
 .native-shell .native-page-header {
@@ -208,7 +224,7 @@
   display: flex;
   align-items: center;
   padding-left: var(--mobile-page-pad);
-  padding-right: var(--mobile-page-pad);
+  padding-right: 0;
   background-color: #ffffff;
 }
 
@@ -275,22 +291,42 @@
 /* Product tours inherit Novend tokens instead of Driver.js defaults. */
 .driver-popover.novend-product-tour {
   max-width: min(22rem, calc(100vw - 2rem));
-  border: 1px solid var(--border);
+  border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: var(--radius-xl);
-  background: var(--popover);
-  color: var(--popover-foreground);
-  box-shadow: var(--shadow-xl);
+  background: #ffffff;
+  color: #0f172a;
+  opacity: 1 !important;
+  z-index: 1000000001;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.06),
+    0 10px 15px -8px rgba(15, 23, 42, 0.18),
+    0 28px 48px -16px rgba(15, 23, 42, 0.4);
+}
+
+.dark .driver-popover.novend-product-tour {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.7),
+    0 28px 48px -12px rgba(0, 0, 0, 0.7);
 }
 
 .driver-popover.novend-product-tour .driver-popover-title {
   font-size: 1rem;
   font-weight: 650;
   line-height: 1.35;
+  color: inherit;
 }
 
 .driver-popover.novend-product-tour .driver-popover-description,
 .driver-popover.novend-product-tour .driver-popover-progress-text {
-  color: var(--muted-foreground);
+  color: #475569;
+}
+
+.dark .driver-popover.novend-product-tour .driver-popover-description,
+.dark .driver-popover.novend-product-tour .driver-popover-progress-text {
+  color: #cbd5e1;
 }
 
 .driver-popover.novend-product-tour button {
@@ -301,6 +337,7 @@
   color: var(--foreground);
   font: inherit;
   text-shadow: none;
+  opacity: 1;
 }
 
 .driver-popover.novend-product-tour .driver-popover-next-btn {
@@ -309,9 +346,43 @@
   color: var(--primary-foreground);
 }
 
+.driver-popover.novend-product-tour .driver-popover-skip-btn {
+  margin-right: auto;
+  border-color: transparent;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.dark .driver-popover.novend-product-tour .driver-popover-skip-btn {
+  color: #94a3b8;
+}
+
+.driver-popover.novend-product-tour .driver-popover-skip-btn:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+.dark .driver-popover.novend-product-tour .driver-popover-skip-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .driver-popover.novend-product-tour button:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .driver-popover.novend-product-tour {
+    max-width: min(20.5rem, calc(100vw - 1.25rem));
+  }
+
+  .driver-popover.novend-product-tour .driver-popover-footer {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
 }
 
 @keyframes splash-in {
@@ -2166,10 +2237,23 @@
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: #0f172a;
   aspect-ratio: 16 / 9;
+  min-height: 220px;
   /* match marketing UI screenshots */
   transition:
     transform 0.35s ease,
     box-shadow 0.35s ease;
+}
+
+@media (min-width: 640px) {
+  .landing-feature-frame {
+    min-height: 280px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-feature-frame {
+    min-height: 360px;
+  }
 }
 
 .landing-feature-frame:hover,
@@ -2364,19 +2448,68 @@ button.landing-feature-frame {
   position: relative;
   display: block;
   overflow: hidden;
-  border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
+  border-radius: 5px;
+  border: 0;
   background: #0f172a;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
 }
 
 .landing-industry-shot {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  object-position: center;
+  object-fit: cover;
+  object-position: top center;
   display: block;
-  background: #0f172a;
+}
+
+.landing-monitor {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+}
+
+.landing-monitor-bezel {
+  width: 100%;
+  border-radius: 14px 14px 10px 10px;
+  background: #1e293b;
+  padding: 8px 8px 0;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 18px 40px -18px rgba(15, 23, 42, 0.45);
+}
+
+.landing-monitor-chin {
+  display: flex;
+  justify-content: center;
+  padding: 7px 0 8px;
+}
+
+.landing-monitor-chin::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #475569;
+}
+
+.landing-monitor-stand {
+  width: 22%;
+  height: 10px;
+  margin-top: -1px;
+  background: linear-gradient(#cbd5e1, #94a3b8);
+  clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
+}
+
+.landing-monitor-base {
+  width: 36%;
+  height: 4px;
+  margin-top: 2px;
+  border-radius: 3px;
+  background: #64748b;
 }
 
 .landing-docs-shot-frame {

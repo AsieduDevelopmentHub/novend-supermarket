@@ -145,10 +145,10 @@ export function PlatformReleaseDetailView({ version }: { version: string }) {
                   <tr className="border-border bg-muted/20 border-t">
                     <td className="px-4 py-3 font-medium">{RELEASE_GROUP_LABELS.ios}</td>
                     <td className="text-muted-foreground px-4 py-3 text-xs" colSpan={3}>
-                      Not published yet
+                      Home Screen PWA — no native IPA
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant="secondary">Coming soon</Badge>
+                      <Badge variant="secondary">PWA</Badge>
                     </td>
                   </tr>
                 ) : null}

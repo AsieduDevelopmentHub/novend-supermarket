@@ -52,13 +52,15 @@ novend-pos/
 | `.cursor/`           | Concise AI rules that reference docs                                                                                         |
 | `packages/hardware/` | Sole entry for camera, barcode, printer, BLE, biometrics, filesystem, share, notifications, app services; platform detection |
 | `apps/desktop/`      | Electron wrapper, installers, desktop CI. Bakes `appUrl` + Convex update feed into `build/update-config.json`.               |
-| `apps/mobile/`       | Capacitor Android / iOS shell. Local boot page client-navigates to the hosted Next app (same as Electron).                   |
+| `apps/mobile/`       | Capacitor Android shell (published). An iOS tree exists but is not the customer client — iOS uses the Home Screen PWA.       |
 
 # Placement rules
 
 - Feature-specific code stays in `features/<feature>/`.
 - `features/tours/` owns the versioned product-tour registry, access filtering,
-  responsive anchor resolution, and the authenticated tour provider.
+  responsive anchor resolution, and the authenticated tour provider. Progress is
+  mirrored in Dexie (`lib/offline/tour-progress-cache.ts`) and on the Convex
+  profile plus `userTourProgress`.
 - Business rules stay in `convex/`.
 - Do not create `misc`, `temp`, `new`, or `old` folders.
 - When adding a top-level folder, update this document in the same change.

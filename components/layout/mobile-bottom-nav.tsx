@@ -19,10 +19,9 @@ export function MobileBottomNav() {
   return (
     <nav
       aria-label="Primary"
-      data-tour="mobile-bottom-navigation"
       className="pointer-events-none fixed inset-x-0 bottom-0 z-40 w-full max-w-[100svw] xl:hidden"
     >
-      <div className="novend-mobile-tabbar pointer-events-auto">
+      <div className="novend-mobile-tabbar pointer-events-auto" data-tour="mobile-bottom-navigation">
         <div className="novend-mobile-tabbar-inner">
           {MOBILE_BOTTOM_TABS.map((tab) => {
             const isActive = active === tab.id;
@@ -36,6 +35,7 @@ export function MobileBottomNav() {
                   if (!isActive) void triggerLightHaptic();
                   navigate(tab.href);
                 }}
+                data-tour={tab.id === "more" ? "mobile-more" : undefined}
                 className={cn(
                   "novend-mobile-tab",
                   isActive ? "novend-mobile-tab-active text-white" : "text-slate-300",

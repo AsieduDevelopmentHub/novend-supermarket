@@ -5,6 +5,7 @@ import { loadPrintSnapshot } from "./settings";
 import { stockMapForBranch } from "./shared/branchStock";
 import { deriveExpiryListFields, lotSummaries } from "./shared/lots";
 import { presenceFromLastSeenAt } from "./shared/presence";
+import { loadTourProgressForUser } from "./shared/tourProgress";
 
 /**
  * Compact catalog snapshot for Dexie offline mirror.
@@ -574,6 +575,7 @@ export const getSnapshot = query({
         branchName: branch?.name ?? null,
         organizationId: organizationId as string,
         organizationName: business.tradeName,
+        tourProgress: await loadTourProgressForUser(ctx, userId, profile),
       },
     };
   },

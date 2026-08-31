@@ -397,6 +397,7 @@ export const META_KEYS = {
   lastSyncError: "lastSyncError",
   replicaSchemaVersion: "replicaSchemaVersion",
   profileOrganizationId: "profileOrganizationId",
+  tourProgress: "tourProgress",
   platformOverview: "platformOverview",
   platformOrganizations: "platformOrganizations",
   platformReleases: "platformReleases",

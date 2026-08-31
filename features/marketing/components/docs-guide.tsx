@@ -12,7 +12,7 @@ const QUICK_LINKS = [
   {
     href: "/download",
     title: "Download",
-    detail: "Desktop installers and upcoming mobile apps.",
+    detail: "Desktop installers, the Android app, and iOS as a Home Screen PWA.",
     icon: Download,
   },
   {
