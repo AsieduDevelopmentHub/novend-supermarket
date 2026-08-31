@@ -44,7 +44,7 @@ export type AppInfo = {
 export type UpdateInfo = {
   available: boolean;
   /** `unknown` means no trustworthy remote comparison was completed. */
-  status?: "latest" | "available" | "unknown";
+  status?: "latest" | "available" | "unknown" | "offline" | "unreachable" | "unconfigured";
   mandatory?: boolean;
   version?: string;
   notes?: string;

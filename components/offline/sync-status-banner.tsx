@@ -3,17 +3,20 @@
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOfflineStatus } from "@/providers/offline-provider";
+import { describeSyncStatus } from "@/lib/offline/sync-status";
 import { cn } from "@/lib/utils";
 
 /**
  * Quiet shell indicator for work that needs attention.
- * Offline status lives on the sidebar chip so it is not repeated here.
+ * Offline / queued status lives on the sidebar and header chips so it is not
+ * repeated here. "Uploading…" only appears while the drain is actually running.
  */
 export function SyncStatusBanner() {
   const { online, pendingCount, failedCount, syncing, openSyncCenter } = useOfflineStatus();
+  const view = describeSyncStatus({ online, pendingCount, failedCount, syncing });
 
-  const showSyncing = online && syncing && pendingCount > 0;
-  const showConflict = online && failedCount > 0;
+  const showSyncing = view.kind === "syncing";
+  const showConflict = view.kind === "conflict";
 
   if (!showSyncing && !showConflict) {
     return null;
@@ -37,7 +40,7 @@ export function SyncStatusBanner() {
         <p className="truncate">
           {showConflict
             ? `${failedCount} sync conflict${failedCount === 1 ? "" : "s"} need review`
-            : `Uploading ${pendingCount} event${pendingCount === 1 ? "" : "s"}…`}
+            : view.detail}
         </p>
       </div>
       {showConflict ? (

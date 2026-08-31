@@ -17,6 +17,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
 import { estimateBackupSize } from "@/lib/offline/backup";
 import { APP_BRAND, APP_NAME, APP_VERSION } from "@/constants/app";
+import { describeUpdateCheck } from "@/lib/native/update-check";
 import { Info } from "lucide-react";
 
 const LAST_UPDATE_KEY = "novend.mobileUpdate.last";
@@ -38,16 +39,6 @@ function cacheSuccessfulUpdate(info: UpdateInfo) {
   } catch {
     /* private mode */
   }
-}
-
-function updateCheckLabel(checking: boolean, online: boolean, update: UpdateInfo | null) {
-  if (checking) return "Checking…";
-  if (update?.status === "available") return `v${update.version ?? "new release"} available`;
-  if (update?.status === "latest") return "Latest verified";
-  if (!online) return "Offline — check when connected";
-  const notes = update?.notes?.trim();
-  if (notes) return notes;
-  return "Unable to verify right now";
 }
 
 export function AboutNovendView() {
@@ -128,8 +119,8 @@ export function AboutNovendView() {
           </p>
           {!versionsMatch ? (
             <p className="text-xs text-amber-700 dark:text-amber-400">
-              Shell build differs from the hosted app version — update this app when a newer
-              release is available.
+              Shell build differs from the hosted app version — update this app when a newer release
+              is available.
             </p>
           ) : null}
           <p>Platform: {platform}</p>
@@ -138,7 +129,11 @@ export function AboutNovendView() {
             <p>
               Update check:{" "}
               <span className="text-foreground font-medium">
-                {updateCheckLabel(updateChecking, offline.online, update)}
+                {describeUpdateCheck({
+                  checking: updateChecking,
+                  online: offline.online,
+                  update,
+                })}
               </span>
             </p>
           ) : null}

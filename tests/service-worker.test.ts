@@ -4,10 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
 const boot = readFileSync(resolve(process.cwd(), "apps/mobile/www/index.html"), "utf8");
-const electronBoot = readFileSync(
-  resolve(process.cwd(), "apps/desktop/offline-boot.html"),
-  "utf8",
-);
+const electronBoot = readFileSync(resolve(process.cwd(), "apps/desktop/offline-boot.html"), "utf8");
 
 describe("service worker navigation safety", () => {
   it("unwraps redirected responses so Chrome does not paint ERR_FAILED", () => {
@@ -18,7 +15,7 @@ describe("service worker navigation safety", () => {
 
   it("does not intercept /login so the auth 302 is followed by the browser", () => {
     expect(sw).toContain("function isAuthDocument");
-    expect(sw).toContain("url.pathname === \"/login\"");
+    expect(sw).toContain('url.pathname === "/login"');
     expect(sw).toContain("if (isAuthDocument(url)) return;");
   });
 
@@ -44,8 +41,15 @@ describe("service worker navigation safety", () => {
     expect(sw).not.toContain("staleWhileRevalidate");
   });
 
+  it("never uses the marketing homepage as an app-shell fallback", () => {
+    expect(sw).toContain("const APP_SHELL_FALLBACKS");
+    expect(sw).toContain("function isMarketingPathname");
+    expect(sw).not.toMatch(/APP_SHELL_FALLBACKS = \[[^\]]*\"\/\"/);
+    expect(sw).not.toContain('? ["/platform", "/dashboard", "/sales", "/"]');
+  });
+
   it("does not precache gated app routes that 302 to login", () => {
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v12"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v13"');
     expect(sw).toContain("/branding/logo_horizontal.png");
     expect(sw).toContain("/docs/releases");
     expect(sw).not.toMatch(/PRECACHE = \[[^\]]*\/dashboard/);

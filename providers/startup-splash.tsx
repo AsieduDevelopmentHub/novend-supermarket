@@ -50,7 +50,8 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
     pathname === "/download" ||
     pathname.startsWith("/docs") ||
     pathname === "/privacy" ||
-    pathname === "/terms";
+    pathname === "/terms" ||
+    pathname === "/unauthorized";
   const skipSplash = skipFromLogin || isMarketingLanding || isAuthRoute || isPublicSitePage;
 
   useEffect(() => {

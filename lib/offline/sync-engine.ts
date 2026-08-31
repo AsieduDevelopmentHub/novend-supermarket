@@ -243,6 +243,8 @@ export async function drainOutbox(options: {
   convex: SnapshotSource;
   /** Ignore backoff and re-queue failed rows (cashier Sync now / Sync Center). */
   force?: boolean;
+  /** Fired only after skip checks fail-open — this is a real drain, not a queue. */
+  onStart?: () => void;
 }): Promise<{ processed: number; failed: number; skipped: boolean }> {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     return { processed: 0, failed: 0, skipped: true };
@@ -264,6 +266,7 @@ export async function drainOutbox(options: {
   if (!db) return { processed: 0, failed: 0, skipped: true };
 
   draining = true;
+  options.onStart?.();
   let processed = 0;
   let failed = 0;
   let lastError: string | null = null;

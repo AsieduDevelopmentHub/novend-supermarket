@@ -87,41 +87,37 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const multiBranchReady = useRef(false);
 
   // Open Dexie + restore shell identity before auth/network settle.
+  // Never resurrect a signed-out user's Dexie profile (that re-marks
+  // novend.offlineSession and traps the next login in the splash).
   useEffect(() => {
     let cancelled = false;
     void loadShellProfile().then((profile) => {
       if (cancelled) return;
-      if (profile) {
+      const hint = readOfflineSession();
+      if (!hint) {
+        setCachedProfile(null);
+        setCacheReady(true);
+        return;
+      }
+      if (profile && profile.userId === hint.userId) {
         setCachedProfile(profile);
-        markOfflineSession({
-          userId: profile.userId,
-          name: profile.name,
-          role: profile.role,
-          branchId: profile.branchId,
-          branchName: profile.branchName,
-          organizationId: profile.organizationId ?? undefined,
-          savedAt: Date.now(),
+      } else if (
+        hint.role === "administrator" ||
+        hint.role === "manager" ||
+        hint.role === "cashier"
+      ) {
+        setCachedProfile({
+          userId: hint.userId,
+          name: hint.name,
+          role: hint.role,
+          branchId: hint.branchId,
+          branchName: hint.branchName || "Branch",
+          imageUrl: null,
+          email: null,
+          phone: null,
+          organizationName: null,
+          organizationId: hint.organizationId ?? null,
         });
-      } else {
-        // Fast path while Dexie catches up — localStorage hint from last online session.
-        const hint = readOfflineSession();
-        if (
-          hint &&
-          (hint.role === "administrator" || hint.role === "manager" || hint.role === "cashier")
-        ) {
-          setCachedProfile({
-            userId: hint.userId,
-            name: hint.name,
-            role: hint.role,
-            branchId: hint.branchId,
-            branchName: hint.branchName || "Branch",
-            imageUrl: null,
-            email: null,
-            phone: null,
-            organizationName: null,
-            organizationId: hint.organizationId ?? null,
-          });
-        }
       }
       const platformHint = readPlatformOfflineSession();
       if (platformHint) {
@@ -324,6 +320,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     } else if ("organizationId" in user && user.organizationId) {
       bindOfflineOrganization(String(user.organizationId), String(user.userId));
     }
+  } else if (cachedProfile?.organizationId && cachedProfile.userId) {
+    bindOfflineOrganization(cachedProfile.organizationId, cachedProfile.userId);
   }
 
   const replicaKey =
@@ -331,7 +329,9 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       ? `platform-${user.userId}`
       : user?.userId && "organizationId" in user && user.organizationId
         ? `org-${user.organizationId}-${user.userId}`
-        : "anon";
+        : cachedProfile?.organizationId && cachedProfile.userId
+          ? `org-${cachedProfile.organizationId}-${cachedProfile.userId}`
+          : "anon";
 
   /** Stale-looking online (Convex hung) but we have a local shell — treat like offline session. */
   const cachedShellWhileOnlineHung =
@@ -483,64 +483,65 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                   : null
             }
             role={shellUser.role}
-            isPlatformAdmin={Boolean(
-              "isPlatformAdmin" in shellUser && shellUser.isPlatformAdmin,
-            )}
+            isPlatformAdmin={Boolean("isPlatformAdmin" in shellUser && shellUser.isPlatformAdmin)}
             initialProgress={user?.tourProgress}
           >
             <RestoreLastRoute />
             <TelemetryProvider enabled={Boolean(isAuthenticated && online)} />
             <div
-            className={cn(
-              "bg-background flex h-dvh max-h-dvh overflow-hidden overscroll-none",
-              nativeShell && "native-shell",
-            )}
-          >
-            {nativeShell ? null : <AppSidebar user={shellUser} />}
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-              {nativeShell ? <div className="native-status-bar" aria-hidden /> : null}
-              {nativeShell ? null : (
-                <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 lg:hidden">
-                  <MobileSidebar user={shellUser} />
-                  <Image
-                    src={BRANDING.brandmark}
-                    alt=""
-                    width={32}
-                    height={32}
-                    unoptimized
-                    className="h-8 w-8 shrink-0 object-contain"
-                  />
-                  <p className="min-w-0 flex-1 truncate text-base font-semibold">
-                    {shellUser.organizationName?.trim() || APP_BRAND}
-                  </p>
-                  <SyncStatusHeaderButton />
-                </header>
+              className={cn(
+                "bg-background flex h-dvh max-h-dvh overflow-hidden overscroll-none",
+                nativeShell && "native-shell",
               )}
-              <LicenseBanner />
-              <EmailVerificationBanner />
-              <SyncStatusBanner />
-              {nativeShell ? (
-                <div className="native-page-header-row shrink-0">
-                  <div id="native-page-header-host" className="native-page-header-host min-w-0 flex-1" />
-                  <SyncStatusHeaderButton />
-                </div>
-              ) : null}
-              <main
-                data-novend-scroll-root
-                data-tour="page-content"
-                className={cn(
-                  "min-h-0 min-w-0 flex-1 overscroll-y-contain",
-                  nativeShell
-                    ? "max-w-full overflow-x-clip overflow-y-auto px-[var(--mobile-page-pad)] pt-3 pb-5"
-                    : "overflow-x-hidden overflow-y-auto px-4 py-6 lg:px-8",
-                  nativeShell && "pb-[var(--novend-tabbar-offset)]",
+            >
+              {nativeShell ? null : <AppSidebar user={shellUser} />}
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                {nativeShell ? <div className="native-status-bar" aria-hidden /> : null}
+                {nativeShell ? null : (
+                  <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 lg:hidden">
+                    <MobileSidebar user={shellUser} />
+                    <Image
+                      src={BRANDING.brandmark}
+                      alt=""
+                      width={32}
+                      height={32}
+                      unoptimized
+                      className="h-8 w-8 shrink-0 object-contain"
+                    />
+                    <p className="min-w-0 flex-1 truncate text-base font-semibold">
+                      {shellUser.organizationName?.trim() || APP_BRAND}
+                    </p>
+                    <SyncStatusHeaderButton />
+                  </header>
                 )}
-              >
-                <OfflineOutlet>{children}</OfflineOutlet>
-              </main>
+                <LicenseBanner />
+                <EmailVerificationBanner />
+                <SyncStatusBanner />
+                {nativeShell ? (
+                  <div className="native-page-header-row shrink-0">
+                    <div
+                      id="native-page-header-host"
+                      className="native-page-header-host min-w-0 flex-1"
+                    />
+                    <SyncStatusHeaderButton />
+                  </div>
+                ) : null}
+                <main
+                  data-novend-scroll-root
+                  data-tour="page-content"
+                  className={cn(
+                    "min-h-0 min-w-0 flex-1 overscroll-y-contain",
+                    nativeShell
+                      ? "max-w-full overflow-x-clip overflow-y-auto px-[var(--mobile-page-pad)] pt-3 pb-5"
+                      : "overflow-x-hidden overflow-y-auto px-4 py-6 lg:px-8",
+                    nativeShell && "pb-[var(--novend-tabbar-offset)]",
+                  )}
+                >
+                  <OfflineOutlet>{children}</OfflineOutlet>
+                </main>
+              </div>
+              {nativeShell ? <MobileBottomNav /> : null}
             </div>
-            {nativeShell ? <MobileBottomNav /> : null}
-          </div>
             <SyncCenterDialog />
             <InstallPromptDialog />
             <DeviceActivationGate enabled={Boolean(liveReady)} />

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { UnauthorizedBootRedirect } from "@/features/auth/components/unauthorized-boot-redirect";
 
 /**
  * Full-page access denied — used when middleware or a deep link rejects a role.
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 export default function UnauthorizedPage() {
   return (
     <div className="bg-background flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
+      <UnauthorizedBootRedirect />
       <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full">
         <ShieldOff className="text-muted-foreground h-6 w-6" aria-hidden />
       </div>

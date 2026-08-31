@@ -151,11 +151,14 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         ...prev,
         pendingCount: work + (options?.force ? counts.failed : 0),
         failedCount: options?.force ? 0 : counts.failed,
-        syncing: work > 0 || (options?.force === true && counts.failed > 0),
+        syncing: false,
       }));
       try {
         const result = await drainOutbox({
           force: options?.force === true,
+          onStart: () => {
+            setStatus((prev) => ({ ...prev, syncing: true }));
+          },
           mutators: {
             completeSale: (args) => completeSale(args),
             processReturn: (args) => processReturn(args),
