@@ -44,7 +44,9 @@ export function ResponsiveFormSurface({
           <DrawerHeader className="border-border border-b text-left">
             <DrawerTitle>{title}</DrawerTitle>
           </DrawerHeader>
-          <div className="overflow-y-auto overscroll-contain px-4 py-4">{children}</div>
+          <div className="min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-4">
+            {children}
+          </div>
         </DrawerContent>
       </Drawer>
     );
@@ -52,7 +54,12 @@ export function ResponsiveFormSurface({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn("max-h-[90vh] overflow-y-auto", dialogClassName)}>
+      <DialogContent
+        className={cn(
+          "max-h-[90vh] w-[calc(100%-2rem)] min-w-0 overflow-x-hidden overflow-y-auto",
+          dialogClassName,
+        )}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

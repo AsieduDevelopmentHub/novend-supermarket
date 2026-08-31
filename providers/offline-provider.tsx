@@ -60,6 +60,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const recordPurchase = useMutation(api.wholesale.recordPurchase);
   const transferToBranch = useMutation(api.wholesale.transferToBranch);
   const adjustStock = useMutation(api.inventory.adjustStock);
+  const updateLotExpiry = useMutation(api.inventory.updateLotExpiry);
   const transferStock = useMutation(api.inventory.transferStock);
   const createCustomer = useMutation(api.customers.create);
   const updateCustomer = useMutation(api.customers.update);
@@ -191,6 +192,12 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
                 expiryDate: payload.expiryDate,
                 clientOperationId: payload.clientOperationId,
               }),
+            updateLotExpiry: (payload) =>
+              updateLotExpiry({
+                lotId: payload.lotId as never,
+                expiryDate: payload.expiryDate,
+                clientOperationId: payload.clientOperationId,
+              }),
             transferStock: (payload) =>
               transferStock({
                 productId: payload.productId as never,
@@ -261,6 +268,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       recordPurchase,
       transferToBranch,
       adjustStock,
+      updateLotExpiry,
       transferStock,
       createCustomer,
       updateCustomer,

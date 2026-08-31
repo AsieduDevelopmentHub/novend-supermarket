@@ -20,6 +20,7 @@ import { ExportMenu } from "@/components/export/export-menu";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useBranchesList } from "@/hooks/use-offline-lists";
 import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { buildLocalSalesReport, type LocalSalesReport } from "@/lib/offline/ui-cache";
 import { salesReportExportTable } from "@/lib/export/sales-report";
@@ -74,7 +75,7 @@ export function ReportsView() {
   const [rangeError, setRangeError] = useState<string | null>(null);
   const [localReport, setLocalReport] = useState<LocalSalesReport | null>(null);
 
-  const branches = useQuery(api.branches.list, online && (isAdmin || isManager) ? {} : "skip");
+  const branches = useBranchesList(false, Boolean(isAdmin || isManager));
 
   const range = useMemo(() => {
     const startDateObj = parseLocalDate(applied.start);
@@ -126,7 +127,7 @@ export function ReportsView() {
         branchLabel:
           isAdmin && branchFilter !== "all"
             ? branches?.find((b) => b.id === branchFilter)?.name
-            : branchName ?? undefined,
+            : (branchName ?? undefined),
       })
     : null;
 
@@ -165,7 +166,7 @@ export function ReportsView() {
   }
 
   return (
-    <div className="min-w-0 max-w-full space-y-6 overflow-x-hidden">
+    <div className="max-w-full min-w-0 space-y-6 overflow-x-hidden">
       <PageHeader
         title="Reports"
         description="Sales performance over a selected period."
@@ -192,7 +193,7 @@ export function ReportsView() {
             <p className="text-muted-foreground text-xs">Start</p>
             <Input
               type="date"
-              className="w-full min-w-0 max-w-full"
+              className="w-full max-w-full min-w-0"
               value={start}
               onChange={(e) => setStart(e.target.value)}
             />
@@ -201,12 +202,12 @@ export function ReportsView() {
             <p className="text-muted-foreground text-xs">End</p>
             <Input
               type="date"
-              className="w-full min-w-0 max-w-full"
+              className="w-full max-w-full min-w-0"
               value={end}
               onChange={(e) => setEnd(e.target.value)}
             />
           </div>
-          {isAdmin && online ? (
+          {isAdmin ? (
             <BranchFilter
               branches={branches}
               value={branchFilter}
@@ -237,26 +238,26 @@ export function ReportsView() {
         <>
           <div data-tour="reports-summary">
             <Grid cols={4}>
-            <Kpi
-              title="Gross Sales"
-              value={formatCurrency(report.kpis.grossSales ?? report.kpis.totalSales)}
-              href={metricHref("grossSales")}
-            />
-            <Kpi
-              title="Refunds"
-              value={formatCurrency(report.kpis.totalRefunds ?? 0)}
-              href={metricHref("refunds")}
-            />
-            <Kpi
-              title="Net Sales"
-              value={formatCurrency(report.kpis.totalSales)}
-              href={metricHref("netSales")}
-            />
-            <Kpi
-              title="Total Orders"
-              value={formatNumber(report.kpis.totalOrders)}
-              href={metricHref("orders")}
-            />
+              <Kpi
+                title="Gross Sales"
+                value={formatCurrency(report.kpis.grossSales ?? report.kpis.totalSales)}
+                href={metricHref("grossSales")}
+              />
+              <Kpi
+                title="Refunds"
+                value={formatCurrency(report.kpis.totalRefunds ?? 0)}
+                href={metricHref("refunds")}
+              />
+              <Kpi
+                title="Net Sales"
+                value={formatCurrency(report.kpis.totalSales)}
+                href={metricHref("netSales")}
+              />
+              <Kpi
+                title="Total Orders"
+                value={formatNumber(report.kpis.totalOrders)}
+                href={metricHref("orders")}
+              />
             </Grid>
           </div>
           <Grid cols={4}>
@@ -350,9 +351,7 @@ export function ReportsView() {
                             <td className="px-4 py-2.5">{row.itemsSold}</td>
                             <td className="px-4 py-2.5">{formatCurrency(row.totalSales)}</td>
                             <td className="px-4 py-2.5">{formatCurrency(row.refunds ?? 0)}</td>
-                            <td className="text-primary px-4 py-2.5 text-xs font-medium">
-                              View →
-                            </td>
+                            <td className="text-primary px-4 py-2.5 text-xs font-medium">View →</td>
                           </ClickableTableRow>
                         ))}
                       </tbody>

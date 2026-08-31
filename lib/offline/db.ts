@@ -10,6 +10,7 @@ import type {
   MirroredCategory,
   MirroredCustomer,
   MirroredExpense,
+  MirroredLot,
   MirroredOrder,
   MirroredOrderItem,
   MirroredProduct,
@@ -49,6 +50,7 @@ export type NovendOfflineDb = Dexie & {
   expenses: EntityTable<MirroredExpense, "id">;
   returns: EntityTable<MirroredReturn, "id">;
   productImages: EntityTable<ProductImageCache, "id">;
+  lots: EntityTable<MirroredLot, "id">;
   outbox: EntityTable<OutboxRow, "id">;
 };
 
@@ -252,7 +254,7 @@ export function createOfflineDb(organizationId?: string, userId?: string): Noven
     productImages: "id",
     outbox: "id, status, createdAt, clientOperationId, type, [status+createdAt]",
   });
-  db.version(8).stores({
+  const storesV8 = {
     meta: "key",
     products: "id, name, sku, barcode, status, categoryId, [status+name]",
     branchStock: "id, branchId, productId, [branchId+productId]",
@@ -277,6 +279,12 @@ export function createOfflineDb(organizationId?: string, userId?: string): Noven
     returns: "id, completedAt, saleId, branchId",
     productImages: "id",
     outbox: "id, status, createdAt, clientOperationId, type, [status+createdAt]",
+  } as const;
+  db.version(8).stores(storesV8);
+  // v9: rebuild missing stores (stuck v8 upgrades) + expiry lots for offline batch edits.
+  db.version(9).stores({
+    ...storesV8,
+    lots: "id, productId, branchId, expiryDate, [productId+branchId]",
   });
   return db;
 }
@@ -293,10 +301,15 @@ export async function getOfflineDb(): Promise<NovendOfflineDb | null> {
       dbInstance.close();
       dbInstance = null;
     }
-    if (dbInstance) return dbInstance;
+    if (dbInstance) {
+      if (missingRequiredStores(dbInstance).length === 0) return dbInstance;
+      const staleName = dbInstance.name;
+      dbInstance.close();
+      dbInstance = null;
+      await Dexie.delete(staleName);
+    }
 
-    const db = createOfflineDb(organizationId, userId);
-    await db.open();
+    const db = await openReplica(organizationId, userId);
     dbInstance = db;
     return db;
   } catch (error) {
@@ -305,6 +318,53 @@ export async function getOfflineDb(): Promise<NovendOfflineDb | null> {
     dbInstance = null;
     return null;
   }
+}
+
+const REQUIRED_OFFLINE_STORES = [
+  "meta",
+  "products",
+  "branchStock",
+  "branches",
+  "productImages",
+  "outbox",
+  "lots",
+] as const;
+
+function idbHasStore(db: Dexie, name: string) {
+  try {
+    return db.backendDB().objectStoreNames.contains(name);
+  } catch {
+    return db.tables.some((table) => table.name === name);
+  }
+}
+
+function missingRequiredStores(db: Dexie) {
+  return REQUIRED_OFFLINE_STORES.filter((name) => !idbHasStore(db, name));
+}
+
+async function rebuildReplica(organizationId?: string, userId?: string): Promise<NovendOfflineDb> {
+  const name = replicaDbName(organizationId, userId);
+  try {
+    await Dexie.delete(name);
+  } catch {
+    /* already gone */
+  }
+  const fresh = createOfflineDb(organizationId, userId);
+  await fresh.open();
+  return fresh;
+}
+
+async function openReplica(organizationId?: string, userId?: string): Promise<NovendOfflineDb> {
+  const db = createOfflineDb(organizationId, userId);
+  await db.open();
+  if (missingRequiredStores(db).length === 0) return db;
+
+  console.info(
+    "[offline] IndexedDB missing stores — rebuilding replica",
+    missingRequiredStores(db),
+  );
+  db.close();
+  return rebuildReplica(organizationId, userId);
 }
 
 export function isOfflineDbAvailable() {
@@ -355,11 +415,15 @@ export const META_KEYS = {
 } as const;
 
 /** Bump when Dexie adds replica tables so TTL snapshot skips cannot leave new stores empty. */
-export const REPLICA_SCHEMA_VERSION = "9";
+export const REPLICA_SCHEMA_VERSION = "10";
 
 export async function getMeta(db: NovendOfflineDb, key: string): Promise<string | null> {
-  const row = await db.meta.get(key);
-  return row?.value ?? null;
+  try {
+    const row = await db.meta.get(key);
+    return row?.value ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function setMeta(db: NovendOfflineDb, key: string, value: string) {

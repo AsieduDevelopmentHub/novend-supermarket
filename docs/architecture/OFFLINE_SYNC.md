@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.14
+Version: 2.4.16
 
 ## Purpose
 
@@ -27,11 +27,12 @@ Convex (when online)
 
 1. While online, `offline.getSnapshot` pulls a branch-scoped replica into IndexedDB
    (catalog, customers, orders, suppliers, wholesale, branches, users, expenses,
-   returns, product photos).
+   returns, expiry lots, product photos).
 2. Screens always render from Dexie when the replica is warm. Live Convex is
    used as a freshness shortcut, never as a gate to open the page.
 3. Writes apply locally, then enqueue an outbox event (`upsert_supplier`,
-   `record_wholesale_purchase`, `complete_sale`, `upsert_product`, …). Product
+   `record_wholesale_purchase`, `complete_sale`, `upsert_product`,
+   `update_lot_expiry`, …). Product
    **imports** use the same outbox: Dexie first, then Convex `createProduct` /
    `updateProduct`. Catalog CSV/Excel exports read the local list and work offline.
 4. `OfflineProvider` drains the outbox in the background. Forms return as soon as
@@ -108,7 +109,11 @@ first login on a new device, after an explicit Sign out, or when the offline
 session expires.
 
 Name, phone, catalog, inventory, wholesale, suppliers, customers, expenses,
-sales, returns, reports, and analytics all continue on the device.
+sales, returns, reports, analytics, **admin/manager branch switching**, and
+**per-batch expiry edits** all continue on the device. Branch pickers read the
+Dexie `branches` table — they must not wait on `navigator.onLine`. A stuck
+IndexedDB upgrade (missing `meta` / `productImages` / `lots`) rebuilds that
+replica on open, then the next snapshot refill.
 
 ## Conflict policy
 

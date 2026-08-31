@@ -9,6 +9,7 @@ export type OutboxOpType =
   | "record_wholesale_purchase"
   | "wholesale_transfer"
   | "adjust_stock"
+  | "update_lot_expiry"
   | "transfer_stock"
   | "upsert_customer"
   | "create_expense"
@@ -54,6 +55,17 @@ export type MirroredBranchStock = {
   sellableQuantity: number;
   isExpiring?: boolean;
   updatedAt: number;
+};
+
+export type MirroredLot = {
+  id: string;
+  productId: string;
+  branchId: string;
+  branchName?: string | null;
+  quantity: number;
+  expiryDate: string;
+  lotCode: string;
+  receivedAt: number;
 };
 
 export type MirroredCategory = {
@@ -400,6 +412,13 @@ export type AdjustStockPayload = {
   reason: "receive" | "adjustment" | "damage" | "return";
   note?: string;
   expiryDate?: string;
+  clientOperationId?: string;
+};
+
+export type UpdateLotExpiryPayload = {
+  lotId: string;
+  productId: string;
+  expiryDate: string;
   clientOperationId?: string;
 };
 

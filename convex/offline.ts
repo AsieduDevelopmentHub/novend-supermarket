@@ -373,7 +373,9 @@ export const getSnapshot = query({
         };
       });
       const supplierName = new Map(supplierRows.map((s) => [s._id, s.name]));
-      const recentPurchases = purchaseRows.sort((a, b) => b.purchasedAt - a.purchasedAt).slice(0, 80);
+      const recentPurchases = purchaseRows
+        .sort((a, b) => b.purchasedAt - a.purchasedAt)
+        .slice(0, 80);
       const purchaseItemGroups = await Promise.all(
         recentPurchases.map((row) =>
           ctx.db
@@ -500,6 +502,36 @@ export const getSnapshot = query({
         status: row.status,
       }));
 
+    const lots: Array<{
+      id: string;
+      productId: string;
+      branchId: string;
+      branchName: string | null;
+      quantity: number;
+      expiryDate: string;
+      lotCode: string;
+      receivedAt: number;
+    }> = [];
+    for (const stockBranchId of stockBranchIds) {
+      const branchLots = await ctx.db
+        .query("inventoryLots")
+        .withIndex("by_branch", (q) => q.eq("branchId", stockBranchId))
+        .collect();
+      for (const lot of branchLots) {
+        if (lot.quantity <= 0 || lot.organizationId !== organizationId) continue;
+        lots.push({
+          id: lot._id as string,
+          productId: lot.productId as string,
+          branchId: lot.branchId as string,
+          branchName: branchNameById.get(lot.branchId) ?? null,
+          quantity: lot.quantity,
+          expiryDate: lot.expiryDate,
+          lotCode: lot.lotCode ?? lot.expiryDate,
+          receivedAt: lot.receivedAt,
+        });
+      }
+    }
+
     return {
       products: mirroredProducts,
       branchStock: branchStockRows,
@@ -529,6 +561,7 @@ export const getSnapshot = query({
       users: staff,
       expenses,
       returns,
+      lots,
       print: {
         business,
         template,

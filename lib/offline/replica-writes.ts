@@ -5,6 +5,7 @@ import { notifyReplicaChanged } from "./replica-events";
 import { putProductImage } from "./image-cache";
 import { BARCODE_ALREADY_ASSIGNED, barcodesEqual, normalizeBarcodeInput } from "./barcode-lookup";
 import { nextCatalogPrices } from "@/lib/wholesale/purchase-prices";
+import { DEFAULT_EXPIRY_ALERT_DAYS, lotStatus } from "@/lib/expiry";
 import type {
   AdjustStockPayload,
   CreateCategoryPayload,
@@ -13,6 +14,7 @@ import type {
   RecordWholesalePurchasePayload,
   RemoveExpensePayload,
   TransferStockPayload,
+  UpdateLotExpiryPayload,
   UpsertBranchPayload,
   UpsertCustomerPayload,
   UpsertProductPayload,
@@ -204,6 +206,58 @@ export async function queueAdjustStock(payload: AdjustStockPayload) {
     });
   }
   await enqueueOutbox(db, "adjust_stock", payload);
+}
+
+export async function queueUpdateLotExpiry(payload: UpdateLotExpiryPayload) {
+  const db = await getOfflineDb();
+  if (!db) throw new Error("Local storage is not available on this device.");
+  const lot = await db.lots.get(payload.lotId).catch(() => undefined);
+  if (lot && lot.quantity <= 0) throw new Error("This lot has no stock left");
+
+  const nextDate = payload.expiryDate;
+  if (lot && nextDate !== lot.expiryDate) {
+    const sameDate = (await db.lots.where("productId").equals(lot.productId).toArray()).find(
+      (row) =>
+        row.id !== lot.id &&
+        row.branchId === lot.branchId &&
+        row.expiryDate === nextDate &&
+        row.quantity > 0,
+    );
+    if (sameDate) {
+      await db.lots.put({
+        ...sameDate,
+        quantity: sameDate.quantity + lot.quantity,
+      });
+      await db.lots.delete(lot.id);
+    } else {
+      await db.lots.put({
+        ...lot,
+        expiryDate: nextDate,
+        lotCode: !lot.lotCode || lot.lotCode === lot.expiryDate ? nextDate : lot.lotCode,
+      });
+    }
+    const remaining = (await db.lots.where("productId").equals(lot.productId).toArray()).filter(
+      (row) => row.quantity > 0,
+    );
+    const product = await db.products.get(lot.productId);
+    if (product) {
+      const nearest = [...remaining.map((row) => row.expiryDate)].sort()[0] ?? null;
+      const alertDays = product.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS;
+      const status = nearest ? lotStatus(nearest, alertDays) : "ok";
+      await db.products.put({
+        ...product,
+        nearestExpiry: nearest,
+        isExpired: status === "expired",
+        isExpiring: status === "expiring",
+        updatedAt: Date.now(),
+      });
+    }
+  }
+
+  await enqueueOutbox(db, "update_lot_expiry", {
+    ...payload,
+    clientOperationId: payload.clientOperationId ?? newClientId(),
+  });
 }
 
 export async function queueTransferStock(payload: TransferStockPayload) {

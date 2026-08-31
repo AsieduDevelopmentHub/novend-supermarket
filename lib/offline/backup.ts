@@ -25,6 +25,8 @@ const TABLE_NAMES = [
   "users",
   "expenses",
   "returns",
+  "productImages",
+  "lots",
   "outbox",
 ] as const;
 

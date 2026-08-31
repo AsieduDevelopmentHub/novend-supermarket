@@ -1,6 +1,6 @@
 # Inventory Workflow
 
-Version: 1.2.0
+Version: 1.2.1
 
 ![Branch stock](../design/ui/inventory-stock.png)
 
@@ -19,7 +19,9 @@ Version: 1.2.0
 2. Search / filter by status
 3. Receive stock (optional lot expiry)
 4. Adjust with a note
-5. History remains the audit trail
+5. On the product page, administrators and managers can change each lot’s
+   expiry date (offline queues `update_lot_expiry`; same-date lots merge)
+6. History remains the audit trail
 
 ![Adjust stock with a reason](../design/ui/inventory-adjust-stock-modal.png)
 

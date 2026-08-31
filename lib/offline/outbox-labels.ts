@@ -7,6 +7,7 @@ const OP_LABELS: Record<OutboxOpType, string> = {
   record_wholesale_purchase: "Wholesale purchase",
   wholesale_transfer: "Wholesale transfer",
   adjust_stock: "Stock adjustment",
+  update_lot_expiry: "Lot expiry",
   transfer_stock: "Stock transfer",
   upsert_customer: "Customer",
   create_expense: "Expense",
@@ -104,6 +105,9 @@ export function describeOutboxEvent(row: OutboxRow): { title: string; detail: st
       title,
       detail: change === null ? "Quantity change" : change > 0 ? `+${change}` : String(change),
     };
+  }
+  if (row.type === "update_lot_expiry") {
+    return { title, detail: text(payload.expiryDate) ?? "Lot expiry" };
   }
   if (row.type === "transfer_stock" || row.type === "wholesale_transfer") {
     const qty = number(payload.quantity);

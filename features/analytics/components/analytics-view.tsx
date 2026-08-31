@@ -28,7 +28,7 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { useNarrowScreen } from "@/hooks/use-narrow-screen";
 import { useOfflineAnalytics } from "@/hooks/use-offline-analytics";
-import { useLocalExpenses } from "@/hooks/use-offline-lists";
+import { useLocalExpenses, useBranchesList } from "@/hooks/use-offline-lists";
 import {
   persistBusinessWrite,
   queuedSaveMessage,
@@ -96,7 +96,7 @@ export function AnalyticsView() {
   const [deleteTarget, setDeleteTarget] = useState<ExpenseRow | null>(null);
   const [deletePending, setDeletePending] = useState(false);
 
-  const branches = useQuery(api.branches.list, online ? {} : "skip");
+  const branches = useBranchesList(false, Boolean(isAdmin || isManager));
 
   const range = useMemo(() => {
     const startDateObj = parseLocalDate(applied.start);
@@ -142,7 +142,7 @@ export function AnalyticsView() {
         branchLabel:
           isAdmin && branchFilter !== "all"
             ? branches?.find((b) => b.id === branchFilter)?.name
-            : branchName ?? undefined,
+            : (branchName ?? undefined),
         pnl: summary.pnl,
         expenseBreakdown: summary.expenseBreakdown,
         trend: summary.trend,
@@ -454,7 +454,10 @@ export function AnalyticsView() {
                   <EmptyState title="No activity in this range" />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={summary.trend} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+                    <AreaChart
+                      data={summary.trend}
+                      margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
+                    >
                       <defs>
                         <linearGradient id="netFill" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.35} />

@@ -307,6 +307,32 @@ export async function increaseLot(
   return lot._id;
 }
 
+/** Move a lot onto a new expiry date. Merges into an existing lot on that date. */
+export async function relabelLotExpiry(
+  ctx: MutationCtx,
+  args: {
+    lotId: Id<"inventoryLots">;
+    expiryDate: string;
+  },
+) {
+  const lot = await ctx.db.get(args.lotId);
+  if (!lot) throw new Error("Lot not found");
+  if (lot.quantity <= 0) throw new Error("This lot has no stock left");
+  const expiryDate = assertExpiryDate(args.expiryDate);
+  if (expiryDate === lot.expiryDate) return lot._id;
+
+  const existing = await findLotByExpiry(ctx, lot.branchId, lot.productId, expiryDate);
+  if (existing && existing._id !== lot._id) {
+    await ctx.db.patch(existing._id, { quantity: existing.quantity + lot.quantity });
+    await ctx.db.delete(lot._id);
+    return existing._id;
+  }
+
+  const lotCode = !lot.lotCode || lot.lotCode === lot.expiryDate ? expiryDate : lot.lotCode;
+  await ctx.db.patch(lot._id, { expiryDate, lotCode });
+  return lot._id;
+}
+
 export async function decreaseLots(
   ctx: MutationCtx,
   args: {

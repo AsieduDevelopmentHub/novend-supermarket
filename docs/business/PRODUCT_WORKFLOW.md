@@ -1,6 +1,6 @@
 # Product Workflow
 
-Version: 1.1.0
+Version: 1.1.1
 
 ![Product catalog](../design/ui/inventory-products.png)
 
@@ -11,6 +11,8 @@ Version: 1.1.0
 - Status: `active` | `inactive` | `archived` (prefer archive over delete)
 - Cost price is visible to administrator and manager only
 - Optional `tracksExpiry` enables lots + FEFO at checkout
+- Existing lot expiry dates are edited per batch on the product page, not in
+  the add/edit product dialog
 
 ## Flow
 

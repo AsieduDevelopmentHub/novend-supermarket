@@ -12,7 +12,6 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { Grid, PageHeader } from "@/components/layout/primitives";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { usePermissions } from "@/hooks/use-permissions";
-import { useConnectivity } from "@/hooks/use-connectivity";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { useLocalStorage } from "@/hooks/use-ui";
@@ -235,10 +234,7 @@ function TopSellingMetricToggle({
   onChange: (value: TopSellingMetric) => void;
 }) {
   return (
-    <Tabs
-      value={value}
-      onValueChange={(next) => onChange(parseTopSellingMetric(next))}
-    >
+    <Tabs value={value} onValueChange={(next) => onChange(parseTopSellingMetric(next))}>
       <TabsList className="h-8" aria-label="Rank top selling by">
         <TabsTrigger value="quantity" className="h-6 px-2 text-xs">
           Quantity
@@ -335,7 +331,6 @@ function SalesOverviewChart({ data }: { data: Array<{ date: string; total: numbe
 
 export function DashboardView() {
   const { isAdmin, isManager, branchName, branchId: myBranchId } = usePermissions();
-  const online = useConnectivity();
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
   const [topSellingMetric, setTopSellingMetric] = useLocalStorage<TopSellingMetric>(
     TOP_SELLING_METRIC_KEY,
@@ -396,7 +391,7 @@ export function DashboardView() {
         ]}
         actions={
           <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 sm:w-auto">
-            {isAdmin && online ? (
+            {isAdmin ? (
               <BranchFilter
                 inline
                 branches={branches}

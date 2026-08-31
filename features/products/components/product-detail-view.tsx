@@ -30,15 +30,17 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { formatCurrency } from "@/lib/currency";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
-import { formatExpiryDate } from "@/lib/expiry";
+import { formatExpiryDate, lotStatus, DEFAULT_EXPIRY_ALERT_DAYS } from "@/lib/expiry";
 import { showError } from "@/lib/errors";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { getMirroredProduct } from "@/lib/offline/mirror-queries";
+import { getMirroredProduct, listMirroredLots } from "@/lib/offline/mirror-queries";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import {
   persistBusinessWrite,
   queuedSaveMessage,
   queueAdjustStock,
+  queueUpdateLotExpiry,
 } from "@/lib/offline/replica-writes";
 import { ArrowLeft, Package, Pencil, PackagePlus, Trash2, Warehouse } from "lucide-react";
 import { ProductImage } from "@/components/media/product-image";
@@ -55,25 +57,37 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
       ? { id: productId, branchId: branchScope }
       : "skip",
   );
-  const lots = useQuery(
+  const remoteLots = useQuery(
     api.inventory.listLots,
     online && !String(productId).startsWith("local_") ? { productId } : "skip",
   );
   const [local, setLocal] = useState<Awaited<ReturnType<typeof getMirroredProduct>> | undefined>(
     undefined,
   );
+  const [localLots, setLocalLots] = useState<
+    Awaited<ReturnType<typeof listMirroredLots>> | undefined
+  >(undefined);
   useEffect(() => {
     let cancelled = false;
-    void getMirroredProduct(productId, branchScope ?? null).then((row) => {
-      if (!cancelled) setLocal(row);
-    });
+    const load = () => {
+      void getMirroredProduct(productId, branchScope ?? null).then((row) => {
+        if (!cancelled) setLocal(row);
+      });
+      void listMirroredLots(productId, isAdmin ? null : (myBranchId ?? null)).then((rows) => {
+        if (!cancelled) setLocalLots(rows);
+      });
+    };
+    load();
+    const unsub = subscribeReplicaChanged(load);
     return () => {
       cancelled = true;
+      unsub();
     };
-  }, [productId, branchScope]);
+  }, [productId, branchScope, isAdmin, myBranchId]);
   const archiveProduct = useMutation(api.products.archiveProduct);
   const adjustStock = useMutation(api.inventory.adjustStock);
   const writeOffExpired = useMutation(api.inventory.writeOffExpired);
+  const updateLotExpiry = useMutation(api.inventory.updateLotExpiry);
 
   const [editOpen, setEditOpen] = useState(false);
   const [restockOpen, setRestockOpen] = useState(false);
@@ -84,6 +98,8 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
   const [note, setNote] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [writeOffPending, setWriteOffPending] = useState(false);
+  const [lotDrafts, setLotDrafts] = useState<Record<string, string>>({});
+  const [savingLotId, setSavingLotId] = useState<string | null>(null);
 
   const product =
     remote ??
@@ -127,6 +143,56 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
   const isArchived = product.status === "archived";
   const tracksExpiry = product.tracksExpiry === true;
   const productUnit = product.unit;
+  const alertDays = local?.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS;
+  const mappedLocalLots =
+    localLots === undefined
+      ? undefined
+      : localLots.map((lot) => ({
+          id: lot.id as Id<"inventoryLots">,
+          branchId: lot.branchId as Id<"branches">,
+          branchName: lot.branchName ?? null,
+          quantity: lot.quantity,
+          expiryDate: lot.expiryDate,
+          lotCode: lot.lotCode,
+          receivedAt: lot.receivedAt,
+          status: lotStatus(lot.expiryDate, alertDays),
+        }));
+  const lots =
+    mappedLocalLots && mappedLocalLots.length > 0
+      ? mappedLocalLots
+      : (remoteLots ?? mappedLocalLots);
+
+  async function onSaveLotExpiry(lotId: string, current: string) {
+    const next = (lotDrafts[lotId] ?? current).trim();
+    if (!next || next === current) return;
+    setSavingLotId(lotId);
+    try {
+      const kind = await persistBusinessWrite({
+        online,
+        remote: () =>
+          updateLotExpiry({
+            lotId: lotId as Id<"inventoryLots">,
+            expiryDate: next,
+          }),
+        local: () =>
+          queueUpdateLotExpiry({
+            lotId,
+            productId,
+            expiryDate: next,
+          }),
+      });
+      toast.success(queuedSaveMessage(kind, "Lot expiry updated"));
+      setLotDrafts((prev) => {
+        const rest = { ...prev };
+        delete rest[lotId];
+        return rest;
+      });
+    } catch (error) {
+      showError(error, "Could not update expiry");
+    } finally {
+      setSavingLotId(null);
+    }
+  }
 
   async function onRestock(event: FormEvent) {
     event.preventDefault();
@@ -345,8 +411,8 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
             ) : lots.length === 0 ? (
               <p className="text-muted-foreground text-sm">No dated stock on hand.</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[520px] text-left text-sm">
+              <div className="min-w-0 overflow-x-auto">
+                <table className="w-full text-left text-sm">
                   <thead className="text-muted-foreground">
                     <tr className="border-border border-b">
                       <th className="pb-2 font-medium">Lot</th>
@@ -364,42 +430,72 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                     </tr>
                   </thead>
                   <tbody>
-                    {lots.map((lot) => (
-                      <tr key={lot.id} className="border-border/70 border-b last:border-0">
-                        <td className="py-2.5 font-medium">{lot.lotCode}</td>
-                        {lots.some((row) => row.branchName) ? (
-                          <td className="py-2.5">{lot.branchName ?? "—"}</td>
-                        ) : null}
-                        <td className="py-2.5">
-                          {lot.quantity} {product.unit}
-                        </td>
-                        <td className="py-2.5">{formatExpiryDate(lot.expiryDate)}</td>
-                        <td className="py-2.5">
-                          {lot.status === "expired" ? (
-                            <Badge variant="destructive">Expired</Badge>
-                          ) : lot.status === "expiring" ? (
-                            <Badge variant="warning">Expiring</Badge>
-                          ) : (
-                            <Badge variant="success">OK</Badge>
-                          )}
-                        </td>
-                        {canManageProducts ? (
+                    {lots.map((lot) => {
+                      const draft = lotDrafts[lot.id] ?? lot.expiryDate;
+                      const dirty = draft !== lot.expiryDate;
+                      return (
+                        <tr key={lot.id} className="border-border/70 border-b last:border-0">
+                          <td className="py-2.5 font-medium">{lot.lotCode}</td>
+                          {lots.some((row) => row.branchName) ? (
+                            <td className="py-2.5">{lot.branchName ?? "—"}</td>
+                          ) : null}
+                          <td className="py-2.5">
+                            {lot.quantity} {product.unit}
+                          </td>
+                          <td className="py-2.5">
+                            {canManageProducts && !isArchived ? (
+                              <Input
+                                type="date"
+                                className="h-9 w-full max-w-[11rem] min-w-0"
+                                value={draft}
+                                aria-label={`Expiry for lot ${lot.lotCode}`}
+                                onChange={(e) =>
+                                  setLotDrafts((prev) => ({ ...prev, [lot.id]: e.target.value }))
+                                }
+                              />
+                            ) : (
+                              formatExpiryDate(lot.expiryDate)
+                            )}
+                          </td>
                           <td className="py-2.5">
                             {lot.status === "expired" ? (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                disabled={writeOffPending}
-                                onClick={() => void onWriteOff(lot.id)}
-                              >
-                                Write off
-                              </Button>
-                            ) : null}
+                              <Badge variant="destructive">Expired</Badge>
+                            ) : lot.status === "expiring" ? (
+                              <Badge variant="warning">Expiring</Badge>
+                            ) : (
+                              <Badge variant="success">OK</Badge>
+                            )}
                           </td>
-                        ) : null}
-                      </tr>
-                    ))}
+                          {canManageProducts ? (
+                            <td className="py-2.5">
+                              <div className="flex flex-wrap gap-1">
+                                {dirty ? (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={savingLotId === lot.id}
+                                    onClick={() => void onSaveLotExpiry(lot.id, lot.expiryDate)}
+                                  >
+                                    {savingLotId === lot.id ? "Saving…" : "Save"}
+                                  </Button>
+                                ) : null}
+                                {lot.status === "expired" ? (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={writeOffPending}
+                                    onClick={() => void onWriteOff(lot.id)}
+                                  >
+                                    Write off
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </td>
+                          ) : null}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
