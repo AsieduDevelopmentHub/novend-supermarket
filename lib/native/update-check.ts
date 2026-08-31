@@ -17,6 +17,9 @@ export function describeUpdateCheck(input: {
   if (!input.online || input.update?.status === "offline") {
     return "Offline — check when connected";
   }
+  if (input.update?.status === "dev") {
+    return "Not checked in development";
+  }
   if (input.update?.status === "unconfigured") {
     return "Update checks are not configured for this build";
   }

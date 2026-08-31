@@ -1,47 +1,55 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useConvexAuth } from "convex/react";
 import { AppSplash } from "@/features/auth/components/app-splash";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 
-/** Cap/emulator Convex often stays isLoading forever — never cover the login form past this. */
+/** Cap/emulator Convex can stay isAuthenticated briefly after sign-out. */
 const AUTH_COVER_BUDGET_MS = 4000;
 
 /**
- * Covers the login brand chrome while a live session is still settling.
- * Children stay mounted (hidden) so LoginForm redirect effects still run.
+ * Covers login chrome only after mount, and only while a live session is
+ * about to leave /login. Never cover because Convex `isLoading` — that
+ * stays true on Cap/emulator and remounts reset the budget, trapping the
+ * splash. SSR always paints the form so hydration cannot leave a stuck cover.
  */
 export function LoginSessionGate({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading } = useConvexAuth();
+  return (
+    <Suspense fallback={children}>
+      <LoginSessionGateInner>{children}</LoginSessionGateInner>
+    </Suspense>
+  );
+}
+
+function LoginSessionGateInner({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useConvexAuth();
+  const searchParams = useSearchParams();
+  const signedOutParam = searchParams.get("signedOut") === "1";
+  const [mounted, setMounted] = useState(false);
+  const [sessionLogout, setSessionLogout] = useState(false);
   const [coverBudgetElapsed, setCoverBudgetElapsed] = useState(false);
-  const [explicitLogout] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return (
-      hasExplicitLogout() || new URLSearchParams(window.location.search).get("signedOut") === "1"
-    );
-  });
+
+  useEffect(() => {
+    setMounted(true);
+    setSessionLogout(hasExplicitLogout());
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setCoverBudgetElapsed(true), AUTH_COVER_BUDGET_MS);
     return () => window.clearTimeout(timer);
   }, []);
 
-  // Cover only while Convex is actually settling or a live session is about to
-  // leave /login. After an explicit logout the form must paint immediately —
-  // isLoading stays true while the previous token is torn down.
-  const coverAuthenticated = !explicitLogout && isAuthenticated && !coverBudgetElapsed;
-  const coverWhileLoading = !explicitLogout && isLoading && !coverBudgetElapsed;
-  const cover = coverAuthenticated || coverWhileLoading;
-
-  const label = coverAuthenticated ? "Opening workspace…" : "Starting Novend POS…";
+  const explicitLogout = signedOutParam || sessionLogout;
+  const cover = mounted && !explicitLogout && isAuthenticated && !coverBudgetElapsed;
 
   return (
     <>
       <div className={cover ? "invisible h-0 overflow-hidden" : undefined} aria-hidden={cover}>
         {children}
       </div>
-      {cover ? <AppSplash label={label} /> : null}
+      {cover ? <AppSplash label="Opening workspace…" /> : null}
     </>
   );
 }

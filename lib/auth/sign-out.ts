@@ -6,10 +6,10 @@ import { clearPlatformOfflineSession } from "@/lib/offline/platform-cache";
 import { clearOfflineSession } from "@/lib/offline/session";
 import { clearShellProfile } from "@/lib/offline/shell-profile";
 import { clearCartDraft } from "@/lib/sales/cart-draft";
-import { isCapacitor } from "@novend/hardware";
 
 type SignOutOptions = {
   signOut: () => Promise<void>;
+  /** Kept for callers; sign-out always hard-navigates so `/login?signedOut=1` cannot be stripped. */
   router: AppRouterInstance;
   clearPresence?: () => Promise<unknown>;
 };
@@ -18,10 +18,13 @@ type SignOutOptions = {
  * End the session and land on a clean login screen.
  * Await Dexie identity clear *before* navigation so the next user cannot
  * inherit the previous replica, last route, or splash-cover loop.
+ *
+ * Always `location.replace` so the signed-out query string stays on `/login`.
+ * Soft Next navigation extra-fetches `/login` without that query and remounts
+ * the session gate on the splash.
  */
 export async function signOutAndRedirect({
   signOut,
-  router,
   clearPresence,
 }: SignOutOptions): Promise<void> {
   markExplicitLogout();
@@ -41,20 +44,8 @@ export async function signOutAndRedirect({
   try {
     await signOut();
   } finally {
-    const loginHref = "/login?signedOut=1";
-    if (typeof window !== "undefined" && (isCapacitor() || !navigator.onLine)) {
-      prepareHardNavigation();
-      window.location.replace(loginHref);
-      return;
-    }
-    router.replace(loginHref);
-    void router.refresh();
-    if (typeof window !== "undefined") {
-      window.setTimeout(() => {
-        if (window.location.pathname === "/login") return;
-        prepareHardNavigation();
-        window.location.replace(loginHref);
-      }, 1200);
-    }
+    if (typeof window === "undefined") return;
+    prepareHardNavigation();
+    window.location.replace("/login?signedOut=1");
   }
 }

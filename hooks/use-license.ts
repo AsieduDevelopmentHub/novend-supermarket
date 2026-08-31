@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { loadLicenseSnapshot, saveLicenseSnapshot } from "@/lib/offline/license";
@@ -40,8 +40,12 @@ const DEFAULT_ACCESS: LicenseAccess = {
  * right banners and disable actions before a mutation is rejected.
  */
 export function useLicense(): LicenseState {
+  const { isAuthenticated } = useConvexAuth();
   const online = useConnectivity();
-  const remote = useQuery(api.billing.licenseSnapshot, online ? {} : "skip");
+  const remote = useQuery(
+    api.billing.licenseSnapshot,
+    isAuthenticated && online ? {} : "skip",
+  );
   const [cached, setCached] = useState<Awaited<ReturnType<typeof loadLicenseSnapshot>>>(null);
   const [cacheReady, setCacheReady] = useState(false);
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Mail } from "lucide-react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { VerifyEmailDialog } from "@/features/auth/components/verify-email-dialog";
@@ -12,8 +12,9 @@ import { shouldShowEmailVerificationReminder } from "@/convex/shared/emailOtp";
 const DISMISS_KEY = "novend.emailVerify.dismissed";
 
 export function EmailVerificationBanner() {
+  const { isAuthenticated } = useConvexAuth();
   const online = useConnectivity();
-  const me = useQuery(api.users.me, online ? {} : "skip");
+  const me = useQuery(api.users.me, isAuthenticated && online ? {} : "skip");
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 

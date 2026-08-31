@@ -22,6 +22,7 @@ import {
 import { friendlyHardwareMessage } from "../permissions";
 import { NATIVE_AVAILABILITY_TIMEOUT_MS, NATIVE_CALL_TIMEOUT_MS, withTimeout } from "../timeout";
 import { compareAppVersions, normalizeAppVersion } from "../version";
+import { shouldSkipMobileUpdateCheck } from "../update-origin";
 
 const TOPIC_KEY = "novend.notifications.topics";
 const BIOMETRIC_ENABLED_KEY = "novend.biometric.enabled";
@@ -236,6 +237,20 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
     async checkForUpdate() {
       try {
         const info = await App.getInfo();
+        if (
+          typeof window !== "undefined" &&
+          shouldSkipMobileUpdateCheck(window.location.protocol, window.location.hostname)
+        ) {
+          return {
+            ok: true,
+            data: {
+              available: false,
+              status: "dev",
+              version: info.version,
+              notes: "Development session — update checks run on signed release APKs.",
+            } satisfies UpdateInfo,
+          };
+        }
         const fromPublic =
           typeof process !== "undefined" && process.env?.NEXT_PUBLIC_MOBILE_UPDATE_JSON
             ? process.env.NEXT_PUBLIC_MOBILE_UPDATE_JSON

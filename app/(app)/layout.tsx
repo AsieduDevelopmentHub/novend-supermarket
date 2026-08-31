@@ -28,8 +28,14 @@ import { OfflineProvider } from "@/providers/offline-provider";
 import { OfflineNavigationProvider, OfflineOutlet } from "@/providers/offline-navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useNativeShell } from "@/hooks/use-native-shell";
-import { loadShellProfile, saveShellProfile, type ShellProfile } from "@/lib/offline/shell-profile";
+import {
+  loadShellProfile,
+  saveShellProfile,
+  shellProfileFromSessionHint,
+  type ShellProfile,
+} from "@/lib/offline/shell-profile";
 import { markOfflineSession, readOfflineSession, hasOfflineSession } from "@/lib/offline/session";
+import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import {
   bindPlatformOfflineDb,
   markPlatformOfflineSession,
@@ -101,23 +107,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       }
       if (profile && profile.userId === hint.userId) {
         setCachedProfile(profile);
-      } else if (
-        hint.role === "administrator" ||
-        hint.role === "manager" ||
-        hint.role === "cashier"
-      ) {
-        setCachedProfile({
-          userId: hint.userId,
-          name: hint.name,
-          role: hint.role,
-          branchId: hint.branchId,
-          branchName: hint.branchName || "Branch",
-          imageUrl: null,
-          email: null,
-          phone: null,
-          organizationName: null,
-          organizationId: hint.organizationId ?? null,
-        });
+      } else {
+        setCachedProfile(shellProfileFromSessionHint(hint));
       }
       const platformHint = readPlatformOfflineSession();
       if (platformHint) {
@@ -136,6 +127,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   // never kick a cached cashier out, but never freeze the brand splash either.
   useEffect(() => {
     if (!online || isAuthenticated) return;
+    if (hasExplicitLogout()) return;
     if (hasOfflineSession()) return;
     if (isLoading && !onlineAuthBudgetElapsed) return;
 
@@ -166,18 +158,17 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [online, isLoading, isAuthenticated]);
 
+  // Start once per online session. Do not key this on isLoading/user —
+  // Cap Convex flickers those and would reset the 4.5s budget forever,
+  // trapping post-login on "Preparing workspace…".
   useEffect(() => {
     if (!online) {
       queueMicrotask(() => setOnlineAuthBudgetElapsed(false));
       return;
     }
-    if (!isLoading && !(isAuthenticated && user === undefined)) {
-      queueMicrotask(() => setOnlineAuthBudgetElapsed(false));
-      return;
-    }
     const timer = window.setTimeout(() => setOnlineAuthBudgetElapsed(true), ONLINE_AUTH_BUDGET_MS);
     return () => window.clearTimeout(timer);
-  }, [online, isLoading, isAuthenticated, user]);
+  }, [online]);
 
   useEffect(() => {
     if (
@@ -282,34 +273,27 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user?.isPlatformAdmin || !user.userId) return;
-    markPlatformOfflineSession({
+    const next: PlatformOfflineSession = {
       userId: String(user.userId),
       name: user.name,
       email: user.email ?? null,
       hasTenantRole: Boolean(user.role),
       savedAt: Date.now(),
-    });
+    };
+    markPlatformOfflineSession(next);
+    setPlatformSession(next);
   }, [user]);
 
-  // Keep the in-memory fallback in step with the live session (sanctioned
-  // "adjust state during render" pattern — avoids a redundant effect).
-  if (
-    user?.isPlatformAdmin &&
-    user.userId &&
-    (!platformSession ||
-      platformSession.userId !== String(user.userId) ||
-      platformSession.name !== user.name ||
-      platformSession.email !== (user.email ?? null) ||
-      platformSession.hasTenantRole !== Boolean(user.role))
-  ) {
-    setPlatformSession({
-      userId: String(user.userId),
-      name: user.name,
-      email: user.email ?? null,
-      hasTenantRole: Boolean(user.role),
-      savedAt: platformSession?.savedAt ?? 0,
-    });
-  }
+  const resolvedPlatformSession: PlatformOfflineSession | null =
+    user?.isPlatformAdmin && user.userId
+      ? {
+          userId: String(user.userId),
+          name: user.name,
+          email: user.email ?? null,
+          hasTenantRole: Boolean(user.role),
+          savedAt: platformSession?.savedAt ?? 0,
+        }
+      : platformSession;
 
   // Keep Dexie bound to the platform replica on Super Admin routes, otherwise the tenant org.
   // Bind during render (before OfflineProvider children effects) so the first snapshot
@@ -334,14 +318,21 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
           : "anon";
 
   /** Stale-looking online (Convex hung) but we have a local shell — treat like offline session. */
+  const signingOut = hasExplicitLogout();
+  const allowCachedShell =
+    Boolean(cachedProfile) && !signingOut && (isAuthenticated || hasOfflineSession());
   const cachedShellWhileOnlineHung =
     online &&
     onlineAuthBudgetElapsed &&
-    Boolean(cachedProfile) &&
+    allowCachedShell &&
     (isLoading || !isAuthenticated || user === undefined);
 
   const shellFromCache =
-    (!online || cachedShellWhileOnlineHung) && cachedProfile
+    allowCachedShell &&
+    (!online ||
+      cachedShellWhileOnlineHung ||
+      (isAuthenticated && (user === undefined || isLoading))) &&
+    cachedProfile
       ? {
           name: cachedProfile.name,
           role: cachedProfile.role,
@@ -358,7 +349,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
   const waitingForUser =
     !cachedProfile &&
-    !platformSession &&
+    !resolvedPlatformSession &&
     ((online && isLoading && !onlineAuthBudgetElapsed) ||
       (online && isAuthenticated && user === undefined && !onlineAuthBudgetElapsed) ||
       (!online && !cacheReady) ||
@@ -368,11 +359,15 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return <AppSplash label="Preparing workspace…" />;
   }
 
+  if (signingOut) {
+    return <AppSplash label="Signing out…" />;
+  }
+
   if (!isAuthenticated && online && !cachedShellWhileOnlineHung && !cachedProfile) {
     return <AppSplash label="Redirecting to login…" />;
   }
 
-  if ((!online || cachedShellWhileOnlineHung) && !cachedProfile && !platformSession) {
+  if ((!online || cachedShellWhileOnlineHung) && !cachedProfile && !resolvedPlatformSession) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <ErrorState
@@ -393,7 +388,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
   const showPlatformShell =
     (Boolean(user?.isPlatformAdmin) && (!user?.role || isPlatformRoute)) ||
-    (!online && isPlatformRoute && Boolean(platformSession));
+    (!online && isPlatformRoute && Boolean(resolvedPlatformSession));
 
   if (showPlatformShell) {
     return (
@@ -401,24 +396,24 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         <OfflineProvider key={replicaKey}>
           <OfflineNavigationProvider>
             <ProductTourProvider
-              enabled={Boolean(isAuthenticated || platformSession)}
+              enabled={Boolean(isAuthenticated || resolvedPlatformSession)}
               identityKey={
                 user?.userId
                   ? String(user.userId)
-                  : platformSession?.email
-                    ? platformSession.email
+                  : resolvedPlatformSession?.email
+                    ? resolvedPlatformSession.email
                     : null
               }
               role={(user?.role as AppRole | undefined) ?? null}
-              isPlatformAdmin={Boolean(user?.isPlatformAdmin || platformSession)}
+              isPlatformAdmin={Boolean(user?.isPlatformAdmin || resolvedPlatformSession)}
               initialProgress={user?.tourProgress}
             >
               <RestoreLastRoute />
               <TelemetryProvider enabled={Boolean(isAuthenticated && online)} />
               <PlatformShell
-                hasTenantRole={Boolean(user?.role ?? platformSession?.hasTenantRole)}
-                sessionName={user?.name ?? platformSession?.name}
-                sessionEmail={user?.email ?? platformSession?.email ?? null}
+                hasTenantRole={Boolean(user?.role ?? resolvedPlatformSession?.hasTenantRole)}
+                sessionName={user?.name ?? resolvedPlatformSession?.name}
+                sessionEmail={user?.email ?? resolvedPlatformSession?.email ?? null}
               >
                 <OfflineOutlet>{children}</OfflineOutlet>
               </PlatformShell>
@@ -448,7 +443,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       );
     }
 
-    if (onlineAuthBudgetElapsed && !cachedProfile && !platformSession) {
+    if (onlineAuthBudgetElapsed && !cachedProfile && !resolvedPlatformSession) {
       return <AppSplash label="Redirecting to login…" />;
     }
 

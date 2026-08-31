@@ -1,5 +1,6 @@
 import type { AppRole } from "@/config/navigation";
 import { bindOfflineOrganization, getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
+import type { OfflineSessionHint } from "./session";
 
 /** Cached authenticated shell identity for offline boot and permissions. */
 export type ShellProfile = {
@@ -17,6 +18,23 @@ export type ShellProfile = {
 
 function isAppRole(value: string | null): value is AppRole {
   return value === "administrator" || value === "manager" || value === "cashier";
+}
+
+/** Build a shell profile from the fast localStorage session hint (post-login). */
+export function shellProfileFromSessionHint(hint: OfflineSessionHint): ShellProfile | null {
+  if (!isAppRole(hint.role)) return null;
+  return {
+    userId: hint.userId,
+    name: hint.name,
+    role: hint.role,
+    branchId: hint.branchId,
+    branchName: hint.branchName || "Branch",
+    imageUrl: null,
+    email: null,
+    phone: null,
+    organizationName: null,
+    organizationId: hint.organizationId ?? null,
+  };
 }
 
 /** Persist the signed-in shell profile into Dexie for offline remounts / navigation. */

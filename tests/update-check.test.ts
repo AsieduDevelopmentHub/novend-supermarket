@@ -42,4 +42,14 @@ describe("describeUpdateCheck", () => {
       }),
     ).toBe("Latest verified");
   });
+
+  it("does not alarm on Android Studio / LAN development origins", () => {
+    expect(
+      describeUpdateCheck({
+        checking: false,
+        online: true,
+        update: { available: false, status: "dev" },
+      }),
+    ).toBe("Not checked in development");
+  });
 });

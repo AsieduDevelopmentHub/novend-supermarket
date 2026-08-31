@@ -3,6 +3,7 @@ import { api } from "@/convex/_generated/api";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 import { bindOfflineOrganization } from "@/lib/offline/db";
 import { markOfflineSession } from "@/lib/offline/session";
+import { saveShellProfile } from "@/lib/offline/shell-profile";
 import { isCapacitor } from "@novend/hardware";
 
 const SKIP_SPLASH_KEY = "novend.auth.skipSplash";
@@ -69,6 +70,24 @@ function bindReplicaFromMe(
     organizationId: String(me.organizationId),
     savedAt: Date.now(),
   });
+  if (
+    me.role === "administrator" ||
+    me.role === "manager" ||
+    me.role === "cashier"
+  ) {
+    void saveShellProfile({
+      userId: String(me.userId),
+      name: me.name ?? "User",
+      role: me.role,
+      branchId: String(me.branchId),
+      branchName: me.branch ?? "Branch",
+      imageUrl: null,
+      email: null,
+      phone: null,
+      organizationName: null,
+      organizationId: String(me.organizationId),
+    });
+  }
 }
 
 /**

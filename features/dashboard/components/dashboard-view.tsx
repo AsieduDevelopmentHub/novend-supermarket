@@ -331,7 +331,7 @@ function SalesOverviewChart({ data }: { data: Array<{ date: string; total: numbe
 }
 
 export function DashboardView() {
-  const { isAdmin, isManager, branchName, branchId: myBranchId } = usePermissions();
+  const { isAdmin, isManager, branchName, branchId: myBranchId, role } = usePermissions();
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
   const [topSellingMetric, setTopSellingMetric] = useLocalStorage<TopSellingMetric>(
     TOP_SELLING_METRIC_KEY,
@@ -342,7 +342,7 @@ export function DashboardView() {
   const branches = isAdmin || isManager ? mirroredBranches : undefined;
   const { data, loading } = useDashboardData(branchFilter);
 
-  if (loading || !data) {
+  if (!role || loading || !data) {
     return <LoadingState label="Loading dashboard…" />;
   }
 

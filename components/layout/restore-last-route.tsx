@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef } from "react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { FROM_BOOT_PARAM, readLastRoute, resolveFromBootTarget } from "@/lib/auth/last-route";
@@ -24,8 +24,9 @@ function RestoreLastRouteInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { isAuthenticated } = useConvexAuth();
   const online = useConnectivity();
-  const me = useQuery(api.users.me, online ? {} : "skip");
+  const me = useQuery(api.users.me, isAuthenticated && online ? {} : "skip");
   const ran = useRef(false);
 
   useEffect(() => {
