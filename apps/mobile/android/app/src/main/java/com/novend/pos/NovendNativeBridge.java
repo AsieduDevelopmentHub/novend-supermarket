@@ -157,14 +157,17 @@ public class NovendNativeBridge {
     /**
      * JSON: available, supported, enrolled, type. Uses BiometricManager so
      * Settings Check works after the hosted origin (Cap plugins hang).
+     *
+     * Many Android phones enroll Class 2 (weak) fingerprints. Checking
+     * BIOMETRIC_STRONG only reports "unavailable" on those devices even
+     * though the user unlocks the phone with a fingerprint.
      */
     @JavascriptInterface
     public String biometricStatus() {
         JSONObject out = new JSONObject();
         try {
             BiometricManager manager = BiometricManager.from(context);
-            int can =
-                manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG);
+            int can = canAuthenticateBiometric(manager);
             boolean success = can == BiometricManager.BIOMETRIC_SUCCESS;
             boolean noneEnrolled = can == BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED;
             boolean supported = success || noneEnrolled;
@@ -183,12 +186,7 @@ public class NovendNativeBridge {
                     type = "unknown";
                 }
             }
-            String reason = "";
-            if (noneEnrolled) {
-                reason = "Add a fingerprint or face unlock in Android settings, then return.";
-            } else if (!supported) {
-                reason = "This device does not support fingerprint or face unlock.";
-            }
+            String reason = biometricReason(can);
             out.put("available", success);
             out.put("supported", supported);
             out.put("enrolled", success);
@@ -200,6 +198,7 @@ public class NovendNativeBridge {
                 out.put("supported", false);
                 out.put("enrolled", false);
                 out.put("type", "none");
+                out.put("reason", "Could not read biometric hardware on this device.");
             } catch (Exception ignored) {
                 return "{\"available\":false,\"supported\":false,\"enrolled\":false,\"type\":\"none\"}";
             }
@@ -217,17 +216,20 @@ public class NovendNativeBridge {
         final String[] outcome = {"error"};
         final String subtitle =
             reason != null && !reason.isEmpty() ? reason : "Unlock Novend POS";
+        final int authenticators = promptAuthenticators(BiometricManager.from(context));
         activity.runOnUiThread(
             () -> {
                 try {
-                    BiometricPrompt.PromptInfo info =
+                    BiometricPrompt.PromptInfo.Builder builder =
                         new BiometricPrompt.PromptInfo.Builder()
                             .setTitle("Novend POS")
                             .setSubtitle(subtitle)
-                            .setAllowedAuthenticators(
-                                BiometricManager.Authenticators.BIOMETRIC_STRONG
-                                    | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-                            .build();
+                            .setAllowedAuthenticators(authenticators);
+                    if ((authenticators & BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                        == 0) {
+                        builder.setNegativeButtonText("Cancel");
+                    }
+                    BiometricPrompt.PromptInfo info = builder.build();
                     BiometricPrompt prompt =
                         new BiometricPrompt(
                             (FragmentActivity) activity,
@@ -268,6 +270,42 @@ public class NovendNativeBridge {
             return "error";
         }
         return outcome[0];
+    }
+
+    /**
+     * BIOMETRIC_WEAK includes Class 3. Checking STRONG alone reports
+     * NONE_ENROLLED on phones that only enrolled a Class 2 fingerprint —
+     * the usual Settings → Biometrics “Try again” failure.
+     */
+    private static int canAuthenticateBiometric(BiometricManager manager) {
+        return manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK);
+    }
+
+    /**
+     * Prefer Class 3 + device PIN when a strong biometric is enrolled.
+     * BIOMETRIC_WEAK cannot be combined with DEVICE_CREDENTIAL in BiometricPrompt.
+     */
+    private static int promptAuthenticators(BiometricManager manager) {
+        int strong = manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG);
+        if (strong == BiometricManager.BIOMETRIC_SUCCESS) {
+            return BiometricManager.Authenticators.BIOMETRIC_STRONG
+                | BiometricManager.Authenticators.DEVICE_CREDENTIAL;
+        }
+        return BiometricManager.Authenticators.BIOMETRIC_WEAK;
+    }
+
+    private static String biometricReason(int can) {
+        if (can == BiometricManager.BIOMETRIC_SUCCESS) return "";
+        if (can == BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED) {
+            return "Add a fingerprint or face unlock in Android settings, then return.";
+        }
+        if (can == BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE) {
+            return "Biometric hardware is temporarily unavailable. Try again in a moment.";
+        }
+        if (can == BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED) {
+            return "Install a security update on this device, then try biometrics again.";
+        }
+        return "This device does not support fingerprint or face unlock.";
     }
 
     private PendingFile takePending() {
