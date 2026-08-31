@@ -1,12 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useRef } from "react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
-import { FROM_BOOT_PARAM, readLastRoute } from "@/lib/auth/last-route";
-import { safeInternalPath } from "@/lib/auth/safe-return-path";
-import { pathAllowedForRole, type AppRole } from "@/config/navigation";
+import { FROM_BOOT_PARAM, readLastRoute, resolveFromBootTarget } from "@/lib/auth/last-route";
+import { type AppRole } from "@/config/navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { readOfflineSession } from "@/lib/offline/session";
 import { isCapacitor } from "@novend/hardware";
@@ -16,6 +15,7 @@ import { isCapacitor } from "@novend/hardware";
  * last in-app path from localStorage once the hosted origin is loaded.
  * Never restore /platform for a non–platform-admin session.
  * Cap/offline: use history + popstate so OfflineOutlet engages (not RSC).
+ * Stripping fromBoot alone must not dispatch popstate (that remounted Dashboard).
  *
  * Not used after credential login — tenant sessions land on Dashboard;
  * platform administrators land on /platform.
@@ -24,8 +24,9 @@ function RestoreLastRouteInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { isAuthenticated } = useConvexAuth();
   const online = useConnectivity();
-  const me = useQuery(api.users.me, online ? {} : "skip");
+  const me = useQuery(api.users.me, isAuthenticated && online ? {} : "skip");
   const ran = useRef(false);
 
   useEffect(() => {
@@ -34,46 +35,28 @@ function RestoreLastRouteInner() {
     if (online && me === undefined) return;
     ran.current = true;
 
-    const last = readLastRoute();
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete(FROM_BOOT_PARAM);
-    const cleanedSearch = params.toString();
-    const cleanedCurrent = cleanedSearch ? `${pathname}?${cleanedSearch}` : pathname;
-
-    const safe = last ? safeInternalPath(last) : null;
-    const isPlatformPath = Boolean(safe && (safe === "/platform" || safe.startsWith("/platform/")));
-    const canRestorePlatform = Boolean(me?.isPlatformAdmin);
-    const platformOnly = Boolean(me?.isPlatformAdmin && !me?.role);
     const role =
       (me?.role as AppRole | undefined) ?? (readOfflineSession()?.role as AppRole | undefined);
-    const roleOk =
-      !safe || isPlatformPath || !role || pathAllowedForRole(safe.split("?")[0] || safe, role);
-    const allowed =
-      platformOnly && safe && !isPlatformPath
-        ? "/platform"
-        : safe && (!isPlatformPath || canRestorePlatform) && roleOk
-          ? safe
-          : platformOnly
-            ? "/platform"
-            : null;
-
-    const target =
-      allowed && allowed !== cleanedCurrent
-        ? allowed
-        : cleanedCurrent !==
-            `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`
-          ? cleanedCurrent
-          : null;
+    const target = resolveFromBootTarget({
+      pathname,
+      search: searchParams.toString(),
+      last: readLastRoute(),
+      role,
+      isPlatformAdmin: Boolean(me?.isPlatformAdmin),
+      platformOnly: Boolean(me?.isPlatformAdmin && !me?.role),
+    });
 
     if (!target) return;
 
     const useClientShell = isCapacitor() || !online;
     if (useClientShell && typeof window !== "undefined") {
-      window.history.replaceState({}, "", target);
-      window.dispatchEvent(new PopStateEvent("popstate"));
+      window.history.replaceState({}, "", target.href);
+      if (target.remount) {
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      }
       return;
     }
-    router.replace(target);
+    router.replace(target.href);
   }, [pathname, router, searchParams, online, me]);
 
   return null;

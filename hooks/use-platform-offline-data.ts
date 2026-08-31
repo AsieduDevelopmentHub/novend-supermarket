@@ -53,11 +53,8 @@ type CacheSource = "live" | "cache";
  * range filter) so switching between entities doesn't briefly render a
  * stale cache entry that belongs to the previous key.
  *
- * Remembering the latest live value across a later disconnect uses the
- * React-sanctioned "adjust state during render" pattern (see
- * https://react.dev/reference/react/useState#storing-information-from-previous-renders)
- * instead of a ref or an effect, so render stays pure and no effect ever
- * calls `setState` synchronously — only inside the disk-load `.then()`.
+ * Remember the latest live value across a later disconnect with a ref so
+ * render never calls setState (React 19 warns when that happens before mount).
  */
 function useLiveWithDiskCache<TValue>(
   live: TValue | undefined,
@@ -66,14 +63,12 @@ function useLiveWithDiskCache<TValue>(
   save: (value: TValue) => void | Promise<void>,
 ): { data: TValue | null | undefined; loading: boolean; source: CacheSource } {
   const [diskCache, setDiskCache] = useState<{ key: string; value: TValue | null } | null>(null);
-  const [lastLive, setLastLive] = useState<{ key: string; value: TValue } | null>(null);
+  const lastLiveRef = useRef<{ key: string; value: TValue } | null>(null);
 
-  if (
-    live !== undefined &&
-    (lastLive === null || lastLive.key !== key || lastLive.value !== live)
-  ) {
-    setLastLive({ key, value: live });
+  if (live !== undefined) {
+    lastLiveRef.current = { key, value: live };
   }
+  const lastLive = lastLiveRef.current;
 
   useEffect(() => {
     let cancelled = false;

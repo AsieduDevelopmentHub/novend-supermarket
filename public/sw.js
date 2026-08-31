@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v12";
+const CACHE_NAME = "novend-pos-v13";
 /**
  * Public documents + icons only. Do not precache /dashboard (and other gated
  * routes): cache.add follows the auth 302 and stores a redirected login
@@ -157,17 +157,40 @@ function cachePut(request, response) {
 
 /**
  * Offline navigation fallback.
+/**
  * Prefer an exact cache hit for the requested URL. If missing, serve a known
- * shell HTML document — the browser URL stays as the deep path; client
- * OfflineNavigationProvider + resolveOfflineView honor location.pathname.
+ * *workspace* shell — never marketing HTML (`/`, /docs, /privacy). Cold-start
+ * `fromBoot=1` used to paint the public landing page as the POS because `/`
+ * is precached and `/dashboard` is not.
+ * The browser URL stays as the deep path; OfflineNavigationProvider honors it.
  */
+const APP_SHELL_FALLBACKS = ["/dashboard", "/sales", "/platform"];
+
+function isMarketingPathname(pathname) {
+  return (
+    pathname === "/" ||
+    pathname === "/download" ||
+    pathname === "/privacy" ||
+    pathname === "/terms" ||
+    pathname === "/unauthorized" ||
+    pathname.startsWith("/docs")
+  );
+}
+
 async function matchNavigation(request, url) {
+  if (isMarketingPathname(url.pathname)) {
+    const exact = (await caches.match(request)) || (await caches.match(url.pathname));
+    return exact ? unwrapRedirect(exact) : undefined;
+  }
+
   const exact = (await caches.match(request)) || (await caches.match(url.pathname));
-  if (exact) return unwrapRedirect(exact);
+  if (exact && !isMarketingPathname(new URL(exact.url || url.href, url.origin).pathname)) {
+    return unwrapRedirect(exact);
+  }
 
   const shellCandidates = url.pathname.startsWith("/platform")
-    ? ["/platform", "/dashboard", "/sales", "/"]
-    : ["/dashboard", "/sales", "/platform", "/"];
+    ? ["/platform", ...APP_SHELL_FALLBACKS.filter((path) => path !== "/platform")]
+    : APP_SHELL_FALLBACKS;
 
   for (const shell of shellCandidates) {
     const hit = await caches.match(shell);

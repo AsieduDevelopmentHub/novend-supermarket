@@ -115,7 +115,7 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
         setInstalledVersion(appInfo.data.version);
         setInstalledBuild(appInfo.data.build);
       }
-      if (update.data?.available) {
+      if (update.data?.available && update.data.status === "available") {
         setUpdateVersion(update.data.version || "");
         setUpdateNotes(update.data.notes || "A newer Novend build is available.");
         setUpdateMandatory(update.data.mandatory === true);

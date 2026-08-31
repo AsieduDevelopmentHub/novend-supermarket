@@ -3,21 +3,15 @@
 import { CloudOff, CloudUpload, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOfflineStatus } from "@/providers/offline-provider";
+import { describeSyncStatus } from "@/lib/offline/sync-status";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/date";
 
-function SyncGlyph({
-  online,
-  syncing,
-  failed,
-}: {
-  online: boolean;
-  syncing: boolean;
-  failed: boolean;
-}) {
-  if (!online) return <CloudOff className="size-3.5 shrink-0" aria-hidden />;
-  if (syncing) return <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />;
-  if (failed) return <AlertCircle className="size-3.5 shrink-0" aria-hidden />;
+function SyncGlyph({ kind }: { kind: ReturnType<typeof describeSyncStatus>["kind"] }) {
+  if (kind === "offline") return <CloudOff className="size-3.5 shrink-0" aria-hidden />;
+  if (kind === "syncing") return <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />;
+  if (kind === "conflict") return <AlertCircle className="size-3.5 shrink-0" aria-hidden />;
+  if (kind === "queued") return <CloudUpload className="size-3.5 shrink-0" aria-hidden />;
   return <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />;
 }
 
@@ -25,17 +19,7 @@ function SyncGlyph({
 export function SyncStatusHeaderButton() {
   const { online, pendingCount, failedCount, syncing, lastError, openSyncCenter } =
     useOfflineStatus();
-  const failed = online && failedCount > 0;
-  const activeSync = online && syncing && pendingCount > 0;
-  const label = !online
-    ? "Offline"
-    : failed
-      ? `${failedCount} conflict${failedCount === 1 ? "" : "s"}`
-      : activeSync
-        ? "Syncing"
-        : pendingCount > 0
-          ? `${pendingCount} pending`
-          : "Synced";
+  const view = describeSyncStatus({ online, pendingCount, failedCount, syncing });
 
   return (
     <button
@@ -44,12 +28,12 @@ export function SyncStatusHeaderButton() {
       className={cn(
         "text-muted-foreground hover:bg-muted flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
         !online && "text-foreground",
-        failed && "text-destructive",
+        view.kind === "conflict" && "text-destructive",
       )}
-      aria-label={`${label}${lastError ? `. ${lastError}` : ""}. Open sync center.`}
+      aria-label={`${view.label}${lastError ? `. ${lastError}` : ""}. Open sync center.`}
       onClick={openSyncCenter}
     >
-      <SyncGlyph online={online} syncing={activeSync} failed={failed} />
+      <SyncGlyph kind={view.kind} />
     </button>
   );
 }
@@ -61,29 +45,16 @@ export function SyncStatusHeaderButton() {
 export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
   const { online, pendingCount, failedCount, syncing, lastSyncAt, lastError, openSyncCenter } =
     useOfflineStatus();
-
-  const failed = online && failedCount > 0;
-  const pending = online && pendingCount > 0 && !failed;
-  const activeSync = online && syncing && pendingCount > 0;
+  const view = describeSyncStatus({ online, pendingCount, failedCount, syncing });
   const needsReview = pendingCount > 0 || failedCount > 0;
 
-  const label = !online
-    ? "Offline"
-    : failed
-      ? `${failedCount} conflict${failedCount === 1 ? "" : "s"}`
-      : activeSync
-        ? "Syncing…"
-        : pending
-          ? `${pendingCount} pending`
-          : "Synced";
-
   const detail = !online
-    ? "On this device"
+    ? view.detail
     : needsReview
-      ? lastError || "Tap to review queue"
+      ? lastError || view.detail
       : lastSyncAt
         ? `Last sync ${formatDateTime(lastSyncAt)}`
-        : "Not synced yet";
+        : view.detail;
 
   return (
     <div
@@ -99,20 +70,20 @@ export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
           "flex w-full items-center gap-2 rounded-md text-left text-xs hover:bg-white/5",
           collapsed ? "justify-center px-1 py-1" : "px-1 py-0.5",
           !online && "text-sidebar-accent-foreground/80",
-          failed && "text-destructive",
+          view.kind === "conflict" && "text-destructive",
         )}
-        aria-label={`${label}. ${detail}. Open sync center.`}
+        aria-label={`${view.label}. ${detail}. Open sync center.`}
         onClick={openSyncCenter}
       >
-        <SyncGlyph online={online} syncing={activeSync} failed={failed} />
+        <SyncGlyph kind={view.kind} />
         {!collapsed ? (
           <div className="min-w-0 flex-1">
-            <p className="truncate font-medium">{label}</p>
+            <p className="truncate font-medium">{view.label}</p>
             <p className="truncate opacity-80">{detail}</p>
           </div>
         ) : (
           <span className="sr-only">
-            {label}. {detail}
+            {view.label}. {detail}
           </span>
         )}
       </button>

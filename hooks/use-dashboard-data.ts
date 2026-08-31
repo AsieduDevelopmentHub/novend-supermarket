@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Id } from "@/convex/_generated/dataModel";
-import type { AppRole } from "@/config/navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePermissions } from "@/hooks/use-permissions";
 import { getLastSnapshotAt } from "@/lib/offline/freshness";
@@ -55,11 +54,16 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
   const generationRef = useRef(0);
 
   useEffect(() => {
+    if (!role) {
+      setLocalData(null);
+      setWaitingForReplica(true);
+      return;
+    }
+
     let cancelled = false;
     const generation = ++generationRef.current;
     let paintCache = true;
 
-    // Soft timeout so a failed first snapshot cannot leave the dashboard spinning forever.
     const giveUp = window.setTimeout(() => {
       if (!cancelled) setWaitingForReplica(false);
     }, 12_000);
@@ -74,7 +78,11 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
           if (lastSnap) {
             const cached = await loadDashboardSummary(branchKey);
             if (cancelled || generation !== generationRef.current) return;
-            if (cached && cacheMatchesScope(cached, branchKey)) {
+            if (
+              cached &&
+              cacheMatchesScope(cached, branchKey) &&
+              cached.role === role
+            ) {
               setLocalData({ ...cached, source: "cache" });
               setWaitingForReplica(false);
             }
@@ -82,7 +90,7 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
         }
 
         const local = await buildLocalDashboardSummary(
-          (role as AppRole) ?? "cashier",
+          role,
           branchKey === "all" ? undefined : branchKey,
         );
         if (cancelled || generation !== generationRef.current) return;
@@ -110,10 +118,16 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
     };
   }, [role, branchKey, online]);
 
-  if (waitingForReplica && !(localData && cacheMatchesScope(localData, branchKey))) {
+  if (!role) {
     return { data: null, loading: true };
   }
-  if (localData && cacheMatchesScope(localData, branchKey)) {
+  if (
+    waitingForReplica &&
+    !(localData && cacheMatchesScope(localData, branchKey) && localData.role === role)
+  ) {
+    return { data: null, loading: true };
+  }
+  if (localData && cacheMatchesScope(localData, branchKey) && localData.role === role) {
     return { data: localData, loading: false };
   }
   return { data: null, loading: true };

@@ -1,6 +1,6 @@
 # Capacitor mobile platform
 
-Version: 1.6.2
+Version: 1.6.3
 
 ## Purpose
 
@@ -49,7 +49,8 @@ Aligned with Electron (`DESKTOP_PLATFORM.md`):
 3. After one successful online open, `PwaRegister` installs `public/sw.js` on
    the hosted origin. Offline, that worker serves the cached shell
    (cache-first when `fromBoot=1`, otherwise network-first; unwraps redirects;
-   never caches login HTML under `/dashboard`). Dexie + `novend.offlineSession`
+   never caches login HTML under `/dashboard`; never uses the marketing `/`
+   document as a POS shell fallback). Dexie + `novend.offlineSession`
    restore the workspace.
 4. If the hosted document cannot load, Android retries once with
    `LOAD_CACHE_ELSE_NETWORK` so a previously opened workspace can come back

@@ -221,7 +221,13 @@ export function OfflineOutlet({ children }: { children: ReactNode }) {
   const { clientRouting, activePath } = useOfflineNavigation();
   const { role, isLoading } = usePermissions();
   if (clientRouting && activePath) {
-    if (!isLoading && role && !pathAllowedForRole(activePath, role)) {
+    // Do not evaluate AccessDenied until the session identity is restored.
+    // Cached Dexie roles from the previous user caused a "You don't have access"
+    // flash, then splash, then the correct screen.
+    if (isLoading || !role) {
+      return <>{children}</>;
+    }
+    if (!pathAllowedForRole(activePath, role)) {
       return <AccessDenied />;
     }
     return <>{resolveOfflineView(activePath)}</>;

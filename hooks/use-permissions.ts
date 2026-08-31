@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { AppRole } from "@/config/navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { loadShellProfile, type ShellProfile } from "@/lib/offline/shell-profile";
+import { loadShellProfile, shellProfileFromSessionHint, type ShellProfile } from "@/lib/offline/shell-profile";
+import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
+import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { Id } from "@/convex/_generated/dataModel";
 
 type CurrentUser = {
@@ -35,9 +37,12 @@ function shellToUser(profile: ShellProfile): CurrentUser {
 }
 
 export function useCurrentUser() {
+  const { isAuthenticated } = useConvexAuth();
   const online = useConnectivity();
-  // Skip Convex while offline so refresh never hangs on users.me.
-  const remote = useQuery(api.users.me, online ? {} : "skip");
+  const sessionHint = useOfflineSessionHint();
+  // Skip Convex while offline or signed out so refresh never hangs on users.me
+  // and logout never throws Unauthenticated in the app shell.
+  const remote = useQuery(api.users.me, isAuthenticated && online ? {} : "skip");
   const [cached, setCached] = useState<ShellProfile | null>(null);
   const [cacheReady, setCacheReady] = useState(false);
   const [remoteBudgetElapsed, setRemoteBudgetElapsed] = useState(false);
@@ -55,25 +60,41 @@ export function useCurrentUser() {
   }, []);
 
   useEffect(() => {
-    if (!online || remote !== undefined) {
+    if (!online || !isAuthenticated || remote !== undefined) {
       queueMicrotask(() => setRemoteBudgetElapsed(false));
       return;
     }
     const timer = window.setTimeout(() => setRemoteBudgetElapsed(true), 2500);
     return () => window.clearTimeout(timer);
-  }, [online, remote]);
+  }, [online, isAuthenticated, remote]);
 
   const readyRemote = remote && !remote.needsProfile && remote.role ? remote : null;
   const cachedUser = cached ? shellToUser(cached) : null;
-  const offlineUser = !online && cachedUser ? cachedUser : null;
+  const hintProfile = sessionHint ? shellProfileFromSessionHint(sessionHint) : null;
+  const hintUser =
+    hintProfile &&
+    (!cachedUser || cachedUser.userId === hintProfile.userId) &&
+    (!readyRemote || String(readyRemote.userId) === hintProfile.userId)
+      ? shellToUser(hintProfile)
+      : null;
+  const offlineUser = !online && (cachedUser ?? hintUser) ? (cachedUser ?? hintUser) : null;
   const liveUser = readyRemote as CurrentUser | null;
-  // Prefer live when online; fall back to Dexie after a short hang so Capacitor
-  // does not block Settings/More on a stuck Convex subscription.
-  const user = online
-    ? (liveUser ?? (remoteBudgetElapsed ? cachedUser : null))
-    : (offlineUser ?? liveUser);
+  const signingOut = hasExplicitLogout();
+  // Prefer live when online. The login session hint is available before Convex
+  // auth settles — using it avoids a cashier-shaped first paint for admins.
+  const user = signingOut
+    ? null
+    : online
+      ? (liveUser ?? cachedUser ?? hintUser)
+      : (offlineUser ?? liveUser ?? hintUser);
 
-  const waitingOnRemote = remote === undefined && online && !remoteBudgetElapsed;
+  const waitingOnRemote =
+    isAuthenticated &&
+    remote === undefined &&
+    online &&
+    !remoteBudgetElapsed &&
+    !cachedUser &&
+    !hintUser;
   const waitingOnCache = !online && !cacheReady;
 
   return {

@@ -4,7 +4,12 @@ import { type NextRequest, NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
 import { loginPathWithNext, resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 
-const isLoginPage = createRouteMatcher(["/login", "/signup", "/forgot-password", "/reset-password"]);
+const isLoginPage = createRouteMatcher([
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+]);
 const isPublicRoute = createRouteMatcher([
   "/",
   "/login",
@@ -106,6 +111,28 @@ export default convexAuthNextjsMiddleware(
     }
 
     const authenticated = await convexAuth.isAuthenticated();
+
+    // Signed-out navigation must be able to paint /login even if the auth
+    // cookie has not been cleared yet (Cap/WebView session race).
+    if (isLoginPage(request) && request.nextUrl.searchParams.get("signedOut") === "1") {
+      return withSecurityHeaders(
+        NextResponse.next({ request: { headers: requestHeaders } }),
+        nonce,
+      );
+    }
+
+    // Authenticated clients must not sit on the public marketing homepage.
+    // Capacitor cold start + SW fallback used to paint `/` as the POS shell.
+    if (authenticated && request.nextUrl.pathname === "/") {
+      const session = await sessionForToken(await convexAuth.getToken());
+      const destination = resolvePostAuthPath(session);
+      const fromBoot = request.nextUrl.searchParams.get("fromBoot") === "1";
+      const href =
+        fromBoot && !destination.includes("fromBoot=")
+          ? `${destination}${destination.includes("?") ? "&" : "?"}fromBoot=1`
+          : destination;
+      return withSecurityHeaders(redirectTo(request, href), nonce);
+    }
 
     if (isLoginPage(request) && authenticated) {
       const session = await sessionForToken(await convexAuth.getToken());

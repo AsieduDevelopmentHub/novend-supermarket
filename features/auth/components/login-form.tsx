@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
 import { isCapacitor } from "@novend/hardware";
 import { navigateAfterLogin, resolvePostLoginPath } from "@/lib/auth/redirect-after-login";
+import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { hasOfflineSession } from "@/lib/offline/session";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
@@ -57,6 +58,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromBoot = searchParams.get("fromBoot") === "1";
+  const signedOut = searchParams.get("signedOut") === "1" || hasExplicitLogout();
   const redirectingRef = useRef(false);
 
   const [email, setEmail] = useState("");
@@ -86,8 +88,10 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   }
 
   // Cached session: leave /login immediately (no waiting on Convex / brand chrome).
+  // After an explicit logout, never resume the previous user's Dexie/localStorage session.
   useEffect(() => {
     if (redirectingRef.current || pending || isAuthenticated) return;
+    if (signedOut) return;
     if (!hasOfflineSession()) return;
 
     const shouldResumeNow = !online || fromBoot || isCapacitor();
@@ -126,11 +130,13 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         router,
       );
     });
-  }, [online, fromBoot, isAuthenticated, authLoading, pending, router]);
+  }, [online, fromBoot, isAuthenticated, authLoading, pending, router, signedOut]);
 
   // Already signed in without submitting credentials.
   // Keep fromBoot so cold start can restore the last in-app route after shell mount.
+  // After logout, stay on the form even if the previous cookie has not dropped yet.
   useEffect(() => {
+    if (signedOut) return;
     if (!isAuthenticated || authLoading || redirectingRef.current || pending) return;
     redirectingRef.current = true;
     queueMicrotask(() => {
@@ -140,7 +146,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         navigateAfterLogin(withBootMarker(path), router);
       })();
     });
-  }, [isAuthenticated, authLoading, convex, router, pending, fromBoot]);
+  }, [isAuthenticated, authLoading, convex, router, pending, fromBoot, signedOut]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -166,9 +172,10 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       formData.set("password", password);
       formData.set("flow", "signIn");
       await signIn("password", formData);
+      consumeExplicitLogout();
       toast.success("Welcome");
 
-  // Fresh password sign-in: always Dashboard (ignore last route / fromBoot).
+      // Fresh password sign-in: always Dashboard (ignore last route / fromBoot).
       redirectingRef.current = true;
       setOpeningWorkspace(true);
       const path = await resolvePostLoginPath(convex);

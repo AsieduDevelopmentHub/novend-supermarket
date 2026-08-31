@@ -20,6 +20,10 @@ const OFFLINE_AUTH_BUDGET_MS = 800;
  * Shows the branded splash until Convex auth has resolved and a short
  * minimum display time has elapsed, then fades out over the app.
  * Hard-caps display so first load / flaky Cap networks cannot stack forever.
+ *
+ * Never read sessionStorage during render — that hydrates as splash-on vs
+ * splash-off after login `location.replace`, and React 19 leaves the
+ * server splash stuck.
  */
 export function StartupSplash({ children }: { children: ReactNode }) {
   const configured = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
@@ -36,11 +40,9 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
   const { isLoading } = useConvexAuth();
   const online = useConnectivity();
   const startedAt = useRef(0);
-  const [skipFromLogin] = useState(() =>
-    typeof window !== "undefined" ? consumeSkipStartupSplash() : false,
-  );
+  const [skipFromLogin, setSkipFromLogin] = useState(false);
   const [exiting, setExiting] = useState(false);
-  const [visible, setVisible] = useState(() => !skipFromLogin);
+  const [visible, setVisible] = useState(true);
   const [offlineReady, setOfflineReady] = useState(false);
   const [forcedReady, setForcedReady] = useState(false);
   const isMarketingLanding = pathname === "/";
@@ -50,17 +52,17 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
     pathname === "/download" ||
     pathname.startsWith("/docs") ||
     pathname === "/privacy" ||
-    pathname === "/terms";
+    pathname === "/terms" ||
+    pathname === "/unauthorized";
   const skipSplash = skipFromLogin || isMarketingLanding || isAuthRoute || isPublicSitePage;
 
   useEffect(() => {
-    if (skipFromLogin || isAuthRoute) return;
+    if (isAuthRoute) return;
     if (!consumeSkipStartupSplash()) return;
-    queueMicrotask(() => {
-      setVisible(false);
-      setExiting(false);
-    });
-  }, [pathname, isAuthRoute, skipFromLogin]);
+    setSkipFromLogin(true);
+    setVisible(false);
+    setExiting(false);
+  }, [pathname, isAuthRoute]);
 
   useEffect(() => {
     startedAt.current = performance.now();
@@ -73,7 +75,6 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
       queueMicrotask(() => setOfflineReady(false));
       return;
     }
-    // Prior session → do not wait on Convex (common Cap offline / flaky path).
     if (hasOfflineSession()) {
       queueMicrotask(() => setOfflineReady(true));
       return;
@@ -86,7 +87,7 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
   const authSettled = !isLoading || offlineReady || forcedReady;
 
   useEffect(() => {
-    if (!authSettled || !visible) return;
+    if (skipFromLogin || !authSettled || !visible) return;
 
     const wait = Math.max(0, MIN_SPLASH_MS - (performance.now() - startedAt.current));
     let exitTimer = 0;
@@ -100,7 +101,7 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
       window.clearTimeout(showTimer);
       window.clearTimeout(exitTimer);
     };
-  }, [authSettled, visible]);
+  }, [authSettled, visible, skipFromLogin]);
 
   return (
     <>

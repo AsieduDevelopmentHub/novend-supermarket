@@ -60,6 +60,23 @@ describe("redirect-after-login", () => {
     expect(() => prepareHardNavigation()).not.toThrow();
   });
 
+  it("dashboard does not assume cashier when the role is still unknown", () => {
+    const source = readFileSync(resolve(process.cwd(), "hooks/use-dashboard-data.ts"), "utf8");
+    expect(source).not.toContain('?? "cashier"');
+    expect(source).toContain("if (!role)");
+    const view = readFileSync(
+      resolve(process.cwd(), "features/dashboard/components/dashboard-view.tsx"),
+      "utf8",
+    );
+    expect(view).toContain("if (!role || loading || !data)");
+  });
+
+  it("startup splash does not consume the skip flag during render", () => {
+    const source = readFileSync(resolve(process.cwd(), "providers/startup-splash.tsx"), "utf8");
+    expect(source).not.toContain('typeof window !== "undefined" ? consumeSkipStartupSplash()');
+    expect(source).toContain("if (!consumeSkipStartupSplash()) return;");
+  });
+
   it("hard Cap login nav clears unload state before location.replace", () => {
     const source = readFileSync(
       resolve(process.cwd(), "lib/auth/redirect-after-login.ts"),
@@ -70,5 +87,6 @@ describe("redirect-after-login", () => {
     expect(source).toContain("window.onbeforeunload = null");
     expect(source).toContain("prepareHardNavigation()");
     expect(source).toContain("window.location.replace(path)");
+    expect(source).toContain("void saveShellProfile(");
   });
 });
