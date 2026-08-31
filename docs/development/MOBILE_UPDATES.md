@@ -124,10 +124,12 @@ gh secret set ANDROID_KEY_PASSWORD
 ```
 
 The workflow decodes the keystore into a runner file, exports `ANDROID_KEYSTORE_PATH`, and
-runs `assembleRelease`. It verifies the APK signature and metadata, uploads the APK plus
-SHA-256 checksum to the GitHub Release, and then publishes mobile update metadata to Convex.
-A missing keystore or signing secret fails the Android job; there is no debug-signing fallback
-for release artifacts.
+runs `assembleRelease`. Gradle User Home (wrapper, Maven deps, local build cache) is
+restored from the cache seeded by CI on `main` (`android-gradle-cache`). Tag runs are
+read-only — GitHub will not let a `v*` cache be reused by the next tag. It verifies the
+APK signature and metadata, uploads the APK plus SHA-256 checksum to the GitHub Release,
+and then publishes mobile update metadata to Convex. A missing keystore or signing secret
+fails the Android job; there is no debug-signing fallback for release artifacts.
 
 After updating the package version and changelog, squash-merge to `main`, then tag:
 

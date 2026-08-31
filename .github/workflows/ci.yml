@@ -52,3 +52,24 @@ jobs:
         run: pnpm build
         env:
           NEXT_PUBLIC_CONVEX_URL: https://placeholder.convex.cloud
+
+  # GitHub only lets later jobs (including tag Product Release) restore caches
+  # written on the default branch. Warm Gradle + Android deps on main so APK
+  # tags are not a cold download every time.
+  android-gradle-cache:
+    name: Seed Android Gradle cache
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Android build cache
+        uses: ./.github/actions/setup-android-build
+        with:
+          cache-read-only: "false"
+
+      - name: Download Android dependencies
+        working-directory: apps/mobile/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:assembleDebug --no-daemon

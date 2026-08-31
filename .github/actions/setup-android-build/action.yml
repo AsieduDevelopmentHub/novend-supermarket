@@ -1,0 +1,22 @@
+name: Setup Android build
+description: JDK 21, Android SDK, and Gradle User Home cache for Capacitor APKs
+
+inputs:
+  cache-read-only:
+    description: Restore the Gradle cache without writing it back. Tag builds must stay read-only so they reuse the main-seeded cache.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: "21"
+
+    - uses: android-actions/setup-android@v3
+
+    - uses: gradle/actions/setup-gradle@v4
+      with:
+        cache-read-only: ${{ inputs.cache-read-only == 'true' }}
