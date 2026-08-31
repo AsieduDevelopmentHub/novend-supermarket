@@ -8,6 +8,7 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { ResponsiveFormSurface } from "@/components/layout/responsive-form-surface";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { UnsignedQuantityInput } from "@/components/ui/unsigned-quantity-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -460,13 +461,10 @@ function ProductFormBody({
           ) : (
             <div className="space-y-2">
               <Label htmlFor="stock">Stock Quantity</Label>
-              <Input
+              <UnsignedQuantityInput
                 id="stock"
-                type="number"
-                min="0"
-                step="1"
                 value={stockQuantity}
-                onChange={(e) => setStockQuantity(e.target.value)}
+                onValueChange={setStockQuantity}
                 disabled={!!productId}
                 required={!productId}
               />
@@ -480,13 +478,10 @@ function ProductFormBody({
         <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="low">Low Stock Alert</Label>
-            <Input
+            <UnsignedQuantityInput
               id="low"
-              type="number"
-              min="0"
-              step="1"
               value={lowStockThreshold}
-              onChange={(e) => setLowStockThreshold(e.target.value)}
+              onValueChange={setLowStockThreshold}
               required
             />
           </div>

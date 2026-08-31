@@ -1,6 +1,6 @@
 # Inventory Workflow
 
-Version: 1.2.1
+Version: 1.2.2
 
 ![Branch stock](../design/ui/inventory-stock.png)
 
@@ -17,7 +17,8 @@ Version: 1.2.1
 
 1. Open Inventory
 2. Search / filter by status
-3. Receive stock (optional lot expiry)
+3. Receive or remove stock with **Add stock** / **Remove stock** and a typed
+   quantity (phone keypads have no minus key). Optional lot expiry when adding.
 4. Adjust with a note
 5. On the product page, administrators and managers can change each lot’s
    expiry date (offline queues `update_lot_expiry`; same-date lots merge)

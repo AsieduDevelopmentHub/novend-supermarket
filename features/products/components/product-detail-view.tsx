@@ -18,6 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UnsignedQuantityInput } from "@/components/ui/unsigned-quantity-input";
 import {
   Select,
   SelectContent,
@@ -31,6 +33,13 @@ import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { formatCurrency } from "@/lib/currency";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
 import { formatExpiryDate, lotStatus, DEFAULT_EXPIRY_ALERT_DAYS } from "@/lib/expiry";
+import { signedStockDelta } from "@/lib/quantity";
+import {
+  alignDirectionToReason,
+  alignReasonToDirection,
+  type StockAdjustReason,
+  type StockDirection,
+} from "@/features/inventory/stock-adjust";
 import { showError } from "@/lib/errors";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -93,8 +102,9 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
   const [restockOpen, setRestockOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archivePending, setArchivePending] = useState(false);
-  const [quantityChange, setQuantityChange] = useState("0");
-  const [reason, setReason] = useState<"receive" | "adjustment" | "damage" | "return">("receive");
+  const [quantity, setQuantity] = useState("");
+  const [direction, setDirection] = useState<StockDirection>("add");
+  const [reason, setReason] = useState<StockAdjustReason>("receive");
   const [note, setNote] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [writeOffPending, setWriteOffPending] = useState(false);
@@ -196,13 +206,18 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
 
   async function onRestock(event: FormEvent) {
     event.preventDefault();
+    const quantityChange = signedStockDelta(direction, quantity);
+    if (quantityChange === null) {
+      toast.error("Enter how many units to add or remove");
+      return;
+    }
     try {
       const kind = await persistBusinessWrite({
         online,
         remote: () =>
           adjustStock({
             productId,
-            quantityChange: Number(quantityChange),
+            quantityChange,
             reason,
             note: note || undefined,
             expiryDate: expiryDate || undefined,
@@ -210,7 +225,7 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
         local: () =>
           queueAdjustStock({
             productId,
-            quantityChange: Number(quantityChange),
+            quantityChange,
             reason,
             note: note || undefined,
             expiryDate: expiryDate || undefined,
@@ -218,7 +233,8 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
       });
       toast.success(queuedSaveMessage(kind, "Stock updated"));
       setRestockOpen(false);
-      setQuantityChange("0");
+      setQuantity("");
+      setDirection("add");
       setNote("");
       setExpiryDate("");
       setReason("receive");
@@ -276,7 +292,8 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                   label: "Restock",
                   icon: PackagePlus,
                   onClick: () => {
-                    setQuantityChange("0");
+                    setQuantity("");
+                    setDirection("add");
                     setReason("receive");
                     setNote("");
                     setExpiryDate("");
@@ -307,7 +324,8 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setQuantityChange("0");
+                    setQuantity("");
+                    setDirection("add");
                     setReason("receive");
                     setNote("");
                     setExpiryDate("");
@@ -518,19 +536,36 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                   Current stock: {product.stockQuantity} {product.unit}
                 </p>
                 <div className="space-y-2">
-                  <Label htmlFor="qty-change">Quantity change</Label>
-                  <Input
+                  <Label>Direction</Label>
+                  <Tabs
+                    value={direction}
+                    onValueChange={(value) => {
+                      const next = value as StockDirection;
+                      setDirection(next);
+                      setReason(alignReasonToDirection(next, reason));
+                    }}
+                  >
+                    <TabsList className="w-full">
+                      <TabsTrigger value="add" className="flex-1">
+                        Add stock
+                      </TabsTrigger>
+                      <TabsTrigger value="remove" className="flex-1">
+                        Remove stock
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="qty-change">Quantity</Label>
+                  <UnsignedQuantityInput
                     id="qty-change"
-                    type="number"
-                    value={quantityChange}
-                    onChange={(e) => setQuantityChange(e.target.value)}
+                    value={quantity}
+                    onValueChange={setQuantity}
+                    placeholder="How many units"
                     required
                   />
-                  <p className="text-muted-foreground text-xs">
-                    Use a positive number to receive stock, negative to remove.
-                  </p>
                 </div>
-                {tracksExpiry && Number(quantityChange) > 0 ? (
+                {tracksExpiry && direction === "add" ? (
                   <div className="space-y-2">
                     <Label htmlFor="restock-expiry">Expiry date</Label>
                     <Input
@@ -546,18 +581,28 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                   <Label>Reason</Label>
                   <Select
                     value={reason}
-                    onValueChange={(v) =>
-                      setReason(v as "receive" | "adjustment" | "damage" | "return")
-                    }
+                    onValueChange={(value) => {
+                      const next = value as StockAdjustReason;
+                      setReason(next);
+                      setDirection(alignDirectionToReason(next, direction));
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="receive">Receive</SelectItem>
-                      <SelectItem value="adjustment">Adjustment</SelectItem>
-                      <SelectItem value="damage">Damage</SelectItem>
-                      <SelectItem value="return">Return</SelectItem>
+                      {direction === "add" ? (
+                        <>
+                          <SelectItem value="receive">Receive</SelectItem>
+                          <SelectItem value="return">Customer return</SelectItem>
+                          <SelectItem value="adjustment">Adjustment</SelectItem>
+                        </>
+                      ) : (
+                        <>
+                          <SelectItem value="damage">Damage</SelectItem>
+                          <SelectItem value="adjustment">Adjustment</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

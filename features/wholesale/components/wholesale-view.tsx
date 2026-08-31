@@ -7,6 +7,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { UnsignedQuantityInput } from "@/components/ui/unsigned-quantity-input";
 import { BarcodeSearchField } from "@/components/hardware/barcode-search-field";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -418,13 +419,7 @@ export function WholesaleView() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Quantity</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    required
-                  />
+                  <UnsignedQuantityInput value={quantity} onValueChange={setQuantity} required />
                 </div>
                 <div className="space-y-2">
                   <Label>Cost price</Label>
@@ -526,13 +521,7 @@ export function WholesaleView() {
               ) : null}
               <div className="space-y-2">
                 <Label>Quantity</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={issueQty}
-                  onChange={(e) => setIssueQty(e.target.value)}
-                  required
-                />
+                <UnsignedQuantityInput value={issueQty} onValueChange={setIssueQty} required />
               </div>
             </div>
             <DialogFooter>

@@ -24,7 +24,7 @@ import { estimateReturnRefund } from "@/lib/sales/returns";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { RETURN_REASON_OPTIONS } from "../constants";
-import { Minus, Plus } from "lucide-react";
+import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { processReturnLocally } from "@/lib/offline/returns-repository";
@@ -230,29 +230,14 @@ export function ReturnOrderDialog({
                         {formatCurrency(item.unitPrice)}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        aria-label={`Decrease ${item.productName}`}
-                        disabled={mode === "full" || qty <= 0}
-                        onClick={() => setQty(item.id, qty - 1, item.remainingQuantity)}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <span className="w-8 text-center text-sm font-semibold">{qty}</span>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        aria-label={`Increase ${item.productName}`}
-                        disabled={mode === "full" || qty >= item.remainingQuantity}
-                        onClick={() => setQty(item.id, qty + 1, item.remainingQuantity)}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <QuantityStepper
+                      value={qty}
+                      min={0}
+                      max={item.remainingQuantity}
+                      disabled={mode === "full"}
+                      aria-label={`Return quantity for ${item.productName}`}
+                      onChange={(next) => setQty(item.id, next, item.remainingQuantity)}
+                    />
                   </div>
                 );
               })

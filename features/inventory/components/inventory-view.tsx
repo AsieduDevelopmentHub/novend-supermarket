@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UnsignedQuantityInput } from "@/components/ui/unsigned-quantity-input";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +39,13 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCategoriesList, useInventoryList, useBranchesList } from "@/hooks/use-offline-lists";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
 import { formatExpiryDate } from "@/lib/expiry";
+import { signedStockDelta } from "@/lib/quantity";
+import {
+  alignDirectionToReason,
+  alignReasonToDirection,
+  type StockAdjustReason,
+  type StockDirection,
+} from "@/features/inventory/stock-adjust";
 import { ArrowLeftRight, Boxes, Eye, Package } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -73,10 +82,9 @@ function InventoryViewInner() {
   const [adjustId, setAdjustId] = useState<Id<"products"> | null>(null);
   const [adjustBranchId, setAdjustBranchId] = useState<Id<"branches"> | "">("");
   const [transferOpen, setTransferOpen] = useState(false);
-  const [quantityChange, setQuantityChange] = useState("0");
-  const [reason, setReason] = useState<"receive" | "adjustment" | "damage" | "return">(
-    "adjustment",
-  );
+  const [quantity, setQuantity] = useState("");
+  const [direction, setDirection] = useState<StockDirection>("add");
+  const [reason, setReason] = useState<StockAdjustReason>("receive");
   const [note, setNote] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
 
@@ -164,13 +172,18 @@ function InventoryViewInner() {
       toast.error("Select a branch for this adjustment");
       return;
     }
+    const quantityChange = signedStockDelta(direction, quantity);
+    if (quantityChange === null) {
+      toast.error("Enter how many units to add or remove");
+      return;
+    }
     try {
       const kind = await persistBusinessWrite({
         online,
         remote: () =>
           adjustStock({
             productId: adjustId,
-            quantityChange: Number(quantityChange),
+            quantityChange,
             reason,
             note: note || undefined,
             branchId,
@@ -180,7 +193,7 @@ function InventoryViewInner() {
           queueAdjustStock({
             productId: adjustId,
             branchId,
-            quantityChange: Number(quantityChange),
+            quantityChange,
             reason,
             note: note || undefined,
             expiryDate: expiryDate || undefined,
@@ -189,7 +202,9 @@ function InventoryViewInner() {
       toast.success(queuedSaveMessage(kind, "Stock updated"));
       setAdjustId(null);
       setAdjustBranchId("");
-      setQuantityChange("0");
+      setQuantity("");
+      setDirection("add");
+      setReason("receive");
       setNote("");
       setExpiryDate("");
     } catch (error) {
@@ -200,6 +215,9 @@ function InventoryViewInner() {
   function openAdjust(productId: Id<"products">) {
     setAdjustId(productId);
     setAdjustBranchId(listBranchId ?? myBranchId ?? "");
+    setQuantity("");
+    setDirection("add");
+    setReason("receive");
     setExpiryDate("");
   }
 
@@ -498,7 +516,7 @@ function InventoryViewInner() {
                           type="button"
                           size="sm"
                           variant="outline"
-                        data-tour="inventory-adjustment"
+                          data-tour="inventory-adjustment"
                           onClick={() => openAdjust(row.id)}
                         >
                           Adjust
@@ -536,17 +554,36 @@ function InventoryViewInner() {
               </div>
             ) : null}
             <div className="space-y-2">
-              <Label htmlFor="qty">Quantity change</Label>
-              <Input
+              <Label>Direction</Label>
+              <Tabs
+                value={direction}
+                onValueChange={(value) => {
+                  const next = value as StockDirection;
+                  setDirection(next);
+                  setReason(alignReasonToDirection(next, reason));
+                }}
+              >
+                <TabsList className="w-full">
+                  <TabsTrigger value="add" className="flex-1">
+                    Add stock
+                  </TabsTrigger>
+                  <TabsTrigger value="remove" className="flex-1">
+                    Remove stock
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="qty">Quantity</Label>
+              <UnsignedQuantityInput
                 id="qty"
-                type="number"
-                step="1"
-                value={quantityChange}
-                onChange={(e) => setQuantityChange(e.target.value)}
+                value={quantity}
+                onValueChange={setQuantity}
+                placeholder="How many units"
                 required
               />
             </div>
-            {selected?.tracksExpiry && Number(quantityChange) > 0 ? (
+            {selected?.tracksExpiry && direction === "add" ? (
               <div className="space-y-2">
                 <Label htmlFor="expiry">Expiry date</Label>
                 <Input
@@ -560,15 +597,30 @@ function InventoryViewInner() {
             ) : null}
             <div className="space-y-2">
               <Label>Reason</Label>
-              <Select value={reason} onValueChange={(v) => setReason(v as typeof reason)}>
+              <Select
+                value={reason}
+                onValueChange={(value) => {
+                  const next = value as StockAdjustReason;
+                  setReason(next);
+                  setDirection(alignDirectionToReason(next, direction));
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="receive">Found stock</SelectItem>
-                  <SelectItem value="adjustment">Adjustment</SelectItem>
-                  <SelectItem value="damage">Damage</SelectItem>
-                  <SelectItem value="return">Return</SelectItem>
+                  {direction === "add" ? (
+                    <>
+                      <SelectItem value="receive">Found stock</SelectItem>
+                      <SelectItem value="return">Customer return</SelectItem>
+                      <SelectItem value="adjustment">Adjustment</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="damage">Damage</SelectItem>
+                      <SelectItem value="adjustment">Adjustment</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -658,13 +710,10 @@ function InventoryViewInner() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="transfer-qty">Quantity</Label>
-              <Input
+              <UnsignedQuantityInput
                 id="transfer-qty"
-                type="number"
-                min="1"
-                step="1"
                 value={transferQty}
-                onChange={(e) => setTransferQty(e.target.value)}
+                onValueChange={setTransferQty}
                 required
               />
             </div>
