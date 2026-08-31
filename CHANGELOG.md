@@ -8,6 +8,17 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.14 — 2026-08-30
+
+Android APK and Convex mobile updates only. Desktop installers stay on v0.3.11 until the next full (`targets: all`) product release.
+
+### Fixed
+
+- Vercel production typecheck: camera dialogs no longer pass `undefined` into `setError`.
+- Settings → Security reads notifications and biometrics through `window.NovendNative` (system notification settings and `BiometricPrompt`) instead of hung Capacitor plugins.
+
+---
+
 ## v0.3.13 — 2026-08-30
 
 Android APK and Convex mobile updates only. Desktop installers stay on v0.3.11 until the next full (`targets: all`) product release.
