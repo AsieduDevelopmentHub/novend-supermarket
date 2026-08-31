@@ -53,3 +53,45 @@ The following audit items require external operational systems or evidence and a
 4. Publish the mobile release metadata and mark `mandatory=true` only when the minimum supported version is ready.
 5. Disable `BOOTSTRAP_PLATFORM_ENABLED` / `BOOTSTRAP_ADMIN_ENABLED` after first provisioning.
 6. Run the staging device, billing webhook, multi-tenant IDOR, backup restore, accessibility, and recovery checks before customer scale.
+
+## 2026-08-31 sanitization pass
+
+Source: in-repo review of unused modules, tenant isolation, and Convex read cost.
+New indexes require a Convex deploy before production uses them.
+
+### Removed
+
+Unused modules and assets: `lib/sanitize.ts`, `constants/journey-step-frame.ts`,
+`components/desktop-install-banner.tsx`, `components/offline/offline-admin-shell.tsx`,
+dead marketing hero stages (`landing-atmosphere`, `landing-dashboard-stage`,
+`landing-pos-stage`, `use-landing-hero-parallax`), `services/index.ts`, and the
+superseded v3 hero PNG. Presence and `roundMoney` client helpers now share one
+implementation.
+
+### Security
+
+| Item                  | Change                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| Cost price on returns | `returns.preview` omits `unitCost` unless `canViewCostPrice`                          |
+| Document uniqueness   | Return numbers and purchase references are unique per organization                    |
+| Profile insert        | `insertProfileForUser` requires `organizationId` and matching branch                  |
+| Business settings     | `settings.getBusiness` is administrator/manager only                                  |
+| Paystack activation   | `applySuccessfulPayment` refuses to activate without an existing `billingHistory` row |
+| Login probe           | Public `registrationStatus` query removed from the login form                         |
+
+### Convex read cost
+
+- `collectSalesInCompletedAtRange` / `collectExpensesInOccurredAtRange` /
+  `collectSaleItemsForSales` in `convex/shared/salesRange.ts`
+- `sales.listOrders` uses `.take(fetchCap)` on `by_organization_completedAt`
+- Analytics COGS uses one org `products` collect instead of per-product `db.get`
+
+### Still open
+
+- Live two-organization IDOR suite
+- Platform dashboard full-table collects (`platform.ts`, `platformAnalytics.ts`,
+  `platformMonitoring.ts`)
+- `offline.getSnapshot` remains a bulk hydrate by design
+- Login / bootstrap brute-force depends on Convex Auth and edge throttling
+- `convex/dashboard.ts` is unused by the app UI (Dexie-backed dashboard); left
+  in place but now range-indexed so a future subscriber is cheap

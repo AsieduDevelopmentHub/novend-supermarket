@@ -10,6 +10,7 @@ import {
 import { stockMapForBranch } from "./shared/branchStock";
 import { deriveExpiryListFields, lotSummaries } from "./shared/lots";
 import { completedReturnsInRange, loadItemsForReturns } from "./shared/returns";
+import { collectSaleItemsForSales, collectSalesInCompletedAtRange } from "./shared/salesRange";
 
 function startOfToday() {
   const now = new Date();
@@ -30,11 +31,10 @@ export const summary = query({
     const manager = isManager(profile);
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
     const since = admin || manager ? daysAgo(30) : startOfToday();
+    const rangeStart = Math.min(since, daysAgo(7));
+    const now = Date.now();
 
-    const sales = await ctx.db
-      .query("sales")
-      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-      .collect();
+    const sales = await collectSalesInCompletedAtRange(ctx, organizationId, rangeStart, now);
 
     const scoped = sales.filter((sale) => {
       if (sale.completedAt < since) return false;
@@ -94,10 +94,10 @@ export const summary = query({
       .collect();
     const categoryMap = new Map(categories.map((c) => [c._id, c.name]));
 
-    const saleItems = await ctx.db
-      .query("saleItems")
-      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-      .collect();
+    const saleItems = await collectSaleItemsForSales(
+      ctx,
+      scoped.map((s) => s._id),
+    );
     const productSales = new Map<
       string,
       { id: string; name: string; total: number; quantity: number }

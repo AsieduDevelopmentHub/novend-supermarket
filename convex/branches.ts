@@ -12,6 +12,11 @@ import {
 import { writeAuditLog } from "./shared/audit";
 import { ensureBranchStockRow, stockMapForBranch } from "./shared/branchStock";
 import { completedReturnsInRange, loadItemsForReturns, cogsForLines } from "./shared/returns";
+import {
+  collectExpensesInOccurredAtRange,
+  collectSaleItemsForSales,
+  collectSalesInCompletedAtRange,
+} from "./shared/salesRange";
 
 function toBranchDto(doc: Doc<"branches">) {
   return {
@@ -151,31 +156,23 @@ export const getOverview = query({
     }
 
     const since = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const sales = (
-      await ctx.db
-        .query("sales")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect()
-    ).filter((s) => s.branchId === args.id && s.completedAt >= since);
+    const now = Date.now();
+    const sales = (await collectSalesInCompletedAtRange(ctx, organizationId, since, now)).filter(
+      (s) => s.branchId === args.id,
+    );
     const returns = await completedReturnsInRange(ctx, {
       startDate: since,
-      endDate: Date.now(),
+      endDate: now,
       organizationId,
       branchId: args.id,
     });
     const expenses = (
-      await ctx.db
-        .query("expenses")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect()
-    ).filter((e) => e.branchId === args.id && e.occurredAt >= since);
-    const saleIds = new Set(sales.map((s) => s._id));
-    const items = (
-      await ctx.db
-        .query("saleItems")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect()
-    ).filter((i) => saleIds.has(i.saleId));
+      await collectExpensesInOccurredAtRange(ctx, organizationId, since, now)
+    ).filter((e) => e.branchId === args.id);
+    const items = await collectSaleItemsForSales(
+      ctx,
+      sales.map((s) => s._id),
+    );
     const returnItems = await loadItemsForReturns(
       ctx,
       returns.map((row) => row._id),

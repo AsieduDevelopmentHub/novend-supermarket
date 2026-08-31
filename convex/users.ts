@@ -7,7 +7,7 @@ import {
   retrieveAccount,
 } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { action, internalMutation, mutation, query } from "./_generated/server";
+import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import {
   getPlatformAdmin,
@@ -124,13 +124,10 @@ export const current = query({
   },
 });
 
-/** Public: used by login to show provisioned vs not-yet-bootstrapped messaging. */
-export const registrationStatus = query({
+/** Internal: bootstrap refuses once any staff profile exists. */
+export const hasAnyStaffProfile = internalQuery({
   args: {},
   handler: async (ctx) => {
-    // Commercial signup is always open. Staff still cannot self-provision a profile.
-    // The flag is intentionally derived from the current deployment so the login
-    // screen never claims an unprovisioned system when an administrator exists.
     const existing = await ctx.db.query("profiles").take(1);
     return { hasUsers: existing.length > 0 };
   },
@@ -561,7 +558,7 @@ export const insertProfileForUser = internalMutation({
     branchId: v.id("branches"),
     phone: v.optional(v.string()),
     actorId: v.optional(v.id("users")),
-    organizationId: v.optional(v.id("organizations")),
+    organizationId: v.id("organizations"),
   },
   handler: async (ctx, args) => {
     const existing = await getProfileByUserId(ctx, args.userId);
@@ -569,12 +566,11 @@ export const insertProfileForUser = internalMutation({
 
     const branch = await ctx.db.get(args.branchId);
     if (!branch) throw new Error("Invalid branch");
-
-    if (args.organizationId && branch.organizationId !== args.organizationId) {
+    if (branch.organizationId !== args.organizationId) {
       throw new Error("Invalid branch");
     }
 
-    const organization = await ctx.db.get(branch.organizationId);
+    const organization = await ctx.db.get(args.organizationId);
     if (!organization) throw new Error("Invalid branch");
     await assertOrganizationCapacity(ctx, organization, "users");
 
@@ -706,7 +702,7 @@ export const bootstrapAdministrator = action({
       throw new Error("Invalid bootstrap secret");
     }
 
-    const status = await ctx.runQuery(api.users.registrationStatus, {});
+    const status = await ctx.runQuery(internal.users.hasAnyStaffProfile, {});
     if (status.hasUsers) {
       throw new Error("Administrator already provisioned. Use Users to create more accounts.");
     }

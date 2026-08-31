@@ -676,11 +676,3 @@ export async function drainOutbox(options: {
 
   return { processed, failed, skipped: false };
 }
-
-export function isSyncEngineBusy() {
-  return draining;
-}
-
-export function getSyncBackoffRemainingMs() {
-  return Math.max(0, backoffUntil - Date.now());
-}

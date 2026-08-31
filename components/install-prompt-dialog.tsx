@@ -364,8 +364,3 @@ export function InstallPromptDialog() {
     </InstallPromptErrorBoundary>
   );
 }
-
-/** @deprecated Use InstallPromptDialog */
-export function DesktopInstallBanner() {
-  return <InstallPromptDialog />;
-}

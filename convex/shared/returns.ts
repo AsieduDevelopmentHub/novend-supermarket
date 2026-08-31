@@ -109,25 +109,35 @@ export async function loadReturnedLotQty(ctx: Ctx, saleItemId: Id<"saleItems">) 
   return byLot;
 }
 
-async function returnNumberTaken(ctx: MutationCtx, returnNumber: string) {
+async function returnNumberTaken(
+  ctx: MutationCtx,
+  organizationId: Id<"organizations">,
+  returnNumber: string,
+) {
   const existing = await ctx.db
     .query("saleReturns")
-    .withIndex("by_returnNumber", (q) => q.eq("returnNumber", returnNumber))
+    .withIndex("by_organization_returnNumber", (q) =>
+      q.eq("organizationId", organizationId).eq("returnNumber", returnNumber),
+    )
     .unique();
   return existing !== null;
 }
 
-export async function nextReturnNumber(ctx: MutationCtx, requested?: string) {
+export async function nextReturnNumber(
+  ctx: MutationCtx,
+  organizationId: Id<"organizations">,
+  requested?: string,
+) {
   if (requested?.trim()) {
     const returnNumber = sanitizeReturnNumber(requested);
-    if (await returnNumberTaken(ctx, returnNumber)) {
+    if (await returnNumberTaken(ctx, organizationId, returnNumber)) {
       throw new Error("This return number is already used");
     }
     return returnNumber;
   }
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const reference = allocateReturnNumber();
-    if (!(await returnNumberTaken(ctx, reference))) return reference;
+    if (!(await returnNumberTaken(ctx, organizationId, reference))) return reference;
   }
   throw new Error("Could not allocate a unique return reference");
 }
@@ -174,11 +184,15 @@ export async function completedReturnsInRange(
 ) {
   const rows = await ctx.db
     .query("saleReturns")
-    .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+    .withIndex("by_organization_completedAt", (q) =>
+      q
+        .eq("organizationId", args.organizationId)
+        .gte("completedAt", args.startDate)
+        .lte("completedAt", args.endDate),
+    )
     .collect();
   return rows.filter((row) => {
     if (row.status !== "completed") return false;
-    if (row.completedAt < args.startDate || row.completedAt > args.endDate) return false;
     if (args.branchId && row.branchId !== args.branchId) return false;
     if (args.cashierSaleIds && !args.cashierSaleIds.has(row.saleId)) return false;
     return true;

@@ -6,7 +6,7 @@ import { applyBranchStockChange } from "./shared/branchStock";
 import { increaseLot, productTracksExpiry } from "./shared/lots";
 import { writeAuditLog } from "./shared/audit";
 import { rememberClientOp, replayClientOp } from "./shared/clientOps";
-import { randomHexId } from "./shared/randomId";
+import { allocatePurchaseReference } from "./shared/documentReferences";
 import {
   productMatchesLookup,
   assertPositiveMoney,
@@ -306,10 +306,12 @@ export const recordPurchase = mutation({
 
     let reference: string | null = null;
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const candidate = `PO-${randomHexId(16)}`;
+      const candidate = allocatePurchaseReference();
       const existing = await ctx.db
         .query("supplierPurchases")
-        .withIndex("by_reference", (q) => q.eq("reference", candidate))
+        .withIndex("by_organization_reference", (q) =>
+          q.eq("organizationId", organizationId).eq("reference", candidate),
+        )
         .unique();
       if (!existing) {
         reference = candidate;

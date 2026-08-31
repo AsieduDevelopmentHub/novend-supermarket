@@ -499,7 +499,8 @@ export default defineSchema({
     .index("by_organization", ["organizationId"])
     .index("by_supplier", ["supplierId"])
     .index("by_purchasedAt", ["purchasedAt"])
-    .index("by_reference", ["reference"]),
+    .index("by_reference", ["reference"])
+    .index("by_organization_reference", ["organizationId", "reference"]),
 
   supplierPurchaseItems: defineTable({
     organizationId: v.id("organizations"),
@@ -606,6 +607,8 @@ export default defineSchema({
   })
     .index("by_organization", ["organizationId"])
     .index("by_returnNumber", ["returnNumber"])
+    .index("by_organization_returnNumber", ["organizationId", "returnNumber"])
+    .index("by_organization_completedAt", ["organizationId", "completedAt"])
     .index("by_sale", ["saleId"])
     .index("by_branch", ["branchId"])
     .index("by_completedAt", ["completedAt"])
@@ -666,6 +669,7 @@ export default defineSchema({
   })
     .index("by_organization", ["organizationId"])
     .index("by_occurredAt", ["occurredAt"])
+    .index("by_organization_occurredAt", ["organizationId", "occurredAt"])
     .index("by_category", ["category"])
     .index("by_branch", ["branchId"]),
 
