@@ -8,6 +8,17 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.16 — 2026-08-31
+
+Android APK and Convex mobile updates only. Desktop installers stay on v0.3.11 until the next full (`targets: all`) product release.
+
+### Fixed
+
+- Settings → Biometrics accepts Class 2 fingerprints (the kind most phones use to unlock). Strong-only checks had shown **Try again** even when a fingerprint was enrolled. Class 3 devices still allow the Android PIN/pattern fallback; Class 2-only prompts use Cancel.
+- Capacitor logout, login shell, session snapshot, unauthenticated billing, emulator update-check skip, and admin dashboard role flash (#33–#35). Those were already on hosted web; this tag ships them in the native update channel.
+
+---
+
 ## v0.3.15 — 2026-08-31
 
 Android APK and Convex mobile updates only. Desktop installers stay on v0.3.11 until the next full (`targets: all`) product release.

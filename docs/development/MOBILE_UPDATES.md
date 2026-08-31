@@ -135,8 +135,8 @@ fails the Android job; there is no debug-signing fallback for release artifacts.
 After updating the package version and changelog, squash-merge to `main`, then tag:
 
 ```bash
-git tag v0.3.15
-git push origin v0.3.15
+git tag v0.3.16
+git push origin v0.3.16
 ```
 
 ## HTTP endpoints
