@@ -1,6 +1,6 @@
 # Hardware architecture
 
-Version: 1.4.11
+Version: 1.4.12
 
 ## Purpose
 
@@ -57,7 +57,7 @@ UI components must not call Electron preload or Capacitor plugins directly.
 | Barcode (camera)        | In-dialog getUserMedia → bundled **ZXing**. Photograph-barcode is a manual fallback only. |
 | Barcode (HID)           | Terminal wedge config + `useBarcodeScanner` (desktop primary)                                                      |
 | Bluetooth thermal print | Settings test path only. After-sale print is not offered on Capacitor. |
-| Biometrics              | Status + prompt via `window.NovendNative` (`BiometricManager` / `BiometricPrompt`). Unlock token only. |
+| Biometrics              | Status via `BiometricManager.BIOMETRIC_WEAK` (includes Class 3). Prompt prefers Class 3 + device PIN; Class 2-only phones use weak + Cancel. Unlock token only. |
 | Secure storage          | `@aparajita/capacitor-secure-storage` for unlock token                                                             |
 | Notifications           | Check/open via `window.NovendNative` (`NotificationManagerCompat` + system notification settings). Topic prefs use `localStorage`. |
 | Deep links              | `novend://sale/…`, `novend://product/…` via `Hardware.app`                                                         |

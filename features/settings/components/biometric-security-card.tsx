@@ -207,7 +207,7 @@ export function BiometricSecurityCard() {
             size="sm"
             onClick={() => void refreshAvailability()}
           >
-            Try again
+            {uiState === "error" ? "Try again" : "Check again"}
           </Button>
         </CardContent>
       </Card>
