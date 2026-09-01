@@ -21,6 +21,7 @@ import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
 import { markLocalReturnFailed, markLocalReturnSynced } from "./returns-repository";
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
 import { isSyncBusinessConflict, isSyncDependencyWait } from "./sync-errors";
+import { shouldMarkOutboxFailed } from "./outbox-policy";
 import { rekeyProductImage } from "./image-cache";
 import type {
   AdjustStockPayload,
@@ -329,20 +330,8 @@ export async function drainOutbox(options: {
     }
 
     const pending = await listPendingOutbox(db);
-    const conflictRows: typeof pending = [];
-    const uploadRows: typeof pending = [];
-    for (const row of pending) {
-      if (!options.force && row.lastError && isSyncBusinessConflict(row.lastError)) {
-        conflictRows.push(row);
-      } else {
-        uploadRows.push(row);
-      }
-    }
-    for (const row of conflictRows) {
-      await markOutboxFailed(db, row.id, row.lastError ?? "Rejected");
-      failed += 1;
-    }
-    for (const row of sortOutboxForDrain(uploadRows)) {
+    const uploadRows = sortOutboxForDrain(pending);
+    for (const row of uploadRows) {
       const claimed = await claimOutboxRow(db, row.id);
       if (!claimed) continue;
 
@@ -747,7 +736,7 @@ export async function drainOutbox(options: {
         const raw = error instanceof Error ? error.message : "Sync failed";
         const message = toUserMessage(error, "Sync failed");
         lastError = message;
-        if (isSyncBusinessConflict(raw)) {
+        if (isSyncBusinessConflict(raw) && shouldMarkOutboxFailed(claimed.attempts, raw)) {
           if (claimed.type === "process_return") {
             const payload = parseProcessReturnPayload(claimed);
             await markOutboxFailed(db, claimed.id, message);
@@ -760,6 +749,12 @@ export async function drainOutbox(options: {
             await markOutboxFailed(db, claimed.id, message);
           }
           failed += 1;
+        } else if (isSyncBusinessConflict(raw)) {
+          await markOutboxPending(db, claimed.id, message);
+          consecutiveTransientFailures += 1;
+          backoffUntil =
+            Date.now() + nextBackoffMs(Math.max(claimed.attempts, consecutiveTransientFailures));
+          break;
         } else {
           // Network / transient — leave pending with exponential backoff
           await markOutboxPending(db, claimed.id, message);

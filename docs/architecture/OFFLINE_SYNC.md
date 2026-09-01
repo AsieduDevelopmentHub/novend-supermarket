@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.25
+Version: 2.4.26
 
 ## Purpose
 
@@ -42,7 +42,10 @@ Convex (when online)
    **imports** use the same outbox: Dexie first, then Convex `createProduct` /
    `updateProduct`. Catalog CSV/Excel exports read the local list and work offline.
 4. `OfflineProvider` drains the outbox in the background. Forms return as soon as
-   Dexie succeeds — loading spinners never wait on Convex. After a successful
+   Dexie succeeds — loading spinners never wait on Convex. **Background drains are
+   silent** — the shell never shows a global “Syncing…” spinner. The sidebar chip
+   shows queued / synced / needs-attention only; explicit upload progress appears
+   in **Sync Center** when the user taps Sync now. After a successful
    Convex write, the matching `local_*` Dexie row is deleted. Snapshot merge and
    list reads also drop a pending local row when Convex already has the same
    business identity (purchase invoice, transfer, return number, expense,
@@ -163,12 +166,14 @@ purchase that creates a product waits for the product outbox row to sync (local
 ids are remapped) before the purchase mutation runs.
 
 The sidebar chip is the only always-on offline indicator. The top banner
-appears only for active uploads and sync conflicts. **Sync Center** (from the
-chip) lists waiting uploads, server conflicts, and recently synced events.
-**Sync now** bypasses retry backoff and re-queues failed rows. Validation
-rejections (expiry, SKU, stock, forbidden) are conflicts — they do not stay in
-Waiting and they do not stop later events in the queue. Fix updates the same
-outbox payload so Retry does not resend the rejected data.
+appears only when sync items need attention (failed / exhausted retries). **Sync
+Center** (from the chip) lists waiting uploads, server conflicts, and recently
+synced events. **Sync now** bypasses retry backoff and re-queues failed rows.
+Transient network failures stay `pending` with exponential backoff (see
+`lib/offline/outbox-policy.ts`). Definitive validation rejections (expiry, SKU,
+stock, forbidden) move to `failed` immediately; ambiguous errors retry up to
+`MAX_OUTBOX_UPLOAD_ATTEMPTS` before surfacing as needs attention. Fix updates the
+same outbox payload so Retry does not resend the rejected data.
 
 ## Offline navigation
 

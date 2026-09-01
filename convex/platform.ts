@@ -17,8 +17,10 @@ import {
   loadOrganizationImportExport,
 } from "./shared/importExportSnapshot";
 import { resolveLicense, getActiveSubscription } from "./shared/entitlements";
+import { hasPendingOrganizationClosure } from "./shared/accountClosure";
 import { provisionOrganization } from "./shared/provisionOrganization";
 import { GRACE_PERIOD_MS } from "./shared/licensing";
+import { archiveOrganizationRecord } from "./shared/accountClosure";
 
 export const me = query({
   args: {},
@@ -313,6 +315,10 @@ export const getOrganization = query({
       name: org.name,
       slug: org.slug,
       status: org.status,
+      pendingClosure: hasPendingOrganizationClosure(org, now),
+      closureRequestedAt: org.closureRequestedAt ?? null,
+      closureEffectiveAt: org.closureEffectiveAt ?? null,
+      closureReason: org.closureReason ?? null,
       country: org.country ?? null,
       planKey: resolvePlan(org.planKey).key,
       plan: resolvePlan(org.planKey).name,
@@ -563,31 +569,12 @@ export const archiveOrganization = mutation({
       throw new Error("Type the exact organization name to confirm.");
     }
 
-    const devices = await ctx.db
-      .query("devices")
-      .withIndex("by_organization_active", (q) =>
-        q.eq("organizationId", args.organizationId).eq("isActive", true),
-      )
-      .collect();
-    const now = Date.now();
-    for (const device of devices) {
-      await ctx.db.patch(device._id, {
-        isActive: false,
-        deactivatedAt: now,
-        deactivatedBy: userId,
-      });
-    }
-
-    await ctx.db.patch(args.organizationId, { status: "disabled", updatedAt: now });
-    await writeAuditLog(ctx, {
+    const { deactivatedDevices } = await archiveOrganizationRecord(ctx, {
       organizationId: args.organizationId,
       actorId: userId,
-      action: "platform_archive_organization",
-      entityType: "organizations",
-      entityId: args.organizationId,
-      metadata: { deactivatedDevices: devices.length },
+      auditAction: "platform_archive_organization",
     });
-    return { archived: true };
+    return { archived: true, deactivatedDevices };
   },
 });
 

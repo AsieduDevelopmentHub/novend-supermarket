@@ -45,12 +45,12 @@ Every Convex query/mutation/action that touches business data must:
 
 Hiding a button is not authorization.
 
-| Role          | Capabilities                                                                                          |
-| ------------- | ----------------------------------------------------------------------------------------------------- |
-| Cashier       | Sales, hold/resume, receipts, own orders/returns, customer lookup                                     |
-| Manager       | Branch ops, catalog, inventory, cashiers in branch, staff performance (not payroll)                   |
-| Administrator | Organization-wide, including users, settings, salary/commission (Pro+)                                |
-| Owner         | Administrator + cannot be deactivated in this slice                                                   |
+| Role          | Capabilities                                                                        |
+| ------------- | ----------------------------------------------------------------------------------- |
+| Cashier       | Sales, hold/resume, receipts, own orders/returns, customer lookup                   |
+| Manager       | Branch ops, catalog, inventory, cashiers in branch, staff performance (not payroll) |
+| Administrator | Organization-wide, including users, settings, salary/commission (Pro+)              |
+| Owner         | Administrator + cannot be deactivated in this slice                                 |
 
 A user cannot set their own account inactive. A signed-in (online) account
 cannot be set inactive until they sign out. Convex enforces both; hiding the

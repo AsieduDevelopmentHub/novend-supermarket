@@ -1,7 +1,12 @@
 import { roundMoney } from "@/lib/currency";
 import { computeCommissionEarned, isPayrollExpense, periodBounds } from "@/convex/shared/payroll";
 import { getOfflineDb } from "./db";
-import type { MirroredExpense, MirroredOrder, MirroredReturn, MirroredStaffCompensation } from "./types";
+import type {
+  MirroredExpense,
+  MirroredOrder,
+  MirroredReturn,
+  MirroredStaffCompensation,
+} from "./types";
 
 export type LocalStaffPerformance = {
   profileId: string;

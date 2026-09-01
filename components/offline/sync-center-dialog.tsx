@@ -19,13 +19,13 @@ import { listOpenOutbox, listRecentSyncedOutbox } from "@/lib/offline/outbox";
 import { discardOutboxEvent, retryOutboxEvent } from "@/lib/offline/outbox-actions";
 import { describeOutboxEvent, outboxFixPath, outboxStatusLabel } from "@/lib/offline/outbox-labels";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
-import { isSyncBusinessConflict } from "@/lib/offline/sync-errors";
+import { shouldMarkOutboxFailed } from "@/lib/offline/outbox-policy";
 import type { OutboxRow } from "@/lib/offline/types";
 import { useOfflineStatus } from "@/providers/offline-provider";
 
 function isDisplayedConflict(row: OutboxRow) {
   if (row.status === "failed") return true;
-  return Boolean(row.lastError && isSyncBusinessConflict(row.lastError));
+  return Boolean(row.lastError && shouldMarkOutboxFailed(row.attempts, row.lastError));
 }
 
 function statusVariant(row: OutboxRow) {
@@ -183,14 +183,14 @@ export function SyncCenterDialog() {
       return;
     }
     await pullSnapshot({ force: true });
-    await flushOutbox({ force: true });
+    await flushOutbox({ force: true, showProgress: true });
     await reload();
   }
 
   async function onRetry(row: OutboxRow) {
     await retryOutboxEvent(row.id);
     toast.message("Retry queued");
-    await flushOutbox({ force: true });
+    await flushOutbox({ force: true, showProgress: true });
     await reload();
   }
 

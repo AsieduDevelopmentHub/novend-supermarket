@@ -189,6 +189,12 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
+    /** Owner-initiated closure; org stays recoverable until `closureEffectiveAt`. */
+    closureRequestedAt: v.optional(v.number()),
+    closureEffectiveAt: v.optional(v.number()),
+    closureRequestedBy: v.optional(v.id("users")),
+    closureReason: v.optional(v.string()),
+    closurePreviousStatus: v.optional(organizationStatusValidator),
   })
     .index("by_slug", ["slug"])
     .index("by_ownerUserId", ["ownerUserId"])
@@ -384,6 +390,7 @@ export default defineSchema({
     lastDevice: v.optional(v.string()),
     deactivatedAt: v.optional(v.number()),
     deactivatedBy: v.optional(v.id("users")),
+    accountDeletionRequestedAt: v.optional(v.number()),
     appearanceTheme: v.optional(
       v.union(v.literal("light"), v.literal("dark"), v.literal("system")),
     ),

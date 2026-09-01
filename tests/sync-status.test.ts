@@ -16,7 +16,7 @@ describe("describeSyncStatus", () => {
     });
   });
 
-  it("shows queued while online until a drain is actually running", () => {
+  it("shows queued while online with pending work", () => {
     expect(
       describeSyncStatus({
         online: true,
@@ -30,7 +30,7 @@ describe("describeSyncStatus", () => {
     });
   });
 
-  it("shows syncing only while online and draining", () => {
+  it("keeps background drains silent even when syncing flag is set", () => {
     expect(
       describeSyncStatus({
         online: true,
@@ -39,8 +39,21 @@ describe("describeSyncStatus", () => {
         failedCount: 0,
       }),
     ).toMatchObject({
-      label: "Syncing…",
-      kind: "syncing",
+      label: "Queued for sync",
+      kind: "queued",
+    });
+  });
+
+  it("surfaces failed rows that need attention", () => {
+    expect(
+      describeSyncStatus({
+        online: true,
+        syncing: false,
+        pendingCount: 0,
+        failedCount: 2,
+      }),
+    ).toMatchObject({
+      kind: "conflict",
     });
   });
 });

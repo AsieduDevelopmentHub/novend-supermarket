@@ -30,7 +30,7 @@ import { toUserMessage } from "@/lib/errors";
 type OfflineContextValue = OfflineStatus & {
   refreshStatus: () => Promise<void>;
   pullSnapshot: (options?: { force?: boolean }) => Promise<void>;
-  flushOutbox: (options?: { force?: boolean }) => Promise<void>;
+  flushOutbox: (options?: { force?: boolean; showProgress?: boolean }) => Promise<void>;
   /** Force catalog mirror refresh + bump lastSyncAt so sales UI reloads. */
   refreshCatalog: () => Promise<void>;
   syncCenterOpen: boolean;
@@ -89,14 +89,15 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     const db = await getOfflineDb();
     const counts = await countOutboxByStatus();
     const open = await listOpenOutbox();
-    const queuedError = open.find((row) => row.lastError)?.lastError ?? null;
+    const failedError =
+      open.find((row) => row.status === "failed" && row.lastError)?.lastError ?? null;
     setStatus((prev) => ({
       ...prev,
       online: typeof navigator === "undefined" ? true : navigator.onLine,
       dexieAvailable: Boolean(db) || isOfflineDbAvailable(),
       pendingCount: counts.pending + counts.syncing,
       failedCount: counts.failed,
-      lastError: queuedError,
+      lastError: failedError,
     }));
   }, []);
 
@@ -135,7 +136,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   );
 
   const flushOutbox = useCallback(
-    async (options?: { force?: boolean }) => {
+    async (options?: { force?: boolean; showProgress?: boolean }) => {
       if (!navigator.onLine) return;
 
       const counts = await countOutboxByStatus();
@@ -159,9 +160,12 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       try {
         const result = await drainOutbox({
           force: options?.force === true,
-          onStart: () => {
-            setStatus((prev) => ({ ...prev, syncing: true }));
-          },
+          onStart:
+            options?.showProgress === true
+              ? () => {
+                  setStatus((prev) => ({ ...prev, syncing: true }));
+                }
+              : undefined,
           mutators: {
             completeSale: (args) => completeSale(args),
             processReturn: (args) => processReturn(args),

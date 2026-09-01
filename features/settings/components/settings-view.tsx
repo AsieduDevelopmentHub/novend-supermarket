@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { AppearancePanel } from "./appearance-panel";
 import { SecurityPanel } from "./security-panel";
+import { PrivacyDataPanel } from "./privacy-data-panel";
 import { BranchReceiptPanel } from "./branch-receipt-panel";
 import { ProfilePanel } from "./profile-panel";
 import { PrinterPanel } from "./printer-panel";
@@ -55,6 +56,7 @@ import {
   Receipt,
   ScanBarcode,
   Shield,
+  ShieldCheck,
   Store,
   UserRound,
   Wrench,
@@ -81,6 +83,7 @@ type SettingsTab =
   | "backup"
   | "appearance"
   | "security"
+  | "privacy"
   | "help";
 
 export function SettingsView() {
@@ -179,6 +182,7 @@ export function SettingsView() {
         { value: "backup" as const, label: "Backups", long: "Backups" },
         { value: "appearance" as const, label: "Appearance", long: "Appearance" },
         { value: "security" as const, label: "Security", long: "Security" },
+        { value: "privacy" as const, label: "Privacy", long: "Privacy & data" },
         { value: "help" as const, label: "Help", long: "Help & tours" },
       ] as const,
     [isAdmin, isManager, isDesktop, onMobileShell],
@@ -323,6 +327,10 @@ export function SettingsView() {
             <SecurityPanel />
           </TabsContent>
 
+          <TabsContent value="privacy" className="mt-0">
+            <PrivacyDataPanel />
+          </TabsContent>
+
           <TabsContent value="help" className="mt-0">
             <HelpToursPanel />
           </TabsContent>
@@ -348,6 +356,7 @@ const SETTINGS_ICONS: Record<SettingsTab, typeof UserRound> = {
   backup: Download,
   appearance: Palette,
   security: Shield,
+  privacy: ShieldCheck,
   help: CircleHelp,
 };
 
@@ -371,6 +380,7 @@ function SettingsTreeNav({
           item.value === "profile" ||
           item.value === "appearance" ||
           item.value === "security" ||
+          item.value === "privacy" ||
           item.value === "help",
       ),
     },

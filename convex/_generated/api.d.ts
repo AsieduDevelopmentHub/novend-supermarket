@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as accountClosure from "../accountClosure.js";
 import type * as analytics from "../analytics.js";
 import type * as auth from "../auth.js";
 import type * as billing from "../billing.js";
@@ -39,6 +40,7 @@ import type * as reports from "../reports.js";
 import type * as returns from "../returns.js";
 import type * as sales from "../sales.js";
 import type * as settings from "../settings.js";
+import type * as shared_accountClosure from "../shared/accountClosure.js";
 import type * as shared_accountStatus from "../shared/accountStatus.js";
 import type * as shared_audit from "../shared/audit.js";
 import type * as shared_auditDisplay from "../shared/auditDisplay.js";
@@ -92,6 +94,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accountClosure: typeof accountClosure;
   analytics: typeof analytics;
   auth: typeof auth;
   billing: typeof billing;
@@ -123,6 +126,7 @@ declare const fullApi: ApiFromModules<{
   returns: typeof returns;
   sales: typeof sales;
   settings: typeof settings;
+  "shared/accountClosure": typeof shared_accountClosure;
   "shared/accountStatus": typeof shared_accountStatus;
   "shared/audit": typeof shared_audit;
   "shared/auditDisplay": typeof shared_auditDisplay;

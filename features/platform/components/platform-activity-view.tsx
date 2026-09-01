@@ -3,26 +3,27 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Activity, FileClock } from "lucide-react";
-import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PageHeader } from "@/components/layout/primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { formatDateTime } from "@/lib/date";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useConvexPagedList } from "@/hooks/use-convex-paged-list";
 
 type ActivitySource = "audit" | "telemetry";
 
 export function PlatformActivityView() {
   const online = useConnectivity();
   const [source, setSource] = useState<ActivitySource>("audit");
-  const { results, status, loadMore } = usePaginatedQuery(
+  const activity = useConvexPagedList(
     api.platformMonitoring.activity,
     online ? { source } : "skip",
-    { initialNumItems: 40 },
+    { enabled: online, resetKey: source },
   );
 
   return (
@@ -63,9 +64,9 @@ export function PlatformActivityView() {
             its cached snapshot.
           </CardContent>
         </Card>
-      ) : status === "LoadingFirstPage" ? (
+      ) : activity.isLoading ? (
         <LoadingState label="Loading platform activity…" />
-      ) : results.length === 0 ? (
+      ) : activity.items.length === 0 ? (
         <EmptyState
           icon={source === "audit" ? FileClock : Activity}
           title={source === "audit" ? "No admin actions yet" : "No telemetry events yet"}
@@ -84,7 +85,7 @@ export function PlatformActivityView() {
                 </tr>
               </thead>
               <tbody>
-                {results.map((row) => (
+                {activity.items.map((row) => (
                   <tr key={String(row.id)} className="border-border border-t">
                     <td className="px-5 py-3 whitespace-nowrap">
                       {formatDateTime(row.occurredAt)}
@@ -115,17 +116,17 @@ export function PlatformActivityView() {
               </tbody>
             </table>
           </CardContent>
+          <ListPagination
+            page={activity.page}
+            pageSize={activity.pageSize}
+            total={activity.total}
+            hasNextPage={activity.hasNextPage}
+            onPageChange={activity.setPage}
+            onPageSizeChange={activity.setPageSize}
+          />
         </Card>
       )}
-
-      {online && status === "CanLoadMore" ? (
-        <div className="flex justify-center">
-          <Button type="button" variant="outline" onClick={() => loadMore(40)}>
-            Load more
-          </Button>
-        </div>
-      ) : null}
-      {online && status === "LoadingMore" ? <LoadingState label="Loading more activity…" /> : null}
+      {activity.isLoadingPage ? <LoadingState label="Loading page…" /> : null}
     </div>
   );
 }

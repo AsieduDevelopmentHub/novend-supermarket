@@ -664,9 +664,7 @@ export async function queuePayCommission(payload: PayCommissionPayload) {
       row.completedAt >= start &&
       row.completedAt <= end,
   );
-  const grossSales = roundMoney(
-    [...sales, ...localSales].reduce((sum, row) => sum + row.total, 0),
-  );
+  const grossSales = roundMoney([...sales, ...localSales].reduce((sum, row) => sum + row.total, 0));
   const saleIds = new Set([...sales.map((row) => row.id), ...localSales.map((row) => row.id)]);
   const returns = (await db.returns.toArray()).filter(
     (row) => saleIds.has(row.saleId) && row.completedAt >= start && row.completedAt <= end,

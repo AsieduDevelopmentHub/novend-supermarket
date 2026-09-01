@@ -1,4 +1,8 @@
-import { renderPasswordChangedEmail, type RenderedEmail } from "./emailTemplates";
+import {
+  renderOrganizationClosureAlertEmail,
+  renderPasswordChangedEmail,
+  type RenderedEmail,
+} from "./emailTemplates";
 import { EMAIL_LOGO_CONTENT_ID, EMAIL_LOGO_PNG_BASE64 } from "./emailLogoBase64";
 
 export function publicAppUrl(): string {
@@ -83,5 +87,55 @@ export async function notifyPasswordChanged(email: string): Promise<void> {
       resetUrl: `${origin}/forgot-password`,
     }),
     "password-changed",
+  );
+}
+
+function formatAlertTimestamp(ms: number): string {
+  return new Date(ms).toLocaleString("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  });
+}
+
+/** Notify every platform administrator about tenant-initiated organization closure. */
+export async function notifyPlatformAdminsOrganizationClosure(args: {
+  kind: "requested" | "finalized";
+  organizationName: string;
+  organizationId: string;
+  effectiveAt?: number;
+  reason?: string | null;
+  recipientEmails: string[];
+}): Promise<void> {
+  const origin = publicAppUrl();
+  const rendered = renderOrganizationClosureAlertEmail({
+    kind: args.kind,
+    organizationName: args.organizationName,
+    organizationId: args.organizationId,
+    effectiveAtLabel:
+      args.effectiveAt !== undefined ? `${formatAlertTimestamp(args.effectiveAt)} UTC` : undefined,
+    reason: args.reason,
+    platformOrgUrl: `${origin}/platform/${args.organizationId}?tab=licence`,
+    platformActivityUrl: `${origin}/platform/activity`,
+  });
+  const tag =
+    args.kind === "requested" ? "platform-closure-requested" : "platform-closure-finalized";
+
+  const recipients = new Set<string>();
+  const configured = process.env.PLATFORM_ALERT_EMAIL?.trim();
+  if (configured) recipients.add(configured);
+
+  // Convex actions cannot query DB here — recipients are passed in by the caller.
+  for (const email of args.recipientEmails) {
+    if (email.trim()) recipients.add(email.trim().toLowerCase());
+  }
+
+  if (recipients.size === 0) {
+    console.warn("[email] No platform admin recipients for closure alert; email skipped.");
+    return;
+  }
+
+  await Promise.all(
+    [...recipients].map((email) => sendTransactionalEmailBestEffort(email, rendered, tag)),
   );
 }

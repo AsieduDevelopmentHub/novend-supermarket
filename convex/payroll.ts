@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import {
@@ -696,7 +697,7 @@ export const performance = query({
 export const activity = query({
   args: {
     profileId: v.id("profiles"),
-    limit: v.optional(v.number()),
+    paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
     const session = await requireRole(ctx, ["administrator", "manager"]);
@@ -706,16 +707,13 @@ export const activity = query({
       session.organizationId,
       args.profileId,
     );
-    const limit = Math.min(args.limit ?? 40, 80);
-    const rows = await ctx.db
+    const raw = await ctx.db
       .query("auditLogs")
       .withIndex("by_actor", (q) => q.eq("actorId", target.userId))
       .order("desc")
-      .take(limit * 4);
-    const filtered = rows
-      .filter((row) => row.organizationId === session.organizationId)
-      .slice(0, limit);
-    return Promise.all(
+      .paginate(args.paginationOpts);
+    const filtered = raw.page.filter((row) => row.organizationId === session.organizationId);
+    const page = await Promise.all(
       filtered.map(async (row) => {
         const enriched = await enrichAuditLogRow(ctx, {
           action: row.action,
@@ -738,5 +736,6 @@ export const activity = query({
         };
       }),
     );
+    return { ...raw, page };
   },
 });

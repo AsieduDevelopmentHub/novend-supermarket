@@ -29,11 +29,13 @@ import { formatPlanBytes } from "@/convex/shared/plans";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, ShieldAlert } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePlatformOrgDetailData } from "@/hooks/use-platform-offline-data";
 import { PlatformLicensePanel } from "./platform-license-panel";
 import { PlatformImportExportCard } from "./platform-import-export-card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { formatClosureReason } from "@/convex/shared/accountClosure";
 
 export function PlatformOrgDetailView({ organizationId }: { organizationId: string }) {
   const id = organizationId as Id<"organizations">;
@@ -132,8 +134,35 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
 
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={org.status === "active" ? "success" : "secondary"}>{org.status}</Badge>
+        {org.pendingClosure && org.closureEffectiveAt ? (
+          <Badge variant="destructive">Closure {formatDateTime(org.closureEffectiveAt)}</Badge>
+        ) : null}
         <Badge variant="outline">{org.plan}</Badge>
       </div>
+
+      {org.pendingClosure && org.closureEffectiveAt ? (
+        <Alert className="border-destructive/40 bg-destructive/5">
+          <ShieldAlert className="h-4 w-4" aria-hidden />
+          <AlertTitle>Owner scheduled business closure</AlertTitle>
+          <AlertDescription className="space-y-1">
+            <p>
+              This organization is read-only until permanent closure on{" "}
+              <strong>{formatDateTime(org.closureEffectiveAt)}</strong>
+              {org.closureRequestedAt
+                ? ` (requested ${formatDateTime(org.closureRequestedAt)})`
+                : null}
+              .
+            </p>
+            {org.closureReason ? (
+              <p>Reason: {formatClosureReason(org.closureReason) ?? org.closureReason}</p>
+            ) : null}
+            <p className="text-muted-foreground text-sm">
+              The owner can still undo this from Settings → Privacy &amp; data. You can archive
+              immediately from the Licence tab if intervention is required.
+            </p>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <Tabs defaultValue={initialTab} className="space-y-4">
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
@@ -179,6 +208,15 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
                 value={org.kpis.lastActiveAt ? formatDateTime(org.kpis.lastActiveAt) : "Never"}
               />
               <Info label="Subscription status" value={org.status} className="capitalize" />
+              {org.pendingClosure && org.closureEffectiveAt ? (
+                <>
+                  <Info label="Closure effective" value={formatDateTime(org.closureEffectiveAt)} />
+                  <Info
+                    label="Closure reason"
+                    value={formatClosureReason(org.closureReason) ?? "Not provided"}
+                  />
+                </>
+              ) : null}
               <Info label="Timezone" value={org.timezone || "—"} />
             </CardContent>
           </Card>
@@ -241,6 +279,9 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
             status={org.status}
             limitOverrides={org.limitOverrides}
             importExport={org.importExport}
+            pendingClosure={org.pendingClosure}
+            closureEffectiveAt={org.closureEffectiveAt}
+            closureReason={org.closureReason}
           />
         </TabsContent>
 

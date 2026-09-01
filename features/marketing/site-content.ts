@@ -259,7 +259,7 @@ export const sitePages = {
           },
           {
             q: "How do I request data export or account closure?",
-            a: "Administrators and managers can export reports and catalogs from the product. For account closure or a fuller data-export request, contact support with your organization name and the owner account email. We retain data as described in the Privacy Policy for legal and operational needs.",
+            a: "Open Settings → Privacy & data in the app (web, PWA, Android, or iOS). Business owners can schedule business closure with a 30-day recovery window; other staff can delete their own account. You can also export catalogs, reports, and backups from Settings before closing. For complex data requests, contact support with your organization name and the owner account email.",
           },
         ],
       },
@@ -359,7 +359,7 @@ export const sitePages = {
         title: "8. Retention",
         paragraphs: [
           "We retain account and business data for as long as your organization uses Novend and as reasonably needed afterward for legitimate business, security, dispute resolution, backup, and legal compliance purposes.",
-          "You may request account closure or assistance with data export by contacting support. Administrators and managers can also export reports and catalogs from the product (CSV on every plan; Excel and PDF according to plan entitlements). Some records may remain in backups or audit logs for a limited period after deletion requests, consistent with operational and legal needs.",
+          "You may delete your staff account or, if you are the business owner, schedule organization closure from Settings → Privacy & data in the product. Owners have 30 days to undo closure before access is fully blocked. Administrators and managers can also export reports and catalogs (CSV on every plan; Excel and PDF according to plan entitlements). Some records may remain in backups or audit logs for a limited period after deletion requests, consistent with operational and legal needs.",
           "Completed sales and receipts are designed to remain immutable for integrity; corrections are handled through return and related workflows rather than silent edits.",
         ],
       },
@@ -503,7 +503,7 @@ export const sitePages = {
       {
         title: "13. Suspension and termination",
         paragraphs: [
-          "You may stop using Novend at any time. You may request account closure through support.",
+          "You may stop using Novend at any time. Delete your staff account or schedule business closure from Settings → Privacy & data, or contact support for help.",
           "We may suspend or terminate access for breach of these Terms, non-payment, legal risk, or threat to the Service or other users.",
           "Upon termination, your right to access the Service ends. Provisions that by nature should survive (including intellectual property, disclaimers, limitations of liability, and indemnity) will survive.",
         ],

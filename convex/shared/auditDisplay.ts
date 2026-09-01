@@ -25,6 +25,12 @@ export function humanizeAuditAction(action: string) {
     remove_expense: "Removed expense",
     complete_sale: "Completed sale",
     process_return: "Processed return",
+    request_organization_closure: "Business closure scheduled",
+    cancel_organization_closure: "Business closure cancelled",
+    finalize_organization_closure: "Business closure finalized",
+    delete_own_account: "Staff account deleted (self-service)",
+    platform_archive_organization: "Organization archived (platform)",
+    platform_set_org_status: "Organization status changed (platform)",
   };
   return labels[action] ?? humanizeToken(action);
 }
@@ -52,6 +58,28 @@ function statusLabel(status: unknown) {
   return typeof status === "string" && status ? humanizeToken(status) : null;
 }
 
+function closureReasonLabel(reason: unknown) {
+  if (typeof reason !== "string" || !reason) return null;
+  const labels: Record<string, string> = {
+    break: "Taking a break",
+    switching: "Switching systems",
+    cost: "Cost concerns",
+    features: "Missing features",
+    support: "Support expectations",
+    other: "Other",
+  };
+  return labels[reason] ?? humanizeToken(reason);
+}
+
+function formatTimestampLabel(value: unknown) {
+  if (typeof value !== "number") return null;
+  return new Date(value).toLocaleString("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  });
+}
+
 export function formatAuditDetail(args: {
   action: string;
   entityType: string;
@@ -61,9 +89,7 @@ export function formatAuditDetail(args: {
   organizationName?: string | null;
 }) {
   const metadata =
-    typeof args.metadata === "string"
-      ? readMetadata(args.metadata)
-      : (args.metadata ?? null);
+    typeof args.metadata === "string" ? readMetadata(args.metadata) : (args.metadata ?? null);
   const parts: string[] = [];
 
   if (args.action === "update_user_profile" && metadata) {
@@ -82,6 +108,32 @@ export function formatAuditDetail(args: {
   }
   if (args.action === "reactivate_user") {
     parts.push("Account reactivated");
+  }
+
+  if (args.action === "request_organization_closure" && metadata) {
+    const effectiveAt = formatTimestampLabel(metadata.effectiveAt);
+    if (effectiveAt) parts.push(`Permanent closure ${effectiveAt} UTC`);
+    const reason = closureReasonLabel(metadata.reason);
+    if (reason) parts.push(`Reason: ${reason}`);
+    parts.push("Organization is read-only until the grace period ends");
+  }
+
+  if (args.action === "cancel_organization_closure") {
+    parts.push("Owner restored the business before the deadline");
+  }
+
+  if (args.action === "finalize_organization_closure") {
+    parts.push("Grace period ended; organization fully disabled");
+    const reason = closureReasonLabel(metadata?.reason);
+    if (reason) parts.push(`Original reason: ${reason}`);
+  }
+
+  if (args.action === "delete_own_account") {
+    parts.push("Staff removed their own login; sales history preserved");
+  }
+
+  if (args.action === "platform_archive_organization") {
+    parts.push("Platform admin archived the organization immediately");
   }
 
   if (args.action === "pay_salary" || args.action === "pay_commission") {

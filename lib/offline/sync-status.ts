@@ -5,7 +5,7 @@ export type SyncStatusInput = {
   failedCount: number;
 };
 
-export type SyncStatusKind = "offline" | "queued" | "syncing" | "conflict" | "synced";
+export type SyncStatusKind = "offline" | "queued" | "conflict" | "synced";
 
 export type SyncStatusView = {
   label: string;
@@ -15,11 +15,10 @@ export type SyncStatusView = {
 
 /**
  * Shared copy for the header chip, sidebar chip, and banner.
- * Entering the outbox is not "Syncing" — that label is only for an active drain
- * while the device is actually online.
+ * Background drains are silent — never surface a global "Syncing…" state.
  */
 export function describeSyncStatus(input: SyncStatusInput): SyncStatusView {
-  const { online, syncing, pendingCount, failedCount } = input;
+  const { online, pendingCount, failedCount } = input;
 
   if (!online) {
     if (pendingCount > 0) {
@@ -34,17 +33,9 @@ export function describeSyncStatus(input: SyncStatusInput): SyncStatusView {
 
   if (failedCount > 0) {
     return {
-      label: `${failedCount} conflict${failedCount === 1 ? "" : "s"}`,
-      detail: "Tap to review queue",
+      label: `${failedCount} need${failedCount === 1 ? "s" : ""} attention`,
+      detail: "Open sync center to review",
       kind: "conflict",
-    };
-  }
-
-  if (syncing && pendingCount > 0) {
-    return {
-      label: "Syncing…",
-      detail: `Uploading ${pendingCount} event${pendingCount === 1 ? "" : "s"}`,
-      kind: "syncing",
     };
   }
 

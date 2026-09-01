@@ -336,33 +336,39 @@ export const getSnapshot = query({
     }> = [];
 
     if (canManage) {
-      const [supplierRows, wholesaleRows, purchaseRows, transferRows, expenseRows, compensationRows] =
-        await Promise.all([
-          ctx.db
-            .query("suppliers")
-            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-            .collect(),
-          ctx.db
-            .query("wholesaleStock")
-            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-            .collect(),
-          ctx.db
-            .query("supplierPurchases")
-            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-            .collect(),
-          ctx.db
-            .query("stockTransfers")
-            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-            .collect(),
-          ctx.db
-            .query("expenses")
-            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-            .collect(),
-          ctx.db
-            .query("staffCompensation")
-            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-            .collect(),
-        ]);
+      const [
+        supplierRows,
+        wholesaleRows,
+        purchaseRows,
+        transferRows,
+        expenseRows,
+        compensationRows,
+      ] = await Promise.all([
+        ctx.db
+          .query("suppliers")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("wholesaleStock")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("supplierPurchases")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("stockTransfers")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("expenses")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("staffCompensation")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+      ]);
 
       const productById = new Map(activeProducts.map((p) => [p._id, p]));
       suppliers = supplierRows.map((row) => ({

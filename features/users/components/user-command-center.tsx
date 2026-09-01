@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,7 @@ import {
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -45,6 +46,7 @@ import {
   useStaffMonthRecord,
   useStaffPerformance,
 } from "@/features/users/hooks/use-staff-payroll";
+import { useConvexPagedList } from "@/hooks/use-convex-paged-list";
 import { showError } from "@/lib/errors";
 import { Banknote, Receipt, RotateCcw, ShoppingBag, Wallet, Percent } from "lucide-react";
 import { toast } from "sonner";
@@ -77,10 +79,6 @@ export function UserCommandCenter({ profileId, userId, userName }: Props) {
     endDate: range.endDate,
     enabled: canViewStaffPerformance,
   });
-  const activity = useQuery(
-    api.payroll.activity,
-    online && canViewStaffPerformance ? { profileId, limit: 40 } : "skip",
-  );
   const showPayroll = canManagePayroll && capabilities.canManageStaffCompensation;
 
   if (!canViewStaffPerformance) return null;
@@ -316,42 +314,66 @@ export function UserCommandCenter({ profileId, userId, userName }: Props) {
         ) : null}
 
         <TabsContent value="activity">
-          {!online ? (
-            <Card>
-              <CardContent className="text-muted-foreground p-5 text-sm">
-                Activity history needs a connection. Performance and payroll stay available offline.
-              </CardContent>
-            </Card>
-          ) : activity === undefined ? (
-            <LoadingState label="Loading activity…" />
-          ) : activity.length === 0 ? (
-            <EmptyState
-              title="No activity yet"
-              description="Audit events for this user appear here."
-            />
-          ) : (
-            <Card>
-              <CardContent className="divide-y p-0">
-                {activity.map((row) => (
-                  <div key={row.id} className="flex items-start justify-between gap-3 px-4 py-3">
-                    <div>
-                      <p className="font-medium">{row.actionLabel}</p>
-                      <p className="text-muted-foreground text-xs">
-                        {row.areaLabel}
-                        {row.detail && row.detail !== "—" ? ` · ${row.detail}` : ""}
-                      </p>
-                    </div>
-                    <p className="text-muted-foreground shrink-0 text-xs">
-                      {formatDateTime(row.createdAt)}
-                    </p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+          <UserActivityTab profileId={profileId} online={online} />
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function UserActivityTab({ profileId, online }: { profileId: Id<"profiles">; online: boolean }) {
+  const activity = useConvexPagedList(api.payroll.activity, online ? { profileId } : "skip", {
+    enabled: online,
+    resetKey: profileId,
+  });
+
+  if (!online) {
+    return (
+      <Card>
+        <CardContent className="text-muted-foreground p-5 text-sm">
+          Activity history needs a connection. Performance and payroll stay available offline.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (activity.isLoading) {
+    return <LoadingState label="Loading activity…" />;
+  }
+
+  if (activity.items.length === 0) {
+    return (
+      <EmptyState title="No activity yet" description="Audit events for this user appear here." />
+    );
+  }
+
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="divide-y p-0">
+        {activity.items.map((row) => (
+          <div key={row.id} className="flex items-start justify-between gap-3 px-4 py-3">
+            <div>
+              <p className="font-medium">{row.actionLabel}</p>
+              <p className="text-muted-foreground text-xs">
+                {row.areaLabel}
+                {row.detail && row.detail !== "—" ? ` · ${row.detail}` : ""}
+              </p>
+            </div>
+            <p className="text-muted-foreground shrink-0 text-xs">
+              {formatDateTime(row.createdAt)}
+            </p>
+          </div>
+        ))}
+      </CardContent>
+      <ListPagination
+        page={activity.page}
+        pageSize={activity.pageSize}
+        total={activity.total}
+        hasNextPage={activity.hasNextPage}
+        onPageChange={activity.setPage}
+        onPageSizeChange={activity.setPageSize}
+      />
+    </Card>
   );
 }
 
@@ -520,9 +542,7 @@ function PayrollForm({
           remote: () => paySalary({ profileId, payPeriodKey: period, clientOperationId }),
           local: () => queuePaySalary({ profileId, payPeriodKey: period, clientOperationId }),
         });
-        toast.success(
-          queuedSaveMessage(kindResult, `Salary recorded for ${period}`),
-        );
+        toast.success(queuedSaveMessage(kindResult, `Salary recorded for ${period}`));
       } else {
         const clientOperationId = newClientId("pay_commission");
         const kindResult = await persistBusinessWrite({
@@ -530,9 +550,7 @@ function PayrollForm({
           remote: () => payCommission({ profileId, payPeriodKey: period, clientOperationId }),
           local: () => queuePayCommission({ profileId, payPeriodKey: period, clientOperationId }),
         });
-        toast.success(
-          queuedSaveMessage(kindResult, `Commission recorded for ${period}`),
-        );
+        toast.success(queuedSaveMessage(kindResult, `Commission recorded for ${period}`));
       }
     } catch (error) {
       showError(

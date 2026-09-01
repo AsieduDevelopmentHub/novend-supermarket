@@ -44,10 +44,7 @@ export function useStaffPerformance(args: {
   const online = useConnectivity();
   const remote = useQuery(
     api.payroll.performance,
-    online &&
-      args.enabled &&
-      args.startDate !== undefined &&
-      args.endDate !== undefined
+    online && args.enabled && args.startDate !== undefined && args.endDate !== undefined
       ? {
           profileId: args.profileId,
           startDate: args.startDate,
@@ -103,7 +100,9 @@ export function useStaffMonthRecord(args: {
   const online = useConnectivity();
   const remote = useQuery(
     api.payroll.monthRecord,
-    online && args.enabled ? { profileId: args.profileId, payPeriodKey: args.payPeriodKey } : "skip",
+    online && args.enabled
+      ? { profileId: args.profileId, payPeriodKey: args.payPeriodKey }
+      : "skip",
   );
   const local = useLocalLoader(
     () =>
@@ -129,7 +128,8 @@ export function useStaffMonthRoster(payPeriodKey: string, enabled: boolean) {
     online && enabled && payPeriodKey ? { payPeriodKey } : "skip",
   );
   const local = useLocalLoader(
-    () => (enabled && payPeriodKey ? buildLocalStaffMonthRoster(payPeriodKey) : Promise.resolve([])),
+    () =>
+      enabled && payPeriodKey ? buildLocalStaffMonthRoster(payPeriodKey) : Promise.resolve([]),
     [payPeriodKey, enabled],
   );
   if (!enabled) return undefined;
