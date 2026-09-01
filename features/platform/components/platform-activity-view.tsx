@@ -91,24 +91,24 @@ export function PlatformActivityView() {
                     </td>
                     <td className="px-5 py-3">
                       <Badge variant={row.source === "audit" ? "outline" : "secondary"}>
-                        {humanize(row.action)}
+                        {row.actionLabel ?? humanize(row.action)}
                       </Badge>
                     </td>
-                    <td className="px-5 py-3 capitalize">{humanize(row.entityType)}</td>
+                    <td className="px-5 py-3">{row.areaLabel ?? humanize(row.entityType)}</td>
                     <td className="px-5 py-3">
                       {row.organizationId ? (
                         <Link
                           href={`/platform/${row.organizationId}`}
                           className="text-primary font-medium hover:underline"
                         >
-                          {String(row.organizationId).slice(-8)}
+                          {row.organizationName ?? "Organization"}
                         </Link>
                       ) : (
                         <span className="text-muted-foreground">Platform</span>
                       )}
                     </td>
                     <td className="text-muted-foreground max-w-[320px] truncate px-5 py-3">
-                      {row.detail ? humanize(row.detail) : "—"}
+                      {row.detail ?? "—"}
                     </td>
                   </tr>
                 ))}

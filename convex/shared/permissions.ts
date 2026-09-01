@@ -196,6 +196,27 @@ export function canWriteSettings(profile: Doc<"profiles">) {
   return profile.role === "administrator";
 }
 
+/** Salary, commission config, and payroll payments — administrators only. */
+export function canManagePayroll(profile: Doc<"profiles">) {
+  return profile.role === "administrator";
+}
+
+export function canViewStaffPerformance(profile: Doc<"profiles">) {
+  return profile.role === "administrator" || profile.role === "manager";
+}
+
+export function canDeactivateUsers(profile: Doc<"profiles">) {
+  return canManageUsers(profile);
+}
+
+/** Managers only see cashiers (and themselves) in their assigned branch. */
+export function assertStaffProfileAccess(actor: Doc<"profiles">, target: Doc<"profiles">) {
+  if (!canManageUsers(actor)) throw new Error("Forbidden");
+  if (actor.role !== "manager") return;
+  if (target.branchId !== actor.branchId) throw new Error("Forbidden");
+  if (target.role !== "cashier" && target._id !== actor._id) throw new Error("Forbidden");
+}
+
 export function activeBranchId(profile: Doc<"profiles">): Id<"branches"> | null {
   return profile.branchId ?? null;
 }

@@ -2,7 +2,7 @@
 
 ## Business Glossary
 
-Version: 1.0.2
+Version: 1.0.3
 
 # Purpose
 
@@ -108,3 +108,28 @@ the sale syncs. Staff look up the paper receipt by this number online and offlin
 # Settings
 
 Per-organization key/value configuration (business profile, receipt template).
+
+# Expense
+
+An operating cost recorded against the organization (and usually a branch).
+Categories include salaries, commissions, transport, utilities, supplies,
+maintenance, and misc. Salary and commission payments are expenses so they
+reduce net profit in analytics.
+
+# Salary
+
+Configured per staff profile (`staffCompensation`). Recording payment creates
+one `salaries` expense for that pay period. The same period cannot be paid twice.
+
+# Commission
+
+Optional percent of a cashier's gross or net sales (net subtracts returns).
+Recording payment creates a `commissions` expense for outstanding earned amount
+in the pay period.
+
+# Deactivate
+
+Soft-disable a staff account (`profiles.status = inactive`). Historical sales,
+returns, expenses, and audit rows keep the user reference. The person cannot
+sign in until an administrator or manager reactivates them. The organization
+owner cannot be deactivated.

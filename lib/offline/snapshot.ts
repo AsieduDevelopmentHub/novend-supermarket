@@ -52,6 +52,7 @@ import type {
   MirroredOrderItem,
   MirroredProduct,
   MirroredReturn,
+  MirroredStaffCompensation,
   MirroredSupplier,
   MirroredUser,
   MirroredWholesalePurchase,
@@ -176,6 +177,7 @@ export async function applySnapshot(
     branches?: MirroredBranch[];
     users?: MirroredUser[];
     expenses?: MirroredExpense[];
+    staffCompensation?: MirroredStaffCompensation[];
     returns?: MirroredReturn[];
     lots?: MirroredLot[];
     print: PrintSnapshot;
@@ -204,6 +206,7 @@ export async function applySnapshot(
     db.wholesaleTransfers,
     db.branches,
     db.users,
+    db.staffCompensation,
     db.expenses,
     db.returns,
     db.lots,
@@ -274,6 +277,12 @@ export async function applySnapshot(
           : [];
     await replaceServerRows(db.branches, branchRows, pendingLocalIds);
     await replaceServerRows(db.users, snapshot.users ?? [], pendingLocalIds);
+    await replaceServerRows(
+      db.staffCompensation,
+      snapshot.staffCompensation ?? [],
+      pendingLocalIds,
+      (a, b) => a.id === b.id,
+    );
     await replaceServerRows(db.expenses, snapshot.expenses ?? [], pendingLocalIds, sameExpense);
     await replaceServerRows(db.returns, snapshot.returns ?? [], pendingLocalIds, sameReturnNumber);
     await replaceServerRows(db.lots, snapshot.lots ?? [], pendingLocalIds);

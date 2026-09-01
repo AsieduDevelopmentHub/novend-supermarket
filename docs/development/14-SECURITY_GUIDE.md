@@ -2,7 +2,7 @@
 
 ## Security Guide
 
-Version: 1.0.1
+Version: 1.0.2
 
 Related: Convex guide, Constitution §10, `docs/architecture/MULTI_TENANT.md`
 
@@ -45,16 +45,23 @@ Every Convex query/mutation/action that touches business data must:
 
 Hiding a button is not authorization.
 
-| Role          | Capabilities                                                      |
-| ------------- | ----------------------------------------------------------------- |
-| Cashier       | Sales, hold/resume, receipts, own orders/returns, customer lookup |
-| Manager       | Branch ops, catalog, inventory, cashiers in branch                |
-| Administrator | Organization-wide, including users and settings                   |
-| Owner         | Administrator + cannot be deactivated in this slice               |
+| Role          | Capabilities                                                                                          |
+| ------------- | ----------------------------------------------------------------------------------------------------- |
+| Cashier       | Sales, hold/resume, receipts, own orders/returns, customer lookup                                     |
+| Manager       | Branch ops, catalog, inventory, cashiers in branch, staff performance (not payroll)                   |
+| Administrator | Organization-wide, including users, settings, salary/commission (Pro+)                                |
+| Owner         | Administrator + cannot be deactivated in this slice                                                   |
 
 A user cannot set their own account inactive. A signed-in (online) account
 cannot be set inactive until they sign out. Convex enforces both; hiding the
-control is not authorization.
+control is not authorization. Deactivation is a soft archive: sales and financial
+history keep the employee reference.
+
+Payroll (set salary, record salary/commission payments, staff month roster) is
+administrator-only and plan-gated (`canManageStaffCompensation`, Pro and above).
+Managers can open the user command center for performance but cannot change
+compensation. Do not scatter `if (role === "administrator")` in screens — use
+`usePermissions().canManagePayroll` and `useLicense().capabilities`.
 
 # Tenant isolation
 

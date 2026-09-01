@@ -29,6 +29,8 @@ import type {
   CreateUserPayload,
   OutboxOpType,
   OutboxRow,
+  PayCommissionPayload,
+  PaySalaryPayload,
   RecordWholesalePurchasePayload,
   RemoveExpensePayload,
   TransferStockPayload,
@@ -36,6 +38,7 @@ import type {
   UpdateProfilePayload,
   UpsertCustomerPayload,
   UpsertProductPayload,
+  UpsertStaffCompensationPayload,
   UpsertSupplierPayload,
   UpsertBranchPayload,
   WholesaleTransferPayload,
@@ -52,7 +55,10 @@ const OUTBOX_DRAIN_PRIORITY: Partial<Record<OutboxOpType, number>> = {
   upsert_supplier: 1,
   upsert_branch: 1,
   create_user: 1,
+  upsert_staff_compensation: 1,
   upsert_product: 2,
+  pay_salary: 3,
+  pay_commission: 3,
 };
 
 export function sortOutboxForDrain(rows: OutboxRow[]): OutboxRow[] {
@@ -257,6 +263,9 @@ export type QueuedMutators = {
     phone?: string;
     status: "active" | "inactive";
   }) => Promise<unknown>;
+  upsertStaffCompensation: (args: UpsertStaffCompensationPayload) => Promise<unknown>;
+  paySalary: (args: PaySalaryPayload) => Promise<unknown>;
+  payCommission: (args: PayCommissionPayload) => Promise<unknown>;
 };
 
 /** Drain pending outbox ops to Convex. Safe to call frequently. */
@@ -683,6 +692,47 @@ export async function drainOutbox(options: {
             await pullOfflineSnapshot(options.convex, { force: true });
           }
           await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "upsert_staff_compensation") {
+          const payload = JSON.parse(claimed.payloadJson) as UpsertStaffCompensationPayload;
+          await options.mutators.upsertStaffCompensation({
+            profileId: payload.profileId as Id<"profiles">,
+            salaryAmount: payload.salaryAmount,
+            salaryFrequency: payload.salaryFrequency,
+            commissionRate: payload.commissionRate,
+            commissionBasis: payload.commissionBasis,
+          });
+          await markOutboxSynced(db, claimed.id);
+          await pullOfflineSnapshot(options.convex, { force: true });
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "pay_salary") {
+          const payload = JSON.parse(claimed.payloadJson) as PaySalaryPayload;
+          await options.mutators.paySalary({
+            profileId: payload.profileId as Id<"profiles">,
+            payPeriodKey: payload.payPeriodKey,
+            clientOperationId: payload.clientOperationId ?? claimed.clientOperationId,
+          });
+          if (payload.localExpenseId?.startsWith("local_")) {
+            await db.expenses.delete(payload.localExpenseId);
+          }
+          await markOutboxSynced(db, claimed.id);
+          await pullOfflineSnapshot(options.convex, { force: true });
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "pay_commission") {
+          const payload = JSON.parse(claimed.payloadJson) as PayCommissionPayload;
+          await options.mutators.payCommission({
+            profileId: payload.profileId as Id<"profiles">,
+            payPeriodKey: payload.payPeriodKey,
+            clientOperationId: payload.clientOperationId ?? claimed.clientOperationId,
+          });
+          if (payload.localExpenseId?.startsWith("local_")) {
+            await db.expenses.delete(payload.localExpenseId);
+          }
+          await markOutboxSynced(db, claimed.id);
+          await pullOfflineSnapshot(options.convex, { force: true });
           processed += 1;
           consecutiveTransientFailures = 0;
         } else {

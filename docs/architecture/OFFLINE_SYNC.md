@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.24
+Version: 2.4.25
 
 ## Purpose
 
@@ -27,12 +27,15 @@ Convex (when online)
 
 1. While online, `offline.getSnapshot` pulls a branch-scoped replica into IndexedDB
    (catalog, customers, orders, suppliers, wholesale, branches, users, expenses,
-   returns, expiry lots, product photos).
+   staff compensation, returns, expiry lots, product photos).
 2. Screens always render from Dexie when the replica is warm. Live Convex is
    used as a freshness shortcut, never as a gate to open the page. **Returns**
    (and Orders) are cashier-scoped: the Dexie list and Convex `returns.list` /
    `returns.get` only include refunds on that cashier's sales. Opening another
-   cashier's return is not found, not a permission error.
+   cashier's return is not found, not a permission error. **Staff performance and
+   payroll** (compensation, salary, commission) mirror into Dexie for
+   administrators and managers; writes queue to the outbox and sync when online.
+   Audit **activity** for a user still requires a network connection.
 3. Writes apply locally, then enqueue an outbox event (`upsert_supplier`,
    `record_wholesale_purchase`, `complete_sale`, `upsert_product`,
    `update_lot_expiry`, …). Product

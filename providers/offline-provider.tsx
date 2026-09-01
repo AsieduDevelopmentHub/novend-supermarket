@@ -75,6 +75,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const claimStorageUpload = useMutation(api.storageUploads.claim);
   const createBranch = useMutation(api.branches.create);
   const updateBranch = useMutation(api.branches.update);
+  const upsertStaffCompensation = useMutation(api.payroll.upsertCompensation);
+  const paySalary = useMutation(api.payroll.paySalary);
+  const payCommission = useMutation(api.payroll.payCommission);
   const [status, setStatus] = useState<OfflineStatus>(emptyStatus);
   const [syncCenterOpen, setSyncCenterOpen] = useState(false);
   const pullingRef = useRef(false);
@@ -243,6 +246,26 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
             updateProduct: (args) => updateProduct(args),
             createBranch: (args) => createBranch(args),
             updateBranch: (args) => updateBranch(args),
+            upsertStaffCompensation: (args) =>
+              upsertStaffCompensation({
+                profileId: args.profileId as never,
+                salaryAmount: args.salaryAmount,
+                salaryFrequency: args.salaryFrequency,
+                commissionRate: args.commissionRate,
+                commissionBasis: args.commissionBasis,
+              }),
+            paySalary: (args) =>
+              paySalary({
+                profileId: args.profileId as never,
+                payPeriodKey: args.payPeriodKey,
+                clientOperationId: args.clientOperationId,
+              }),
+            payCommission: (args) =>
+              payCommission({
+                profileId: args.profileId as never,
+                payPeriodKey: args.payPeriodKey,
+                clientOperationId: args.clientOperationId,
+              }),
           },
           convex: { query: convex.query.bind(convex) },
         });
@@ -286,6 +309,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       claimStorageUpload,
       createBranch,
       updateBranch,
+      upsertStaffCompensation,
+      paySalary,
+      payCommission,
       convex,
       refreshStatus,
     ],

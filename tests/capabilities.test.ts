@@ -19,6 +19,9 @@ describe("planCapabilities", () => {
     expect(planCapabilities("pro").canExportXlsx).toBe(true);
     expect(planCapabilities("enterprise").canExportPdf).toBe(true);
     expect(planCapabilities("lifetime").canAdvancedAnalytics).toBe(true);
+    expect(planCapabilities("basic").canManageStaffCompensation).toBe(false);
+    expect(planCapabilities("pro").canManageStaffCompensation).toBe(true);
+    expect(planCapabilities("lifetime").canManageStaffCompensation).toBe(true);
   });
 
   it("derives max import rows from the product limit", () => {

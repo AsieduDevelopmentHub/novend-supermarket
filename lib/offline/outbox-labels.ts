@@ -17,6 +17,9 @@ const OP_LABELS: Record<OutboxOpType, string> = {
   upsert_product: "Product",
   create_category: "Category",
   upsert_branch: "Branch",
+  upsert_staff_compensation: "Staff compensation",
+  pay_salary: "Salary payment",
+  pay_commission: "Commission payment",
 };
 
 export function outboxOpLabel(type: OutboxOpType | string) {

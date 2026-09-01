@@ -1,8 +1,9 @@
 export type ExpenseCategory =
-  "salaries" | "transport" | "utilities" | "supplies" | "maintenance" | "misc";
+  "salaries" | "commissions" | "transport" | "utilities" | "supplies" | "maintenance" | "misc";
 
 export const EXPENSE_CATEGORY_OPTIONS: { value: ExpenseCategory; label: string }[] = [
   { value: "salaries", label: "Employee salaries" },
+  { value: "commissions", label: "Staff commissions" },
   { value: "transport", label: "Transportation & travel" },
   { value: "utilities", label: "Utilities" },
   { value: "supplies", label: "Office supplies" },

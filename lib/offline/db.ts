@@ -15,6 +15,7 @@ import type {
   MirroredOrderItem,
   MirroredProduct,
   MirroredReturn,
+  MirroredStaffCompensation,
   MirroredSupplier,
   MirroredUser,
   MirroredWholesalePurchase,
@@ -47,6 +48,7 @@ export type NovendOfflineDb = Dexie & {
   wholesaleTransfers: EntityTable<MirroredWholesaleTransfer, "id">;
   branches: EntityTable<MirroredBranch, "id">;
   users: EntityTable<MirroredUser, "id">;
+  staffCompensation: EntityTable<MirroredStaffCompensation, "id">;
   expenses: EntityTable<MirroredExpense, "id">;
   returns: EntityTable<MirroredReturn, "id">;
   productImages: EntityTable<ProductImageCache, "id">;
@@ -339,6 +341,13 @@ export function createOfflineDb(organizationId?: string, userId?: string): Noven
     ...storesV8,
     lots: "id, productId, branchId, expiryDate, [productId+branchId]",
   });
+  db.version(10).stores({
+    ...storesV8,
+    lots: "id, productId, branchId, expiryDate, [productId+branchId]",
+    staffCompensation: "id",
+    expenses:
+      "id, occurredAt, branchId, category, beneficiaryProfileId, payPeriodKey, sourceKind, recordedByUserId",
+  });
   return db;
 }
 
@@ -469,7 +478,7 @@ export const META_KEYS = {
 } as const;
 
 /** Bump when Dexie adds replica tables so TTL snapshot skips cannot leave new stores empty. */
-export const REPLICA_SCHEMA_VERSION = "10";
+export const REPLICA_SCHEMA_VERSION = "11";
 
 export async function getMeta(db: NovendOfflineDb, key: string): Promise<string | null> {
   try {

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
 import { Input } from "@/components/ui/input";
@@ -110,7 +111,12 @@ function OrderMobileCard({ order }: { order: OrderListRow }) {
 export function OrdersView() {
   const { isAdmin, isManager, isCashier, branchId: myBranchId, branchName } = usePermissions();
   const { user } = useCurrentUser();
-  const [filters, setFilters] = useState(defaultOrdersFilters);
+  const searchParams = useSearchParams();
+  const [filters, setFilters] = useState(() => {
+    const defaults = defaultOrdersFilters();
+    const cashierId = searchParams.get("cashierId");
+    return cashierId ? { ...defaults, cashierId } : defaults;
+  });
   const branches = useBranchesList(false);
   const staff = useUsersList("", isAdmin || isManager);
 
