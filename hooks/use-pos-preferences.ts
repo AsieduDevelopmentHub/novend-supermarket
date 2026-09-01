@@ -5,8 +5,8 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import {
-  DEFAULT_POS_PREFERENCES,
   loadPosPreferences,
+  peekPosPreferences,
   savePosPreferences,
   type CachedPosPreferences,
 } from "@/lib/offline/pos-preferences";
@@ -15,7 +15,7 @@ import {
 export function usePosPreferences(): CachedPosPreferences {
   const online = useConnectivity();
   const live = useQuery(api.settings.getPosPreferences, online ? {} : "skip");
-  const [cached, setCached] = useState<CachedPosPreferences>(DEFAULT_POS_PREFERENCES);
+  const [cached, setCached] = useState<CachedPosPreferences>(peekPosPreferences);
 
   useEffect(() => {
     let cancelled = false;

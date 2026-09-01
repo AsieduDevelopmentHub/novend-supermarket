@@ -479,7 +479,10 @@ export const getSnapshot = query({
     const invoiceBySale = new Map(orderSales.map((s) => [s._id, s.invoiceNumber]));
     let scopedReturns = returnRows.filter((row) => row.status === "completed");
     if (profile.role === "cashier") {
-      scopedReturns = scopedReturns.filter((row) => row.branchId === branchId);
+      const cashierSaleIds = new Set(orderSales.map((sale) => sale._id));
+      scopedReturns = scopedReturns.filter(
+        (row) => row.branchId === branchId && cashierSaleIds.has(row.saleId),
+      );
     } else if (profile.role === "manager") {
       scopedReturns = scopedReturns.filter((row) => row.branchId === branchId);
     }

@@ -12,7 +12,7 @@ import {
 } from "./db";
 import { getLastSnapshotAt, SNAPSHOT_PULL_TTL_MS } from "./freshness";
 import { cacheProductImages } from "./image-cache";
-import { notifyReplicaChanged } from "./replica-events";
+import { notifyReplicaChanged, replicaWriteEpoch, shouldApplyFetchedSnapshot } from "./replica-events";
 import { productMatchesBarcode, productMatchesQuery } from "./barcode-lookup";
 import {
   branchStockMapForBranch,
@@ -132,7 +132,7 @@ export async function pullOfflineSnapshot(
           db.orders.count(),
         ]);
         if (productCount > 0) {
-          notifyReplicaChanged();
+          notifyReplicaChanged({ silent: true });
           return { productCount, customerCount, orderCount, skipped: true };
         }
       }
@@ -141,7 +141,11 @@ export async function pullOfflineSnapshot(
     }
   }
 
+  const epochAtStart = replicaWriteEpoch();
   const snapshot = await convex.query(api.offline.getSnapshot, {});
+  if (!shouldApplyFetchedSnapshot(epochAtStart)) {
+    return { productCount: 0, customerCount: 0, orderCount: 0, skipped: true };
+  }
   await applySnapshot(db, snapshot);
   void cacheProductImages(snapshot.products);
   return {
@@ -320,7 +324,7 @@ export async function applySnapshot(
           : null,
     });
   }
-  notifyReplicaChanged();
+  notifyReplicaChanged({ silent: true });
 }
 
 export async function listLocalCatalogProducts(search?: string, branchId?: string | null) {

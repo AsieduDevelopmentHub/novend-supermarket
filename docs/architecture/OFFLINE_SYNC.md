@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.20
+Version: 2.4.22
 
 ## Purpose
 
@@ -47,7 +47,13 @@ Convex (when online)
 6. The dashboard is built only from Dexie (`buildLocalDashboardSummary`). It
    never calls Convex `dashboard.summary`. Restock, sales, and returns refresh it
    via `replica-changed`. Administrators and managers see a **rolling last 7 days**
-   of sales and orders (not all-time totals). Cashiers see **today** from midnight.
+   of sales and orders (not all-time totals). Cashiers see **today** from midnight,
+   **only their own sales**, and refunds against those sales — never another
+   cashier's returns. Sign-out deletes the org Dexie replica and session
+   `localStorage` keys (device identity and hardware pairing stay) so the next
+   login cannot inherit the previous user's cache. An in-flight snapshot fetched
+   before a local wholesale/sale write is discarded so auto-sync cannot roll the
+   UI back until Convex has the new row.
    The replica also keeps only the most recent ~200 completed sales, so older
    orders drop out of the dashboard even inside that window. Top selling ranks
    locally (quantity by default; the cashier can toggle amount). The ranking
@@ -59,9 +65,15 @@ Convex (when online)
 `persistBusinessWrite` always applies the Dexie + outbox path, then asks the
 provider to flush while online. Branch create/update and product create (including
 photos) use that path. **Sales checkout (`Pay`) and returns always write locally
-first** (`completeSaleLocally` / `processReturnLocally`) so Capacitor cannot
+   first** (`completeSaleLocally` / `processReturnLocally`) so Capacitor cannot
 treat `navigator.onLine` as “Convex is reachable” and leave in-flight pays to
 complete later.
+
+Saving a product with a typed **new category** name creates that category in
+Dexie and assigns it on the same save — the Add click is optional. After
+`create_category` syncs, `rekeyCategoryReferences` remaps both pending outbox
+JSON and Dexie `products.categoryId` from the local id to the Convex id so the
+product does not fall back to Uncategorized.
 
 ## List reads
 

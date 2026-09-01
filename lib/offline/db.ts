@@ -132,6 +132,59 @@ export function unbindOfflineOrganization() {
   }
 }
 
+/**
+ * Delete this organization's Dexie replicas so the next login cannot inherit
+ * another user's sales, returns, or dashboard cache.
+ */
+export async function deleteBoundOfflineReplica(): Promise<void> {
+  const org = readStoredOrganizationId();
+  const names = new Set<string>();
+  if (dbInstance) names.add(dbInstance.name);
+  if (org) {
+    names.add(replicaDbName(org, readStoredUserId()));
+    names.add(replicaDbName(org));
+  }
+
+  if (dbInstance) {
+    dbInstance.close();
+    dbInstance = null;
+  }
+  boundOrganizationId = null;
+  boundUserId = null;
+  dbFailed = false;
+
+  if (typeof indexedDB !== "undefined" && typeof indexedDB.databases === "function") {
+    try {
+      const listed = await indexedDB.databases();
+      for (const info of listed) {
+        const name = info.name;
+        if (!name?.startsWith("novend-offline-")) continue;
+        if (name.startsWith("novend-offline-platform-")) continue;
+        if (org && name.includes(org)) names.add(name);
+      }
+    } catch {
+      /* Safari / private mode */
+    }
+  }
+
+  for (const name of names) {
+    try {
+      await Dexie.delete(name);
+    } catch {
+      /* already gone */
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.removeItem(ORG_STORAGE_KEY);
+      window.localStorage.removeItem(USER_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export function createOfflineDb(organizationId?: string, userId?: string): NovendOfflineDb {
   const db = new Dexie(replicaDbName(organizationId, userId)) as NovendOfflineDb;
   db.version(1).stores({
