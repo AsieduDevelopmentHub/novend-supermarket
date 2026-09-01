@@ -19,6 +19,11 @@ describe("service worker navigation safety", () => {
     expect(sw).toContain("if (isAuthDocument(url)) return;");
   });
 
+  it("does not intercept the marketing homepage so a signed-in 302 can change the URL", () => {
+    expect(sw).toContain('if (url.pathname === "/") return;');
+    expect(sw).toContain("if (finalUrl.pathname !== requested.pathname) return;");
+  });
+
   it("does not skip Capacitor document fetches so offline boot can use Cache Storage", () => {
     expect(sw).toContain("if (isAppShellRequest(request, url))");
     expect(sw).not.toMatch(/if \(ua\.includes\("NovendCapacitor"\)\) return;/);
@@ -49,10 +54,11 @@ describe("service worker navigation safety", () => {
   });
 
   it("does not precache gated app routes that 302 to login", () => {
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v13"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v14"');
     expect(sw).toContain("/branding/logo_horizontal.png");
     expect(sw).toContain("/docs/releases");
     expect(sw).not.toMatch(/PRECACHE = \[[^\]]*\/dashboard/);
+    expect(sw).not.toMatch(/PRECACHE = \[[^\]]*\"\/\"/);
   });
 });
 

@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { guardSpreadsheetCell, needsSpreadsheetGuard } from "@/lib/export/spreadsheet-guard";
-import { parseDelimitedText } from "@/lib/import/parse-delimited";
+import { parseDelimitedText, sheetToObjects } from "@/lib/import/parse-delimited";
 import { buildCsvText } from "@/lib/export/csv";
 import { buildXlsxBytes, parseXlsxBuffer } from "@/lib/export/xlsx";
 import { assertImportFile } from "@/lib/import/parse-file";
+import { productExportTable } from "@/lib/export/products";
+import { mappingFromSuggestions, suggestColumnMapping } from "@/lib/import/mapping";
+import { prepareProductImport } from "@/lib/import/validate-products";
 
 describe("spreadsheet formula guard", () => {
   it("prefixes formula-like cells", () => {
@@ -54,5 +57,53 @@ describe("csv export", () => {
       rows: [{ name: "=1+1" }],
     });
     expect(csv).toContain("'=1+1");
+  });
+});
+
+describe("catalog export round-trip", () => {
+  it("exports expiry date so the same file imports without an expiry conflict", () => {
+    const table = productExportTable({
+      canViewCost: true,
+      rows: [
+        {
+          id: "p1",
+          name: "Juice 500ml",
+          sku: "JUC-1",
+          barcode: "222",
+          categoryName: "Drinks",
+          sellingPrice: 4,
+          costPrice: 2,
+          stockQuantity: 12,
+          lowStockThreshold: 4,
+          unit: "bottle",
+          status: "active",
+          tracksExpiry: true,
+          expiryAlertDays: 30,
+          nearestExpiry: "2027-03-01",
+        },
+      ],
+    });
+    expect(table.columns.some((col) => col.header === "Expiry Date")).toBe(true);
+
+    const csv = buildCsvText(table);
+    const sheet = parseDelimitedText(csv);
+    const mapping = mappingFromSuggestions(suggestColumnMapping(sheet.headers));
+    expect(mapping["Expiry Date"]).toBe("expiryDate");
+    expect(mapping["Tracks Expiry"]).toBe("tracksExpiry");
+    expect(mapping["Product Name"]).toBe("name");
+
+    const records = sheetToObjects(sheet);
+    const preview = prepareProductImport({
+      mapping,
+      maxRows: 500,
+      remainingCreates: 10,
+      existing: [],
+      records,
+    });
+    expect(preview.issues).toEqual([]);
+    expect(preview.createCount).toBe(1);
+    expect(preview.rows[0]?.tracksExpiry).toBe(true);
+    expect(preview.rows[0]?.expiryDate).toBe("2027-03-01");
+    expect(preview.rows[0]?.quantity).toBe(12);
   });
 });

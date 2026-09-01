@@ -48,6 +48,7 @@ type ProductListRow = {
   status: string;
   tracksExpiry?: boolean;
   expiryAlertDays?: number | null;
+  nearestExpiry?: string | null;
   imageUrl: string | null;
   updatedAt?: number;
 };
@@ -71,6 +72,7 @@ function mapProduct(row: MirroredProductRow, canViewCost: boolean): ProductListR
     status: row.status,
     tracksExpiry: row.tracksExpiry,
     expiryAlertDays: row.expiryAlertDays,
+    nearestExpiry: row.nearestExpiry ?? null,
     imageUrl: row.imageUrl,
     updatedAt: row.updatedAt,
   };

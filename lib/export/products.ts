@@ -15,9 +15,15 @@ export type ProductExportSource = {
   status: string;
   tracksExpiry?: boolean;
   expiryAlertDays?: number | null;
+  nearestExpiry?: string | null;
   imageUrl?: string | null;
   updatedAt?: number;
 };
+
+function expiryDateCell(value: string | null | undefined): string {
+  if (!value) return "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
+}
 
 export function productExportTable(args: {
   rows: ProductExportSource[];
@@ -39,6 +45,7 @@ export function productExportTable(args: {
     { key: "status", header: "Status" },
     { key: "tracksExpiry", header: "Tracks Expiry" },
     { key: "expiryAlertDays", header: "Expiry Alert Days" },
+    { key: "expiryDate", header: "Expiry Date" },
     { key: "imageUrl", header: "Image" },
     { key: "updatedAt", header: "Updated" },
   ];
@@ -63,6 +70,7 @@ export function productExportTable(args: {
       status: row.status,
       tracksExpiry: row.tracksExpiry ? "yes" : "no",
       expiryAlertDays: row.expiryAlertDays ?? "",
+      expiryDate: expiryDateCell(row.nearestExpiry),
       imageUrl: row.imageUrl ?? "",
       updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : "",
     })),

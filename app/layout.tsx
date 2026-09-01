@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import { AppProviders } from "@/providers/app-providers";
 import { PwaRegister } from "@/components/pwa-register";
@@ -42,11 +43,13 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
       <body className="bg-background text-foreground h-full overflow-hidden font-sans antialiased">
         <ConvexAuthNextjsServerProvider>
-          <AppProviders>
+          <AppProviders nonce={nonce}>
             {children}
             <PwaRegister />
           </AppProviders>

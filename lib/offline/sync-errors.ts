@@ -1,5 +1,10 @@
 import { isConnectivityError } from "@/lib/errors";
 
+/** Outbox rows blocked on another local create (category, supplier, product). */
+export function isSyncDependencyWait(message: string) {
+  return message.toLowerCase().includes("finish syncing");
+}
+
 /**
  * Server rejections the cashier must review. Network / rate-limit failures stay
  * pending and retry. Validation errors (expiry, SKU, stock, …) must not sit in
@@ -8,6 +13,7 @@ import { isConnectivityError } from "@/lib/errors";
 export function isSyncBusinessConflict(message: string) {
   if (!message.trim()) return false;
   if (isConnectivityError(new Error(message))) return false;
+  if (isSyncDependencyWait(message)) return false;
   const m = message.toLowerCase();
   if (
     m.includes("too many requests") ||

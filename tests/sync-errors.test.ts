@@ -15,4 +15,11 @@ describe("isSyncBusinessConflict", () => {
     expect(isSyncBusinessConflict("Failed to fetch")).toBe(false);
     expect(isSyncBusinessConflict("net::ERR_INTERNET_DISCONNECTED")).toBe(false);
   });
+
+  it("does not treat category/product wait messages as conflicts", () => {
+    expect(isSyncBusinessConflict("Waiting for the category to finish syncing.")).toBe(false);
+    expect(isSyncBusinessConflict("Waiting for the supplier or product to finish syncing.")).toBe(
+      false,
+    );
+  });
 });

@@ -17,7 +17,7 @@ import { StartupSplash } from "@/providers/startup-splash";
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
 
-function AppThemeProvider({ children }: { children: ReactNode }) {
+function AppThemeProvider({ children, nonce }: { children: ReactNode; nonce?: string }) {
   const pathname = usePathname();
   const forcedTheme = isMarketingPath(pathname) ? "light" : undefined;
 
@@ -28,15 +28,16 @@ function AppThemeProvider({ children }: { children: ReactNode }) {
       enableSystem={false}
       forcedTheme={forcedTheme}
       storageKey={THEME_STORAGE_KEY}
+      nonce={nonce}
     >
       {children}
     </ThemeProvider>
   );
 }
 
-function MissingConvexConfig({ children }: { children: ReactNode }) {
+function MissingConvexConfig({ children, nonce }: { children: ReactNode; nonce?: string }) {
   return (
-    <AppThemeProvider>
+    <AppThemeProvider nonce={nonce}>
       <AppearanceBootstrap>
         <div className="bg-background min-h-screen">
           <div className="border-warning/30 bg-accent text-accent-foreground border-b px-4 py-3 text-sm">
@@ -53,19 +54,19 @@ function MissingConvexConfig({ children }: { children: ReactNode }) {
   );
 }
 
-export function AppProviders({ children }: { children: ReactNode }) {
+export function AppProviders({ children, nonce }: { children: ReactNode; nonce?: string }) {
   const client = useMemo(() => {
     if (!convexUrl) return null;
     return new ConvexReactClient(convexUrl);
   }, []);
 
   if (!client) {
-    return <MissingConvexConfig>{children}</MissingConvexConfig>;
+    return <MissingConvexConfig nonce={nonce}>{children}</MissingConvexConfig>;
   }
 
   return (
     <ConvexAuthNextjsProvider client={client}>
-      <AppThemeProvider>
+      <AppThemeProvider nonce={nonce}>
         <AppearanceBootstrap>
           <AppearanceProfileSync />
           <StartupSplash>{children}</StartupSplash>

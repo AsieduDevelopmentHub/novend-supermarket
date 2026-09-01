@@ -390,17 +390,34 @@ export async function queueCreateCategory(name: string, options?: { notify?: boo
   return localId;
 }
 
-/** Reuse an active category with the same name (case-insensitive). */
+/** Reuse an active category with the same name (case-insensitive). Prefer a server id. */
 export function matchActiveCategoryByName(
   rows: Array<{ id: string; name: string; isActive?: boolean }>,
   name: string,
 ): string | null {
   const key = name.trim().toLowerCase();
   if (!key) return null;
-  const hit = rows.find(
+  const matches = rows.filter(
     (row) => row.isActive !== false && row.name.trim().toLowerCase() === key,
   );
-  return hit?.id ?? null;
+  const server = matches.find((row) => !row.id.startsWith("local_"));
+  return server?.id ?? matches[0]?.id ?? null;
+}
+
+/** Map a local_* category onto a synced row with the same name, if any. */
+export function resolveLocalCategoryToServerId(
+  rows: Array<{ id: string; name: string; isActive?: boolean }>,
+  categoryId: string,
+  fallbackName?: string | null,
+): string | null {
+  if (!categoryId.startsWith("local_")) return categoryId;
+  const local = rows.find((row) => row.id === categoryId);
+  const name = local?.name ?? fallbackName?.trim();
+  if (!name) return null;
+  return matchActiveCategoryByName(
+    rows.filter((row) => !row.id.startsWith("local_")),
+    name,
+  );
 }
 
 /**

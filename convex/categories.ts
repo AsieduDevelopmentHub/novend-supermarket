@@ -30,7 +30,12 @@ export const create = mutation({
         q.eq("organizationId", organizationId).eq("slug", slug),
       )
       .unique();
-    if (existing) throw new Error("Category already exists");
+    if (existing) {
+      if (!existing.isActive || existing.name !== name) {
+        await ctx.db.patch(existing._id, { isActive: true, name });
+      }
+      return existing._id;
+    }
     const id = await ctx.db.insert("categories", {
       organizationId,
       name,

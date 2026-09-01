@@ -20,13 +20,15 @@ import {
 import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
 import { markLocalReturnFailed, markLocalReturnSynced } from "./returns-repository";
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
-import { isSyncBusinessConflict } from "./sync-errors";
+import { isSyncBusinessConflict, isSyncDependencyWait } from "./sync-errors";
 import { rekeyProductImage } from "./image-cache";
 import type {
   AdjustStockPayload,
   CreateCategoryPayload,
   CreateExpensePayload,
   CreateUserPayload,
+  OutboxOpType,
+  OutboxRow,
   RecordWholesalePurchasePayload,
   RemoveExpensePayload,
   TransferStockPayload,
@@ -38,9 +40,28 @@ import type {
   UpsertBranchPayload,
   WholesaleTransferPayload,
 } from "./types";
+import { resolveLocalCategoryToServerId } from "./replica-writes";
 
 function isLocalId(id: string | undefined | null): boolean {
   return !id || id.startsWith("local_");
+}
+
+/** Categories (and suppliers) must land on Convex before products that point at them. */
+const OUTBOX_DRAIN_PRIORITY: Partial<Record<OutboxOpType, number>> = {
+  create_category: 0,
+  upsert_supplier: 1,
+  upsert_branch: 1,
+  create_user: 1,
+  upsert_product: 2,
+};
+
+export function sortOutboxForDrain(rows: OutboxRow[]): OutboxRow[] {
+  return [...rows].sort((a, b) => {
+    const pa = OUTBOX_DRAIN_PRIORITY[a.type] ?? 5;
+    const pb = OUTBOX_DRAIN_PRIORITY[b.type] ?? 5;
+    if (pa !== pb) return pa - pb;
+    return a.createdAt - b.createdAt;
+  });
 }
 
 function optionalText(value: string | undefined | null): string | undefined {
@@ -275,6 +296,13 @@ export async function drainOutbox(options: {
   try {
     await recoverInterruptedSync(db);
 
+    const stalledWaits = await db.outbox.where("status").equals("failed").toArray();
+    for (const row of stalledWaits) {
+      if (row.lastError && isSyncDependencyWait(row.lastError)) {
+        await markOutboxPending(db, row.id, row.lastError);
+      }
+    }
+
     if (options.force) {
       const failedRows = await db.outbox.where("status").equals("failed").toArray();
       for (const row of failedRows) {
@@ -305,7 +333,7 @@ export async function drainOutbox(options: {
       await markOutboxFailed(db, row.id, row.lastError ?? "Rejected");
       failed += 1;
     }
-    for (const row of uploadRows) {
+    for (const row of sortOutboxForDrain(uploadRows)) {
       const claimed = await claimOutboxRow(db, row.id);
       if (!claimed) continue;
 
@@ -537,10 +565,22 @@ export async function drainOutbox(options: {
           processed += 1;
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "upsert_product") {
-          const payload = await hydrateUpsertProductPayload(
+          let payload = await hydrateUpsertProductPayload(
             db,
             JSON.parse(claimed.payloadJson) as UpsertProductPayload,
           );
+          if (isLocalId(payload.categoryId)) {
+            const localProduct = await db.products.get(payload.localId);
+            const resolved = resolveLocalCategoryToServerId(
+              await db.categories.toArray(),
+              payload.categoryId,
+              localProduct?.categoryName,
+            );
+            if (resolved) {
+              await rekeyCategoryReferences(db, payload.categoryId, resolved);
+              payload = { ...payload, categoryId: resolved };
+            }
+          }
           if (isLocalId(payload.categoryId)) {
             await markOutboxPending(db, claimed.id, "Waiting for the category to finish syncing.");
             continue;
