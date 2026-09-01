@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   filterCashierDashboardReturns,
   filterCashierDashboardSales,
+  ownedSaleIdsForCashier,
 } from "@/lib/dashboard/cashier-scope";
 
 describe("cashier dashboard scope", () => {
@@ -31,5 +32,23 @@ describe("cashier dashboard scope", () => {
     expect(filterCashierDashboardReturns(returns, new Set(["a"]), "cashier")).toEqual([
       { id: "r1", saleId: "a", refundAmount: 10 },
     ]);
+  });
+
+  it("collects only the cashier's mirrored and local sale ids", () => {
+    const ids = ownedSaleIdsForCashier(
+      "cashier",
+      "cash1",
+      [
+        { id: "s1", cashierId: "cash1" },
+        { id: "s2", cashierId: "cash2" },
+      ],
+      [{ id: "local_1", cashierId: "cash1", serverSaleId: "s1-server" }],
+    );
+    expect(ids).toEqual(new Set(["s1", "local_1", "s1-server"]));
+  });
+
+  it("does not sale-filter admin or manager lists", () => {
+    expect(ownedSaleIdsForCashier("administrator", "admin", [{ id: "s1" }], [])).toBeNull();
+    expect(ownedSaleIdsForCashier("manager", "mgr", [{ id: "s1" }], [])).toBeNull();
   });
 });

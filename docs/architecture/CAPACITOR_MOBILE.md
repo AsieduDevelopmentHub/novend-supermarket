@@ -87,7 +87,9 @@ Web and Electron keep the existing sidebar unchanged.
 - Soft OTA check via `NEXT_PUBLIC_MOBILE_UPDATE_JSON` (Later / Update now)
 - Deep links: `novend://sale/{id}`, `novend://product/{id}`, …
 - Offline backup / restore (Documents on device)
-- About page: `/about`
+- About page: `/about`. Hosted **App version** is `package.json` via `APP_VERSION`
+  (not a second hardcoded string). Native shell version can still differ until the
+  APK is installed; About warns when they diverge.
 - Android package: `com.novend.pos`. The authoritative version is the root/mobile
   `package.json`; release CI verifies the Android `versionName` before publishing.
 

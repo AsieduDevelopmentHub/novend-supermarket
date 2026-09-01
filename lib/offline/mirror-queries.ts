@@ -15,6 +15,7 @@ import {
 } from "./branch-stock";
 import type { MirroredCategory, MirroredCustomer, MirroredProduct } from "./types";
 import { presenceFromLastSeenAt, sortUsersByPresence } from "@/lib/presence";
+import { ownedSaleIdsForCashier } from "@/lib/dashboard/cashier-scope";
 
 export type MirroredProductRow = MirroredProduct & {
   isLowStock: boolean;
@@ -576,6 +577,23 @@ export async function listMirroredReturns(options?: {
         (row.invoiceNumber?.toLowerCase().includes(q) ?? false),
     );
   }
+
+  const role = await getMeta(db, META_KEYS.profileRole);
+  const sessionUserId = await getMeta(db, META_KEYS.profileUserId);
+  const sessionBranchId = await getMeta(db, META_KEYS.profileBranchId);
+  if (role === "manager" && sessionBranchId && !options?.branchId) {
+    rows = rows.filter((row) => !row.branchId || row.branchId === sessionBranchId);
+  }
+  const ownedSaleIds = ownedSaleIdsForCashier(
+    role,
+    sessionUserId,
+    await db.orders.toArray(),
+    await db.localSales.toArray(),
+  );
+  if (ownedSaleIds) {
+    rows = rows.filter((row) => ownedSaleIds.has(row.saleId));
+  }
+
   return rows.sort((a, b) => b.completedAt - a.completedAt);
 }
 
@@ -594,19 +612,36 @@ export async function getMirroredReturn(id: string) {
   const db = await getOfflineDb();
   if (!db) return null;
   const mirrored = await db.returns.get(id);
-  if (mirrored) return mirrored;
-  const local = await db.localReturns.get(id);
-  if (!local) return null;
-  return {
-    id: local.id,
-    returnNumber: local.returnNumber,
-    saleId: local.saleId,
-    invoiceNumber: null,
-    refundAmount: local.refundAmount,
-    itemCount: local.itemCount,
-    kind: "partial",
-    completedAt: local.completedAt,
-    branchId: null,
-    branchName: null,
-  };
+  let row = mirrored ?? null;
+  if (!row) {
+    const local = await db.localReturns.get(id);
+    if (!local) return null;
+    row = {
+      id: local.id,
+      returnNumber: local.returnNumber,
+      saleId: local.saleId,
+      invoiceNumber: null,
+      refundAmount: local.refundAmount,
+      itemCount: local.itemCount,
+      kind: "partial",
+      completedAt: local.completedAt,
+      branchId: null,
+      branchName: null,
+    };
+  }
+
+  const role = await getMeta(db, META_KEYS.profileRole);
+  const sessionUserId = await getMeta(db, META_KEYS.profileUserId);
+  const sessionBranchId = await getMeta(db, META_KEYS.profileBranchId);
+  if (role === "manager" && sessionBranchId && row.branchId && row.branchId !== sessionBranchId) {
+    return null;
+  }
+  const ownedSaleIds = ownedSaleIdsForCashier(
+    role,
+    sessionUserId,
+    await db.orders.toArray(),
+    await db.localSales.toArray(),
+  );
+  if (ownedSaleIds && !ownedSaleIds.has(row.saleId)) return null;
+  return row;
 }

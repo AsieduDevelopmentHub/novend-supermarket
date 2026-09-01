@@ -1,7 +1,8 @@
 import { roundMoney } from "@/lib/currency";
 import { EXPENSE_CATEGORY_OPTIONS, type ExpenseCategory } from "@/features/analytics/constants";
-import { getOfflineDb } from "./db";
+import { getOfflineDb, getMeta, META_KEYS } from "./db";
 import { dropLocalDuplicates, sameExpense } from "./replica-dedupe";
+import { ownedSaleIdsForCashier } from "@/lib/dashboard/cashier-scope";
 
 export type LocalAnalyticsSummary = {
   kpis: {
@@ -194,9 +195,13 @@ export async function buildLocalAnalyticsSummary(args: {
   const mirroredSaleIds = new Set(mirroredOrders.map((o) => o.id));
   const mirroredInvoices = new Set(mirroredOrders.map((o) => o.invoiceNumber));
   const uniqueExpenses = dropLocalDuplicates(expenses, sameExpense);
+  const role = await getMeta(db, META_KEYS.profileRole);
+  const sessionUserId = await getMeta(db, META_KEYS.profileUserId);
+  const ownedSaleIds = ownedSaleIdsForCashier(role, sessionUserId, mirroredOrders, localSales);
 
   const sales: SaleRow[] = [];
   for (const order of mirroredOrders) {
+    if (ownedSaleIds && !ownedSaleIds.has(order.id)) continue;
     if (order.completedAt < args.startDate || order.completedAt > args.endDate) continue;
     if (args.branchId && order.branchId !== args.branchId) continue;
     sales.push({
@@ -208,6 +213,9 @@ export async function buildLocalAnalyticsSummary(args: {
     });
   }
   for (const sale of localSales) {
+    if (ownedSaleIds && !ownedSaleIds.has(sale.id) && !ownedSaleIds.has(sale.serverSaleId ?? "")) {
+      continue;
+    }
     if (sale.syncStatus === "synced") continue;
     if (sale.completedAt < args.startDate || sale.completedAt > args.endDate) continue;
     if (args.branchId && sale.branchId !== args.branchId) continue;
@@ -247,6 +255,7 @@ export async function buildLocalAnalyticsSummary(args: {
   const returns: ReturnRow[] = [];
   const mirroredReturnIds = new Set<string>();
   for (const row of mirroredReturns) {
+    if (ownedSaleIds && !ownedSaleIds.has(row.saleId)) continue;
     if (row.completedAt < args.startDate || row.completedAt > args.endDate) continue;
     if (args.branchId && row.branchId && row.branchId !== args.branchId) continue;
     mirroredReturnIds.add(row.id);
@@ -259,6 +268,7 @@ export async function buildLocalAnalyticsSummary(args: {
     });
   }
   for (const row of localReturns) {
+    if (ownedSaleIds && !ownedSaleIds.has(row.saleId)) continue;
     if (row.syncStatus === "synced") continue;
     if (row.serverReturnId && mirroredReturnIds.has(row.serverReturnId)) continue;
     if (mirroredReturns.some((item) => item.returnNumber === row.returnNumber)) continue;
@@ -488,9 +498,13 @@ export async function buildLocalAnalyticsDetails(args: {
   const mirroredSaleIds = new Set(mirroredOrders.map((o) => o.id));
   const mirroredInvoices = new Set(mirroredOrders.map((o) => o.invoiceNumber));
   const uniqueExpenses = dropLocalDuplicates(expenses, sameExpense);
+  const role = await getMeta(db, META_KEYS.profileRole);
+  const sessionUserId = await getMeta(db, META_KEYS.profileUserId);
+  const ownedSaleIds = ownedSaleIdsForCashier(role, sessionUserId, mirroredOrders, localSales);
 
   const sales: DetailSale[] = [];
   for (const order of mirroredOrders) {
+    if (ownedSaleIds && !ownedSaleIds.has(order.id)) continue;
     if (order.completedAt < args.startDate || order.completedAt > args.endDate) continue;
     if (args.branchId && order.branchId !== args.branchId) continue;
     sales.push({
@@ -504,6 +518,9 @@ export async function buildLocalAnalyticsDetails(args: {
     });
   }
   for (const sale of localSales) {
+    if (ownedSaleIds && !ownedSaleIds.has(sale.id) && !ownedSaleIds.has(sale.serverSaleId ?? "")) {
+      continue;
+    }
     if (sale.syncStatus === "synced") continue;
     if (syncedLocalIds.has(sale.clientOperationId)) continue;
     if (sale.completedAt < args.startDate || sale.completedAt > args.endDate) continue;
@@ -551,6 +568,7 @@ export async function buildLocalAnalyticsDetails(args: {
 
   const returns: DetailReturn[] = [];
   for (const row of mirroredReturns) {
+    if (ownedSaleIds && !ownedSaleIds.has(row.saleId)) continue;
     if (row.completedAt < args.startDate || row.completedAt > args.endDate) continue;
     if (args.branchId && row.branchId && row.branchId !== args.branchId) continue;
     returns.push({
@@ -566,6 +584,7 @@ export async function buildLocalAnalyticsDetails(args: {
     });
   }
   for (const row of localReturns) {
+    if (ownedSaleIds && !ownedSaleIds.has(row.saleId)) continue;
     if (row.syncStatus === "synced") continue;
     if (row.serverReturnId && returns.some((existing) => existing.id === row.serverReturnId)) {
       continue;

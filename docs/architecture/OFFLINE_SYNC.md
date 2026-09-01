@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.23
+Version: 2.4.24
 
 ## Purpose
 
@@ -29,7 +29,10 @@ Convex (when online)
    (catalog, customers, orders, suppliers, wholesale, branches, users, expenses,
    returns, expiry lots, product photos).
 2. Screens always render from Dexie when the replica is warm. Live Convex is
-   used as a freshness shortcut, never as a gate to open the page.
+   used as a freshness shortcut, never as a gate to open the page. **Returns**
+   (and Orders) are cashier-scoped: the Dexie list and Convex `returns.list` /
+   `returns.get` only include refunds on that cashier's sales. Opening another
+   cashier's return is not found, not a permission error.
 3. Writes apply locally, then enqueue an outbox event (`upsert_supplier`,
    `record_wholesale_purchase`, `complete_sale`, `upsert_product`,
    `update_lot_expiry`, …). Product

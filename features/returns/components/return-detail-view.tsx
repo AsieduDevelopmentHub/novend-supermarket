@@ -38,30 +38,33 @@ export function ReturnDetailView({ returnId }: { returnId: string }) {
       cancelled = true;
     };
   }, [returnId]);
+  const isLocalId = returnId.startsWith("local_");
   const record =
-    remote ??
-    (local
-      ? {
-          ...local,
-          items: [] as Array<{
-            id: string;
-            productName: string;
-            quantity: number;
-            unitPrice: number;
-            lineRefund: number;
-          }>,
-          reason: "",
-          notes: null,
-          invoiceNumber: local.invoiceNumber,
-          customerName: local.customerName ?? "Customer",
-          cashierName: local.cashierName ?? "Cashier",
-          status: local.status ?? "completed",
-          receiptPayload: null,
-          refundMethod: "cash" as const,
-        }
-      : remote === undefined && local === undefined
-        ? undefined
-        : null);
+    online && !isLocalId && remote === null
+      ? null
+      : (remote ??
+        (local
+          ? {
+              ...local,
+              items: [] as Array<{
+                id: string;
+                productName: string;
+                quantity: number;
+                unitPrice: number;
+                lineRefund: number;
+              }>,
+              reason: "",
+              notes: null,
+              invoiceNumber: local.invoiceNumber,
+              customerName: local.customerName ?? "Customer",
+              cashierName: local.cashierName ?? "Cashier",
+              status: local.status ?? "completed",
+              receiptPayload: null,
+              refundMethod: "cash" as const,
+            }
+          : remote === undefined && local === undefined
+            ? undefined
+            : null));
 
   if (record === undefined) {
     return <LoadingState label="Loading return…" />;
