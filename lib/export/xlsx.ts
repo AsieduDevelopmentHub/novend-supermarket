@@ -75,7 +75,10 @@ export type ExportWorkbookSheet = {
 };
 
 function safeSheetName(value: string, index: number) {
-  const cleaned = value.replace(/[\\/?*\[\]:]/g, " ").trim().slice(0, 31);
+  const cleaned = value
+    .replace(/[\\/?*\[\]:]/g, " ")
+    .trim()
+    .slice(0, 31);
   return cleaned || `Sheet ${index + 1}`;
 }
 

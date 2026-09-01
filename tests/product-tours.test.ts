@@ -61,9 +61,7 @@ describe("product tour access", () => {
 
   it("does not treat empty progress as an existing tour record", () => {
     expect(hasTourProgress([], toursForAccess("cashier", false))).toBe(false);
-    expect(
-      hasTourProgress([{ tourId: "shell" }], toursForAccess("cashier", false)),
-    ).toBe(true);
+    expect(hasTourProgress([{ tourId: "shell" }], toursForAccess("cashier", false))).toBe(true);
   });
 
   it("prefers a later visible navigation anchor over a hidden sidebar", () => {
@@ -83,10 +81,7 @@ describe("product tour access", () => {
       resolveStepAnchor(
         {
           id: "navigation",
-          anchors: [
-            '[data-tour="desktop-navigation"]',
-            '[data-tour="mobile-bottom-navigation"]',
-          ],
+          anchors: ['[data-tour="desktop-navigation"]', '[data-tour="mobile-bottom-navigation"]'],
           title: "Workspace",
           description: "Move between tools.",
         },
@@ -106,10 +101,7 @@ describe("product tour access", () => {
       resolveStepAnchor(
         {
           id: "navigation",
-          anchors: [
-            '[data-tour="desktop-navigation"]',
-            '[data-tour="mobile-bottom-navigation"]',
-          ],
+          anchors: ['[data-tour="desktop-navigation"]', '[data-tour="mobile-bottom-navigation"]'],
           title: "Workspace",
           description: "Move between tools.",
         },
@@ -129,9 +121,13 @@ describe("product tour access", () => {
         return [hidden, visible];
       },
     };
-    expect(queryTourable('[data-tour="sync-status"]', root, (node) => !(node as { hidden: boolean }).hidden)).toBe(
-      visible,
-    );
+    expect(
+      queryTourable(
+        '[data-tour="sync-status"]',
+        root,
+        (node) => !(node as { hidden: boolean }).hidden,
+      ),
+    ).toBe(visible);
   });
 });
 

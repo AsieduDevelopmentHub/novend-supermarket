@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UnsignedQuantityInput } from "@/components/ui/unsigned-quantity-input";
@@ -28,10 +28,6 @@ export function QuantityStepper({
 }: Props) {
   const [draft, setDraft] = useState(String(value));
   const [focused, setFocused] = useState(false);
-
-  useEffect(() => {
-    if (!focused) setDraft(String(value));
-  }, [value, focused]);
 
   function commit(raw: string) {
     const parsed = parseUnsignedInt(raw);
@@ -67,7 +63,10 @@ export function QuantityStepper({
         className="h-9 w-[4.5rem] px-1 text-center text-sm font-semibold"
         value={focused ? draft : String(value)}
         onValueChange={setDraft}
-        onFocus={() => setFocused(true)}
+        onFocus={() => {
+          setDraft(String(value));
+          setFocused(true);
+        }}
         onBlur={() => {
           setFocused(false);
           commit(draft);

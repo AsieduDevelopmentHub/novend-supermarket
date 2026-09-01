@@ -161,7 +161,8 @@ export const landingCopy = {
         id: "sync",
         title: "Automatically Sync",
         label: "Step 03",
-        detail: "When you reconnect, pending work uploads in the background without interrupting the counter.",
+        detail:
+          "When you reconnect, pending work uploads in the background without interrupting the counter.",
       },
       {
         id: "dashboard",

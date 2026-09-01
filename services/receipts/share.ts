@@ -71,7 +71,10 @@ async function offerReceiptPdf(
 
   if (preferShare && isCapacitor()) {
     if (await shareBlob(fileName, blob)) return { ok: true, via: "share" };
-    return { ok: false, message: "Could not open the share sheet. Update Novend POS and try again." };
+    return {
+      ok: false,
+      message: "Could not open the share sheet. Update Novend POS and try again.",
+    };
   }
 
   if (preferShare && typeof navigator !== "undefined") {

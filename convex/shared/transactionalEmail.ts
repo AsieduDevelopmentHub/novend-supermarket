@@ -2,11 +2,10 @@ import { renderPasswordChangedEmail, type RenderedEmail } from "./emailTemplates
 import { EMAIL_LOGO_CONTENT_ID, EMAIL_LOGO_PNG_BASE64 } from "./emailLogoBase64";
 
 export function publicAppUrl(): string {
-  return (
-    process.env.SITE_URL ||
-    process.env.NOVEND_APP_URL ||
-    "http://localhost:3000"
-  ).replace(/\/$/, "");
+  return (process.env.SITE_URL || process.env.NOVEND_APP_URL || "http://localhost:3000").replace(
+    /\/$/,
+    "",
+  );
 }
 
 function emailFromAddress(): string {

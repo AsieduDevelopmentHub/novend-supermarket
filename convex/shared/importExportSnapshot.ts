@@ -5,11 +5,7 @@
 
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import {
-  planCapabilities,
-  remainingProductCreates,
-  type PlanCapabilities,
-} from "./capabilities";
+import { planCapabilities, remainingProductCreates, type PlanCapabilities } from "./capabilities";
 import type { PlanKey, PlanLimits } from "./plans";
 
 type Ctx = QueryCtx | MutationCtx;

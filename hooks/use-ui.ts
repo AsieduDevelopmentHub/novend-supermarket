@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { clampListPageSize, DEFAULT_LIST_PAGE_SIZE, type ListPageSize } from "@/constants/list-page";
+import {
+  clampListPageSize,
+  DEFAULT_LIST_PAGE_SIZE,
+  type ListPageSize,
+} from "@/constants/list-page";
 import { pageSlice } from "@/lib/offline/page-slice";
 
 export function useDebounce<T>(value: T, delay = 300) {
@@ -60,11 +64,12 @@ const PAGE_SIZE_KEY = "novend.listPageSize";
 export function useClientPagedRows<T>(rows: T[] | undefined, resetKey: string) {
   const [stored, setStored] = useLocalStorage<number>(PAGE_SIZE_KEY, DEFAULT_LIST_PAGE_SIZE);
   const pageSize = clampListPageSize(stored);
-  const [page, setPage] = useState(1);
-
-  useEffect(() => {
-    setPage(1);
-  }, [resetKey]);
+  const [paging, setPaging] = useState({ resetKey, page: 1 });
+  if (paging.resetKey !== resetKey) {
+    setPaging({ resetKey, page: 1 });
+  }
+  const page = paging.resetKey === resetKey ? paging.page : 1;
+  const setPage = (next: number) => setPaging((current) => ({ ...current, page: next }));
 
   const total = rows?.length ?? 0;
   const paged = useMemo(

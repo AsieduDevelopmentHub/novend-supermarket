@@ -95,7 +95,7 @@ export function ReportMetricDetailView({ metric }: { metric: string }) {
   const unavailableOffline = (!online || preferLocal) && details === undefined;
 
   return (
-    <div className="min-w-0 max-w-full space-y-6 overflow-x-hidden">
+    <div className="max-w-full min-w-0 space-y-6 overflow-x-hidden">
       <PageHeader
         title={details?.title ?? "Report detail"}
         description={`${start} → ${end}`}
@@ -119,7 +119,7 @@ export function ReportMetricDetailView({ metric }: { metric: string }) {
         <EmptyState title="No records in this range" />
       ) : details ? (
         <Card className="min-w-0 overflow-hidden">
-          <CardContent className="min-w-0 max-w-full overflow-x-auto p-0">
+          <CardContent className="max-w-full min-w-0 overflow-x-auto p-0">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>

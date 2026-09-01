@@ -160,14 +160,12 @@ export async function recordDailyActiveUser(
   let firstOrganizationUserToday = false;
   if (args.organizationId) {
     firstOrganizationUserToday =
-      (
-        await ctx.db
-          .query("platformDailyActiveUsers")
-          .withIndex("by_organization_day", (q) =>
-            q.eq("organizationId", args.organizationId).eq("day", day),
-          )
-          .first()
-      ) === null;
+      (await ctx.db
+        .query("platformDailyActiveUsers")
+        .withIndex("by_organization_day", (q) =>
+          q.eq("organizationId", args.organizationId).eq("day", day),
+        )
+        .first()) === null;
   }
 
   await ctx.db.insert("platformDailyActiveUsers", {

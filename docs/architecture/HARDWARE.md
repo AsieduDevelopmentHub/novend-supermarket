@@ -47,21 +47,21 @@ UI components must not call Electron preload or Capacitor plugins directly.
 
 ## Capacitor (Phase 4)
 
-| Feature                 | Behavior                                                                                                           |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Camera / Take Photo     | **In-dialog `getUserMedia`** on HTTPS / localhost. Native still is a **manual** button only when live preview is missing (Cap HTTP). Never auto-launch the system camera on open. |
+| Feature                 | Behavior                                                                                                                                                                           |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Camera / Take Photo     | **In-dialog `getUserMedia`** on HTTPS / localhost. Native still is a **manual** button only when live preview is missing (Cap HTTP). Never auto-launch the system camera on open.  |
 | Save receipt / export   | `downloadBlob` writes Android **Downloads** via `window.NovendNative` (WebView JavascriptInterface). Do not call Capacitor Filesystem / NovendPrint after the hosted origin loads. |
-| Share receipt           | Capacitor: Android share sheet via `window.NovendNative.finishShare` (PDF + FileProvider). Web/Electron: Web Share API when it can take a file; otherwise Downloads. |
-| Print receipt           | Same `receiptPrintMode` on web, Electron, and Capacitor: never skips the sheet, manual prompts, auto prints once (Cap saves PDF to Downloads). BLE stays on Settings. |
-| Local image durability  | Also written under Capacitor `Directory.Data` (`product-images/`)                                                  |
-| Barcode (camera)        | In-dialog getUserMedia → bundled **ZXing**. Photograph-barcode is a manual fallback only. |
-| Barcode (HID)           | Terminal wedge config + `useBarcodeScanner` (desktop primary)                                                      |
-| Bluetooth thermal print | Settings test path only. After-sale print is not offered on Capacitor. |
-| Biometrics              | Status via `BiometricManager.BIOMETRIC_WEAK` (includes Class 3). Prompt prefers Class 3 + device PIN; Class 2-only phones use weak + Cancel. Unlock token only. |
-| Secure storage          | `@aparajita/capacitor-secure-storage` for unlock token                                                             |
-| Notifications           | Check/open via `window.NovendNative` (`NotificationManagerCompat` + system notification settings). Topic prefs use `localStorage`. |
-| Deep links              | `novend://sale/…`, `novend://product/…` via `Hardware.app`                                                         |
-| Soft updates            | Optional `NEXT_PUBLIC_MOBILE_UPDATE_JSON` vs native version                                                        |
+| Share receipt           | Capacitor: Android share sheet via `window.NovendNative.finishShare` (PDF + FileProvider). Web/Electron: Web Share API when it can take a file; otherwise Downloads.               |
+| Print receipt           | Same `receiptPrintMode` on web, Electron, and Capacitor: never skips the sheet, manual prompts, auto prints once (Cap saves PDF to Downloads). BLE stays on Settings.              |
+| Local image durability  | Also written under Capacitor `Directory.Data` (`product-images/`)                                                                                                                  |
+| Barcode (camera)        | In-dialog getUserMedia → bundled **ZXing**. Photograph-barcode is a manual fallback only.                                                                                          |
+| Barcode (HID)           | Terminal wedge config + `useBarcodeScanner` (desktop primary)                                                                                                                      |
+| Bluetooth thermal print | Settings test path only. After-sale print is not offered on Capacitor.                                                                                                             |
+| Biometrics              | Status via `BiometricManager.BIOMETRIC_WEAK` (includes Class 3). Prompt prefers Class 3 + device PIN; Class 2-only phones use weak + Cancel. Unlock token only.                    |
+| Secure storage          | `@aparajita/capacitor-secure-storage` for unlock token                                                                                                                             |
+| Notifications           | Check/open via `window.NovendNative` (`NotificationManagerCompat` + system notification settings). Topic prefs use `localStorage`.                                                 |
+| Deep links              | `novend://sale/…`, `novend://product/…` via `Hardware.app`                                                                                                                         |
+| Soft updates            | Optional `NEXT_PUBLIC_MOBILE_UPDATE_JSON` vs native version                                                                                                                        |
 
 Permissions are requested on tap (or when enabling a feature), never at cold
 start except optional biometric unlock when the user opted in.

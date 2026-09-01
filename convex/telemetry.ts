@@ -1,12 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import {
-  action,
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-} from "./_generated/server";
+import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requirePlatformAdmin } from "./shared/permissions";
 import {
@@ -251,8 +245,7 @@ export const seedDownloadBaselines = action({
   args: {},
   handler: async (ctx): Promise<{ seeded: number; examined: number }> => {
     await ctx.runQuery(internal.telemetry.requirePlatformAdminForAction, {});
-    const token =
-      process.env.DESKTOP_RELEASE_GITHUB_TOKEN || process.env.GITHUB_TOKEN || "";
+    const token = process.env.DESKTOP_RELEASE_GITHUB_TOKEN || process.env.GITHUB_TOKEN || "";
     if (!token) throw new Error("Release GitHub token is not configured");
     const releases = (await ctx.runQuery(
       internal.telemetry.releaseCatalogForBaselines,

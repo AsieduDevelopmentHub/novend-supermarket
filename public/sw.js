@@ -151,7 +151,10 @@ function cachePut(request, response) {
   if (response.url && isLoginDocumentUrl(response.url)) return;
   if (response.url) {
     try {
-      const requested = new URL(typeof request === "string" ? request : request.url, self.location.origin);
+      const requested = new URL(
+        typeof request === "string" ? request : request.url,
+        self.location.origin,
+      );
       const finalUrl = new URL(response.url, self.location.origin);
       // Followed `/` → `/dashboard` must not occupy the marketing cache key.
       if (finalUrl.pathname !== requested.pathname) return;

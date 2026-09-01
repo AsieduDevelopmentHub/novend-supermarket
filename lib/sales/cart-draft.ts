@@ -42,7 +42,11 @@ function isItem(value: unknown): value is CartDraftItem {
   );
 }
 
-export function parseCartDraft(raw: string | null, userId: string, branchId: string | null): CartDraft | null {
+export function parseCartDraft(
+  raw: string | null,
+  userId: string,
+  branchId: string | null,
+): CartDraft | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as CartDraft;

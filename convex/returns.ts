@@ -1,6 +1,11 @@
 import { v } from "convex/values";
 import { mutation, query, MutationCtx, QueryCtx } from "./_generated/server";
-import { requireRole, assertBranchAccess, resolveBranchFilter, canViewCostPrice } from "./shared/permissions";
+import {
+  requireRole,
+  assertBranchAccess,
+  resolveBranchFilter,
+  canViewCostPrice,
+} from "./shared/permissions";
 import {
   assertPositiveQuantity,
   roundMoney,
@@ -57,9 +62,7 @@ export const preview = query({
       refundedAmount,
       remainingRefundable,
       canReturn: items.some((item) => item.remainingQuantity > 0),
-      items: items.map((item) =>
-        showCost ? item : { ...item, unitCost: undefined },
-      ),
+      items: items.map((item) => (showCost ? item : { ...item, unitCost: undefined })),
       returns: returns.map((row) => ({
         id: row._id,
         returnNumber: row.returnNumber,

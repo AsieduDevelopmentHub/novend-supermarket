@@ -13,11 +13,7 @@ import { ReceiptDocument } from "@/features/receipts/components/receipt-document
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { printReceipt, normalizeReceiptPayload } from "@/services/printing";
 import { saveReceiptPdfOnDevice, shareReceiptOnDevice } from "@/services/receipts/share";
-import {
-  filesystemSaveFailedMessage,
-  isCapacitor,
-  shareFailedMessage,
-} from "@novend/hardware";
+import { filesystemSaveFailedMessage, isCapacitor, shareFailedMessage } from "@novend/hardware";
 import { toast } from "sonner";
 import { FileDown, Printer, Share2 } from "lucide-react";
 
@@ -67,9 +63,11 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
     try {
       const result = await shareReceiptOnDevice(normalized);
       if (result.ok) {
-        toast.success(result.via === "download" ? "Receipt PDF saved to Downloads" : "Receipt shared");
-      }
-      else if (result.message !== "Cancelled") toast.error(result.message || shareFailedMessage());
+        toast.success(
+          result.via === "download" ? "Receipt PDF saved to Downloads" : "Receipt shared",
+        );
+      } else if (result.message !== "Cancelled")
+        toast.error(result.message || shareFailedMessage());
     } finally {
       setBusy(null);
     }

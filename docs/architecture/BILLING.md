@@ -19,23 +19,23 @@ licence so a terminal keeps selling offline, but it never decides access.
 
 # Modules
 
-| File                                     | Owns                                                                                         |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `convex/shared/capabilities.ts`  | Import/export capabilities derived from the plan catalog (`canExportXlsx`, `maxImportRows`, …) |
-| `convex/shared/plans.ts`                 | Plan catalog, prices, limits, cycle rules, limit messages                                    |
-| `convex/shared/licensing.ts`             | Pure access rules: `deriveAccess`, grace, usage levels, offline TTL                          |
-| `convex/shared/entitlements.ts`          | Database-backed licence resolution, usage counting, capacity checks                          |
-| `convex/shared/subscriptions.ts`         | Activation, trials, plan-catalog sync                                                        |
-| `convex/shared/billingPeriod.ts`         | Period arithmetic for monthly/yearly cycles                                                  |
-| `convex/shared/planChange.ts`            | Upgrade proration and scheduled-downgrade preview                                            |
-| `convex/shared/provisionOrganization.ts` | Tenant bootstrap (trial or assigned plan)                                                    |
-| `convex/shared/paystack.ts`              | Paystack REST client and webhook signature verification                                      |
-| `convex/shared/billingProvider.ts`       | Gateway abstraction (`manual`, `paystack`)                                                   |
-| `convex/billing.ts`                      | Tenant queries, checkout, webhook handlers, platform administration, Enterprise backup quota |
-| `convex/billingHttp.ts`                  | `POST /billing/paystack/webhook`                                                             |
-| `convex/devices.ts`                      | Device activation and deactivation                                                           |
-| `convex/cloudBackups.ts`                 | Cloud backup uploads against the storage quota. UI: Settings → Backups |
-| `convex/crons.ts`                        | Daily expiry and catalog maintenance                                                         |
+| File                                     | Owns                                                                                           |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `convex/shared/capabilities.ts`          | Import/export capabilities derived from the plan catalog (`canExportXlsx`, `maxImportRows`, …) |
+| `convex/shared/plans.ts`                 | Plan catalog, prices, limits, cycle rules, limit messages                                      |
+| `convex/shared/licensing.ts`             | Pure access rules: `deriveAccess`, grace, usage levels, offline TTL                            |
+| `convex/shared/entitlements.ts`          | Database-backed licence resolution, usage counting, capacity checks                            |
+| `convex/shared/subscriptions.ts`         | Activation, trials, plan-catalog sync                                                          |
+| `convex/shared/billingPeriod.ts`         | Period arithmetic for monthly/yearly cycles                                                    |
+| `convex/shared/planChange.ts`            | Upgrade proration and scheduled-downgrade preview                                              |
+| `convex/shared/provisionOrganization.ts` | Tenant bootstrap (trial or assigned plan)                                                      |
+| `convex/shared/paystack.ts`              | Paystack REST client and webhook signature verification                                        |
+| `convex/shared/billingProvider.ts`       | Gateway abstraction (`manual`, `paystack`)                                                     |
+| `convex/billing.ts`                      | Tenant queries, checkout, webhook handlers, platform administration, Enterprise backup quota   |
+| `convex/billingHttp.ts`                  | `POST /billing/paystack/webhook`                                                               |
+| `convex/devices.ts`                      | Device activation and deactivation                                                             |
+| `convex/cloudBackups.ts`                 | Cloud backup uploads against the storage quota. UI: Settings → Backups                         |
+| `convex/crons.ts`                        | Daily expiry and catalog maintenance                                                           |
 
 # Plans
 

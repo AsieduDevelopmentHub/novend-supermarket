@@ -134,7 +134,9 @@ export async function compressProductImage(
  * Center-crop a video frame or canvas to 1:1 so capture matches product /
  * profile `aspect-square` frames.
  */
-export function cropCanvasToSquare(source: HTMLCanvasElement | HTMLVideoElement): HTMLCanvasElement {
+export function cropCanvasToSquare(
+  source: HTMLCanvasElement | HTMLVideoElement,
+): HTMLCanvasElement {
   const width =
     source instanceof HTMLVideoElement ? source.videoWidth || source.clientWidth : source.width;
   const height =

@@ -423,19 +423,17 @@ export async function wholesaleSummaryFromMirror() {
 export async function listMirroredWholesalePurchases() {
   const db = await getOfflineDb();
   if (!db) return [];
-  return dropLocalDuplicates(
-    await db.wholesalePurchases.toArray(),
-    sameWholesalePurchase,
-  ).sort((a, b) => b.purchasedAt - a.purchasedAt);
+  return dropLocalDuplicates(await db.wholesalePurchases.toArray(), sameWholesalePurchase).sort(
+    (a, b) => b.purchasedAt - a.purchasedAt,
+  );
 }
 
 export async function listMirroredWholesaleTransfers() {
   const db = await getOfflineDb();
   if (!db) return [];
-  return dropLocalDuplicates(
-    await db.wholesaleTransfers.toArray(),
-    sameWholesaleTransfer,
-  ).sort((a, b) => b.createdAt - a.createdAt);
+  return dropLocalDuplicates(await db.wholesaleTransfers.toArray(), sameWholesaleTransfer).sort(
+    (a, b) => b.createdAt - a.createdAt,
+  );
 }
 
 export async function listMirroredBranches(includeInactive = false) {

@@ -1,14 +1,7 @@
 import type { AppRole } from "@/config/navigation";
 
 export type TourId =
-  | "shell"
-  | "sales"
-  | "products"
-  | "inventory"
-  | "reports"
-  | "users"
-  | "settings"
-  | "platform";
+  "shell" | "sales" | "products" | "inventory" | "reports" | "users" | "settings" | "platform";
 
 export type TourStepDefinition = {
   id: string;
@@ -50,7 +43,7 @@ export const TOUR_REGISTRY: TourDefinition[] = [
       },
       {
         id: "primary-content",
-        anchors: ['[data-tour="page-content"]', '[data-novend-scroll-root]'],
+        anchors: ['[data-tour="page-content"]', "[data-novend-scroll-root]"],
         title: "Focused work area",
         description: "Each page keeps its primary actions and business information in this area.",
         side: "top",
@@ -59,7 +52,8 @@ export const TOUR_REGISTRY: TourDefinition[] = [
         id: "sync",
         anchors: ['[data-tour="sync-status"]'],
         title: "Offline and sync status",
-        description: "Novend keeps work available offline and shows when changes are safely synced.",
+        description:
+          "Novend keeps work available offline and shows when changes are safely synced.",
         side: "bottom",
       },
       {

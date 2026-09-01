@@ -195,7 +195,9 @@ function InsightRowsTable({
       <table className="w-full min-w-[360px] text-left text-sm">
         <thead className="bg-muted/50 text-muted-foreground">
           <tr>
-            <th className="px-4 py-3 font-medium">{metric === "downloads" ? "Asset" : "Error code"}</th>
+            <th className="px-4 py-3 font-medium">
+              {metric === "downloads" ? "Asset" : "Error code"}
+            </th>
             <th className="px-4 py-3 font-medium">Count</th>
           </tr>
         </thead>

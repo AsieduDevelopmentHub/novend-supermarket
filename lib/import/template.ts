@@ -34,11 +34,17 @@ export async function downloadProductImportTemplate(format: "csv" | "xlsx") {
   const table = templateTable();
   const filename = brandedDocumentName("Product-Import-Template", undefined, format);
   if (format === "csv") {
-    await downloadBlob(filename, new Blob([buildCsvText(table)], { type: "text/csv;charset=utf-8" }));
+    await downloadBlob(
+      filename,
+      new Blob([buildCsvText(table)], { type: "text/csv;charset=utf-8" }),
+    );
     return;
   }
   await downloadBlob(
     filename,
-    bytesToBlob(buildXlsxBytes(table), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+    bytesToBlob(
+      buildXlsxBytes(table),
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ),
   );
 }

@@ -8,7 +8,11 @@ export async function loadEmailVerification(
 ) {
   const user = await ctx.db.get(userId);
   if (!user?.email) {
-    return { email: null as string | null, emailVerified: false as const, maskedEmail: null as string | null };
+    return {
+      email: null as string | null,
+      emailVerified: false as const,
+      maskedEmail: null as string | null,
+    };
   }
   const email = normalizeEmail(user.email);
   const row = await ctx.db

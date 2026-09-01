@@ -358,9 +358,7 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
           <Grid cols={2}>
             <Kpi
               title="Import row cap"
-              value={
-                org.importExport ? formatNumber(org.importExport.maxImportRows) : "—"
-              }
+              value={org.importExport ? formatNumber(org.importExport.maxImportRows) : "—"}
               hint={
                 org.importExport?.productLimitOverridden
                   ? "From the product override"

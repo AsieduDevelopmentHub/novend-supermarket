@@ -283,8 +283,25 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       savedAt: Date.now(),
     };
     markPlatformOfflineSession(next);
-    setPlatformSession(next);
   }, [user]);
+
+  if (user?.isPlatformAdmin && user.userId) {
+    const next: PlatformOfflineSession = {
+      userId: String(user.userId),
+      name: user.name,
+      email: user.email ?? null,
+      hasTenantRole: Boolean(user.role),
+      savedAt: platformSession?.savedAt ?? 0,
+    };
+    if (
+      platformSession?.userId !== next.userId ||
+      platformSession.name !== next.name ||
+      platformSession.email !== next.email ||
+      platformSession.hasTenantRole !== next.hasTenantRole
+    ) {
+      setPlatformSession(next);
+    }
+  }
 
   const hintProfile = sessionHint ? shellProfileFromSessionHint(sessionHint) : null;
   const resolvedCache = cachedProfile ?? hintProfile;

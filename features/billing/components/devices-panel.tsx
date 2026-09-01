@@ -53,10 +53,7 @@ export function DevicesPanel() {
   const online = useConnectivity();
   const { isAdmin } = usePermissions();
   const fingerprint = useDeviceFingerprint();
-  const data = useQuery(
-    api.devices.listDevices,
-    online && fingerprint ? { fingerprint } : "skip",
-  );
+  const data = useQuery(api.devices.listDevices, online && fingerprint ? { fingerprint } : "skip");
   const renameDevice = useMutation(api.devices.renameDevice);
   const deactivateDevice = useMutation(api.devices.deactivateDevice);
   const deactivateOtherDevices = useMutation(api.devices.deactivateOtherDevices);
@@ -81,8 +78,9 @@ export function DevicesPanel() {
   }
 
   const atLimit = data.limit !== null && data.activeCount >= data.limit;
-  const otherActiveCount = data.devices.filter((device) => device.isActive && !device.isCurrent)
-    .length;
+  const otherActiveCount = data.devices.filter(
+    (device) => device.isActive && !device.isCurrent,
+  ).length;
 
   async function onRename() {
     if (!renaming) return;
@@ -172,9 +170,9 @@ export function DevicesPanel() {
             </Badge>
           </CardTitle>
           <CardDescription>
-            Every signed-in installation uses one slot — desktop app, Android app, iOS PWA, or browser.
-            You cannot shut down or remove this device while you are using it. Shut-down terminals
-            can be re-enabled or removed from the list.
+            Every signed-in installation uses one slot — desktop app, Android app, iOS PWA, or
+            browser. You cannot shut down or remove this device while you are using it. Shut-down
+            terminals can be re-enabled or removed from the list.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -190,7 +188,11 @@ export function DevicesPanel() {
 
           {isAdmin && otherActiveCount > 0 ? (
             <div className="flex flex-wrap justify-end">
-              <Button type="button" variant="outline" onClick={() => setConfirm({ kind: "shutdownOthers" })}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfirm({ kind: "shutdownOthers" })}
+              >
                 <PowerOff className="h-4 w-4" aria-hidden />
                 Shut down all except this device
               </Button>

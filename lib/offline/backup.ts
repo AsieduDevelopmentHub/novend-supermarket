@@ -225,7 +225,14 @@ export async function estimateBackupSize(): Promise<number> {
   }
   const db = await getOfflineDb();
   if (!db) return 0;
-  const counts = await Promise.all(TABLE_NAMES.map((name) => db.table(name).count().catch(() => 0)));
+  const counts = await Promise.all(
+    TABLE_NAMES.map((name) =>
+      db
+        .table(name)
+        .count()
+        .catch(() => 0),
+    ),
+  );
   return counts.reduce((sum, count) => sum + count, 0) * 256;
 }
 

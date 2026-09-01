@@ -40,7 +40,10 @@ export async function runExport(args: {
 
   const filename = exportFilename(table, format);
   if (format === "csv") {
-    await downloadBlob(filename, new Blob([buildCsvText(table)], { type: "text/csv;charset=utf-8" }));
+    await downloadBlob(
+      filename,
+      new Blob([buildCsvText(table)], { type: "text/csv;charset=utf-8" }),
+    );
   } else if (format === "json") {
     await downloadBlob(
       filename,

@@ -75,8 +75,24 @@ describe("replica dedupe", () => {
 
   it("drops a pending local purchase when Convex already has the same invoice", () => {
     const merged = mergeServerAndLocalById(
-      [{ id: "po_server", supplierId: "sup_1", purchasedAt: 10, totalCost: 50, invoiceNumber: "INV-1" }],
-      [{ id: "local_po", supplierId: "sup_1", purchasedAt: 10, totalCost: 50, invoiceNumber: "INV-1" }],
+      [
+        {
+          id: "po_server",
+          supplierId: "sup_1",
+          purchasedAt: 10,
+          totalCost: 50,
+          invoiceNumber: "INV-1",
+        },
+      ],
+      [
+        {
+          id: "local_po",
+          supplierId: "sup_1",
+          purchasedAt: 10,
+          totalCost: 50,
+          invoiceNumber: "INV-1",
+        },
+      ],
       new Set(["local_po"]),
       sameWholesalePurchase,
     );

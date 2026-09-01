@@ -19,8 +19,8 @@ export function hasNovendNativeSecurity(): boolean {
   const bridge = nativeSecurity();
   return Boolean(
     bridge &&
-      typeof bridge.notificationState === "function" &&
-      typeof bridge.biometricStatus === "function",
+    typeof bridge.notificationState === "function" &&
+    typeof bridge.biometricStatus === "function",
   );
 }
 
@@ -58,9 +58,8 @@ export function readNativeBiometricStatus(): BiometricAvailability | null {
       reason?: string;
     };
     const type = parsed.type ?? "none";
-    const reason = typeof parsed.reason === "string" && parsed.reason.length > 0
-      ? parsed.reason
-      : undefined;
+    const reason =
+      typeof parsed.reason === "string" && parsed.reason.length > 0 ? parsed.reason : undefined;
     return {
       available: Boolean(parsed.available),
       supported: Boolean(parsed.supported),

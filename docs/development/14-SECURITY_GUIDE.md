@@ -93,14 +93,14 @@ readable showcase.
 
 # Web threats
 
-| Threat               | Defense                                       |
-| -------------------- | --------------------------------------------- |
+| Threat               | Defense                                                                                                                                                                                                                          |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | XSS                  | Safe rendering, CSP nonce + strict-dynamic. `proxy.ts` sets the nonce on the request (`x-nonce` + CSP) so Next.js stamps its scripts; `ThemeProvider` receives the same nonce so next-themes’ inline boot script is not blocked. |
-| CSRF                 | Auth cookie guidance; same-site               |
-| Injection            | Validated inputs; Convex parameterized access |
-| Privilege escalation | Server-side role + org checks                 |
-| IDOR                 | Org assertion after every get                 |
-| Mass assignment      | Explicit writable field allowlists            |
+| CSRF                 | Auth cookie guidance; same-site                                                                                                                                                                                                  |
+| Injection            | Validated inputs; Convex parameterized access                                                                                                                                                                                    |
+| Privilege escalation | Server-side role + org checks                                                                                                                                                                                                    |
+| IDOR                 | Org assertion after every get                                                                                                                                                                                                    |
+| Mass assignment      | Explicit writable field allowlists                                                                                                                                                                                               |
 
 # Platform telemetry privacy
 

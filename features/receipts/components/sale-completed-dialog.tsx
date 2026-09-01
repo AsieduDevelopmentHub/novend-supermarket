@@ -43,12 +43,7 @@ function modeCopy(mode: ReceiptPrintMode): string {
  * Post-sale sheet for Capacitor. Print follows Settings → Receipt template
  * (`resolveReceiptPrintMode`): auto / manual / do not print.
  */
-export function SaleCompletedDialog({
-  open,
-  onOpenChange,
-  payload,
-  printMode = "manual",
-}: Props) {
+export function SaleCompletedDialog({ open, onOpenChange, payload, printMode = "manual" }: Props) {
   const normalized = payload ? normalizeReceiptPayload(payload) : null;
   const [busy, setBusy] = useState<"share" | "pdf" | "print" | null>(null);
   const autoPrintedInvoice = useRef<string | null>(null);
@@ -94,7 +89,9 @@ export function SaleCompletedDialog({
     try {
       const result = await shareReceiptOnDevice(normalized);
       if (result.ok) {
-        toast.success(result.via === "download" ? "Receipt PDF saved to Downloads" : "Receipt shared");
+        toast.success(
+          result.via === "download" ? "Receipt PDF saved to Downloads" : "Receipt shared",
+        );
       } else if (result.message !== "Cancelled") {
         toast.error(result.message || shareFailedMessage());
       }
@@ -170,7 +167,12 @@ export function SaleCompletedDialog({
             <FileDown className="h-4 w-4" />
             {busy === "pdf" ? "Saving…" : "Save PDF"}
           </Button>
-          <Button type="button" variant="default" disabled={busy !== null} onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="default"
+            disabled={busy !== null}
+            onClick={() => onOpenChange(false)}
+          >
             <Check className="h-4 w-4" />
             Done
           </Button>

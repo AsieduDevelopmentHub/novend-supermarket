@@ -63,9 +63,7 @@ export function NotificationsSettingsCard() {
     setErrorMessage(null);
     try {
       const permission = await Hardware.notifications.checkPermissions();
-      setState(
-        permission.data?.state ?? (permission.data?.granted ? "granted" : "not-requested"),
-      );
+      setState(permission.data?.state ?? (permission.data?.granted ? "granted" : "not-requested"));
       setErrorMessage(permission.ok ? null : permission.message || null);
       setPermissionKnown(true);
     } catch {
@@ -158,7 +156,9 @@ export function NotificationsSettingsCard() {
 
   const granted = permissionKnown && state === "granted";
   const topicsDisabled =
-    busy || checking || (permissionKnown && (state === "unavailable" || state === "permanently-denied"));
+    busy ||
+    checking ||
+    (permissionKnown && (state === "unavailable" || state === "permanently-denied"));
 
   return (
     <Card>
@@ -168,14 +168,16 @@ export function NotificationsSettingsCard() {
           Notifications
         </CardTitle>
         <CardDescription>
-          Choose which local alerts you want. Check, then open Android settings
-          to allow notifications for Novend.
+          Choose which local alerts you want. Check, then open Android settings to allow
+          notifications for Novend.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {!permissionKnown && !checking ? (
           <div className="space-y-2">
-            <p className="text-muted-foreground text-sm">{permissionNeedMessage("notifications")}</p>
+            <p className="text-muted-foreground text-sm">
+              {permissionNeedMessage("notifications")}
+            </p>
             <Button
               type="button"
               variant="outline"

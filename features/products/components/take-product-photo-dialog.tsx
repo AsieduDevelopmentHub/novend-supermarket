@@ -91,7 +91,9 @@ export function TakeProductPhotoDialog({ open, onOpenChange, onCapture }: Props)
   const live = canUseLiveCamera();
   const nativeFallback = isCapacitor() && !live;
 
-  onCaptureRef.current = onCapture;
+  useEffect(() => {
+    onCaptureRef.current = onCapture;
+  }, [onCapture]);
 
   function stopStream() {
     const stream = streamRef.current;

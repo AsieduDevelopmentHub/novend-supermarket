@@ -21,9 +21,10 @@ describe("countExportFormats", () => {
 
 describe("parseLimitOverrideAuditMetadata", () => {
   it("reads the saved override snapshot after a Super Admin save", () => {
-    expect(
-      parseLimitOverrideAuditMetadata(JSON.stringify({ products: 80, users: null })),
-    ).toEqual({ products: 80, users: null });
+    expect(parseLimitOverrideAuditMetadata(JSON.stringify({ products: 80, users: null }))).toEqual({
+      products: 80,
+      users: null,
+    });
   });
 
   it("ignores malformed metadata", () => {

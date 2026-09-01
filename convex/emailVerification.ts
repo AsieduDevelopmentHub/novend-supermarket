@@ -1,6 +1,12 @@
 import { getAuthUserId, retrieveAccount } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { action, internalMutation, internalQuery, query, type ActionCtx } from "./_generated/server";
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  query,
+  type ActionCtx,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { writeAuditLog } from "./shared/audit";
@@ -51,7 +57,12 @@ export const insertChallenge = internalMutation({
         retryAfterMs: resendWaitMs(recent[0]!.createdAt, args.createdAt),
       };
     }
-    if (tooManySends(recent.map((row) => row.createdAt), args.createdAt)) {
+    if (
+      tooManySends(
+        recent.map((row) => row.createdAt),
+        args.createdAt,
+      )
+    ) {
       return { ok: false as const, reason: "limited" as const, retryAfterMs: EMAIL_OTP_TTL_MS };
     }
     for (const row of recent) {

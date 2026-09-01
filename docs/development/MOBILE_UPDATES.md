@@ -126,7 +126,9 @@ gh secret set ANDROID_KEY_PASSWORD
 
 The workflow decodes the keystore into a runner file, exports `ANDROID_KEYSTORE_PATH`, and
 runs `assembleRelease`. Gradle User Home (wrapper, Maven deps, local build cache) is
-restored from the cache seeded by CI on `main` (`android-gradle-cache`). Tag runs are
+restored from the cache seeded by CI on `main` (`android-gradle-cache`). That seed job
+runs `pnpm mobile:sync` first so generated `capacitor-cordova-android-plugins` exists
+before Gradle evaluates `capacitor.build.gradle`. Tag runs are
 read-only — GitHub will not let a `v*` cache be reused by the next tag. It verifies the
 APK signature and metadata, uploads the APK plus SHA-256 checksum to the GitHub Release,
 and then publishes mobile update metadata to Convex. A missing keystore or signing secret

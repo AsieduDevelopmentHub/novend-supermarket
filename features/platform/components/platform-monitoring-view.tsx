@@ -321,14 +321,14 @@ export function PlatformMonitoringView() {
                   <BarChart data={data.featureAdoption.slice(0, 10)} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                     <XAxis type="number" allowDecimals={false} />
-                    <YAxis
-                      type="category"
-                      dataKey="feature"
-                      width={76}
-                      tick={{ fontSize: 11 }}
-                    />
+                    <YAxis type="category" dataKey="feature" width={76} tick={{ fontSize: 11 }} />
                     <Tooltip formatter={(value) => formatNumber(Number(value))} />
-                    <Bar dataKey="count" name="Usage events" fill="var(--primary)" radius={[0, 5, 5, 0]} />
+                    <Bar
+                      dataKey="count"
+                      name="Usage events"
+                      fill="var(--primary)"
+                      radius={[0, 5, 5, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -523,15 +523,7 @@ export function PlatformMonitoringView() {
   );
 }
 
-function Metric({
-  label,
-  value,
-  warning,
-}: {
-  label: string;
-  value: string;
-  warning?: boolean;
-}) {
+function Metric({ label, value, warning }: { label: string; value: string; warning?: boolean }) {
   return (
     <div className="bg-muted/40 rounded-xl p-3">
       <p className="text-muted-foreground text-xs">{label}</p>

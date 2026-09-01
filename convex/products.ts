@@ -97,8 +97,12 @@ export const listProducts = query({
     products.sort((a, b) => a.name.localeCompare(b.name));
     const total = products.length;
     const pageSize = args.pageSize && args.pageSize > 0 ? Math.min(args.pageSize, 100) : total;
-    const page = pageSize > 0 ? Math.min(Math.max(args.page ?? 1, 1), Math.max(1, Math.ceil(total / pageSize))) : 1;
-    const pageRows = pageSize > 0 ? products.slice((page - 1) * pageSize, page * pageSize) : products;
+    const page =
+      pageSize > 0
+        ? Math.min(Math.max(args.page ?? 1, 1), Math.max(1, Math.ceil(total / pageSize)))
+        : 1;
+    const pageRows =
+      pageSize > 0 ? products.slice((page - 1) * pageSize, page * pageSize) : products;
 
     const branchId = resolveBranchFilter(profile, args.branchId ?? null);
     const stockByProduct = branchId
@@ -109,36 +113,36 @@ export const listProducts = query({
     const showCost = canViewCostPrice(profile);
     const items = await Promise.all(
       pageRows.map(async (product) => {
-          const imageUrl = product.imageStorageId
-            ? await ctx.storage.getUrl(product.imageStorageId)
-            : null;
-          const stockQuantity = stockByProduct.get(product._id) ?? 0;
-          const expiry = deriveExpiryListFields(product, stockQuantity, summaries.get(product._id));
-          return {
-            id: product._id,
-            name: product.name,
-            sku: product.sku,
-            barcode: product.barcode,
-            categoryId: product.categoryId,
-            categoryName: categoryMap.get(product.categoryId) ?? "Uncategorized",
-            sellingPrice: product.sellingPrice,
-            costPrice: showCost ? product.costPrice : undefined,
-            stockQuantity,
-            unit: product.unit,
-            lowStockThreshold: product.lowStockThreshold,
-            status: product.status,
-            description: product.description,
-            imageUrl,
-            isLowStock: expiry.isLowStock,
-            branchId,
-            tracksExpiry: expiry.tracksExpiry,
-            sellableQuantity: expiry.sellableQuantity,
-            expiredQuantity: expiry.expiredQuantity,
-            nearestExpiry: expiry.nearestExpiry,
-            isExpired: expiry.isExpired,
-            isExpiring: expiry.isExpiring,
-          };
-        }),
+        const imageUrl = product.imageStorageId
+          ? await ctx.storage.getUrl(product.imageStorageId)
+          : null;
+        const stockQuantity = stockByProduct.get(product._id) ?? 0;
+        const expiry = deriveExpiryListFields(product, stockQuantity, summaries.get(product._id));
+        return {
+          id: product._id,
+          name: product.name,
+          sku: product.sku,
+          barcode: product.barcode,
+          categoryId: product.categoryId,
+          categoryName: categoryMap.get(product.categoryId) ?? "Uncategorized",
+          sellingPrice: product.sellingPrice,
+          costPrice: showCost ? product.costPrice : undefined,
+          stockQuantity,
+          unit: product.unit,
+          lowStockThreshold: product.lowStockThreshold,
+          status: product.status,
+          description: product.description,
+          imageUrl,
+          isLowStock: expiry.isLowStock,
+          branchId,
+          tracksExpiry: expiry.tracksExpiry,
+          sellableQuantity: expiry.sellableQuantity,
+          expiredQuantity: expiry.expiredQuantity,
+          nearestExpiry: expiry.nearestExpiry,
+          isExpired: expiry.isExpired,
+          isExpiring: expiry.isExpiring,
+        };
+      }),
     );
     return { items, total, page, pageSize: pageSize || total };
   },

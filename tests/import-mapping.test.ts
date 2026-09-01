@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { mappingFromSuggestions, suggestColumnMapping, unmappedRequiredFields } from "@/lib/import/mapping";
+import {
+  mappingFromSuggestions,
+  suggestColumnMapping,
+  unmappedRequiredFields,
+} from "@/lib/import/mapping";
 
 describe("product import mapping", () => {
   it("maps common client headers to Novend fields", () => {

@@ -12,10 +12,7 @@ import {
 export type PlatformNavGroupId = "overview" | "analytics" | "tenants";
 
 /** Collapsible Super Admin sidebar sections (Overview stays fixed). */
-export const PLATFORM_NAV_ACCORDION_GROUP_IDS = [
-  "analytics",
-  "tenants",
-] as const;
+export const PLATFORM_NAV_ACCORDION_GROUP_IDS = ["analytics", "tenants"] as const;
 
 export type PlatformNavAccordionGroupId = (typeof PLATFORM_NAV_ACCORDION_GROUP_IDS)[number];
 

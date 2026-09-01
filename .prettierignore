@@ -6,3 +6,5 @@ coverage
 convex/_generated
 pnpm-lock.yaml
 next-scaffold
+docs/gpt.md
+ui-log.md

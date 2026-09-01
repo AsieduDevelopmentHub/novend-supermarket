@@ -1,9 +1,10 @@
 "use client";
 
-import { type ReactNode, Suspense, useEffect, useState } from "react";
+import { type ReactNode, Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import { useConvexAuth } from "convex/react";
 import { AppSplash } from "@/features/auth/components/app-splash";
+import { useIsClient } from "@/hooks/use-is-client";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 
 /** Cap/emulator Convex can stay isAuthenticated briefly after sign-out. */
@@ -23,18 +24,17 @@ export function LoginSessionGate({ children }: { children: ReactNode }) {
   );
 }
 
+function subscribeNoop() {
+  return () => {};
+}
+
 function LoginSessionGateInner({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useConvexAuth();
   const searchParams = useSearchParams();
   const signedOutParam = searchParams.get("signedOut") === "1";
-  const [mounted, setMounted] = useState(false);
-  const [sessionLogout, setSessionLogout] = useState(false);
+  const mounted = useIsClient();
+  const sessionLogout = useSyncExternalStore(subscribeNoop, hasExplicitLogout, () => false);
   const [coverBudgetElapsed, setCoverBudgetElapsed] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    setSessionLogout(hasExplicitLogout());
-  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setCoverBudgetElapsed(true), AUTH_COVER_BUDGET_MS);

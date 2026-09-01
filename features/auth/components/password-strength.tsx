@@ -22,7 +22,9 @@ export function PasswordStrengthMeter({ password }: { password: string }) {
             />
           ))}
         </div>
-        <p className="text-muted-foreground w-20 text-right text-xs font-medium">{strength.label}</p>
+        <p className="text-muted-foreground w-20 text-right text-xs font-medium">
+          {strength.label}
+        </p>
       </div>
       <ul className="grid gap-1">
         {strength.checks.map((check) => (

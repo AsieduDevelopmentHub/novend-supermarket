@@ -4,7 +4,10 @@ import { describe, expect, it } from "vitest";
 
 const download = readFileSync(resolve(process.cwd(), "lib/export/download.ts"), "utf8");
 const bridge = readFileSync(
-  resolve(process.cwd(), "apps/mobile/android/app/src/main/java/com/novend/pos/NovendNativeBridge.java"),
+  resolve(
+    process.cwd(),
+    "apps/mobile/android/app/src/main/java/com/novend/pos/NovendNativeBridge.java",
+  ),
   "utf8",
 );
 const activity = readFileSync(
@@ -19,11 +22,13 @@ describe("Capacitor Downloads bridge", () => {
     expect(download).toContain("finishSave");
     expect(download).toContain("finishShare");
     expect(download).toContain("export async function shareBlob");
-    expect(bridge).toContain('@JavascriptInterface');
+    expect(bridge).toContain("@JavascriptInterface");
     expect(bridge).toContain("finishShare");
     expect(bridge).toContain("ACTION_SEND");
     expect(bridge).toContain("MediaStore.Downloads");
-    expect(activity).toContain('addJavascriptInterface(new NovendNativeBridge(this), "NovendNative")');
+    expect(activity).toContain(
+      'addJavascriptInterface(new NovendNativeBridge(this), "NovendNative")',
+    );
   });
 
   it("retries a hosted load with cache before stay=1", () => {

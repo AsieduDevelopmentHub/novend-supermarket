@@ -40,7 +40,10 @@ async function settle(page) {
   for (const text of loaders) {
     const loader = page.getByText(text);
     if ((await loader.count()) > 0) {
-      await loader.first().waitFor({ state: "hidden", timeout: 12_000 }).catch(() => {});
+      await loader
+        .first()
+        .waitFor({ state: "hidden", timeout: 12_000 })
+        .catch(() => {});
     }
   }
   await page.waitForTimeout(600);

@@ -57,8 +57,13 @@ function userInitials(name: string) {
 }
 
 export function UsersView() {
-  const { canManageUsers, isAdmin, isManager, branchId: myBranchId, userId: actorUserId } =
-    usePermissions();
+  const {
+    canManageUsers,
+    isAdmin,
+    isManager,
+    branchId: myBranchId,
+    userId: actorUserId,
+  } = usePermissions();
   const online = useConnectivity();
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<Id<"profiles"> | null>(null);
@@ -441,10 +446,7 @@ export function UsersView() {
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select
-                value={status}
-                onValueChange={(v) => setStatus(v as "active" | "inactive")}
-              >
+              <Select value={status} onValueChange={(v) => setStatus(v as "active" | "inactive")}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

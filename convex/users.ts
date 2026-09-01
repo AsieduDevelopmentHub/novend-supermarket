@@ -143,10 +143,11 @@ export const list = query({
     search: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { profile: actor, organizationId, userId: actorUserId } = await requireRole(ctx, [
-      "administrator",
-      "manager",
-    ]);
+    const {
+      profile: actor,
+      organizationId,
+      userId: actorUserId,
+    } = await requireRole(ctx, ["administrator", "manager"]);
     const organization = await ctx.db.get(organizationId);
     const now = Date.now();
     let profiles = await ctx.db
@@ -217,10 +218,11 @@ export const list = query({
 export const get = query({
   args: { id: v.id("profiles") },
   handler: async (ctx, args) => {
-    const { profile: actor, organizationId, userId: actorUserId } = await requireRole(ctx, [
-      "administrator",
-      "manager",
-    ]);
+    const {
+      profile: actor,
+      organizationId,
+      userId: actorUserId,
+    } = await requireRole(ctx, ["administrator", "manager"]);
     const profile = await ctx.db.get(args.id);
     if (!profile || profile.organizationId !== organizationId) return null;
     if (

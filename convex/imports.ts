@@ -6,12 +6,7 @@ import { planCapabilities, capabilityDeniedMessage } from "./shared/capabilities
 import { sanitizeText, TEXT_LIMITS } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
 
-const FORMAT = v.union(
-  v.literal("csv"),
-  v.literal("xlsx"),
-  v.literal("pdf"),
-  v.literal("json"),
-);
+const FORMAT = v.union(v.literal("csv"), v.literal("xlsx"), v.literal("pdf"), v.literal("json"));
 
 async function requireCatalogManager(ctx: Parameters<typeof requireRole>[0]) {
   const session = await requireRole(ctx, ["administrator", "manager"]);

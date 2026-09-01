@@ -3,7 +3,10 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const bridge = readFileSync(
-  resolve(process.cwd(), "apps/mobile/android/app/src/main/java/com/novend/pos/NovendNativeBridge.java"),
+  resolve(
+    process.cwd(),
+    "apps/mobile/android/app/src/main/java/com/novend/pos/NovendNativeBridge.java",
+  ),
   "utf8",
 );
 const services = readFileSync(

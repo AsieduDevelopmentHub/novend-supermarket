@@ -108,11 +108,7 @@ export type ShareAdapter = {
   /** Share a local file URI (PDF/image) via the native sheet. */
   shareFile?: (uri: string, title?: string) => Promise<HardwareResult>;
   /** Write a temp PDF (Cache + FileProvider) and open the native share sheet. */
-  sharePdf?: (
-    bytes: Uint8Array,
-    title: string,
-    fileName: string,
-  ) => Promise<HardwareResult>;
+  sharePdf?: (bytes: Uint8Array, title: string, fileName: string) => Promise<HardwareResult>;
 };
 
 export type HardwareAdapters = {

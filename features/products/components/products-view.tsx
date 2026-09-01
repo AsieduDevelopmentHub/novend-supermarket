@@ -14,16 +14,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { formatCurrency } from "@/lib/currency";
-import {
-  Eye,
-  MoreVertical,
-  Package,
-  Pencil,
-  Plus,
-  Trash2,
-  Upload,
-  Warehouse,
-} from "lucide-react";
+import { Eye, MoreVertical, Package, Pencil, Plus, Trash2, Upload, Warehouse } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -81,9 +72,12 @@ export function ProductsView() {
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all" | null>(myBranchId);
   const mirroredBranches = useBranchesList();
   const branches = isAdmin ? mirroredBranches : undefined;
-  const listBranchId =
-    isAdmin && branchFilter && branchFilter !== "all" ? branchFilter : undefined;
-  const { products, total, loading: isLoading } = useProductsList({
+  const listBranchId = isAdmin && branchFilter && branchFilter !== "all" ? branchFilter : undefined;
+  const {
+    products,
+    total,
+    loading: isLoading,
+  } = useProductsList({
     search,
     includeInactive: canManageProducts,
     branchId: listBranchId,
@@ -110,7 +104,8 @@ export function ProductsView() {
       productExportTable({
         rows: exportRows ?? [],
         canViewCost,
-        branchLabel: isAdmin && branchFilter && branchFilter !== "all" ? undefined : (branchName ?? undefined),
+        branchLabel:
+          isAdmin && branchFilter && branchFilter !== "all" ? undefined : (branchName ?? undefined),
       }),
     [exportRows, canViewCost, isAdmin, branchFilter, branchName],
   );
@@ -172,7 +167,9 @@ export function ProductsView() {
                 planName={planName}
                 disabled={rows.length === 0}
                 onExported={(format, count) => {
-                  void recordExport({ kind: "products", format, rowCount: count }).catch(() => undefined);
+                  void recordExport({ kind: "products", format, rowCount: count }).catch(
+                    () => undefined,
+                  );
                 }}
               />
               <Button
@@ -193,10 +190,7 @@ export function ProductsView() {
 
       <PlanLimitNotice resource="products" />
 
-      <div
-        data-tour="products-search"
-        className="flex flex-col gap-3 sm:flex-row sm:items-end"
-      >
+      <div data-tour="products-search" className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <BarcodeSearchField
           value={search}
           onChange={setSearch}

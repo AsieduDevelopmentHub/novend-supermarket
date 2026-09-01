@@ -12,7 +12,11 @@ import {
 } from "./db";
 import { getLastSnapshotAt, SNAPSHOT_PULL_TTL_MS } from "./freshness";
 import { cacheProductImages } from "./image-cache";
-import { notifyReplicaChanged, replicaWriteEpoch, shouldApplyFetchedSnapshot } from "./replica-events";
+import {
+  notifyReplicaChanged,
+  replicaWriteEpoch,
+  shouldApplyFetchedSnapshot,
+} from "./replica-events";
 import { productMatchesBarcode, productMatchesQuery } from "./barcode-lookup";
 import {
   branchStockMapForBranch,

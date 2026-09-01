@@ -120,7 +120,7 @@ function PlatformSession({ name, email }: { name: string; email: string | null }
         <p className="truncate text-sm font-medium">{name}</p>
         {email ? <p className="text-sidebar-muted truncate text-xs">{email}</p> : null}
       </div>
-      <Button asChild variant="ghost" className="w-full justify-start text-sidebar-foreground">
+      <Button asChild variant="ghost" className="text-sidebar-foreground w-full justify-start">
         <Link href="/platform/help">
           <CircleHelp className="h-4 w-4" />
           Help &amp; tours
