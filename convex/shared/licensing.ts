@@ -256,6 +256,9 @@ export type LicenseSnapshot = {
   issuedAt: number;
   scheduledPlan?: PlanKey | null;
   scheduledEffectiveAt?: number | null;
+  /** Owner self-service closure — org is read-only until `closureEffectiveAt`. */
+  pendingClosure?: boolean;
+  closureEffectiveAt?: number | null;
 };
 
 /**

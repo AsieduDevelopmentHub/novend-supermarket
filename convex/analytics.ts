@@ -25,10 +25,11 @@ import {
 } from "./shared/salesRange";
 
 export type ExpenseCategory =
-  "salaries" | "transport" | "utilities" | "supplies" | "maintenance" | "misc";
+  "salaries" | "commissions" | "transport" | "utilities" | "supplies" | "maintenance" | "misc";
 
 export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
   { value: "salaries", label: "Employee salaries" },
+  { value: "commissions", label: "Staff commissions" },
   { value: "transport", label: "Transportation & travel" },
   { value: "utilities", label: "Utilities" },
   { value: "supplies", label: "Office supplies" },
@@ -121,6 +122,9 @@ export const listExpenses = query({
         createdAt: e.createdAt,
         branchId: e.branchId ?? null,
         branchName: e.branchId ? (branchName.get(e.branchId) ?? null) : null,
+        beneficiaryProfileId: e.beneficiaryProfileId ?? null,
+        payPeriodKey: e.payPeriodKey ?? null,
+        sourceKind: e.sourceKind ?? null,
       }));
   },
 });
@@ -238,6 +242,11 @@ export const removeExpense = mutation({
     if (!existing) throw new Error("Expense not found");
     if (existing.organizationId !== organizationId) throw new Error("Not found");
     if (existing.branchId) assertBranchAccess(profile, existing.branchId);
+    if (existing.sourceKind === "salary" || existing.sourceKind === "commission") {
+      throw new Error(
+        "Salary and commission payments stay in financial history and cannot be deleted.",
+      );
+    }
     await ctx.db.delete(args.id);
     await writeAuditLog(ctx, {
       actorId: userId,

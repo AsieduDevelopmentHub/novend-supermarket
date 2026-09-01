@@ -318,34 +318,57 @@ export const getSnapshot = query({
       occurredAt: number;
       description: string | null;
       recordedByName: string;
+      recordedByUserId: string;
       branchId: string | null;
       branchName: string | null;
+      beneficiaryProfileId: string | null;
+      payPeriodKey: string | null;
+      paymentStatus: "paid" | "void" | null;
+      sourceKind: "salary" | "commission" | "reimbursement" | null;
+    }> = [];
+    let staffCompensation: Array<{
+      id: string;
+      salaryAmount: number | null;
+      salaryFrequency: "monthly" | "weekly";
+      commissionRate: number | null;
+      commissionBasis: "net" | "gross";
+      updatedAt: number;
     }> = [];
 
     if (canManage) {
-      const [supplierRows, wholesaleRows, purchaseRows, transferRows, expenseRows] =
-        await Promise.all([
-          ctx.db
-            .query("suppliers")
-            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-            .collect(),
-          ctx.db
-            .query("wholesaleStock")
-            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-            .collect(),
-          ctx.db
-            .query("supplierPurchases")
-            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-            .collect(),
-          ctx.db
-            .query("stockTransfers")
-            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-            .collect(),
-          ctx.db
-            .query("expenses")
-            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-            .collect(),
-        ]);
+      const [
+        supplierRows,
+        wholesaleRows,
+        purchaseRows,
+        transferRows,
+        expenseRows,
+        compensationRows,
+      ] = await Promise.all([
+        ctx.db
+          .query("suppliers")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("wholesaleStock")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("supplierPurchases")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("stockTransfers")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("expenses")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+        ctx.db
+          .query("staffCompensation")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect(),
+      ]);
 
       const productById = new Map(activeProducts.map((p) => [p._id, p]));
       suppliers = supplierRows.map((row) => ({
@@ -427,9 +450,22 @@ export const getSnapshot = query({
           occurredAt: row.occurredAt,
           description: row.description ?? null,
           recordedByName: nameByUser.get(row.recordedBy) ?? "Unknown",
+          recordedByUserId: row.recordedBy as string,
           branchId: (row.branchId as string | undefined) ?? null,
           branchName: row.branchId ? (branchNameById.get(row.branchId) ?? null) : null,
+          beneficiaryProfileId: (row.beneficiaryProfileId as string | undefined) ?? null,
+          payPeriodKey: row.payPeriodKey ?? null,
+          paymentStatus: (row.paymentStatus as "paid" | "void" | null) ?? null,
+          sourceKind: (row.sourceKind as "salary" | "commission" | "reimbursement" | null) ?? null,
         }));
+      staffCompensation = compensationRows.map((row) => ({
+        id: row.profileId as string,
+        salaryAmount: row.salaryAmount ?? null,
+        salaryFrequency: row.salaryFrequency,
+        commissionRate: row.commissionRate ?? null,
+        commissionBasis: row.commissionBasis,
+        updatedAt: row.updatedAt,
+      }));
 
       const filteredProfiles = profiles.filter((p) =>
         profile.role === "manager"
@@ -564,6 +600,7 @@ export const getSnapshot = query({
         })),
       users: staff,
       expenses,
+      staffCompensation,
       returns,
       lots,
       print: {

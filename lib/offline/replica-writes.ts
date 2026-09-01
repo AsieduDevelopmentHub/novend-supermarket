@@ -11,6 +11,8 @@ import type {
   CreateCategoryPayload,
   CreateExpensePayload,
   CreateUserPayload,
+  PayCommissionPayload,
+  PaySalaryPayload,
   RecordWholesalePurchasePayload,
   RemoveExpensePayload,
   TransferStockPayload,
@@ -18,9 +20,17 @@ import type {
   UpsertBranchPayload,
   UpsertCustomerPayload,
   UpsertProductPayload,
+  UpsertStaffCompensationPayload,
   UpsertSupplierPayload,
   WholesaleTransferPayload,
 } from "./types";
+import { roundMoney } from "@/lib/currency";
+import {
+  assertPayPeriodKey,
+  computeCommissionEarned,
+  currentPayPeriodKey,
+  periodBounds,
+} from "@/convex/shared/payroll";
 
 const QUEUED_TOAST = "Saved on this device. We'll sync when you're back online.";
 
@@ -546,5 +556,163 @@ export async function queueUpsertBranch(
     code,
     status: payload.status ?? "active",
   } satisfies UpsertBranchPayload);
+  return localId;
+}
+
+export async function queueUpsertStaffCompensation(payload: UpsertStaffCompensationPayload) {
+  const db = await getOfflineDb();
+  if (!db) throw new Error("Local storage is not available on this device.");
+  const existing = await db.staffCompensation.get(payload.profileId);
+  const row = {
+    id: payload.profileId,
+    salaryAmount:
+      payload.salaryAmount === undefined
+        ? (existing?.salaryAmount ?? null)
+        : roundMoney(payload.salaryAmount),
+    salaryFrequency: payload.salaryFrequency,
+    commissionRate:
+      payload.commissionRate === undefined
+        ? (existing?.commissionRate ?? null)
+        : roundMoney(payload.commissionRate),
+    commissionBasis: payload.commissionBasis,
+    updatedAt: Date.now(),
+  };
+  await db.staffCompensation.put(row);
+  await enqueueOutbox(db, "upsert_staff_compensation", payload);
+}
+
+async function paidPayrollExpenseExists(
+  db: NonNullable<Awaited<ReturnType<typeof getOfflineDb>>>,
+  profileId: string,
+  sourceKind: "salary" | "commission",
+  payPeriodKey: string,
+) {
+  const rows = await db.expenses
+    .filter(
+      (row) =>
+        row.beneficiaryProfileId === profileId &&
+        row.sourceKind === sourceKind &&
+        row.payPeriodKey === payPeriodKey &&
+        row.paymentStatus !== "void",
+    )
+    .toArray();
+  return rows.length > 0;
+}
+
+export async function queuePaySalary(payload: PaySalaryPayload) {
+  const db = await getOfflineDb();
+  if (!db) throw new Error("Local storage is not available on this device.");
+  const user = await db.users.get(payload.profileId);
+  if (!user?.branchId) throw new Error("This user has no branch assignment");
+  const compensation = await db.staffCompensation.get(payload.profileId);
+  const amount = compensation?.salaryAmount ?? 0;
+  if (!amount || amount <= 0) {
+    throw new Error("Set a salary amount before recording a payment.");
+  }
+  const frequency = compensation?.salaryFrequency ?? "monthly";
+  const payPeriodKey = assertPayPeriodKey(payload.payPeriodKey, frequency);
+  if (await paidPayrollExpenseExists(db, payload.profileId, "salary", payPeriodKey)) {
+    throw new Error(`Salary for ${payPeriodKey} is already recorded.`);
+  }
+  const { end } = periodBounds(payPeriodKey);
+  const branch = await db.branches.get(user.branchId);
+  const localId = newClientId("local");
+  await db.expenses.put({
+    id: localId,
+    amount: roundMoney(amount),
+    category: "salaries",
+    occurredAt: Math.min(end, Date.now()),
+    description: `Salary ${payPeriodKey} — ${user.name}`,
+    recordedByName: "You",
+    recordedByUserId: (await getMeta(db, META_KEYS.profileUserId)) ?? null,
+    branchId: user.branchId,
+    branchName: branch?.name ?? null,
+    beneficiaryProfileId: payload.profileId,
+    payPeriodKey,
+    paymentStatus: "paid",
+    sourceKind: "salary",
+  });
+  await enqueueOutbox(db, "pay_salary", {
+    ...payload,
+    payPeriodKey,
+    localExpenseId: localId,
+    clientOperationId: payload.clientOperationId ?? newClientId("pay_salary"),
+  });
+  return localId;
+}
+
+export async function queuePayCommission(payload: PayCommissionPayload) {
+  const db = await getOfflineDb();
+  if (!db) throw new Error("Local storage is not available on this device.");
+  const user = await db.users.get(payload.profileId);
+  if (!user?.branchId) throw new Error("This user has no branch assignment");
+  const compensation = await db.staffCompensation.get(payload.profileId);
+  const frequency = compensation?.salaryFrequency ?? "monthly";
+  const payPeriodKey = assertPayPeriodKey(payload.payPeriodKey, frequency);
+  const { start, end } = periodBounds(payPeriodKey);
+  const rate = compensation?.commissionRate ?? 0;
+  if (!rate || rate <= 0) {
+    throw new Error("Set a commission rate before recording a payment.");
+  }
+  const sales = (await db.orders.toArray()).filter(
+    (row) => row.cashierId === user.userId && row.completedAt >= start && row.completedAt <= end,
+  );
+  const localSales = (await db.localSales.toArray()).filter(
+    (row) =>
+      row.cashierId === user.userId &&
+      row.syncStatus !== "synced" &&
+      row.completedAt >= start &&
+      row.completedAt <= end,
+  );
+  const grossSales = roundMoney([...sales, ...localSales].reduce((sum, row) => sum + row.total, 0));
+  const saleIds = new Set([...sales.map((row) => row.id), ...localSales.map((row) => row.id)]);
+  const returns = (await db.returns.toArray()).filter(
+    (row) => saleIds.has(row.saleId) && row.completedAt >= start && row.completedAt <= end,
+  );
+  const refundTotal = roundMoney(returns.reduce((sum, row) => sum + row.refundAmount, 0));
+  const netSales = roundMoney(Math.max(0, grossSales - refundTotal));
+  const earned = computeCommissionEarned({
+    netSales,
+    grossSales,
+    rate,
+    basis: compensation?.commissionBasis ?? "net",
+  });
+  const paidRows = await db.expenses
+    .filter(
+      (row) =>
+        row.beneficiaryProfileId === payload.profileId &&
+        row.sourceKind === "commission" &&
+        row.payPeriodKey === payPeriodKey &&
+        row.paymentStatus !== "void",
+    )
+    .toArray();
+  const alreadyPaid = roundMoney(paidRows.reduce((sum, row) => sum + row.amount, 0));
+  const outstanding = roundMoney(Math.max(0, earned - alreadyPaid));
+  if (outstanding <= 0) {
+    throw new Error(`No outstanding commission for ${payPeriodKey}.`);
+  }
+  const branch = await db.branches.get(user.branchId);
+  const localId = newClientId("local");
+  await db.expenses.put({
+    id: localId,
+    amount: outstanding,
+    category: "commissions",
+    occurredAt: Math.min(end, Date.now()),
+    description: `Commission ${payPeriodKey} — ${user.name}`,
+    recordedByName: "You",
+    recordedByUserId: (await getMeta(db, META_KEYS.profileUserId)) ?? null,
+    branchId: user.branchId,
+    branchName: branch?.name ?? null,
+    beneficiaryProfileId: payload.profileId,
+    payPeriodKey,
+    paymentStatus: "paid",
+    sourceKind: "commission",
+  });
+  await enqueueOutbox(db, "pay_commission", {
+    ...payload,
+    payPeriodKey,
+    localExpenseId: localId,
+    clientOperationId: payload.clientOperationId ?? newClientId("pay_commission"),
+  });
   return localId;
 }

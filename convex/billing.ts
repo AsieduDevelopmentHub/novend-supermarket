@@ -26,6 +26,7 @@ import {
 } from "./shared/entitlements";
 import { planCapabilities } from "./shared/capabilities";
 import { GRACE_PERIOD_MS } from "./shared/licensing";
+import { hasPendingOrganizationClosure } from "./shared/accountClosure";
 import {
   DEFAULT_PLAN_KEY,
   PLAN_CATALOG,
@@ -115,6 +116,8 @@ export const licenseSnapshot = query({
   handler: async (ctx) => {
     const { organization } = await requireSessionIgnoringLicense(ctx);
     const license = await resolveLicense(ctx, organization);
+    const now = Date.now();
+    const pendingClosure = hasPendingOrganizationClosure(organization, now);
     return {
       organizationId: organization._id,
       organizationName: organization.name,
@@ -125,6 +128,8 @@ export const licenseSnapshot = query({
       limits: license.limits,
       capabilities: planCapabilities(license.planKey, license.limits),
       features: license.plan.features,
+      pendingClosure,
+      closureEffectiveAt: organization.closureEffectiveAt ?? null,
       subscription: license.subscription
         ? {
             status: license.subscription.status,

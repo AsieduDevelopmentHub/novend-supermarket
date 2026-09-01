@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
@@ -21,31 +22,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useClientPagedRows } from "@/hooks/use-ui";
 import { useBranchesList, useReturnsList } from "@/hooks/use-offline-lists";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { Eye, Undo2 } from "lucide-react";
-
-const PAGE_SIZE = 25;
 
 export function ReturnsView() {
   const { isAdmin, isCashier, branchId: myBranchId, branchName } = usePermissions();
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<"all" | "full" | "partial">("all");
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
-  const [page, setPage] = useState(0);
   const branches = useBranchesList(false);
   const returns = useReturnsList({
     search,
     kind,
     branchId: isAdmin && branchFilter !== "all" ? branchFilter : undefined,
   });
-
-  const paged = useMemo(() => {
-    if (!returns) return [];
-    return returns.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-  }, [returns, page]);
-  const pageCount = returns ? Math.max(1, Math.ceil(returns.length / PAGE_SIZE)) : 1;
+  const filterKey = `${search}|${kind}|${branchFilter}`;
+  const { page, setPage, pageSize, setPageSize, total, paged } = useClientPagedRows(
+    returns,
+    filterKey,
+  );
 
   return (
     <div className="space-y-6">
@@ -63,7 +61,7 @@ export function ReturnsView() {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setPage(0);
+            setPage(1);
           }}
           placeholder="Search return, invoice, customer…"
           className="max-w-md"
@@ -73,14 +71,14 @@ export function ReturnsView() {
           onReset={() => {
             setKind("all");
             setBranchFilter("all");
-            setPage(0);
+            setPage(1);
           }}
         >
           <Select
             value={kind}
             onValueChange={(value) => {
               setKind(value as "all" | "full" | "partial");
-              setPage(0);
+              setPage(1);
             }}
           >
             <SelectTrigger className="w-full sm:w-40">
@@ -98,7 +96,7 @@ export function ReturnsView() {
               value={branchFilter}
               onChange={(value) => {
                 setBranchFilter(value);
-                setPage(0);
+                setPage(1);
               }}
               allowAll
               className="w-full sm:w-auto"
@@ -141,7 +139,7 @@ export function ReturnsView() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paged.map((row) => (
+                    {(paged ?? []).map((row) => (
                       <ClickableTableRow key={row.id} href={`/returns/${row.id}`}>
                         <td className="px-4 py-3 font-medium">{row.returnNumber}</td>
                         <td className="px-4 py-3">{row.invoiceNumber}</td>
@@ -179,7 +177,7 @@ export function ReturnsView() {
           </div>
 
           <div className="space-y-3 md:hidden">
-            {paged.map((row) => (
+            {(paged ?? []).map((row) => (
               <Card key={row.id}>
                 <CardContent className="space-y-2 p-4">
                   <div className="flex items-start justify-between gap-2">
@@ -207,32 +205,14 @@ export function ReturnsView() {
             ))}
           </div>
 
-          {pageCount > 1 ? (
-            <div className="flex items-center justify-between text-sm">
-              <p className="text-muted-foreground">
-                Page {page + 1} of {pageCount}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => setPage((value) => Math.max(0, value - 1))}
-                >
-                  Previous
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={page + 1 >= pageCount}
-                  onClick={() => setPage((value) => value + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
+          {total > 0 ? (
+            <ListPagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
           ) : null}
         </>
       )}

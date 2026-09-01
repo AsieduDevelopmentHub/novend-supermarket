@@ -23,6 +23,8 @@ export type LicenseState = {
   stale: boolean;
   subscription: LicenseSnapshot["subscription"];
   organizationId: string | null;
+  pendingClosure: boolean;
+  closureEffectiveAt: number | null;
 };
 
 const DEFAULT_ACCESS: LicenseAccess = {
@@ -77,6 +79,8 @@ export function useLicense(): LicenseState {
       stale: false,
       subscription: remote.subscription,
       organizationId: remote.organizationId,
+      pendingClosure: remote.pendingClosure ?? false,
+      closureEffectiveAt: remote.closureEffectiveAt ?? null,
     };
   }
 
@@ -94,6 +98,8 @@ export function useLicense(): LicenseState {
       stale: cached.access.stale,
       subscription: cached.subscription,
       organizationId: cached.organizationId,
+      pendingClosure: cached.pendingClosure ?? false,
+      closureEffectiveAt: cached.closureEffectiveAt ?? null,
     };
   }
 
@@ -110,5 +116,7 @@ export function useLicense(): LicenseState {
     stale: false,
     subscription: null,
     organizationId: null,
+    pendingClosure: false,
+    closureEffectiveAt: null,
   };
 }

@@ -16,6 +16,7 @@ import {
   requireRole,
   requireSessionIgnoringLicense,
   assertOrgDoc,
+  assertStaffProfileAccess,
 } from "./shared/permissions";
 import { roleValidator, telemetryRuntimeValidator } from "./schema";
 import { writeAuditLog } from "./shared/audit";
@@ -225,13 +226,7 @@ export const get = query({
     } = await requireRole(ctx, ["administrator", "manager"]);
     const profile = await ctx.db.get(args.id);
     if (!profile || profile.organizationId !== organizationId) return null;
-    if (
-      actor.role === "manager" &&
-      (profile.branchId !== actor.branchId ||
-        (profile.role !== "cashier" && profile._id !== actor._id))
-    ) {
-      throw new Error("Forbidden");
-    }
+    assertStaffProfileAccess(actor, profile);
     const user = await ctx.db.get(profile.userId);
     const branchDoc = profile.branchId ? await ctx.db.get(profile.branchId) : null;
     const organization = await ctx.db.get(organizationId);
@@ -303,6 +298,8 @@ export const updateProfile = mutation({
       if (blocked) throw new Error(blocked);
     }
 
+    const previousStatus = profile.status;
+    const now = Date.now();
     await ctx.db.patch(args.id, {
       name: sanitizeText(args.name, "Name", TEXT_LIMITS.name),
       role: args.role,
@@ -310,14 +307,27 @@ export const updateProfile = mutation({
       branchId: args.branchId,
       phone: sanitizePhone(args.phone),
       status: args.status,
+      ...(args.status === "inactive" && previousStatus === "active"
+        ? { deactivatedAt: now, deactivatedBy: userId }
+        : {}),
     });
 
     await writeAuditLog(ctx, {
       actorId: userId,
-      action: "update_user_profile",
+      action:
+        previousStatus !== args.status
+          ? args.status === "inactive"
+            ? "deactivate_user"
+            : "reactivate_user"
+          : "update_user_profile",
       entityType: "profiles",
       entityId: args.id,
-      metadata: { branchId: args.branchId, role: args.role },
+      metadata: {
+        branchId: args.branchId,
+        role: args.role,
+        previousStatus,
+        newStatus: args.status,
+      },
     });
   },
 });

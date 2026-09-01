@@ -30,7 +30,7 @@ import { toUserMessage } from "@/lib/errors";
 type OfflineContextValue = OfflineStatus & {
   refreshStatus: () => Promise<void>;
   pullSnapshot: (options?: { force?: boolean }) => Promise<void>;
-  flushOutbox: (options?: { force?: boolean }) => Promise<void>;
+  flushOutbox: (options?: { force?: boolean; showProgress?: boolean }) => Promise<void>;
   /** Force catalog mirror refresh + bump lastSyncAt so sales UI reloads. */
   refreshCatalog: () => Promise<void>;
   syncCenterOpen: boolean;
@@ -75,6 +75,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const claimStorageUpload = useMutation(api.storageUploads.claim);
   const createBranch = useMutation(api.branches.create);
   const updateBranch = useMutation(api.branches.update);
+  const upsertStaffCompensation = useMutation(api.payroll.upsertCompensation);
+  const paySalary = useMutation(api.payroll.paySalary);
+  const payCommission = useMutation(api.payroll.payCommission);
   const [status, setStatus] = useState<OfflineStatus>(emptyStatus);
   const [syncCenterOpen, setSyncCenterOpen] = useState(false);
   const pullingRef = useRef(false);
@@ -86,14 +89,15 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     const db = await getOfflineDb();
     const counts = await countOutboxByStatus();
     const open = await listOpenOutbox();
-    const queuedError = open.find((row) => row.lastError)?.lastError ?? null;
+    const failedError =
+      open.find((row) => row.status === "failed" && row.lastError)?.lastError ?? null;
     setStatus((prev) => ({
       ...prev,
       online: typeof navigator === "undefined" ? true : navigator.onLine,
       dexieAvailable: Boolean(db) || isOfflineDbAvailable(),
       pendingCount: counts.pending + counts.syncing,
       failedCount: counts.failed,
-      lastError: queuedError,
+      lastError: failedError,
     }));
   }, []);
 
@@ -132,7 +136,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   );
 
   const flushOutbox = useCallback(
-    async (options?: { force?: boolean }) => {
+    async (options?: { force?: boolean; showProgress?: boolean }) => {
       if (!navigator.onLine) return;
 
       const counts = await countOutboxByStatus();
@@ -156,9 +160,12 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       try {
         const result = await drainOutbox({
           force: options?.force === true,
-          onStart: () => {
-            setStatus((prev) => ({ ...prev, syncing: true }));
-          },
+          onStart:
+            options?.showProgress === true
+              ? () => {
+                  setStatus((prev) => ({ ...prev, syncing: true }));
+                }
+              : undefined,
           mutators: {
             completeSale: (args) => completeSale(args),
             processReturn: (args) => processReturn(args),
@@ -243,6 +250,26 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
             updateProduct: (args) => updateProduct(args),
             createBranch: (args) => createBranch(args),
             updateBranch: (args) => updateBranch(args),
+            upsertStaffCompensation: (args) =>
+              upsertStaffCompensation({
+                profileId: args.profileId as never,
+                salaryAmount: args.salaryAmount,
+                salaryFrequency: args.salaryFrequency,
+                commissionRate: args.commissionRate,
+                commissionBasis: args.commissionBasis,
+              }),
+            paySalary: (args) =>
+              paySalary({
+                profileId: args.profileId as never,
+                payPeriodKey: args.payPeriodKey,
+                clientOperationId: args.clientOperationId,
+              }),
+            payCommission: (args) =>
+              payCommission({
+                profileId: args.profileId as never,
+                payPeriodKey: args.payPeriodKey,
+                clientOperationId: args.clientOperationId,
+              }),
           },
           convex: { query: convex.query.bind(convex) },
         });
@@ -286,6 +313,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       claimStorageUpload,
       createBranch,
       updateBranch,
+      upsertStaffCompensation,
+      paySalary,
+      payCommission,
       convex,
       refreshStatus,
     ],

@@ -46,6 +46,7 @@ import {
 import { formatPresence } from "@/lib/date";
 import { deactivateAccountBlockReason } from "@/convex/shared/accountStatus";
 import type { AppRole } from "@/config/navigation";
+import { StaffMonthRoster } from "./staff-month-roster";
 
 function userInitials(name: string) {
   return name
@@ -222,6 +223,8 @@ export function UsersView() {
 
       <PlanLimitNotice resource="users" />
 
+      <StaffMonthRoster />
+
       <Input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
@@ -292,7 +295,7 @@ export function UsersView() {
                         </td>
                         <td className="px-4 py-3">
                           <Badge variant={user.status === "active" ? "success" : "secondary"}>
-                            {user.status === "active" ? "Active" : "Inactive"}
+                            {user.status === "active" ? "Active" : "Deactivated"}
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
@@ -453,7 +456,7 @@ export function UsersView() {
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive" disabled={Boolean(deactivateBlocked)}>
-                    Inactive
+                    Deactivated
                   </SelectItem>
                 </SelectContent>
               </Select>

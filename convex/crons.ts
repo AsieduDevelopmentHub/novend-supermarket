@@ -28,4 +28,11 @@ crons.daily(
   {},
 );
 
+crons.daily(
+  "account closure finalization",
+  { hourUTC: 4, minuteUTC: 0 },
+  internal.accountClosure.finalizeDueClosures,
+  {},
+);
+
 export default crons;

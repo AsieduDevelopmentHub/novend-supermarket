@@ -39,6 +39,16 @@ export type EmailOtpMessageInput = {
   expiresInMinutes: number;
 };
 
+export type OrganizationClosureAlertInput = {
+  kind: "requested" | "finalized";
+  organizationName: string;
+  organizationId: string;
+  effectiveAtLabel?: string;
+  reason?: string | null;
+  platformOrgUrl: string;
+  platformActivityUrl: string;
+};
+
 export type RenderedEmail = {
   subject: string;
   preheader: string;
@@ -196,6 +206,93 @@ export function renderEmailOtpEmail(input: EmailOtpMessageInput): RenderedEmail 
       </p>
       <p style="margin:0;font-size:13px;line-height:1.6;color:${EMAIL_BRAND.muted};">
         This code expires in ${input.expiresInMinutes} minutes and can be used only once. Never share it with anyone.
+      </p>
+    `,
+  });
+
+  return { subject, preheader, text, html };
+}
+
+const CLOSURE_REASON_LABELS: Record<string, string> = {
+  break: "Taking a break from the business",
+  switching: "Switching to another system",
+  cost: "Cost or billing concerns",
+  features: "Missing features",
+  support: "Support expectations",
+  other: "Other",
+};
+
+function closureReasonLabel(reason: string | null | undefined) {
+  if (!reason) return null;
+  return CLOSURE_REASON_LABELS[reason] ?? reason;
+}
+
+export function renderOrganizationClosureAlertEmail(
+  input: OrganizationClosureAlertInput,
+): RenderedEmail {
+  const org = escapeHtml(input.organizationName);
+  const isRequested = input.kind === "requested";
+  const subject = isRequested
+    ? `[Novend] ${input.organizationName} scheduled closure`
+    : `[Novend] ${input.organizationName} closed permanently`;
+  const preheader = isRequested
+    ? `Owner requested closure. Permanent block on ${input.effectiveAtLabel ?? "the scheduled date"}.`
+    : "Grace period ended — organization is now disabled.";
+
+  const reasonLine = closureReasonLabel(input.reason);
+  const detailLines = [
+    isRequested
+      ? `The owner scheduled closure of ${input.organizationName}. The business is read-only until the grace period ends.`
+      : `The grace period for ${input.organizationName} has ended. The organization is now fully disabled.`,
+    input.effectiveAtLabel && isRequested ? `Permanent closure: ${input.effectiveAtLabel}` : null,
+    reasonLine ? `Reason given: ${reasonLine}` : null,
+    `Organization ID: ${input.organizationId}`,
+  ].filter(Boolean);
+
+  const text = [
+    subject,
+    "",
+    ...detailLines,
+    "",
+    "Review in platform:",
+    input.platformOrgUrl,
+    "",
+    "Activity log:",
+    input.platformActivityUrl,
+    "",
+    `— ${EMAIL_BRAND.product} platform alerts`,
+  ].join("\n");
+
+  const html = wrapLayout({
+    title: subject,
+    preheader,
+    bodyHtml: `
+      <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;letter-spacing:-0.02em;">
+        ${isRequested ? "Business closure scheduled" : "Business closure finalized"}
+      </h1>
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#334155;">
+        <strong>${org}</strong> ${
+          isRequested
+            ? "entered a self-service closure window. Staff can still sign in read-only until the deadline."
+            : "is now fully disabled after the owner-requested grace period."
+        }
+      </p>
+      ${
+        input.effectiveAtLabel && isRequested
+          ? `<p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#334155;"><strong>Permanent closure:</strong> ${escapeHtml(input.effectiveAtLabel)}</p>`
+          : ""
+      }
+      ${
+        reasonLine
+          ? `<p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#334155;"><strong>Reason:</strong> ${escapeHtml(reasonLine)}</p>`
+          : ""
+      }
+      <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:${EMAIL_BRAND.muted};">
+        Organization ID: <code style="font-size:12px;">${escapeHtml(input.organizationId)}</code>
+      </p>
+      ${ctaButton(input.platformOrgUrl, "Open organization")}
+      <p style="margin:16px 0 0;font-size:13px;line-height:1.6;">
+        <a href="${escapeHtml(input.platformActivityUrl)}" style="color:#0369a1;font-weight:600;">View platform activity</a>
       </p>
     `,
   });

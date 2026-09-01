@@ -1,6 +1,6 @@
 # Database Schema
 
-Version: 1.3.1
+Version: 1.3.2
 
 Defined in `convex/schema.ts`. See also [`MULTI_TENANT.md`](./MULTI_TENANT.md).
 
@@ -20,9 +20,12 @@ or drive hot queries **start with** `organizationId`.
 - `billingHistory` — checkout and webhook payment records
 - `cloudBackups` — cloud backup blobs counted against the storage quota
 - `users` / auth tables — Convex Auth (global identity)
-- `profiles` — name, role, organizationId, branchId, status, appearance,
-  denormalized `tourProgress` (session bootstrap; `userTourProgress` remains the
-  indexed history)
+- `profiles` — name, role, organizationId, branchId, status (`active` /
+  `inactive` deactivation), optional `deactivatedAt` / `deactivatedBy`
+- `staffCompensation` — per-profile salary amount/frequency and commission
+  rate/basis. Payments are `expenses` rows, not a second ledger.
+- `expenses` — operating costs including `salaries` and `commissions`; optional
+  `beneficiaryProfileId`, `payPeriodKey`, `sourceKind`, `paymentStatus` for payroll
 - `branches` — name, unique code per org, status (MVP: MAIN)
 - `categories` — name, slug unique per org
 - `products` — catalog (pricing, unit, low-stock, optional expiry tracking)

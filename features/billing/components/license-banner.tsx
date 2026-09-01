@@ -17,6 +17,7 @@ function mobileSummary(
   reason: string,
   trialDays: number | null,
   fromCache: boolean,
+  pendingClosure: boolean,
 ): string {
   if (fromCache) return "Offline — using your last confirmed plan.";
   if (state === "trial") {
@@ -25,7 +26,10 @@ function mobileSummary(
   }
   if (state === "grace") return "Payment overdue — renew to stay active.";
   if (state === "expired") return "Subscription expired — renew to sell again.";
-  if (state === "suspended") return "Business suspended — new activity paused.";
+  if (state === "suspended") {
+    if (pendingClosure) return "Business closure scheduled — selling is paused.";
+    return "Business suspended — new activity paused.";
+  }
   if (state === "disabled") return "Business disabled — contact support.";
   return reason;
 }
@@ -37,7 +41,7 @@ function mobileSummary(
  * the counter; trial and grace states are informative, not alarming.
  */
 export function LicenseBanner() {
-  const { access, isLoading, fromCache, subscription } = useLicense();
+  const { access, isLoading, fromCache, subscription, pendingClosure } = useLicense();
   const { isAdmin } = usePermissions();
 
   if (isLoading || !access.reason) return null;
@@ -48,7 +52,13 @@ export function LicenseBanner() {
   const desktopText = `${access.reason}${
     trialDays !== null ? ` ${trialDays} ${trialDays === 1 ? "day" : "days"} left.` : ""
   }`;
-  const mobileText = mobileSummary(access.state, access.reason, trialDays, fromCache);
+  const mobileText = mobileSummary(
+    access.state,
+    access.reason,
+    trialDays,
+    fromCache,
+    pendingClosure,
+  );
 
   return (
     <div

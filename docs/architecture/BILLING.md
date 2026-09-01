@@ -1,6 +1,6 @@
 # Billing, Plans & Activation
 
-Version: 1.3.3
+Version: 1.3.4
 
 Novend is sold as a subscription with a lifetime licence option. This document is
 the reference for how entitlements are defined, enforced and paid for.
@@ -19,23 +19,23 @@ licence so a terminal keeps selling offline, but it never decides access.
 
 # Modules
 
-| File                                     | Owns                                                                                           |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `convex/shared/capabilities.ts`          | Import/export capabilities derived from the plan catalog (`canExportXlsx`, `maxImportRows`, …) |
-| `convex/shared/plans.ts`                 | Plan catalog, prices, limits, cycle rules, limit messages                                      |
-| `convex/shared/licensing.ts`             | Pure access rules: `deriveAccess`, grace, usage levels, offline TTL                            |
-| `convex/shared/entitlements.ts`          | Database-backed licence resolution, usage counting, capacity checks                            |
-| `convex/shared/subscriptions.ts`         | Activation, trials, plan-catalog sync                                                          |
-| `convex/shared/billingPeriod.ts`         | Period arithmetic for monthly/yearly cycles                                                    |
-| `convex/shared/planChange.ts`            | Upgrade proration and scheduled-downgrade preview                                              |
-| `convex/shared/provisionOrganization.ts` | Tenant bootstrap (trial or assigned plan)                                                      |
-| `convex/shared/paystack.ts`              | Paystack REST client and webhook signature verification                                        |
-| `convex/shared/billingProvider.ts`       | Gateway abstraction (`manual`, `paystack`)                                                     |
-| `convex/billing.ts`                      | Tenant queries, checkout, webhook handlers, platform administration, Enterprise backup quota   |
-| `convex/billingHttp.ts`                  | `POST /billing/paystack/webhook`                                                               |
-| `convex/devices.ts`                      | Device activation and deactivation                                                             |
-| `convex/cloudBackups.ts`                 | Cloud backup uploads against the storage quota. UI: Settings → Backups                         |
-| `convex/crons.ts`                        | Daily expiry and catalog maintenance                                                           |
+| File                                     | Owns                                                                                          |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `convex/shared/capabilities.ts`          | Plan-derived capabilities (`canExportXlsx`, `canManageStaffCompensation`, `maxImportRows`, …) |
+| `convex/shared/plans.ts`                 | Plan catalog, prices, limits, cycle rules, limit messages                                     |
+| `convex/shared/licensing.ts`             | Pure access rules: `deriveAccess`, grace, usage levels, offline TTL                           |
+| `convex/shared/entitlements.ts`          | Database-backed licence resolution, usage counting, capacity checks                           |
+| `convex/shared/subscriptions.ts`         | Activation, trials, plan-catalog sync                                                         |
+| `convex/shared/billingPeriod.ts`         | Period arithmetic for monthly/yearly cycles                                                   |
+| `convex/shared/planChange.ts`            | Upgrade proration and scheduled-downgrade preview                                             |
+| `convex/shared/provisionOrganization.ts` | Tenant bootstrap (trial or assigned plan)                                                     |
+| `convex/shared/paystack.ts`              | Paystack REST client and webhook signature verification                                       |
+| `convex/shared/billingProvider.ts`       | Gateway abstraction (`manual`, `paystack`)                                                    |
+| `convex/billing.ts`                      | Tenant queries, checkout, webhook handlers, platform administration, Enterprise backup quota  |
+| `convex/billingHttp.ts`                  | `POST /billing/paystack/webhook`                                                              |
+| `convex/devices.ts`                      | Device activation and deactivation                                                            |
+| `convex/cloudBackups.ts`                 | Cloud backup uploads against the storage quota. UI: Settings → Backups                        |
+| `convex/crons.ts`                        | Daily expiry and catalog maintenance                                                          |
 
 # Plans
 
@@ -62,7 +62,7 @@ administrator sets `organizations.backupLimitBytes` from the licence panel.
 Import and export formats are derived in `convex/shared/capabilities.ts` from this
 catalog — not from scattered `if (plan === "pro")` checks. CSV/JSON export and
 product import are available on every commercial plan. Excel and PDF follow Pro
-rank (the same cut as “Advanced analytics”). `maxImportRows` is the product
+rank (the same cut as “Advanced analytics” and staff salary/commission). `maxImportRows` is the product
 limit, capped at 10,000 per file. A Super Admin product-limit override on an
 organization also changes that org’s import row cap; it does not unlock Excel or
 PDF. Super Admin org overview, licence, and the organizations list show the

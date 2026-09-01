@@ -3,6 +3,7 @@ import { getMeta, getOfflineDb, META_KEYS, newClientId, type NovendOfflineDb } f
 import { allocateReturnNumber } from "@/convex/shared/documentReferences";
 import { applyLocalBranchStockChange } from "./branch-stock";
 import { enqueueProcessReturn } from "./outbox";
+import { assertLocalWriteAllowed } from "./license-guard";
 import { notifyReplicaChanged } from "./replica-events";
 import { estimateReturnRefund } from "@/lib/sales/returns";
 import { roundMoney } from "@/lib/currency";
@@ -97,6 +98,7 @@ export async function processReturnLocally(input: {
   if (input.saleId.startsWith("lsale_")) {
     throw new Error("Sync this sale before returning items.");
   }
+  await assertLocalWriteAllowed();
   const db = await getOfflineDb();
   if (!db) throw new Error("Offline storage is unavailable");
   if (input.items.length === 0) throw new Error("Select at least one item to return");

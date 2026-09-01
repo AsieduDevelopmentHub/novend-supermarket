@@ -10,12 +10,25 @@ export const roleValidator = v.union(
 
 export const expenseCategoryValidator = v.union(
   v.literal("salaries"),
+  v.literal("commissions"),
   v.literal("transport"),
   v.literal("utilities"),
   v.literal("supplies"),
   v.literal("maintenance"),
   v.literal("misc"),
 );
+
+export const payrollSourceKindValidator = v.union(
+  v.literal("manual"),
+  v.literal("salary"),
+  v.literal("commission"),
+);
+
+export const expensePaymentStatusValidator = v.union(v.literal("paid"), v.literal("void"));
+
+export const salaryFrequencyValidator = v.union(v.literal("monthly"), v.literal("weekly"));
+
+export const commissionBasisValidator = v.union(v.literal("net"), v.literal("gross"));
 
 /** Platform-owner operating cost categories (Novend SaaS, not tenant POS expenses). */
 export const platformCostCategoryValidator = v.union(
@@ -176,6 +189,12 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
+    /** Owner-initiated closure; org stays recoverable until `closureEffectiveAt`. */
+    closureRequestedAt: v.optional(v.number()),
+    closureEffectiveAt: v.optional(v.number()),
+    closureRequestedBy: v.optional(v.id("users")),
+    closureReason: v.optional(v.string()),
+    closurePreviousStatus: v.optional(organizationStatusValidator),
   })
     .index("by_slug", ["slug"])
     .index("by_ownerUserId", ["ownerUserId"])
@@ -369,6 +388,9 @@ export default defineSchema({
     lastSeenAt: v.optional(v.number()),
     lastLoginAt: v.optional(v.number()),
     lastDevice: v.optional(v.string()),
+    deactivatedAt: v.optional(v.number()),
+    deactivatedBy: v.optional(v.id("users")),
+    accountDeletionRequestedAt: v.optional(v.number()),
     appearanceTheme: v.optional(
       v.union(v.literal("light"), v.literal("dark"), v.literal("system")),
     ),
@@ -678,12 +700,35 @@ export default defineSchema({
     recordedBy: v.id("users"),
     branchId: v.optional(v.id("branches")),
     createdAt: v.number(),
+    beneficiaryProfileId: v.optional(v.id("profiles")),
+    payPeriodKey: v.optional(v.string()),
+    paymentStatus: v.optional(expensePaymentStatusValidator),
+    sourceKind: v.optional(payrollSourceKindValidator),
   })
     .index("by_organization", ["organizationId"])
     .index("by_occurredAt", ["occurredAt"])
     .index("by_organization_occurredAt", ["organizationId", "occurredAt"])
     .index("by_category", ["category"])
-    .index("by_branch", ["branchId"]),
+    .index("by_branch", ["branchId"])
+    .index("by_beneficiary", ["organizationId", "beneficiaryProfileId"])
+    .index("by_org_period_source", ["organizationId", "payPeriodKey", "sourceKind"]),
+
+  /**
+   * Per-staff salary and commission configuration. Payments themselves are
+   * `expenses` rows (categories salaries / commissions) so they hit P&L.
+   */
+  staffCompensation: defineTable({
+    organizationId: v.id("organizations"),
+    profileId: v.id("profiles"),
+    salaryAmount: v.optional(v.number()),
+    salaryFrequency: salaryFrequencyValidator,
+    commissionRate: v.optional(v.number()),
+    commissionBasis: commissionBasisValidator,
+    updatedBy: v.id("users"),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_profile", ["profileId"]),
 
   heldSales: defineTable({
     organizationId: v.id("organizations"),

@@ -37,6 +37,9 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { derivedMaxImportRows } from "@/convex/shared/capabilities";
 import type { OrgImportExportSnapshot } from "@/convex/shared/importExportSnapshot";
 import { PlatformImportExportCard } from "./platform-import-export-card";
+import { formatClosureReason } from "@/convex/shared/accountClosure";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ShieldAlert } from "lucide-react";
 
 type LimitOverrides = {
   products?: number | null;
@@ -73,12 +76,18 @@ export function PlatformLicensePanel({
   status,
   limitOverrides,
   importExport,
+  pendingClosure = false,
+  closureEffectiveAt = null,
+  closureReason = null,
 }: {
   organizationId: Id<"organizations">;
   organizationName: string;
   status: OrganizationStatus | "inactive";
   limitOverrides: LimitOverrides;
   importExport?: OrgImportExportSnapshot | null;
+  pendingClosure?: boolean;
+  closureEffectiveAt?: number | null;
+  closureReason?: string | null;
 }) {
   const online = useConnectivity();
   const license = useQuery(api.billing.organizationLicense, online ? { organizationId } : "skip");
@@ -138,6 +147,22 @@ export function PlatformLicensePanel({
 
   return (
     <div className="space-y-4">
+      {pendingClosure && closureEffectiveAt ? (
+        <Alert className="border-destructive/40 bg-destructive/5">
+          <ShieldAlert className="h-4 w-4" aria-hidden />
+          <AlertTitle>Self-service closure in progress</AlertTitle>
+          <AlertDescription className="space-y-1">
+            <p>
+              Owner scheduled permanent closure for{" "}
+              <strong>{formatDateTime(closureEffectiveAt)}</strong>. Account status is read-only
+              until then.
+            </p>
+            {closureReason ? (
+              <p>Reason: {formatClosureReason(closureReason) ?? closureReason}</p>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <PlatformImportExportCard snapshot={importExport} />
       <Card>
         <CardHeader>

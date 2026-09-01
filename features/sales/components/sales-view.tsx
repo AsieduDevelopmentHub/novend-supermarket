@@ -38,6 +38,7 @@ import { usePosPreferences } from "@/hooks/use-pos-preferences";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useLicense } from "@/hooks/use-license";
 import { useNativeShell } from "@/hooks/use-native-shell";
 import { getMeta, getOfflineDb, META_KEYS } from "@/lib/offline/db";
 import { cn } from "@/lib/utils";
@@ -100,6 +101,7 @@ function formatHoldRef(id: string) {
 
 export function SalesView() {
   const { isAdmin, branchId: myBranchId, branchName } = usePermissions();
+  const { access } = useLicense();
   const nativeShell = useNativeShell();
   const [search, setSearch] = useState("");
   const [branchOverride, setBranchOverride] = useState<Id<"branches"> | "all" | null>(null);
@@ -163,7 +165,7 @@ export function SalesView() {
   const discountExceedsSubtotal =
     discountMode === "percent" ? discountField - 100 > 0.001 : cartDiscount - subtotal > 0.001;
   const total = discountExceedsSubtotal ? 0 : Math.max(0, subtotal - cartDiscount);
-  const canCheckout = cart.length > 0 && !discountExceedsSubtotal;
+  const canCheckout = cart.length > 0 && !discountExceedsSubtotal && access.canWrite;
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   function setDiscountModeAndConvert(next: DiscountMode) {
@@ -397,6 +399,10 @@ export function SalesView() {
   }
 
   async function onHold() {
+    if (!access.canWrite) {
+      toast.error(access.reason ?? "This business cannot record new activity right now.");
+      return;
+    }
     if (!canCheckout) return;
     try {
       if (!online) {
@@ -490,6 +496,10 @@ export function SalesView() {
   }
 
   async function onPay() {
+    if (!access.canWrite) {
+      toast.error(access.reason ?? "This business cannot record new activity right now.");
+      return;
+    }
     if (!canCheckout || payingRef.current) return;
     const saleBranchId = (isAdmin ? workingBranchId : myBranchId) ?? undefined;
     if (!saleBranchId) {

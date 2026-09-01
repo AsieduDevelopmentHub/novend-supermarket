@@ -29,6 +29,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { processReturnLocally } from "@/lib/offline/returns-repository";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useLicense } from "@/hooks/use-license";
 
 export type ReturnableOrderItem = {
   id: string;
@@ -67,6 +68,7 @@ export function ReturnOrderDialog({
   onCompleted,
 }: Props) {
   const online = useConnectivity();
+  const { access } = useLicense();
   const [qtyByItem, setQtyByItem] = useState<Record<string, number>>({});
   const [reason, setReason] = useState<string>("");
   const [notes, setNotes] = useState("");
@@ -127,6 +129,10 @@ export function ReturnOrderDialog({
   }
 
   async function onConfirm() {
+    if (!access.canWrite) {
+      toast.error(access.reason ?? "This business cannot record new activity right now.");
+      return;
+    }
     if (selected.length === 0) {
       toast.error("Select at least one item to return.");
       return;
@@ -294,7 +300,7 @@ export function ReturnOrderDialog({
           </Button>
           <Button
             type="button"
-            disabled={pending || selected.length === 0}
+            disabled={pending || selected.length === 0 || !access.canWrite}
             onClick={() => void onConfirm()}
           >
             {pending ? "Processing…" : "Confirm return"}

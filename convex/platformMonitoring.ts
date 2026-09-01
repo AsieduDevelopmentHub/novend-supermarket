@@ -1,7 +1,9 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 import { paginationOptsValidator } from "convex/server";
 import { requirePlatformAdmin } from "./shared/permissions";
+import { enrichAuditLogRow } from "./shared/auditEnrichment";
 import { resolvePlan, type PlanKey } from "./shared/plans";
 import { utcDay } from "./shared/platformTelemetry";
 
@@ -361,18 +363,51 @@ export const activity = query({
         .withIndex("by_createdAt")
         .order("desc")
         .paginate(args.paginationOpts);
-      return {
-        ...result,
-        page: result.page.map((row) => ({
-          id: row._id,
-          source: "audit" as const,
-          organizationId: row.organizationId ?? null,
-          action: row.action,
-          entityType: row.entityType,
-          detail: row.entityId ?? null,
-          occurredAt: row.createdAt,
-        })),
-      };
+      const orgIds = [
+        ...new Set(
+          result.page
+            .map((row) => row.organizationId)
+            .filter((id): id is Id<"organizations"> => id != null),
+        ),
+      ];
+      const orgNames = new Map<string, string>();
+      await Promise.all(
+        orgIds.map(async (id) => {
+          const org = await ctx.db.get(id);
+          if (org?.name) orgNames.set(id, org.name);
+        }),
+      );
+      const page = await Promise.all(
+        result.page.map(async (row) => {
+          const organizationName = row.organizationId
+            ? (orgNames.get(row.organizationId) ?? null)
+            : null;
+          const enriched = await enrichAuditLogRow(
+            ctx,
+            {
+              action: row.action,
+              entityType: row.entityType,
+              entityId: row.entityId ?? null,
+              metadata: row.metadata ?? null,
+              organizationId: row.organizationId ?? null,
+            },
+            { organizationName },
+          );
+          return {
+            id: row._id,
+            source: "audit" as const,
+            organizationId: row.organizationId ?? null,
+            organizationName,
+            action: row.action,
+            actionLabel: enriched.actionLabel,
+            entityType: row.entityType,
+            areaLabel: enriched.areaLabel,
+            detail: enriched.detail,
+            occurredAt: row.createdAt,
+          };
+        }),
+      );
+      return { ...result, page };
     }
     const result = await ctx.db
       .query("platformEvents")
@@ -385,9 +420,12 @@ export const activity = query({
         id: row._id,
         source: "telemetry" as const,
         organizationId: row.organizationId ?? null,
+        organizationName: null,
         action: row.kind,
+        actionLabel: row.kind.replace(/[_-]+/g, " "),
         entityType: row.feature ?? row.releaseKind ?? "platform",
-        detail: row.action ?? row.assetGroup ?? row.errorCode ?? null,
+        areaLabel: (row.feature ?? row.releaseKind ?? "platform").replace(/[_-]+/g, " "),
+        detail: row.action ?? row.assetGroup ?? row.errorCode ?? "—",
         occurredAt: row.occurredAt,
       })),
     };

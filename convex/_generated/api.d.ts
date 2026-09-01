@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as accountClosure from "../accountClosure.js";
 import type * as analytics from "../analytics.js";
 import type * as auth from "../auth.js";
 import type * as billing from "../billing.js";
@@ -29,6 +30,7 @@ import type * as mobileReleases from "../mobileReleases.js";
 import type * as offline from "../offline.js";
 import type * as organizations from "../organizations.js";
 import type * as passwordReset from "../passwordReset.js";
+import type * as payroll from "../payroll.js";
 import type * as platform from "../platform.js";
 import type * as platformAnalytics from "../platformAnalytics.js";
 import type * as platformMonitoring from "../platformMonitoring.js";
@@ -38,8 +40,11 @@ import type * as reports from "../reports.js";
 import type * as returns from "../returns.js";
 import type * as sales from "../sales.js";
 import type * as settings from "../settings.js";
+import type * as shared_accountClosure from "../shared/accountClosure.js";
 import type * as shared_accountStatus from "../shared/accountStatus.js";
 import type * as shared_audit from "../shared/audit.js";
+import type * as shared_auditDisplay from "../shared/auditDisplay.js";
+import type * as shared_auditEnrichment from "../shared/auditEnrichment.js";
 import type * as shared_billingPeriod from "../shared/billingPeriod.js";
 import type * as shared_billingProvider from "../shared/billingProvider.js";
 import type * as shared_branchStock from "../shared/branchStock.js";
@@ -58,6 +63,7 @@ import type * as shared_lots from "../shared/lots.js";
 import type * as shared_multiBranchBootstrap from "../shared/multiBranchBootstrap.js";
 import type * as shared_passwordPolicy from "../shared/passwordPolicy.js";
 import type * as shared_passwordResetCrypto from "../shared/passwordResetCrypto.js";
+import type * as shared_payroll from "../shared/payroll.js";
 import type * as shared_paystack from "../shared/paystack.js";
 import type * as shared_permissions from "../shared/permissions.js";
 import type * as shared_planChange from "../shared/planChange.js";
@@ -88,6 +94,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accountClosure: typeof accountClosure;
   analytics: typeof analytics;
   auth: typeof auth;
   billing: typeof billing;
@@ -109,6 +116,7 @@ declare const fullApi: ApiFromModules<{
   offline: typeof offline;
   organizations: typeof organizations;
   passwordReset: typeof passwordReset;
+  payroll: typeof payroll;
   platform: typeof platform;
   platformAnalytics: typeof platformAnalytics;
   platformMonitoring: typeof platformMonitoring;
@@ -118,8 +126,11 @@ declare const fullApi: ApiFromModules<{
   returns: typeof returns;
   sales: typeof sales;
   settings: typeof settings;
+  "shared/accountClosure": typeof shared_accountClosure;
   "shared/accountStatus": typeof shared_accountStatus;
   "shared/audit": typeof shared_audit;
+  "shared/auditDisplay": typeof shared_auditDisplay;
+  "shared/auditEnrichment": typeof shared_auditEnrichment;
   "shared/billingPeriod": typeof shared_billingPeriod;
   "shared/billingProvider": typeof shared_billingProvider;
   "shared/branchStock": typeof shared_branchStock;
@@ -138,6 +149,7 @@ declare const fullApi: ApiFromModules<{
   "shared/multiBranchBootstrap": typeof shared_multiBranchBootstrap;
   "shared/passwordPolicy": typeof shared_passwordPolicy;
   "shared/passwordResetCrypto": typeof shared_passwordResetCrypto;
+  "shared/payroll": typeof shared_payroll;
   "shared/paystack": typeof shared_paystack;
   "shared/permissions": typeof shared_permissions;
   "shared/planChange": typeof shared_planChange;

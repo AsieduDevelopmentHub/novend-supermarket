@@ -10,6 +10,7 @@ import {
 } from "./db";
 import { applyLocalBranchStockChange, getSellableQuantity } from "./branch-stock";
 import { enqueueCompleteSale } from "./outbox";
+import { assertLocalWriteAllowed } from "./license-guard";
 import { notifyReplicaChanged } from "./replica-events";
 import type {
   CompleteSaleOutboxPayload,
@@ -86,6 +87,7 @@ export async function completeSaleLocally(input: {
   total: number;
   receiptPayload: ReceiptPayload;
 }> {
+  await assertLocalWriteAllowed();
   const db = await getOfflineDb();
   if (!db) {
     throw new Error("Local database unavailable");
@@ -361,6 +363,7 @@ export async function holdSaleLocally(input: {
   items: CartLineInput[];
   discount: number;
 }): Promise<LocalHeldSale> {
+  await assertLocalWriteAllowed();
   const db = await getOfflineDb();
   if (!db) throw new Error("Local database unavailable");
 

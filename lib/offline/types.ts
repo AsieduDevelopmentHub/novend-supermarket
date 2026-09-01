@@ -18,7 +18,10 @@ export type OutboxOpType =
   | "create_user"
   | "upsert_product"
   | "create_category"
-  | "upsert_branch";
+  | "upsert_branch"
+  | "upsert_staff_compensation"
+  | "pay_salary"
+  | "pay_commission";
 
 export type LocalSaleSyncStatus = "pending" | "synced" | "failed";
 
@@ -337,8 +340,22 @@ export type MirroredExpense = {
   occurredAt: number;
   description: string | null;
   recordedByName: string;
+  recordedByUserId?: string | null;
   branchId: string | null;
   branchName: string | null;
+  beneficiaryProfileId?: string | null;
+  payPeriodKey?: string | null;
+  paymentStatus?: "paid" | "void" | null;
+  sourceKind?: "salary" | "commission" | "reimbursement" | null;
+};
+
+export type MirroredStaffCompensation = {
+  id: string;
+  salaryAmount: number | null;
+  salaryFrequency: "monthly" | "weekly";
+  commissionRate: number | null;
+  commissionBasis: "net" | "gross";
+  updatedAt: number;
 };
 
 export type MirroredReturn = {
@@ -453,6 +470,28 @@ export type CreateExpensePayload = {
 
 export type RemoveExpensePayload = {
   expenseId: string;
+};
+
+export type UpsertStaffCompensationPayload = {
+  profileId: string;
+  salaryAmount?: number;
+  salaryFrequency: "monthly" | "weekly";
+  commissionRate?: number;
+  commissionBasis: "net" | "gross";
+};
+
+export type PaySalaryPayload = {
+  profileId: string;
+  payPeriodKey: string;
+  clientOperationId?: string;
+  localExpenseId?: string;
+};
+
+export type PayCommissionPayload = {
+  profileId: string;
+  payPeriodKey: string;
+  clientOperationId?: string;
+  localExpenseId?: string;
 };
 
 export type UpdateProfilePayload = {

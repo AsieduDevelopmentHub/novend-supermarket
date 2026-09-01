@@ -144,6 +144,7 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
       "Branch transfers",
       "Multi-branch management",
       "Advanced analytics",
+      "Staff salary and commission",
       "Priority support",
     ],
   },

@@ -21,6 +21,7 @@ import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
 import { markLocalReturnFailed, markLocalReturnSynced } from "./returns-repository";
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
 import { isSyncBusinessConflict, isSyncDependencyWait } from "./sync-errors";
+import { shouldMarkOutboxFailed } from "./outbox-policy";
 import { rekeyProductImage } from "./image-cache";
 import type {
   AdjustStockPayload,
@@ -29,6 +30,8 @@ import type {
   CreateUserPayload,
   OutboxOpType,
   OutboxRow,
+  PayCommissionPayload,
+  PaySalaryPayload,
   RecordWholesalePurchasePayload,
   RemoveExpensePayload,
   TransferStockPayload,
@@ -36,6 +39,7 @@ import type {
   UpdateProfilePayload,
   UpsertCustomerPayload,
   UpsertProductPayload,
+  UpsertStaffCompensationPayload,
   UpsertSupplierPayload,
   UpsertBranchPayload,
   WholesaleTransferPayload,
@@ -52,7 +56,10 @@ const OUTBOX_DRAIN_PRIORITY: Partial<Record<OutboxOpType, number>> = {
   upsert_supplier: 1,
   upsert_branch: 1,
   create_user: 1,
+  upsert_staff_compensation: 1,
   upsert_product: 2,
+  pay_salary: 3,
+  pay_commission: 3,
 };
 
 export function sortOutboxForDrain(rows: OutboxRow[]): OutboxRow[] {
@@ -257,6 +264,9 @@ export type QueuedMutators = {
     phone?: string;
     status: "active" | "inactive";
   }) => Promise<unknown>;
+  upsertStaffCompensation: (args: UpsertStaffCompensationPayload) => Promise<unknown>;
+  paySalary: (args: PaySalaryPayload) => Promise<unknown>;
+  payCommission: (args: PayCommissionPayload) => Promise<unknown>;
 };
 
 /** Drain pending outbox ops to Convex. Safe to call frequently. */
@@ -320,20 +330,8 @@ export async function drainOutbox(options: {
     }
 
     const pending = await listPendingOutbox(db);
-    const conflictRows: typeof pending = [];
-    const uploadRows: typeof pending = [];
-    for (const row of pending) {
-      if (!options.force && row.lastError && isSyncBusinessConflict(row.lastError)) {
-        conflictRows.push(row);
-      } else {
-        uploadRows.push(row);
-      }
-    }
-    for (const row of conflictRows) {
-      await markOutboxFailed(db, row.id, row.lastError ?? "Rejected");
-      failed += 1;
-    }
-    for (const row of sortOutboxForDrain(uploadRows)) {
+    const uploadRows = sortOutboxForDrain(pending);
+    for (const row of uploadRows) {
       const claimed = await claimOutboxRow(db, row.id);
       if (!claimed) continue;
 
@@ -685,6 +683,47 @@ export async function drainOutbox(options: {
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;
+        } else if (claimed.type === "upsert_staff_compensation") {
+          const payload = JSON.parse(claimed.payloadJson) as UpsertStaffCompensationPayload;
+          await options.mutators.upsertStaffCompensation({
+            profileId: payload.profileId as Id<"profiles">,
+            salaryAmount: payload.salaryAmount,
+            salaryFrequency: payload.salaryFrequency,
+            commissionRate: payload.commissionRate,
+            commissionBasis: payload.commissionBasis,
+          });
+          await markOutboxSynced(db, claimed.id);
+          await pullOfflineSnapshot(options.convex, { force: true });
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "pay_salary") {
+          const payload = JSON.parse(claimed.payloadJson) as PaySalaryPayload;
+          await options.mutators.paySalary({
+            profileId: payload.profileId as Id<"profiles">,
+            payPeriodKey: payload.payPeriodKey,
+            clientOperationId: payload.clientOperationId ?? claimed.clientOperationId,
+          });
+          if (payload.localExpenseId?.startsWith("local_")) {
+            await db.expenses.delete(payload.localExpenseId);
+          }
+          await markOutboxSynced(db, claimed.id);
+          await pullOfflineSnapshot(options.convex, { force: true });
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "pay_commission") {
+          const payload = JSON.parse(claimed.payloadJson) as PayCommissionPayload;
+          await options.mutators.payCommission({
+            profileId: payload.profileId as Id<"profiles">,
+            payPeriodKey: payload.payPeriodKey,
+            clientOperationId: payload.clientOperationId ?? claimed.clientOperationId,
+          });
+          if (payload.localExpenseId?.startsWith("local_")) {
+            await db.expenses.delete(payload.localExpenseId);
+          }
+          await markOutboxSynced(db, claimed.id);
+          await pullOfflineSnapshot(options.convex, { force: true });
+          processed += 1;
+          consecutiveTransientFailures = 0;
         } else {
           await markOutboxFailed(
             db,
@@ -697,7 +736,7 @@ export async function drainOutbox(options: {
         const raw = error instanceof Error ? error.message : "Sync failed";
         const message = toUserMessage(error, "Sync failed");
         lastError = message;
-        if (isSyncBusinessConflict(raw)) {
+        if (isSyncBusinessConflict(raw) && shouldMarkOutboxFailed(claimed.attempts, raw)) {
           if (claimed.type === "process_return") {
             const payload = parseProcessReturnPayload(claimed);
             await markOutboxFailed(db, claimed.id, message);
@@ -710,6 +749,12 @@ export async function drainOutbox(options: {
             await markOutboxFailed(db, claimed.id, message);
           }
           failed += 1;
+        } else if (isSyncBusinessConflict(raw)) {
+          await markOutboxPending(db, claimed.id, message);
+          consecutiveTransientFailures += 1;
+          backoffUntil =
+            Date.now() + nextBackoffMs(Math.max(claimed.attempts, consecutiveTransientFailures));
+          break;
         } else {
           // Network / transient — leave pending with exponential backoff
           await markOutboxPending(db, claimed.id, message);

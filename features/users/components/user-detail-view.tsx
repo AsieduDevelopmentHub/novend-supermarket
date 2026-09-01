@@ -42,10 +42,12 @@ import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import type { AppRole } from "@/config/navigation";
 import { ArrowLeft, KeyRound, Pencil, UserX, UserCheck } from "lucide-react";
 import { toast } from "sonner";
+import { UserCommandCenter } from "./user-command-center";
 
 export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
   const {
     canManageUsers,
+    canDeactivateUsers,
     isAdmin,
     isManager,
     branchId: myBranchId,
@@ -114,7 +116,8 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
 
   const formBranchId = isManager ? (myBranchId ?? "") : branchId || profile.branchId || "";
   const roleOptions: AppRole[] = isAdmin ? ["administrator", "manager", "cashier"] : ["cashier"];
-  const canToggleStatus = isAdmin || (isManager && profile.role === "cashier");
+  const canToggleStatus =
+    canDeactivateUsers && (isAdmin || (isManager && profile.role === "cashier"));
   const canResetPassword = isAdmin || (isManager && profile.role === "cashier");
   const deactivateBlocked =
     profile.status === "active" && actorUserId
@@ -185,7 +188,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
         phone: profile.phone ?? undefined,
         status: nextStatus,
       });
-      toast.success(nextStatus === "active" ? "User enabled" : "User disabled");
+      toast.success(nextStatus === "active" ? "User reactivated" : "User deactivated");
       setStatusConfirm(false);
     } catch (error) {
       showError(error, "Could not update status");
@@ -261,12 +264,12 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
                 {profile.status === "active" ? (
                   <>
                     <UserX className="h-4 w-4" />
-                    Disable
+                    Deactivate
                   </>
                 ) : (
                   <>
                     <UserCheck className="h-4 w-4" />
-                    Enable
+                    Reactivate
                   </>
                 )}
               </Button>
@@ -293,7 +296,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
           <div>
             <p className="text-muted-foreground">Account status</p>
             <Badge variant={profile.status === "active" ? "success" : "secondary"} className="mt-1">
-              {profile.status}
+              {profile.status === "active" ? "Active" : "Deactivated"}
             </Badge>
             {deactivateBlocked ? (
               <p className="text-muted-foreground mt-1 text-xs">{deactivateBlocked}</p>
@@ -316,6 +319,8 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
           />
         </CardContent>
       </Card>
+
+      <UserCommandCenter profileId={profileId} userId={profile.userId} userName={profile.name} />
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
@@ -379,7 +384,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive" disabled={Boolean(deactivateBlocked)}>
-                    Inactive
+                    Deactivated
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -445,13 +450,26 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
       <ConfirmDialog
         open={statusConfirm}
         onOpenChange={(open) => !open && setStatusConfirm(false)}
-        title={profile.status === "active" ? "Disable user?" : "Enable user?"}
+        title={profile.status === "active" ? "Deactivate this user?" : "Reactivate this user?"}
         description={
-          profile.status === "active"
-            ? `${profile.name} will no longer be able to sign in.`
-            : `${profile.name} will be able to sign in again.`
+          profile.status === "active" ? (
+            <div className="space-y-2">
+              <p>
+                Deactivating {profile.name} preserves their sales, orders, returns, expenses, and
+                audit history. The account stays in the organization so reports keep the employee
+                reference.
+              </p>
+              <p>
+                {profile.name} will no longer be able to sign in. You can reactivate them later.
+              </p>
+            </div>
+          ) : (
+            <p>{profile.name} will be able to sign in again. Historical records stay attached.</p>
+          )
         }
-        confirmLabel={profile.status === "active" ? "Disable" : "Enable"}
+        confirmLabel={profile.status === "active" ? "Deactivate user" : "Reactivate user"}
+        cancelLabel="Cancel"
+        confirmVariant={profile.status === "active" ? "destructive" : "default"}
         pending={pending}
         onConfirm={onToggleStatus}
       />

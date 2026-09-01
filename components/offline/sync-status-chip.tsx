@@ -1,6 +1,6 @@
 "use client";
 
-import { CloudOff, CloudUpload, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { CloudOff, CloudUpload, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { describeSyncStatus } from "@/lib/offline/sync-status";
@@ -9,7 +9,6 @@ import { formatDateTime } from "@/lib/date";
 
 function SyncGlyph({ kind }: { kind: ReturnType<typeof describeSyncStatus>["kind"] }) {
   if (kind === "offline") return <CloudOff className="size-3.5 shrink-0" aria-hidden />;
-  if (kind === "syncing") return <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />;
   if (kind === "conflict") return <AlertCircle className="size-3.5 shrink-0" aria-hidden />;
   if (kind === "queued") return <CloudUpload className="size-3.5 shrink-0" aria-hidden />;
   return <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />;
@@ -50,11 +49,13 @@ export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
 
   const detail = !online
     ? view.detail
-    : needsReview
+    : failedCount > 0
       ? lastError || view.detail
-      : lastSyncAt
-        ? `Last sync ${formatDateTime(lastSyncAt)}`
-        : view.detail;
+      : pendingCount > 0
+        ? view.detail
+        : lastSyncAt
+          ? `Last sync ${formatDateTime(lastSyncAt)}`
+          : view.detail;
 
   return (
     <div
