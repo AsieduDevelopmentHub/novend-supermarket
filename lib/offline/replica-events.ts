@@ -2,14 +2,32 @@
 
 const EVENT = "novend:replica-changed";
 
+let writeEpoch = 0;
+
+/** Bump when Dexie changes so an in-flight Convex snapshot cannot overwrite it. */
+export function bumpReplicaWriteEpoch(): void {
+  writeEpoch += 1;
+}
+
+export function replicaWriteEpoch(): number {
+  return writeEpoch;
+}
+
+export function shouldApplyFetchedSnapshot(epochAtFetchStart: number): boolean {
+  return epochAtFetchStart === writeEpoch;
+}
+
 export type ReplicaChangedDetail = {
   /** When true, the offline provider should force-pull a Convex snapshot. */
   pull?: boolean;
   /** When true, drain the outbox in the background (do not block the UI). */
   flush?: boolean;
+  /** List refresh only — do not invalidate an in-flight snapshot apply. */
+  silent?: boolean;
 };
 
 export function notifyReplicaChanged(detail: ReplicaChangedDetail = {}) {
+  if (!detail.silent) bumpReplicaWriteEpoch();
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(EVENT, { detail }));
 }

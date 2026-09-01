@@ -390,6 +390,42 @@ export async function queueCreateCategory(name: string, options?: { notify?: boo
   return localId;
 }
 
+/** Reuse an active category with the same name (case-insensitive). */
+export function matchActiveCategoryByName(
+  rows: Array<{ id: string; name: string; isActive?: boolean }>,
+  name: string,
+): string | null {
+  const key = name.trim().toLowerCase();
+  if (!key) return null;
+  const hit = rows.find(
+    (row) => row.isActive !== false && row.name.trim().toLowerCase() === key,
+  );
+  return hit?.id ?? null;
+}
+
+/**
+ * Product create/edit: a typed "new category" name becomes the product's
+ * category without a separate Add click.
+ */
+export async function resolveCategoryIdForProduct(input: {
+  selectedId: string;
+  typedName: string;
+}): Promise<string> {
+  const typed = input.typedName.trim();
+  if (typed) {
+    const db = await getOfflineDb();
+    if (db) {
+      const existingId = matchActiveCategoryByName(await db.categories.toArray(), typed);
+      if (existingId) return existingId;
+    }
+    return queueCreateCategory(typed);
+  }
+  if (!input.selectedId.trim()) {
+    throw new Error("Select a category");
+  }
+  return input.selectedId;
+}
+
 export async function queueUpsertProduct(
   payload: Omit<UpsertProductPayload, "localId"> & { localId?: string; imageBlob?: Blob },
   options?: { notify?: boolean },

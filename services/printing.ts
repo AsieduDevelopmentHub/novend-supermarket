@@ -290,13 +290,26 @@ export async function printReceipt(
 
   if (!options?.forceBrowser && isCapacitor()) {
     try {
-      const { saveReceiptPdfOnDevice } = await import("@/services/receipts/share");
-      const saved = await saveReceiptPdfOnDevice(payload);
-      if (saved.ok) {
-        return { printed: true, reason: "download" };
+      const { Hardware } = await import("@novend/hardware");
+      const config = loadTerminalPrinterConfig();
+      const paperWidthMm = resolvePaperWidthMm(payload, config);
+      const bytes = buildEscPosReceipt(payload, paperWidthMm);
+      const defaultPrinter = await Hardware.printer.getDefaultPrinter();
+      const result = await Hardware.printer.printReceipt({
+        escposBase64: escPosToBase64(bytes),
+        invoiceNumber: payload.invoiceNumber,
+        copies: config.copies,
+        connectionType: defaultPrinter.data?.connectionType ?? "bluetooth",
+        bluetoothDeviceId: defaultPrinter.data?.bluetoothDeviceId,
+        paperWidthMm,
+        openCashDrawer: config.openCashDrawer,
+      });
+      if (result.ok) {
+        return { printed: true, reason: "native", copies: config.copies };
       }
+      console.warn("[print:capacitor-failed]", result.message);
     } catch (error) {
-      console.warn("[print:download-error]", error);
+      console.warn("[print:capacitor-error]", error);
     }
     return { printed: false, reason: "native_unavailable" };
   }

@@ -27,13 +27,15 @@ describe("explicit logout flag", () => {
     expect(hasExplicitLogout()).toBe(false);
   });
 
-  it("clears Dexie identity before a hard login navigation", () => {
+  it("clears Dexie replica and session keys before a hard login navigation", () => {
     const source = readFileSync(resolve(process.cwd(), "lib/auth/sign-out.ts"), "utf8");
-    expect(source).toContain("await clearShellProfile()");
+    expect(source).toContain("await deleteBoundOfflineReplica()");
+    expect(source).toContain("clearUserDeviceState()");
     expect(source).toContain('window.location.replace("/login?signedOut=1")');
     expect(source).toContain("markExplicitLogout()");
     expect(source).not.toContain("router.refresh()");
     expect(source).not.toContain("router.replace(");
+    expect(source).not.toContain("await clearShellProfile()");
   });
 
   it("does not cover login with Convex isLoading", () => {

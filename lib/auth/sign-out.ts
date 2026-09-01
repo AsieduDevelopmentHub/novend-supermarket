@@ -1,10 +1,11 @@
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { clearLastRoute } from "@/lib/auth/last-route";
 import { markExplicitLogout } from "@/lib/auth/logout-flag";
+import { clearUserDeviceState } from "@/lib/auth/clear-user-device-state";
 import { prepareHardNavigation } from "@/lib/auth/redirect-after-login";
 import { clearPlatformOfflineSession } from "@/lib/offline/platform-cache";
+import { deleteBoundOfflineReplica } from "@/lib/offline/db";
 import { clearOfflineSession } from "@/lib/offline/session";
-import { clearShellProfile } from "@/lib/offline/shell-profile";
 import { clearCartDraft } from "@/lib/sales/cart-draft";
 
 type SignOutOptions = {
@@ -16,7 +17,7 @@ type SignOutOptions = {
 
 /**
  * End the session and land on a clean login screen.
- * Await Dexie identity clear *before* navigation so the next user cannot
+ * Await Dexie replica delete *before* navigation so the next user cannot
  * inherit the previous replica, last route, or splash-cover loop.
  *
  * Always `location.replace` so the signed-out query string stays on `/login`.
@@ -28,18 +29,19 @@ export async function signOutAndRedirect({
   clearPresence,
 }: SignOutOptions): Promise<void> {
   markExplicitLogout();
+  try {
+    await deleteBoundOfflineReplica();
+  } catch {
+    /* IndexedDB unavailable */
+  }
   clearOfflineSession();
   clearPlatformOfflineSession();
   clearLastRoute();
   clearCartDraft();
+  clearUserDeviceState();
   void clearPresence?.().catch(() => {
     /* best-effort */
   });
-  try {
-    await clearShellProfile();
-  } catch {
-    /* Dexie unavailable */
-  }
 
   try {
     await signOut();

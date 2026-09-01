@@ -36,8 +36,8 @@ import { useCategoriesList, useMirroredProduct } from "@/hooks/use-offline-lists
 import {
   persistBusinessWrite,
   queuedSaveMessage,
-  queueCreateCategory,
   queueUpsertProduct,
+  resolveCategoryIdForProduct,
 } from "@/lib/offline/replica-writes";
 export type CreatedCatalogProduct = {
   id: string;
@@ -194,6 +194,9 @@ function ProductFormBody({
   const [categoryId, setCategoryId] = useState(initialCategoryId);
   const [newCategory, setNewCategory] = useState("");
   const [showNewCategory, setShowNewCategory] = useState(false);
+  const [createdCategories, setCreatedCategories] = useState<
+    Array<{ _id: Id<"categories">; name: string }>
+  >([]);
   const [sellingPrice, setSellingPrice] = useState(String(initialProduct?.sellingPrice ?? 0));
   const [costPrice, setCostPrice] = useState(String(initialProduct?.costPrice ?? 0));
   const [stockQuantity, setStockQuantity] = useState(
@@ -231,6 +234,26 @@ function ProductFormBody({
     }
   }
 
+  const categoryOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const rows: Array<{ _id: string; name: string }> = [];
+    for (const row of [...createdCategories, ...categories]) {
+      if (seen.has(row._id)) continue;
+      seen.add(row._id);
+      rows.push(row);
+    }
+    return rows;
+  }, [categories, createdCategories]);
+
+  function rememberCategory(id: string, name: string) {
+    setCreatedCategories((current) =>
+      current.some((row) => row._id === id)
+        ? current
+        : [{ _id: id as Id<"categories">, name }, ...current],
+    );
+    setCategoryId(id);
+  }
+
   async function onCreateCategory() {
     const trimmed = newCategory.trim();
     if (!trimmed) {
@@ -245,10 +268,13 @@ function ProductFormBody({
           createdId = String(await createCategory({ name: trimmed }));
         },
         local: async () => {
-          createdId = await queueCreateCategory(trimmed);
+          createdId = await resolveCategoryIdForProduct({
+            selectedId: "",
+            typedName: trimmed,
+          });
         },
       });
-      setCategoryId(createdId);
+      rememberCategory(createdId, trimmed);
       setNewCategory("");
       setShowNewCategory(false);
       toast.success(queuedSaveMessage(kind, "Category created"));
@@ -275,7 +301,7 @@ function ProductFormBody({
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!categoryId) {
+    if (!categoryId && !(showNewCategory && newCategory.trim())) {
       toast.error("Select a category");
       return;
     }
@@ -286,6 +312,7 @@ function ProductFormBody({
     setPending(true);
     try {
       let savedId = productId ?? "";
+      let resolvedCategoryId = categoryId;
       const kind = await persistBusinessWrite({
         online,
         remote: () =>
@@ -295,7 +322,7 @@ function ProductFormBody({
                 name,
                 sku,
                 barcode: barcode.trim(),
-                categoryId: categoryId as Id<"categories">,
+                categoryId: resolvedCategoryId as Id<"categories">,
                 costPrice: Number(costPrice),
                 sellingPrice: Number(sellingPrice),
                 unit,
@@ -310,7 +337,7 @@ function ProductFormBody({
                 name,
                 sku,
                 barcode: barcode.trim(),
-                categoryId: categoryId as Id<"categories">,
+                categoryId: resolvedCategoryId as Id<"categories">,
                 costPrice: Number(costPrice),
                 sellingPrice: Number(sellingPrice),
                 stockQuantity: warehouseIntake ? 0 : Number(stockQuantity),
@@ -323,12 +350,24 @@ function ProductFormBody({
                 expiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
               }),
         local: async () => {
+          resolvedCategoryId = await resolveCategoryIdForProduct({
+            selectedId: categoryId,
+            typedName: showNewCategory ? newCategory : "",
+          });
+          rememberCategory(
+            resolvedCategoryId,
+            (showNewCategory && newCategory.trim()) ||
+              categoryOptions.find((row) => row._id === resolvedCategoryId)?.name ||
+              "Category",
+          );
+          setNewCategory("");
+          setShowNewCategory(false);
           savedId = await queueUpsertProduct({
             serverId: productId ?? undefined,
             name,
             sku,
             barcode: barcode.trim(),
-            categoryId,
+            categoryId: resolvedCategoryId,
             costPrice: Number(costPrice),
             sellingPrice: Number(sellingPrice),
             stockQuantity: warehouseIntake ? 0 : Number(stockQuantity),
@@ -394,7 +433,12 @@ function ProductFormBody({
             <button
               type="button"
               className="text-primary text-xs font-medium hover:underline"
-              onClick={() => setShowNewCategory((v) => !v)}
+              onClick={() => {
+                setShowNewCategory((open) => {
+                  if (open) setNewCategory("");
+                  return !open;
+                });
+              }}
             >
               {showNewCategory ? "Select existing" : "Create new"}
             </button>
@@ -412,7 +456,7 @@ function ProductFormBody({
             </div>
           ) : (
             <SearchableSelect
-              options={categories.map((category) => ({
+              options={categoryOptions.map((category) => ({
                 value: category._id,
                 label: category.name,
               }))}

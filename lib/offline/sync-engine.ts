@@ -14,6 +14,7 @@ import {
   markOutboxSynced,
   parseCompleteSalePayload,
   parseProcessReturnPayload,
+  rekeyCategoryReferences,
   replaceIdInPendingOutbox,
 } from "./outbox";
 import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
@@ -530,7 +531,7 @@ export async function drainOutbox(options: {
           const payload = JSON.parse(claimed.payloadJson) as CreateCategoryPayload;
           const id = await options.mutators.createCategory({ name: payload.name });
           await db.categories.delete(payload.localId);
-          await replaceIdInPendingOutbox(db, payload.localId, String(id));
+          await rekeyCategoryReferences(db, payload.localId, String(id));
           await markOutboxSynced(db, claimed.id);
           await pullOfflineSnapshot(options.convex, { force: true });
           processed += 1;

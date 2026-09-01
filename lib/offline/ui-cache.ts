@@ -4,6 +4,10 @@ import type { PrintSnapshot } from "./types";
 import { collectTopSellingCandidates } from "@/lib/dashboard/top-selling";
 import { DASHBOARD_OPS_WINDOW_DAYS } from "@/lib/dashboard/window";
 import {
+  filterCashierDashboardReturns,
+  filterCashierDashboardSales,
+} from "@/lib/dashboard/cashier-scope";
+import {
   availableStockQuantity,
   isBelowLowStockThreshold,
 } from "@/lib/stock-status";
@@ -175,6 +179,8 @@ export async function buildLocalDashboardSummary(
     });
   const expiringCount = activeProducts.filter((p) => p.isExpired || p.isExpiring).length;
 
+  const sessionUserId = await getMeta(db, META_KEYS.profileUserId);
+
   const mirroredIds = new Set(mirroredOrders.map((o) => o.id));
   const mirroredInvoices = new Set(mirroredOrders.map((o) => o.invoiceNumber));
   const unsyncedLocal = localSales.filter(
@@ -183,7 +189,11 @@ export async function buildLocalDashboardSummary(
       !(s.serverSaleId && mirroredIds.has(s.serverSaleId)) &&
       !mirroredInvoices.has(s.invoiceNumber),
   );
-  const combinedSales = [...mirroredOrders, ...unsyncedLocal];
+  const combinedSales = filterCashierDashboardSales(
+    [...mirroredOrders, ...unsyncedLocal],
+    role,
+    sessionUserId,
+  );
   const branchSales = branchId
     ? combinedSales.filter((s) => s.branchId === branchId)
     : combinedSales;
@@ -199,7 +209,15 @@ export async function buildLocalDashboardSummary(
     if (mirroredReturns.some((item) => item.returnNumber === row.returnNumber)) return false;
     return true;
   });
-  const combinedReturns = [...mirroredReturns, ...unsyncedReturns];
+  const cashierSaleIds = new Set(combinedSales.map((sale) => sale.id));
+  for (const sale of unsyncedLocal) {
+    if (sale.serverSaleId) cashierSaleIds.add(sale.serverSaleId);
+  }
+  const combinedReturns = filterCashierDashboardReturns(
+    [...mirroredReturns, ...unsyncedReturns],
+    cashierSaleIds,
+    role,
+  );
   const branchReturns = branchId
     ? combinedReturns.filter(
         (row) => !("branchId" in row) || row.branchId == null || row.branchId === branchId,

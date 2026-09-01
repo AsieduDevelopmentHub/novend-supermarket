@@ -209,6 +209,20 @@ export async function replaceIdInPendingOutbox(db: NovendOfflineDb, fromId: stri
   }
 }
 
+/** After Convex assigns a category id, point Dexie products at it too. */
+export async function rekeyCategoryReferences(
+  db: NovendOfflineDb,
+  fromId: string,
+  toId: string,
+): Promise<void> {
+  if (!fromId || fromId === toId) return;
+  await replaceIdInPendingOutbox(db, fromId, toId);
+  const products = await db.products.where("categoryId").equals(fromId).toArray();
+  for (const row of products) {
+    await db.products.put({ ...row, categoryId: toId });
+  }
+}
+
 export async function countOutboxByStatus() {
   const db = await getOfflineDb();
   if (!db) return { pending: 0, failed: 0, syncing: 0 };
