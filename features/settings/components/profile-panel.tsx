@@ -125,7 +125,11 @@ function EmailAccountCard({
             )}
           </div>
         </form>
-        <VerifyEmailDialog open={verifyOpen} onOpenChange={setVerifyOpen} autoRequest={autoRequest} />
+        <VerifyEmailDialog
+          open={verifyOpen}
+          onOpenChange={setVerifyOpen}
+          autoRequest={autoRequest}
+        />
       </CardContent>
     </Card>
   );

@@ -93,12 +93,10 @@ export function DraggableCartFab({
         "novend-cart-fab fixed z-30 flex size-14 touch-none items-center justify-center rounded-full",
         "text-slate-950 shadow-[0_8px_28px_rgba(14,165,233,0.55),0_0_0_1px_rgba(186,230,253,0.45)]",
         "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
-        dragging ? "cursor-grabbing scale-[1.04]" : "cursor-grab active:scale-[0.98]",
+        dragging ? "scale-[1.04] cursor-grabbing" : "cursor-grab active:scale-[0.98]",
       )}
       style={{ left: position.x, top: position.y }}
-      aria-label={
-        itemCount > 0 ? `Open cart, ${itemCount} items, ${totalLabel}` : "Open cart"
-      }
+      aria-label={itemCount > 0 ? `Open cart, ${itemCount} items, ${totalLabel}` : "Open cart"}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
         event.currentTarget.setPointerCapture(event.pointerId);

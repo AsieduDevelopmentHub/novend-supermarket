@@ -179,79 +179,79 @@ export function DesktopDownloadPanel() {
           ) : null}
 
           <ul className="space-y-3">
-              <li
-                className={cn(
-                  "border-border flex flex-col gap-3 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between",
-                  android && androidSuggested && "border-primary/40 bg-primary/5",
-                )}
-              >
-                <div className="min-w-0 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium">Android</p>
-                    {android && androidSuggested ? (
-                      <Badge variant="outline" className="text-xs">
-                        Suggested for this device
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <p className="text-muted-foreground text-xs leading-relaxed">
-                    Native app for phones and tablets
-                    {android ? ` · ${formatBytes(android.size) ?? "APK"}` : ""}
-                  </p>
-                  {android ? (
-                    <p className="text-muted-foreground truncate font-mono text-[11px]">
-                      {android.fileName}
-                    </p>
+            <li
+              className={cn(
+                "border-border flex flex-col gap-3 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between",
+                android && androidSuggested && "border-primary/40 bg-primary/5",
+              )}
+            >
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">Android</p>
+                  {android && androidSuggested ? (
+                    <Badge variant="outline" className="text-xs">
+                      Suggested for this device
+                    </Badge>
                   ) : null}
                 </div>
-                {android?.url ? (
-                  <Button asChild className="shrink-0" size="sm">
-                    <a href={android.url} download={android.fileName}>
-                      <Download className="mr-2 size-4" aria-hidden />
-                      Download APK
-                    </a>
-                  </Button>
-                ) : androidStore ? (
-                  <Button asChild className="shrink-0" size="sm" variant="outline">
-                    <a href={androidStore} target="_blank" rel="noopener noreferrer">
-                      Open in store
-                    </a>
-                  </Button>
-                ) : (
-                  <Badge variant="outline" className="w-fit text-xs">
-                    Coming soon
-                  </Badge>
-                )}
-              </li>
-              <li className="border-border flex flex-col gap-3 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0 space-y-1">
-                  <p className="text-sm font-medium">iPhone &amp; iPad</p>
-                  <p className="text-muted-foreground text-xs leading-relaxed">
-                    {ios || iosStore
-                      ? `Native app for Apple devices${ios ? ` · ${formatBytes(ios.size) ?? "IPA"}` : ""}`
-                      : "Add Novend to your Home Screen from Safari as a PWA"}
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  Native app for phones and tablets
+                  {android ? ` · ${formatBytes(android.size) ?? "APK"}` : ""}
+                </p>
+                {android ? (
+                  <p className="text-muted-foreground truncate font-mono text-[11px]">
+                    {android.fileName}
                   </p>
-                </div>
-                {ios?.url ? (
-                  <Button asChild className="shrink-0" size="sm">
-                    <a href={ios.url} download={ios.fileName}>
-                      <Download className="mr-2 size-4" aria-hidden />
-                      Download
-                    </a>
-                  </Button>
-                ) : iosStore ? (
-                  <Button asChild className="shrink-0" size="sm" variant="outline">
-                    <a href={iosStore} target="_blank" rel="noopener noreferrer">
-                      Open in store
-                    </a>
-                  </Button>
-                ) : (
-                  <Badge variant="secondary" className="w-fit text-xs">
-                    PWA
-                  </Badge>
-                )}
-              </li>
-            </ul>
+                ) : null}
+              </div>
+              {android?.url ? (
+                <Button asChild className="shrink-0" size="sm">
+                  <a href={android.url} download={android.fileName}>
+                    <Download className="mr-2 size-4" aria-hidden />
+                    Download APK
+                  </a>
+                </Button>
+              ) : androidStore ? (
+                <Button asChild className="shrink-0" size="sm" variant="outline">
+                  <a href={androidStore} target="_blank" rel="noopener noreferrer">
+                    Open in store
+                  </a>
+                </Button>
+              ) : (
+                <Badge variant="outline" className="w-fit text-xs">
+                  Coming soon
+                </Badge>
+              )}
+            </li>
+            <li className="border-border flex flex-col gap-3 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <p className="text-sm font-medium">iPhone &amp; iPad</p>
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  {ios || iosStore
+                    ? `Native app for Apple devices${ios ? ` · ${formatBytes(ios.size) ?? "IPA"}` : ""}`
+                    : "Add Novend to your Home Screen from Safari as a PWA"}
+                </p>
+              </div>
+              {ios?.url ? (
+                <Button asChild className="shrink-0" size="sm">
+                  <a href={ios.url} download={ios.fileName}>
+                    <Download className="mr-2 size-4" aria-hidden />
+                    Download
+                  </a>
+                </Button>
+              ) : iosStore ? (
+                <Button asChild className="shrink-0" size="sm" variant="outline">
+                  <a href={iosStore} target="_blank" rel="noopener noreferrer">
+                    Open in store
+                  </a>
+                </Button>
+              ) : (
+                <Badge variant="secondary" className="w-fit text-xs">
+                  PWA
+                </Badge>
+              )}
+            </li>
+          </ul>
         </CardContent>
       </Card>
     </div>

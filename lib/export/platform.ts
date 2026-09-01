@@ -199,7 +199,10 @@ export async function downloadPlatformWorkbook(data: PlatformReportData) {
 
 export async function downloadPlatformCsv(data: PlatformReportData) {
   const csv = buildCsvText(platformReportTables(data).summary);
-  await downloadBlob(reportFilename(data.range, "csv"), new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  await downloadBlob(
+    reportFilename(data.range, "csv"),
+    new Blob([csv], { type: "text/csv;charset=utf-8" }),
+  );
 }
 
 export function buildPlatformExecutivePdf(data: PlatformReportData) {
@@ -277,7 +280,9 @@ export function buildPlatformExecutivePdf(data: PlatformReportData) {
     ],
     [
       "Top feature adoption",
-      data.featureAdoption.slice(0, 6).map((row) => `${row.feature}: ${row.count.toLocaleString()}`),
+      data.featureAdoption
+        .slice(0, 6)
+        .map((row) => `${row.feature}: ${row.count.toLocaleString()}`),
     ],
   ];
   for (const [heading, lines] of sections) {

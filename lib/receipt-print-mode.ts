@@ -33,9 +33,7 @@ export function resolveReceiptPrintMode(
 }
 
 /** After checkout: skip, show the receipt sheet, or print once. Same on every platform. */
-export function postSaleReceiptAction(
-  mode: ReceiptPrintMode,
-): "none" | "prompt" | "print" {
+export function postSaleReceiptAction(mode: ReceiptPrintMode): "none" | "prompt" | "print" {
   if (mode === "never") return "none";
   if (mode === "automatic") return "print";
   return "prompt";

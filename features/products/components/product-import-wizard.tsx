@@ -67,10 +67,7 @@ export function ProductImportWizard({
   });
   const catalog = products ?? [];
   const branches = useBranchesList(false, isAdmin) ?? [];
-  const usage = useQuery(
-    api.billing.usageSnapshot,
-    online ? {} : "skip",
-  );
+  const usage = useQuery(api.billing.usageSnapshot, online ? {} : "skip");
   const remoteJobs = useQuery(api.imports.listJobs, online ? {} : "skip");
   const remoteMappings = useQuery(api.imports.listMappings, online ? {} : "skip");
   const recordJob = useMutation(api.imports.recordJob);
@@ -185,9 +182,10 @@ export function ProductImportWizard({
         try {
           await recordJob({
             fileName,
-            status: applied.failed.length > 0 && applied.created + applied.updated === 0
-              ? "failed"
-              : "completed",
+            status:
+              applied.failed.length > 0 && applied.created + applied.updated === 0
+                ? "failed"
+                : "completed",
             createdCount: applied.created,
             updatedCount: applied.updated,
             skippedCount: preview.skipCount,
@@ -271,8 +269,8 @@ export function ProductImportWizard({
           </p>
         ) : remainingCreates !== null ? (
           <p className="text-muted-foreground text-sm">
-            {planName}: {usedProducts} / {limits.products} products. {remainingCreates} new SKUs
-            can still be imported.
+            {planName}: {usedProducts} / {limits.products} products. {remainingCreates} new SKUs can
+            still be imported.
           </p>
         ) : null}
 
@@ -412,8 +410,7 @@ export function ProductImportWizard({
                           onValueChange={(value) =>
                             setMapping((current) => ({
                               ...current,
-                              [header]:
-                                value === "skip" ? null : (value as ProductImportFieldKey),
+                              [header]: value === "skip" ? null : (value as ProductImportFieldKey),
                             }))
                           }
                         >
@@ -463,7 +460,12 @@ export function ProductImportWizard({
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm font-medium">Validation issues</p>
-                  <Button type="button" variant="outline" size="sm" onClick={() => void downloadIssues()}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void downloadIssues()}
+                  >
                     Download issues
                   </Button>
                 </div>

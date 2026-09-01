@@ -100,18 +100,9 @@ export function PlatformImportExportCard({
         </dl>
 
         <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-          <Stat
-            label="Failed imports"
-            value={formatNumber(snapshot.failedImports)}
-          />
-          <Stat
-            label="Created via import"
-            value={formatNumber(snapshot.createdViaImport)}
-          />
-          <Stat
-            label="Updated via import"
-            value={formatNumber(snapshot.updatedViaImport)}
-          />
+          <Stat label="Failed imports" value={formatNumber(snapshot.failedImports)} />
+          <Stat label="Created via import" value={formatNumber(snapshot.createdViaImport)} />
+          <Stat label="Updated via import" value={formatNumber(snapshot.updatedViaImport)} />
           <Stat
             label="Exports by format"
             value={`CSV ${snapshot.exportsByFormat.csv} · XLSX ${snapshot.exportsByFormat.xlsx} · PDF ${snapshot.exportsByFormat.pdf} · JSON ${snapshot.exportsByFormat.json}`}

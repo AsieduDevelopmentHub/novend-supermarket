@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -194,12 +194,15 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
             setDetectBox(box ?? null);
             setSuccessCode(code);
             playScanSuccessBeep();
-            window.setTimeout(() => {
-              if (gen !== startGenRef.current) return;
-              onDetect(code);
-              stopScanner();
-              onOpenChange(false);
-            }, native ? 80 : 200);
+            window.setTimeout(
+              () => {
+                if (gen !== startGenRef.current) return;
+                onDetect(code);
+                stopScanner();
+                onOpenChange(false);
+              },
+              native ? 80 : 200,
+            );
           },
         });
         if (gen !== startGenRef.current) {
@@ -228,14 +231,13 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
     [native, onDetect, onOpenChange],
   );
 
-  const startWebScannerRef = useRef(startWebScanner);
-  startWebScannerRef.current = startWebScanner;
+  const startWebScannerEvent = useEffectEvent(startWebScanner);
 
   useEffect(() => {
     if (!open) return;
     if (!canUseLiveCamera()) return;
     const timer = window.setTimeout(() => {
-      void startWebScannerRef.current();
+      void startWebScannerEvent();
     }, 50);
     return () => {
       window.clearTimeout(timer);

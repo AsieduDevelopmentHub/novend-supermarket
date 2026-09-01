@@ -89,9 +89,9 @@
       <div id="failed" class="hidden">
         <h1>Can’t reach Novend right now</h1>
         <p id="failed-detail">
-          After you open Novend once while online, this device starts from the
-          cached workspace. Fully close the app, then try again if you just
-          went offline. Connect if this is the first open on this phone.
+          After you open Novend once while online, this device starts from the cached workspace.
+          Fully close the app, then try again if you just went offline. Connect if this is the first
+          open on this phone.
         </p>
         <button type="button" id="retry">Try again</button>
       </div>
@@ -112,8 +112,7 @@
         // Open the hosted shell directly. /api/boot is network-only (SW skips
         // /api/*) so it can never succeed offline. After one online open the
         // hosted service worker serves Cache Storage; Dexie restores the session.
-        var dest =
-          appUrl + entry + (entry.indexOf("?") >= 0 ? "&" : "?") + "fromBoot=1";
+        var dest = appUrl + entry + (entry.indexOf("?") >= 0 ? "&" : "?") + "fromBoot=1";
 
         var booting = document.getElementById("booting");
         var failed = document.getElementById("failed");

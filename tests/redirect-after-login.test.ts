@@ -78,10 +78,7 @@ describe("redirect-after-login", () => {
   });
 
   it("hard Cap login nav clears unload state before location.replace", () => {
-    const source = readFileSync(
-      resolve(process.cwd(), "lib/auth/redirect-after-login.ts"),
-      "utf8",
-    );
+    const source = readFileSync(resolve(process.cwd(), "lib/auth/redirect-after-login.ts"), "utf8");
     expect(source).toContain("export function prepareHardNavigation");
     expect(source).toContain("element.defaultValue = element.value");
     expect(source).toContain("window.onbeforeunload = null");
@@ -101,10 +98,7 @@ describe("redirect-after-login", () => {
   });
 
   it("hard nav fallback includes a stalled onboarding page", () => {
-    const source = readFileSync(
-      resolve(process.cwd(), "lib/auth/redirect-after-login.ts"),
-      "utf8",
-    );
+    const source = readFileSync(resolve(process.cwd(), "lib/auth/redirect-after-login.ts"), "utf8");
     expect(source).toContain('here === "/onboarding"');
   });
 

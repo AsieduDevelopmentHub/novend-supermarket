@@ -1,7 +1,4 @@
-import {
-  PRODUCT_IMPORT_FIELDS,
-  type ProductImportFieldKey,
-} from "./product-fields";
+import { PRODUCT_IMPORT_FIELDS, type ProductImportFieldKey } from "./product-fields";
 import { normalizeHeader } from "./normalize";
 
 export type ColumnMapping = Record<string, ProductImportFieldKey | null>;
@@ -16,7 +13,10 @@ const REQUIRED_FIELDS = PRODUCT_IMPORT_FIELDS.filter((field) => field.required).
   (field) => field.key,
 );
 
-function fieldScore(normalizedHeader: string, field: (typeof PRODUCT_IMPORT_FIELDS)[number]): number {
+function fieldScore(
+  normalizedHeader: string,
+  field: (typeof PRODUCT_IMPORT_FIELDS)[number],
+): number {
   const label = normalizeHeader(field.label);
   if (normalizedHeader === label) return 100;
   if (normalizedHeader === field.key.toLowerCase()) return 95;

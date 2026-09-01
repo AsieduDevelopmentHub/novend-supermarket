@@ -76,11 +76,7 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
           if (lastSnap) {
             const cached = await loadDashboardSummary(branchKey);
             if (cancelled || generation !== generationRef.current) return;
-            if (
-              cached &&
-              cacheMatchesScope(cached, branchKey) &&
-              cached.role === role
-            ) {
+            if (cached && cacheMatchesScope(cached, branchKey) && cached.role === role) {
               setLocalData({ ...cached, source: "cache" });
               setWaitingForReplica(false);
             }

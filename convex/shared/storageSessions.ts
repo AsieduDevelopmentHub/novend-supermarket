@@ -1,9 +1,6 @@
 import type { GenericMutationCtx } from "convex/server";
 import type { DataModel, Id } from "../_generated/dataModel";
-import {
-  assertStorageClaimForOrg,
-  canClaimStorageForOrg,
-} from "./tenancy";
+import { assertStorageClaimForOrg, canClaimStorageForOrg } from "./tenancy";
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
 

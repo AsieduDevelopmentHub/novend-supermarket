@@ -98,9 +98,7 @@ export function prepareProductImport(args: {
 
   const existingBySku = new Map(args.existing.map((p) => [skuKey(p.sku), p]));
   const existingByBarcode = new Map(
-    args.existing
-      .filter((p) => p.barcode)
-      .map((p) => [barcodeKey(p.barcode!), p]),
+    args.existing.filter((p) => p.barcode).map((p) => [barcodeKey(p.barcode!), p]),
   );
   const fileSkus = new Map<string, number>();
   const fileBarcodes = new Map<string, number>();
@@ -136,12 +134,17 @@ export function prepareProductImport(args: {
     const rowIssues: RowIssue[] = [];
     if (!name) rowIssues.push({ rowNumber, field: "name", message: "Product name is required." });
     if (!sku) rowIssues.push({ rowNumber, field: "sku", message: "SKU is required." });
-    if (!category) rowIssues.push({ rowNumber, field: "category", message: "Category is required." });
+    if (!category)
+      rowIssues.push({ rowNumber, field: "category", message: "Category is required." });
 
     const costPrice = parseMoneyCell(costRaw);
     const sellingPrice = parseMoneyCell(sellRaw);
     if (costPrice == null) {
-      rowIssues.push({ rowNumber, field: "costPrice", message: "Cost price must be a number 0 or more." });
+      rowIssues.push({
+        rowNumber,
+        field: "costPrice",
+        message: "Cost price must be a number 0 or more.",
+      });
     }
     if (sellingPrice == null) {
       rowIssues.push({
@@ -155,7 +158,11 @@ export function prepareProductImport(args: {
     if (stripCell(qtyRaw)) {
       const qty = parseIntegerCell(qtyRaw);
       if (qty == null) {
-        rowIssues.push({ rowNumber, field: "quantity", message: "Quantity must be a whole number 0 or more." });
+        rowIssues.push({
+          rowNumber,
+          field: "quantity",
+          message: "Quantity must be a whole number 0 or more.",
+        });
       } else {
         quantity = qty;
       }

@@ -44,9 +44,7 @@ describe("analytics delivery mode vs licence runtime", () => {
 
   it("maps desktop installs to Electron and native apps to their OS", () => {
     expect(
-      telemetryRuntimeForDevice(
-        identity({ runtime: "desktop", deliveryMode: "electron" }),
-      ),
+      telemetryRuntimeForDevice(identity({ runtime: "desktop", deliveryMode: "electron" })),
     ).toBe("electron");
     expect(
       telemetryRuntimeForDevice(identity({ runtime: "android", deliveryMode: "capacitor" })),

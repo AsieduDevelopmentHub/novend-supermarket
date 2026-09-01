@@ -44,7 +44,7 @@ export function PlatformKpiCard({
   return (
     <Link
       href={href}
-      className="block min-w-0 rounded-xl focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
+      className="focus-visible:ring-ring block min-w-0 rounded-xl focus-visible:ring-2 focus-visible:outline-none"
     >
       {card}
     </Link>

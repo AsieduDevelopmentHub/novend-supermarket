@@ -63,7 +63,7 @@ export const overview = query({
 
     let csvOnlyOrganizations = 0;
     const orgsNearImportCap: Array<{
-      id: typeof organizations[number]["_id"];
+      id: (typeof organizations)[number]["_id"];
       name: string;
       productsUsed: number;
       productLimit: number;
@@ -79,7 +79,8 @@ export const overview = query({
       if (!caps.canExportXlsx) csvOnlyOrganizations += 1;
       if (limits.products === null) continue;
       const productsUsed = productsUsedByOrg.get(String(org._id)) ?? 0;
-      const percent = limits.products === 0 ? 100 : Math.round((productsUsed / limits.products) * 100);
+      const percent =
+        limits.products === 0 ? 100 : Math.round((productsUsed / limits.products) * 100);
       if (percent < 80) continue;
       orgsNearImportCap.push({
         id: org._id,

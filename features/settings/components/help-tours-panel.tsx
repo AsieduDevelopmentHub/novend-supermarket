@@ -17,9 +17,9 @@ export function HelpToursPanel() {
           Help &amp; product tours
         </CardTitle>
         <CardDescription>
-          Replay any available walkthrough from this page. First-time setup walks through every
-          page your role needs automatically. Progress is stored for this account and remains
-          available when this device is offline.
+          Replay any available walkthrough from this page. First-time setup walks through every page
+          your role needs automatically. Progress is stored for this account and remains available
+          when this device is offline.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">

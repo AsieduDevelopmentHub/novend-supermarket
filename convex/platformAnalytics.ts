@@ -849,7 +849,11 @@ export const getInsightDetail = query({
               organizationId: row.organizationId,
               name: org?.name ?? "Unknown",
               slug: org?.slug ?? "",
-              plan: row.planKey ? resolvePlan(row.planKey).name : org ? resolvePlan(org.planKey).name : "—",
+              plan: row.planKey
+                ? resolvePlan(row.planKey).name
+                : org
+                  ? resolvePlan(org.planKey).name
+                  : "—",
               amount: row.amount,
               createdAt: row.paidAt ?? row.createdAt,
             };
@@ -864,7 +868,9 @@ export const getInsightDetail = query({
           const key = String(profile.organizationId);
           byOrg.set(key, (byOrg.get(key) ?? 0) + 1);
         }
-        trend = monthlySeries(profiles.map((profile) => profile.lastSeenAt ?? 0).filter((ts) => ts > 0));
+        trend = monthlySeries(
+          profiles.map((profile) => profile.lastSeenAt ?? 0).filter((ts) => ts > 0),
+        );
         rowsLabel = "Staff by organization";
         rows = [...byOrg.entries()]
           .sort((a, b) => b[1] - a[1])

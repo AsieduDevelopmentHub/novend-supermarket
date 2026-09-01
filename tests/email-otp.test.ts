@@ -54,8 +54,18 @@ describe("email OTP", () => {
     expect(canResendEmailOtp(undefined, now)).toBe(true);
     expect(canResendEmailOtp(now - 10_000, now)).toBe(false);
     expect(canResendEmailOtp(now - 61_000, now)).toBe(true);
-    expect(tooManySends(Array.from({ length: 8 }, () => now - 1000), now)).toBe(true);
-    expect(tooManySends(Array.from({ length: 7 }, () => now - 1000), now)).toBe(false);
+    expect(
+      tooManySends(
+        Array.from({ length: 8 }, () => now - 1000),
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      tooManySends(
+        Array.from({ length: 7 }, () => now - 1000),
+        now,
+      ),
+    ).toBe(false);
   });
 
   it("masks the mailbox and validates email shape", () => {

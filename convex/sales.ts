@@ -433,11 +433,7 @@ export const completeSale = mutation({
     }
     const cartDiscount = roundMoney(args.discount);
     const total = Math.max(0, roundMoney(subtotal - cartDiscount));
-    const invoiceNumber = await nextInvoiceNumber(
-      ctx,
-      profile.organizationId,
-      args.invoiceNumber,
-    );
+    const invoiceNumber = await nextInvoiceNumber(ctx, profile.organizationId, args.invoiceNumber);
     const completedAt = Date.now();
     const snapshot = await loadPrintSnapshot(ctx, profile.organizationId, branchId);
 

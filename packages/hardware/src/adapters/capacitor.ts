@@ -11,11 +11,7 @@ import {
   printFailedMessage,
   shareFailedMessage,
 } from "../permissions";
-import {
-  NATIVE_AVAILABILITY_TIMEOUT_MS,
-  isNativeTimeoutError,
-  withTimeout,
-} from "../timeout";
+import { NATIVE_AVAILABILITY_TIMEOUT_MS, isNativeTimeoutError, withTimeout } from "../timeout";
 import { NovendCamera } from "./cap-camera";
 import { NovendPrint } from "./cap-print";
 import { isMediaStoreUri, toShareableFileUri } from "./cap-uri";
@@ -203,7 +199,10 @@ async function getPhoto(source: CameraSource): Promise<HardwareResult<PhotoCaptu
   }
 }
 
-async function writeCachePdf(bytes: Uint8Array, fileName: string): Promise<HardwareResult<{ uri: string }>> {
+async function writeCachePdf(
+  bytes: Uint8Array,
+  fileName: string,
+): Promise<HardwareResult<{ uri: string }>> {
   try {
     const safeName = fileName.replace(/[^\w.\-]+/g, "_");
     const path = `receipts/${safeName.endsWith(".pdf") ? safeName : `${safeName}.pdf`}`;

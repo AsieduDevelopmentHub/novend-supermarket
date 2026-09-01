@@ -550,12 +550,12 @@ function LimitOverridesEditor({
     <div className="border-border space-y-3 rounded-lg border p-4">
       <div className="space-y-1">
         <p className="text-sm font-medium">Resource limit overrides</p>
-          <p className="text-muted-foreground text-xs">
-            Overrides win over the plan default for this organization only. Existing records are never
-            removed if a lower limit is applied — only new creation is blocked. The product override
-            also sets this organization’s import row cap (min of the product limit and 10,000). Excel
-            and PDF still follow the assigned plan.
-          </p>
+        <p className="text-muted-foreground text-xs">
+          Overrides win over the plan default for this organization only. Existing records are never
+          removed if a lower limit is applied — only new creation is blocked. The product override
+          also sets this organization’s import row cap (min of the product limit and 10,000). Excel
+          and PDF still follow the assigned plan.
+        </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {OVERRIDE_RESOURCES.map((resource) => {

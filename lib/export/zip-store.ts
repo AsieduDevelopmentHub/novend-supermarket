@@ -109,11 +109,7 @@ function readU16(buf: Uint8Array, offset: number): number {
 
 function readU32(buf: Uint8Array, offset: number): number {
   return (
-    (buf[offset] |
-      (buf[offset + 1] << 8) |
-      (buf[offset + 2] << 16) |
-      (buf[offset + 3] << 24)) >>>
-    0
+    (buf[offset] | (buf[offset + 1] << 8) | (buf[offset + 2] << 16) | (buf[offset + 3] << 24)) >>> 0
   );
 }
 

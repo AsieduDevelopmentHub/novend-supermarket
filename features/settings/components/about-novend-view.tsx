@@ -51,7 +51,9 @@ export function AboutNovendView() {
   const [storageLabel, setStorageLabel] = useState<string>("Calculating…");
 
   useEffect(() => {
-    if (isCapacitor()) setUpdate(readCachedUpdate());
+    if (isCapacitor()) {
+      queueMicrotask(() => setUpdate(readCachedUpdate()));
+    }
     void (async () => {
       const [app, profile] = await Promise.all([Hardware.app.getInfo(), loadShellProfile()]);
       if (app.data) setInfo(app.data);

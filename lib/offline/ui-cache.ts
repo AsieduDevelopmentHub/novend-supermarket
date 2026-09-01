@@ -7,10 +7,7 @@ import {
   filterCashierDashboardReturns,
   filterCashierDashboardSales,
 } from "@/lib/dashboard/cashier-scope";
-import {
-  availableStockQuantity,
-  isBelowLowStockThreshold,
-} from "@/lib/stock-status";
+import { availableStockQuantity, isBelowLowStockThreshold } from "@/lib/stock-status";
 
 export type DashboardSummaryCache = {
   role: AppRole | string;

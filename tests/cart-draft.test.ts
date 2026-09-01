@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  cartDraftStorageKey,
-  parseCartDraft,
-  type CartDraft,
-} from "@/lib/sales/cart-draft";
+import { cartDraftStorageKey, parseCartDraft, type CartDraft } from "@/lib/sales/cart-draft";
 
 const sample: CartDraft = {
   userId: "user_1",
@@ -32,7 +28,9 @@ describe("cart draft", () => {
     expect(parseCartDraft(JSON.stringify(sample), "user_2", "branch_1")).toBeNull();
     expect(parseCartDraft(JSON.stringify(sample), "user_1", "branch_2")).toBeNull();
     expect(parseCartDraft("{", "user_1", "branch_1")).toBeNull();
-    expect(parseCartDraft(JSON.stringify({ ...sample, items: [{ name: "bad" }] }), "user_1", "branch_1")).toBeNull();
+    expect(
+      parseCartDraft(JSON.stringify({ ...sample, items: [{ name: "bad" }] }), "user_1", "branch_1"),
+    ).toBeNull();
   });
 
   it("treats an empty payload as no draft", () => {

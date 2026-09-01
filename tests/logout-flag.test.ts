@@ -49,9 +49,9 @@ describe("explicit logout flag", () => {
 
   it("does not query billing or users.me without a Convex session", () => {
     const license = readFileSync(resolve(process.cwd(), "hooks/use-license.ts"), "utf8");
-    expect(license).toContain("isAuthenticated && online ? {} : \"skip\"");
+    expect(license).toContain('isAuthenticated && online ? {} : "skip"');
     const permissions = readFileSync(resolve(process.cwd(), "hooks/use-permissions.ts"), "utf8");
-    expect(permissions).toContain("isAuthenticated && online ? {} : \"skip\"");
+    expect(permissions).toContain('isAuthenticated && online ? {} : "skip"');
     const layout = readFileSync(resolve(process.cwd(), "app/(app)/layout.tsx"), "utf8");
     expect(layout).toContain("if (hasExplicitLogout()) return;");
     expect(layout).toContain('return <AppSplash label="Signing out…" />');

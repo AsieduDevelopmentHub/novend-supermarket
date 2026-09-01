@@ -72,8 +72,12 @@ const MOBILE_PLATFORM_META = [
 export function DownloadView() {
   const target = useSyncExternalStore(subscribeNoop, getBrowserTargetSnapshot, () => null);
   const preferredArch = target?.arch ?? "x64";
-  const { desktop: offer, mobile: mobileOffer, desktopRecent, mobileRecent } =
-    useReleaseOffers(preferredArch, { recentLimit: 5 });
+  const {
+    desktop: offer,
+    mobile: mobileOffer,
+    desktopRecent,
+    mobileRecent,
+  } = useReleaseOffers(preferredArch, { recentLimit: 5 });
 
   const recent = useMemo(() => {
     const combined = [...(desktopRecent ?? []), ...(mobileRecent ?? [])];

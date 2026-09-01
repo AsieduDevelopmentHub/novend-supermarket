@@ -65,7 +65,7 @@ Convex (when online)
 `persistBusinessWrite` always applies the Dexie + outbox path, then asks the
 provider to flush while online. Branch create/update and product create (including
 photos) use that path. **Sales checkout (`Pay`) and returns always write locally
-   first** (`completeSaleLocally` / `processReturnLocally`) so Capacitor cannot
+first** (`completeSaleLocally` / `processReturnLocally`) so Capacitor cannot
 treat `navigator.onLine` as “Convex is reachable” and leave in-flight pays to
 complete later.
 

@@ -59,9 +59,11 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isAuthRoute) return;
     if (!consumeSkipStartupSplash()) return;
-    setSkipFromLogin(true);
-    setVisible(false);
-    setExiting(false);
+    queueMicrotask(() => {
+      setSkipFromLogin(true);
+      setVisible(false);
+      setExiting(false);
+    });
   }, [pathname, isAuthRoute]);
 
   useEffect(() => {

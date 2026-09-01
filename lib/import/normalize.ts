@@ -14,7 +14,9 @@ export function stripCell(value: string): string {
 }
 
 export function parseMoneyCell(raw: string): number | null {
-  const text = stripCell(raw).replace(/,/g, "").replace(/^[^\d-]+/, "");
+  const text = stripCell(raw)
+    .replace(/,/g, "")
+    .replace(/^[^\d-]+/, "");
   if (!text) return null;
   const n = Number(text);
   if (!Number.isFinite(n) || n < 0) return null;

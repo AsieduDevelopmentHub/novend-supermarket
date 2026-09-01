@@ -398,10 +398,7 @@ export type PlatformMonitoringCache = {
   cachedAt: number;
 };
 
-export async function savePlatformMonitoring(
-  range: PlatformMonitoringRange,
-  payload: unknown,
-) {
+export async function savePlatformMonitoring(range: PlatformMonitoringRange, payload: unknown) {
   await writeJsonMeta(`${META_KEYS.platformMonitoring}:${range}`, {
     range,
     payload,

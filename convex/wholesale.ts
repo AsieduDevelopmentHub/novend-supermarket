@@ -251,11 +251,10 @@ export const recordPurchase = mutation({
   },
   handler: async (ctx, args) => {
     const { userId, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
-    const replayed = await replayClientOp<{ purchaseId: Id<"supplierPurchases">; reference: string }>(
-      ctx,
-      organizationId,
-      args.clientOperationId,
-    );
+    const replayed = await replayClientOp<{
+      purchaseId: Id<"supplierPurchases">;
+      reference: string;
+    }>(ctx, organizationId, args.clientOperationId);
     if (replayed) return replayed;
     const supplier = await ctx.db.get(args.supplierId);
     if (!supplier || supplier.organizationId !== organizationId || supplier.status !== "active") {

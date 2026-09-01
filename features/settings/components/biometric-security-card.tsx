@@ -9,13 +9,7 @@ import { randomUuid } from "@/convex/shared/randomId";
 import { Fingerprint, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-type BiometricUiState =
-  | "idle"
-  | "checking"
-  | "available"
-  | "unavailable"
-  | "unsupported"
-  | "error";
+type BiometricUiState = "idle" | "checking" | "available" | "unavailable" | "unsupported" | "error";
 
 /**
  * Optional biometric unlock — never stores the account password.
@@ -149,7 +143,12 @@ export function BiometricSecurityCard() {
           {enabled ? (
             <p className="text-muted-foreground text-sm">Biometrics are enabled on this device.</p>
           ) : null}
-          <Button type="button" variant="outline" size="sm" onClick={() => void refreshAvailability()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void refreshAvailability()}
+          >
             Check device support
           </Button>
         </CardContent>

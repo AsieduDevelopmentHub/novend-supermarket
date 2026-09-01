@@ -88,11 +88,7 @@ export function ForgotPasswordForm() {
             disabled={pending || resendInMs > 0}
             onClick={() => void sendLink(sentTo)}
           >
-            {pending
-              ? "Sending…"
-              : resendInMs > 0
-                ? `Resend in ${resendSeconds}s`
-                : "Resend email"}
+            {pending ? "Sending…" : resendInMs > 0 ? `Resend in ${resendSeconds}s` : "Resend email"}
           </Button>
           <Button asChild className="h-11 w-full">
             <Link href={ROUTES.login}>Back to sign in</Link>
@@ -120,11 +116,15 @@ export function ForgotPasswordForm() {
               />
             </div>
             <p className="text-muted-foreground text-xs leading-relaxed">
-              We&apos;ll email a one-hour reset link if this address has an account. For privacy,
-              we won&apos;t say whether it exists.
+              We&apos;ll email a one-hour reset link if this address has an account. For privacy, we
+              won&apos;t say whether it exists.
             </p>
           </div>
-          <Button type="submit" className="h-11 w-full text-[15px] font-semibold" disabled={pending}>
+          <Button
+            type="submit"
+            className="h-11 w-full text-[15px] font-semibold"
+            disabled={pending}
+          >
             {pending ? "Sending…" : "Send reset link"}
           </Button>
         </form>

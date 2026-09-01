@@ -53,8 +53,8 @@ type CacheSource = "live" | "cache";
  * range filter) so switching between entities doesn't briefly render a
  * stale cache entry that belongs to the previous key.
  *
- * Remember the latest live value across a later disconnect with a ref so
- * render never calls setState (React 19 warns when that happens before mount).
+ * Remember the latest live value across a later disconnect so render
+ * can fall back without reading a ref during paint.
  */
 function useLiveWithDiskCache<TValue>(
   live: TValue | undefined,
@@ -63,12 +63,14 @@ function useLiveWithDiskCache<TValue>(
   save: (value: TValue) => void | Promise<void>,
 ): { data: TValue | null | undefined; loading: boolean; source: CacheSource } {
   const [diskCache, setDiskCache] = useState<{ key: string; value: TValue | null } | null>(null);
-  const lastLiveRef = useRef<{ key: string; value: TValue } | null>(null);
+  const [lastLive, setLastLive] = useState<{ key: string; value: TValue } | null>(null);
 
   if (live !== undefined) {
-    lastLiveRef.current = { key, value: live };
+    const same = lastLive?.key === key && lastLive.value === live;
+    if (!same) {
+      setLastLive({ key, value: live });
+    }
   }
-  const lastLive = lastLiveRef.current;
 
   useEffect(() => {
     let cancelled = false;
@@ -218,8 +220,7 @@ export function usePlatformMonitoringData(range: PlatformMonitoringRange) {
   const { data, loading, source } = useLiveWithDiskCache(
     typedLive,
     range,
-    () =>
-      loadPlatformMonitoring(range).then((row) => (row?.payload as PlatformReportData) ?? null),
+    () => loadPlatformMonitoring(range).then((row) => (row?.payload as PlatformReportData) ?? null),
     (value) => savePlatformMonitoring(range, value),
   );
   return { data, loading, source };

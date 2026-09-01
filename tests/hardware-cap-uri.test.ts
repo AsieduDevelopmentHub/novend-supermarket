@@ -10,7 +10,9 @@ describe("Capacitor file URIs", () => {
 
   it("builds a file:// URI Share and FileProvider can use", () => {
     expect(
-      toShareableFileUri("https://localhost/_capacitor_file_/data/user/0/com.novend.pos/cache/r.pdf"),
+      toShareableFileUri(
+        "https://localhost/_capacitor_file_/data/user/0/com.novend.pos/cache/r.pdf",
+      ),
     ).toBe("file:///data/user/0/com.novend.pos/cache/r.pdf");
     expect(toShareableFileUri("file:///data/user/0/com.novend.pos/cache/r.pdf")).toBe(
       "file:///data/user/0/com.novend.pos/cache/r.pdf",

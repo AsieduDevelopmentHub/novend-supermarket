@@ -401,10 +401,7 @@ function SettingsTreeNav({
   ].filter((group) => group.items.length > 0);
 
   return (
-    <nav
-      data-tour="settings-sections"
-      className="border-border hidden w-56 shrink-0 lg:block"
-    >
+    <nav data-tour="settings-sections" className="border-border hidden w-56 shrink-0 lg:block">
       <div className="space-y-5">
         {groups.map((group) => (
           <div key={group.label}>

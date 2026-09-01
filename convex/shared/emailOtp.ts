@@ -73,10 +73,16 @@ export function resendWaitMs(lastCreatedAt: number, now = Date.now()): number {
 
 export function tooManySends(createdAtList: number[], now = Date.now()): boolean {
   const windowStart = now - EMAIL_OTP_HOUR_MS;
-  return createdAtList.filter((createdAt) => createdAt >= windowStart).length >= EMAIL_OTP_MAX_SENDS_PER_HOUR;
+  return (
+    createdAtList.filter((createdAt) => createdAt >= windowStart).length >=
+    EMAIL_OTP_MAX_SENDS_PER_HOUR
+  );
 }
 
-export function isEmailVerifiedRecord(row: { email: string; verifiedAt: number } | null, currentEmail: string): boolean {
+export function isEmailVerifiedRecord(
+  row: { email: string; verifiedAt: number } | null,
+  currentEmail: string,
+): boolean {
   if (!row) return false;
   return row.email === normalizeEmail(currentEmail) && row.verifiedAt > 0;
 }

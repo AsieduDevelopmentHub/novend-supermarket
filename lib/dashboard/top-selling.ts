@@ -27,7 +27,9 @@ export function collectTopSellingCandidates(
 ): TopSellingProduct[] {
   const sold = products.filter((row) => row.quantity > 0);
   if (sold.length <= perMetric) return sold;
-  const byQuantity = [...sold].sort((a, b) => compareTopSelling(a, b, "quantity")).slice(0, perMetric);
+  const byQuantity = [...sold]
+    .sort((a, b) => compareTopSelling(a, b, "quantity"))
+    .slice(0, perMetric);
   const byAmount = [...sold].sort((a, b) => compareTopSelling(a, b, "amount")).slice(0, perMetric);
   const merged = new Map<string, TopSellingProduct>();
   for (const row of [...byQuantity, ...byAmount]) merged.set(row.id, row);

@@ -82,7 +82,9 @@ export function buildPdfBlob(table: ExportTable): Blob {
 function formatCell(value: unknown): string {
   if (value == null || value === "") return "—";
   if (typeof value === "number" && Number.isFinite(value)) {
-    return Number.isInteger(value) ? String(value) : value.toLocaleString("en-GH", { maximumFractionDigits: 2 });
+    return Number.isInteger(value)
+      ? String(value)
+      : value.toLocaleString("en-GH", { maximumFractionDigits: 2 });
   }
   return String(value);
 }
@@ -112,15 +114,16 @@ function rowHeight(doc: jsPDF, values: string[], widths: number[]): number {
   return Math.max(LINE + CELL_PAD_Y * 2, lines * LINE + CELL_PAD_Y * 2);
 }
 
-function drawHeader(
-  doc: jsPDF,
-  columns: ExportTable["columns"],
-  widths: number[],
-  y: number,
-) {
+function drawHeader(doc: jsPDF, columns: ExportTable["columns"], widths: number[], y: number) {
   const height = headerHeight(doc, columns, widths);
   doc.setFillColor(...HEADER_FILL);
-  doc.rect(MARGIN, y, widths.reduce((sum, w) => sum + w, 0), height, "F");
+  doc.rect(
+    MARGIN,
+    y,
+    widths.reduce((sum, w) => sum + w, 0),
+    height,
+    "F",
+  );
   doc.setFont("helvetica", "bold");
   doc.setFontSize(CELL_SIZE);
   doc.setTextColor(255, 255, 255);
@@ -135,7 +138,12 @@ function drawHeader(
 function drawBodyRow(doc: jsPDF, values: string[], widths: number[], y: number, height: number) {
   doc.setDrawColor(...GRID);
   doc.setLineWidth(0.4);
-  doc.rect(MARGIN, y, widths.reduce((sum, w) => sum + w, 0), height);
+  doc.rect(
+    MARGIN,
+    y,
+    widths.reduce((sum, w) => sum + w, 0),
+    height,
+  );
   doc.setFont("helvetica", "normal");
   doc.setFontSize(CELL_SIZE);
   doc.setTextColor(15, 23, 42);

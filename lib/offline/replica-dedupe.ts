@@ -71,7 +71,10 @@ export function sameWholesaleTransfer(
   );
 }
 
-export function sameReturnNumber(a: { returnNumber: string }, b: { returnNumber: string }): boolean {
+export function sameReturnNumber(
+  a: { returnNumber: string },
+  b: { returnNumber: string },
+): boolean {
   return Boolean(a.returnNumber) && a.returnNumber === b.returnNumber;
 }
 
@@ -168,7 +171,11 @@ export function overlayPendingBranchStock<
   for (const row of outbox) {
     if (!isOpenOutbox(row) || row.type !== "wholesale_transfer") continue;
     try {
-      const payload = JSON.parse(row.payloadJson) as { productId?: string; branchId?: string; quantity?: number };
+      const payload = JSON.parse(row.payloadJson) as {
+        productId?: string;
+        branchId?: string;
+        quantity?: number;
+      };
       const qty = Number(payload.quantity) || 0;
       if (!payload.productId || !payload.branchId || qty === 0) continue;
       next = next.map((item) =>

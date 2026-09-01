@@ -49,12 +49,12 @@ supplier, tax) are skipped with an explanation, not invented.
 `convex/shared/plans.ts` is the catalog. Limits: products, users, branches,
 devices, backupBytes (`null` = unlimited).
 
-| Plan       | Products | Notes                                      |
-| ---------- | -------- | ------------------------------------------ |
-| Basic      | 500      | Reports + analytics in the feature list    |
-| Pro        | 5,000    | Adds “Advanced analytics”                  |
-| Enterprise | unlimited | Everything in Pro                         |
-| Lifetime   | unlimited | Everything in Enterprise                  |
+| Plan       | Products  | Notes                                   |
+| ---------- | --------- | --------------------------------------- |
+| Basic      | 500       | Reports + analytics in the feature list |
+| Pro        | 5,000     | Adds “Advanced analytics”               |
+| Enterprise | unlimited | Everything in Pro                       |
+| Lifetime   | unlimited | Everything in Enterprise                |
 
 `assertOrganizationCapacity` already gates product creates. No import/export
 capability object existed; UI must not scatter `if (plan === "pro")`.
@@ -114,10 +114,10 @@ Capabilities (not raw plan keys in UI):
 
 Platform administrators (`requirePlatformAdmin`) see:
 
-| Surface | What is shown |
-| --- | --- |
-| Platform overview | Platform-wide job/export counts, format mix, CSV-only tenant count, organizations at ≥80% of their product/import cap |
-| Organizations list | Per-org import jobs, failed jobs, export events, import row cap, Excel/PDF entitlement, product override flag |
+| Surface                         | What is shown                                                                                                                                   |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Platform overview               | Platform-wide job/export counts, format mix, CSV-only tenant count, organizations at ≥80% of their product/import cap                           |
+| Organizations list              | Per-org import jobs, failed jobs, export events, import row cap, Excel/PDF entitlement, product override flag                                   |
 | Organization overview & licence | Derived capabilities, product used vs limit, remaining creates, recent jobs (filename + counts), recent exports, audited limit-override history |
 
 Privacy: counts, filenames, formats, and row totals only. Spreadsheet contents are never stored. Platform admins without a tenant role still cannot run tenant import/export mutations.

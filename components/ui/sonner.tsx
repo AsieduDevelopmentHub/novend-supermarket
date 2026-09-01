@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
+import { type CSSProperties, type MouseEvent } from "react";
 import { X } from "lucide-react";
 import { Toaster as SonnerToaster, toast } from "sonner";
+import { useIsClient } from "@/hooks/use-is-client";
 
 const toasterStyle = {
   "--toast-close-button-start": "auto",
@@ -19,10 +20,7 @@ const toasterStyle = {
  * dismisses it.
  */
 export function Toaster() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useIsClient();
   if (!mounted) return null;
 
   return (

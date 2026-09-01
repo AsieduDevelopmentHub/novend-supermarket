@@ -21,8 +21,8 @@ describe("friendlyHardwareMessage", () => {
   });
 
   it("does not treat generic access errors as a turned-off camera", () => {
-    expect(friendlyHardwareMessage("Could not access the file", "Unable to save the receipt.")).toBe(
-      "Could not access the file",
-    );
+    expect(
+      friendlyHardwareMessage("Could not access the file", "Unable to save the receipt."),
+    ).toBe("Could not access the file");
   });
 });

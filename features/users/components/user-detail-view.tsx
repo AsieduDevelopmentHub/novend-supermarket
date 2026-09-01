@@ -44,8 +44,13 @@ import { ArrowLeft, KeyRound, Pencil, UserX, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
-  const { canManageUsers, isAdmin, isManager, branchId: myBranchId, userId: actorUserId } =
-    usePermissions();
+  const {
+    canManageUsers,
+    isAdmin,
+    isManager,
+    branchId: myBranchId,
+    userId: actorUserId,
+  } = usePermissions();
   const online = useConnectivity();
   const remote = useQuery(api.users.get, canManageUsers && online ? { id: profileId } : "skip");
   const branches = useBranchesList(false);
@@ -207,7 +212,9 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
     setPending(true);
     try {
       await resetUserPassword({ profileId, newPassword });
-      toast.success("Password reset. They’ll get a confirmation email — share the new password securely.");
+      toast.success(
+        "Password reset. They’ll get a confirmation email — share the new password securely.",
+      );
       setResetOpen(false);
       setNewPassword("");
       setConfirmPassword("");

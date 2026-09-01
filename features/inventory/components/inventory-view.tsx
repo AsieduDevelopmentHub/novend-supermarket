@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState, Suspense } from "react";
+import { FormEvent, useMemo, useState, Suspense } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -85,6 +85,10 @@ function InventoryViewInner() {
   const [branchOverride, setBranchOverride] = useState<Id<"branches"> | "all">(() =>
     branchParam && branchParam !== "all" ? (branchParam as Id<"branches">) : "all",
   );
+  const [landedWithStockAlert] = useState(lowOnly || expiryOnly);
+  const [alertScopeApplied, setAlertScopeApplied] = useState(
+    Boolean(branchParam && branchParam !== "all"),
+  );
   const [adjustId, setAdjustId] = useState<Id<"products"> | null>(null);
   const [adjustBranchId, setAdjustBranchId] = useState<Id<"branches"> | "">("");
   const [transferOpen, setTransferOpen] = useState(false);
@@ -99,8 +103,15 @@ function InventoryViewInner() {
   const [transferProductId, setTransferProductId] = useState<Id<"products"> | "">("");
   const [transferQty, setTransferQty] = useState("1");
   const [transferNote, setTransferNote] = useState("");
-  const appliedAlertBranch = useRef(false);
-  const landedWithStockAlert = useRef(lowOnly || expiryOnly);
+
+  if (branchParam && branchParam !== "all") {
+    const fromUrl = branchParam as Id<"branches">;
+    if (branchOverride !== fromUrl) setBranchOverride(fromUrl);
+    if (!alertScopeApplied) setAlertScopeApplied(true);
+  } else if (!alertScopeApplied && isAdmin && myBranchId && landedWithStockAlert) {
+    setAlertScopeApplied(true);
+    setBranchOverride(myBranchId);
+  }
 
   function replaceInventoryQuery(next: { filter?: string | null; branch?: string | null }) {
     const params = new URLSearchParams(searchParams.toString());
@@ -121,20 +132,6 @@ function InventoryViewInner() {
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
-
-  useEffect(() => {
-    if (!isAdmin || !myBranchId) return;
-    if (branchParam && branchParam !== "all") {
-      setBranchOverride(branchParam as Id<"branches">);
-      appliedAlertBranch.current = true;
-      return;
-    }
-    if (appliedAlertBranch.current) return;
-    if (landedWithStockAlert.current && !branchParam) {
-      setBranchOverride(myBranchId);
-      appliedAlertBranch.current = true;
-    }
-  }, [isAdmin, myBranchId, branchParam]);
 
   const branches = useBranchesList(false);
   const transferBranches = branches;
@@ -422,7 +419,7 @@ function InventoryViewInner() {
               value={branchFilter}
               onChange={(value) => {
                 setBranchOverride(value);
-                appliedAlertBranch.current = true;
+                setAlertScopeApplied(true);
                 replaceInventoryQuery({ branch: value === "all" ? null : String(value) });
               }}
               allowAll

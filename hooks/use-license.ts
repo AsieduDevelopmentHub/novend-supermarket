@@ -42,10 +42,7 @@ const DEFAULT_ACCESS: LicenseAccess = {
 export function useLicense(): LicenseState {
   const { isAuthenticated } = useConvexAuth();
   const online = useConnectivity();
-  const remote = useQuery(
-    api.billing.licenseSnapshot,
-    isAuthenticated && online ? {} : "skip",
-  );
+  const remote = useQuery(api.billing.licenseSnapshot, isAuthenticated && online ? {} : "skip");
   const [cached, setCached] = useState<Awaited<ReturnType<typeof loadLicenseSnapshot>>>(null);
   const [cacheReady, setCacheReady] = useState(false);
 

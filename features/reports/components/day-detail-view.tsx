@@ -63,7 +63,7 @@ export function ReportDayDetailView() {
   const titleDate = formatDate(new Date(`${date}T00:00:00Z`));
 
   return (
-    <div className="min-w-0 max-w-full space-y-6 overflow-x-hidden">
+    <div className="max-w-full min-w-0 space-y-6 overflow-x-hidden">
       <PageHeader
         title={titleDate}
         description="Orders and refunds that make up this day's report row."
@@ -93,7 +93,7 @@ export function ReportDayDetailView() {
             <CardHeader>
               <CardTitle>Orders</CardTitle>
             </CardHeader>
-            <CardContent className="min-w-0 max-w-full overflow-x-auto p-0">
+            <CardContent className="max-w-full min-w-0 overflow-x-auto p-0">
               {details.orders.length === 0 ? (
                 <div className="p-6">
                   <EmptyState title="No orders this day" />
@@ -133,7 +133,7 @@ export function ReportDayDetailView() {
             <CardHeader>
               <CardTitle>Returns</CardTitle>
             </CardHeader>
-            <CardContent className="min-w-0 max-w-full overflow-x-auto p-0">
+            <CardContent className="max-w-full min-w-0 overflow-x-auto p-0">
               {details.returns.length === 0 ? (
                 <div className="p-6">
                   <EmptyState title="No returns this day" />
@@ -202,7 +202,7 @@ function LocalDayFallback({ date, backHref }: { date: string; backHref: string }
   }, [date]);
 
   return (
-    <div className="min-w-0 max-w-full space-y-6 overflow-x-hidden">
+    <div className="max-w-full min-w-0 space-y-6 overflow-x-hidden">
       <PageHeader
         title={formatDate(new Date(`${date}T00:00:00`))}
         description="Orders saved on this device"
@@ -221,7 +221,7 @@ function LocalDayFallback({ date, backHref }: { date: string; backHref: string }
         <EmptyState title="No local orders for this day" />
       ) : (
         <Card>
-          <CardContent className="min-w-0 max-w-full overflow-x-auto p-0">
+          <CardContent className="max-w-full min-w-0 overflow-x-auto p-0">
             <table className="w-full text-left text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>

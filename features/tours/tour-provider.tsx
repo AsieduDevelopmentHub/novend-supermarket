@@ -157,9 +157,9 @@ export function ProductTourProvider({
   const restartOwn = useMutation(api.tours.restartOwn);
   const progressRef = useRef<TourProgress[]>([]);
   const [progress, setProgress] = useState<TourProgress[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const [hydratedKey, setHydratedKey] = useState<string | null>(null);
   const initialProgressRef = useRef(initialProgress);
-  initialProgressRef.current = initialProgress;
+  const hydrated = hydratedKey === identityKey;
   const tourSeedKey = (initialProgress ?? [])
     .map((row) => `${row.tourId}:${row.version}:${row.status}:${row.updatedAt}`)
     .sort()
@@ -174,19 +174,19 @@ export function ProductTourProvider({
   );
 
   useEffect(() => {
-    if (!identityKey) {
-      setHydrated(false);
-      return;
-    }
+    initialProgressRef.current = initialProgress;
+  }, [initialProgress]);
+
+  useEffect(() => {
+    if (!identityKey) return;
     let cancelled = false;
-    setHydrated(false);
     void loadTourProgress(identityKey).then((local) => {
       if (cancelled) return;
       const merged = mergeTourProgress(local, initialProgressRef.current ?? []);
       progressRef.current = merged;
       setProgress(merged);
       writeProgress(merged);
-      setHydrated(true);
+      setHydratedKey(identityKey);
     });
     return () => {
       cancelled = true;
@@ -423,10 +423,7 @@ export function ProductTourProvider({
       setActiveTourId(tour.id);
       const resumeIndex =
         saved?.status === "in_progress" && saved.lastStepId
-          ? Math.max(
-              0,
-              tour.steps.findIndex((step) => step.id === saved.lastStepId) + 1,
-            )
+          ? Math.max(0, tour.steps.findIndex((step) => step.id === saved.lastStepId) + 1)
           : 0;
       persist(tour, "in_progress", tour.steps[resumeIndex]?.id);
       instance.drive(Math.min(resumeIndex, tour.steps.length - 1));

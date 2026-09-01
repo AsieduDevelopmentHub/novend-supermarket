@@ -23,10 +23,12 @@ describe("two-organization IDOR guards", () => {
 
   it("blocks expense branch injection from another organization", () => {
     expect(() => assertActiveOrgBranch(BRANCH_B, ORG_A)).toThrow(/invalid branch/i);
-    expect(() => assertActiveOrgBranch({ organizationId: ORG_A, status: "inactive" }, ORG_A)).toThrow(
-      /invalid branch/i,
-    );
-    expect(() => assertActiveOrgBranch({ organizationId: ORG_A, status: "active" }, ORG_A)).not.toThrow();
+    expect(() =>
+      assertActiveOrgBranch({ organizationId: ORG_A, status: "inactive" }, ORG_A),
+    ).toThrow(/invalid branch/i);
+    expect(() =>
+      assertActiveOrgBranch({ organizationId: ORG_A, status: "active" }, ORG_A),
+    ).not.toThrow();
   });
 
   it("blocks org B from attaching org A's storage blob", () => {
@@ -42,7 +44,10 @@ describe("two-organization IDOR guards", () => {
       { path: "updateProfile", guard: "assertBelongsToOrganization(profile + branch)" },
       { path: "createUserAccount", guard: "assigned branch organizationId" },
       { path: "updateExpense", guard: "assertActiveOrgBranch(nextBranchId)" },
-      { path: "createProduct/updateProduct/updateOwnProfile/recordBackup", guard: "assertStorageClaimForOrg" },
+      {
+        path: "createProduct/updateProduct/updateOwnProfile/recordBackup",
+        guard: "assertStorageClaimForOrg",
+      },
     ];
     expect(writes).toHaveLength(5);
     for (const write of writes) {

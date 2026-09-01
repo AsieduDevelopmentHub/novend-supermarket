@@ -5,7 +5,11 @@ import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { AppRole } from "@/config/navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { loadShellProfile, shellProfileFromSessionHint, type ShellProfile } from "@/lib/offline/shell-profile";
+import {
+  loadShellProfile,
+  shellProfileFromSessionHint,
+  type ShellProfile,
+} from "@/lib/offline/shell-profile";
 import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { Id } from "@/convex/_generated/dataModel";

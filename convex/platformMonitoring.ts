@@ -92,8 +92,14 @@ export const dashboard = query({
       ctx.db.query("billingHistory").collect(),
       ctx.db.query("platformOperatingCosts").collect(),
       ctx.db.query("cloudBackups").collect(),
-      ctx.db.query("importJobs").withIndex("by_createdAt", (q) => q.gte("createdAt", since)).collect(),
-      ctx.db.query("exportEvents").withIndex("by_createdAt", (q) => q.gte("createdAt", since)).collect(),
+      ctx.db
+        .query("importJobs")
+        .withIndex("by_createdAt", (q) => q.gte("createdAt", since))
+        .collect(),
+      ctx.db
+        .query("exportEvents")
+        .withIndex("by_createdAt", (q) => q.gte("createdAt", since))
+        .collect(),
       ctx.db
         .query("platformDailyActiveUsers")
         .withIndex("by_day", (q) => q.gte("day", sinceDay))
@@ -206,9 +212,7 @@ export const dashboard = query({
       devices.filter((row) => row.registeredAt >= since).map((row) => String(row.organizationId)),
     );
     const engagedOrganizationIds = new Set(
-      activeUsers
-        .filter((row) => row.organizationId)
-        .map((row) => String(row.organizationId)),
+      activeUsers.filter((row) => row.organizationId).map((row) => String(row.organizationId)),
     );
     const payingOrganizationIds = new Set(
       subscriptions
@@ -242,8 +246,7 @@ export const dashboard = query({
         operatingCosts: periodCosts.reduce((sum, row) => sum + row.amount, 0),
         downloads: baselineDownloads + trackedDownloads,
         activeDevices: activeDevices.length,
-        churnRate:
-          recurringSubscriptions > 0 ? churnedSubscriptions / recurringSubscriptions : 0,
+        churnRate: recurringSubscriptions > 0 ? churnedSubscriptions / recurringSubscriptions : 0,
         activationRate:
           createdOrganizations.length > 0
             ? engagedOrganizationIds.size / createdOrganizations.length
@@ -277,17 +280,14 @@ export const dashboard = query({
         staleDevices: activeDevices.filter((device) => device.lastSeenAt < dayAgo).length,
         devicesSeenLast24h: activeDevices.filter((device) => device.lastSeenAt >= dayAgo).length,
         pendingPayments: pendingPayments.length,
-        stalePendingPayments: pendingPayments.filter(
-          (row) => now - row.createdAt > 30 * 60 * 1000,
-        ).length,
+        stalePendingPayments: pendingPayments.filter((row) => now - row.createdAt > 30 * 60 * 1000)
+          .length,
         failedPayments: failedPayments.length,
         clientErrors: currentRollups
           .filter((row) => row.metric === "client_error" && row.dimension === "all")
           .reduce((sum, row) => sum + row.value, 0),
         syncFailures: currentRollups
-          .filter(
-            (row) => row.metric === "sync_health" && row.dimension === "action:failed",
-          )
+          .filter((row) => row.metric === "sync_health" && row.dimension === "action:failed")
           .reduce((sum, row) => sum + row.value, 0),
         imports: imports.length,
         failedImports: imports.filter((row) => row.status === "failed").length,
@@ -318,9 +318,7 @@ export const dashboard = query({
                   .reduce((sum, row) => sum + row.amount, 0),
               ),
         downloads:
-          range === "all"
-            ? null
-            : percentageChange(trackedDownloads, previousTrackedDownloads),
+          range === "all" ? null : percentageChange(trackedDownloads, previousTrackedDownloads),
         clientErrors:
           range === "all"
             ? null
