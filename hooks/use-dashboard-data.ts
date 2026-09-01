@@ -55,8 +55,6 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
 
   useEffect(() => {
     if (!role) {
-      setLocalData(null);
-      setWaitingForReplica(true);
       return;
     }
 

@@ -1,6 +1,12 @@
 import { getMeta, getOfflineDb, META_KEYS } from "./db";
 import { productMatchesQuery } from "./barcode-lookup";
-import { dedupeByProductId } from "./replica-dedupe";
+import {
+  dedupeByProductId,
+  dropLocalDuplicates,
+  sameExpense,
+  sameWholesalePurchase,
+  sameWholesaleTransfer,
+} from "./replica-dedupe";
 import {
   branchStockMapForBranch,
   branchStockMapOrgWide,
@@ -213,10 +219,12 @@ export async function listLocalOrders(filters: LocalOrderFilters = {}) {
   ]);
 
   const mirroredIds = new Set(mirrored.map((o) => o.id));
+  const mirroredInvoices = new Set(mirrored.map((o) => o.invoiceNumber));
   const unsyncedLocal = localSales.filter(
     (s) =>
       (s.syncStatus === "pending" || s.syncStatus === "failed") &&
-      !(s.serverSaleId && mirroredIds.has(s.serverSaleId)),
+      !(s.serverSaleId && mirroredIds.has(s.serverSaleId)) &&
+      !mirroredInvoices.has(s.invoiceNumber),
   );
 
   type OrderRow = {
@@ -415,13 +423,19 @@ export async function wholesaleSummaryFromMirror() {
 export async function listMirroredWholesalePurchases() {
   const db = await getOfflineDb();
   if (!db) return [];
-  return (await db.wholesalePurchases.toArray()).sort((a, b) => b.purchasedAt - a.purchasedAt);
+  return dropLocalDuplicates(
+    await db.wholesalePurchases.toArray(),
+    sameWholesalePurchase,
+  ).sort((a, b) => b.purchasedAt - a.purchasedAt);
 }
 
 export async function listMirroredWholesaleTransfers() {
   const db = await getOfflineDb();
   if (!db) return [];
-  return (await db.wholesaleTransfers.toArray()).sort((a, b) => b.createdAt - a.createdAt);
+  return dropLocalDuplicates(
+    await db.wholesaleTransfers.toArray(),
+    sameWholesaleTransfer,
+  ).sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function listMirroredBranches(includeInactive = false) {
@@ -495,7 +509,7 @@ export async function listMirroredExpenses(range?: { startDate: number; endDate:
       (row) => row.occurredAt >= range.startDate && row.occurredAt <= range.endDate,
     );
   }
-  return rows.sort((a, b) => b.occurredAt - a.occurredAt);
+  return dropLocalDuplicates(rows, sameExpense).sort((a, b) => b.occurredAt - a.occurredAt);
 }
 
 export async function listMirroredReturns(options?: {
@@ -508,6 +522,7 @@ export async function listMirroredReturns(options?: {
   const mirrored = await db.returns.toArray();
   const local = await db.localReturns.toArray();
   const mirroredIds = new Set(mirrored.map((row) => row.id));
+  const mirroredNumbers = new Set(mirrored.map((row) => row.returnNumber));
   let rows = [
     ...mirrored.map((row) => ({
       id: row.id,
@@ -529,6 +544,7 @@ export async function listMirroredReturns(options?: {
       .filter(
         (row) =>
           row.syncStatus !== "synced" &&
+          !mirroredNumbers.has(row.returnNumber) &&
           !(row.serverReturnId && mirroredIds.has(row.serverReturnId)),
       )
       .map((row) => ({

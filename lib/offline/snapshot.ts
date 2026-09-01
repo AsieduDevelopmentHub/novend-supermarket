@@ -32,6 +32,10 @@ import {
   overlayPendingBranchStock,
   overlayPendingWholesaleStock,
   pendingLocalIdsFromOutbox,
+  sameExpense,
+  sameReturnNumber,
+  sameWholesalePurchase,
+  sameWholesaleTransfer,
 } from "./replica-dedupe";
 import type {
   MirroredBranch,
@@ -69,9 +73,10 @@ async function replaceServerRows<T extends { id: string }>(
   },
   rows: T[],
   pendingLocalIds: Set<string>,
+  isSame?: (server: T, local: T) => boolean,
 ) {
   const localOnly = await table.filter((row) => row.id.startsWith("local_")).toArray();
-  const merged = mergeServerAndLocalById(rows, localOnly, pendingLocalIds);
+  const merged = mergeServerAndLocalById(rows, localOnly, pendingLocalIds, isSame);
   await table.clear();
   if (merged.length > 0) {
     await table.bulkPut(merged);
@@ -236,11 +241,13 @@ export async function applySnapshot(
       db.wholesalePurchases,
       snapshot.wholesalePurchases ?? [],
       pendingLocalIds,
+      sameWholesalePurchase,
     );
     await replaceServerRows(
       db.wholesaleTransfers,
       snapshot.wholesaleTransfers ?? [],
       pendingLocalIds,
+      sameWholesaleTransfer,
     );
     const branchRows =
       snapshot.branches && snapshot.branches.length > 0
@@ -259,8 +266,8 @@ export async function applySnapshot(
           : [];
     await replaceServerRows(db.branches, branchRows, pendingLocalIds);
     await replaceServerRows(db.users, snapshot.users ?? [], pendingLocalIds);
-    await replaceServerRows(db.expenses, snapshot.expenses ?? [], pendingLocalIds);
-    await replaceServerRows(db.returns, snapshot.returns ?? [], pendingLocalIds);
+    await replaceServerRows(db.expenses, snapshot.expenses ?? [], pendingLocalIds, sameExpense);
+    await replaceServerRows(db.returns, snapshot.returns ?? [], pendingLocalIds, sameReturnNumber);
     await replaceServerRows(db.lots, snapshot.lots ?? [], pendingLocalIds);
     await setMeta(db, META_KEYS.printSnapshot, JSON.stringify(snapshot.print));
     await setMeta(db, META_KEYS.profileUserId, snapshot.profile.userId);

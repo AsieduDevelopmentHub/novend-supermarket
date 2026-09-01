@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.19
+Version: 2.4.20
 
 ## Purpose
 
@@ -36,7 +36,11 @@ Convex (when online)
    **imports** use the same outbox: Dexie first, then Convex `createProduct` /
    `updateProduct`. Catalog CSV/Excel exports read the local list and work offline.
 4. `OfflineProvider` drains the outbox in the background. Forms return as soon as
-   Dexie succeeds — loading spinners never wait on Convex.
+   Dexie succeeds — loading spinners never wait on Convex. After a successful
+   Convex write, the matching `local_*` Dexie row is deleted. Snapshot merge and
+   list reads also drop a pending local row when Convex already has the same
+   business identity (purchase invoice, transfer, return number, expense,
+   sale invoice) so a single action cannot paint twice until the next reload.
 5. Product photos live in IndexedDB (`productImages`) as blobs plus thumbnails.
    The UI reads local blobs first and falls back to the cloud URL only when the
    replica has no photo yet.

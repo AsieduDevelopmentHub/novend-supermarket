@@ -46,7 +46,7 @@ function wait(ms: number): Promise<void> {
  * Bind the org-scoped Dexie replica before navigating into the app shell so
  * dashboard hydration does not open `novend-offline-anon` first.
  */
-function bindReplicaFromMe(
+async function bindReplicaFromMe(
   me: {
     userId?: string | null;
     name?: string | null;
@@ -56,7 +56,7 @@ function bindReplicaFromMe(
     organizationId?: string | null;
     isPlatformAdmin?: boolean | null;
   } | null,
-): void {
+): Promise<void> {
   if (!me?.userId) return;
   if (me.isPlatformAdmin && !me.organizationId) return;
   if (!me.organizationId || !me.role || !me.branchId) return;
@@ -70,12 +70,8 @@ function bindReplicaFromMe(
     organizationId: String(me.organizationId),
     savedAt: Date.now(),
   });
-  if (
-    me.role === "administrator" ||
-    me.role === "manager" ||
-    me.role === "cashier"
-  ) {
-    void saveShellProfile({
+  if (me.role === "administrator" || me.role === "manager" || me.role === "cashier") {
+    await saveShellProfile({
       userId: String(me.userId),
       name: me.name ?? "User",
       role: me.role,
@@ -102,7 +98,7 @@ export async function resolvePostLoginPath(
   for (let attempt = 0; attempt < RESOLVE_RETRIES; attempt++) {
     try {
       const me = await convex.query(api.users.me, {});
-      bindReplicaFromMe(me);
+      await bindReplicaFromMe(me);
       return resolvePostAuthPath(me, next);
     } catch {
       if (attempt === RESOLVE_RETRIES - 1) break;
@@ -165,7 +161,7 @@ export function navigateAfterLogin(path: string, router: AppRouter): void {
 
   window.setTimeout(() => {
     const here = window.location.pathname;
-    if (here === "/login" || here === "/signup") {
+    if (here === "/login" || here === "/signup" || here === "/onboarding") {
       prepareHardNavigation();
       window.location.assign(path);
     }

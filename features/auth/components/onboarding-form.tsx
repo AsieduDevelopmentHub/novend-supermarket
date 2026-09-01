@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useConvex, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { api } from "@/convex/_generated/api";
@@ -13,10 +13,12 @@ import { BRANDING } from "@/constants/branding";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
+import { navigateAfterLogin, resolvePostLoginPath } from "@/lib/auth/redirect-after-login";
 
 /** Completes public SaaS signup by creating the owner's organization on a Pro trial. */
 export function OnboardingForm() {
   const router = useRouter();
+  const convex = useConvex();
   const user = useQuery(api.users.me);
   const createOrganization = useMutation(api.organizations.create);
   const [name, setName] = useState("");
@@ -32,10 +34,14 @@ export function OnboardingForm() {
       }
       return;
     }
+    if (pending) return;
     if (!user.needsOnboarding && !user.needsProfile) {
-      router.replace("/dashboard");
+      void (async () => {
+        const path = await resolvePostLoginPath(convex);
+        navigateAfterLogin(path, router);
+      })();
     }
-  }, [user, router]);
+  }, [user, router, convex, pending]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -48,7 +54,8 @@ export function OnboardingForm() {
         address: address.trim() || undefined,
       });
       toast.success("Your 14-day Pro trial is live");
-      router.replace("/dashboard");
+      const path = await resolvePostLoginPath(convex);
+      navigateAfterLogin(path, router);
     } catch (error) {
       showError(error, "Could not create your business");
     } finally {
