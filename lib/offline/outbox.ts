@@ -198,8 +198,9 @@ export async function enqueueOutbox(
 
 export async function replaceIdInPendingOutbox(db: NovendOfflineDb, fromId: string, toId: string) {
   if (!fromId || fromId === toId) return;
-  const pending = await listPendingOutbox(db);
-  for (const row of pending) {
+  const rows = await db.outbox.toArray();
+  for (const row of rows) {
+    if (row.status === "synced") continue;
     if (!row.payloadJson.includes(fromId)) continue;
     await db.outbox.put({
       ...row,

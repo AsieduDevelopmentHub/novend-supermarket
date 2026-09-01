@@ -1,6 +1,6 @@
 # Product Import, Export & Plan Entitlements
 
-Version: 1.1.3
+Version: 1.1.4
 
 Architecture for catalog import, reusable export, and plan-gated formats.
 Business rules stay in Convex. Dexie remains the operational replica.
@@ -15,7 +15,9 @@ Business rules stay in Convex. Dexie remains the operational replica.
 
 Opening stock on a **new** product that tracks expiry also needs an expiry date
 (`YYYY-MM-DD`) so Convex can create the first lot. Import validates that before
-writing Dexie.
+writing Dexie. Catalog **export** writes the same `Expiry Date` column (nearest
+lot, `YYYY-MM-DD`) plus `Tracks Expiry` / `Expiry Alert Days` so a Novend file
+round-trips through the import wizard without an expiry conflict.
 
 On-hand quantity also lives on `branchStock` (per branch). Convex `_creationTime`
 exists; there is no product `updatedAt`, brand, wholesale price, tax, or supplier
@@ -142,7 +144,9 @@ wizard, tests). Keep this list as the architecture map, not a backlog:
 ## 11. Tests required
 
 - Header synonym mapping and uncertain (unmapped) headers
+- Novend catalog export headers (including Expiry Date) map back onto import
 - Validation: missing required fields, duplicate SKU/barcode in file, money/qty
+- Formula-injection prefix on CSV/XLSX cells
 - Formula-injection prefix on CSV/XLSX cells
 - Capability derivation from catalog plans (no invented prices)
 - File type/size/row rejection

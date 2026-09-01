@@ -103,6 +103,8 @@ export default convexAuthNextjsMiddleware(
     const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-nonce", nonce);
+    // Next.js reads CSP from the *request* to stamp nonce on its scripts.
+    requestHeaders.set("Content-Security-Policy", buildCsp(nonce));
 
     // Let /api/boot set its own CSP (inline trampoline). Auth middleware still
     // runs; the route is public so unauthenticated Cap cold-start can land.

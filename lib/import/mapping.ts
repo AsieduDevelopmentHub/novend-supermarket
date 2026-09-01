@@ -42,37 +42,48 @@ function confidenceForScore(score: number): MappingSuggestion["confidence"] {
 }
 
 /**
- * Suggest a 1:1 mapping. Each Novend field is used at most once. Uncertain
- * matches stay unmapped so the user can correct them.
+ * Suggest a 1:1 mapping. Each Novend field is used at most once. Stronger
+ * matches win first so a Novend export (`Product Name` + `Product ID`) does
+ * not let the ID column steal the name field. Uncertain matches stay unmapped.
  */
 export function suggestColumnMapping(headers: string[]): MappingSuggestion[] {
-  const used = new Set<ProductImportFieldKey>();
-  const suggestions: MappingSuggestion[] = [];
+  type Candidate = {
+    index: number;
+    header: string;
+    field: ProductImportFieldKey;
+    score: number;
+  };
 
-  for (const header of headers) {
+  const candidates: Candidate[] = [];
+  headers.forEach((header, index) => {
     const normalized = normalizeHeader(header);
-    if (!normalized) {
-      suggestions.push({ header, field: null, confidence: "none" });
-      continue;
-    }
-    let bestKey: ProductImportFieldKey | null = null;
-    let bestScore = 0;
+    if (!normalized) return;
     for (const field of PRODUCT_IMPORT_FIELDS) {
-      if (used.has(field.key)) continue;
       const score = fieldScore(normalized, field);
-      if (score > bestScore) {
-        bestScore = score;
-        bestKey = field.key;
+      if (score >= 65) {
+        candidates.push({ index, header, field: field.key, score });
       }
     }
-    const confidence = confidenceForScore(bestScore);
-    const field = confidence === "none" || confidence === "low" ? null : bestKey;
-    if (field && (confidence === "high" || confidence === "medium")) {
-      used.add(field);
-      suggestions.push({ header, field, confidence });
-    } else {
-      suggestions.push({ header, field: null, confidence });
-    }
+  });
+  candidates.sort((a, b) => b.score - a.score || a.index - b.index);
+
+  const usedFields = new Set<ProductImportFieldKey>();
+  const usedHeaders = new Set<number>();
+  const suggestions: MappingSuggestion[] = headers.map((header) => ({
+    header,
+    field: null,
+    confidence: "none" as const,
+  }));
+
+  for (const candidate of candidates) {
+    if (usedHeaders.has(candidate.index) || usedFields.has(candidate.field)) continue;
+    usedHeaders.add(candidate.index);
+    usedFields.add(candidate.field);
+    suggestions[candidate.index] = {
+      header: candidate.header,
+      field: candidate.field,
+      confidence: confidenceForScore(candidate.score),
+    };
   }
 
   return suggestions;

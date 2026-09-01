@@ -29,6 +29,38 @@ describe("product import mapping", () => {
     expect(mapping["Tracks Expiry"]).toBe("tracksExpiry");
   });
 
+  it("maps Novend catalog export headers, including expiry date", () => {
+    const mapping = mappingFromSuggestions(
+      suggestColumnMapping([
+        "Product ID",
+        "Product Name",
+        "SKU",
+        "Barcode",
+        "Category",
+        "Description",
+        "Cost Price",
+        "Selling Price",
+        "Stock Quantity",
+        "Minimum Stock",
+        "Unit",
+        "Status",
+        "Tracks Expiry",
+        "Expiry Alert Days",
+        "Expiry Date",
+        "Image",
+        "Updated",
+      ]),
+    );
+    expect(mapping["Product Name"]).toBe("name");
+    expect(mapping["Product ID"]).toBeNull();
+    expect(mapping.SKU).toBe("sku");
+    expect(mapping.Category).toBe("category");
+    expect(mapping["Stock Quantity"]).toBe("quantity");
+    expect(mapping["Tracks Expiry"]).toBe("tracksExpiry");
+    expect(mapping["Expiry Alert Days"]).toBe("expiryAlertDays");
+    expect(mapping["Expiry Date"]).toBe("expiryDate");
+  });
+
   it("leaves uncertain headers unmapped", () => {
     const suggestions = suggestColumnMapping(["FooBarBaz", "Category"]);
     expect(suggestions.find((row) => row.header === "FooBarBaz")?.field).toBeNull();

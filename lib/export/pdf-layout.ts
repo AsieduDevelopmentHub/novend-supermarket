@@ -59,6 +59,7 @@ const NARROW = new Set([
   "refunds",
   "tracksExpiry",
   "expiryAlertDays",
+  "expiryDate",
 ]);
 
 const WIDE = new Set(["name", "description", "productName", "label", "note"]);

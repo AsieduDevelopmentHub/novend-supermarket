@@ -51,7 +51,6 @@ export function AppSplash({ label = "Loading…", exiting = false, className }: 
               src={BRANDING.brandmark}
               alt={APP_BRAND}
               fill
-              priority
               unoptimized
               sizes="160px"
               className="object-contain drop-shadow-sm"

@@ -2,7 +2,7 @@
 
 ## Security Guide
 
-Version: 1.0.0
+Version: 1.0.1
 
 Related: Convex guide, Constitution §10, `docs/architecture/MULTI_TENANT.md`
 
@@ -95,7 +95,7 @@ readable showcase.
 
 | Threat               | Defense                                       |
 | -------------------- | --------------------------------------------- |
-| XSS                  | Safe rendering, CSP nonce + strict-dynamic    |
+| XSS                  | Safe rendering, CSP nonce + strict-dynamic. `proxy.ts` sets the nonce on the request (`x-nonce` + CSP) so Next.js stamps its scripts; `ThemeProvider` receives the same nonce so next-themes’ inline boot script is not blocked. |
 | CSRF                 | Auth cookie guidance; same-site               |
 | Injection            | Validated inputs; Convex parameterized access |
 | Privilege escalation | Server-side role + org checks                 |

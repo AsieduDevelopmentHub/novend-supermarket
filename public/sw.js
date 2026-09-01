@@ -1,13 +1,11 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v13";
+const CACHE_NAME = "novend-pos-v14";
 /**
- * Public documents + icons only. Do not precache /dashboard (and other gated
- * routes): cache.add follows the auth 302 and stores a redirected login
- * document under the dashboard URL. Chrome then paints ERR_FAILED when that
- * entry is used for a navigation (login → dashboard).
+ * Public documents + icons only. Do not precache `/` or `/dashboard`:
+ * cache.add follows the auth 302 and stores POS HTML under the marketing URL
+ * (splash stuck on https://novend-pos.vercel.app/). Gated routes 302 to login.
  */
 const PRECACHE = [
-  "/",
   "/login",
   "/download",
   "/privacy",
@@ -151,6 +149,16 @@ function cachePut(request, response) {
   if (!response || !response.ok || response.type === "opaque") return;
   // Never store a followed login 302 under /dashboard (ERR_FAILED on Cap).
   if (response.url && isLoginDocumentUrl(response.url)) return;
+  if (response.url) {
+    try {
+      const requested = new URL(typeof request === "string" ? request : request.url, self.location.origin);
+      const finalUrl = new URL(response.url, self.location.origin);
+      // Followed `/` → `/dashboard` must not occupy the marketing cache key.
+      if (finalUrl.pathname !== requested.pathname) return;
+    } catch {
+      /* ignore */
+    }
+  }
   const copy = unwrapRedirect(response.clone());
   void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
 }
@@ -270,6 +278,10 @@ self.addEventListener("fetch", (event) => {
 
   // Browser must follow the authenticated /login → /dashboard 302 itself.
   if (isAuthDocument(url)) return;
+
+  // Signed-in `/` 302s to /dashboard. If the SW follows and unwraps that,
+  // the address bar stays on the marketing URL and paints the POS splash.
+  if (url.pathname === "/") return;
 
   if (isStaticAsset(url)) {
     event.respondWith(
