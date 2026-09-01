@@ -29,7 +29,7 @@ import { Eye, Undo2 } from "lucide-react";
 const PAGE_SIZE = 25;
 
 export function ReturnsView() {
-  const { isAdmin, branchId: myBranchId, branchName } = usePermissions();
+  const { isAdmin, isCashier, branchId: myBranchId, branchName } = usePermissions();
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<"all" | "full" | "partial">("all");
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
@@ -51,7 +51,11 @@ export function ReturnsView() {
     <div className="space-y-6">
       <PageHeader
         title="Returns"
-        description="Every processed refund, linked to the original order."
+        description={
+          isCashier
+            ? "Refunds on your orders."
+            : "Every processed refund, linked to the original order."
+        }
       />
 
       <div className="space-y-3">

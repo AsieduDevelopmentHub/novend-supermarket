@@ -712,8 +712,8 @@ export function useReturnsList(options: {
         }
       : "skip",
   );
-  if (local && local.length > 0) return local;
   if (online && remote !== undefined) return remote;
+  if (local && local.length > 0) return local;
   return local ?? remote;
 }
 

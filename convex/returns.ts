@@ -397,7 +397,7 @@ export const list = query({
         .filter((s) => s.organizationId === organizationId)
         .map((s) => s._id);
       const mine = new Set(mySales);
-      rows = rows.filter((row) => mine.has(row.saleId) || row.processedBy === userId);
+      rows = rows.filter((row) => mine.has(row.saleId));
     }
 
     const sales = await Promise.all(rows.map((row) => ctx.db.get(row.saleId)));
@@ -465,13 +465,8 @@ export const get = query({
     if (row.organizationId !== organizationId) throw new Error("Not found");
     assertBranchAccess(profile, row.branchId);
     const sale = await ctx.db.get(row.saleId);
-    if (
-      profile.role === "cashier" &&
-      sale &&
-      sale.cashierId !== userId &&
-      row.processedBy !== userId
-    ) {
-      throw new Error("Forbidden");
+    if (profile.role === "cashier" && (!sale || sale.cashierId !== userId)) {
+      return null;
     }
     const items = await ctx.db
       .query("saleReturnItems")
