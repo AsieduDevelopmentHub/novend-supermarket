@@ -176,10 +176,12 @@ export async function buildLocalDashboardSummary(
   const expiringCount = activeProducts.filter((p) => p.isExpired || p.isExpiring).length;
 
   const mirroredIds = new Set(mirroredOrders.map((o) => o.id));
+  const mirroredInvoices = new Set(mirroredOrders.map((o) => o.invoiceNumber));
   const unsyncedLocal = localSales.filter(
     (s) =>
       (s.syncStatus === "pending" || s.syncStatus === "failed") &&
-      !(s.serverSaleId && mirroredIds.has(s.serverSaleId)),
+      !(s.serverSaleId && mirroredIds.has(s.serverSaleId)) &&
+      !mirroredInvoices.has(s.invoiceNumber),
   );
   const combinedSales = [...mirroredOrders, ...unsyncedLocal];
   const branchSales = branchId
@@ -189,9 +191,14 @@ export async function buildLocalDashboardSummary(
     ? branchSales.filter((s) => s.completedAt >= since7)
     : branchSales.filter((s) => s.completedAt >= sinceToday);
 
-  const unsyncedReturns = localReturns.filter(
-    (row) => row.syncStatus === "pending" || row.syncStatus === "failed",
-  );
+  const unsyncedReturns = localReturns.filter((row) => {
+    if (row.syncStatus !== "pending" && row.syncStatus !== "failed") return false;
+    if (row.serverReturnId && mirroredReturns.some((item) => item.id === row.serverReturnId)) {
+      return false;
+    }
+    if (mirroredReturns.some((item) => item.returnNumber === row.returnNumber)) return false;
+    return true;
+  });
   const combinedReturns = [...mirroredReturns, ...unsyncedReturns];
   const branchReturns = branchId
     ? combinedReturns.filter(
@@ -370,10 +377,12 @@ export async function buildLocalSalesReport(
     (row) => row.completedAt >= startDate && row.completedAt <= endDate,
   );
   const mirroredIds = new Set(mirrored.map((o) => o.id));
+  const mirroredInvoices = new Set(mirrored.map((o) => o.invoiceNumber));
   const unsyncedLocal = sales.filter(
     (s) =>
       (s.syncStatus === "pending" || s.syncStatus === "failed") &&
-      !(s.serverSaleId && mirroredIds.has(s.serverSaleId)),
+      !(s.serverSaleId && mirroredIds.has(s.serverSaleId)) &&
+      !mirroredInvoices.has(s.invoiceNumber),
   );
 
   const grossSales =

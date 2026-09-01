@@ -87,6 +87,30 @@ describe("redirect-after-login", () => {
     expect(source).toContain("window.onbeforeunload = null");
     expect(source).toContain("prepareHardNavigation()");
     expect(source).toContain("window.location.replace(path)");
-    expect(source).toContain("void saveShellProfile(");
+    expect(source).toContain("await saveShellProfile(");
+  });
+
+  it("onboarding binds the replica and skips splash before dashboard", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "features/auth/components/onboarding-form.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("resolvePostLoginPath(convex)");
+    expect(source).toContain("navigateAfterLogin(path, router)");
+    expect(source).not.toContain('router.replace("/dashboard")');
+  });
+
+  it("hard nav fallback includes a stalled onboarding page", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "lib/auth/redirect-after-login.ts"),
+      "utf8",
+    );
+    expect(source).toContain('here === "/onboarding"');
+  });
+
+  it("app shell paints a cached session before Convex me settles", () => {
+    const source = readFileSync(resolve(process.cwd(), "app/(app)/layout.tsx"), "utf8");
+    expect(source).toContain("allowCachedShell && resolvedCache && !liveReady");
+    expect(source).toContain("resolvedCache?.organizationId && resolvedCache.userId");
   });
 });

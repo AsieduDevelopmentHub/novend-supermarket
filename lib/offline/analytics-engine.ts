@@ -1,6 +1,7 @@
 import { roundMoney } from "@/lib/currency";
 import { EXPENSE_CATEGORY_OPTIONS, type ExpenseCategory } from "@/features/analytics/constants";
 import { getOfflineDb } from "./db";
+import { dropLocalDuplicates, sameExpense } from "./replica-dedupe";
 
 export type LocalAnalyticsSummary = {
   kpis: {
@@ -190,6 +191,10 @@ export async function buildLocalAnalyticsSummary(args: {
     localSales.filter((s) => s.syncStatus === "synced").map((s) => s.clientOperationId),
   );
 
+  const mirroredSaleIds = new Set(mirroredOrders.map((o) => o.id));
+  const mirroredInvoices = new Set(mirroredOrders.map((o) => o.invoiceNumber));
+  const uniqueExpenses = dropLocalDuplicates(expenses, sameExpense);
+
   const sales: SaleRow[] = [];
   for (const order of mirroredOrders) {
     if (order.completedAt < args.startDate || order.completedAt > args.endDate) continue;
@@ -207,6 +212,8 @@ export async function buildLocalAnalyticsSummary(args: {
     if (sale.completedAt < args.startDate || sale.completedAt > args.endDate) continue;
     if (args.branchId && sale.branchId !== args.branchId) continue;
     if (syncedLocalIds.has(sale.clientOperationId)) continue;
+    if (sale.serverSaleId && mirroredSaleIds.has(sale.serverSaleId)) continue;
+    if (mirroredInvoices.has(sale.invoiceNumber)) continue;
     sales.push({
       id: sale.id,
       total: sale.total,
@@ -254,6 +261,7 @@ export async function buildLocalAnalyticsSummary(args: {
   for (const row of localReturns) {
     if (row.syncStatus === "synced") continue;
     if (row.serverReturnId && mirroredReturnIds.has(row.serverReturnId)) continue;
+    if (mirroredReturns.some((item) => item.returnNumber === row.returnNumber)) continue;
     if (row.completedAt < args.startDate || row.completedAt > args.endDate) continue;
     if (args.branchId) {
       const mirrored = mirroredOrders.find((order) => order.id === row.saleId);
@@ -289,7 +297,7 @@ export async function buildLocalAnalyticsSummary(args: {
   );
   const cogs = roundMoney(Math.max(0, soldCogs - returnedCogs));
   const revenue = roundMoney(revenueGross - totalRefunds);
-  const periodExpenses = expenses.filter((row) => {
+  const periodExpenses = uniqueExpenses.filter((row) => {
     if (row.occurredAt < args.startDate || row.occurredAt > args.endDate) return false;
     if (args.branchId && row.branchId && row.branchId !== args.branchId) return false;
     return true;
@@ -477,6 +485,9 @@ export async function buildLocalAnalyticsDetails(args: {
   const syncedLocalIds = new Set(
     localSales.filter((s) => s.syncStatus === "synced").map((s) => s.clientOperationId),
   );
+  const mirroredSaleIds = new Set(mirroredOrders.map((o) => o.id));
+  const mirroredInvoices = new Set(mirroredOrders.map((o) => o.invoiceNumber));
+  const uniqueExpenses = dropLocalDuplicates(expenses, sameExpense);
 
   const sales: DetailSale[] = [];
   for (const order of mirroredOrders) {
@@ -497,6 +508,8 @@ export async function buildLocalAnalyticsDetails(args: {
     if (syncedLocalIds.has(sale.clientOperationId)) continue;
     if (sale.completedAt < args.startDate || sale.completedAt > args.endDate) continue;
     if (args.branchId && sale.branchId !== args.branchId) continue;
+    if (sale.serverSaleId && mirroredSaleIds.has(sale.serverSaleId)) continue;
+    if (mirroredInvoices.has(sale.invoiceNumber)) continue;
     sales.push({
       id: sale.id,
       invoiceNumber: sale.invoiceNumber,
@@ -557,6 +570,7 @@ export async function buildLocalAnalyticsDetails(args: {
     if (row.serverReturnId && returns.some((existing) => existing.id === row.serverReturnId)) {
       continue;
     }
+    if (returns.some((existing) => existing.returnNumber === row.returnNumber)) continue;
     if (row.completedAt < args.startDate || row.completedAt > args.endDate) continue;
     const mirrored = mirroredOrders.find((order) => order.id === row.saleId);
     const local = localSales.find(
@@ -594,7 +608,7 @@ export async function buildLocalAnalyticsDetails(args: {
       };
     });
 
-  const periodExpenses = expenses.filter((row) => {
+  const periodExpenses = uniqueExpenses.filter((row) => {
     if (row.occurredAt < args.startDate || row.occurredAt > args.endDate) return false;
     if (args.branchId && row.branchId && row.branchId !== args.branchId) return false;
     return true;

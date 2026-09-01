@@ -407,6 +407,9 @@ export async function drainOutbox(options: {
             supplierId: payload.supplierId,
             clientOperationId: claimed.clientOperationId,
           });
+          if (payload.localId.startsWith("local_")) {
+            await db.wholesalePurchases.delete(payload.localId);
+          }
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;
@@ -418,6 +421,9 @@ export async function drainOutbox(options: {
             quantity: payload.quantity,
             clientOperationId: claimed.clientOperationId,
           });
+          if (payload.localId.startsWith("local_")) {
+            await db.wholesaleTransfers.delete(payload.localId);
+          }
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;

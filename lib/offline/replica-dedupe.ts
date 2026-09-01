@@ -29,13 +29,74 @@ export function keepPendingLocalRows<T extends { id: string }>(
   return localRows.filter((row) => pendingIds.has(row.id));
 }
 
-/** Snapshot merge: server rows plus only still-pending optimistic local_* rows. */
+/**
+ * Snapshot merge: server rows plus only still-pending optimistic local_* rows.
+ * `isSame` drops a pending local row when Convex already has the same operation
+ * (outbox still open, server id already in the snapshot).
+ */
 export function mergeServerAndLocalById<T extends { id: string }>(
   serverRows: T[],
   localRows: T[],
   pendingIds: Set<string>,
+  isSame?: (server: T, local: T) => boolean,
 ): T[] {
-  return [...serverRows, ...keepPendingLocalRows(localRows, pendingIds)];
+  const pending = keepPendingLocalRows(localRows, pendingIds);
+  const extra = isSame
+    ? pending.filter((local) => !serverRows.some((server) => isSame(server, local)))
+    : pending;
+  return [...serverRows, ...extra];
+}
+
+export function sameWholesalePurchase(
+  a: { supplierId: string; purchasedAt: number; totalCost: number; invoiceNumber?: string | null },
+  b: { supplierId: string; purchasedAt: number; totalCost: number; invoiceNumber?: string | null },
+): boolean {
+  if (a.invoiceNumber && b.invoiceNumber) {
+    return a.supplierId === b.supplierId && a.invoiceNumber === b.invoiceNumber;
+  }
+  return (
+    a.supplierId === b.supplierId && a.purchasedAt === b.purchasedAt && a.totalCost === b.totalCost
+  );
+}
+
+export function sameWholesaleTransfer(
+  a: { productName: string; branchName: string; quantity: number; createdAt: number },
+  b: { productName: string; branchName: string; quantity: number; createdAt: number },
+): boolean {
+  return (
+    a.productName === b.productName &&
+    a.branchName === b.branchName &&
+    a.quantity === b.quantity &&
+    Math.abs(a.createdAt - b.createdAt) < 15_000
+  );
+}
+
+export function sameReturnNumber(a: { returnNumber: string }, b: { returnNumber: string }): boolean {
+  return Boolean(a.returnNumber) && a.returnNumber === b.returnNumber;
+}
+
+export function sameExpense(
+  a: { amount: number; occurredAt: number; category: string },
+  b: { amount: number; occurredAt: number; category: string },
+): boolean {
+  return a.amount === b.amount && a.occurredAt === b.occurredAt && a.category === b.category;
+}
+
+export function sameInvoiceNumber(
+  a: { invoiceNumber: string },
+  b: { invoiceNumber: string },
+): boolean {
+  return Boolean(a.invoiceNumber) && a.invoiceNumber === b.invoiceNumber;
+}
+
+/** List guard: hide optimistic local_* rows once the server copy is present. */
+export function dropLocalDuplicates<T extends { id: string }>(
+  rows: T[],
+  isSame: (a: T, b: T) => boolean,
+): T[] {
+  const server = rows.filter((row) => !row.id.startsWith("local_"));
+  const local = rows.filter((row) => row.id.startsWith("local_"));
+  return [...server, ...local.filter((row) => !server.some((item) => isSame(item, row)))];
 }
 
 /**

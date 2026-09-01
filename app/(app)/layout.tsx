@@ -36,6 +36,7 @@ import {
 } from "@/lib/offline/shell-profile";
 import { markOfflineSession, readOfflineSession, hasOfflineSession } from "@/lib/offline/session";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
+import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
 import {
   bindPlatformOfflineDb,
   markPlatformOfflineSession,
@@ -80,6 +81,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const online = useConnectivity();
   const nativeShell = useNativeShell();
+  const sessionHint = useOfflineSessionHint();
   const user = useQuery(api.users.me, isAuthenticated && online ? {} : "skip");
   const ensureProfile = useMutation(api.profiles.ensureProfile);
   const heartbeat = useMutation(api.users.heartbeat);
@@ -284,6 +286,9 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     setPlatformSession(next);
   }, [user]);
 
+  const hintProfile = sessionHint ? shellProfileFromSessionHint(sessionHint) : null;
+  const resolvedCache = cachedProfile ?? hintProfile;
+
   const resolvedPlatformSession: PlatformOfflineSession | null =
     user?.isPlatformAdmin && user.userId
       ? {
@@ -304,8 +309,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     } else if ("organizationId" in user && user.organizationId) {
       bindOfflineOrganization(String(user.organizationId), String(user.userId));
     }
-  } else if (cachedProfile?.organizationId && cachedProfile.userId) {
-    bindOfflineOrganization(cachedProfile.organizationId, cachedProfile.userId);
+  } else if (resolvedCache?.organizationId && resolvedCache.userId) {
+    bindOfflineOrganization(resolvedCache.organizationId, resolvedCache.userId);
   }
 
   const replicaKey =
@@ -313,42 +318,45 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       ? `platform-${user.userId}`
       : user?.userId && "organizationId" in user && user.organizationId
         ? `org-${user.organizationId}-${user.userId}`
-        : cachedProfile?.organizationId && cachedProfile.userId
-          ? `org-${cachedProfile.organizationId}-${cachedProfile.userId}`
+        : resolvedCache?.organizationId && resolvedCache.userId
+          ? `org-${resolvedCache.organizationId}-${resolvedCache.userId}`
           : "anon";
+
+  const liveReady = Boolean(
+    user && !user.needsProfile && user.role && (user.branch || user.branchId),
+  );
 
   /** Stale-looking online (Convex hung) but we have a local shell — treat like offline session. */
   const signingOut = hasExplicitLogout();
   const allowCachedShell =
-    Boolean(cachedProfile) && !signingOut && (isAuthenticated || hasOfflineSession());
+    Boolean(resolvedCache) && !signingOut && (isAuthenticated || hasOfflineSession());
   const cachedShellWhileOnlineHung =
     online &&
     onlineAuthBudgetElapsed &&
     allowCachedShell &&
     (isLoading || !isAuthenticated || user === undefined);
 
+  // After onboarding the session hint exists before Convex `users.me` settles.
+  // Paint that shell immediately so "Setting up your account…" cannot stack
+  // on top of dashboard, and replicaKey stays org-scoped (no anon remount).
   const shellFromCache =
-    allowCachedShell &&
-    (!online ||
-      cachedShellWhileOnlineHung ||
-      (isAuthenticated && (user === undefined || isLoading))) &&
-    cachedProfile
+    allowCachedShell && resolvedCache && !liveReady
       ? {
-          name: cachedProfile.name,
-          role: cachedProfile.role,
-          branch: cachedProfile.branchName,
-          imageUrl: cachedProfile.imageUrl,
-          organizationName: cachedProfile.organizationName,
+          name: resolvedCache.name,
+          role: resolvedCache.role,
+          branch: resolvedCache.branchName,
+          imageUrl: resolvedCache.imageUrl,
+          organizationName: resolvedCache.organizationName,
         }
       : null;
 
   const offlineSessionOk =
     !online &&
-    Boolean(cachedProfile) &&
+    Boolean(resolvedCache) &&
     (isAuthenticated || offlineAuthBudgetElapsed || !isLoading);
 
   const waitingForUser =
-    !cachedProfile &&
+    !resolvedCache &&
     !resolvedPlatformSession &&
     ((online && isLoading && !onlineAuthBudgetElapsed) ||
       (online && isAuthenticated && user === undefined && !onlineAuthBudgetElapsed) ||
@@ -363,11 +371,11 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return <AppSplash label="Signing out…" />;
   }
 
-  if (!isAuthenticated && online && !cachedShellWhileOnlineHung && !cachedProfile) {
+  if (!isAuthenticated && online && !cachedShellWhileOnlineHung && !resolvedCache) {
     return <AppSplash label="Redirecting to login…" />;
   }
 
-  if ((!online || cachedShellWhileOnlineHung) && !cachedProfile && !resolvedPlatformSession) {
+  if ((!online || cachedShellWhileOnlineHung) && !resolvedCache && !resolvedPlatformSession) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <ErrorState
@@ -424,8 +432,6 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const liveReady = user && !user.needsProfile && user.role && (user.branch || user.branchId);
-
   if (!liveReady && !shellFromCache && !offlineSessionOk && !cachedShellWhileOnlineHung) {
     if (profileError) {
       return (
@@ -443,7 +449,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       );
     }
 
-    if (onlineAuthBudgetElapsed && !cachedProfile && !resolvedPlatformSession) {
+    if (onlineAuthBudgetElapsed && !resolvedCache && !resolvedPlatformSession) {
       return <AppSplash label="Redirecting to login…" />;
     }
 
@@ -473,8 +479,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             identityKey={
               user?.userId
                 ? String(user.userId)
-                : cachedProfile?.userId
-                  ? String(cachedProfile.userId)
+                : resolvedCache?.userId
+                  ? String(resolvedCache.userId)
                   : null
             }
             role={shellUser.role}

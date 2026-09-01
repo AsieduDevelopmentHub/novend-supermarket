@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   dedupeByProductId,
+  dropLocalDuplicates,
   keepPendingLocalRows,
   mergeServerAndLocalById,
   mergeWholesaleStock,
   overlayPendingWholesaleStock,
   pendingLocalIdsFromOutbox,
+  sameExpense,
+  sameWholesalePurchase,
 } from "@/lib/offline/replica-dedupe";
 
 describe("replica dedupe", () => {
@@ -70,9 +73,30 @@ describe("replica dedupe", () => {
     expect(overlaid[0]?.quantity).toBe(7);
   });
 
+  it("drops a pending local purchase when Convex already has the same invoice", () => {
+    const merged = mergeServerAndLocalById(
+      [{ id: "po_server", supplierId: "sup_1", purchasedAt: 10, totalCost: 50, invoiceNumber: "INV-1" }],
+      [{ id: "local_po", supplierId: "sup_1", purchasedAt: 10, totalCost: 50, invoiceNumber: "INV-1" }],
+      new Set(["local_po"]),
+      sameWholesalePurchase,
+    );
+    expect(merged.map((row) => row.id)).toEqual(["po_server"]);
+  });
+
   it("keeps a pending local row when it is still in the outbox", () => {
     expect(
       keepPendingLocalRows([{ id: "local_a" }, { id: "local_b" }], new Set(["local_b"])),
     ).toEqual([{ id: "local_b" }]);
+  });
+
+  it("hides a local expense once Convex has the same row", () => {
+    const rows = dropLocalDuplicates(
+      [
+        { id: "exp_server", amount: 20, occurredAt: 100, category: "rent" },
+        { id: "local_exp", amount: 20, occurredAt: 100, category: "rent" },
+      ],
+      sameExpense,
+    );
+    expect(rows.map((row) => row.id)).toEqual(["exp_server"]);
   });
 });
