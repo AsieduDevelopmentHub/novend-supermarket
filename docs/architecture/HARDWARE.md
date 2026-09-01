@@ -1,6 +1,6 @@
 # Hardware architecture
 
-Version: 1.4.12
+Version: 1.4.13
 
 ## Purpose
 
@@ -52,7 +52,7 @@ UI components must not call Electron preload or Capacitor plugins directly.
 | Camera / Take Photo     | **In-dialog `getUserMedia`** on HTTPS / localhost. Native still is a **manual** button only when live preview is missing (Cap HTTP). Never auto-launch the system camera on open. |
 | Save receipt / export   | `downloadBlob` writes Android **Downloads** via `window.NovendNative` (WebView JavascriptInterface). Do not call Capacitor Filesystem / NovendPrint after the hosted origin loads. |
 | Share receipt           | Capacitor: Android share sheet via `window.NovendNative.finishShare` (PDF + FileProvider). Web/Electron: Web Share API when it can take a file; otherwise Downloads. |
-| Print receipt           | Settings `receiptPrintMode`: auto prints once, manual shows Print, never hides it. Capacitor print still uses the PDF/Downloads handoff (BLE stays on Settings). |
+| Print receipt           | Same `receiptPrintMode` on web, Electron, and Capacitor: never skips the sheet, manual prompts, auto prints once (Cap saves PDF to Downloads). BLE stays on Settings. |
 | Local image durability  | Also written under Capacitor `Directory.Data` (`product-images/`)                                                  |
 | Barcode (camera)        | In-dialog getUserMedia → bundled **ZXing**. Photograph-barcode is a manual fallback only. |
 | Barcode (HID)           | Terminal wedge config + `useBarcodeScanner` (desktop primary)                                                      |

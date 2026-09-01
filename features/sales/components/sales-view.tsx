@@ -49,7 +49,7 @@ import {
 } from "@/lib/offline/sales-repository";
 import { notifyReplicaChanged } from "@/lib/offline/replica-events";
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
-import { resolveReceiptPrintMode } from "@/lib/receipt-print-mode";
+import { postSaleReceiptAction, resolveReceiptPrintMode } from "@/lib/receipt-print-mode";
 import type { LocalHeldSale } from "@/lib/offline/types";
 import { ProductImage } from "@/components/media/product-image";
 import {
@@ -441,14 +441,28 @@ export function SalesView() {
   async function triggerPrint(payload: ReceiptPayload) {
     setLastReceipt(payload);
     const printMode = resolveReceiptPrintMode(posPrefs);
+    const action = postSaleReceiptAction(printMode);
+    if (action === "none") {
+      return;
+    }
     if (isCapacitor()) {
+      if (action === "prompt") {
+        setSaleCompleteOpen(true);
+        return;
+      }
+      const result = await printReceipt(payload);
+      if (result.printed) {
+        toast.success(
+          result.reason === "download"
+            ? "Receipt PDF saved to Downloads"
+            : "Receipt sent to printer",
+        );
+        return;
+      }
       setSaleCompleteOpen(true);
       return;
     }
-    if (printMode === "never") {
-      return;
-    }
-    if (printMode === "manual") {
+    if (action === "prompt") {
       setPreviewOpen(true);
       return;
     }
