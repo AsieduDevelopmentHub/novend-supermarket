@@ -50,6 +50,7 @@ import {
   resumeLocalHeldSale,
 } from "@/lib/offline/sales-repository";
 import { notifyReplicaChanged } from "@/lib/offline/replica-events";
+import { queueUpsertCustomer } from "@/lib/offline/replica-writes";
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
 import { postSaleReceiptAction, resolveReceiptPrintMode } from "@/lib/receipt-print-mode";
 import type { LocalHeldSale } from "@/lib/offline/types";
@@ -710,21 +711,31 @@ export function SalesView() {
 
   async function onQuickCreate(event: React.FormEvent) {
     event.preventDefault();
-    if (!online) {
-      toast.error("Creating customers requires an internet connection");
+    const name = quickName.trim();
+    if (!name) {
+      toast.error("Enter a customer name");
       return;
     }
+    const phone = quickPhone.trim() || undefined;
     try {
-      const id = await createCustomer({
-        name: quickName,
-        phone: quickPhone || undefined,
-      });
-      setCustomer({ id, name: quickName.trim(), phone: quickPhone || null });
+      let id: string;
+      if (dexieAvailable) {
+        id = await queueUpsertCustomer({ name, phone });
+        notifyReplicaChanged({ flush: online });
+      } else if (online) {
+        id = await createCustomer({ name, phone });
+      } else {
+        toast.error("Local storage unavailable — cannot create customer offline");
+        return;
+      }
+      setCustomer({ id, name, phone: phone ?? null });
       setQuickOpen(false);
       setQuickName("");
       setQuickPhone("");
       setCustomerQuery("");
-      toast.success("Customer added to sale");
+      toast.success(
+        online ? "Customer added to sale" : "Customer added to sale — will sync when online",
+      );
     } catch (error) {
       showError(error, "Could not create customer");
     }
@@ -875,7 +886,7 @@ export function SalesView() {
           </CardHeader>
           <CardContent className="space-y-4">
             <SalesCheckoutFields
-              online={online}
+              canQuickCreate={dexieAvailable || online}
               customer={customer}
               customerQuery={customerQuery}
               customerHits={customerHits}
@@ -934,7 +945,7 @@ export function SalesView() {
           </DrawerHeader>
           <div className="flex min-h-0 flex-1 flex-col px-4 pt-2">
             <SalesCheckoutFields
-              online={online}
+              canQuickCreate={dexieAvailable || online}
               customer={customer}
               customerQuery={customerQuery}
               customerHits={customerHits}
@@ -1029,7 +1040,7 @@ export function SalesView() {
               <Button type="button" variant="outline" onClick={() => setQuickOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!online}>
+              <Button type="submit" disabled={!quickName.trim() || (!dexieAvailable && !online)}>
                 Add to sale
               </Button>
             </DialogFooter>
@@ -1047,7 +1058,7 @@ type CheckoutCustomerHit = {
 };
 
 type SalesCheckoutFieldsProps = {
-  online: boolean;
+  canQuickCreate: boolean;
   customer: SelectedCustomer;
   customerQuery: string;
   customerHits: CheckoutCustomerHit[];
@@ -1081,7 +1092,7 @@ type SalesCheckoutFieldsProps = {
 };
 
 function SalesCheckoutFields({
-  online,
+  canQuickCreate,
   customer,
   customerQuery,
   customerHits,
@@ -1154,8 +1165,8 @@ function SalesCheckoutFields({
             type="button"
             size="sm"
             variant="ghost"
-            disabled={!online}
-            title={!online ? "Requires internet" : undefined}
+            disabled={!canQuickCreate}
+            title={!canQuickCreate ? "Local storage unavailable" : undefined}
             onClick={onQuickCreate}
           >
             Quick create
