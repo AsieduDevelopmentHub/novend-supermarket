@@ -70,7 +70,6 @@ import { readCartDraft, writeCartDraft, type CartDraftItem } from "@/lib/sales/c
 import { loadPrintSnapshotMeta } from "@/lib/offline/ui-cache";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
 import { useCustomerDisplayPublisher } from "@/features/customer-display/hooks/use-customer-display-publisher";
-import { useCustomerDisplayAutoOpen } from "@/features/customer-display/hooks/use-customer-display-auto-open";
 
 type DiscountMode = "amount" | "percent";
 
@@ -211,8 +210,6 @@ export function SalesView() {
     branding: customerDisplayBranding,
     enabled: !nativeShell && capabilities.canUseCustomerDisplay,
   });
-
-  useCustomerDisplayAutoOpen(isDesktop && capabilities.canUseCustomerDisplay);
 
   function setDiscountModeAndConvert(next: DiscountMode) {
     if (next === discountMode) return;

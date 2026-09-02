@@ -3,20 +3,54 @@
 import { useEffect, useRef } from "react";
 import { readCustomerDisplayPrefs } from "@/lib/sales/customer-display";
 import { getDesktopBridge } from "@/lib/desktop";
+import { hasSecondaryDisplay } from "@/lib/desktop/customer-display-policy";
 
-/** Open the customer display on desktop launch when the user enabled auto-open. */
+async function tryOpenCustomerDisplay() {
+  const bridge = getDesktopBridge();
+  if (!bridge?.openCustomerDisplay || !bridge.listDisplays) return;
+
+  const [displaysResult, status] = await Promise.all([
+    bridge.listDisplays(),
+    bridge.getCustomerDisplayStatus?.() ?? Promise.resolve({ open: false, displayId: null }),
+  ]);
+
+  if (!displaysResult.ok || !hasSecondaryDisplay(displaysResult.displays.length)) return;
+  if (status.open) return;
+
+  const prefs = readCustomerDisplayPrefs();
+  await bridge.openCustomerDisplay({ displayId: prefs.preferredDisplayId });
+}
+
+/**
+ * Enables Electron auto-open on dual monitors and opens the bundled customer display
+ * when a second screen is present (launch + hotplug).
+ */
 export function useCustomerDisplayAutoOpen(enabled: boolean) {
-  const openedRef = useRef(false);
+  const armedRef = useRef(false);
 
   useEffect(() => {
-    if (!enabled || openedRef.current) return;
+    if (!enabled) {
+      armedRef.current = false;
+      const bridge = getDesktopBridge();
+      void bridge?.setCustomerDisplayAutoOpen?.(false);
+      return;
+    }
+
     const bridge = getDesktopBridge();
-    if (!bridge?.openCustomerDisplay) return;
+    if (!bridge?.setCustomerDisplayAutoOpen || !bridge.openCustomerDisplay) return;
 
-    const prefs = readCustomerDisplayPrefs();
-    if (!prefs.autoOpen) return;
+    if (!armedRef.current) {
+      armedRef.current = true;
+      void bridge.setCustomerDisplayAutoOpen(true);
+      void tryOpenCustomerDisplay();
+    }
 
-    openedRef.current = true;
-    void bridge.openCustomerDisplay({ displayId: prefs.preferredDisplayId });
+    const offDisplays = bridge.onDisplaysChanged?.(() => {
+      void tryOpenCustomerDisplay();
+    });
+
+    return () => {
+      offDisplays?.();
+    };
   }, [enabled]);
 }

@@ -82,10 +82,13 @@ export type DesktopInstallUpdateResult = {
 const UPDATE_STATUS_CHANNEL = "desktop:updates:status";
 const CUSTOMER_DISPLAY_STATE_CHANNEL = "desktop:customerDisplay:state";
 const CUSTOMER_DISPLAY_STATUS_CHANNEL = "desktop:customerDisplay:status";
+const CUSTOMER_DISPLAY_DISPLAYS_CHANNEL = "desktop:customerDisplay:displaysChanged";
 
 export type CustomerDisplayStatus = {
   open: boolean;
   displayId: number | null;
+  displayCount?: number;
+  dualDisplayReady?: boolean;
 };
 
 export type DesktopDisplayInfo = {
@@ -119,6 +122,11 @@ export type NovendDesktopBridge = {
   publishCustomerDisplayState: (snapshot: unknown) => Promise<{ ok: boolean }>;
   onCustomerDisplayState: (listener: (snapshot: unknown) => void) => () => void;
   onCustomerDisplayStatus: (listener: (status: CustomerDisplayStatus) => void) => () => void;
+  setCustomerDisplayAutoOpen: (enabled: boolean) => Promise<{ ok: boolean }>;
+  onDisplaysChanged: (
+    listener: (payload: { ok: boolean; displays: DesktopDisplayInfo[] }) => void,
+  ) => () => void;
+  reloadAuthShell: (entry?: string) => Promise<{ ok: boolean; message?: string }>;
 };
 
 const bridge: NovendDesktopBridge = {
@@ -164,6 +172,19 @@ const bridge: NovendDesktopBridge = {
       ipcRenderer.removeListener(CUSTOMER_DISPLAY_STATUS_CHANNEL, handler);
     };
   },
+  setCustomerDisplayAutoOpen: (enabled) =>
+    ipcRenderer.invoke("desktop:customerDisplay:setAutoOpen", { enabled }),
+  onDisplaysChanged: (listener) => {
+    void ipcRenderer.invoke("desktop:customerDisplay:onDisplaysChanged");
+    const handler = (_event: IpcRendererEvent, payload: { ok: boolean; displays: DesktopDisplayInfo[] }) => {
+      listener(payload);
+    };
+    ipcRenderer.on(CUSTOMER_DISPLAY_DISPLAYS_CHANNEL, handler);
+    return () => {
+      ipcRenderer.removeListener(CUSTOMER_DISPLAY_DISPLAYS_CHANNEL, handler);
+    };
+  },
+  reloadAuthShell: (entry) => ipcRenderer.invoke("desktop:shell:reloadAuth", { entry }),
 };
 
 contextBridge.exposeInMainWorld("novendDesktop", bridge);

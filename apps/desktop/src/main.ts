@@ -1,12 +1,12 @@
 import { app, BrowserWindow, session } from "electron";
-import { createMainWindow } from "./window";
+import { createMainWindow, setMainBrowserWindow } from "./window";
 import { startAutoUpdater } from "./updater";
 import { resolveAppUrl } from "./desktop-config";
 import { registerDesktopIpc } from "./ipc";
 import { registerCustomerDisplayIpc } from "./customer-display-ipc";
 import {
   closeCustomerDisplayWithMainWindow,
-  setCustomerDisplayAppUrl,
+  registerCustomerDisplayHotplug,
 } from "./customer-display";
 
 const APP_USER_MODEL_ID = "com.novend.pos";
@@ -35,7 +35,9 @@ function allowMediaPermissions() {
 function showWindow() {
   if (!mainWindow) {
     mainWindow = createMainWindow(resolveAppUrl());
+    setMainBrowserWindow(mainWindow);
     mainWindow.on("closed", () => {
+      setMainBrowserWindow(null);
       closeCustomerDisplayWithMainWindow();
       mainWindow = null;
     });
@@ -57,10 +59,9 @@ if (!gotLock) {
   void app.whenReady().then(() => {
     app.setName(APP_DISPLAY_NAME);
     allowMediaPermissions();
-    const appUrl = resolveAppUrl();
-    setCustomerDisplayAppUrl(appUrl);
     registerDesktopIpc();
     registerCustomerDisplayIpc();
+    registerCustomerDisplayHotplug();
     showWindow();
     startAutoUpdater(() => mainWindow);
 

@@ -31,7 +31,7 @@ describe("explicit logout flag", () => {
     const source = readFileSync(resolve(process.cwd(), "lib/auth/sign-out.ts"), "utf8");
     expect(source).toContain("await deleteBoundOfflineReplica()");
     expect(source).toContain("clearUserDeviceState()");
-    expect(source).toContain('window.location.replace("/login?signedOut=1")');
+    expect(source).toContain("navigateToLoginAfterSignOut()");
     expect(source).toContain("markExplicitLogout()");
     expect(source).not.toContain("router.refresh()");
     expect(source).not.toContain("router.replace(");

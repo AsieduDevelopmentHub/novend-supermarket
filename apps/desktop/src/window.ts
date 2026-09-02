@@ -103,33 +103,6 @@ function recoveryHtml(appUrl: string): string {
  * cached the document (electron#35112). Load a local boot page, then
  * client-navigate so the SW can serve Cache Storage.
  */
-function isAbortedNavigation(error: unknown): boolean {
-  const err = error as NodeJS.ErrnoException & { code?: string };
-  return err.errno === -3 || err.code === "ERR_ABORTED";
-}
-
-/**
- * Customer display is a live cart mirror — load the hosted route directly.
- * Do not use offline-boot + ?fromBoot=1: the boot page aborts loadFile (-3),
- * and last-route restore is irrelevant on this screen.
- */
-export async function loadCustomerDisplayShell(
-  win: BrowserWindow,
-  appUrl: string,
-): Promise<void> {
-  const target = `${appUrl.replace(/\/$/, "")}${CUSTOMER_DISPLAY_ENTRY}`;
-  if (!net.isOnline()) {
-    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(recoveryHtml(appUrl))}`);
-    return;
-  }
-  try {
-    await win.loadURL(target);
-  } catch (error) {
-    if (isAbortedNavigation(error)) return;
-    throw error;
-  }
-}
-
 async function loadAppShell(win: BrowserWindow, appUrl: string, entry = OFFLINE_ENTRY_PATH): Promise<void> {
   const boot = offlineBootPath();
   if (fs.existsSync(boot)) {
@@ -146,6 +119,23 @@ async function loadAppShell(win: BrowserWindow, appUrl: string, entry = OFFLINE_
     return;
   }
   await win.loadURL(`${appUrl.replace(/\/$/, "")}${entry}`);
+}
+
+let mainBrowserWindow: BrowserWindow | null = null;
+
+export function setMainBrowserWindow(win: BrowserWindow | null) {
+  mainBrowserWindow = win;
+}
+
+export async function reloadMainWindowShell(
+  appUrl: string,
+  entry: string,
+): Promise<{ ok: boolean }> {
+  if (!mainBrowserWindow || mainBrowserWindow.isDestroyed()) {
+    return { ok: false };
+  }
+  void loadAppShell(mainBrowserWindow, appUrl, entry);
+  return { ok: true };
 }
 
 export function createMainWindow(appUrl: string): BrowserWindow {

@@ -13,6 +13,9 @@ import {
   installDownloadedUpdate,
   UPDATE_STATUS_CHANNEL,
 } from "./updater";
+import { resolveAppUrl } from "./desktop-config";
+import { reloadMainWindowShell } from "./window";
+import { closeCustomerDisplayWithMainWindow } from "./customer-display";
 
 const CHANNELS = {
   getRuntime: "desktop:getRuntime",
@@ -23,6 +26,7 @@ const CHANNELS = {
   updatesGetStatus: "desktop:updates:getStatus",
   updatesCheck: "desktop:updates:check",
   updatesInstall: "desktop:updates:install",
+  reloadAuthShell: "desktop:shell:reloadAuth",
 } as const;
 
 function isPrintJobRequest(value: unknown): value is PrintJobRequest {
@@ -77,6 +81,18 @@ export function registerDesktopIpc() {
   ipcMain.handle(CHANNELS.updatesCheck, async () => checkForUpdates());
 
   ipcMain.handle(CHANNELS.updatesInstall, () => installDownloadedUpdate());
+
+  ipcMain.handle(CHANNELS.reloadAuthShell, async (_event, payload?: unknown) => {
+    const entry =
+      payload &&
+      typeof payload === "object" &&
+      typeof (payload as { entry?: unknown }).entry === "string" &&
+      (payload as { entry: string }).entry.length > 0
+        ? (payload as { entry: string }).entry
+        : "/login?signedOut=1";
+    closeCustomerDisplayWithMainWindow();
+    return reloadMainWindowShell(resolveAppUrl(), entry.startsWith("/") ? entry : `/${entry}`);
+  });
 }
 
 export { CHANNELS, UPDATE_STATUS_CHANNEL };

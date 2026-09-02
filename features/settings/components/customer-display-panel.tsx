@@ -4,7 +4,6 @@ import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -21,6 +20,10 @@ import {
   writeCustomerDisplayPrefs,
   type CustomerDisplayPrefs,
 } from "@/lib/sales/customer-display";
+import {
+  CUSTOMER_DISPLAY_SINGLE_MONITOR_MESSAGE,
+  hasSecondaryDisplay,
+} from "@/lib/desktop/customer-display-policy";
 import type {
   NovendDesktopCustomerDisplayStatus,
   NovendDesktopDisplayInfo,
@@ -53,11 +56,15 @@ export function CustomerDisplayPanel() {
   const [status, setStatus] = useState<NovendDesktopCustomerDisplayStatus>({
     open: false,
     displayId: null,
+    displayCount: 1,
+    dualDisplayReady: false,
   });
   const [displays, setDisplays] = useState<NovendDesktopDisplayInfo[]>([]);
   const [pending, setPending] = useState(false);
   const [capabilityAvailable, setCapabilityAvailable] = useState<boolean | null>(null);
   const [desktopBridgeStale, setDesktopBridgeStale] = useState(false);
+
+  const dualDisplayReady = hasSecondaryDisplay(displays.length);
 
   useEffect(() => {
     writeCustomerDisplayPrefs(prefs);
@@ -88,10 +95,24 @@ export function CustomerDisplayPanel() {
       if (result.ok) setDisplays(result.displays);
     });
 
-    return bridge.onCustomerDisplayStatus?.(setStatus);
+    const offStatus = bridge.onCustomerDisplayStatus?.(setStatus);
+    const offDisplays = bridge.onDisplaysChanged?.((result) => {
+      if (result.ok) setDisplays(result.displays);
+      void bridge.getCustomerDisplayStatus().then(setStatus);
+    });
+
+    return () => {
+      offStatus?.();
+      offDisplays?.();
+    };
   }, [isDesktop]);
 
   async function openDisplay() {
+    if (isDesktop && !dualDisplayReady) {
+      toast.error(CUSTOMER_DISPLAY_SINGLE_MONITOR_MESSAGE);
+      return;
+    }
+
     setPending(true);
     try {
       const bridge = getDesktopBridge();
@@ -103,7 +124,7 @@ export function CustomerDisplayPanel() {
           toast.error(result.message ?? "Could not open customer display");
           return;
         }
-        toast.success("Customer display opened");
+        toast.success("Customer display opened on your secondary monitor");
         setStatus(await bridge.getCustomerDisplayStatus());
         return;
       }
@@ -153,6 +174,7 @@ export function CustomerDisplayPanel() {
         setPrefs={setPrefs}
         status={status}
         displays={displays}
+        dualDisplayReady={dualDisplayReady}
         pending={pending}
         capabilityAvailable={capabilityAvailable}
         onOpen={() => void openDisplay()}
@@ -169,6 +191,7 @@ function CustomerDisplayPanelContent({
   setPrefs,
   status,
   displays,
+  dualDisplayReady,
   pending,
   capabilityAvailable,
   onOpen,
@@ -180,23 +203,34 @@ function CustomerDisplayPanelContent({
   setPrefs: Dispatch<SetStateAction<CustomerDisplayPrefs>>;
   status: NovendDesktopCustomerDisplayStatus;
   displays: NovendDesktopDisplayInfo[];
+  dualDisplayReady: boolean;
   pending: boolean;
   capabilityAvailable: boolean | null;
   onOpen: () => void;
   onClose: () => void;
   desktopBridgeStale: boolean;
 }) {
+  const secondaryDisplays = displays.filter((display) => !display.isPrimary);
+
   return (
     <div className="space-y-4">
       {desktopBridgeStale ? (
         <Alert variant="destructive">
           <AlertTitle>Desktop app update required</AlertTitle>
           <AlertDescription>
-            Customer display needs Novend POS desktop v0.3.18 or newer. Open Settings → This device
+            Customer display needs Novend POS desktop v0.3.19 or newer. Open Settings → This device
             → Updates, install the latest release, then restart the app.
           </AlertDescription>
         </Alert>
       ) : null}
+
+      {isDesktop && !dualDisplayReady ? (
+        <Alert>
+          <AlertTitle>Second monitor required</AlertTitle>
+          <AlertDescription>{CUSTOMER_DISPLAY_SINGLE_MONITOR_MESSAGE}</AlertDescription>
+        </Alert>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -204,8 +238,8 @@ function CustomerDisplayPanelContent({
             Customer display
           </CardTitle>
           <CardDescription>
-            Show cart items, discounts, and totals on a customer-facing screen. Updates in real
-            time from the Sales screen — no network required.
+            Dedicated customer-facing screen on your secondary monitor. Opens automatically when a
+            second display is connected. Cart updates sync instantly — no network required.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -213,19 +247,26 @@ function CustomerDisplayPanelContent({
             <Badge variant={status.open ? "default" : "outline"}>
               {status.open ? "Open" : "Closed"}
             </Badge>
+            {isDesktop ? (
+              <Badge variant={dualDisplayReady ? "default" : "outline"}>
+                {dualDisplayReady
+                  ? `${displays.length} monitors · dual-screen ready`
+                  : `${displays.length} monitor · waiting for second screen`}
+              </Badge>
+            ) : null}
             {isDesktop && capabilityAvailable === true ? (
               <Badge variant="outline" className="border-success/30 text-success">
-                Hardware ready
+                Offline shell ready
               </Badge>
             ) : null}
             {isDesktop ? (
-              <Badge variant="outline">Electron · multi-monitor</Badge>
+              <Badge variant="outline">Electron · bundled customer screen</Badge>
             ) : (
               <Badge variant="outline">Browser · pop-up window</Badge>
             )}
           </div>
 
-          {isDesktop && displays.length > 1 ? (
+          {isDesktop && dualDisplayReady ? (
             <div className="space-y-2">
               <Label htmlFor="customer-display-monitor">Target monitor</Label>
               <Select
@@ -250,37 +291,26 @@ function CustomerDisplayPanelContent({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="secondary">Secondary display (recommended)</SelectItem>
-                  {displays.map((display) => (
+                  {secondaryDisplays.map((display) => (
                     <SelectItem key={display.id} value={String(display.id)}>
-                      {display.label}
-                      {display.isPrimary ? " · Primary" : ""} · {display.workArea.width}×
-                      {display.workArea.height}
+                      {display.label} · {display.workArea.width}×{display.workArea.height}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-muted-foreground text-sm">
+                Novend opens the customer screen automatically when you sign in with a second
+                monitor connected. Close it here; the customer window has no close button.
+              </p>
             </div>
           ) : null}
 
-          {isDesktop ? (
-            <label className="flex items-start gap-3">
-              <Checkbox
-                checked={prefs.autoOpen}
-                onCheckedChange={(checked) =>
-                  setPrefs((prev) => ({ ...prev, autoOpen: checked === true }))
-                }
-              />
-              <span className="space-y-1">
-                <span className="block text-sm font-medium">Open automatically on launch</span>
-                <span className="text-muted-foreground block text-sm">
-                  Opens the customer display when you sign in on this terminal.
-                </span>
-              </span>
-            </label>
-          ) : null}
-
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={onOpen} disabled={pending || desktopBridgeStale}>
+            <Button
+              type="button"
+              onClick={onOpen}
+              disabled={pending || desktopBridgeStale || (isDesktop && !dualDisplayReady)}
+            >
               {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Monitor className="mr-2 h-4 w-4" />}
               Open customer display
             </Button>

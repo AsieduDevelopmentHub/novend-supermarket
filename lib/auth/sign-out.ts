@@ -2,7 +2,7 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 import { clearLastRoute } from "@/lib/auth/last-route";
 import { markExplicitLogout } from "@/lib/auth/logout-flag";
 import { clearUserDeviceState } from "@/lib/auth/clear-user-device-state";
-import { prepareHardNavigation } from "@/lib/auth/redirect-after-login";
+import { navigateToLoginAfterSignOut } from "@/lib/auth/native-auth-navigation";
 import { clearPlatformOfflineSession } from "@/lib/offline/platform-cache";
 import { deleteBoundOfflineReplica } from "@/lib/offline/db";
 import { clearOfflineSession } from "@/lib/offline/session";
@@ -21,9 +21,8 @@ type SignOutOptions = {
  * Await Dexie replica delete *before* navigation so the next user cannot
  * inherit the previous replica, last route, or splash-cover loop.
  *
- * Always `location.replace` so the signed-out query string stays on `/login`.
- * Soft Next navigation extra-fetches `/login` without that query and remounts
- * the session gate on the splash.
+ * Always hard-navigate so the signed-out query string stays on `/login`.
+ * Native shells use the offline boot trampoline when the network is down.
  */
 export async function signOutAndRedirect({
   signOut,
@@ -48,8 +47,6 @@ export async function signOutAndRedirect({
   try {
     await signOut();
   } finally {
-    if (typeof window === "undefined") return;
-    prepareHardNavigation();
-    window.location.replace("/login?signedOut=1");
+    await navigateToLoginAfterSignOut();
   }
 }
