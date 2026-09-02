@@ -12,6 +12,7 @@ import { ReportsView } from "@/features/reports/components/reports-view";
 import { ReportMetricDetailView } from "@/features/reports/components/metric-detail-view";
 import { ReportDayDetailView } from "@/features/reports/components/day-detail-view";
 import { SettingsView } from "@/features/settings/components/settings-view";
+import { CustomerDisplayView } from "@/features/customer-display/components/customer-display-view";
 import { MoreView } from "@/features/more/components/more-view";
 import { AboutNovendView } from "@/features/settings/components/about-novend-view";
 import { UsersView } from "@/features/users/components/users-view";
@@ -52,6 +53,7 @@ const SHELL_VIEWS: Record<string, () => ReactNode> = {
   "/customers": () => <CustomersView />,
   "/reports": () => <ReportsView />,
   "/settings": () => <SettingsView />,
+  "/customer-display": () => <CustomerDisplayView />,
   "/more": () => <MoreView />,
   "/about": () => <AboutNovendView />,
   "/users": () => <UsersView />,

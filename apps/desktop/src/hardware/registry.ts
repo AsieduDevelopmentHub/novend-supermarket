@@ -109,8 +109,7 @@ export function listCapabilities(): HardwareCapability[] {
     },
     {
       kind: "customer_display",
-      available: false,
-      reason: "Not implemented yet",
+      available: true,
     },
     {
       kind: "scale",

@@ -21,6 +21,7 @@ import { SAMPLE_RECEIPT_PAYLOAD } from "@/features/receipts/types";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import { ReceiptDesignerLayout } from "./receipt-designer-layout";
 
 type BranchReceipt = {
   id: Id<"branches">;
@@ -103,12 +104,22 @@ export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
   };
 
   return (
-    <div className="grid min-w-0 items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_auto]">
-      <Card className="min-w-0">
-        <CardHeader>
-          <CardTitle className="text-base">Branch receipt · {branch.name}</CardTitle>
-        </CardHeader>
-        <CardContent>
+    <ReceiptDesignerLayout
+      previewLabel="Preview"
+      preview={
+        <ReceiptDocument
+          payload={SAMPLE_RECEIPT_PAYLOAD}
+          businessOverride={previewBusiness}
+          templateOverride={previewTemplate}
+          preview
+        />
+      }
+      form={
+        <Card className="flex min-w-0 flex-col lg:h-full">
+          <CardHeader>
+            <CardTitle className="text-base">Branch receipt · {branch.name}</CardTitle>
+          </CardHeader>
+          <CardContent>
           <form className="space-y-4" onSubmit={onSubmit}>
             <p className="text-muted-foreground text-sm">
               The company title ({title}) stays on every receipt. Update only this branch’s line,
@@ -196,18 +207,7 @@ export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
           </form>
         </CardContent>
       </Card>
-
-      <div className="min-w-0 space-y-2 2xl:sticky 2xl:top-4 2xl:self-start">
-        <p className="text-muted-foreground text-xs">Preview</p>
-        <div className="bg-muted/40 flex max-w-full justify-center overflow-x-clip rounded-xl p-3">
-          <ReceiptDocument
-            payload={SAMPLE_RECEIPT_PAYLOAD}
-            businessOverride={previewBusiness}
-            templateOverride={previewTemplate}
-            preview
-          />
-        </div>
-      </div>
-    </div>
+      }
+    />
   );
 }

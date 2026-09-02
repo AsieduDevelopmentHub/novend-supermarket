@@ -75,6 +75,20 @@ export type NovendDesktopInstallUpdateResult = {
   message: string;
 };
 
+export type NovendDesktopCustomerDisplayStatus = {
+  open: boolean;
+  displayId: number | null;
+};
+
+export type NovendDesktopDisplayInfo = {
+  id: number;
+  label: string;
+  bounds: { x: number; y: number; width: number; height: number };
+  workArea: { x: number; y: number; width: number; height: number };
+  scaleFactor: number;
+  isPrimary: boolean;
+};
+
 export type NovendDesktopBridge = {
   getRuntime: () => Promise<NovendDesktopRuntime>;
   getCapabilities: () => Promise<{
@@ -88,6 +102,17 @@ export type NovendDesktopBridge = {
   checkForUpdates: () => Promise<NovendDesktopUpdateStatus>;
   installUpdate: () => Promise<NovendDesktopInstallUpdateResult>;
   onUpdateStatus: (listener: (status: NovendDesktopUpdateStatus) => void) => () => void;
+  openCustomerDisplay: (options?: {
+    displayId?: number | null;
+  }) => Promise<{ ok: boolean; message?: string }>;
+  closeCustomerDisplay: () => Promise<{ ok: boolean }>;
+  getCustomerDisplayStatus: () => Promise<NovendDesktopCustomerDisplayStatus>;
+  listDisplays: () => Promise<{ ok: boolean; displays: NovendDesktopDisplayInfo[] }>;
+  publishCustomerDisplayState: (snapshot: unknown) => Promise<{ ok: boolean }>;
+  onCustomerDisplayState: (listener: (snapshot: unknown) => void) => () => void;
+  onCustomerDisplayStatus: (
+    listener: (status: NovendDesktopCustomerDisplayStatus) => void,
+  ) => () => void;
 };
 
 declare global {

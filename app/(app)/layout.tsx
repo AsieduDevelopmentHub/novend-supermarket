@@ -487,6 +487,23 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         organizationName: shellFromCache!.organizationName,
       };
 
+  const isCustomerDisplayRoute = pathname === "/customer-display";
+
+  if (isCustomerDisplayRoute) {
+    return (
+      <NativeAppServices>
+        <OfflineProvider key={replicaKey}>
+          <OfflineNavigationProvider>
+            <TelemetryProvider enabled={Boolean(isAuthenticated && online)} />
+            <div className="bg-background h-dvh overflow-hidden">
+              <OfflineOutlet>{children}</OfflineOutlet>
+            </div>
+          </OfflineNavigationProvider>
+        </OfflineProvider>
+      </NativeAppServices>
+    );
+  }
+
   return (
     <NativeAppServices>
       <OfflineProvider key={replicaKey}>

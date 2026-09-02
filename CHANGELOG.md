@@ -8,6 +8,27 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.18 — 2026-09-02
+
+Full product release (`targets: all`): Windows, macOS, Linux desktop installers, Android APK, and Convex update metadata.
+
+### Added
+
+- **Customer display (Pro+)** — real-time cart mirror on a second screen (Electron multi-monitor or browser pop-up), glass UI with animated mesh background, and plan gating via `canUseCustomerDisplay`.
+- Settings mobile section navigator and receipt designer layout improvements for branch receipt and receipt template.
+
+### Changed
+
+- Cashier checkout and customer display show newest cart items first.
+- Customer display settings live under Hardware (desktop) with auto-open on launch.
+
+### Fixed
+
+- Manager product category name and expiry lot on create (offline sync path).
+- Settings section builder TypeScript for Vercel production builds.
+
+---
+
 ## v0.3.17 — 2026-09-02
 
 Full product release (`targets: all`): Windows, macOS, Linux desktop installers, Android APK, and Convex update metadata.

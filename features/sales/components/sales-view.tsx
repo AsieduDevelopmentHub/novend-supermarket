@@ -40,6 +40,7 @@ import { useOfflineStatus } from "@/providers/offline-provider";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
 import { useNativeShell } from "@/hooks/use-native-shell";
+import { useDesktopRuntime } from "@/hooks/use-desktop-runtime";
 import { getMeta, getOfflineDb, META_KEYS } from "@/lib/offline/db";
 import { cn } from "@/lib/utils";
 import {
@@ -66,6 +67,10 @@ import {
 } from "@/features/sales/components/barcode-match-dialog";
 import { DraggableCartFab } from "@/features/sales/components/draggable-cart-fab";
 import { readCartDraft, writeCartDraft, type CartDraftItem } from "@/lib/sales/cart-draft";
+import { loadPrintSnapshotMeta } from "@/lib/offline/ui-cache";
+import { loadShellProfile } from "@/lib/offline/shell-profile";
+import { useCustomerDisplayPublisher } from "@/features/customer-display/hooks/use-customer-display-publisher";
+import { useCustomerDisplayAutoOpen } from "@/features/customer-display/hooks/use-customer-display-auto-open";
 
 type DiscountMode = "amount" | "percent";
 
@@ -101,8 +106,9 @@ function formatHoldRef(id: string) {
 
 export function SalesView() {
   const { isAdmin, branchId: myBranchId, branchName } = usePermissions();
-  const { access } = useLicense();
+  const { access, capabilities } = useLicense();
   const nativeShell = useNativeShell();
+  const isDesktop = useDesktopRuntime();
   const [search, setSearch] = useState("");
   const [branchOverride, setBranchOverride] = useState<Id<"branches"> | "all" | null>(null);
   const [customerQuery, setCustomerQuery] = useState("");
@@ -132,6 +138,10 @@ export function SalesView() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const showCameraScan = shouldShowCameraBarcodeButton();
   const [hydratedCartScope, setHydratedCartScope] = useState<string | null>(null);
+  const [displayBranding, setDisplayBranding] = useState<{
+    tradeName: string;
+    thankYouLine: string | null;
+  }>({ tradeName: "Novend POS", thankYouLine: null });
 
   const mirroredBranches = useBranchesList();
   const branches = isAdmin ? mirroredBranches : undefined;
@@ -170,6 +180,40 @@ export function SalesView() {
   const canCheckout = cart.length > 0 && !discountExceedsSubtotal && access.canWrite;
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  const catalogImages = useMemo(() => {
+    const map: Record<string, string | null | undefined> = {};
+    for (const product of catalog) {
+      map[product.id] = product.imageUrl;
+    }
+    return map;
+  }, [catalog]);
+
+  const customerDisplayBranding = useMemo(
+    () => ({
+      tradeName: displayBranding.tradeName,
+      branchName,
+      thankYouLine: displayBranding.thankYouLine,
+    }),
+    [displayBranding, branchName],
+  );
+
+  const { publishComplete } = useCustomerDisplayPublisher({
+    cart,
+    catalogImages,
+    discountMode,
+    discountField,
+    subtotal,
+    cartDiscount,
+    total,
+    customerName: customer?.name ?? null,
+    paying,
+    holding,
+    branding: customerDisplayBranding,
+    enabled: !nativeShell && capabilities.canUseCustomerDisplay,
+  });
+
+  useCustomerDisplayAutoOpen(isDesktop && capabilities.canUseCustomerDisplay);
+
   function setDiscountModeAndConvert(next: DiscountMode) {
     if (next === discountMode) return;
     if (next === "percent") {
@@ -188,6 +232,20 @@ export function SalesView() {
 
   useEffect(() => {
     warmupBarcodeScanner();
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      const [snapshot, shell] = await Promise.all([loadPrintSnapshotMeta(), loadShellProfile()]);
+      setDisplayBranding({
+        tradeName:
+          snapshot?.business.tradeName ||
+          snapshot?.business.legalName ||
+          shell?.organizationName ||
+          "Novend POS",
+        thankYouLine: snapshot?.template.thankYouLine ?? null,
+      });
+    })();
   }, []);
 
   useEffect(() => {
@@ -571,6 +629,7 @@ export function SalesView() {
       setCheckoutOpen(false);
       await refreshLocal();
       notifyReplicaChanged({ flush: true });
+      publishComplete(result.receiptPayload);
       toast.success(`Sale saved · ${result.invoiceNumber}`, { id: "sale-complete" });
       try {
         await triggerPrint(result.receiptPayload);
@@ -1046,6 +1105,8 @@ function SalesCheckoutFields({
   onPay,
   onReprint,
 }: SalesCheckoutFieldsProps) {
+  const displayCart = cart.slice().reverse();
+
   const actions = (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
@@ -1145,7 +1206,7 @@ function SalesCheckoutFields({
         <p className="text-muted-foreground text-sm">Add products to start a sale.</p>
       ) : (
         <ul className="space-y-3">
-          {cart.map((item) => (
+          {displayCart.map((item) => (
             <li key={item.productId} className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{item.name}</p>

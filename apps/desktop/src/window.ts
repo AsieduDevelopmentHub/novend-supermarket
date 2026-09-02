@@ -3,9 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 const APP_DISPLAY_NAME = "Novend POS";
-const PERSIST_PARTITION = "persist:novend";
+export const PERSIST_PARTITION = "persist:novend";
 /** Cached shell route — must stay in public/sw.js PRECACHE. Last route is restored client-side via ?fromBoot=1. */
-const OFFLINE_ENTRY_PATH = "/dashboard";
+export const OFFLINE_ENTRY_PATH = "/dashboard";
+export const CUSTOMER_DISPLAY_ENTRY = "/customer-display";
 
 function iconPath(): string {
   const candidates =
@@ -102,13 +103,13 @@ function recoveryHtml(appUrl: string): string {
  * cached the document (electron#35112). Load a local boot page, then
  * client-navigate so the SW can serve Cache Storage.
  */
-async function loadAppShell(win: BrowserWindow, appUrl: string): Promise<void> {
+async function loadAppShell(win: BrowserWindow, appUrl: string, entry = OFFLINE_ENTRY_PATH): Promise<void> {
   const boot = offlineBootPath();
   if (fs.existsSync(boot)) {
     await win.loadFile(boot, {
       query: {
         appUrl,
-        entry: OFFLINE_ENTRY_PATH,
+        entry,
       },
     });
     return;
@@ -117,7 +118,7 @@ async function loadAppShell(win: BrowserWindow, appUrl: string): Promise<void> {
     await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(recoveryHtml(appUrl))}`);
     return;
   }
-  await win.loadURL(`${appUrl.replace(/\/$/, "")}${OFFLINE_ENTRY_PATH}`);
+  await win.loadURL(`${appUrl.replace(/\/$/, "")}${entry}`);
 }
 
 export function createMainWindow(appUrl: string): BrowserWindow {
@@ -173,3 +174,5 @@ export function createMainWindow(appUrl: string): BrowserWindow {
   void loadAppShell(win, appUrl);
   return win;
 }
+
+export { preloadPath, windowIcon, offlineBootPath, loadAppShell };

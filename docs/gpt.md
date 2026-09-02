@@ -1,37 +1,42 @@
-Before we move on to P1, I want us to add a first-time user onboarding/tour experience, similar to what you see in polished SaaS products.
+Now that everything is working perfectly, I want us to implement a **core feature: a Customer Display / Second Screen system**.
 
-When a user enters Novend for the first time, they should be guided through the main parts of the system with an interactive walkthrough. It should highlight important navigation items, dashboards, key actions, and core workflows so a new user understands how to use the system.
+The goal is to support a **customer-facing display on Electron POS**, using a second monitor connected to the same computer. If technically feasible, we should also explore supporting the same experience on **desktop web**.
 
-The tour should:
+### Requirements
 
-Automatically appear for first-time users.
-Highlight the relevant UI element with a clear tooltip/popover.
-Explain what each feature does in simple, user-friendly language.
-Allow Next / Back / Skip Tour controls.
-Allow users to exit the tour at any point.
-Remember the user's progress/completion so it doesn't repeatedly appear.
-Provide an option to Restart/Replay the tour later from Settings or Help.
-Work consistently across Web, PWA, Electron, and Capacitor mobile.
-Be responsive and adapt the walkthrough to desktop vs. mobile layouts.
-Avoid blocking normal application usage unnecessarily.
-Respect the user's organization/role so users only see tours for features they can actually access.
+* Add a dedicated **Customer Display** view designed specifically for the customer-facing screen.
+* On Electron, detect/use a connected secondary display and open the Customer Display window there.
+* Keep the cashier/POS screen completely independent from the customer screen.
+* Customer Display should update **in real time** as the cashier:
 
-Also include contextual onboarding for important workflows where appropriate, rather than trying to explain the entire system in one huge tour.
+  * Adds/removes products
+  * Changes quantities
+  * Applies discounts
+  * Updates totals
+  * Completes/cancels a sale
+* Show a clean customer-facing experience:
 
-Before implementation, inspect the existing UI/navigation architecture and design a reusable onboarding/tour system that can later support additional tours and feature announcements without rebuilding the component from scratch.
+  * Business/Novend branding
+  * Cart items
+  * Product images where available
+  * Quantities and prices
+  * Discounts
+  * Subtotal
+  * Tax
+  * Grand total
+  * Payment status
+  * Thank-you/completed-sale state
+* It must work **offline-first** and must not depend on Convex/network connectivity for real-time updates.
+* Use the existing POS/cart state and architecture rather than creating a duplicate sales system.
+* Properly handle Electron multi-window lifecycle, display detection, window closing, reconnecting, and app restart.
+* If possible, design the architecture so **desktop web can also support a second-screen/customer-display mode**, while respecting browser limitations around opening windows and multi-monitor placement.
+* Keep the implementation modular so it can later support additional customer-display features such as promotional banners, loyalty information, or QR/payment displays.
 
-## Implemented architecture
+### Important
 
-The onboarding system is implemented with a versioned, role-aware Driver.js
-registry under `features/tours/`. Progress is persisted per authenticated user
-in Convex and mirrored locally so completion, skip, and resume continue to work
-offline. The shell and contextual tours use stable responsive anchors and skip
-controls that are not present on the current surface.
+Before implementing, **audit the existing Electron architecture, POS/cart state, routing, and desktop window management** and determine the cleanest approach. Do not create a parallel state-management system or workaround if the existing architecture can be extended.
 
-Available contextual tours cover the shell, Sales, Products, Inventory,
-Reports, Users, Settings, and the Super Admin platform console. Tenant users
-can replay eligible tours from Settings → Help & tours; platform-only admins
-can replay the platform tour from Platform Help.
+Implement this as a **production-quality core feature**, including responsive UI, proper error/edge-case handling, tests, and a meaningful Git commit.
 
-See `docs/architecture/PRODUCT_TOURS.md` for ownership, extension, privacy, and
-offline behavior.
+
+before you start commiting lemme do personal tests before we start pushing to git. and show me workaround on how to test locally
