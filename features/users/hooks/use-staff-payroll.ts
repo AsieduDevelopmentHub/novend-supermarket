@@ -65,8 +65,7 @@ export function useStaffPerformance(args: {
     [args.profileId, args.userId, args.startDate, args.endDate, args.enabled],
   );
   if (!args.enabled) return undefined;
-  if (online) return remote;
-  return local;
+  return remote !== undefined ? remote : local;
 }
 
 export function useStaffCompensation(profileId: Id<"profiles">, enabled: boolean) {
@@ -86,8 +85,7 @@ export function useStaffCompensation(profileId: Id<"profiles">, enabled: boolean
     };
   }, [profileId, enabled]);
   if (!enabled) return undefined;
-  if (online) return remote;
-  return local;
+  return remote !== undefined ? remote : local;
 }
 
 export function useStaffMonthRecord(args: {
@@ -117,8 +115,7 @@ export function useStaffMonthRecord(args: {
     [args.profileId, args.userId, args.userName, args.payPeriodKey, args.enabled],
   );
   if (!args.enabled) return undefined;
-  if (online) return remote;
-  return local;
+  return remote !== undefined ? remote : local;
 }
 
 export function useStaffMonthRoster(payPeriodKey: string, enabled: boolean) {
@@ -133,6 +130,5 @@ export function useStaffMonthRoster(payPeriodKey: string, enabled: boolean) {
     [payPeriodKey, enabled],
   );
   if (!enabled) return undefined;
-  if (online) return remote;
-  return local;
+  return remote !== undefined ? remote : local;
 }

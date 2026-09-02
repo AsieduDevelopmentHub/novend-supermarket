@@ -66,7 +66,8 @@ import {
   type BarcodeMatchProduct,
 } from "@/features/sales/components/barcode-match-dialog";
 import { DraggableCartFab } from "@/features/sales/components/draggable-cart-fab";
-import { readCartDraft, writeCartDraft, type CartDraftItem } from "@/lib/sales/cart-draft";
+import { readCartDraft, writeCartDraft, clearCartDraft, type CartDraftItem } from "@/lib/sales/cart-draft";
+import { withTimeout } from "@/lib/async/with-timeout";
 import { loadPrintSnapshotMeta } from "@/lib/offline/ui-cache";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
 import { useCustomerDisplayPublisher } from "@/features/customer-display/hooks/use-customer-display-publisher";
@@ -478,38 +479,35 @@ export function SalesView() {
     holdingRef.current = true;
     setHolding(true);
     try {
-      if (online) {
-        try {
-          await holdSale(holdPayload);
-          setCart([]);
-          clearCartDiscount();
-          setCustomer(null);
-          setCustomerQuery("");
-          setCheckoutOpen(false);
-          toast.success("Sale held");
-          return;
-        } catch {
-          if (!dexieAvailable) {
-            throw new Error("Could not hold sale. Check your connection and try again.");
-          }
-        }
-      }
-
+      // Local-first: clear cart + toast immediately. Cap often reports online while
+      // Convex hangs — remote-first left Holding… stuck and revived the cart draft.
       if (!dexieAvailable) {
-        toast.error("Local storage unavailable — cannot hold sale offline");
+        if (!online) {
+          toast.error("Local storage unavailable — cannot hold sale offline");
+          return;
+        }
+        await withTimeout(holdSale(holdPayload), 10_000, "Hold timed out — try again");
+        clearCartDraft();
+        setCart([]);
+        clearCartDiscount();
+        setCustomer(null);
+        setCustomerQuery("");
+        setCheckoutOpen(false);
+        toast.success("Sale held");
         return;
       }
 
       const db = await getOfflineDb();
       if (!db) throw new Error("Local database unavailable");
       const uid = cashierId ?? (await getMeta(db, META_KEYS.profileUserId)) ?? "local";
-      await holdSaleLocally({
+      const held = await holdSaleLocally({
         cashierId: uid,
         customerId: customer?.id,
         customerName: customer?.name,
         items: cart,
         discount: cartDiscount,
       });
+      clearCartDraft();
       setCart([]);
       clearCartDiscount();
       setCustomer(null);
@@ -517,8 +515,20 @@ export function SalesView() {
       setCheckoutOpen(false);
       await refreshLocalHeld();
       toast.success(
-        online ? "Sale held on this device — server sync unavailable" : "Sale held on this device",
+        online ? "Sale held — syncing when the server is reachable" : "Sale held on this device",
       );
+
+      if (online) {
+        void (async () => {
+          try {
+            await withTimeout(holdSale(holdPayload), 12_000, "Hold sync timed out");
+            await db.heldSales.delete(held.id);
+            await refreshLocalHeld();
+          } catch {
+            /* keep local hold until a later sync path exists */
+          }
+        })();
+      }
     } catch (error) {
       showError(error, "Hold failed");
     } finally {

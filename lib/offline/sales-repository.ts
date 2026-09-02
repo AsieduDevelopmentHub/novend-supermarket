@@ -406,6 +406,7 @@ export async function holdSaleLocally(input: {
     heldAt: Date.now(),
   };
   await db.heldSales.put(held);
+  notifyReplicaChanged();
   return held;
 }
 

@@ -19,6 +19,7 @@ import {
 import { ReceiptDocument } from "@/features/receipts/components/receipt-document";
 import { SAMPLE_RECEIPT_PAYLOAD } from "@/features/receipts/types";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { withTimeout } from "@/lib/async/with-timeout";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { ReceiptDesignerLayout } from "./receipt-designer-layout";
@@ -60,20 +61,28 @@ export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!online) {
+      toast.message("Reconnect to save branch receipt settings");
+      return;
+    }
     setPending(true);
     try {
-      await updateReceiptProfile({
-        id: branch.id,
-        name,
-        address: address || undefined,
-        phone: phone || undefined,
-        email: email || undefined,
-        receiptShowName: showName,
-        receiptShowAddress: showAddress,
-        receiptShowPhone: showPhone,
-        receiptShowEmail: showEmail,
-        receiptPaperWidthMm: Number(effectivePaperWidth) as 58 | 80,
-      });
+      await withTimeout(
+        updateReceiptProfile({
+          id: branch.id,
+          name,
+          address: address || undefined,
+          phone: phone || undefined,
+          email: email || undefined,
+          receiptShowName: showName,
+          receiptShowAddress: showAddress,
+          receiptShowPhone: showPhone,
+          receiptShowEmail: showEmail,
+          receiptPaperWidthMm: Number(effectivePaperWidth) as 58 | 80,
+        }),
+        12_000,
+        "Save timed out — check your connection and try again",
+      );
       toast.success("Branch receipt details saved");
     } catch (error) {
       showError(error, "Save failed");
@@ -201,7 +210,7 @@ export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
                 Email
               </label>
             </div>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={pending || !online}>
               {pending ? "Saving…" : "Save branch receipt"}
             </Button>
           </form>

@@ -25,6 +25,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useDeviceFingerprint } from "@/hooks/use-device-fingerprint";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useRemoteBudget } from "@/hooks/use-remote-budget";
 import { formatDeviceRuntime } from "@/lib/device";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
@@ -54,6 +55,7 @@ export function DevicesPanel() {
   const { isAdmin } = usePermissions();
   const fingerprint = useDeviceFingerprint();
   const data = useQuery(api.devices.listDevices, online && fingerprint ? { fingerprint } : "skip");
+  const remoteBudgetElapsed = useRemoteBudget(online && Boolean(fingerprint) && data === undefined);
   const renameDevice = useMutation(api.devices.renameDevice);
   const deactivateDevice = useMutation(api.devices.deactivateDevice);
   const deactivateOtherDevices = useMutation(api.devices.deactivateOtherDevices);
@@ -63,7 +65,7 @@ export function DevicesPanel() {
   const [confirm, setConfirm] = useState<DeviceConfirm | null>(null);
   const [pending, setPending] = useState(false);
 
-  if (!online) {
+  if (!online || (Boolean(fingerprint) && data === undefined && remoteBudgetElapsed)) {
     return (
       <Card>
         <CardContent className="text-muted-foreground p-5 text-sm">
@@ -73,7 +75,7 @@ export function DevicesPanel() {
     );
   }
 
-  if (data === undefined) {
+  if (!fingerprint || data === undefined) {
     return <LoadingState label="Loading devices…" variant="table" />;
   }
 

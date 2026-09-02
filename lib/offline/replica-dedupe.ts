@@ -194,8 +194,20 @@ export function overlayPendingBranchStock<
 >(stock: T[], outbox: OpenOutboxRow[]): T[] {
   let next = stock;
   for (const row of outbox) {
-    if (!isOpenOutbox(row) || row.type !== "wholesale_transfer") continue;
+    if (!isOpenOutbox(row)) continue;
     try {
+      if (row.type === "adjust_stock") {
+        const payload = JSON.parse(row.payloadJson) as {
+          productId?: string;
+          branchId?: string;
+          quantityChange?: number;
+        };
+        const delta = Number(payload.quantityChange) || 0;
+        if (!payload.productId || !payload.branchId || delta === 0) continue;
+        next = bumpBranchStock(next, payload.branchId, payload.productId, delta);
+        continue;
+      }
+      if (row.type !== "wholesale_transfer") continue;
       const payload = JSON.parse(row.payloadJson) as {
         productId?: string;
         branchId?: string;

@@ -5,13 +5,15 @@ import { api } from "@/convex/_generated/api";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useRemoteBudget } from "@/hooks/use-remote-budget";
 import { BranchReceiptForm } from "./branch-receipt-form";
 
 export function BranchReceiptPanel() {
   const online = useConnectivity();
   const branch = useQuery(api.branches.getMineForReceipt, online ? {} : "skip");
+  const remoteBudgetElapsed = useRemoteBudget(online && branch === undefined);
 
-  if (!online) {
+  if (!online || (branch === undefined && remoteBudgetElapsed)) {
     return (
       <EmptyState
         title="Branch receipt settings need a connection"

@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useRemoteBudget } from "@/hooks/use-remote-budget";
 import { usePermissions } from "@/hooks/use-permissions";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
 import { formatDateTime } from "@/lib/date";
@@ -66,6 +67,7 @@ export function PrivacyDataPanel() {
   const { signOut } = useAuthActions();
   const { isAdmin } = usePermissions();
   const closure = useQuery(api.accountClosure.status, online ? {} : "skip");
+  const remoteBudgetElapsed = useRemoteBudget(online && closure === undefined);
   const cancelClosure = useMutation(api.accountClosure.cancelOrganizationClosure);
   const requestClosure = useAction(api.accountClosure.requestOrganizationClosure);
   const deleteMyAccount = useAction(api.accountClosure.deleteMyAccount);
@@ -82,7 +84,7 @@ export function PrivacyDataPanel() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deletePending, setDeletePending] = useState(false);
 
-  if (!online) {
+  if (!online || (closure === undefined && remoteBudgetElapsed)) {
     return (
       <Card>
         <CardContent className="text-muted-foreground p-5 text-sm">
