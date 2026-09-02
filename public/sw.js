@@ -95,6 +95,7 @@ const SHELL_PATHS = [
   "/",
   "/dashboard",
   "/sales",
+  "/customer-display",
   "/orders",
   "/returns",
   "/inventory",

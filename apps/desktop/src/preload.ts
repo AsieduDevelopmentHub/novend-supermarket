@@ -79,6 +79,24 @@ export type DesktopInstallUpdateResult = {
   message: string;
 };
 
+const UPDATE_STATUS_CHANNEL = "desktop:updates:status";
+const CUSTOMER_DISPLAY_STATE_CHANNEL = "desktop:customerDisplay:state";
+const CUSTOMER_DISPLAY_STATUS_CHANNEL = "desktop:customerDisplay:status";
+
+export type CustomerDisplayStatus = {
+  open: boolean;
+  displayId: number | null;
+};
+
+export type DesktopDisplayInfo = {
+  id: number;
+  label: string;
+  bounds: { x: number; y: number; width: number; height: number };
+  workArea: { x: number; y: number; width: number; height: number };
+  scaleFactor: number;
+  isPrimary: boolean;
+};
+
 export type NovendDesktopBridge = {
   getRuntime: () => Promise<DesktopRuntime>;
   getCapabilities: () => Promise<{
@@ -92,9 +110,16 @@ export type NovendDesktopBridge = {
   checkForUpdates: () => Promise<DesktopUpdateStatus>;
   installUpdate: () => Promise<DesktopInstallUpdateResult>;
   onUpdateStatus: (listener: (status: DesktopUpdateStatus) => void) => () => void;
+  openCustomerDisplay: (options?: {
+    displayId?: number | null;
+  }) => Promise<{ ok: boolean; message?: string }>;
+  closeCustomerDisplay: () => Promise<{ ok: boolean }>;
+  getCustomerDisplayStatus: () => Promise<CustomerDisplayStatus>;
+  listDisplays: () => Promise<{ ok: boolean; displays: DesktopDisplayInfo[] }>;
+  publishCustomerDisplayState: (snapshot: unknown) => Promise<{ ok: boolean }>;
+  onCustomerDisplayState: (listener: (snapshot: unknown) => void) => () => void;
+  onCustomerDisplayStatus: (listener: (status: CustomerDisplayStatus) => void) => () => void;
 };
-
-const UPDATE_STATUS_CHANNEL = "desktop:updates:status";
 
 const bridge: NovendDesktopBridge = {
   getRuntime: () => ipcRenderer.invoke("desktop:getRuntime"),
@@ -112,6 +137,31 @@ const bridge: NovendDesktopBridge = {
     ipcRenderer.on(UPDATE_STATUS_CHANNEL, handler);
     return () => {
       ipcRenderer.removeListener(UPDATE_STATUS_CHANNEL, handler);
+    };
+  },
+  openCustomerDisplay: (options) => ipcRenderer.invoke("desktop:customerDisplay:open", options),
+  closeCustomerDisplay: () => ipcRenderer.invoke("desktop:customerDisplay:close"),
+  getCustomerDisplayStatus: () => ipcRenderer.invoke("desktop:customerDisplay:getStatus"),
+  listDisplays: () => ipcRenderer.invoke("desktop:customerDisplay:listDisplays"),
+  publishCustomerDisplayState: (snapshot) =>
+    ipcRenderer.invoke("desktop:customerDisplay:publish", snapshot),
+  onCustomerDisplayState: (listener) => {
+    const handler = (_event: IpcRendererEvent, snapshot: unknown) => {
+      listener(snapshot);
+    };
+    ipcRenderer.on(CUSTOMER_DISPLAY_STATE_CHANNEL, handler);
+    return () => {
+      ipcRenderer.removeListener(CUSTOMER_DISPLAY_STATE_CHANNEL, handler);
+    };
+  },
+  onCustomerDisplayStatus: (listener) => {
+    void ipcRenderer.invoke("desktop:customerDisplay:onStatus");
+    const handler = (_event: IpcRendererEvent, status: CustomerDisplayStatus) => {
+      listener(status);
+    };
+    ipcRenderer.on(CUSTOMER_DISPLAY_STATUS_CHANNEL, handler);
+    return () => {
+      ipcRenderer.removeListener(CUSTOMER_DISPLAY_STATUS_CHANNEL, handler);
     };
   },
 };

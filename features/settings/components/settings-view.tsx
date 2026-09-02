@@ -39,6 +39,7 @@ import { PrivacyDataPanel } from "./privacy-data-panel";
 import { BranchReceiptPanel } from "./branch-receipt-panel";
 import { ProfilePanel } from "./profile-panel";
 import { PrinterPanel } from "./printer-panel";
+import { CustomerDisplayPanel } from "./customer-display-panel";
 import { ScannerPanel } from "./scanner-panel";
 import { MobileHardwarePanel } from "./mobile-hardware-panel";
 import { FutureDevicesPanel } from "./future-devices-panel";
@@ -58,6 +59,7 @@ import {
   Shield,
   ShieldCheck,
   Store,
+  Tv,
   UserRound,
   Wrench,
   Camera,
@@ -66,31 +68,21 @@ import {
 import { BillingPanel } from "@/features/billing/components/billing-panel";
 import { DevicesPanel } from "@/features/billing/components/devices-panel";
 import { HelpToursPanel } from "./help-tours-panel";
-
-type SettingsTab =
-  | "profile"
-  | "receipt"
-  | "business"
-  | "billing"
-  | "devices"
-  | "branchReceipt"
-  | "printer"
-  | "scanner"
-  | "mobileHardware"
-  | "futureDevices"
-  | "updates"
-  | "desktop"
-  | "backup"
-  | "appearance"
-  | "security"
-  | "privacy"
-  | "help";
+import { ReceiptDesignerLayout } from "./receipt-designer-layout";
+import {
+  buildSettingsSections,
+  groupSettingsSections,
+  HARDWARE_TABS,
+  type SettingsSectionIconMap,
+  type SettingsTab,
+} from "./settings-section-groups";
+import { SettingsMobileSectionNav } from "./settings-mobile-section-nav";
 
 export function SettingsView() {
   const { isAdmin, isManager, isLoading: permissionsLoading } = usePermissions();
   const online = useConnectivity();
   const isDesktop = useDesktopRuntime();
-  const onMobileShell = useNativeShell();
+  const isMobileCap = useNativeShell();
   const remoteBusiness = useQuery(api.settings.getBusiness, online && isAdmin ? {} : "skip");
   const remoteTemplate = useQuery(api.settings.getReceiptTemplate, online && isAdmin ? {} : "skip");
   const [cachedPrint, setCachedPrint] = useState<{
@@ -99,6 +91,10 @@ export function SettingsView() {
   } | null>(null);
   const [tab, setTab] = useState<SettingsTab | null>(null);
   const requestedSection = useSearchParams().get("section");
+
+  function selectSettingsTab(value: SettingsTab) {
+    setTab(value);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -136,57 +132,19 @@ export function SettingsView() {
   const business = remoteBusiness ?? cachedPrint?.business ?? null;
   const template = remoteTemplate ?? cachedPrint?.template ?? null;
 
-  // Terminal printer settings only exist on the desktop shell — browsers always
-  // print through the operating system dialog and have no hardware to configure.
+  // Desktop-only terminal hardware never appears in the Capacitor shell.
   const sections = useMemo(
     () =>
-      [
-        { value: "profile" as const, label: "Profile", long: "Profile" },
-        ...(isAdmin
-          ? ([
-              { value: "receipt" as const, label: "Receipt", long: "Receipt template" },
-              { value: "business" as const, label: "Business", long: "Business profile" },
-              { value: "billing" as const, label: "Billing", long: "Billing & plan" },
-            ] as const)
-          : []),
-        ...(isManager || isAdmin
-          ? ([
-              { value: "branchReceipt" as const, label: "Branch", long: "Branch receipt" },
-              { value: "devices" as const, label: "Devices", long: "Activated devices" },
-            ] as const)
-          : []),
-        ...(isDesktop
-          ? ([
-              { value: "printer" as const, label: "Printer", long: "Printer" },
-              { value: "scanner" as const, label: "Scanner", long: "Barcode scanner" },
-              {
-                value: "futureDevices" as const,
-                label: "Future",
-                long: "Future devices",
-              },
-              { value: "updates" as const, label: "Updates", long: "Desktop updates" },
-              { value: "desktop" as const, label: "Downloads", long: "Download apps" },
-            ] as const)
-          : onMobileShell
-            ? ([
-                {
-                  value: "mobileHardware" as const,
-                  label: "Hardware",
-                  long: "Camera, photos & sharing",
-                },
-              ] as const)
-            : ([
-                { value: "scanner" as const, label: "Scanner", long: "Barcode scanner" },
-                { value: "desktop" as const, label: "Downloads", long: "Download apps" },
-              ] as const)),
-        { value: "backup" as const, label: "Backups", long: "Backups" },
-        { value: "appearance" as const, label: "Appearance", long: "Appearance" },
-        { value: "security" as const, label: "Security", long: "Security" },
-        { value: "privacy" as const, label: "Privacy", long: "Privacy & data" },
-        { value: "help" as const, label: "Help", long: "Help & tours" },
-      ] as const,
-    [isAdmin, isManager, isDesktop, onMobileShell],
+      buildSettingsSections({
+        isAdmin,
+        isManager,
+        isDesktop,
+        isMobileCap,
+      }),
+    [isAdmin, isManager, isDesktop, isMobileCap],
   );
+
+  const sectionGroups = useMemo(() => groupSettingsSections(sections), [sections]);
 
   // Banners and limit prompts deep-link here with `?section=billing|devices`.
   const linkedTab = sections.find((section) => section.value === requestedSection)?.value ?? null;
@@ -201,38 +159,32 @@ export function SettingsView() {
     <div className="min-w-0 space-y-6 overflow-x-clip">
       <PageHeader
         title="Settings"
-        description="Choose a section. Receipt printing for the whole business lives under Receipt."
+        description={
+          isMobileCap
+            ? "Browse the sections below — only options that work on this phone are shown."
+            : "Choose a section. On smaller screens, use the grouped list to browse every area."
+        }
       />
 
       <Tabs
         value={activeTab}
-        onValueChange={(value) => setTab(value as SettingsTab)}
+        onValueChange={(value) => selectSettingsTab(value as SettingsTab)}
         className="flex flex-col gap-6 lg:flex-row lg:items-start"
       >
         <SettingsTreeNav
-          sections={sections}
+          groups={sectionGroups}
           activeTab={activeTab}
-          onSelect={(value) => setTab(value)}
+          onSelect={selectSettingsTab}
         />
         <div className="min-w-0 flex-1 space-y-4">
-          <div className="lg:hidden" data-tour="settings-sections">
-            <Label htmlFor="settings-section" className="sr-only">
-              Settings section
-            </Label>
-            <Select value={activeTab} onValueChange={(value) => setTab(value as SettingsTab)}>
-              <SelectTrigger id="settings-section" className="w-full">
-                <SelectValue placeholder="Choose a section" />
-              </SelectTrigger>
-              <SelectContent>
-                {sections.map((section) => (
-                  <SelectItem key={section.value} value={section.value}>
-                    {section.long}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <SettingsMobileSectionNav
+            groups={sectionGroups}
+            activeTab={activeTab}
+            icons={SETTINGS_ICONS}
+            onSelect={selectSettingsTab}
+          />
 
+          <div className="space-y-4">
           <TabsContent value="profile" className="mt-0">
             <ProfilePanel />
           </TabsContent>
@@ -309,7 +261,7 @@ export function SettingsView() {
                 <DesktopDownloadPanel />
               </TabsContent>
             </>
-          ) : onMobileShell ? (
+          ) : isMobileCap ? (
             <TabsContent value="mobileHardware" className="mt-0">
               <MobileHardwarePanel />
             </TabsContent>
@@ -319,9 +271,15 @@ export function SettingsView() {
             </TabsContent>
           )}
 
-          {!onMobileShell ? (
+          {!isMobileCap ? (
             <TabsContent value="scanner" className="mt-0">
               <ScannerPanel />
+            </TabsContent>
+          ) : null}
+
+          {sections.some((section) => section.value === "customerDisplay") ? (
+            <TabsContent value="customerDisplay" className="mt-0">
+              <CustomerDisplayPanel />
             </TabsContent>
           ) : null}
 
@@ -344,13 +302,14 @@ export function SettingsView() {
           <TabsContent value="help" className="mt-0">
             <HelpToursPanel />
           </TabsContent>
+          </div>
         </div>
       </Tabs>
     </div>
   );
 }
 
-const SETTINGS_ICONS: Record<SettingsTab, typeof UserRound> = {
+const SETTINGS_ICONS: SettingsSectionIconMap = {
   profile: UserRound,
   receipt: Receipt,
   business: Store,
@@ -358,6 +317,7 @@ const SETTINGS_ICONS: Record<SettingsTab, typeof UserRound> = {
   devices: MonitorSmartphone,
   branchReceipt: Store,
   printer: Monitor,
+  customerDisplay: Tv,
   scanner: ScanBarcode,
   mobileHardware: Camera,
   futureDevices: Wrench,
@@ -370,56 +330,15 @@ const SETTINGS_ICONS: Record<SettingsTab, typeof UserRound> = {
   help: CircleHelp,
 };
 
-const HARDWARE_TABS: SettingsTab[] = ["printer", "scanner", "mobileHardware", "futureDevices"];
-
 function SettingsTreeNav({
-  sections,
+  groups,
   activeTab,
   onSelect,
 }: {
-  sections: ReadonlyArray<{ value: SettingsTab; label: string; long: string }>;
+  groups: ReturnType<typeof groupSettingsSections>;
   activeTab: SettingsTab;
   onSelect: (value: SettingsTab) => void;
 }) {
-  const hardwareItems = sections.filter((item) => HARDWARE_TABS.includes(item.value));
-  const groups = [
-    {
-      label: "Account",
-      items: sections.filter(
-        (item) =>
-          item.value === "profile" ||
-          item.value === "appearance" ||
-          item.value === "security" ||
-          item.value === "privacy" ||
-          item.value === "help",
-      ),
-    },
-    {
-      label: "Business",
-      items: sections.filter(
-        (item) => item.value === "business" || item.value === "receipt" || item.value === "billing",
-      ),
-    },
-    {
-      label: "Branch",
-      items: sections.filter((item) => item.value === "branchReceipt"),
-    },
-    {
-      label: "Devices",
-      items: sections.filter((item) => item.value === "devices"),
-    },
-    {
-      label: "Hardware",
-      items: hardwareItems,
-    },
-    {
-      label: "This device",
-      items: sections.filter(
-        (item) => item.value === "updates" || item.value === "desktop" || item.value === "backup",
-      ),
-    },
-  ].filter((group) => group.items.length > 0);
-
   return (
     <nav data-tour="settings-sections" className="border-border hidden w-56 shrink-0 lg:block">
       <div className="space-y-5">
@@ -644,12 +563,22 @@ function ReceiptTemplateForm({
   }
 
   return (
-    <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,340px)]">
-      <Card className="min-w-0">
-        <CardHeader>
-          <CardTitle>Receipt template designer</CardTitle>
-        </CardHeader>
-        <CardContent>
+    <ReceiptDesignerLayout
+      previewLabel="Live preview"
+      preview={
+        <ReceiptDocument
+          preview
+          payload={SAMPLE_RECEIPT_PAYLOAD}
+          templateOverride={previewTemplate}
+          businessOverride={initialBusiness}
+        />
+      }
+      form={
+        <Card className="flex min-w-0 flex-col lg:h-full">
+          <CardHeader>
+            <CardTitle>Receipt template designer</CardTitle>
+          </CardHeader>
+          <CardContent>
           <form className="space-y-4" onSubmit={onSaveTemplate}>
             <div className="space-y-2">
               <Label>Paper width</Label>
@@ -762,19 +691,8 @@ function ReceiptTemplateForm({
           </form>
         </CardContent>
       </Card>
-
-      <div className="min-w-0 space-y-3">
-        <p className="text-sm font-medium">Live preview</p>
-        <div className="bg-muted/40 flex max-w-full justify-center overflow-x-clip rounded-xl p-4">
-          <ReceiptDocument
-            preview
-            payload={SAMPLE_RECEIPT_PAYLOAD}
-            templateOverride={previewTemplate}
-            businessOverride={initialBusiness}
-          />
-        </div>
-      </div>
-    </div>
+      }
+    />
   );
 }
 

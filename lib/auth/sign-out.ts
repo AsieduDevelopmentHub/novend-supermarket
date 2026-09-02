@@ -7,6 +7,7 @@ import { clearPlatformOfflineSession } from "@/lib/offline/platform-cache";
 import { deleteBoundOfflineReplica } from "@/lib/offline/db";
 import { clearOfflineSession } from "@/lib/offline/session";
 import { clearCartDraft } from "@/lib/sales/cart-draft";
+import { clearCustomerDisplaySnapshot } from "@/lib/sales/customer-display";
 
 type SignOutOptions = {
   signOut: () => Promise<void>;
@@ -38,6 +39,7 @@ export async function signOutAndRedirect({
   clearPlatformOfflineSession();
   clearLastRoute();
   clearCartDraft();
+  clearCustomerDisplaySnapshot();
   clearUserDeviceState();
   void clearPresence?.().catch(() => {
     /* best-effort */

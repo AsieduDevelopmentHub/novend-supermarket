@@ -27,6 +27,8 @@ export type PlanCapabilities = {
   canAdvancedAnalytics: boolean;
   /** Salary, commission, and staff payroll records — Pro rank and above. */
   canManageStaffCompensation: boolean;
+  /** Customer-facing second screen — Pro rank and above. */
+  canUseCustomerDisplay: boolean;
   /** Per-file row cap derived from the product limit, never a separate price. */
   maxImportRows: number;
 };
@@ -58,6 +60,7 @@ export function planCapabilities(planKey: PlanKey, limits?: PlanLimits): PlanCap
     canExportPdf: advanced,
     canAdvancedAnalytics: advanced,
     canManageStaffCompensation: advanced,
+    canUseCustomerDisplay: advanced,
     maxImportRows: derivedMaxImportRows(effective.products),
   };
 }
@@ -77,6 +80,8 @@ export function capabilityDeniedMessage(
       return `Advanced analytics exports are available on Pro and above.`;
     case "canManageStaffCompensation":
       return `Staff salary and commission are available on Pro and above. Upgrade from ${planName} to continue.`;
+    case "canUseCustomerDisplay":
+      return `Customer display is available on Pro and above. Upgrade from ${planName} to continue.`;
     case "canExportReports":
     case "canExportCsv":
     case "canExportJson":

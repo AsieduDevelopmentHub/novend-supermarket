@@ -3,6 +3,11 @@ import { createMainWindow } from "./window";
 import { startAutoUpdater } from "./updater";
 import { resolveAppUrl } from "./desktop-config";
 import { registerDesktopIpc } from "./ipc";
+import { registerCustomerDisplayIpc } from "./customer-display-ipc";
+import {
+  closeCustomerDisplayWithMainWindow,
+  setCustomerDisplayAppUrl,
+} from "./customer-display";
 
 const APP_USER_MODEL_ID = "com.novend.pos";
 const APP_DISPLAY_NAME = "Novend POS";
@@ -31,6 +36,7 @@ function showWindow() {
   if (!mainWindow) {
     mainWindow = createMainWindow(resolveAppUrl());
     mainWindow.on("closed", () => {
+      closeCustomerDisplayWithMainWindow();
       mainWindow = null;
     });
     return;
@@ -51,9 +57,13 @@ if (!gotLock) {
   void app.whenReady().then(() => {
     app.setName(APP_DISPLAY_NAME);
     allowMediaPermissions();
+    const appUrl = resolveAppUrl();
+    setCustomerDisplayAppUrl(appUrl);
     registerDesktopIpc();
+    registerCustomerDisplayIpc();
     showWindow();
     startAutoUpdater(() => mainWindow);
+
     app.on("activate", () => {
       showWindow();
     });

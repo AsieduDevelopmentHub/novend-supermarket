@@ -21,7 +21,7 @@ licence so a terminal keeps selling offline, but it never decides access.
 
 | File                                     | Owns                                                                                          |
 | ---------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `convex/shared/capabilities.ts`          | Plan-derived capabilities (`canExportXlsx`, `canManageStaffCompensation`, `maxImportRows`, …) |
+| `convex/shared/capabilities.ts`          | Plan-derived capabilities (`canExportXlsx`, `canManageStaffCompensation`, `canUseCustomerDisplay`, `maxImportRows`, …) |
 | `convex/shared/plans.ts`                 | Plan catalog, prices, limits, cycle rules, limit messages                                     |
 | `convex/shared/licensing.ts`             | Pure access rules: `deriveAccess`, grace, usage levels, offline TTL                           |
 | `convex/shared/entitlements.ts`          | Database-backed licence resolution, usage counting, capacity checks                           |

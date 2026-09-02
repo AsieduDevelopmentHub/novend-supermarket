@@ -24,6 +24,13 @@ describe("planCapabilities", () => {
     expect(planCapabilities("lifetime").canManageStaffCompensation).toBe(true);
   });
 
+  it("reserves customer display for Pro rank and above", () => {
+    expect(planCapabilities("basic").canUseCustomerDisplay).toBe(false);
+    expect(planCapabilities("pro").canUseCustomerDisplay).toBe(true);
+    expect(planCapabilities("enterprise").canUseCustomerDisplay).toBe(true);
+    expect(planCapabilities("lifetime").canUseCustomerDisplay).toBe(true);
+  });
+
   it("derives max import rows from the product limit", () => {
     expect(planCapabilities("basic").maxImportRows).toBe(resolvePlan("basic").limits.products);
     expect(planCapabilities("pro").maxImportRows).toBe(resolvePlan("pro").limits.products);
