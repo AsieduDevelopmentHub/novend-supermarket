@@ -453,6 +453,19 @@ export async function resolveCategoryIdForProduct(input: {
   return input.selectedId;
 }
 
+async function resolveCategoryNameForProduct(
+  db: NonNullable<Awaited<ReturnType<typeof getOfflineDb>>>,
+  categoryId: string,
+  explicitName?: string | null,
+  existingName?: string | null,
+): Promise<string> {
+  if (explicitName?.trim()) return explicitName.trim();
+  const row = await db.categories.get(categoryId);
+  if (row?.name) return row.name;
+  if (existingName?.trim()) return existingName.trim();
+  return "Uncategorized";
+}
+
 export async function queueUpsertProduct(
   payload: Omit<UpsertProductPayload, "localId"> & { localId?: string; imageBlob?: Blob },
   options?: { notify?: boolean },
@@ -460,8 +473,13 @@ export async function queueUpsertProduct(
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const localId = payload.serverId ?? payload.localId ?? newClientId("local");
-  const category = await db.categories.get(payload.categoryId);
   const existing = await db.products.get(localId);
+  const categoryName = await resolveCategoryNameForProduct(
+    db,
+    payload.categoryId,
+    payload.categoryName,
+    existing?.categoryName,
+  );
   const barcode = payload.barcode ? normalizeBarcodeInput(payload.barcode) : undefined;
   if (barcode && !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(barcode)) {
     throw new Error("Barcode may only contain letters, numbers, dots, hyphens, and underscores");
@@ -474,6 +492,11 @@ export async function queueUpsertProduct(
   }
   const isCreate = !existing;
   const stockQuantity = isCreate ? payload.stockQuantity : (existing.stockQuantity ?? 0);
+  const openingQty = Math.max(0, Math.floor(stockQuantity));
+  const tracksExpiry = payload.tracksExpiry === true;
+  const alertDays = payload.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS;
+  const expiryStatus =
+    tracksExpiry && payload.expiryDate ? lotStatus(payload.expiryDate, alertDays) : "ok";
   const { imageBlob, ...rest } = payload;
   await db.products.put({
     id: localId,
@@ -481,7 +504,7 @@ export async function queueUpsertProduct(
     sku: payload.sku,
     barcode: barcode || null,
     categoryId: payload.categoryId,
-    categoryName: category?.name ?? existing?.categoryName ?? "Uncategorized",
+    categoryName,
     sellingPrice: payload.sellingPrice,
     costPrice: payload.costPrice,
     stockQuantity,
@@ -494,20 +517,43 @@ export async function queueUpsertProduct(
     tracksExpiry: payload.tracksExpiry,
     expiryAlertDays: payload.expiryAlertDays ?? null,
     nearestExpiry: payload.expiryDate ?? existing?.nearestExpiry ?? null,
-    isExpired: existing?.isExpired ?? false,
-    isExpiring: existing?.isExpiring ?? false,
+    isExpired: expiryStatus === "expired",
+    isExpiring: expiryStatus === "expiring",
     updatedAt: Date.now(),
   });
   if (isCreate && payload.branchId) {
-    const qty = Math.max(0, Math.floor(payload.stockQuantity));
-    await db.branchStock.put({
-      id: branchStockId(payload.branchId, localId),
-      branchId: payload.branchId,
-      productId: localId,
-      quantity: qty,
-      sellableQuantity: qty,
-      updatedAt: Date.now(),
-    });
+    if (openingQty > 0) {
+      const isExpiring = expiryStatus === "expiring";
+      await db.branchStock.put({
+        id: branchStockId(payload.branchId, localId),
+        branchId: payload.branchId,
+        productId: localId,
+        quantity: openingQty,
+        sellableQuantity: openingQty,
+        isExpiring,
+        updatedAt: Date.now(),
+      });
+      if (tracksExpiry && payload.expiryDate) {
+        await db.lots.put({
+          id: newClientId("lot"),
+          productId: localId,
+          branchId: payload.branchId,
+          quantity: openingQty,
+          expiryDate: payload.expiryDate,
+          lotCode: payload.expiryDate,
+          receivedAt: Date.now(),
+        });
+      }
+    } else {
+      await db.branchStock.put({
+        id: branchStockId(payload.branchId, localId),
+        branchId: payload.branchId,
+        productId: localId,
+        quantity: 0,
+        sellableQuantity: 0,
+        updatedAt: Date.now(),
+      });
+    }
   }
   if (imageBlob) {
     await putProductImage({

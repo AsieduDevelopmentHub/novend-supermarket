@@ -215,12 +215,22 @@ export async function rekeyCategoryReferences(
   db: NovendOfflineDb,
   fromId: string,
   toId: string,
+  categoryName?: string | null,
 ): Promise<void> {
   if (!fromId || fromId === toId) return;
   await replaceIdInPendingOutbox(db, fromId, toId);
+  const resolvedName =
+    categoryName?.trim() ||
+    (await db.categories.get(fromId))?.name ||
+    (await db.categories.get(toId))?.name ||
+    null;
   const products = await db.products.where("categoryId").equals(fromId).toArray();
   for (const row of products) {
-    await db.products.put({ ...row, categoryId: toId });
+    await db.products.put({
+      ...row,
+      categoryId: toId,
+      ...(resolvedName ? { categoryName: resolvedName } : {}),
+    });
   }
 }
 

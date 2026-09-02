@@ -31,6 +31,7 @@ import { showError } from "@/lib/errors";
 import { TakeProductPhotoDialog } from "@/features/products/components/take-product-photo-dialog";
 import { ProductBarcodeField } from "@/features/products/components/product-barcode-field";
 import { ProductImage } from "@/components/media/product-image";
+import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCategoriesList, useMirroredProduct } from "@/hooks/use-offline-lists";
 import {
@@ -186,6 +187,7 @@ function ProductFormBody({
   const updateProduct = useMutation(api.products.updateProduct);
   const createCategory = useMutation(api.categories.create);
   const online = useConnectivity();
+  const { branchId: profileBranchId } = usePermissions();
 
   const [name, setName] = useState(initialProduct?.name ?? "");
   const [sku, setSku] = useState(initialProduct?.sku ?? "");
@@ -362,12 +364,17 @@ function ProductFormBody({
           );
           setNewCategory("");
           setShowNewCategory(false);
+          const resolvedCategoryName =
+            (showNewCategory && newCategory.trim()) ||
+            categoryOptions.find((row) => row._id === resolvedCategoryId)?.name ||
+            "Category";
           savedId = await queueUpsertProduct({
             serverId: productId ?? undefined,
             name,
             sku,
             barcode: barcode.trim(),
             categoryId: resolvedCategoryId,
+            categoryName: resolvedCategoryName,
             costPrice: Number(costPrice),
             sellingPrice: Number(sellingPrice),
             stockQuantity: warehouseIntake ? 0 : Number(stockQuantity),
@@ -378,6 +385,7 @@ function ProductFormBody({
             tracksExpiry,
             expiryAlertDays: tracksExpiry ? Number(expiryAlertDays) : undefined,
             expiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
+            branchId: profileBranchId ?? undefined,
             imageBlob: file ?? undefined,
             hasLocalImage: Boolean(file),
           });

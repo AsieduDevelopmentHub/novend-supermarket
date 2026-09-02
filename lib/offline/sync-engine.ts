@@ -5,7 +5,7 @@ import {
   recoverInterruptedSync,
   recordSyncDiagnostics,
 } from "./cleanup";
-import { getOfflineDb } from "./db";
+import { getMeta, getOfflineDb, META_KEYS } from "./db";
 import {
   claimOutboxRow,
   listPendingOutbox,
@@ -83,12 +83,14 @@ async function hydrateUpsertProductPayload(
   const local = await db.products.get(payload.localId);
   if (!local) return payload;
   const tracksExpiry = local.tracksExpiry === true;
+  const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
   return {
     ...payload,
     name: local.name,
     sku: local.sku,
     barcode: local.barcode ?? undefined,
     categoryId: local.categoryId,
+    categoryName: local.categoryName,
     costPrice: local.costPrice,
     sellingPrice: local.sellingPrice,
     unit: local.unit,
@@ -100,6 +102,7 @@ async function hydrateUpsertProductPayload(
     expiryDate: tracksExpiry
       ? optionalText(payload.expiryDate) || optionalText(local.nearestExpiry)
       : undefined,
+    branchId: payload.branchId ?? profileBranchId ?? undefined,
   };
 }
 
@@ -557,7 +560,13 @@ export async function drainOutbox(options: {
           const payload = JSON.parse(claimed.payloadJson) as CreateCategoryPayload;
           const id = await options.mutators.createCategory({ name: payload.name });
           await db.categories.delete(payload.localId);
-          await rekeyCategoryReferences(db, payload.localId, String(id));
+          await rekeyCategoryReferences(db, payload.localId, String(id), payload.name);
+          await db.categories.put({
+            id: String(id),
+            name: payload.name,
+            slug: payload.name.trim().toLowerCase().replace(/\s+/g, "-"),
+            isActive: true,
+          });
           await markOutboxSynced(db, claimed.id);
           await pullOfflineSnapshot(options.convex, { force: true });
           processed += 1;
@@ -575,7 +584,12 @@ export async function drainOutbox(options: {
               localProduct?.categoryName,
             );
             if (resolved) {
-              await rekeyCategoryReferences(db, payload.categoryId, resolved);
+              await rekeyCategoryReferences(
+                db,
+                payload.categoryId,
+                resolved,
+                localProduct?.categoryName,
+              );
               payload = { ...payload, categoryId: resolved };
             }
           }
