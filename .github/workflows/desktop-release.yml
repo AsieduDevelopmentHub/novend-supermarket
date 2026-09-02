@@ -25,11 +25,11 @@ on:
       targets:
         description: "What to build and publish to Convex"
         required: false
-        default: android
+        default: all
         type: choice
         options:
-          - android
           - all
+          - android
 
 concurrency:
   group: product-release-${{ github.ref }}
@@ -55,8 +55,8 @@ jobs:
         run: |
           targets="${{ github.event.inputs.targets }}"
           if [ -z "$targets" ]; then
-            # Tag pushes default to Android + Convex mobile only.
-            targets="android"
+            # Tag pushes build every platform and publish Convex metadata.
+            targets="all"
           fi
           echo "targets=$targets" >> "$GITHUB_OUTPUT"
           echo "Release targets: $targets"
@@ -312,12 +312,16 @@ jobs:
     name: Publish update metadata to Convex
     needs: [verify, github-release, build, build-android]
     runs-on: ubuntu-latest
+    # Still publish mobile when desktop fails after an APK re-upload (clobber
+    # invalidates the previous githubAssetId and 404s Convex downloads).
     if: |
       always() &&
       needs.verify.result == 'success' &&
       needs.github-release.result == 'success' &&
-      needs.build-android.result == 'success' &&
-      (needs.verify.outputs.targets == 'android' || needs.build.result == 'success')
+      (
+        needs.build-android.result == 'success' ||
+        (needs.verify.outputs.targets == 'all' && needs.build.result == 'success')
+      )
     steps:
       - uses: actions/checkout@v4
         with:
