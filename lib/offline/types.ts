@@ -446,6 +446,8 @@ export type TransferStockPayload = {
   quantity: number;
   note?: string;
   clientOperationId?: string;
+  /** Sellable quantity at the source branch when this transfer was queued. */
+  sourceStockSnapshot?: number;
 };
 
 export type UpsertCustomerPayload = {

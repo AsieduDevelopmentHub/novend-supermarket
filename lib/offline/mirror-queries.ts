@@ -13,6 +13,11 @@ import {
   resolveMirrorBranchFilter,
   resolveMirroredProductStock,
 } from "./branch-stock";
+import {
+  applyPendingTransferDisplay,
+  pendingTransferDisplayAdjustments,
+  transferStockKey,
+} from "./pending-transfers";
 import type { MirroredCategory, MirroredCustomer, MirroredProduct } from "./types";
 import { presenceFromLastSeenAt, sortUsersByPresence } from "@/lib/presence";
 import { ownedSaleIdsForCashier } from "@/lib/dashboard/cashier-scope";
@@ -39,17 +44,27 @@ async function mapMirroredProductRows(
   const stockByProduct = branchFilter
     ? await branchStockMapForBranch(db, branchFilter)
     : await branchStockMapOrgWide(db);
+  const pendingTransfers = await pendingTransferDisplayAdjustments(db);
 
   return Promise.all(
     products.map(async (product) => {
       const resolved = await resolveMirroredProductStock(db, product, branchFilter, stockByProduct);
+      const pending =
+        branchFilter != null
+          ? pendingTransfers.get(transferStockKey(branchFilter, product.id))
+          : undefined;
+      const displayed = applyPendingTransferDisplay(
+        resolved.stockQuantity,
+        resolved.sellableQuantity,
+        pending,
+      );
       return {
         ...product,
-        stockQuantity: resolved.stockQuantity,
-        sellableQuantity: resolved.sellableQuantity,
+        stockQuantity: displayed.stockQuantity,
+        sellableQuantity: displayed.sellableQuantity,
         isExpiring: resolved.isExpiring ?? false,
         isExpired: resolved.isExpired ?? false,
-        isLowStock: resolved.sellableQuantity <= product.lowStockThreshold,
+        isLowStock: displayed.sellableQuantity <= product.lowStockThreshold,
       };
     }),
   );

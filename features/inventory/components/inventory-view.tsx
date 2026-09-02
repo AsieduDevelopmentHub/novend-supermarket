@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState, Suspense } from "react";
+import { FormEvent, useEffect, useMemo, useState, Suspense } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -54,6 +54,8 @@ import { ListPagination } from "@/components/ui/list-pagination";
 import { useClientPagedRows } from "@/hooks/use-ui";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
+import { listMirroredProducts } from "@/lib/offline/mirror-queries";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { isBarcodeScanningEnabled } from "@/services/hardware";
 import {
   persistBusinessWrite,
@@ -103,6 +105,36 @@ function InventoryViewInner() {
   const [transferProductId, setTransferProductId] = useState<Id<"products"> | "">("");
   const [transferQty, setTransferQty] = useState("1");
   const [transferNote, setTransferNote] = useState("");
+  const [transferSourceRows, setTransferSourceRows] = useState<
+    Array<{ id: string; name: string; sku: string; stockQuantity: number }>
+  >([]);
+
+  useEffect(() => {
+    if (!transferOpen || !fromBranchId) {
+      setTransferSourceRows([]);
+      return;
+    }
+    let cancelled = false;
+    const load = () => {
+      void listMirroredProducts({ branchId: fromBranchId, includeInactive: false }).then((rows) => {
+        if (cancelled || rows == null || !Array.isArray(rows)) return;
+        setTransferSourceRows(
+          rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            sku: row.sku,
+            stockQuantity: row.sellableQuantity ?? row.stockQuantity,
+          })),
+        );
+      });
+    };
+    load();
+    const unsub = subscribeReplicaChanged(load);
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [transferOpen, fromBranchId]);
 
   if (branchParam && branchParam !== "all") {
     const fromUrl = branchParam as Id<"branches">;
@@ -150,6 +182,16 @@ function InventoryViewInner() {
     categoryId: categoryId !== "all" ? (categoryId as Id<"categories">) : undefined,
     branchId: listBranchId,
   });
+
+  const transferProductOptions = useMemo(() => {
+    const source = transferSourceRows.length > 0 ? transferSourceRows : (rows ?? []);
+    return source.map((p) => ({
+      value: p.id,
+      label: `${p.name} (${p.stockQuantity})`,
+      keywords: p.sku,
+    }));
+  }, [transferSourceRows, rows]);
+
   const history = useQuery(
     api.inventory.history,
     online && adjustId && canManageProducts
@@ -774,11 +816,7 @@ function InventoryViewInner() {
             <div className="space-y-2">
               <Label>Product</Label>
               <SearchableSelect
-                options={(rows ?? []).map((p) => ({
-                  value: p.id,
-                  label: `${p.name} (${p.stockQuantity})`,
-                  keywords: p.sku,
-                }))}
+                options={transferProductOptions}
                 value={transferProductId || undefined}
                 onValueChange={(v) => setTransferProductId(v as Id<"products">)}
                 placeholder="Product"

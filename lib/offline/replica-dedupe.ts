@@ -164,6 +164,31 @@ export function overlayPendingWholesaleStock<T extends { productId: string; quan
   return next;
 }
 
+function bumpBranchStock<
+  T extends { branchId: string; productId: string; quantity: number; sellableQuantity: number },
+>(rows: T[], branchId: string, productId: string, delta: number): T[] {
+  if (delta === 0) return rows;
+  let matched = false;
+  const next = rows.map((item) => {
+    if (item.productId !== productId || item.branchId !== branchId) return item;
+    matched = true;
+    return {
+      ...item,
+      quantity: item.quantity + delta,
+      sellableQuantity: item.sellableQuantity + delta,
+    };
+  });
+  if (!matched && delta > 0) {
+    next.push({
+      branchId,
+      productId,
+      quantity: delta,
+      sellableQuantity: delta,
+    } as T);
+  }
+  return next;
+}
+
 export function overlayPendingBranchStock<
   T extends { branchId: string; productId: string; quantity: number; sellableQuantity: number },
 >(stock: T[], outbox: OpenOutboxRow[]): T[] {
@@ -178,15 +203,7 @@ export function overlayPendingBranchStock<
       };
       const qty = Number(payload.quantity) || 0;
       if (!payload.productId || !payload.branchId || qty === 0) continue;
-      next = next.map((item) =>
-        item.productId === payload.productId && item.branchId === payload.branchId
-          ? {
-              ...item,
-              quantity: item.quantity + qty,
-              sellableQuantity: item.sellableQuantity + qty,
-            }
-          : item,
-      );
+      next = bumpBranchStock(next, payload.branchId, payload.productId, qty);
     } catch {
       /* ignore */
     }

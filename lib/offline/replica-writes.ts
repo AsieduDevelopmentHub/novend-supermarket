@@ -1,5 +1,9 @@
-import { branchStockId } from "./branch-stock";
-import { getMeta, getOfflineDb, META_KEYS, newClientId } from "./db";
+import { branchStockId, getSellableQuantity } from "./branch-stock";
+import { getOfflineDb, newClientId } from "./db";
+import {
+  pendingOutboundTransferQuantities,
+  transferStockKey,
+} from "./pending-transfers";
 import { enqueueOutbox } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
 import { putProductImage } from "./image-cache";
@@ -273,24 +277,26 @@ export async function queueUpdateLotExpiry(payload: UpdateLotExpiryPayload) {
 export async function queueTransferStock(payload: TransferStockPayload) {
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
-  const assignedBranchId = await getMeta(db, META_KEYS.profileBranchId);
-  const product = await db.products.get(payload.productId);
-  if (product && assignedBranchId) {
-    let delta = 0;
-    if (payload.fromBranchId === assignedBranchId) delta -= payload.quantity;
-    if (payload.toBranchId === assignedBranchId) delta += payload.quantity;
-    if (delta !== 0) {
-      const next = product.stockQuantity + delta;
-      if (next < 0) throw new Error("Inventory cannot become negative");
-      await db.products.put({
-        ...product,
-        stockQuantity: next,
-        sellableQuantity: Math.max(0, (product.sellableQuantity ?? product.stockQuantity) + delta),
-        updatedAt: Date.now(),
-      });
-    }
+  if (payload.fromBranchId === payload.toBranchId) {
+    throw new Error("Choose two different branches");
   }
-  await enqueueOutbox(db, "transfer_stock", payload);
+  if (!Number.isInteger(payload.quantity) || payload.quantity <= 0) {
+    throw new Error("Quantity must be a positive integer");
+  }
+
+  const pending = await pendingOutboundTransferQuantities(db);
+  const key = transferStockKey(payload.fromBranchId, payload.productId);
+  const reserved = pending.get(key) ?? 0;
+  const available = await getSellableQuantity(db, payload.fromBranchId, payload.productId);
+  if (available - reserved < payload.quantity) {
+    throw new Error("Insufficient stock at source branch");
+  }
+
+  await enqueueOutbox(db, "transfer_stock", {
+    ...payload,
+    sourceStockSnapshot: available,
+    clientOperationId: payload.clientOperationId ?? newClientId("op"),
+  });
 }
 
 export async function queueUpsertCustomer(
