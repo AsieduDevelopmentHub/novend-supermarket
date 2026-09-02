@@ -78,8 +78,20 @@ describe("product category on create", () => {
 
   it("rekeys Dexie products after the category syncs", () => {
     const source = readFileSync(resolve(process.cwd(), "lib/offline/sync-engine.ts"), "utf8");
-    expect(source).toContain("await rekeyCategoryReferences(db, payload.localId, String(id))");
+    expect(source).toContain("await rekeyCategoryReferences(db, payload.localId, String(id), payload.name)");
     expect(source).toContain("resolveLocalCategoryToServerId");
     expect(source).toContain("isSyncDependencyWait");
+  });
+
+  it("persists categoryName and branch stock when saving a product locally", () => {
+    const form = readFileSync(
+      resolve(process.cwd(), "features/products/components/product-form-dialog.tsx"),
+      "utf8",
+    );
+    const writes = readFileSync(resolve(process.cwd(), "lib/offline/replica-writes.ts"), "utf8");
+    expect(form).toContain("categoryName: resolvedCategoryName");
+    expect(form).toContain("branchId: profileBranchId");
+    expect(writes).toContain("resolveCategoryNameForProduct");
+    expect(writes).toContain("payload.categoryName");
   });
 });

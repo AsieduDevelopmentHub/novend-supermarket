@@ -531,6 +531,8 @@ export type UpsertProductPayload = {
   sku: string;
   barcode?: string;
   categoryId: string;
+  /** Denormalized label — required when Dexie categories mirror is stale (common on manager devices). */
+  categoryName?: string;
   costPrice: number;
   sellingPrice: number;
   stockQuantity: number;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -27,6 +27,7 @@ import {
 import type { MirroredCustomer } from "@/lib/offline/types";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
+import { getOfflineDb } from "@/lib/offline/db";
 import { pickLiveListWhenOnline, pickReplicaList } from "@/lib/offline/list-preference";
 import { presenceFromLastSeenAt, sortUsersByPresence } from "@/lib/presence";
 
@@ -304,8 +305,30 @@ export function useCategoriesList() {
     };
   }, [remote, lastSyncAt]);
 
-  if (local && local.length > 0) return local;
-  if (online && remote !== undefined) return remote;
+  useEffect(() => {
+    if (!remote?.length) return;
+    void (async () => {
+      const db = await getOfflineDb();
+      if (!db) return;
+      await db.categories.bulkPut(
+        remote.map((category) => ({
+          id: category._id as string,
+          name: category.name,
+          slug: category.name.trim().toLowerCase().replace(/\s+/g, "-"),
+          isActive: true,
+        })),
+      );
+    })();
+  }, [remote]);
+
+  const merged = useMemo(() => {
+    const byId = new Map<string, { _id: Id<"categories">; name: string }>();
+    for (const row of local ?? []) byId.set(row._id, row);
+    for (const row of remote ?? []) byId.set(row._id, row);
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [local, remote]);
+
+  if (merged.length > 0) return merged;
   return local ?? remote;
 }
 
