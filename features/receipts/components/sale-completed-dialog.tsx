@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { ReceiptDocument } from "@/features/receipts/components/receipt-document";
@@ -18,6 +19,7 @@ import {
   printFailedMessage,
   shareFailedMessage,
 } from "@novend/hardware";
+import { useNativeShell } from "@/hooks/use-native-shell";
 import { toast } from "sonner";
 import { Check, FileDown, Printer, Share2 } from "lucide-react";
 import type { ReceiptPrintMode } from "@/lib/receipt-print-mode";
@@ -45,6 +47,7 @@ function modeCopy(mode: ReceiptPrintMode): string {
  */
 export function SaleCompletedDialog({ open, onOpenChange, payload, printMode = "manual" }: Props) {
   const normalized = payload ? normalizeReceiptPayload(payload) : null;
+  const native = useNativeShell();
   const [busy, setBusy] = useState<"share" | "pdf" | "print" | null>(null);
   const autoPrintedInvoice = useRef<string | null>(null);
   const showPrint = printMode !== "never";
@@ -117,66 +120,94 @@ export function SaleCompletedDialog({ open, onOpenChange, payload, printMode = "
     }
   }
 
+  const body = normalized ? (
+    <div className="space-y-3">
+      <p className="text-muted-foreground text-sm">
+        Invoice {normalized.invoiceNumber} · {normalized.itemCount} item
+        {normalized.itemCount === 1 ? "" : "s"}
+      </p>
+      <p className="text-muted-foreground text-sm">{modeCopy(printMode)}</p>
+      <div className="bg-muted/40 flex min-w-0 justify-center overflow-x-hidden rounded-xl p-3 sm:p-4">
+        <ReceiptDocument preview payload={normalized} className="max-w-full shrink" />
+      </div>
+    </div>
+  ) : (
+    <p className="text-muted-foreground text-sm">No receipt available.</p>
+  );
+
+  const actions = (
+    <div className="flex w-full flex-col gap-2">
+      {showPrint ? (
+        <Button
+          type="button"
+          className="w-full"
+          variant={printMode === "automatic" ? "default" : "outline"}
+          disabled={!normalized || busy !== null}
+          onClick={() => void onPrint()}
+        >
+          <Printer className="h-4 w-4" />
+          {busy === "print" ? "Printing…" : "Print receipt"}
+        </Button>
+      ) : null}
+      <Button
+        type="button"
+        className="w-full"
+        variant="secondary"
+        disabled={!normalized || busy !== null}
+        onClick={() => void onShare()}
+      >
+        <Share2 className="h-4 w-4" />
+        {busy === "share" ? "Sharing…" : "Share receipt"}
+      </Button>
+      <Button
+        type="button"
+        className="w-full"
+        variant="outline"
+        disabled={!normalized || busy !== null}
+        onClick={() => void onSavePdf()}
+      >
+        <FileDown className="h-4 w-4" />
+        {busy === "pdf" ? "Saving…" : "Save PDF"}
+      </Button>
+      <Button
+        type="button"
+        className="w-full"
+        variant="default"
+        disabled={busy !== null}
+        onClick={() => onOpenChange(false)}
+      >
+        <Check className="h-4 w-4" />
+        Done
+      </Button>
+    </div>
+  );
+
+  if (native) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange} shouldScaleBackground={false}>
+        <DrawerContent className="max-h-[92dvh] rounded-t-[22px] pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
+          <DrawerHeader className="border-border shrink-0 border-b px-4 text-left">
+            <DrawerTitle>Sale completed</DrawerTitle>
+          </DrawerHeader>
+          <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-4">
+            {body}
+          </div>
+          <div className="border-border shrink-0 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+            {actions}
+          </div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
+      <DialogContent className="max-h-[min(90dvh,calc(100dvh-2rem))] w-[calc(100%-2rem)] max-w-md min-w-0 overflow-x-hidden overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Sale completed</DialogTitle>
         </DialogHeader>
-        {normalized ? (
-          <div className="space-y-3">
-            <p className="text-muted-foreground text-sm">
-              Invoice {normalized.invoiceNumber} · {normalized.itemCount} item
-              {normalized.itemCount === 1 ? "" : "s"}
-            </p>
-            <p className="text-muted-foreground text-sm">{modeCopy(printMode)}</p>
-            <div className="bg-muted/40 flex justify-center rounded-xl p-4">
-              <ReceiptDocument preview payload={normalized} />
-            </div>
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-sm">No receipt available.</p>
-        )}
-        <DialogFooter className="flex-col gap-2 sm:flex-col">
-          {showPrint ? (
-            <Button
-              type="button"
-              variant={printMode === "automatic" ? "default" : "outline"}
-              disabled={!normalized || busy !== null}
-              onClick={() => void onPrint()}
-            >
-              <Printer className="h-4 w-4" />
-              {busy === "print" ? "Printing…" : "Print receipt"}
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={!normalized || busy !== null}
-            onClick={() => void onShare()}
-          >
-            <Share2 className="h-4 w-4" />
-            {busy === "share" ? "Sharing…" : "Share receipt"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!normalized || busy !== null}
-            onClick={() => void onSavePdf()}
-          >
-            <FileDown className="h-4 w-4" />
-            {busy === "pdf" ? "Saving…" : "Save PDF"}
-          </Button>
-          <Button
-            type="button"
-            variant="default"
-            disabled={busy !== null}
-            onClick={() => onOpenChange(false)}
-          >
-            <Check className="h-4 w-4" />
-            Done
-          </Button>
-        </DialogFooter>
+        {body}
+        <DialogFooter className="flex-col gap-2 sm:flex-col">{actions}</DialogFooter>
       </DialogContent>
     </Dialog>
   );

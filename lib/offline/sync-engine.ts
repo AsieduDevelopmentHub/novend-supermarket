@@ -50,10 +50,11 @@ function isLocalId(id: string | undefined | null): boolean {
   return !id || id.startsWith("local_");
 }
 
-/** Categories (and suppliers) must land on Convex before products that point at them. */
+/** Categories / suppliers / customers must land before sales that point at them. */
 const OUTBOX_DRAIN_PRIORITY: Partial<Record<OutboxOpType, number>> = {
   create_category: 0,
   upsert_supplier: 1,
+  upsert_customer: 1,
   upsert_branch: 1,
   create_user: 1,
   upsert_staff_compensation: 1,
@@ -341,6 +342,14 @@ export async function drainOutbox(options: {
       try {
         if (claimed.type === "complete_sale") {
           const payload = parseCompleteSalePayload(claimed);
+          if (payload.customerId && isLocalId(payload.customerId)) {
+            await markOutboxPending(
+              db,
+              claimed.id,
+              "Waiting for the customer to finish syncing.",
+            );
+            continue;
+          }
           const localSale = await db.localSales.get(payload.localSaleId);
           const invoiceNumber = payload.invoiceNumber ?? localSale?.invoiceNumber;
           const result = await options.mutators.completeSale({
@@ -506,7 +515,23 @@ export async function drainOutbox(options: {
             });
             await replaceIdInPendingOutbox(db, payload.localId, id);
             if (payload.localId.startsWith("local_")) {
+              const existing = await db.customers.get(payload.localId);
               await db.customers.delete(payload.localId);
+              if (existing) {
+                await db.customers.put({ ...existing, id });
+              }
+              const localSales = await db.localSales.toArray();
+              for (const sale of localSales) {
+                if (sale.customerId === payload.localId) {
+                  await db.localSales.put({ ...sale, customerId: id });
+                }
+              }
+              const held = await db.heldSales.toArray();
+              for (const row of held) {
+                if (row.customerId === payload.localId) {
+                  await db.heldSales.put({ ...row, customerId: id });
+                }
+              }
             }
           }
           await markOutboxSynced(db, claimed.id);

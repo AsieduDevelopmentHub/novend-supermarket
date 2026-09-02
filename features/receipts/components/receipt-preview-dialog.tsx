@@ -8,14 +8,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { ReceiptDocument } from "@/features/receipts/components/receipt-document";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { printReceipt, normalizeReceiptPayload } from "@/services/printing";
 import { saveReceiptPdfOnDevice, shareReceiptOnDevice } from "@/services/receipts/share";
 import { filesystemSaveFailedMessage, isCapacitor, shareFailedMessage } from "@novend/hardware";
+import { useNativeShell } from "@/hooks/use-native-shell";
 import { toast } from "sonner";
 import { FileDown, Printer, Share2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type Props = {
   open: boolean;
@@ -23,10 +26,94 @@ type Props = {
   payload: ReceiptPayload | null;
 };
 
+function ReceiptPreviewBody({
+  normalized,
+}: {
+  normalized: ReturnType<typeof normalizeReceiptPayload> | null;
+}) {
+  if (!normalized) {
+    return <p className="text-muted-foreground text-sm">No receipt to preview.</p>;
+  }
+  return (
+    <div className="bg-muted/40 flex min-w-0 justify-center overflow-x-hidden rounded-xl p-3 sm:p-4">
+      <ReceiptDocument preview payload={normalized} className="max-w-full shrink" />
+    </div>
+  );
+}
+
+function ReceiptActions({
+  mobile,
+  normalized,
+  busy,
+  stacked,
+  onClose,
+  onShare,
+  onSavePdf,
+  onPrint,
+}: {
+  mobile: boolean;
+  normalized: ReturnType<typeof normalizeReceiptPayload> | null;
+  busy: "print" | "share" | "pdf" | null;
+  stacked: boolean;
+  onClose: () => void;
+  onShare: () => void;
+  onSavePdf: () => void;
+  onPrint: () => void;
+}) {
+  return (
+    <div className={cn("flex gap-2", stacked ? "w-full flex-col" : "flex-wrap justify-end")}>
+      {mobile ? (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            className={stacked ? "w-full" : undefined}
+            disabled={!normalized || busy !== null}
+            onClick={onShare}
+          >
+            <Share2 className="h-4 w-4" />
+            {busy === "share" ? "Sharing…" : "Share"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={stacked ? "w-full" : undefined}
+            disabled={!normalized || busy !== null}
+            onClick={onSavePdf}
+          >
+            <FileDown className="h-4 w-4" />
+            {busy === "pdf" ? "Saving…" : "Save PDF"}
+          </Button>
+        </>
+      ) : (
+        <Button
+          type="button"
+          variant="default"
+          disabled={!normalized || busy !== null}
+          onClick={onPrint}
+        >
+          <Printer className="h-4 w-4" />
+          {busy === "print" ? "Printing…" : "Print receipt"}
+        </Button>
+      )}
+      <Button
+        type="button"
+        variant={stacked ? "default" : "outline"}
+        className={stacked ? "w-full" : undefined}
+        onClick={onClose}
+      >
+        Close
+      </Button>
+    </div>
+  );
+}
+
 export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
   const normalized = payload ? normalizeReceiptPayload(payload) : null;
   const mobile = isCapacitor();
+  const native = useNativeShell();
   const [busy, setBusy] = useState<"print" | "share" | "pdf" | null>(null);
+  const title = `Receipt${normalized ? ` · ${normalized.invoiceNumber}` : ""}`;
 
   async function onPrint() {
     if (!normalized) return;
@@ -90,59 +177,45 @@ export function ReceiptPreviewDialog({ open, onOpenChange, payload }: Props) {
     }
   }
 
+  const actions = (
+    <ReceiptActions
+      mobile={mobile}
+      normalized={normalized}
+      busy={busy}
+      stacked={native}
+      onClose={() => onOpenChange(false)}
+      onShare={() => void onShare()}
+      onSavePdf={() => void onSavePdf()}
+      onPrint={() => void onPrint()}
+    />
+  );
+
+  if (native) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange} shouldScaleBackground={false}>
+        <DrawerContent className="max-h-[92dvh] rounded-t-[22px] pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
+          <DrawerHeader className="border-border shrink-0 border-b px-4 text-left">
+            <DrawerTitle>{title}</DrawerTitle>
+          </DrawerHeader>
+          <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-4">
+            <ReceiptPreviewBody normalized={normalized} />
+          </div>
+          <div className="border-border shrink-0 space-y-2 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+            {actions}
+          </div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
+      <DialogContent className="max-h-[min(90dvh,calc(100dvh-2rem))] w-[calc(100%-2rem)] max-w-md min-w-0 overflow-x-hidden overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Receipt{normalized ? ` · ${normalized.invoiceNumber}` : ""}</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        {normalized ? (
-          <div className="bg-muted/40 flex justify-center rounded-xl p-4">
-            <ReceiptDocument preview payload={normalized} />
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-sm">No receipt to preview.</p>
-        )}
-        <DialogFooter className="gap-2 sm:justify-between">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-          <div className="flex flex-wrap justify-end gap-2">
-            {mobile ? (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!normalized || busy !== null}
-                  onClick={() => void onShare()}
-                >
-                  <Share2 className="h-4 w-4" />
-                  {busy === "share" ? "Sharing…" : "Share"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!normalized || busy !== null}
-                  onClick={() => void onSavePdf()}
-                >
-                  <FileDown className="h-4 w-4" />
-                  {busy === "pdf" ? "Saving…" : "Save PDF"}
-                </Button>
-              </>
-            ) : null}
-            {mobile ? null : (
-              <Button
-                type="button"
-                variant="default"
-                disabled={!normalized || busy !== null}
-                onClick={() => void onPrint()}
-              >
-                <Printer className="h-4 w-4" />
-                {busy === "print" ? "Printing…" : "Print receipt"}
-              </Button>
-            )}
-          </div>
-        </DialogFooter>
+        <ReceiptPreviewBody normalized={normalized} />
+        <DialogFooter className="gap-2 sm:justify-end">{actions}</DialogFooter>
       </DialogContent>
     </Dialog>
   );
