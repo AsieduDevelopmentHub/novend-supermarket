@@ -30,6 +30,23 @@ import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import { ExternalLink, Loader2, Monitor, Tv, X } from "lucide-react";
 
+function desktopSupportsCustomerDisplay(
+  bridge: ReturnType<typeof getDesktopBridge>,
+): bridge is NonNullable<ReturnType<typeof getDesktopBridge>> & {
+  getCustomerDisplayStatus: () => Promise<NovendDesktopCustomerDisplayStatus>;
+  openCustomerDisplay: (options?: { displayId?: number | null }) => Promise<{ ok: boolean; message?: string }>;
+  closeCustomerDisplay: () => Promise<{ ok: boolean }>;
+  listDisplays: () => Promise<{ ok: boolean; displays: NovendDesktopDisplayInfo[] }>;
+} {
+  return Boolean(
+    bridge &&
+      typeof bridge.getCustomerDisplayStatus === "function" &&
+      typeof bridge.openCustomerDisplay === "function" &&
+      typeof bridge.closeCustomerDisplay === "function" &&
+      typeof bridge.listDisplays === "function",
+  );
+}
+
 export function CustomerDisplayPanel() {
   const isDesktop = useDesktopRuntime();
   const [prefs, setPrefs] = useState<CustomerDisplayPrefs>(() => readCustomerDisplayPrefs());
@@ -40,6 +57,7 @@ export function CustomerDisplayPanel() {
   const [displays, setDisplays] = useState<NovendDesktopDisplayInfo[]>([]);
   const [pending, setPending] = useState(false);
   const [capabilityAvailable, setCapabilityAvailable] = useState<boolean | null>(null);
+  const [desktopBridgeStale, setDesktopBridgeStale] = useState(false);
 
   useEffect(() => {
     writeCustomerDisplayPrefs(prefs);
@@ -49,8 +67,17 @@ export function CustomerDisplayPanel() {
     const bridge = getDesktopBridge();
     if (!bridge) {
       setCapabilityAvailable(null);
+      setDesktopBridgeStale(false);
       return;
     }
+
+    if (!desktopSupportsCustomerDisplay(bridge)) {
+      setCapabilityAvailable(null);
+      setDesktopBridgeStale(true);
+      return;
+    }
+
+    setDesktopBridgeStale(false);
 
     void bridge.getCapabilities().then((result) => {
       const row = result.capabilities.find((cap) => cap.kind === "customer_display");
@@ -68,7 +95,7 @@ export function CustomerDisplayPanel() {
     setPending(true);
     try {
       const bridge = getDesktopBridge();
-      if (bridge?.openCustomerDisplay) {
+      if (desktopSupportsCustomerDisplay(bridge)) {
         const result = await bridge.openCustomerDisplay({
           displayId: prefs.preferredDisplayId,
         });
@@ -102,7 +129,7 @@ export function CustomerDisplayPanel() {
     setPending(true);
     try {
       const bridge = getDesktopBridge();
-      if (bridge?.closeCustomerDisplay) {
+      if (desktopSupportsCustomerDisplay(bridge)) {
         await bridge.closeCustomerDisplay();
         setStatus(await bridge.getCustomerDisplayStatus());
         toast.success("Customer display closed");
@@ -130,6 +157,7 @@ export function CustomerDisplayPanel() {
         capabilityAvailable={capabilityAvailable}
         onOpen={() => void openDisplay()}
         onClose={() => void closeDisplay()}
+        desktopBridgeStale={desktopBridgeStale}
       />
     </PlanCapabilityGate>
   );
@@ -145,6 +173,7 @@ function CustomerDisplayPanelContent({
   capabilityAvailable,
   onOpen,
   onClose,
+  desktopBridgeStale,
 }: {
   isDesktop: boolean;
   prefs: CustomerDisplayPrefs;
@@ -155,9 +184,19 @@ function CustomerDisplayPanelContent({
   capabilityAvailable: boolean | null;
   onOpen: () => void;
   onClose: () => void;
+  desktopBridgeStale: boolean;
 }) {
   return (
     <div className="space-y-4">
+      {desktopBridgeStale ? (
+        <Alert variant="destructive">
+          <AlertTitle>Desktop app update required</AlertTitle>
+          <AlertDescription>
+            Customer display needs Novend POS desktop v0.3.18 or newer. Open Settings → This device
+            → Updates, install the latest release, then restart the app.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -241,7 +280,7 @@ function CustomerDisplayPanelContent({
           ) : null}
 
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={onOpen} disabled={pending}>
+            <Button type="button" onClick={onOpen} disabled={pending || desktopBridgeStale}>
               {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Monitor className="mr-2 h-4 w-4" />}
               Open customer display
             </Button>
