@@ -667,21 +667,21 @@ export const performance = query({
       commissionEarned,
       commissionOutstanding: roundMoney(Math.max(0, commissionEarned - commissionPaid)),
       canViewCompensation: caps.canManageStaffCompensation && canManagePayroll(session.profile),
-      orders: totals.sales.slice(0, 25).map((sale) => ({
+      orders: totals.sales.map((sale) => ({
         id: sale._id,
         invoiceNumber: sale.invoiceNumber,
         completedAt: sale.completedAt,
         customerName: sale.customerName,
         total: sale.total,
       })),
-      returns: totals.returns.slice(0, 25).map((row) => ({
+      returns: totals.returns.map((row) => ({
         id: row._id,
         returnNumber: row.returnNumber,
         completedAt: row.completedAt,
         refundAmount: row.refundAmount,
         saleId: row.saleId,
       })),
-      expenses: forStaff.slice(0, 25).map((row) => ({
+      expenses: forStaff.map((row) => ({
         id: row._id,
         amount: row.amount,
         category: row.category,

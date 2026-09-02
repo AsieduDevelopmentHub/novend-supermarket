@@ -8,6 +8,30 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.17 — 2026-09-02
+
+Full product release (`targets: all`): Windows, macOS, Linux desktop installers, Android APK, and Convex update metadata.
+
+### Added
+
+- Self-service account and business closure (Settings → Privacy & data) with 30-day grace and PEAS visibility.
+- Silent background sync with outbox retry policy and sync status UI.
+- Pagination on platform activity, user command center activity, and staff sales/returns/expenses tabs.
+
+### Changed
+
+- Record expense form no longer lists salary or commission — payroll stays under Users → detail.
+- Settings profile, security, updates, and business/receipt panels gate online-only actions when offline; cached settings remain readable.
+
+### Fixed
+
+- Offline **Hold** on Sales now saves locally (same local-first path as Pay) instead of failing silently when the device reports online but Convex is unreachable.
+- Read-only licence blocks local sales and returns while suspended or pending closure.
+- Owner can restore a business during the closure grace period while the org is suspended.
+- List pagination shows record totals and page indicator (`1/5`); row-size selector no longer duplicates the page size label.
+
+---
+
 ## v0.3.16 — 2026-08-31
 
 Android APK and Convex mobile updates only. Desktop installers stay on v0.3.11 until the next full (`targets: all`) product release.

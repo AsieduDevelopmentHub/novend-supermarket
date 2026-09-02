@@ -257,14 +257,24 @@ export function SettingsView() {
               </TabsContent>
             </>
           ) : isAdmin && !online ? (
-            <TabsContent value="business" className="mt-0">
-              <Card>
-                <CardContent className="text-muted-foreground p-5 text-sm">
-                  Business and receipt settings haven&apos;t been cached on this device yet. Open
-                  Settings once while online to keep them available offline.
-                </CardContent>
-              </Card>
-            </TabsContent>
+            <>
+              <TabsContent value="business" className="mt-0">
+                <Card>
+                  <CardContent className="text-muted-foreground p-5 text-sm">
+                    Business and receipt settings haven&apos;t been cached on this device yet. Open
+                    Settings once while online to keep them available offline.
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="receipt" className="mt-0">
+                <Card>
+                  <CardContent className="text-muted-foreground p-5 text-sm">
+                    Receipt template settings haven&apos;t been cached on this device yet. Open
+                    Settings once while online to review them offline.
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </>
           ) : null}
 
           {isAdmin ? (

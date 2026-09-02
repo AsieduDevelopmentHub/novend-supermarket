@@ -202,21 +202,21 @@ export async function buildLocalStaffPerformance(args: {
     commissionPaid,
     commissionEarned,
     commissionOutstanding: roundMoney(Math.max(0, commissionEarned - commissionPaid)),
-    orders: sales.slice(0, 25).map((row) => ({
+    orders: sales.map((row) => ({
       id: row.id,
       invoiceNumber: row.invoiceNumber,
       completedAt: row.completedAt,
       customerName: row.customerName,
       total: row.total,
     })),
-    returns: returns.slice(0, 25).map((row) => ({
+    returns: returns.map((row) => ({
       id: row.id,
       returnNumber: row.returnNumber,
       completedAt: row.completedAt,
       refundAmount: row.refundAmount,
       saleId: row.saleId,
     })),
-    expenses: forStaff.slice(0, 25).map((row) => mapExpenseRow(row)),
+    expenses: forStaff.map((row) => mapExpenseRow(row)),
     source: "local",
   };
 }

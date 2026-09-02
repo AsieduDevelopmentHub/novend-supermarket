@@ -37,6 +37,20 @@ export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
   { value: "misc", label: "Miscellaneous" },
 ];
 
+const MANUAL_EXPENSE_CATEGORIES = new Set<ExpenseCategory>([
+  "transport",
+  "utilities",
+  "supplies",
+  "maintenance",
+  "misc",
+]);
+
+function assertManualExpenseCategory(category: ExpenseCategory) {
+  if (!MANUAL_EXPENSE_CATEGORIES.has(category)) {
+    throw new Error("Salary and commission expenses are recorded from the staff profile.");
+  }
+}
+
 const granularityValidator = v.union(
   v.literal("day"),
   v.literal("week"),
@@ -67,7 +81,7 @@ export const expenseCategories = query({
   args: {},
   handler: async (ctx) => {
     await requireRole(ctx, ["administrator", "manager"]);
-    return EXPENSE_CATEGORIES;
+    return EXPENSE_CATEGORIES.filter((cat) => MANUAL_EXPENSE_CATEGORIES.has(cat.value));
   },
 });
 
@@ -153,6 +167,7 @@ export const createExpense = mutation({
     assertPositiveMoney(args.amount, "expense amount");
     if (args.amount <= 0) throw new Error("Expense amount must be greater than zero");
     if (!Number.isFinite(args.occurredAt)) throw new Error("Invalid expense date");
+    assertManualExpenseCategory(args.category);
 
     const branch = await ctx.db.get(args.branchId);
     assertActiveOrgBranch(branch, organizationId);
@@ -204,8 +219,12 @@ export const updateExpense = mutation({
     if (!existing) throw new Error("Expense not found");
     if (existing.organizationId !== organizationId) throw new Error("Not found");
     if (existing.branchId) assertBranchAccess(profile, existing.branchId);
+    if (existing.sourceKind === "salary" || existing.sourceKind === "commission") {
+      throw new Error("Payroll expenses are edited from the staff profile.");
+    }
     assertPositiveMoney(args.amount, "expense amount");
     if (args.amount <= 0) throw new Error("Expense amount must be greater than zero");
+    assertManualExpenseCategory(args.category);
 
     const nextBranchId = args.branchId ?? existing.branchId;
     if (nextBranchId) {

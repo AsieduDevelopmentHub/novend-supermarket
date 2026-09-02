@@ -47,10 +47,12 @@ import {
   useStaffPerformance,
 } from "@/features/users/hooks/use-staff-payroll";
 import { useConvexPagedList } from "@/hooks/use-convex-paged-list";
+import { useClientPagedRows } from "@/hooks/use-ui";
 import { showError } from "@/lib/errors";
 import { Banknote, Receipt, RotateCcw, ShoppingBag, Wallet, Percent } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import type { ListPageSize } from "@/constants/list-page";
 
 const RANGE_OPTIONS: { value: DateRangePreset; label: string }[] = [
   { value: "today", label: "Today" },
@@ -242,58 +244,24 @@ export function UserCommandCenter({ profileId, userId, userName }: Props) {
         </TabsContent>
 
         <TabsContent value="sales">
-          <RecordTable
-            empty="No orders in this range."
-            hrefLabel="Open orders"
-            href={`/orders?cashierId=${userId}`}
-            rows={(performance?.orders ?? []).map((row) => ({
-              id: row.id,
-              href: `/orders/${row.id}`,
-              cells: [
-                row.invoiceNumber,
-                row.customerName,
-                formatDateTime(row.completedAt),
-                formatCurrency(row.total),
-              ],
-            }))}
-            headers={["Invoice", "Customer", "Date", "Total"]}
+          <UserSalesTab
+            userId={userId}
+            orders={performance?.orders ?? []}
+            resetKey={`${profileId}|${preset}|sales`}
           />
         </TabsContent>
 
         <TabsContent value="returns">
-          <RecordTable
-            empty="No returns against this cashier's orders."
-            hrefLabel="Open returns"
-            href="/returns"
-            rows={(performance?.returns ?? []).map((row) => ({
-              id: row.id,
-              href: `/returns/${row.id}`,
-              cells: [
-                row.returnNumber,
-                formatDateTime(row.completedAt),
-                formatCurrency(row.refundAmount),
-              ],
-            }))}
-            headers={["Return", "Date", "Refund"]}
+          <UserReturnsTab
+            returns={performance?.returns ?? []}
+            resetKey={`${profileId}|${preset}|returns`}
           />
         </TabsContent>
 
         <TabsContent value="expenses">
-          <RecordTable
-            empty="No staff expenses linked to this user."
-            hrefLabel="Open analytics"
-            href="/analytics"
-            rows={(performance?.expenses ?? []).map((row) => ({
-              id: row.id,
-              href: "/analytics",
-              cells: [
-                row.category,
-                row.payPeriodKey ?? "—",
-                formatDateTime(row.occurredAt),
-                formatCurrency(row.amount),
-              ],
-            }))}
-            headers={["Category", "Period", "Date", "Amount"]}
+          <UserExpensesTab
+            expenses={performance?.expenses ?? []}
+            resetKey={`${profileId}|${preset}|expenses`}
           />
         </TabsContent>
 
@@ -318,6 +286,129 @@ export function UserCommandCenter({ profileId, userId, userName }: Props) {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function UserSalesTab({
+  userId,
+  orders,
+  resetKey,
+}: {
+  userId: string;
+  orders: Array<{
+    id: string;
+    invoiceNumber: string;
+    completedAt: number;
+    customerName: string;
+    total: number;
+  }>;
+  resetKey: string;
+}) {
+  const paging = useClientPagedRows(orders, resetKey);
+  return (
+    <RecordTable
+      empty="No orders in this range."
+      hrefLabel="Open orders"
+      href={`/orders?cashierId=${userId}`}
+      headers={["Invoice", "Customer", "Date", "Total"]}
+      rows={(paging.paged ?? []).map((row) => ({
+        id: row.id,
+        href: `/orders/${row.id}`,
+        cells: [
+          row.invoiceNumber,
+          row.customerName,
+          formatDateTime(row.completedAt),
+          formatCurrency(row.total),
+        ],
+      }))}
+      pagination={{
+        page: paging.page,
+        pageSize: paging.pageSize,
+        total: paging.total,
+        onPageChange: paging.setPage,
+        onPageSizeChange: paging.setPageSize,
+      }}
+    />
+  );
+}
+
+function UserReturnsTab({
+  returns,
+  resetKey,
+}: {
+  returns: Array<{
+    id: string;
+    returnNumber: string;
+    completedAt: number;
+    refundAmount: number;
+  }>;
+  resetKey: string;
+}) {
+  const paging = useClientPagedRows(returns, resetKey);
+  return (
+    <RecordTable
+      empty="No returns against this cashier's orders."
+      hrefLabel="Open returns"
+      href="/returns"
+      headers={["Return", "Date", "Refund"]}
+      rows={(paging.paged ?? []).map((row) => ({
+        id: row.id,
+        href: `/returns/${row.id}`,
+        cells: [
+          row.returnNumber,
+          formatDateTime(row.completedAt),
+          formatCurrency(row.refundAmount),
+        ],
+      }))}
+      pagination={{
+        page: paging.page,
+        pageSize: paging.pageSize,
+        total: paging.total,
+        onPageChange: paging.setPage,
+        onPageSizeChange: paging.setPageSize,
+      }}
+    />
+  );
+}
+
+function UserExpensesTab({
+  expenses,
+  resetKey,
+}: {
+  expenses: Array<{
+    id: string;
+    category: string;
+    payPeriodKey?: string | null;
+    occurredAt: number;
+    amount: number;
+  }>;
+  resetKey: string;
+}) {
+  const paging = useClientPagedRows(expenses, resetKey);
+  return (
+    <RecordTable
+      empty="No staff expenses linked to this user."
+      hrefLabel="Open analytics"
+      href="/analytics"
+      headers={["Category", "Period", "Date", "Amount"]}
+      rows={(paging.paged ?? []).map((row) => ({
+        id: row.id,
+        href: "/analytics",
+        cells: [
+          row.category,
+          row.payPeriodKey ?? "—",
+          formatDateTime(row.occurredAt),
+          formatCurrency(row.amount),
+        ],
+      }))}
+      pagination={{
+        page: paging.page,
+        pageSize: paging.pageSize,
+        total: paging.total,
+        onPageChange: paging.setPage,
+        onPageSizeChange: paging.setPageSize,
+      }}
+    />
   );
 }
 
@@ -383,12 +474,20 @@ function RecordTable({
   empty,
   href,
   hrefLabel,
+  pagination,
 }: {
   headers: string[];
   rows: Array<{ id: string; href: string; cells: string[] }>;
   empty: string;
   href: string;
   hrefLabel: string;
+  pagination?: {
+    page: number;
+    pageSize: ListPageSize;
+    total: number;
+    onPageChange: (page: number) => void;
+    onPageSizeChange: (size: ListPageSize) => void;
+  };
 }) {
   return (
     <Card>
@@ -426,6 +525,15 @@ function RecordTable({
             </table>
           </div>
         )}
+        {pagination && pagination.total > 0 ? (
+          <ListPagination
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            total={pagination.total}
+            onPageChange={pagination.onPageChange}
+            onPageSizeChange={pagination.onPageSizeChange}
+          />
+        ) : null}
       </CardContent>
     </Card>
   );

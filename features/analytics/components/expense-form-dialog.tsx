@@ -19,7 +19,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useBranchesList } from "@/hooks/use-offline-lists";
-import { EXPENSE_CATEGORY_OPTIONS, type ExpenseCategory } from "../constants";
+import { MANUAL_EXPENSE_CATEGORY_OPTIONS, type ExpenseCategory } from "../constants";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import {
@@ -182,7 +182,7 @@ function ExpenseFormFields({
       <div className="space-y-2">
         <Label>Category</Label>
         <SearchableSelect
-          options={EXPENSE_CATEGORY_OPTIONS.map((opt) => ({
+          options={MANUAL_EXPENSE_CATEGORY_OPTIONS.map((opt) => ({
             value: opt.value,
             label: opt.label,
           }))}
