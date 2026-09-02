@@ -87,11 +87,7 @@ export function DesktopDownloadPanel() {
               <CardTitle>Desktop app</CardTitle>
               <CardDescription>
                 Download the native app for offline reliability, receipt printing, and faster
-                checkout. Also on the{" "}
-                <a href="/download" className="text-primary font-medium hover:underline">
-                  public download page
-                </a>
-                .
+                checkout.
               </CardDescription>
             </div>
             {offer ? <Badge variant="secondary">v{offer.version}</Badge> : null}

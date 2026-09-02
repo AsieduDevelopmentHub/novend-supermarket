@@ -1,6 +1,6 @@
 # Routing
 
-Version: 1.3.5
+Version: 1.3.6
 
 ## Public vs authenticated entry
 
@@ -15,10 +15,18 @@ Version: 1.3.5
 /(app)/*             Authenticated POS shell
 ```
 
-**Web:** `/` is always the public marketing landing, including for signed-in
-users. Login and Get Started CTAs go to `/login` or `/signup`. After sign-in,
-platform administrators go to `/platform`; other users go to `/dashboard` (or
-`/onboarding` when they still need a business).
+**Web (single origin):** Authenticated visits to `/` 302 into the POS shell
+(`/dashboard`, `/platform`, or `/onboarding`). This protects Cap/Electron cold
+starts that used to paint the marketing page as the app shell.
+
+**Web (host split):** Set `NEXT_PUBLIC_MARKETING_URL` and `NEXT_PUBLIC_APP_URL`
+(or `NOVEND_APP_URL`) to different origins. On the marketing host, `/` stays the
+landing even when signed in. On the app host, authenticated `/` still redirects.
+Leave marketing unset (or equal to the app URL) to keep single-origin behavior.
+
+**Native shells:** Capacitor and Electron must use the **app** origin
+(`NOVEND_APP_URL` → `app.…`), never the marketing landing. They already boot to
+`/dashboard?fromBoot=1`.
 
 **Downloads:** `/download` lists the latest stable desktop installers and mobile
 APK/store links from the live release registry. Settings → Downloads shows the
@@ -64,14 +72,16 @@ app/(app)/settings
 ```
 
 Navigation: `config/navigation.ts` (permission-aware). Marketing copy:
-`features/marketing/`.
+`features/marketing/`. Host helpers: `lib/hosting/hosts.ts`.
 
 ## Gates
 
 - Unauthenticated on protected routes → `/login`
 - Unauthenticated may access `/`, `/login`, `/signup`, `/forgot-password`,
   `/reset-password`, `/download`, `/docs(.*)`, `/privacy`, and `/terms`
-- Authenticated may still open `/` (landing is never redirected away)
+- Authenticated on `/` (app host / unsplit) → `/platform`, `/onboarding`, or
+  `/dashboard`
+- Authenticated on `/` (dedicated marketing host) → landing stays
 - Authenticated on `/login` or `/signup` → `/platform` (platform admin),
   `/onboarding` (needs a business), or `/dashboard`
 - Authenticated without profile → `/onboarding`

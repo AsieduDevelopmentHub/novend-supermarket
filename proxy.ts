@@ -3,6 +3,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { type NextRequest, NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
 import { loginPathWithNext, resolvePostAuthPath } from "@/lib/auth/safe-return-path";
+import { resolveHostingOrigins, shouldRedirectAuthenticatedHome } from "@/lib/hosting/hosts";
 
 const isLoginPage = createRouteMatcher([
   "/login",
@@ -123,17 +124,26 @@ export default convexAuthNextjsMiddleware(
       );
     }
 
-    // Authenticated clients must not sit on the public marketing homepage.
-    // Capacitor cold start + SW fallback used to paint `/` as the POS shell.
+    // Authenticated clients must not sit on `/` on the app host (Cap/SW used to
+    // paint the marketing page as the POS shell). On a dedicated marketing host
+    // (`NEXT_PUBLIC_MARKETING_URL` ≠ app origin), keep the public landing.
     if (authenticated && request.nextUrl.pathname === "/") {
-      const session = await sessionForToken(await convexAuth.getToken());
-      const destination = resolvePostAuthPath(session);
-      const fromBoot = request.nextUrl.searchParams.get("fromBoot") === "1";
-      const href =
-        fromBoot && !destination.includes("fromBoot=")
-          ? `${destination}${destination.includes("?") ? "&" : "?"}fromBoot=1`
-          : destination;
-      return withSecurityHeaders(redirectTo(request, href), nonce);
+      const { appOrigin, marketingOrigin } = resolveHostingOrigins();
+      const redirectHome = shouldRedirectAuthenticatedHome({
+        requestHost: request.nextUrl.host,
+        appOrigin,
+        marketingOrigin,
+      });
+      if (redirectHome) {
+        const session = await sessionForToken(await convexAuth.getToken());
+        const destination = resolvePostAuthPath(session);
+        const fromBoot = request.nextUrl.searchParams.get("fromBoot") === "1";
+        const href =
+          fromBoot && !destination.includes("fromBoot=")
+            ? `${destination}${destination.includes("?") ? "&" : "?"}fromBoot=1`
+            : destination;
+        return withSecurityHeaders(redirectTo(request, href), nonce);
+      }
     }
 
     if (isLoginPage(request) && authenticated) {
