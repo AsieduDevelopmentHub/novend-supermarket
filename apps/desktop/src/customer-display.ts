@@ -1,7 +1,6 @@
 import { BrowserWindow, Display, screen, shell } from "electron";
 import {
-  CUSTOMER_DISPLAY_ENTRY,
-  loadAppShell,
+  loadCustomerDisplayShell,
   PERSIST_PARTITION,
   preloadPath,
   windowIcon,
@@ -168,7 +167,13 @@ export async function openCustomerDisplayWindow(options?: {
     return { action: "deny" };
   });
 
-  await loadAppShell(win, appUrl, CUSTOMER_DISPLAY_ENTRY);
+  win.webContents.on("did-fail-load", (_event, errorCode, _errorDescription, _validatedURL, isMainFrame) => {
+    if (!isMainFrame) return;
+    // Harmless when auth or client routing aborts an in-flight navigation.
+    if (errorCode === -3) return;
+  });
+
+  await loadCustomerDisplayShell(win, appUrl);
   notifyStatus();
   return { ok: true };
 }
