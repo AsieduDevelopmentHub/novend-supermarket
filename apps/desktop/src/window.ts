@@ -121,6 +121,23 @@ async function loadAppShell(win: BrowserWindow, appUrl: string, entry = OFFLINE_
   await win.loadURL(`${appUrl.replace(/\/$/, "")}${entry}`);
 }
 
+let mainBrowserWindow: BrowserWindow | null = null;
+
+export function setMainBrowserWindow(win: BrowserWindow | null) {
+  mainBrowserWindow = win;
+}
+
+export async function reloadMainWindowShell(
+  appUrl: string,
+  entry: string,
+): Promise<{ ok: boolean }> {
+  if (!mainBrowserWindow || mainBrowserWindow.isDestroyed()) {
+    return { ok: false };
+  }
+  void loadAppShell(mainBrowserWindow, appUrl, entry);
+  return { ok: true };
+}
+
 export function createMainWindow(appUrl: string): BrowserWindow {
   const icon = windowIcon();
   const origin = appUrl.replace(/\/$/, "");

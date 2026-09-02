@@ -8,6 +8,27 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ---
 
+## v0.3.19 — 2026-09-02
+
+Full product release (`targets: all`): Windows, macOS, Linux desktop installers, Android APK, and Convex update metadata.
+
+### Added
+
+- **Bundled customer display (Pro+)** — native Electron offline shell on the secondary monitor; auto-opens on dual-screen, kiosk mode (no close button), hotplug support, and monitor picker in Settings.
+- Offline sign-out fallback on Capacitor and Electron — routes through the local boot page so users land on login instead of a WebView error when offline.
+
+### Changed
+
+- Customer display blocks on single-monitor setups with a clear message; cart sync remains offline via IPC/localStorage.
+- Capacitor error recovery retry sends users to the login boot entry after a failed hosted load.
+
+### Fixed
+
+- Customer display IPC `ERR_ABORTED` on open (hosted boot trampoline no longer used for the customer window).
+- Settings guard for desktop shells older than v0.3.18 missing customer display preload APIs.
+
+---
+
 ## v0.3.18 — 2026-09-02
 
 Full product release (`targets: all`): Windows, macOS, Linux desktop installers, Android APK, and Convex update metadata.

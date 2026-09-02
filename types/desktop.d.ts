@@ -78,6 +78,8 @@ export type NovendDesktopInstallUpdateResult = {
 export type NovendDesktopCustomerDisplayStatus = {
   open: boolean;
   displayId: number | null;
+  displayCount?: number;
+  dualDisplayReady?: boolean;
 };
 
 export type NovendDesktopDisplayInfo = {
@@ -113,6 +115,11 @@ export type NovendDesktopBridge = {
   onCustomerDisplayStatus: (
     listener: (status: NovendDesktopCustomerDisplayStatus) => void,
   ) => () => void;
+  setCustomerDisplayAutoOpen: (enabled: boolean) => Promise<{ ok: boolean }>;
+  onDisplaysChanged: (
+    listener: (payload: { ok: boolean; displays: NovendDesktopDisplayInfo[] }) => void,
+  ) => () => void;
+  reloadAuthShell: (entry?: string) => Promise<{ ok: boolean; message?: string }>;
 };
 
 declare global {

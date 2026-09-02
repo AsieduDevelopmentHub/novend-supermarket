@@ -43,7 +43,6 @@ export type CustomerDisplaySnapshot = {
 };
 
 export type CustomerDisplayPrefs = {
-  autoOpen: boolean;
   preferredDisplayId: number | null;
 };
 
@@ -274,19 +273,18 @@ export function subscribeCustomerDisplaySnapshot(
 
 export function readCustomerDisplayPrefs(): CustomerDisplayPrefs {
   if (typeof window === "undefined") {
-    return { autoOpen: false, preferredDisplayId: null };
+    return { preferredDisplayId: null };
   }
   try {
     const raw = window.localStorage.getItem(CUSTOMER_DISPLAY_PREFS_KEY);
-    if (!raw) return { autoOpen: false, preferredDisplayId: null };
-    const parsed = JSON.parse(raw) as Partial<CustomerDisplayPrefs>;
+    if (!raw) return { preferredDisplayId: null };
+    const parsed = JSON.parse(raw) as Partial<CustomerDisplayPrefs & { autoOpen?: boolean }>;
     return {
-      autoOpen: parsed.autoOpen === true,
       preferredDisplayId:
         typeof parsed.preferredDisplayId === "number" ? parsed.preferredDisplayId : null,
     };
   } catch {
-    return { autoOpen: false, preferredDisplayId: null };
+    return { preferredDisplayId: null };
   }
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "@novend/desktop",
-  "version": "0.3.18",
+  "version": "0.3.19",
   "private": true,
   "description": "Novend POS desktop shell",
   "homepage": "https://github.com/AsieduDevelopmentHub/novend-pos",
@@ -62,6 +62,10 @@
       {
         "from": "offline-boot.html",
         "to": "offline-boot.html"
+      },
+      {
+        "from": "customer-display",
+        "to": "customer-display"
       },
       {
         "from": "build/update-config.json",

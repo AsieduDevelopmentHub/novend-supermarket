@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { describeClientDevice, telemetryRuntimeForDevice } from "@/lib/device";
 import { TelemetryProvider } from "@/providers/telemetry-provider";
 import { ProductTourProvider } from "@/features/tours/tour-provider";
+import { CustomerDisplayServices } from "@/features/customer-display/components/customer-display-services";
 
 const OFFLINE_AUTH_BUDGET_MS = 1200;
 /** Cap/Web often look "online" while Convex never settles — fail soft into cache/login. */
@@ -522,6 +523,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             initialProgress={user?.tourProgress}
           >
             <RestoreLastRoute />
+            <CustomerDisplayServices />
             <TelemetryProvider enabled={Boolean(isAuthenticated && online)} />
             <div
               className={cn(
