@@ -1,4 +1,4 @@
-import { branchStockId, getSellableQuantity } from "./branch-stock";
+import { branchStockId, applyLocalBranchStockChange, getSellableQuantity } from "./branch-stock";
 import { getMeta, getOfflineDb, META_KEYS, newClientId } from "./db";
 import {
   pendingOutboundTransferQuantities,
@@ -206,20 +206,40 @@ export async function queueAdjustStock(payload: AdjustStockPayload) {
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const product = await db.products.get(payload.productId);
-  if (product) {
-    const next = product.stockQuantity + payload.quantityChange;
-    if (next < 0) throw new Error("Inventory cannot become negative");
-    await db.products.put({
-      ...product,
-      stockQuantity: next,
-      sellableQuantity: Math.max(
-        0,
-        (product.sellableQuantity ?? product.stockQuantity) + payload.quantityChange,
-      ),
-      updatedAt: Date.now(),
-    });
+  const branchId = payload.branchId ?? (await getMeta(db, META_KEYS.profileBranchId));
+  if (!branchId) {
+    throw new Error("Select a branch for this adjustment");
   }
-  await enqueueOutbox(db, "adjust_stock", payload);
+  if (product) {
+    const hadBranchRow = Boolean(await db.branchStock.get(branchStockId(branchId, payload.productId)));
+    await applyLocalBranchStockChange(
+      db,
+      branchId,
+      payload.productId,
+      payload.quantityChange,
+      product,
+    );
+    // branchStock rows do not update catalog totals — bump products for org-wide KPIs.
+    if (hadBranchRow) {
+      const refreshed = (await db.products.get(payload.productId)) ?? product;
+      const next = refreshed.stockQuantity + payload.quantityChange;
+      if (next < 0) throw new Error("Inventory cannot become negative");
+      await db.products.put({
+        ...refreshed,
+        stockQuantity: next,
+        sellableQuantity: Math.max(
+          0,
+          (refreshed.sellableQuantity ?? refreshed.stockQuantity) + payload.quantityChange,
+        ),
+        updatedAt: Date.now(),
+      });
+    }
+  }
+  await enqueueOutbox(db, "adjust_stock", {
+    ...payload,
+    branchId,
+    clientOperationId: payload.clientOperationId ?? newClientId("op"),
+  });
 }
 
 export async function queueUpdateLotExpiry(payload: UpdateLotExpiryPayload) {

@@ -14,9 +14,10 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { ReceiptPreviewDialog } from "@/features/receipts/components/receipt-preview-dialog";
-import type { ReceiptPayload } from "@/features/receipts/types";
+import { SAMPLE_RECEIPT_PAYLOAD, type ReceiptPayload } from "@/features/receipts/types";
 import { ReturnOrderDialog } from "@/features/orders/components/return-order-dialog";
 import { getOfflineDb } from "@/lib/offline/db";
+import { loadPrintSnapshotMeta } from "@/lib/offline/ui-cache";
 import { listUnsyncedLocalReturns, returnedQtyBySaleItem } from "@/lib/offline/returns-repository";
 import { ArrowLeft, ChevronRight, Printer, Undo2 } from "lucide-react";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -213,6 +214,70 @@ async function loadLocalOrder(localSaleId: string): Promise<OrderDetail | null> 
   };
 }
 
+async function loadLocalReceiptForSale(args: {
+  saleId: string;
+  invoiceNumber: string;
+}): Promise<ReceiptPayload | null> {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  const locals = await db.localSales.toArray();
+  const match = locals.find(
+    (sale) => sale.serverSaleId === args.saleId || sale.invoiceNumber === args.invoiceNumber,
+  );
+  if (!match) return null;
+  const receipt = await db.localReceipts.where("localSaleId").equals(match.id).first();
+  if (!receipt?.payloadJson) return null;
+  try {
+    return JSON.parse(receipt.payloadJson) as ReceiptPayload;
+  } catch {
+    return null;
+  }
+}
+
+async function synthesizeReceiptFromOrder(args: {
+  saleId: string;
+  invoiceNumber: string;
+  customerName: string;
+  customerId: string | null;
+  cashierName: string;
+  paymentMethod: string;
+  subtotal: number;
+  discount: number;
+  total: number;
+  completedAt: number;
+  items: Array<{
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    discount: number;
+    lineTotal: number;
+  }>;
+}): Promise<ReceiptPayload> {
+  const print = await loadPrintSnapshotMeta();
+  return {
+    invoiceNumber: args.invoiceNumber,
+    saleId: args.saleId,
+    subtotal: args.subtotal,
+    discount: args.discount,
+    total: args.total,
+    itemCount: args.items.reduce((sum, item) => sum + item.quantity, 0),
+    lines: args.items.map((item) => ({
+      productName: item.productName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discount,
+      lineTotal: item.lineTotal,
+    })),
+    paymentMethod: args.paymentMethod,
+    completedAt: args.completedAt,
+    customerName: args.customerName,
+    customerId: args.customerId,
+    cashierName: args.cashierName,
+    business: print?.business ?? SAMPLE_RECEIPT_PAYLOAD.business,
+    template: print?.template ?? SAMPLE_RECEIPT_PAYLOAD.template,
+  };
+}
+
 async function loadMirroredOrder(saleId: string): Promise<OrderDetail | null> {
   const db = await getOfflineDb();
   if (!db) return null;
@@ -222,6 +287,36 @@ async function loadMirroredOrder(saleId: string): Promise<OrderDetail | null> {
     db.orderItems.where("orderId").equals(saleId).toArray(),
     db.returns.where("saleId").equals(saleId).toArray(),
   ]);
+  const mappedItems = items.map((item) => ({
+    id: item.id,
+    productId: item.productId,
+    productName: item.productName,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+    discount: item.discount,
+    lineTotal: item.lineTotal,
+    returnedQuantity: item.returnedQuantity,
+    remainingQuantity: Math.max(0, item.quantity - item.returnedQuantity),
+  }));
+  const localReceipt = await loadLocalReceiptForSale({
+    saleId,
+    invoiceNumber: sale.invoiceNumber,
+  });
+  const receiptPayload =
+    localReceipt ??
+    (await synthesizeReceiptFromOrder({
+      saleId: sale.id,
+      invoiceNumber: sale.invoiceNumber,
+      customerName: sale.customerName,
+      customerId: sale.customerId,
+      cashierName: sale.cashierName,
+      paymentMethod: sale.paymentMethod,
+      subtotal: sale.subtotal,
+      discount: sale.discount,
+      total: sale.total,
+      completedAt: sale.completedAt,
+      items: mappedItems,
+    }));
   const base: OrderDetail = {
     id: sale.id,
     invoiceNumber: sale.invoiceNumber,
@@ -233,17 +328,7 @@ async function loadMirroredOrder(saleId: string): Promise<OrderDetail | null> {
     discount: sale.discount,
     total: sale.total,
     completedAt: sale.completedAt,
-    items: items.map((item) => ({
-      id: item.id,
-      productId: item.productId,
-      productName: item.productName,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      discount: item.discount,
-      lineTotal: item.lineTotal,
-      returnedQuantity: item.returnedQuantity,
-      remainingQuantity: Math.max(0, item.quantity - item.returnedQuantity),
-    })),
+    items: mappedItems,
     refundedAmount: sale.refundedAmount ?? 0,
     remainingRefundable: Math.max(0, sale.total - (sale.refundedAmount ?? 0)),
     canReturn: items.some((item) => item.quantity - item.returnedQuantity > 0),
@@ -258,7 +343,7 @@ async function loadMirroredOrder(saleId: string): Promise<OrderDetail | null> {
         completedAt: row.completedAt,
       }))
       .sort((a, b) => b.completedAt - a.completedAt),
-    receiptPayload: null,
+    receiptPayload,
   };
   return overlayPendingReturns(base);
 }
@@ -299,7 +384,10 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
       if (cancelled) return;
       if (sale?.serverSaleId) {
         setResolvedServerId(sale.serverSaleId as Id<"sales">);
-        setLocalOrder(null);
+        // Keep local detail so Cap reprint still has the stored receipt payload
+        // after the sale syncs to a server id.
+        const detail = await loadLocalOrder(orderId);
+        if (!cancelled) setLocalOrder(detail);
         return;
       }
       const detail = await loadLocalOrder(orderId);
@@ -351,9 +439,16 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
   if (local && !resolvedServerId) {
     order = localOrder;
   } else if (online && remote === undefined) {
-    order = mirroredOrder ?? undefined;
+    order = mirroredOrder ?? localOrder ?? undefined;
   } else if (online && remote) {
-    order = overlaidRemote ?? mapRemoteOrder(remote);
+    const mapped = overlaidRemote ?? mapRemoteOrder(remote);
+    order =
+      mapped.receiptPayload != null
+        ? mapped
+        : {
+            ...mapped,
+            receiptPayload: localOrder?.receiptPayload ?? mirroredOrder?.receiptPayload ?? null,
+          };
   } else {
     order = mirroredOrder ?? (local ? (localOrder ?? null) : null);
   }

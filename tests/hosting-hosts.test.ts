@@ -73,7 +73,7 @@ describe("hosting hosts", () => {
         NOVEND_APP_URL: "https://legacy.example",
         NEXT_PUBLIC_SITE_URL: "https://site.example",
         NEXT_PUBLIC_MARKETING_URL: "https://novend.com",
-      } as NodeJS.ProcessEnv),
+      } as unknown as NodeJS.ProcessEnv),
     ).toEqual({
       appOrigin: "https://app.novend.com",
       marketingOrigin: "https://novend.com",

@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LoadingState } from "@/components/feedback/loading-state";
+import { EmptyState } from "@/components/feedback/empty-state";
 import { detectBrowserDesktopTarget, type BrowserDesktopTarget } from "@/lib/desktop";
+import { useRemoteBudget } from "@/hooks/use-remote-budget";
 import { cn } from "@/lib/utils";
 
 /** Cached once — UA does not change; stable reference for useSyncExternalStore. */
@@ -63,7 +65,10 @@ function isAndroidDevice(): boolean {
 export function DesktopDownloadPanel() {
   const target = useSyncExternalStore(subscribeNoop, getBrowserTargetSnapshot, () => null);
   const preferredArch = target?.arch ?? "x64";
-  const { desktop: offer, mobile: mobileOffer } = useReleaseOffers(preferredArch);
+  const { desktop: offer, mobile: mobileOffer, online } = useReleaseOffers(preferredArch);
+  const remoteBudgetElapsed = useRemoteBudget(
+    online && (offer === undefined || mobileOffer === undefined),
+  );
 
   const installers = useMemo(() => offer?.installers ?? [], [offer]);
   const releasedLabel = formatReleasedAt(offer?.releasedAt);
@@ -73,6 +78,15 @@ export function DesktopDownloadPanel() {
   const ios = mobileOffer?.downloads.ios;
   const iosStore = mobileOffer?.storeUrls.ios;
   const androidSuggested = isAndroidDevice();
+
+  if (!online || (remoteBudgetElapsed && (offer === undefined || mobileOffer === undefined))) {
+    return (
+      <EmptyState
+        title="App downloads need a connection"
+        description="Reconnect to see desktop installers and the Android APK. Already-installed apps keep working offline."
+      />
+    );
+  }
 
   if (offer === undefined || mobileOffer === undefined) {
     return <LoadingState label="Loading app downloads…" variant="form" />;

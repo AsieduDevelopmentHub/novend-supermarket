@@ -36,6 +36,7 @@ import { deactivateAccountBlockReason } from "@/convex/shared/accountStatus";
 import { showError } from "@/lib/errors";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useRemoteBudget } from "@/hooks/use-remote-budget";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { listMirroredUsers } from "@/lib/offline/mirror-queries";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
@@ -43,6 +44,7 @@ import type { AppRole } from "@/config/navigation";
 import { ArrowLeft, KeyRound, Pencil, UserX, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { UserCommandCenter } from "./user-command-center";
+import { EmptyState } from "@/components/feedback/empty-state";
 
 export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
   const {
@@ -60,7 +62,6 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
     Awaited<ReturnType<typeof listMirroredUsers>>[number] | null | undefined
   >(undefined);
   useEffect(() => {
-    if (online) return;
     let cancelled = false;
     const load = () => {
       void listMirroredUsers().then((rows) => {
@@ -74,7 +75,8 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
       cancelled = true;
       unsub();
     };
-  }, [online, profileId]);
+  }, [profileId]);
+  const remoteBudgetElapsed = useRemoteBudget(online && remote === undefined && localUser === undefined);
   const user = remote ?? localUser;
   const updateProfile = useMutation(api.users.updateProfile);
   const resetUserPassword = useAction(api.users.resetUserPassword);
@@ -97,6 +99,14 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
   }
 
   if (user === undefined) {
+    if (!online || remoteBudgetElapsed) {
+      return (
+        <EmptyState
+          title="User details need a connection"
+          description="This profile isn’t available in the offline cache yet. Reconnect or open this user once while online."
+        />
+      );
+    }
     return <LoadingState label="Loading user…" />;
   }
 

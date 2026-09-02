@@ -31,6 +31,7 @@ import { SAMPLE_RECEIPT_PAYLOAD } from "@/features/receipts/types";
 import type { ReceiptBusiness, ReceiptTemplateConfig } from "@/features/receipts/types";
 import { loadPrintSnapshotMeta } from "@/lib/offline/ui-cache";
 import { savePosPreferences } from "@/lib/offline/pos-preferences";
+import { withTimeout } from "@/lib/async/with-timeout";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { AppearancePanel } from "./appearance-panel";
@@ -402,7 +403,11 @@ function BusinessForm({
     }
     setPending(true);
     try {
-      await updateBusiness({ tradeName, legalName, address, phone, email, taxId });
+      await withTimeout(
+        updateBusiness({ tradeName, legalName, address, phone, email, taxId }),
+        12_000,
+        "Save timed out — check your connection and try again",
+      );
       toast.success("Business profile saved");
     } catch (error) {
       showError(error, "Save failed");
@@ -543,17 +548,21 @@ function ReceiptTemplateForm({
     }
     setPending(true);
     try {
-      await updateTemplate({
-        paperWidthMm: Number(paperWidthMm) as 58 | 80,
-        showLogo: false,
-        headerText,
-        footerText,
-        thankYouLine,
-        showCashier,
-        showCustomer,
-        showPaymentMethod,
-        showSku,
-      });
+      await withTimeout(
+        updateTemplate({
+          paperWidthMm: Number(paperWidthMm) as 58 | 80,
+          showLogo: false,
+          headerText,
+          footerText,
+          thankYouLine,
+          showCashier,
+          showCustomer,
+          showPaymentMethod,
+          showSku,
+        }),
+        12_000,
+        "Save timed out — check your connection and try again",
+      );
       toast.success("Receipt template saved");
     } catch (error) {
       showError(error, "Save failed");
