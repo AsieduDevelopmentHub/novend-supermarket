@@ -8,9 +8,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { getDesktopBridge } from "@/lib/desktop";
 import type { NovendDesktopUpdateStatus } from "@/types/desktop";
+import { useConnectivity } from "@/hooks/use-connectivity";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
-import { Download, Loader2, RefreshCw, Rocket } from "lucide-react";
+import { Download, Loader2, RefreshCw, Rocket, WifiOff } from "lucide-react";
 
 const EMPTY_STATUS: NovendDesktopUpdateStatus = {
   state: "idle",
@@ -84,6 +85,7 @@ function statusBadge(status: NovendDesktopUpdateStatus): {
 
 /** Desktop-only: check, review, and install Electron updates from Settings. */
 export function UpdatesPanel() {
+  const online = useConnectivity();
   const [status, setStatus] = useState<NovendDesktopUpdateStatus>(EMPTY_STATUS);
   const [checking, setChecking] = useState(false);
   const [installing, setInstalling] = useState(false);
@@ -108,6 +110,10 @@ export function UpdatesPanel() {
   }, []);
 
   async function onCheck() {
+    if (!online) {
+      toast.message("Reconnect to check for desktop updates");
+      return;
+    }
     const bridge = getDesktopBridge();
     if (!bridge?.checkForUpdates) {
       toast.error("Update bridge unavailable. Restart the desktop app and try again.");
@@ -139,6 +145,10 @@ export function UpdatesPanel() {
   }
 
   async function onInstall() {
+    if (!online) {
+      toast.message("Reconnect to download and install updates");
+      return;
+    }
     const bridge = getDesktopBridge();
     if (!bridge?.installUpdate) {
       toast.error("Update bridge unavailable. Restart the desktop app and try again.");
@@ -181,6 +191,16 @@ export function UpdatesPanel() {
           <Badge variant={badge.variant}>{badge.label}</Badge>
         </CardHeader>
         <CardContent className="space-y-5">
+          {!online ? (
+            <Alert>
+              <WifiOff className="h-4 w-4" aria-hidden />
+              <AlertTitle>Offline</AlertTitle>
+              <AlertDescription>
+                Update checks and downloads need an internet connection. Installed version details
+                below are still available.
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="border-border rounded-lg border px-3 py-2">
               <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
@@ -240,7 +260,8 @@ export function UpdatesPanel() {
               type="button"
               variant="outline"
               onClick={() => void onCheck()}
-              disabled={busy || !status.canCheck}
+              disabled={busy || !status.canCheck || !online}
+              title={!online ? "Needs a connection" : undefined}
             >
               {busy ? (
                 <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
@@ -253,7 +274,8 @@ export function UpdatesPanel() {
             <Button
               type="button"
               onClick={() => void onInstall()}
-              disabled={!status.canInstall || installing}
+              disabled={!status.canInstall || installing || !online}
+              title={!online ? "Needs a connection" : undefined}
             >
               {installing ? (
                 <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />

@@ -174,7 +174,6 @@ export function ProfilePanel() {
         initialName={me.name}
         initialPhone={me.phone ?? ""}
         imageUrl={me.imageUrl}
-        readOnly={false}
         online={online}
       />
       <EmailAccountCard
@@ -191,13 +190,11 @@ function ProfileForm({
   initialName,
   initialPhone,
   imageUrl,
-  readOnly = false,
   online = true,
 }: {
   initialName: string;
   initialPhone: string;
   imageUrl: string | null;
-  readOnly?: boolean;
   online?: boolean;
 }) {
   const updateOwnProfile = useMutation(api.users.updateOwnProfile);
@@ -308,7 +305,8 @@ function ProfileForm({
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={readOnly}
+                  disabled={!online}
+                  title={!online ? "Photo updates need a connection" : undefined}
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Camera className="h-4 w-4" />
@@ -319,7 +317,8 @@ function ProfileForm({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={readOnly}
+                    disabled={!online}
+                    title={!online ? "Photo updates need a connection" : undefined}
                     onClick={() => {
                       onPickFile(null);
                       setRemoveImage(true);
@@ -339,6 +338,7 @@ function ProfileForm({
               />
               <p className="text-muted-foreground text-xs">
                 JPG/JPEG, PNG, or WebP · max 2 MB. Shown in the sidebar and user lists.
+                {!online ? " Photo changes need a connection." : ""}
               </p>
             </div>
           </div>
@@ -350,7 +350,6 @@ function ProfileForm({
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              disabled={readOnly}
             />
           </div>
 
@@ -361,13 +360,18 @@ function ProfileForm({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="e.g. 024 XXX XXXX"
-              disabled={readOnly}
             />
           </div>
 
-          <Button type="submit" disabled={pending || readOnly}>
-            {pending ? "Saving…" : "Save profile"}
+          <Button type="submit" disabled={pending}>
+            {pending ? "Saving…" : online ? "Save profile" : "Save on this device"}
           </Button>
+          {!online ? (
+            <p className="text-muted-foreground text-sm">
+              Name and phone save on this device and sync when you reconnect. Password, email, and
+              photo changes need a connection.
+            </p>
+          ) : null}
         </form>
       </CardContent>
     </Card>

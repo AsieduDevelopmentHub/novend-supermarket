@@ -11,6 +11,11 @@ export const EXPENSE_CATEGORY_OPTIONS: { value: ExpenseCategory; label: string }
   { value: "misc", label: "Miscellaneous" },
 ];
 
+/** Categories available in the manual "Record expense" form — payroll uses Users → detail. */
+export const MANUAL_EXPENSE_CATEGORY_OPTIONS = EXPENSE_CATEGORY_OPTIONS.filter(
+  (option) => option.value !== "salaries" && option.value !== "commissions",
+);
+
 export function expenseCategoryLabel(category: string) {
   return EXPENSE_CATEGORY_OPTIONS.find((c) => c.value === category)?.label ?? category;
 }

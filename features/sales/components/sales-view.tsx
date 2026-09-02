@@ -119,6 +119,8 @@ export function SalesView() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [paying, setPaying] = useState(false);
   const payingRef = useRef(false);
+  const [holding, setHolding] = useState(false);
+  const holdingRef = useRef(false);
   const [localHeld, setLocalHeld] = useState<LocalHeldSale[]>([]);
   const [cashierId, setCashierId] = useState<string | null>(null);
   /** Draft qty strings while editing — empty allowed until blur. */
@@ -403,44 +405,70 @@ export function SalesView() {
       toast.error(access.reason ?? "This business cannot record new activity right now.");
       return;
     }
-    if (!canCheckout) return;
+    if (!canCheckout || holdingRef.current || payingRef.current) return;
+
+    const saleBranchId = (isAdmin ? workingBranchId : myBranchId) ?? undefined;
+    const holdPayload = {
+      customerId: customer?.id as Id<"customers"> | undefined,
+      customerName: customer?.name,
+      items: cart.map((item) => ({
+        productId: item.productId as Id<"products">,
+        quantity: item.quantity,
+        discount: item.discount,
+      })),
+      discount: cartDiscount,
+      branchId: saleBranchId,
+    };
+
+    holdingRef.current = true;
+    setHolding(true);
     try {
-      if (!online) {
-        const db = await getOfflineDb();
-        if (!db) throw new Error("Cannot hold sale without local storage while offline");
-        const uid = cashierId ?? (await getMeta(db, META_KEYS.profileUserId)) ?? "local";
-        await holdSaleLocally({
-          cashierId: uid,
-          customerId: customer?.id,
-          customerName: customer?.name,
-          items: cart,
-          discount: cartDiscount,
-        });
-        setCart([]);
-        clearCartDiscount();
-        setCheckoutOpen(false);
-        await refreshLocalHeld();
-        toast.success("Sale held on this device");
+      if (online) {
+        try {
+          await holdSale(holdPayload);
+          setCart([]);
+          clearCartDiscount();
+          setCustomer(null);
+          setCustomerQuery("");
+          setCheckoutOpen(false);
+          toast.success("Sale held");
+          return;
+        } catch {
+          if (!dexieAvailable) {
+            throw new Error("Could not hold sale. Check your connection and try again.");
+          }
+        }
+      }
+
+      if (!dexieAvailable) {
+        toast.error("Local storage unavailable — cannot hold sale offline");
         return;
       }
 
-      await holdSale({
-        customerId: customer?.id as Id<"customers"> | undefined,
+      const db = await getOfflineDb();
+      if (!db) throw new Error("Local database unavailable");
+      const uid = cashierId ?? (await getMeta(db, META_KEYS.profileUserId)) ?? "local";
+      await holdSaleLocally({
+        cashierId: uid,
+        customerId: customer?.id,
         customerName: customer?.name,
-        items: cart.map((item) => ({
-          productId: item.productId as Id<"products">,
-          quantity: item.quantity,
-          discount: item.discount,
-        })),
+        items: cart,
         discount: cartDiscount,
-        branchId: (isAdmin ? workingBranchId : myBranchId) ?? undefined,
       });
       setCart([]);
       clearCartDiscount();
+      setCustomer(null);
+      setCustomerQuery("");
       setCheckoutOpen(false);
-      toast.success("Sale held");
+      await refreshLocalHeld();
+      toast.success(
+        online ? "Sale held on this device — server sync unavailable" : "Sale held on this device",
+      );
     } catch (error) {
       showError(error, "Hold failed");
+    } finally {
+      holdingRef.current = false;
+      setHolding(false);
     }
   }
 
@@ -796,6 +824,7 @@ export function SalesView() {
               discountExceedsSubtotal={discountExceedsSubtotal}
               canCheckout={canCheckout}
               paying={paying}
+              holding={holding}
               lastReceipt={lastReceipt}
               onQuickCreate={() => setQuickOpen(true)}
               onClearCustomer={() => setCustomer(null)}
@@ -854,6 +883,7 @@ export function SalesView() {
               discountExceedsSubtotal={discountExceedsSubtotal}
               canCheckout={canCheckout}
               paying={paying}
+              holding={holding}
               lastReceipt={lastReceipt}
               pinActions
               onQuickCreate={() => setQuickOpen(true)}
@@ -966,6 +996,7 @@ type SalesCheckoutFieldsProps = {
   discountExceedsSubtotal: boolean;
   canCheckout: boolean;
   paying?: boolean;
+  holding?: boolean;
   lastReceipt: ReceiptPayload | null;
   /** Pin Hold/Pay to the bottom of a full-height sheet (mobile checkout drawer). */
   pinActions?: boolean;
@@ -999,6 +1030,7 @@ function SalesCheckoutFields({
   discountExceedsSubtotal,
   canCheckout,
   paying = false,
+  holding = false,
   lastReceipt,
   pinActions = false,
   onQuickCreate,
@@ -1020,15 +1052,15 @@ function SalesCheckoutFields({
         <Button
           type="button"
           variant="secondary"
-          disabled={!canCheckout || paying}
+          disabled={!canCheckout || paying || holding}
           onClick={onHold}
         >
-          Hold
+          {holding ? "Holding…" : "Hold"}
         </Button>
         <Button
           type="button"
           data-tour="sales-checkout"
-          disabled={!canCheckout || paying}
+          disabled={!canCheckout || paying || holding}
           onClick={onPay}
         >
           {paying ? "Saving…" : "Pay"}
