@@ -455,7 +455,12 @@ export async function setBiometricEnabled(enabled: boolean): Promise<HardwareRes
   if (!enabled) {
     await Preferences.set({ key: BIOMETRIC_REQUIRE_LAUNCH_KEY, value: "false" });
     try {
-      await SecureStorage.removeItem(BIOMETRIC_UNLOCK_TOKEN_KEY);
+      await Preferences.remove({ key: BIOMETRIC_UNLOCK_TOKEN_KEY });
+    } catch {
+      /* ignore */
+    }
+    try {
+      await withTimeout(SecureStorage.removeItem(BIOMETRIC_UNLOCK_TOKEN_KEY), NATIVE_CALL_TIMEOUT_MS);
     } catch {
       /* ignore */
     }
@@ -471,22 +476,45 @@ export async function setBiometricRequireOnLaunch(require: boolean): Promise<Har
   return { ok: true };
 }
 
+/**
+ * Unlock token is not a password — it only proves the user completed a local
+ * biometric challenge. Prefer Preferences: Aparajita SecureStorage often hangs
+ * or fails right after BiometricPrompt on Class 2 devices (stuck “Enabling…”).
+ * Still try SecureStorage briefly; fall back so enable always completes.
+ */
 export async function storeBiometricUnlockToken(token: string): Promise<HardwareResult> {
   try {
-    await SecureStorage.setItem(BIOMETRIC_UNLOCK_TOKEN_KEY, token);
-    return { ok: true };
+    await Preferences.set({ key: BIOMETRIC_UNLOCK_TOKEN_KEY, value: token });
   } catch (error) {
     const raw = error instanceof Error ? error.message : String(error ?? "");
     return {
       ok: false,
-      message: friendlyHardwareMessage(raw, "Could not save biometric unlock securely."),
+      message: friendlyHardwareMessage(raw, "Could not save biometric unlock on this device."),
     };
   }
+  try {
+    await withTimeout(SecureStorage.setItem(BIOMETRIC_UNLOCK_TOKEN_KEY, token), NATIVE_CALL_TIMEOUT_MS);
+  } catch {
+    /* Preferences already holds the token */
+  }
+  return { ok: true };
 }
 
 export async function readBiometricUnlockToken(): Promise<HardwareResult<string | null>> {
   try {
-    const value = await SecureStorage.getItem(BIOMETRIC_UNLOCK_TOKEN_KEY);
+    const pref = await withTimeout(
+      Preferences.get({ key: BIOMETRIC_UNLOCK_TOKEN_KEY }),
+      NATIVE_CALL_TIMEOUT_MS,
+    );
+    if (pref.value) return { ok: true, data: pref.value };
+  } catch {
+    /* try SecureStorage */
+  }
+  try {
+    const value = await withTimeout(
+      SecureStorage.getItem(BIOMETRIC_UNLOCK_TOKEN_KEY),
+      NATIVE_CALL_TIMEOUT_MS,
+    );
     return { ok: true, data: value };
   } catch {
     return { ok: true, data: null };
