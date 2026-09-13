@@ -22,7 +22,8 @@ type SignOutOptions = {
  * inherit the previous replica, last route, or splash-cover loop.
  *
  * Always hard-navigate so the signed-out query string stays on `/login`.
- * Native shells use the offline boot trampoline when the network is down.
+ * Capacitor stays on the hosted origin (SW serves cached `/login` offline).
+ * Electron reloads through the local offline-boot trampoline.
  */
 export async function signOutAndRedirect({
   signOut,

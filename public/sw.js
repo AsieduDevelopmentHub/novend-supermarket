@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v14";
+const CACHE_NAME = "novend-pos-v15";
 /**
  * Public documents + icons only. Do not precache `/` or `/dashboard`:
  * cache.add follows the auth 302 and stores POS HTML under the marketing URL
@@ -280,8 +280,30 @@ self.addEventListener("fetch", (event) => {
   if (url.hostname.includes("convex")) return;
   if (url.pathname.startsWith("/api/") && url.pathname !== "/api/boot") return;
 
-  // Browser must follow the authenticated /login → /dashboard 302 itself.
-  if (isAuthDocument(url)) return;
+  // /login and /signup: let the browser see live redirects when online
+  // (signed-in /login → /dashboard). When fetch fails (Cap/Electron offline
+  // sign-out), serve the precached login shell so the WebView does not show
+  // “webpage not available”.
+  if (isAuthDocument(url)) {
+    event.respondWith(
+      (async () => {
+        try {
+          return await fetch(request);
+        } catch {
+          const cached =
+            (await caches.match(url.pathname)) ||
+            (await caches.match("/login")) ||
+            (await caches.match(new Request(url.pathname)));
+          if (cached) return unwrapRedirect(cached);
+          return new Response(
+            "<!doctype html><title>Signed out</title><p>Novend is offline. Reconnect to sign in, or open Novend once while online so this device can cache the login screen.</p>",
+            { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } },
+          );
+        }
+      })(),
+    );
+    return;
+  }
 
   // Signed-in `/` 302s to /dashboard. If the SW follows and unwraps that,
   // the address bar stays on the marketing URL and paints the POS splash.

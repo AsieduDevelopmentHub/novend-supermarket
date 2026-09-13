@@ -89,6 +89,8 @@ export function BiometricSecurityCard() {
   async function onToggleEnabled(next: boolean) {
     if (busy) return;
     setBusy(true);
+    // Let the switch/busy paint before the sync native prompt blocks the WebView.
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
     try {
       if (next) {
         if (uiState !== "available") {
@@ -107,7 +109,11 @@ export function BiometricSecurityCard() {
           toast.error(stored.message || "Could not enable biometrics");
           return;
         }
-        await Hardware.biometrics.setEnabled(true);
+        const enabledResult = await Hardware.biometrics.setEnabled(true);
+        if (!enabledResult.ok) {
+          toast.error(enabledResult.message || "Could not enable biometrics");
+          return;
+        }
         setEnabled(true);
         toast.success("Biometrics enabled");
       } else {
@@ -116,6 +122,8 @@ export function BiometricSecurityCard() {
         setRequireOnLaunch(false);
         toast.message("Biometrics disabled");
       }
+    } catch {
+      toast.error("Could not configure biometrics. Try again.");
     } finally {
       setBusy(false);
     }

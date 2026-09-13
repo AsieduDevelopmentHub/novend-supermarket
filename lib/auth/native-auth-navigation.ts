@@ -1,6 +1,7 @@
 import { getElectronBridge, isCapacitor, isElectron } from "@novend/hardware";
 import {
   capacitorBootUrl,
+  CAPACITOR_BOOT_ORIGIN,
   LOGIN_AFTER_SIGN_OUT_PATH,
 } from "@/lib/auth/capacitor-boot";
 import { prepareHardNavigation } from "@/lib/auth/redirect-after-login";
@@ -12,27 +13,34 @@ type AuthShellBridge = {
 /**
  * Land on `/login?signedOut=1` after sign-out.
  *
- * Native shells load the hosted app from a remote origin. A direct
- * `location.replace("/login")` while offline hits the network and shows the
- * WebView "page not available" screen. Route through the bundled boot page
- * so the service worker can serve the cached login shell instead.
+ * Capacitor: stay on the hosted origin so the service worker can serve the
+ * precached login document while offline. Bouncing through
+ * `https://localhost/?entry=…` leaves the SW and reloads the remote URL over
+ * the network → Android “webpage not available”.
+ *
+ * Electron: always reload via the local offline-boot trampoline (same as cold
+ * start). `navigator.onLine` is unreliable; `loadURL(https)` fails offline even
+ * when Cache Storage already has `/login`.
  */
 export async function navigateToLoginAfterSignOut(): Promise<void> {
   prepareHardNavigation();
   if (typeof window === "undefined") return;
 
-  const offline = typeof navigator !== "undefined" && !navigator.onLine;
-
-  if (isCapacitor() && offline) {
-    window.location.replace(capacitorBootUrl(LOGIN_AFTER_SIGN_OUT_PATH));
-    return;
-  }
-
-  if (isElectron() && offline) {
+  if (isElectron()) {
     const bridge = getElectronBridge<AuthShellBridge>();
     if (bridge?.reloadAuthShell) {
       const result = await bridge.reloadAuthShell(LOGIN_AFTER_SIGN_OUT_PATH);
       if (result.ok) return;
+    }
+  }
+
+  if (isCapacitor()) {
+    const onBootOrigin =
+      window.location.origin === CAPACITOR_BOOT_ORIGIN ||
+      window.location.hostname === "localhost";
+    if (onBootOrigin) {
+      window.location.replace(capacitorBootUrl(LOGIN_AFTER_SIGN_OUT_PATH));
+      return;
     }
   }
 
