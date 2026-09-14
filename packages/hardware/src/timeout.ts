@@ -17,6 +17,8 @@ export const NATIVE_SETTINGS_PROBE_MS = 3500;
 export const NATIVE_AVAILABILITY_TIMEOUT_MS = 8_000;
 export const NATIVE_SCAN_TIMEOUT_MS = 45_000;
 export const NATIVE_BLE_TIMEOUT_MS = 12_000;
+/** Classic RFCOMM connect can take longer than BLE GATT. */
+export const NATIVE_SPP_TIMEOUT_MS = 20_000;
 /** User may take time in the system camera UI — do not race-abandon capture. */
 export const NATIVE_CAMERA_TIMEOUT_MS = 180_000;
 

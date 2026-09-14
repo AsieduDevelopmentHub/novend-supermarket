@@ -39,12 +39,18 @@ export type {
 export type {
   BluetoothPrinterDevice,
   BluetoothPrinterStatus,
+  BluetoothPrinterTransportKind,
+  BluetoothPrinterConnectionState,
   BiometricAvailability,
   NotificationTopic,
   NotificationPermissionState,
   AppInfo,
   UpdateInfo,
 } from "./native-types";
+
+export type { BluetoothPrintErrorCode } from "./types";
+
+export { resolveMobilePaperWidthMm } from "./adapters/bluetooth-profile";
 
 export {
   getPlatform,
@@ -71,6 +77,7 @@ export {
   filesystemSaveFailedMessage,
   shareFailedMessage,
   printFailedMessage,
+  bluetoothPrintFailedMessage,
   barcodeScanFailedMessage,
   cameraCaptureFailedMessage,
   type HardwarePermissionKind,
@@ -92,6 +99,7 @@ export {
   NATIVE_AVAILABILITY_TIMEOUT_MS,
   NATIVE_SCAN_TIMEOUT_MS,
   NATIVE_BLE_TIMEOUT_MS,
+  NATIVE_SPP_TIMEOUT_MS,
   NATIVE_CAMERA_TIMEOUT_MS,
   NativeTimeoutError,
 } from "./timeout";

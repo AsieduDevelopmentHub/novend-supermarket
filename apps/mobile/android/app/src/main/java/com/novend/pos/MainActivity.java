@@ -26,6 +26,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NovendPermissionsPlugin.class);
         registerPlugin(NovendPrintPlugin.class);
         registerPlugin(NovendCameraPlugin.class);
+        registerPlugin(NovendBluetoothClassicPlugin.class);
     }
 
     @Override

@@ -21,7 +21,8 @@ Production APKs start from the packaged boot page (same idea as Electron
 service worker. HTTP `NOVEND_APP_URL` keeps live-reload `server.url` for
 LAN/emulator development.
 
-Native camera, barcode, and Bluetooth printing are **not** implemented in this phase.
+Native camera, barcode, BLE thermal printing, and (Android) Classic Bluetooth
+SPP printing are implemented via `@novend/hardware` and first-party plugins.
 
 ## Prerequisites
 
@@ -41,7 +42,8 @@ cd apps/mobile && npx cap sync
 ```
 
 Native plugins (synced into Android/iOS): Camera, Filesystem, Share, Local
-Notifications, Biometrics, BLE. Camera barcode scanning uses bundled ZXing in
+Notifications, Biometrics, BLE, plus Novend-owned Print / Camera / Classic
+Bluetooth / Permissions plugins. Camera barcode scanning uses bundled ZXing in
 the WebView (not Google ML Kit).
 
 Point at a local Next.dev server while developing:

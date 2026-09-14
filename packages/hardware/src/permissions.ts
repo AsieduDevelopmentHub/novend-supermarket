@@ -97,6 +97,27 @@ export function printFailedMessage(): string {
   return "Could not open the print dialog. Try again, or use Share / Save PDF.";
 }
 
+export function bluetoothPrintFailedMessage(code?: string, fallback?: string): string {
+  switch (code) {
+    case "permission":
+      return "Allow Nearby devices / Bluetooth access for Novend, then try again.";
+    case "bluetooth_off":
+      return "Turn on Bluetooth and try again.";
+    case "not_paired":
+      return "No Bluetooth printer selected. Open Settings → Hardware to pair one.";
+    case "out_of_range":
+      return "Could not reach the printer. Keep it nearby and powered on.";
+    case "unsupported":
+      return fallback || "This printer is not supported on this device.";
+    case "busy":
+      return "Another print is still in progress. Try again in a moment.";
+    case "cancelled":
+      return "Cancelled";
+    default:
+      return fallback || "Could not print to the Bluetooth printer. Try Share or Save PDF.";
+  }
+}
+
 export function barcodeScanFailedMessage(): string {
   return "Could not read a barcode. Try again in good lighting, or enter the code manually.";
 }

@@ -78,11 +78,13 @@ Web and Electron keep the existing sidebar unchanged.
 
 ## Native services (Phase 4)
 
-- Bluetooth thermal printing stays on Settings → Hardware (test path). Checkout
-  honors Settings → Receipt template (`automatic` / `manual` / `never`). Print
-  on Capacitor uses the PDF Downloads handoff. Share opens the Android share
-  sheet via `window.NovendNative.finishShare`.
-- Biometrics + secure unlock token (Settings → Security)
+- Bluetooth thermal printing: Settings → Hardware pairs one device-local printer
+  (Nearby BLE on Android/iOS, or Android Classic RFCOMM/SPP bonded printers).
+  Checkout honors Settings → Receipt template (`automatic` / `manual` / `never`)
+  and prints one ESC/POS copy. On failure the sale sheet offers Retry, Hardware
+  settings, Share, and Save PDF. Share opens the Android share sheet via
+  `window.NovendNative.finishShare`.
+- Biometrics + unlock token (Settings → Security)
 - Local notification topic prefs (push delivery can plug in later)
 - Soft OTA check via `NEXT_PUBLIC_MOBILE_UPDATE_JSON` (Later / Update now)
 - Deep links: `novend://sale/{id}`, `novend://product/{id}`, …

@@ -1,8 +1,21 @@
 /** Shared result / payload types for the hardware abstraction layer. */
 
+/** Structured failure codes for Bluetooth / mobile printer flows. */
+export type BluetoothPrintErrorCode =
+  | "permission"
+  | "bluetooth_off"
+  | "not_paired"
+  | "out_of_range"
+  | "unsupported"
+  | "write_failed"
+  | "cancelled"
+  | "busy";
+
 export type HardwareResult<T = void> = {
   ok: boolean;
   message?: string;
+  /** Optional structured code for Bluetooth print failures. */
+  code?: BluetoothPrintErrorCode;
   data?: T;
 };
 

@@ -355,11 +355,18 @@ export function createCapacitorAdapters(): HardwareAdapters {
         };
       },
       async testPrint(config) {
-        const width = config.paperWidthMm === 58 ? 58 : 80;
+        const status = await createBluetoothPrinterControls().getStatus();
+        const width =
+          config.paperWidthMm === 58 || config.paperWidthMm === 80
+            ? config.paperWidthMm
+            : status.data?.paperWidthMm === 58
+              ? 58
+              : 80;
         if (config.bluetoothDeviceId) {
           await createBluetoothPrinterControls().connect(
             config.bluetoothDeviceId,
             config.windowsPrinterName,
+            status.data?.transport,
           );
         }
         return bluetoothTestPrint(width);

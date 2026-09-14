@@ -1,322 +1,260 @@
-import { BleClient, numbersToDataView } from "@capacitor-community/bluetooth-le";
-import { Preferences } from "@capacitor/preferences";
 import type { HardwareResult, PrintReceiptRequest } from "../types";
 import type {
+  BluetoothDiscoverOptions,
+  BluetoothPrinterConnectionState,
   BluetoothPrinterControls,
-  BluetoothPrinterDevice,
   BluetoothPrinterStatus,
+  BluetoothPrinterTransportKind,
 } from "../native-types";
-import { friendlyHardwareMessage } from "../permissions";
-import { NATIVE_BLE_TIMEOUT_MS, isNativeTimeoutError, withTimeout } from "../timeout";
+import {
+  clearBluetoothPrinterProfile,
+  readBluetoothPrinterProfile,
+  writeBluetoothPrinterProfile,
+} from "./bluetooth-profile";
+import { base64ToBytes } from "./bluetooth-transport";
+import { createBlePrinterTransport } from "./bluetooth-transport-ble";
+import {
+  createClassicPrinterTransport,
+  isClassicBluetoothAvailable,
+  openClassicBluetoothSettings,
+} from "./bluetooth-transport-classic";
+import type { BluetoothPrinterTransport } from "./bluetooth-transport";
 
-const PREF_DEVICE_ID = "novend.bt.printer.deviceId";
-const PREF_DEVICE_NAME = "novend.bt.printer.deviceName";
-const PREF_PAPER = "novend.bt.printer.paperWidthMm";
-const PREF_AUTO = "novend.bt.printer.autoReconnect";
+let lastError: string | null = null;
+let lastErrorCode: BluetoothPrinterStatus["lastErrorCode"] = null;
+let connectionState: BluetoothPrinterConnectionState = "none";
+let printQueue: Promise<void> = Promise.resolve();
 
-/** Common ESC/POS BLE service/characteristic UUIDs used by many thermal printers. */
-const PRINT_SERVICE_CANDIDATES = [
-  "000018f0-0000-1000-8000-00805f9b34fb",
-  "49535343-fe7d-4ae5-8fa9-9fafd205e455",
-  "e7810a71-73ace3c5-ffaafa00-670e5f2b",
-];
-
-let connectedId: string | null = null;
-let writeChar: { service: string; characteristic: string } | null = null;
-let initialized = false;
-
-async function ensureBle(): Promise<HardwareResult> {
-  try {
-    if (!initialized) {
-      await withTimeout(
-        BleClient.initialize({ androidNeverForLocation: true }),
-        NATIVE_BLE_TIMEOUT_MS,
-      );
-      initialized = true;
-    }
-    return { ok: true };
-  } catch (error) {
-    if (isNativeTimeoutError(error)) {
-      return {
-        ok: false,
-        message: "Bluetooth took too long to start. Turn it on and try again.",
-      };
-    }
-    const raw = error instanceof Error ? error.message : String(error ?? "");
-    return {
-      ok: false,
-      message: friendlyHardwareMessage(
-        raw,
-        "Bluetooth is unavailable. Turn on Bluetooth and try again.",
-      ),
-    };
-  }
+function transportFor(kind: BluetoothPrinterTransportKind): BluetoothPrinterTransport {
+  return kind === "classic" ? createClassicPrinterTransport() : createBlePrinterTransport();
 }
 
-async function readPrefs(): Promise<{
+function deriveConnectionState(args: {
   deviceId: string | null;
-  deviceName: string | null;
-  paperWidthMm: 58 | 80;
-  autoReconnect: boolean;
-}> {
-  const [id, name, paper, auto] = await Promise.all([
-    Preferences.get({ key: PREF_DEVICE_ID }),
-    Preferences.get({ key: PREF_DEVICE_NAME }),
-    Preferences.get({ key: PREF_PAPER }),
-    Preferences.get({ key: PREF_AUTO }),
-  ]);
-  const paperWidthMm = paper.value === "58" ? 58 : 80;
-  return {
-    deviceId: id.value,
-    deviceName: name.value,
-    paperWidthMm,
-    autoReconnect: auto.value !== "false",
-  };
+  connected: boolean;
+  reconnecting?: boolean;
+  connecting?: boolean;
+}): BluetoothPrinterConnectionState {
+  if (args.reconnecting) return "reconnecting";
+  if (args.connecting) return "connecting";
+  if (args.connected) return "connected";
+  if (args.deviceId) return lastError ? "needs_attention" : "saved";
+  return "none";
 }
 
-async function resolveWriteCharacteristic(deviceId: string) {
-  const services = await BleClient.getServices(deviceId);
-  for (const service of services) {
-    for (const characteristic of service.characteristics) {
-      const props = characteristic.properties;
-      if (props.write || props.writeWithoutResponse) {
-        return { service: service.uuid, characteristic: characteristic.uuid };
-      }
-    }
-  }
-  // Prefer known print services when property flags are incomplete.
-  for (const uuid of PRINT_SERVICE_CANDIDATES) {
-    const service = services.find((s) => s.uuid.toLowerCase() === uuid.toLowerCase());
-    const characteristic = service?.characteristics.find(
-      (c) => c.properties.write || c.properties.writeWithoutResponse,
-    );
-    if (service && characteristic) {
-      return { service: service.uuid, characteristic: characteristic.uuid };
-    }
-  }
-  return null;
-}
-
-function base64ToBytes(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-async function writeEscPos(deviceId: string, bytes: Uint8Array) {
-  if (!writeChar) {
-    writeChar = await resolveWriteCharacteristic(deviceId);
-  }
-  if (!writeChar) {
-    throw new Error("This printer does not expose a writable Bluetooth characteristic");
-  }
-  const chunkSize = 180;
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    const slice = bytes.subarray(offset, offset + chunkSize);
-    await BleClient.write(
-      deviceId,
-      writeChar.service,
-      writeChar.characteristic,
-      numbersToDataView(Array.from(slice)),
-    );
+async function runSerialized<T>(operation: () => Promise<T>): Promise<T> {
+  const previous = printQueue;
+  let release!: () => void;
+  printQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous.catch(() => undefined);
+  try {
+    return await operation();
+  } finally {
+    release();
   }
 }
 
 export function createBluetoothPrinterControls(): BluetoothPrinterControls {
   return {
     async getStatus() {
-      const prefs = await readPrefs();
+      const prefs = await readBluetoothPrinterProfile();
+      const transport = transportFor(prefs.transport);
+      const connected = Boolean(prefs.deviceId && transport.isConnected(prefs.deviceId));
+      connectionState = deriveConnectionState({
+        deviceId: prefs.deviceId,
+        connected,
+      });
       return {
         ok: true,
         data: {
           available: true,
-          connected: Boolean(connectedId && connectedId === prefs.deviceId),
+          connected,
+          connectionState,
           deviceId: prefs.deviceId,
           deviceName: prefs.deviceName,
           paperWidthMm: prefs.paperWidthMm,
           autoReconnect: prefs.autoReconnect,
+          transport: prefs.transport,
+          lastError,
+          lastErrorCode,
+          classicAvailable: isClassicBluetoothAvailable(),
         } satisfies BluetoothPrinterStatus,
       };
     },
 
-    async discover() {
-      const ready = await ensureBle();
-      if (!ready.ok) return ready as HardwareResult<{ devices: BluetoothPrinterDevice[] }>;
-
-      try {
-        const picker = BleClient as typeof BleClient & {
-          requestDevice?: (options?: {
-            optionalServices?: string[];
-          }) => Promise<{ deviceId: string; name?: string }>;
-        };
-        if (typeof picker.requestDevice === "function") {
-          const device = await picker.requestDevice({
-            optionalServices: PRINT_SERVICE_CANDIDATES,
-          });
-          if (device?.deviceId) {
-            return {
-              ok: true,
-              data: {
-                devices: [
-                  {
-                    id: device.deviceId,
-                    name: device.name?.trim() || "Bluetooth printer",
-                  },
-                ],
-              },
-            };
-          }
-        }
-      } catch (error) {
-        const raw = error instanceof Error ? error.message : String(error ?? "");
-        if (/cancel/i.test(raw)) {
-          return { ok: false, message: "Cancelled", data: { devices: [] } };
-        }
-        /* Fall through to a background scan if the system picker is unavailable. */
-      }
-
-      const devices: BluetoothPrinterDevice[] = [];
-      const seen = new Set<string>();
-      try {
-        await BleClient.requestLEScan({ allowDuplicates: false }, (result) => {
-          const id = result.device.deviceId;
-          const name = result.device.name || result.localName || "Bluetooth printer";
-          if (!id || seen.has(id)) return;
-          seen.add(id);
-          devices.push({ id, name });
-        });
-        await new Promise((r) => setTimeout(r, 4500));
-        await BleClient.stopLEScan();
-        return { ok: true, data: { devices } };
-      } catch (error) {
-        try {
-          await BleClient.stopLEScan();
-        } catch {
-          /* ignore */
-        }
-        const raw = error instanceof Error ? error.message : String(error ?? "");
+    async discover(options?: BluetoothDiscoverOptions) {
+      const prefs = await readBluetoothPrinterProfile();
+      const kind = options?.transport ?? prefs.transport;
+      if (kind === "classic" && !isClassicBluetoothAvailable()) {
         return {
           ok: false,
-          message: friendlyHardwareMessage(raw, "Could not discover Bluetooth printers."),
+          code: "unsupported",
+          message: "Classic Bluetooth printing is available on Android tablets and phones.",
           data: { devices: [] },
         };
       }
+      const transport = transportFor(kind);
+      return transport.discover();
     },
 
-    async connect(deviceId, deviceName) {
-      const ready = await ensureBle();
-      if (!ready.ok) return ready;
-      try {
-        if (connectedId && connectedId !== deviceId) {
-          try {
-            await BleClient.disconnect(connectedId);
-          } catch {
-            /* ignore */
-          }
-        }
-        await withTimeout(
-          BleClient.connect(deviceId, () => {
-            connectedId = null;
-            writeChar = null;
-          }),
-          NATIVE_BLE_TIMEOUT_MS,
-        );
-        writeChar = await resolveWriteCharacteristic(deviceId);
-        connectedId = deviceId;
-        await Preferences.set({ key: PREF_DEVICE_ID, value: deviceId });
-        await Preferences.set({
-          key: PREF_DEVICE_NAME,
-          value: deviceName?.trim() || "Bluetooth printer",
-        });
-        return { ok: true, message: "Printer connected" };
-      } catch (error) {
-        if (isNativeTimeoutError(error)) {
-          return {
-            ok: false,
-            message: "Connecting to the printer timed out. Keep it nearby and try again.",
-          };
-        }
-        const raw = error instanceof Error ? error.message : String(error ?? "");
+    async connect(deviceId, deviceName, transportKind) {
+      const prefs = await readBluetoothPrinterProfile();
+      const kind = transportKind ?? prefs.transport;
+      if (kind === "classic" && !isClassicBluetoothAvailable()) {
         return {
           ok: false,
-          message: friendlyHardwareMessage(raw, "Could not connect to the printer."),
+          code: "unsupported",
+          message: "Classic Bluetooth printing is available on Android tablets and phones.",
         };
       }
+      connectionState = "connecting";
+      const other = transportFor(kind === "classic" ? "ble" : "classic");
+      await other.disconnect();
+      const transport = transportFor(kind);
+      const result = await transport.connect(deviceId, deviceName);
+      if (!result.ok) {
+        lastError = result.message ?? "Could not connect to the printer.";
+        lastErrorCode = result.code ?? "out_of_range";
+        connectionState = "needs_attention";
+        return result;
+      }
+      await writeBluetoothPrinterProfile({
+        deviceId,
+        deviceName: deviceName?.trim() || "Bluetooth printer",
+        transport: kind,
+      });
+      lastError = null;
+      lastErrorCode = null;
+      connectionState = "connected";
+      return { ok: true, message: "Printer connected" };
     },
 
     async disconnect() {
-      try {
-        if (connectedId) await BleClient.disconnect(connectedId);
-      } catch {
-        /* ignore */
-      }
-      connectedId = null;
-      writeChar = null;
+      const prefs = await readBluetoothPrinterProfile();
+      await transportFor(prefs.transport).disconnect();
+      connectionState = prefs.deviceId ? "saved" : "none";
       return { ok: true };
     },
 
     async reconnect() {
-      const prefs = await readPrefs();
+      const prefs = await readBluetoothPrinterProfile();
       if (!prefs.deviceId) {
-        return { ok: false, message: "No saved Bluetooth printer. Discover and pair one first." };
+        return {
+          ok: false,
+          code: "not_paired",
+          message: "No saved Bluetooth printer. Discover and pair one first.",
+        };
       }
-      return this.connect(prefs.deviceId, prefs.deviceName ?? undefined);
+      connectionState = "reconnecting";
+      return this.connect(prefs.deviceId, prefs.deviceName ?? undefined, prefs.transport);
+    },
+
+    async forget() {
+      const prefs = await readBluetoothPrinterProfile();
+      await transportFor(prefs.transport).disconnect();
+      await clearBluetoothPrinterProfile();
+      lastError = null;
+      lastErrorCode = null;
+      connectionState = "none";
+      return { ok: true };
     },
 
     async setPaperWidth(mm) {
-      await Preferences.set({ key: PREF_PAPER, value: String(mm) });
+      await writeBluetoothPrinterProfile({ paperWidthMm: mm });
       return { ok: true };
     },
 
     async setAutoReconnect(enabled) {
-      await Preferences.set({ key: PREF_AUTO, value: enabled ? "true" : "false" });
+      await writeBluetoothPrinterProfile({ autoReconnect: enabled });
       return { ok: true };
+    },
+
+    async setTransport(transport) {
+      if (transport === "classic" && !isClassicBluetoothAvailable()) {
+        return {
+          ok: false,
+          code: "unsupported",
+          message: "Classic Bluetooth printing is available on Android tablets and phones.",
+        };
+      }
+      const prefs = await readBluetoothPrinterProfile();
+      if (prefs.transport !== transport) {
+        await transportFor(prefs.transport).disconnect();
+        await writeBluetoothPrinterProfile({
+          transport,
+          deviceId: null,
+          deviceName: null,
+        });
+        lastError = null;
+        lastErrorCode = null;
+        connectionState = "none";
+      } else {
+        await writeBluetoothPrinterProfile({ transport });
+      }
+      return { ok: true };
+    },
+
+    async openBluetoothSettings() {
+      return openClassicBluetoothSettings();
     },
   };
 }
 
 export async function printViaBluetooth(request: PrintReceiptRequest): Promise<HardwareResult> {
-  const controls = createBluetoothPrinterControls();
-  const prefs = await readPrefs();
-  const deviceId = request.bluetoothDeviceId || prefs.deviceId || connectedId;
-  if (!deviceId) {
-    return {
-      ok: false,
-      message: "No Bluetooth printer selected. Open Settings → Hardware to pair one.",
+  return runSerialized(async () => {
+    const controls = createBluetoothPrinterControls();
+    const prefs = await readBluetoothPrinterProfile();
+    const deviceId = request.bluetoothDeviceId || prefs.deviceId;
+    if (!deviceId) {
+      return {
+        ok: false,
+        code: "not_paired",
+        message: "No Bluetooth printer selected. Open Settings → Hardware to pair one.",
+      };
+    }
+    const transport = transportFor(prefs.transport);
+    const ensureConnected = async (reconnecting: boolean) => {
+      if (transport.isConnected(deviceId)) return { ok: true as const };
+      connectionState = reconnecting ? "reconnecting" : "connecting";
+      return controls.connect(deviceId, prefs.deviceName ?? undefined, prefs.transport);
     };
-  }
-  if (connectedId !== deviceId) {
-    const connected = await controls.connect(deviceId, prefs.deviceName ?? undefined);
-    if (!connected.ok) return connected;
-  }
-  try {
+
+    let connected = await ensureConnected(false);
+    if (!connected.ok && prefs.autoReconnect) {
+      connected = await ensureConnected(true);
+    }
+    if (!connected.ok) {
+      lastError = connected.message ?? "Could not connect to the printer.";
+      lastErrorCode = connected.code ?? "out_of_range";
+      connectionState = "needs_attention";
+      return connected;
+    }
+
     const bytes = base64ToBytes(request.escposBase64);
-    await writeEscPos(deviceId, bytes);
-    return { ok: true, message: "Receipt sent to Bluetooth printer" };
-  } catch (error) {
-    if (prefs.autoReconnect) {
+    let written = await transport.writeEscPos(deviceId, bytes);
+    if (!written.ok && prefs.autoReconnect) {
+      connectionState = "reconnecting";
       const again = await controls.reconnect();
       if (again.ok) {
-        try {
-          const bytes = base64ToBytes(request.escposBase64);
-          await writeEscPos(deviceId, bytes);
-          return { ok: true, message: "Receipt sent to Bluetooth printer" };
-        } catch {
-          /* fall through */
-        }
+        written = await transport.writeEscPos(deviceId, bytes);
       }
     }
-    const raw = error instanceof Error ? error.message : String(error ?? "");
-    return {
-      ok: false,
-      message: friendlyHardwareMessage(raw, "Could not print to the Bluetooth printer."),
-    };
-  }
+    if (!written.ok) {
+      lastError = written.message ?? "Could not print to the Bluetooth printer.";
+      lastErrorCode = written.code ?? "write_failed";
+      connectionState = "needs_attention";
+      return written;
+    }
+    lastError = null;
+    lastErrorCode = null;
+    connectionState = "connected";
+    return { ok: true, message: "Receipt sent to Bluetooth printer" };
+  });
 }
 
 export async function bluetoothTestPrint(paperWidthMm: 58 | 80): Promise<HardwareResult> {
-  // Minimal ESC/POS: init + centered title + feed + cut
   const lines = [
     "\x1b\x40",
     "\x1b\x61\x01",

@@ -41,8 +41,9 @@ export function MobileHardwarePanel() {
         <Info className="h-4 w-4" />
         <AlertTitle>Mobile hardware</AlertTitle>
         <AlertDescription>
-          Pair a Bluetooth printer for receipts. After a sale, Print (one copy) is the main action.
-          Sharing and PDF are optional.
+          Pair one Bluetooth printer for this tablet (Nearby BLE or Android Classic). Paper width in
+          Hardware controls physical receipts. After a sale, Print is primary; Share and PDF are
+          recovery options if the printer is unavailable.
         </AlertDescription>
       </Alert>
 

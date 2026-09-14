@@ -16,22 +16,27 @@ import { normalizeReceiptPayload, printReceipt } from "@/services/printing";
 import { saveReceiptPdfOnDevice, shareReceiptOnDevice } from "@/services/receipts/share";
 import {
   filesystemSaveFailedMessage,
+  bluetoothPrintFailedMessage,
   printFailedMessage,
   shareFailedMessage,
 } from "@novend/hardware";
 import { useNativeShell } from "@/hooks/use-native-shell";
 import { toast } from "sonner";
-import { Check, FileDown, Printer, Share2 } from "lucide-react";
+import { Check, FileDown, Printer, Settings2, Share2 } from "lucide-react";
 import type { ReceiptPrintMode } from "@/lib/receipt-print-mode";
+import { useRouter } from "next/navigation";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   payload: ReceiptPayload | null;
   printMode?: ReceiptPrintMode;
+  /** Optional message when automatic print already failed before opening the sheet. */
+  printFailureMessage?: string | null;
 };
 
-function modeCopy(mode: ReceiptPrintMode): string {
+function modeCopy(mode: ReceiptPrintMode, failure?: string | null): string {
+  if (failure) return failure;
   if (mode === "automatic") {
     return "Printing one copy where a printer is available. You can still share or save a PDF.";
   }
@@ -45,9 +50,16 @@ function modeCopy(mode: ReceiptPrintMode): string {
  * Post-sale sheet for Capacitor. Print follows Settings → Receipt template
  * (`resolveReceiptPrintMode`): auto / manual / do not print.
  */
-export function SaleCompletedDialog({ open, onOpenChange, payload, printMode = "manual" }: Props) {
+export function SaleCompletedDialog({
+  open,
+  onOpenChange,
+  payload,
+  printMode = "manual",
+  printFailureMessage = null,
+}: Props) {
   const normalized = payload ? normalizeReceiptPayload(payload) : null;
   const native = useNativeShell();
+  const router = useRouter();
   const [busy, setBusy] = useState<"share" | "pdf" | "print" | null>(null);
   const autoPrintedInvoice = useRef<string | null>(null);
   const showPrint = printMode !== "never";
@@ -58,7 +70,10 @@ export function SaleCompletedDialog({ open, onOpenChange, payload, printMode = "
     try {
       const result = await printReceipt(normalized);
       if (!result.printed) {
-        toast.error(printFailedMessage());
+        toast.error(
+          result.failureMessage ||
+            bluetoothPrintFailedMessage(result.failureCode, printFailedMessage()),
+        );
         return;
       }
       toast.success(
@@ -79,6 +94,7 @@ export function SaleCompletedDialog({ open, onOpenChange, payload, printMode = "
       return;
     }
     if (printMode !== "automatic" || !normalized) return;
+    if (printFailureMessage) return;
     if (autoPrintedInvoice.current === normalized.invoiceNumber) return;
     autoPrintedInvoice.current = normalized.invoiceNumber;
     void onPrint();
@@ -126,7 +142,7 @@ export function SaleCompletedDialog({ open, onOpenChange, payload, printMode = "
         Invoice {normalized.invoiceNumber} · {normalized.itemCount} item
         {normalized.itemCount === 1 ? "" : "s"}
       </p>
-      <p className="text-muted-foreground text-sm">{modeCopy(printMode)}</p>
+      <p className="text-muted-foreground text-sm">{modeCopy(printMode, printFailureMessage)}</p>
       <div className="bg-muted/40 flex min-w-0 justify-center overflow-x-hidden rounded-xl p-3 sm:p-4">
         <ReceiptDocument preview payload={normalized} className="max-w-full shrink" />
       </div>
@@ -147,6 +163,21 @@ export function SaleCompletedDialog({ open, onOpenChange, payload, printMode = "
         >
           <Printer className="h-4 w-4" />
           {busy === "print" ? "Printing…" : "Print receipt"}
+        </Button>
+      ) : null}
+      {printFailureMessage || printMode === "automatic" ? (
+        <Button
+          type="button"
+          className="w-full"
+          variant="outline"
+          disabled={busy !== null}
+          onClick={() => {
+            onOpenChange(false);
+            router.push("/settings?section=mobileHardware");
+          }}
+        >
+          <Settings2 className="h-4 w-4" />
+          Open Hardware settings
         </Button>
       ) : null}
       <Button
