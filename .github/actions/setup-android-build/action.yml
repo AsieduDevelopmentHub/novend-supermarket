@@ -15,7 +15,11 @@ runs:
         distribution: temurin
         java-version: "21"
 
-    - uses: android-actions/setup-android@v3
+    # Default packages include obsolete `tools` (removed from the SDK repo).
+    # Install only platform-tools; Gradle resolves platforms/build-tools.
+    - uses: android-actions/setup-android@v4
+      with:
+        packages: platform-tools
 
     - uses: gradle/actions/setup-gradle@v4
       with:
