@@ -58,7 +58,7 @@ export function buildSettingsSections(input: {
         { value: "desktop", label: "Downloads", long: "Download apps" },
       ]
     : isMobileCap
-      ? [{ value: "mobileHardware", label: "Hardware", long: "Camera, photos & sharing" }]
+      ? [{ value: "mobileHardware", label: "Hardware", long: "Printer, camera & sharing" }]
       : [
           { value: "scanner", label: "Scanner", long: "Barcode scanner" },
           { value: "customerDisplay", label: "Display", long: "Customer display" },

@@ -85,8 +85,17 @@ export function saveTerminalPrinterConfig(config: TerminalPrinterConfig) {
 export type PrintResult = {
   printed: boolean;
   reason:
-    "native" | "system" | "download" | "iframe" | "iframe_failed" | "ssr" | "native_unavailable";
+    | "native"
+    | "system"
+    | "download"
+    | "iframe"
+    | "iframe_failed"
+    | "ssr"
+    | "native_unavailable";
   copies?: number;
+  /** Structured Bluetooth failure code when printed is false on Cap. */
+  failureCode?: string;
+  failureMessage?: string;
 };
 
 export type BridgePrintRequest = {
@@ -108,4 +117,21 @@ export function resolvePaperWidthMm(
 ): 58 | 80 {
   if (config.paperWidthMm === 58 || config.paperWidthMm === 80) return config.paperWidthMm;
   return payload.template.paperWidthMm === 58 ? 58 : 80;
+}
+
+/**
+ * Mobile physical printers: Hardware paper width wins over the receipt template.
+ * Saved printer width → template width → 80mm.
+ */
+export function resolveMobilePaperWidthMm(args: {
+  savedPaperWidthMm?: 58 | 80 | null;
+  templatePaperWidthMm?: 58 | 80 | null;
+}): 58 | 80 {
+  if (args.savedPaperWidthMm === 58 || args.savedPaperWidthMm === 80) {
+    return args.savedPaperWidthMm;
+  }
+  if (args.templatePaperWidthMm === 58 || args.templatePaperWidthMm === 80) {
+    return args.templatePaperWidthMm;
+  }
+  return 80;
 }

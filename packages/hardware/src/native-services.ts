@@ -254,15 +254,19 @@ export const bluetoothPrinter = {
     const controls = await getBluetoothPrinterControls();
     return controls.getStatus();
   },
-  discover: async () => {
+  discover: async (options?: { transport?: "ble" | "classic" }) => {
     const { getBluetoothPrinterControls } = await bluetoothFacade();
     const controls = await getBluetoothPrinterControls();
-    return controls.discover();
+    return controls.discover(options);
   },
-  connect: async (deviceId: string, deviceName?: string) => {
+  connect: async (
+    deviceId: string,
+    deviceName?: string,
+    transport?: "ble" | "classic",
+  ) => {
     const { getBluetoothPrinterControls } = await bluetoothFacade();
     const controls = await getBluetoothPrinterControls();
-    return controls.connect(deviceId, deviceName);
+    return controls.connect(deviceId, deviceName, transport);
   },
   disconnect: async () => {
     const { getBluetoothPrinterControls } = await bluetoothFacade();
@@ -274,6 +278,11 @@ export const bluetoothPrinter = {
     const controls = await getBluetoothPrinterControls();
     return controls.reconnect();
   },
+  forget: async () => {
+    const { getBluetoothPrinterControls } = await bluetoothFacade();
+    const controls = await getBluetoothPrinterControls();
+    return controls.forget();
+  },
   setPaperWidth: async (mm: 58 | 80) => {
     const { getBluetoothPrinterControls } = await bluetoothFacade();
     const controls = await getBluetoothPrinterControls();
@@ -283,5 +292,15 @@ export const bluetoothPrinter = {
     const { getBluetoothPrinterControls } = await bluetoothFacade();
     const controls = await getBluetoothPrinterControls();
     return controls.setAutoReconnect(enabled);
+  },
+  setTransport: async (transport: "ble" | "classic") => {
+    const { getBluetoothPrinterControls } = await bluetoothFacade();
+    const controls = await getBluetoothPrinterControls();
+    return controls.setTransport(transport);
+  },
+  openBluetoothSettings: async () => {
+    const { getBluetoothPrinterControls } = await bluetoothFacade();
+    const controls = await getBluetoothPrinterControls();
+    return controls.openBluetoothSettings();
   },
 };

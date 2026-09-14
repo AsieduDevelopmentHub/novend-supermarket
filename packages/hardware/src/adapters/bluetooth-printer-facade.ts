@@ -4,11 +4,13 @@ import type {
   BluetoothPrinterControls,
   BluetoothPrinterDevice,
   BluetoothPrinterStatus,
+  BluetoothPrinterTransportKind,
 } from "../native-types";
 
 function unsupportedBluetooth(): BluetoothPrinterControls {
   const unavailable = <T>(data?: T): HardwareResult<T> => ({
     ok: false,
+    code: "unsupported",
     message: "Bluetooth printing is only available in the Novend mobile app",
     data,
   });
@@ -19,10 +21,15 @@ function unsupportedBluetooth(): BluetoothPrinterControls {
         data: {
           available: false,
           connected: false,
+          connectionState: "none",
           deviceId: null,
           deviceName: null,
           paperWidthMm: 80,
           autoReconnect: true,
+          transport: "ble",
+          lastError: null,
+          lastErrorCode: null,
+          classicAvailable: false,
         } satisfies BluetoothPrinterStatus,
       };
     },
@@ -38,10 +45,19 @@ function unsupportedBluetooth(): BluetoothPrinterControls {
     async reconnect() {
       return unavailable();
     },
+    async forget() {
+      return unavailable();
+    },
     async setPaperWidth() {
       return unavailable();
     },
     async setAutoReconnect() {
+      return unavailable();
+    },
+    async setTransport(_transport: BluetoothPrinterTransportKind) {
+      return unavailable();
+    },
+    async openBluetoothSettings() {
       return unavailable();
     },
   };
@@ -62,6 +78,7 @@ export async function printViaBluetoothSafe(request: PrintReceiptRequest): Promi
   if (!isCapacitor()) {
     return {
       ok: false,
+      code: "unsupported",
       message: "Bluetooth printing is only available in the Novend mobile app",
     };
   }
@@ -73,6 +90,7 @@ export async function bluetoothTestPrintSafe(paperWidthMm: 58 | 80): Promise<Har
   if (!isCapacitor()) {
     return {
       ok: false,
+      code: "unsupported",
       message: "Bluetooth printing is only available in the Novend mobile app",
     };
   }

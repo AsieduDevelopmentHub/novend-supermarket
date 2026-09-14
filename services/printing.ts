@@ -290,24 +290,35 @@ export async function printReceipt(
 
   if (!options?.forceBrowser && isCapacitor()) {
     try {
-      const { Hardware } = await import("@novend/hardware");
-      const config = loadTerminalPrinterConfig();
-      const paperWidthMm = resolvePaperWidthMm(payload, config);
+      const { Hardware, bluetoothPrintFailedMessage } = await import("@novend/hardware");
+      const { resolveMobilePaperWidthMm } = await import("./print/terminal-config");
+      const status = await Hardware.bluetoothPrinter.getStatus();
+      const paperWidthMm = resolveMobilePaperWidthMm({
+        savedPaperWidthMm: status.data?.paperWidthMm,
+        templatePaperWidthMm: payload.template.paperWidthMm,
+      });
       const bytes = buildEscPosReceipt(payload, paperWidthMm);
       const defaultPrinter = await Hardware.printer.getDefaultPrinter();
       const result = await Hardware.printer.printReceipt({
         escposBase64: escPosToBase64(bytes),
         invoiceNumber: payload.invoiceNumber,
-        copies: config.copies,
+        copies: 1,
         connectionType: defaultPrinter.data?.connectionType ?? "bluetooth",
         bluetoothDeviceId: defaultPrinter.data?.bluetoothDeviceId,
         paperWidthMm,
-        openCashDrawer: config.openCashDrawer,
+        openCashDrawer: false,
       });
       if (result.ok) {
-        return { printed: true, reason: "native", copies: config.copies };
+        return { printed: true, reason: "native", copies: 1 };
       }
       console.warn("[print:capacitor-failed]", result.message);
+      return {
+        printed: false,
+        reason: "native_unavailable",
+        failureCode: result.code,
+        failureMessage:
+          result.message || bluetoothPrintFailedMessage(result.code),
+      };
     } catch (error) {
       console.warn("[print:capacitor-error]", error);
     }

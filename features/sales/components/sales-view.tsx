@@ -123,6 +123,7 @@ export function SalesView() {
   const [lastReceipt, setLastReceipt] = useState<ReceiptPayload | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saleCompleteOpen, setSaleCompleteOpen] = useState(false);
+  const [printFailureMessage, setPrintFailureMessage] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [paying, setPaying] = useState(false);
   const payingRef = useRef(false);
@@ -547,6 +548,7 @@ export function SalesView() {
     }
     if (isCapacitor()) {
       if (action === "prompt") {
+        setPrintFailureMessage(null);
         setSaleCompleteOpen(true);
         return;
       }
@@ -559,6 +561,11 @@ export function SalesView() {
         );
         return;
       }
+      const failure =
+        result.failureMessage ||
+        "Could not print to the Bluetooth printer. Retry, open Hardware settings, or Share / Save PDF.";
+      toast.error(failure);
+      setPrintFailureMessage(failure);
       setSaleCompleteOpen(true);
       return;
     }
@@ -990,9 +997,13 @@ export function SalesView() {
       />
       <SaleCompletedDialog
         open={saleCompleteOpen}
-        onOpenChange={setSaleCompleteOpen}
+        onOpenChange={(open) => {
+          setSaleCompleteOpen(open);
+          if (!open) setPrintFailureMessage(null);
+        }}
         payload={lastReceipt}
         printMode={resolveReceiptPrintMode(posPrefs)}
+        printFailureMessage={printFailureMessage}
       />
 
       <BarcodeMatchDialog

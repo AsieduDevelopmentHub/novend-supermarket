@@ -15,16 +15,48 @@ import {
 } from "@/components/ui/select";
 import {
   Hardware,
+  bluetoothPrintFailedMessage,
   type BluetoothPrinterDevice,
   type BluetoothPrinterStatus,
+  type BluetoothPrinterTransportKind,
 } from "@novend/hardware";
-import { Loader2, Printer, RefreshCw, Unplug } from "lucide-react";
+import { Loader2, Printer, RefreshCw, Settings2, Trash2, Unplug } from "lucide-react";
 import { toast } from "sonner";
+
+function statusLabel(status: BluetoothPrinterStatus | null): string {
+  if (!status) return "Checking…";
+  switch (status.connectionState) {
+    case "connected":
+      return "Connected";
+    case "connecting":
+      return "Connecting…";
+    case "reconnecting":
+      return "Reconnecting…";
+    case "needs_attention":
+      return "Needs attention";
+    case "saved":
+      return "Saved";
+    default:
+      return "No printer";
+  }
+}
+
+function statusVariant(
+  status: BluetoothPrinterStatus | null,
+): "success" | "secondary" | "warning" | "destructive" {
+  if (!status) return "secondary";
+  if (status.connectionState === "connected") return "success";
+  if (status.connectionState === "needs_attention") return "destructive";
+  if (status.connectionState === "saved") return "warning";
+  return "secondary";
+}
 
 export function BluetoothPrinterCard() {
   const [status, setStatus] = useState<BluetoothPrinterStatus | null>(null);
   const [devices, setDevices] = useState<BluetoothPrinterDevice[]>([]);
-  const [busy, setBusy] = useState<"discover" | "connect" | "test" | "reconnect" | null>(null);
+  const [busy, setBusy] = useState<
+    "discover" | "connect" | "test" | "reconnect" | "forget" | null
+  >(null);
 
   async function refreshStatus() {
     const result = await Hardware.bluetoothPrinter.getStatus();
@@ -40,10 +72,15 @@ export function BluetoothPrinterCard() {
         setStatus({
           available: false,
           connected: false,
+          connectionState: "none",
           deviceId: null,
           deviceName: null,
           paperWidthMm: 80,
           autoReconnect: true,
+          transport: "ble",
+          lastError: null,
+          lastErrorCode: null,
+          classicAvailable: false,
         });
       }
     });
@@ -55,16 +92,21 @@ export function BluetoothPrinterCard() {
   async function onDiscover() {
     setBusy("discover");
     try {
-      const result = await Hardware.bluetoothPrinter.discover();
+      const transport = status?.transport ?? "ble";
+      const result = await Hardware.bluetoothPrinter.discover({ transport });
       if (!result.ok) {
-        toast.error(result.message || "Could not discover printers");
+        toast.error(
+          result.message || bluetoothPrintFailedMessage(result.code, "Could not discover printers"),
+        );
         return;
       }
       setDevices(result.data?.devices ?? []);
       toast.success(
         result.data?.devices.length
           ? `Found ${result.data.devices.length} device(s)`
-          : "No printers found nearby",
+          : transport === "classic"
+            ? "No paired printers found. Pair one in Android Bluetooth settings first."
+            : "No printers found nearby",
       );
     } finally {
       setBusy(null);
@@ -74,12 +116,15 @@ export function BluetoothPrinterCard() {
   async function onConnect(device: BluetoothPrinterDevice) {
     setBusy("connect");
     try {
-      const result = await Hardware.bluetoothPrinter.connect(device.id, device.name);
+      const transport = device.transport ?? status?.transport ?? "ble";
+      const result = await Hardware.bluetoothPrinter.connect(device.id, device.name, transport);
       if (!result.ok) {
-        toast.error(result.message || "Could not connect");
+        toast.error(result.message || bluetoothPrintFailedMessage(result.code, "Could not connect"));
+        await refreshStatus();
         return;
       }
       toast.success("Printer paired");
+      setDevices([]);
       await refreshStatus();
     } finally {
       setBusy(null);
@@ -91,7 +136,10 @@ export function BluetoothPrinterCard() {
     try {
       const result = await Hardware.bluetoothPrinter.reconnect();
       if (!result.ok) {
-        toast.error(result.message || "Could not reconnect");
+        toast.error(
+          result.message || bluetoothPrintFailedMessage(result.code, "Could not reconnect"),
+        );
+        await refreshStatus();
         return;
       }
       toast.success("Printer reconnected");
@@ -107,6 +155,18 @@ export function BluetoothPrinterCard() {
     await refreshStatus();
   }
 
+  async function onForget() {
+    setBusy("forget");
+    try {
+      await Hardware.bluetoothPrinter.forget();
+      setDevices([]);
+      toast.message("Printer forgotten");
+      await refreshStatus();
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function onTest() {
     setBusy("test");
     try {
@@ -117,13 +177,28 @@ export function BluetoothPrinterCard() {
         paperWidthMm: width,
       });
       if (!result?.ok) {
-        toast.error(result?.message || "Test print failed");
+        toast.error(
+          result?.message ||
+            bluetoothPrintFailedMessage(result?.code, "Test print failed"),
+        );
+        await refreshStatus();
         return;
       }
       toast.success("Test print sent");
+      await refreshStatus();
     } finally {
       setBusy(null);
     }
+  }
+
+  async function onTransportChange(next: BluetoothPrinterTransportKind) {
+    const result = await Hardware.bluetoothPrinter.setTransport(next);
+    if (!result.ok) {
+      toast.error(result.message || "Could not switch printer type");
+      return;
+    }
+    setDevices([]);
+    await refreshStatus();
   }
 
   return (
@@ -134,20 +209,45 @@ export function BluetoothPrinterCard() {
           Bluetooth printer
         </CardTitle>
         <CardDescription>
-          Pair a 58mm or 80mm thermal printer. Discover opens the system Bluetooth picker.
+          Pair one thermal printer for this tablet. Use Nearby BLE, or Android paired printers for
+          Classic Bluetooth models.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={status?.connected ? "success" : "secondary"}>
-            {status?.connected ? "Connected" : "Not connected"}
-          </Badge>
+          <Badge variant={statusVariant(status)}>{statusLabel(status)}</Badge>
+          {status?.transport ? (
+            <Badge variant="outline">{status.transport === "classic" ? "Classic" : "BLE"}</Badge>
+          ) : null}
           {status?.deviceName ? (
             <p className="text-sm font-medium">{status.deviceName}</p>
           ) : (
             <p className="text-muted-foreground text-sm">No preferred printer saved</p>
           )}
         </div>
+        {status?.lastError ? (
+          <p className="text-destructive text-sm">{status.lastError}</p>
+        ) : null}
+
+        {status?.classicAvailable ? (
+          <div className="space-y-2">
+            <Label>Printer type</Label>
+            <Select
+              value={status.transport}
+              onValueChange={(value) =>
+                void onTransportChange(value === "classic" ? "classic" : "ble")
+              }
+            >
+              <SelectTrigger className="min-h-11">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ble">Nearby BLE</SelectItem>
+                <SelectItem value="classic">Android paired (Classic)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
 
         <div className="space-y-2">
           <Label>Paper width</Label>
@@ -167,13 +267,16 @@ export function BluetoothPrinterCard() {
               <SelectItem value="80">80 mm</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-muted-foreground text-xs">
+            Controls the physical ESC/POS layout for test and sale prints on this device.
+          </p>
         </div>
 
         <div className="flex items-center justify-between gap-3 rounded-[16px] border px-3 py-2">
           <div>
             <p className="text-sm font-medium">Auto reconnect</p>
             <p className="text-muted-foreground text-xs">
-              Retry the saved printer after a failed print
+              Reconnect once before print and retry one failed write
             </p>
           </div>
           <Switch
@@ -196,8 +299,19 @@ export function BluetoothPrinterCard() {
             ) : (
               <RefreshCw className="mr-2 h-4 w-4" />
             )}
-            Discover printers
+            {status?.transport === "classic" ? "List paired printers" : "Discover printers"}
           </Button>
+          {status?.classicAvailable && status.transport === "classic" ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy !== null}
+              onClick={() => void Hardware.bluetoothPrinter.openBluetoothSettings()}
+            >
+              <Settings2 className="mr-2 h-4 w-4" />
+              Open Bluetooth settings
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -217,6 +331,15 @@ export function BluetoothPrinterCard() {
           </Button>
           <Button
             type="button"
+            variant="outline"
+            disabled={busy !== null || !status?.deviceId}
+            onClick={() => void onForget()}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Forget
+          </Button>
+          <Button
+            type="button"
             disabled={busy !== null || !status?.deviceId}
             onClick={() => void onTest()}
           >
@@ -229,12 +352,16 @@ export function BluetoothPrinterCard() {
           <ul className="space-y-2">
             {devices.map((device) => (
               <li
-                key={device.id}
+                key={`${device.transport ?? "ble"}:${device.id}`}
                 className="flex items-center justify-between gap-2 rounded-[14px] border px-3 py-2"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{device.name}</p>
-                  <p className="text-muted-foreground truncate text-xs">{device.id}</p>
+                  <p className="text-muted-foreground truncate text-xs">
+                    {device.bonded ? "Paired · " : ""}
+                    {device.transport === "classic" ? "Classic · " : "BLE · "}
+                    {device.id}
+                  </p>
                 </div>
                 <Button
                   type="button"
@@ -242,7 +369,10 @@ export function BluetoothPrinterCard() {
                   disabled={busy !== null}
                   onClick={() => void onConnect(device)}
                 >
-                  Pair
+                  {busy === "connect" ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Connect
                 </Button>
               </li>
             ))}

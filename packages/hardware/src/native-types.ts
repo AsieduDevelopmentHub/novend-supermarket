@@ -2,21 +2,41 @@
  * Extended domain types for Phase 4 native services.
  */
 
-import type { HardwareResult } from "./types";
+import type { BluetoothPrintErrorCode, HardwareResult } from "./types";
+
+export type BluetoothPrinterTransportKind = "ble" | "classic";
+
+export type BluetoothPrinterConnectionState =
+  | "none"
+  | "saved"
+  | "connecting"
+  | "connected"
+  | "reconnecting"
+  | "needs_attention";
 
 export type BluetoothPrinterDevice = {
   id: string;
   name: string;
   connected?: boolean;
+  transport?: BluetoothPrinterTransportKind;
+  /** Classic MAC printers bonded in Android Settings. */
+  bonded?: boolean;
 };
 
 export type BluetoothPrinterStatus = {
   available: boolean;
   connected: boolean;
+  /** Honest cashier-facing connection state. */
+  connectionState: BluetoothPrinterConnectionState;
   deviceId: string | null;
   deviceName: string | null;
   paperWidthMm: 58 | 80;
   autoReconnect: boolean;
+  transport: BluetoothPrinterTransportKind;
+  lastError?: string | null;
+  lastErrorCode?: BluetoothPrintErrorCode | null;
+  /** Classic SPP is Android-only. */
+  classicAvailable: boolean;
 };
 
 export type BiometricAvailability = {
@@ -32,7 +52,10 @@ export type BiometricAvailability = {
 };
 
 export type NotificationTopic =
-  "stock_alerts" | "daily_summary" | "branch_transfers" | "subscription_alerts";
+  | "stock_alerts"
+  | "daily_summary"
+  | "branch_transfers"
+  | "subscription_alerts";
 
 export type AppInfo = {
   name: string;
@@ -110,12 +133,25 @@ export type AppServicesAdapter = {
   addAppStateListener: (callback: (isActive: boolean) => void) => Promise<AppUrlOpenHandle>;
 };
 
+export type BluetoothDiscoverOptions = {
+  transport?: BluetoothPrinterTransportKind;
+};
+
 export type BluetoothPrinterControls = {
   getStatus: () => Promise<HardwareResult<BluetoothPrinterStatus>>;
-  discover: () => Promise<HardwareResult<{ devices: BluetoothPrinterDevice[] }>>;
-  connect: (deviceId: string, deviceName?: string) => Promise<HardwareResult>;
+  discover: (
+    options?: BluetoothDiscoverOptions,
+  ) => Promise<HardwareResult<{ devices: BluetoothPrinterDevice[] }>>;
+  connect: (
+    deviceId: string,
+    deviceName?: string,
+    transport?: BluetoothPrinterTransportKind,
+  ) => Promise<HardwareResult>;
   disconnect: () => Promise<HardwareResult>;
   reconnect: () => Promise<HardwareResult>;
+  forget: () => Promise<HardwareResult>;
   setPaperWidth: (mm: 58 | 80) => Promise<HardwareResult>;
   setAutoReconnect: (enabled: boolean) => Promise<HardwareResult>;
+  setTransport: (transport: BluetoothPrinterTransportKind) => Promise<HardwareResult>;
+  openBluetoothSettings: () => Promise<HardwareResult>;
 };

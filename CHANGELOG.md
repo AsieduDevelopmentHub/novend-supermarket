@@ -6,6 +6,25 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ## Unreleased
 
+## v0.3.20 — 2026-09-14
+
+Android Capacitor release: integrated Bluetooth thermal printing for tablets.
+
+### Added
+
+- **Classic Bluetooth / SPP (Android)** — first-party `NovendBluetoothClassic` plugin lists bonded printers, connects over RFCOMM, and writes ESC/POS off the Cap bridge thread.
+- Mobile Hardware printer workflow: Nearby BLE or Android paired Classic, honest connection states, Forget, Open Bluetooth settings, structured failure codes.
+
+### Changed
+
+- Sale and test prints use Hardware paper width (then receipt template, then 80mm).
+- Auto-reconnect before print with one write retry; print jobs are serialized.
+- Automatic print failure opens the sale sheet with Retry / Hardware settings / Share / Save PDF.
+
+### Fixed
+
+- Docs that still described Cap checkout as PDF-only / BLE Settings-test-only.
+
 ---
 
 ## v0.3.19 — 2026-09-02
