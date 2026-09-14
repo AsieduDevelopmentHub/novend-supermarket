@@ -6,6 +6,12 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ## Unreleased
 
+## v0.3.21 — 2026-09-14
+
+### Fixed
+
+- Product Release Android setup no longer installs the obsolete SDK `tools` package (`Failed to find package 'tools'`), so Cap APK builds can complete.
+
 ## v0.3.20 — 2026-09-14
 
 Android Capacitor release: integrated Bluetooth thermal printing for tablets.
