@@ -1,8 +1,5 @@
 import type { BluetoothPrintErrorCode, HardwareResult } from "../types";
-import type {
-  BluetoothPrinterDevice,
-  BluetoothPrinterTransportKind,
-} from "../native-types";
+import type { BluetoothPrinterDevice, BluetoothPrinterTransportKind } from "../native-types";
 
 export type BluetoothPrinterTransport = {
   kind: BluetoothPrinterTransportKind;
@@ -60,8 +57,7 @@ export function mapBluetoothFailure(
   return {
     ok: false,
     code,
-    message:
-      raw && !/capacitor|plugin|exception|nullpointer|ecode/i.test(raw) ? raw : fallback,
+    message: raw && !/capacitor|plugin|exception|nullpointer|ecode/i.test(raw) ? raw : fallback,
   };
 }
 

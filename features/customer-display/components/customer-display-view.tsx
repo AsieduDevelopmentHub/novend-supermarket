@@ -46,15 +46,15 @@ export function CustomerDisplayView() {
         </header>
 
         <main className="flex min-h-0 flex-1 flex-col gap-3 px-6 py-1 lg:flex-row lg:gap-5 lg:px-10 lg:py-3">
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <PhasePanel snapshot={snapshot} phase={phase} showCart={showCart} />
-        </section>
+          <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <PhasePanel snapshot={snapshot} phase={phase} showCart={showCart} />
+          </section>
 
-        {showCart ? (
-          <aside className="flex w-full shrink-0 flex-col lg:w-[22rem] xl:w-[26rem]">
-            <TotalsPanel snapshot={snapshot} processing={phase === "processing"} />
-          </aside>
-        ) : null}
+          {showCart ? (
+            <aside className="flex w-full shrink-0 flex-col lg:w-[22rem] xl:w-[26rem]">
+              <TotalsPanel snapshot={snapshot} processing={phase === "processing"} />
+            </aside>
+          ) : null}
         </main>
 
         <footer className="text-muted-foreground shrink-0 px-6 py-3 text-center text-xs lg:px-10 lg:text-sm">
@@ -76,7 +76,10 @@ function PhasePanel({
 }) {
   if (phase === "idle") {
     return (
-      <div key="idle" className="customer-display-phase-in flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div
+        key="idle"
+        className="customer-display-phase-in flex min-h-0 flex-1 flex-col overflow-y-auto"
+      >
         <IdlePanel tradeName={snapshot.branding.tradeName} />
       </div>
     );
@@ -84,10 +87,7 @@ function PhasePanel({
 
   if (phase === "complete") {
     return (
-      <div
-        key="complete"
-        className="customer-display-phase-in flex min-h-0 flex-1 flex-col gap-4"
-      >
+      <div key="complete" className="customer-display-phase-in flex min-h-0 flex-1 flex-col gap-4">
         <CompletePanel snapshot={snapshot} />
         <CartPanel snapshot={snapshot} processing={false} compact />
       </div>
@@ -137,7 +137,7 @@ function CompletePanel({ snapshot }: { snapshot: CustomerDisplaySnapshot }) {
 
   return (
     <div className="customer-display-complete-pop customer-display-glass shrink-0 rounded-2xl px-6 py-5 text-center lg:px-8 lg:py-6">
-      <div className="inline-flex items-center gap-2 rounded-full px-1 py-1 text-success">
+      <div className="text-success inline-flex items-center gap-2 rounded-full px-1 py-1">
         <CheckCircle2 className="h-5 w-5" aria-hidden />
         <span className="text-sm font-semibold tracking-wide">Payment complete</span>
       </div>
@@ -177,76 +177,76 @@ function CartPanel({
       )}
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[inherit]">
-      <div className="border-border/40 flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3 lg:px-5 lg:py-4">
-        <h2
+        <div className="border-border/40 flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3 lg:px-5 lg:py-4">
+          <h2
+            className={cn(
+              "font-semibold tracking-tight",
+              compact ? "text-lg" : "text-xl lg:text-2xl",
+            )}
+          >
+            {compact ? "Items" : "Your order"}
+          </h2>
+          {processing ? (
+            <span className="customer-display-glass customer-display-shimmer text-primary rounded-full px-3 py-1 text-xs font-semibold tracking-wide uppercase">
+              <span className="relative z-[1]">Processing</span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground text-sm tabular-nums lg:text-base">
+              {snapshot.itemCount} item{snapshot.itemCount === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
+
+        {snapshot.customerName ? (
+          <p className="text-muted-foreground shrink-0 px-4 pt-3 text-sm lg:px-5 lg:text-base">
+            Customer · <span className="text-foreground font-medium">{snapshot.customerName}</span>
+          </p>
+        ) : null}
+
+        <ul
           className={cn(
-            "font-semibold tracking-tight",
-            compact ? "text-lg" : "text-xl lg:text-2xl",
+            "min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3 lg:px-5 lg:py-4",
+            snapshot.customerName ? "pt-2" : "",
           )}
         >
-          {compact ? "Items" : "Your order"}
-        </h2>
-        {processing ? (
-          <span className="customer-display-glass customer-display-shimmer text-primary rounded-full px-3 py-1 text-xs font-semibold tracking-wide uppercase">
-            <span className="relative z-[1]">Processing</span>
-          </span>
-        ) : (
-          <span className="text-muted-foreground text-sm tabular-nums lg:text-base">
-            {snapshot.itemCount} item{snapshot.itemCount === 1 ? "" : "s"}
-          </span>
-        )}
-      </div>
-
-      {snapshot.customerName ? (
-        <p className="text-muted-foreground shrink-0 px-4 pt-3 text-sm lg:px-5 lg:text-base">
-          Customer · <span className="text-foreground font-medium">{snapshot.customerName}</span>
-        </p>
-      ) : null}
-
-      <ul
-        className={cn(
-          "min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3 lg:px-5 lg:py-4",
-          snapshot.customerName ? "pt-2" : "",
-        )}
-      >
-        {displayItems.map((item, index) => (
-          <li
-            key={`${item.productId}-${item.quantity}-${item.lineTotal}`}
-            className="customer-display-item-in customer-display-glass customer-display-glass--nested rounded-xl p-3 lg:p-4"
-            style={{ animationDelay: `${Math.min(index, 10) * 50}ms` }}
-          >
-            <div className="flex gap-3 lg:gap-4">
-              <div className="bg-muted/50 relative h-14 w-14 shrink-0 overflow-hidden rounded-lg lg:h-16 lg:w-16">
-                <ProductImage
-                  productId={item.productId}
-                  remoteUrl={item.imageUrl}
-                  alt=""
-                  sizes="64px"
-                  fallback={
-                    <div className="text-muted-foreground flex h-full w-full items-center justify-center">
-                      <Package className="h-5 w-5 lg:h-6 lg:w-6" aria-hidden />
-                    </div>
-                  }
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold lg:text-base">{item.name}</p>
-                <p className="text-muted-foreground mt-0.5 text-xs tabular-nums lg:text-sm">
-                  {formatCurrency(item.unitPrice)} × {item.quantity}
-                </p>
-                {item.discount > 0 ? (
-                  <p className="text-success mt-0.5 text-xs tabular-nums lg:text-sm">
-                    −{formatCurrency(item.discount)} discount
+          {displayItems.map((item, index) => (
+            <li
+              key={`${item.productId}-${item.quantity}-${item.lineTotal}`}
+              className="customer-display-item-in customer-display-glass customer-display-glass--nested rounded-xl p-3 lg:p-4"
+              style={{ animationDelay: `${Math.min(index, 10) * 50}ms` }}
+            >
+              <div className="flex gap-3 lg:gap-4">
+                <div className="bg-muted/50 relative h-14 w-14 shrink-0 overflow-hidden rounded-lg lg:h-16 lg:w-16">
+                  <ProductImage
+                    productId={item.productId}
+                    remoteUrl={item.imageUrl}
+                    alt=""
+                    sizes="64px"
+                    fallback={
+                      <div className="text-muted-foreground flex h-full w-full items-center justify-center">
+                        <Package className="h-5 w-5 lg:h-6 lg:w-6" aria-hidden />
+                      </div>
+                    }
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold lg:text-base">{item.name}</p>
+                  <p className="text-muted-foreground mt-0.5 text-xs tabular-nums lg:text-sm">
+                    {formatCurrency(item.unitPrice)} × {item.quantity}
                   </p>
-                ) : null}
+                  {item.discount > 0 ? (
+                    <p className="text-success mt-0.5 text-xs tabular-nums lg:text-sm">
+                      −{formatCurrency(item.discount)} discount
+                    </p>
+                  ) : null}
+                </div>
+                <p className="text-primary shrink-0 text-sm font-bold tabular-nums lg:text-base">
+                  {formatCurrency(item.lineTotal)}
+                </p>
               </div>
-              <p className="text-primary shrink-0 text-sm font-bold tabular-nums lg:text-base">
-                {formatCurrency(item.lineTotal)}
-              </p>
-            </div>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

@@ -33,7 +33,9 @@ function isDisplayId(value: unknown): value is number | null | undefined {
 export function registerCustomerDisplayIpc() {
   ipcMain.handle(CHANNELS.open, async (_event, payload?: unknown) => {
     const displayId =
-      payload && typeof payload === "object" && isDisplayId((payload as { displayId?: unknown }).displayId)
+      payload &&
+      typeof payload === "object" &&
+      isDisplayId((payload as { displayId?: unknown }).displayId)
         ? ((payload as { displayId?: number | null }).displayId ?? null)
         : null;
     return openCustomerDisplayWindow({ displayId });

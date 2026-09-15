@@ -3,10 +3,7 @@ import type { HardwareResult } from "../types";
 import type { BluetoothPrinterDevice } from "../native-types";
 import { friendlyHardwareMessage } from "../permissions";
 import { NATIVE_BLE_TIMEOUT_MS, isNativeTimeoutError, withTimeout } from "../timeout";
-import {
-  type BluetoothPrinterTransport,
-  mapBluetoothFailure,
-} from "./bluetooth-transport";
+import { type BluetoothPrinterTransport, mapBluetoothFailure } from "./bluetooth-transport";
 
 /** Common ESC/POS BLE service/characteristic UUIDs used by many thermal printers. */
 const PRINT_SERVICE_CANDIDATES = [
@@ -239,12 +236,7 @@ export function createBlePrinterTransport(): BluetoothPrinterTransport {
               view,
             );
           } else {
-            await BleClient.write(
-              deviceId,
-              writeTarget.service,
-              writeTarget.characteristic,
-              view,
-            );
+            await BleClient.write(deviceId, writeTarget.service, writeTarget.characteristic, view);
           }
         }
         return { ok: true, message: "Receipt sent to Bluetooth printer" };

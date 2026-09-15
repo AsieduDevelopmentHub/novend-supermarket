@@ -6,7 +6,11 @@ import {
   type CustomerDisplaySnapshot,
 } from "@/lib/sales/customer-display";
 
-const branding = { tradeName: "East Legon Pharmacy", branchName: "Main", thankYouLine: "Thank you!" };
+const branding = {
+  tradeName: "East Legon Pharmacy",
+  branchName: "Main",
+  thankYouLine: "Thank you!",
+};
 
 describe("customer display snapshot", () => {
   it("builds an active snapshot with line totals and item count", () => {

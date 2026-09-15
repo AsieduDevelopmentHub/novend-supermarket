@@ -147,7 +147,12 @@ export function BusinessCapabilitiesPanel() {
               </option>
             ))}
           </select>
-          <Button type="button" variant="secondary" disabled={saving} onClick={() => void onApplyPack()}>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={saving}
+            onClick={() => void onApplyPack()}
+          >
             Apply pack defaults
           </Button>
         </div>

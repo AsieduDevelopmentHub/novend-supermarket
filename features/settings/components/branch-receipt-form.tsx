@@ -129,93 +129,93 @@ export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
             <CardTitle className="text-base">Branch receipt · {branch.name}</CardTitle>
           </CardHeader>
           <CardContent>
-          <form className="space-y-4" onSubmit={onSubmit}>
-            <p className="text-muted-foreground text-sm">
-              The company title ({title}) stays on every receipt. Update only this branch’s line,
-              contact details, and paper size.
-            </p>
-
-            <div className="space-y-2">
-              <Label>Receipt size</Label>
-              <Select
-                value={effectivePaperWidth}
-                onValueChange={(v) => setPaperWidthMm(v as "58" | "80")}
-              >
-                <SelectTrigger className="max-w-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="80">80mm (recommended)</SelectItem>
-                  <SelectItem value="58">58mm</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-muted-foreground text-xs">
-                Match the OS printer paper size when printing from Sales.
+            <form className="space-y-4" onSubmit={onSubmit}>
+              <p className="text-muted-foreground text-sm">
+                The company title ({title}) stays on every receipt. Update only this branch’s line,
+                contact details, and paper size.
               </p>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="branch-receipt-name">Branch name on receipt</Label>
-              <Input
-                id="branch-receipt-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="branch-receipt-address">Address</Label>
-              <Input
-                id="branch-receipt-address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="branch-receipt-phone">Phone</Label>
-              <Input
-                id="branch-receipt-phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="branch-receipt-email">Email (optional)</Label>
-              <Input
-                id="branch-receipt-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="space-y-3 rounded-lg border p-3">
-              <p className="text-sm font-medium">Show on receipt</p>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={showName} onCheckedChange={(v) => setShowName(v === true)} />
-                Branch name
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={showAddress}
-                  onCheckedChange={(v) => setShowAddress(v === true)}
+              <div className="space-y-2">
+                <Label>Receipt size</Label>
+                <Select
+                  value={effectivePaperWidth}
+                  onValueChange={(v) => setPaperWidthMm(v as "58" | "80")}
+                >
+                  <SelectTrigger className="max-w-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="80">80mm (recommended)</SelectItem>
+                    <SelectItem value="58">58mm</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-muted-foreground text-xs">
+                  Match the OS printer paper size when printing from Sales.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="branch-receipt-name">Branch name on receipt</Label>
+                <Input
+                  id="branch-receipt-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
                 />
-                Address
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={showPhone} onCheckedChange={(v) => setShowPhone(v === true)} />
-                Phone
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={showEmail} onCheckedChange={(v) => setShowEmail(v === true)} />
-                Email
-              </label>
-            </div>
-            <Button type="submit" disabled={pending || !online}>
-              {pending ? "Saving…" : "Save branch receipt"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="branch-receipt-address">Address</Label>
+                <Input
+                  id="branch-receipt-address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="branch-receipt-phone">Phone</Label>
+                <Input
+                  id="branch-receipt-phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="branch-receipt-email">Email (optional)</Label>
+                <Input
+                  id="branch-receipt-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-3 rounded-lg border p-3">
+                <p className="text-sm font-medium">Show on receipt</p>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={showName} onCheckedChange={(v) => setShowName(v === true)} />
+                  Branch name
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={showAddress}
+                    onCheckedChange={(v) => setShowAddress(v === true)}
+                  />
+                  Address
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={showPhone} onCheckedChange={(v) => setShowPhone(v === true)} />
+                  Phone
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={showEmail} onCheckedChange={(v) => setShowEmail(v === true)} />
+                  Email
+                </label>
+              </div>
+              <Button type="submit" disabled={pending || !online}>
+                {pending ? "Saving…" : "Save branch receipt"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       }
     />
   );

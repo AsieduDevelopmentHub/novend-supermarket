@@ -8,9 +8,9 @@ describe("withTimeout", () => {
   });
 
   it("rejects when the promise hangs past the budget", async () => {
-    await expect(
-      withTimeout(new Promise(() => undefined), 20, "timed out"),
-    ).rejects.toThrow("timed out");
+    await expect(withTimeout(new Promise(() => undefined), 20, "timed out")).rejects.toThrow(
+      "timed out",
+    );
   });
 });
 

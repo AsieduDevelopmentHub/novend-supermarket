@@ -24,10 +24,7 @@ import {
   CUSTOMER_DISPLAY_SINGLE_MONITOR_MESSAGE,
   hasSecondaryDisplay,
 } from "@/lib/desktop/customer-display-policy";
-import type {
-  NovendDesktopCustomerDisplayStatus,
-  NovendDesktopDisplayInfo,
-} from "@/types/desktop";
+import type { NovendDesktopCustomerDisplayStatus, NovendDesktopDisplayInfo } from "@/types/desktop";
 import { PlanCapabilityGate } from "@/features/billing/components/plan-capability-gate";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
@@ -37,16 +34,18 @@ function desktopSupportsCustomerDisplay(
   bridge: ReturnType<typeof getDesktopBridge>,
 ): bridge is NonNullable<ReturnType<typeof getDesktopBridge>> & {
   getCustomerDisplayStatus: () => Promise<NovendDesktopCustomerDisplayStatus>;
-  openCustomerDisplay: (options?: { displayId?: number | null }) => Promise<{ ok: boolean; message?: string }>;
+  openCustomerDisplay: (options?: {
+    displayId?: number | null;
+  }) => Promise<{ ok: boolean; message?: string }>;
   closeCustomerDisplay: () => Promise<{ ok: boolean }>;
   listDisplays: () => Promise<{ ok: boolean; displays: NovendDesktopDisplayInfo[] }>;
 } {
   return Boolean(
     bridge &&
-      typeof bridge.getCustomerDisplayStatus === "function" &&
-      typeof bridge.openCustomerDisplay === "function" &&
-      typeof bridge.closeCustomerDisplay === "function" &&
-      typeof bridge.listDisplays === "function",
+    typeof bridge.getCustomerDisplayStatus === "function" &&
+    typeof bridge.openCustomerDisplay === "function" &&
+    typeof bridge.closeCustomerDisplay === "function" &&
+    typeof bridge.listDisplays === "function",
   );
 }
 
@@ -275,9 +274,7 @@ function CustomerDisplayPanelContent({
               <Label htmlFor="customer-display-monitor">Target monitor</Label>
               <Select
                 value={
-                  prefs.preferredDisplayId != null
-                    ? String(prefs.preferredDisplayId)
-                    : "secondary"
+                  prefs.preferredDisplayId != null ? String(prefs.preferredDisplayId) : "secondary"
                 }
                 onValueChange={(value) => {
                   if (value === "secondary") {
@@ -315,7 +312,11 @@ function CustomerDisplayPanelContent({
               onClick={onOpen}
               disabled={pending || desktopBridgeStale || (isDesktop && !dualDisplayReady)}
             >
-              {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Monitor className="mr-2 h-4 w-4" />}
+              {pending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Monitor className="mr-2 h-4 w-4" />
+              )}
               Open customer display
             </Button>
             {isDesktop && status.open ? (

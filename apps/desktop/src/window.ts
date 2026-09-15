@@ -103,7 +103,11 @@ function recoveryHtml(appUrl: string): string {
  * cached the document (electron#35112). Load a local boot page, then
  * client-navigate so the SW can serve Cache Storage.
  */
-async function loadAppShell(win: BrowserWindow, appUrl: string, entry = OFFLINE_ENTRY_PATH): Promise<void> {
+async function loadAppShell(
+  win: BrowserWindow,
+  appUrl: string,
+  entry = OFFLINE_ENTRY_PATH,
+): Promise<void> {
   const boot = offlineBootPath();
   if (fs.existsSync(boot)) {
     await win.loadFile(boot, {

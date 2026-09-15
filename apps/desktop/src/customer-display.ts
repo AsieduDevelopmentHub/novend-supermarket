@@ -96,15 +96,12 @@ function buildStatus(): CustomerDisplayStatus {
     open: customerDisplayWindow != null && !customerDisplayWindow.isDestroyed(),
     displayId:
       customerDisplayWindow != null && !customerDisplayWindow.isDestroyed()
-        ? (screen
-            .getAllDisplays()
-            .find((display) => {
-              const bounds = customerDisplayWindow!.getBounds();
-              return (
-                Math.abs(display.bounds.x - bounds.x) < 8 &&
-                Math.abs(display.bounds.y - bounds.y) < 8
-              );
-            })?.id ?? null)
+        ? (screen.getAllDisplays().find((display) => {
+            const bounds = customerDisplayWindow!.getBounds();
+            return (
+              Math.abs(display.bounds.x - bounds.x) < 8 && Math.abs(display.bounds.y - bounds.y) < 8
+            );
+          })?.id ?? null)
         : null,
     displayCount,
     dualDisplayReady: hasSecondaryDisplay(displayCount),
@@ -264,10 +261,13 @@ export async function openCustomerDisplayWindow(options?: {
     return { action: "deny" };
   });
 
-  win.webContents.on("did-fail-load", (_event, errorCode, _errorDescription, _validatedURL, isMainFrame) => {
-    if (!isMainFrame) return;
-    if (errorCode === -3) return;
-  });
+  win.webContents.on(
+    "did-fail-load",
+    (_event, errorCode, _errorDescription, _validatedURL, isMainFrame) => {
+      if (!isMainFrame) return;
+      if (errorCode === -3) return;
+    },
+  );
 
   await win.loadFile(shellPath);
   notifyStatus();

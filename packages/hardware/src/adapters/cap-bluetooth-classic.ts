@@ -26,6 +26,5 @@ type NovendBluetoothClassicPlugin = {
   openBluetoothSettings: () => Promise<void>;
 };
 
-export const NovendBluetoothClassic = registerPlugin<NovendBluetoothClassicPlugin>(
-  "NovendBluetoothClassic",
-);
+export const NovendBluetoothClassic =
+  registerPlugin<NovendBluetoothClassicPlugin>("NovendBluetoothClassic");

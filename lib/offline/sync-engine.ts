@@ -362,11 +362,7 @@ export async function drainOutbox(options: {
         if (claimed.type === "complete_sale") {
           const payload = parseCompleteSalePayload(claimed);
           if (payload.customerId && isLocalId(payload.customerId)) {
-            await markOutboxPending(
-              db,
-              claimed.id,
-              "Waiting for the customer to finish syncing.",
-            );
+            await markOutboxPending(db, claimed.id, "Waiting for the customer to finish syncing.");
             continue;
           }
           const localSale = await db.localSales.get(payload.localSaleId);

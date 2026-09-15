@@ -76,7 +76,9 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
       unsub();
     };
   }, [profileId]);
-  const remoteBudgetElapsed = useRemoteBudget(online && remote === undefined && localUser === undefined);
+  const remoteBudgetElapsed = useRemoteBudget(
+    online && remote === undefined && localUser === undefined,
+  );
   const user = remote ?? localUser;
   const updateProfile = useMutation(api.users.updateProfile);
   const resetUserPassword = useAction(api.users.resetUserPassword);

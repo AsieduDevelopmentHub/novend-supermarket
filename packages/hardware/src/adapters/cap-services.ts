@@ -464,7 +464,10 @@ export async function setBiometricEnabled(enabled: boolean): Promise<HardwareRes
     writeLocalPref(BIOMETRIC_REQUIRE_LAUNCH_KEY, "false");
     removeLocalPref(BIOMETRIC_UNLOCK_TOKEN_KEY);
     try {
-      await withTimeout(SecureStorage.removeItem(BIOMETRIC_UNLOCK_TOKEN_KEY), NATIVE_CALL_TIMEOUT_MS);
+      await withTimeout(
+        SecureStorage.removeItem(BIOMETRIC_UNLOCK_TOKEN_KEY),
+        NATIVE_CALL_TIMEOUT_MS,
+      );
     } catch {
       /* ignore */
     }
@@ -493,7 +496,10 @@ export async function storeBiometricUnlockToken(token: string): Promise<Hardware
     };
   }
   try {
-    await withTimeout(SecureStorage.setItem(BIOMETRIC_UNLOCK_TOKEN_KEY, token), NATIVE_CALL_TIMEOUT_MS);
+    await withTimeout(
+      SecureStorage.setItem(BIOMETRIC_UNLOCK_TOKEN_KEY, token),
+      NATIVE_CALL_TIMEOUT_MS,
+    );
   } catch {
     /* localStorage already holds the token */
   }

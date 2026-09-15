@@ -747,33 +747,60 @@ body {
 }
 
 @keyframes customer-display-mesh-drift {
-  from { transform: translate(0, 0) scale(1) rotate(0deg); }
-  to { transform: translate(4%, -3%) scale(1.06) rotate(2deg); }
+  from {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  to {
+    transform: translate(4%, -3%) scale(1.06) rotate(2deg);
+  }
 }
 
 @keyframes customer-display-mesh-drift-alt {
-  from { transform: translate(0, 0) scale(1.02) rotate(0deg); }
-  to { transform: translate(-5%, 4%) scale(0.96) rotate(-2deg); }
+  from {
+    transform: translate(0, 0) scale(1.02) rotate(0deg);
+  }
+  to {
+    transform: translate(-5%, 4%) scale(0.96) rotate(-2deg);
+  }
 }
 
 @keyframes customer-display-mesh-pulse {
-  0%, 100% { opacity: 0.45; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 @keyframes customer-display-mesh-grid {
-  from { transform: translate(0, 0); }
-  to { transform: translate(44px, 44px); }
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(44px, 44px);
+  }
 }
 
 @keyframes customer-display-mesh-grid-reverse {
-  from { transform: translate(0, 0) rotate(0deg); }
-  to { transform: translate(-32px, 24px) rotate(0.5deg); }
+  from {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  to {
+    transform: translate(-32px, 24px) rotate(0.5deg);
+  }
 }
 
 @keyframes customer-display-fade-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .customer-display-fade-up {
@@ -781,8 +808,14 @@ body {
 }
 
 @keyframes customer-display-item-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .customer-display-item-in {
@@ -790,8 +823,13 @@ body {
 }
 
 @keyframes customer-display-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 .customer-display-float {
@@ -799,9 +837,18 @@ body {
 }
 
 @keyframes customer-display-pulse-ring {
-  0% { transform: scale(0.92); opacity: 0.45; }
-  70% { transform: scale(1.15); opacity: 0; }
-  100% { transform: scale(1.15); opacity: 0; }
+  0% {
+    transform: scale(0.92);
+    opacity: 0.45;
+  }
+  70% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
 }
 
 .customer-display-pulse-ring {
@@ -809,9 +856,15 @@ body {
 }
 
 @keyframes customer-display-total-pop {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .customer-display-total-pop {
@@ -827,20 +880,35 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(56, 189, 248, 0.14) 50%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0.14) 50%,
+    transparent 100%
+  );
   background-size: 200% 100%;
   animation: customer-display-shimmer 1.8s ease-in-out infinite;
   pointer-events: none;
 }
 
 @keyframes customer-display-shimmer {
-  0% { background-position: 200% center; }
-  100% { background-position: -200% center; }
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
 }
 
 @keyframes customer-display-complete-pop {
-  from { opacity: 0; transform: scale(0.92); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .customer-display-complete-pop {
@@ -848,8 +916,12 @@ body {
 }
 
 @keyframes customer-display-phase-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .customer-display-phase-in {

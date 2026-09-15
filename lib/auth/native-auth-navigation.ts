@@ -36,8 +36,7 @@ export async function navigateToLoginAfterSignOut(): Promise<void> {
 
   if (isCapacitor()) {
     const onBootOrigin =
-      window.location.origin === CAPACITOR_BOOT_ORIGIN ||
-      window.location.hostname === "localhost";
+      window.location.origin === CAPACITOR_BOOT_ORIGIN || window.location.hostname === "localhost";
     if (onBootOrigin) {
       window.location.replace(capacitorBootUrl(LOGIN_AFTER_SIGN_OUT_PATH));
       return;

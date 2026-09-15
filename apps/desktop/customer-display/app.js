@@ -34,8 +34,16 @@
   function formatDateTime(value) {
     try {
       var date = new Date(value);
-      var day = date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-      var time = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+      var day = date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+      var time = date.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
       return day + " · " + time;
     } catch (_error) {
       return "";
@@ -54,8 +62,7 @@
     var paths = {
       sparkles:
         '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path>',
-      check:
-        '<path d="M21.801 10A10 10 0 1 1 17 3.335"></path><path d="m9 11 3 3L22 4"></path>',
+      check: '<path d="M21.801 10A10 10 0 1 1 17 3.335"></path><path d="m9 11 3 3L22 4"></path>',
       package:
         '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"></path><path d="M12 22V12"></path><polyline points="3.29 7 12 12 20.71 7"></polyline><path d="m7.5 4.27 9 5.15"></path>',
     };
@@ -100,7 +107,10 @@
 
   function renderIdle() {
     var branding = state.branding || {};
-    var promo = branding.thankYouLine && branding.thankYouLine.trim() ? branding.thankYouLine.trim() : BRAND_TAGLINE;
+    var promo =
+      branding.thankYouLine && branding.thankYouLine.trim()
+        ? branding.thankYouLine.trim()
+        : BRAND_TAGLINE;
     return (
       '<div class="phase-panel customer-display-phase-in">' +
       '<div class="idle-panel">' +
@@ -126,7 +136,9 @@
   }
 
   function renderCompletePanel() {
-    var thankYou = (state.branding && state.branding.thankYouLine && state.branding.thankYouLine.trim()) || "Thank you for your purchase!";
+    var thankYou =
+      (state.branding && state.branding.thankYouLine && state.branding.thankYouLine.trim()) ||
+      "Thank you for your purchase!";
     var meta = "";
     if (state.invoiceNumber) {
       meta =
@@ -173,7 +185,9 @@
       item.quantity +
       "</p>" +
       (item.discount > 0
-        ? '<p class="cart-item-discount tabular-nums">−' + formatCurrency(item.discount) + " discount</p>"
+        ? '<p class="cart-item-discount tabular-nums">−' +
+          formatCurrency(item.discount) +
+          " discount</p>"
         : "") +
       "</div>" +
       '<p class="cart-item-total tabular-nums">' +
@@ -207,7 +221,9 @@
           "</span>") +
       "</div>" +
       (state.customerName
-        ? '<p class="customer-name">Customer · <strong>' + escapeHtml(state.customerName) + "</strong></p>"
+        ? '<p class="customer-name">Customer · <strong>' +
+          escapeHtml(state.customerName) +
+          "</strong></p>"
         : "") +
       '<ul class="cart-list' +
       (state.customerName ? " has-customer" : "") +
@@ -276,14 +292,17 @@
       );
     }
     if (showCart) {
-      return '<div class="phase-panel customer-display-phase-in">' + renderCartPanel(false) + "</div>";
+      return (
+        '<div class="phase-panel customer-display-phase-in">' + renderCartPanel(false) + "</div>"
+      );
     }
     return "";
   }
 
   function render() {
     var branding = state.branding || {};
-    var showCart = state.phase === "active" || state.phase === "processing" || state.phase === "complete";
+    var showCart =
+      state.phase === "active" || state.phase === "processing" || state.phase === "complete";
     root.innerHTML =
       '<div class="customer-display-ambient">' +
       '<div class="customer-display-mesh" aria-hidden="true">' +

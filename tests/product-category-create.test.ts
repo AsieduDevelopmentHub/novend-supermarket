@@ -78,7 +78,9 @@ describe("product category on create", () => {
 
   it("rekeys Dexie products after the category syncs", () => {
     const source = readFileSync(resolve(process.cwd(), "lib/offline/sync-engine.ts"), "utf8");
-    expect(source).toContain("await rekeyCategoryReferences(db, payload.localId, String(id), payload.name)");
+    expect(source).toContain(
+      "await rekeyCategoryReferences(db, payload.localId, String(id), payload.name)",
+    );
     expect(source).toContain("resolveLocalCategoryToServerId");
     expect(source).toContain("isSyncDependencyWait");
   });

@@ -153,8 +153,7 @@ export function parseCustomerDisplaySnapshot(raw: string | null): CustomerDispla
     }
     if (!Array.isArray(parsed.items)) return null;
     const items = parsed.items;
-    const itemsValid =
-      parsed.phase === "idle" || items.length === 0 || items.every(isLine);
+    const itemsValid = parsed.phase === "idle" || items.length === 0 || items.every(isLine);
     if (!itemsValid) return null;
     if (!parsed.branding || typeof parsed.branding.tradeName !== "string") return null;
     const discountMode = parsed.discountMode === "percent" ? "percent" : "amount";

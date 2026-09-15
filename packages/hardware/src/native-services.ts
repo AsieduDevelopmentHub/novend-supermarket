@@ -259,11 +259,7 @@ export const bluetoothPrinter = {
     const controls = await getBluetoothPrinterControls();
     return controls.discover(options);
   },
-  connect: async (
-    deviceId: string,
-    deviceName?: string,
-    transport?: "ble" | "classic",
-  ) => {
+  connect: async (deviceId: string, deviceName?: string, transport?: "ble" | "classic") => {
     const { getBluetoothPrinterControls } = await bluetoothFacade();
     const controls = await getBluetoothPrinterControls();
     return controls.connect(deviceId, deviceName, transport);

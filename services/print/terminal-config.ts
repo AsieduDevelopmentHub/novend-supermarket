@@ -85,13 +85,7 @@ export function saveTerminalPrinterConfig(config: TerminalPrinterConfig) {
 export type PrintResult = {
   printed: boolean;
   reason:
-    | "native"
-    | "system"
-    | "download"
-    | "iframe"
-    | "iframe_failed"
-    | "ssr"
-    | "native_unavailable";
+    "native" | "system" | "download" | "iframe" | "iframe_failed" | "ssr" | "native_unavailable";
   copies?: number;
   /** Structured Bluetooth failure code when printed is false on Cap. */
   failureCode?: string;
