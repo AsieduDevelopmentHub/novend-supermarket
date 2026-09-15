@@ -6,6 +6,24 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ## Unreleased
 
+## v0.3.24 — 2026-09-15
+
+Full product release (`targets: all`). Cap settings UX/permissions plus leaner catalog forms.
+
+### Fixed
+
+- **Bluetooth printer permissions** — in-app Nearby devices / Bluetooth prompt via `MainActivity` (no App Info redirect when listing paired printers).
+- **Biometrics after verify** — drop Cap SecureStorage on the unlock-token path (Security hang); show enabled / verified feedback.
+- **About auto-update** — same-origin `/api/mobile-updates/latest` proxy with Convex fallbacks (fixes “Could not reach the update server”).
+- **Add Product layout** — mobile-first sections; sell-unit rows no longer use a dense 5-column grid.
+
+### Changed
+
+- **Business settings** — clearer profile card; Selling & catalog options explain which flags appear on Add Product.
+- **Add Product** — packs, weight/fractional pricing, base unit editor, and expiry stay hidden unless those business capabilities are enabled (retail stays lean).
+- Notifications CTA copy: **Enable notifications** (replaces “Try again”).
+- Bluetooth printer Hardware section reorganized for status → find → preferences.
+
 ## v0.3.23 — 2026-09-15
 
 Full product release (`targets: all`). Fixes Cap hosted-origin shell gaps reported on Android About (Native shell showed “Web / browser”).

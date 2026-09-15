@@ -1,24 +1,41 @@
 package com.novend.pos;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.webkit.JsResult;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebChromeClient;
 import com.getcapacitor.BridgeWebViewClient;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class MainActivity extends BridgeActivity {
 
     /** Local boot page with auto-nav disabled so Chrome's neterror sheet is never left on screen. */
     private static final String LOCAL_RECOVERY = "https://localhost/?stay=1";
+    private static final int REQ_BLUETOOTH_PERMS = 0x4e01;
 
     private boolean nativeBridgeAttached = false;
     private boolean leavePageBypassInstalled = false;
     private boolean recovering = false;
     private int hostedFailures = 0;
+
+    private final AtomicReference<CountDownLatch> bluetoothPermissionLatch =
+        new AtomicReference<>(null);
+    private final AtomicReference<Boolean> bluetoothPermissionGranted =
+        new AtomicReference<>(null);
 
     public MainActivity() {
         // Official / community plugins load from capacitor.plugins.json.
@@ -43,6 +60,103 @@ public class MainActivity extends BridgeActivity {
         attachNativeBridge();
         installLeavePageBypass();
         installErrorRecovery();
+    }
+
+    /**
+     * In-app Nearby devices / Bluetooth prompt (Android 12+). Blocks the
+     * JavascriptInterface binder thread until the system dialog settles —
+     * never opens App Info.
+     *
+     * @return "granted" | "denied"
+     */
+    public String requestBluetoothPermissionsBlocking() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return "granted";
+        }
+        boolean connectGranted =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+                == PackageManager.PERMISSION_GRANTED;
+        boolean scanGranted =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
+                == PackageManager.PERMISSION_GRANTED;
+        if (connectGranted && scanGranted) {
+            return "granted";
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        bluetoothPermissionLatch.set(latch);
+        bluetoothPermissionGranted.set(null);
+
+        List<String> needed = new ArrayList<>();
+        if (!connectGranted) {
+            needed.add(Manifest.permission.BLUETOOTH_CONNECT);
+        }
+        if (!scanGranted) {
+            needed.add(Manifest.permission.BLUETOOTH_SCAN);
+        }
+        final String[] permissions = needed.toArray(new String[0]);
+
+        runOnUiThread(
+            () ->
+                ActivityCompat.requestPermissions(
+                    MainActivity.this, permissions, REQ_BLUETOOTH_PERMS
+                )
+        );
+
+        try {
+            if (!latch.await(90, TimeUnit.SECONDS)) {
+                return "denied";
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            return "denied";
+        }
+
+        Boolean granted = bluetoothPermissionGranted.get();
+        if (granted != null && granted) {
+            return "granted";
+        }
+        // CONNECT alone is enough to list bonded Classic printers.
+        if (
+            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+                == PackageManager.PERMISSION_GRANTED
+        ) {
+            return "granted";
+        }
+        return "denied";
+    }
+
+    @Override
+    public void onRequestPermissionsResult(
+        int requestCode,
+        @NonNull String[] permissions,
+        @NonNull int[] grantResults
+    ) {
+        if (requestCode == REQ_BLUETOOTH_PERMS) {
+            boolean connectOk = false;
+            for (int i = 0; i < permissions.length; i++) {
+                if (
+                    Manifest.permission.BLUETOOTH_CONNECT.equals(permissions[i])
+                        && i < grantResults.length
+                        && grantResults[i] == PackageManager.PERMISSION_GRANTED
+                ) {
+                    connectOk = true;
+                }
+            }
+            boolean allGranted = grantResults.length > 0;
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+            bluetoothPermissionGranted.set(connectOk || allGranted);
+            CountDownLatch latch = bluetoothPermissionLatch.getAndSet(null);
+            if (latch != null) {
+                latch.countDown();
+            }
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
     private void attachNativeBridge() {

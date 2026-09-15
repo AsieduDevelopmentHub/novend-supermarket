@@ -11,8 +11,8 @@ import {
   nativeClassicIsConnected,
   nativeClassicListBonded,
   nativeClassicOpenBluetoothSettings,
+  nativeClassicRequestBluetoothPermission,
   nativeClassicWriteEscPos,
-  openNativeAppDetailsSettings,
 } from "./novend-native-app";
 import {
   type BluetoothPrinterTransport,
@@ -68,6 +68,39 @@ function preferNativeClassicBridge(): boolean {
   return hasNovendNativeClassicBluetooth();
 }
 
+/**
+ * Request Nearby devices / Bluetooth in-app. Prefer NovendNative (hosted origin);
+ * Cap plugin path is fallback for older shells.
+ */
+export async function requestClassicBluetoothPermission(): Promise<HardwareResult> {
+  if (!isClassicBluetoothAvailable()) {
+    return {
+      ok: false,
+      code: "unsupported",
+      message: "Classic Bluetooth printing is available on Android tablets and phones.",
+    };
+  }
+  if (preferNativeClassicBridge()) {
+    return nativeClassicRequestBluetoothPermission();
+  }
+  try {
+    const permission = await withTimeout(
+      NovendBluetoothClassic.requestPermissions(),
+      NATIVE_SPP_TIMEOUT_MS,
+    );
+    if (!permission.granted) {
+      return {
+        ok: false,
+        code: "permission",
+        message: "Enable Bluetooth / Nearby devices for Novend, then try again.",
+      };
+    }
+    return { ok: true, message: "Bluetooth access allowed" };
+  } catch (error) {
+    return pluginError(error, "Enable Bluetooth / Nearby devices for Novend, then try again.");
+  }
+}
+
 export function createClassicPrinterTransport(): BluetoothPrinterTransport {
   return {
     kind: "classic",
@@ -87,9 +120,16 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
         };
       }
       if (preferNativeClassicBridge()) {
-        const listed = nativeClassicListBonded();
+        let listed = nativeClassicListBonded();
         if (!listed.ok && listed.code === "permission") {
-          openNativeAppDetailsSettings();
+          const permission = nativeClassicRequestBluetoothPermission();
+          if (!permission.ok) {
+            return {
+              ...permission,
+              data: { devices: [] },
+            };
+          }
+          listed = nativeClassicListBonded();
         }
         return listed;
       }
@@ -102,7 +142,7 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
           return {
             ok: false,
             code: "permission",
-            message: "Allow Nearby devices / Bluetooth access for Novend, then try again.",
+            message: "Enable Bluetooth / Nearby devices for Novend, then try again.",
             data: { devices: [] },
           };
         }
@@ -138,9 +178,13 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
           nativeClassicDisconnect();
           connectedId = null;
         }
-        const result = nativeClassicConnect(deviceId);
+        let result = nativeClassicConnect(deviceId);
+        if (!result.ok && result.code === "permission") {
+          const permission = nativeClassicRequestBluetoothPermission();
+          if (!permission.ok) return permission;
+          result = nativeClassicConnect(deviceId);
+        }
         if (!result.ok) {
-          if (result.code === "permission") openNativeAppDetailsSettings();
           connectedId = null;
           return result;
         }
@@ -156,7 +200,7 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
           return {
             ok: false,
             code: "permission",
-            message: "Allow Nearby devices / Bluetooth access for Novend, then try again.",
+            message: "Enable Bluetooth / Nearby devices for Novend, then try again.",
           };
         }
         if (connectedId && connectedId !== deviceId) {

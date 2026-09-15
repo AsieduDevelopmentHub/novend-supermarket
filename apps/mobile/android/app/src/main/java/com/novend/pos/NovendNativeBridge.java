@@ -115,6 +115,22 @@ public class NovendNativeBridge {
         }
     }
 
+    /**
+     * In-app Nearby devices / Bluetooth permission dialog (Android 12+).
+     * Returns granted|denied. Never opens App Info.
+     */
+    @JavascriptInterface
+    public String classicRequestBluetoothPermission() {
+        if (!(activity instanceof MainActivity)) {
+            return hasBluetoothConnectPermission() ? "granted" : "denied";
+        }
+        try {
+            return ((MainActivity) activity).requestBluetoothPermissionsBlocking();
+        } catch (Exception ignored) {
+            return hasBluetoothConnectPermission() ? "granted" : "denied";
+        }
+    }
+
     /** Classic SPP bonded printers — JSON { ok, code?, message?, devices:[{id,name}] }. */
     @JavascriptInterface
     public String classicListBondedPrinters() {
@@ -125,7 +141,7 @@ public class NovendNativeBridge {
                 out.put("code", "permission");
                 out.put(
                     "message",
-                    "Allow Nearby devices / Bluetooth for Novend in Android settings, then try again."
+                    "Enable Bluetooth / Nearby devices for Novend, then list paired printers again."
                 );
                 out.put("devices", new JSONArray());
                 return out.toString();
@@ -157,7 +173,7 @@ public class NovendNativeBridge {
                 out.put("code", "permission");
                 out.put(
                     "message",
-                    "Allow Nearby devices / Bluetooth for Novend in Android settings, then try again."
+                    "Enable Bluetooth / Nearby devices for Novend, then list paired printers again."
                 );
                 out.put("devices", new JSONArray());
             } catch (Exception ignored) {

@@ -68,21 +68,23 @@ export const BUSINESS_CAPABILITY_REGISTRY: Record<
     key: "multi_unit_pricing",
     version: 1,
     label: "Multi-unit / pack pricing",
-    description: "Sell packs and cartons with conversion to base inventory quantity.",
+    description:
+      "Sell packs and cartons with conversion to base stock. Adds pack fields on Add Product.",
     minPlanSortOrder: resolvePlan("pro").sortOrder,
   },
   sell_by_weight: {
     key: "sell_by_weight",
     version: 1,
     label: "Sell by weight",
-    description: "Price and deduct inventory by mass (manual weight; scale optional).",
+    description:
+      "Price and deduct stock by mass. Adds weight / fractional options on Add Product.",
     minPlanSortOrder: resolvePlan("pro").sortOrder,
   },
   lot_expiry: {
     key: "lot_expiry",
     version: 1,
     label: "Lots & expiry",
-    description: "Dated inventory lots and FEFO where enabled.",
+    description: "Dated inventory lots and FEFO. Adds expiry tracking on Add Product.",
     minPlanSortOrder: resolvePlan("basic").sortOrder,
   },
   serial_tracking: {

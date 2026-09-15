@@ -148,6 +148,11 @@ export function ProductFormDialog({
   );
   const editDataReady = !productId || product !== undefined;
   const ready = open && categories !== undefined && localReady && !waitingRemote && editDataReady;
+  const { hasCapability } = useBusinessCapabilities();
+  const wideForm =
+    hasCapability("multi_unit_pricing") ||
+    hasCapability("sell_by_weight") ||
+    hasCapability("lot_expiry");
 
   return (
     <ResponsiveFormSurface
@@ -156,7 +161,7 @@ export function ProductFormDialog({
       title={
         productId ? "Edit Product" : warehouseIntake ? "Add product to catalog" : "Add Product"
       }
-      dialogClassName="max-w-3xl"
+      dialogClassName={wideForm ? "max-w-3xl" : "max-w-2xl"}
     >
       {!ready ? (
         <LoadingState label="Loading form…" />
@@ -206,6 +211,8 @@ function ProductFormBody({
   const showPacks = hasCapability("multi_unit_pricing");
   const showWeight = hasCapability("sell_by_weight");
   const showSellUnits = showPacks || showWeight;
+  const showExpiry = hasCapability("lot_expiry") || initialProduct?.tracksExpiry === true;
+  const defaultUnit = showPacks || showWeight ? "packs" : "pcs";
 
   const [name, setName] = useState(initialProduct?.name ?? "");
   const [sku, setSku] = useState(initialProduct?.sku ?? "");
@@ -222,7 +229,7 @@ function ProductFormBody({
   const [stockQuantity, setStockQuantity] = useState(
     String(warehouseIntake ? 0 : (initialProduct?.stockQuantity ?? 0)),
   );
-  const [unit, setUnit] = useState(initialProduct?.unit ?? "packs");
+  const [unit, setUnit] = useState(initialProduct?.unit ?? defaultUnit);
   const [pricingMode, setPricingMode] = useState<PricingMode>(
     initialProduct?.pricingMode === "per_weight" ? "per_weight" : "fixed",
   );
@@ -230,7 +237,7 @@ function ProductFormBody({
     showSellUnits
       ? draftsFromSellUnits(
           initialProduct?.sellUnits,
-          initialProduct?.unit ?? "packs",
+          initialProduct?.unit ?? defaultUnit,
           initialProduct?.sellingPrice ?? 0,
         )
       : [emptySellUnitDraft()],
@@ -238,7 +245,9 @@ function ProductFormBody({
   const [lowStockThreshold, setLowStockThreshold] = useState(
     String(initialProduct?.lowStockThreshold ?? 10),
   );
-  const [tracksExpiry, setTracksExpiry] = useState(initialProduct?.tracksExpiry === true);
+  const [tracksExpiry, setTracksExpiry] = useState(
+    showExpiry ? initialProduct?.tracksExpiry === true : false,
+  );
   const [expiryAlertDays, setExpiryAlertDays] = useState(
     String(initialProduct?.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS),
   );
@@ -349,6 +358,8 @@ function ProductFormBody({
         sellUnits = parseSellUnitDrafts(sellUnitDrafts);
         resolvedPricingMode = showWeight && pricingMode === "per_weight" ? "per_weight" : "fixed";
       }
+      const resolvedUnit = showPacks || showWeight ? unit.trim() || defaultUnit : "pcs";
+      const resolvedTracksExpiry = showExpiry ? tracksExpiry : false;
       let savedId = productId ?? "";
       let resolvedCategoryId = categoryId;
       const kind = await persistBusinessWrite({
@@ -363,15 +374,16 @@ function ProductFormBody({
                 categoryId: resolvedCategoryId as Id<"categories">,
                 costPrice: Number(costPrice),
                 sellingPrice: Number(sellingPrice),
-                unit,
+                unit: resolvedUnit,
                 ...(sellUnits ? { sellUnits } : {}),
                 ...(resolvedPricingMode ? { pricingMode: resolvedPricingMode } : {}),
                 lowStockThreshold: Number(lowStockThreshold),
                 status,
                 description,
-                tracksExpiry,
-                expiryAlertDays: tracksExpiry ? Number(expiryAlertDays) : undefined,
-                openingExpiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
+                tracksExpiry: resolvedTracksExpiry,
+                expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
+                openingExpiryDate:
+                  resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
               })
             : createProduct({
                 name,
@@ -381,15 +393,15 @@ function ProductFormBody({
                 costPrice: Number(costPrice),
                 sellingPrice: Number(sellingPrice),
                 stockQuantity: warehouseIntake ? 0 : Number(stockQuantity),
-                unit,
+                unit: resolvedUnit,
                 ...(sellUnits ? { sellUnits } : {}),
                 ...(resolvedPricingMode ? { pricingMode: resolvedPricingMode } : {}),
                 lowStockThreshold: Number(lowStockThreshold),
                 status,
                 description,
-                tracksExpiry,
-                expiryAlertDays: tracksExpiry ? Number(expiryAlertDays) : undefined,
-                expiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
+                tracksExpiry: resolvedTracksExpiry,
+                expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
+                expiryDate: resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
               }),
         local: async () => {
           resolvedCategoryId = await resolveCategoryIdForProduct({
@@ -418,15 +430,15 @@ function ProductFormBody({
             costPrice: Number(costPrice),
             sellingPrice: Number(sellingPrice),
             stockQuantity: warehouseIntake ? 0 : Number(stockQuantity),
-            unit,
+            unit: resolvedUnit,
             sellUnits,
             pricingMode: resolvedPricingMode,
             lowStockThreshold: Number(lowStockThreshold),
             status,
             description,
-            tracksExpiry,
-            expiryAlertDays: tracksExpiry ? Number(expiryAlertDays) : undefined,
-            expiryDate: tracksExpiry && expiryDate ? expiryDate : undefined,
+            tracksExpiry: resolvedTracksExpiry,
+            expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
+            expiryDate: resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
             branchId: profileBranchId ?? undefined,
             imageBlob: file ?? undefined,
             hasLocalImage: Boolean(file),
@@ -451,322 +463,370 @@ function ProductFormBody({
   }
 
   return (
-    <form
-      className="grid w-full min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]"
-      onSubmit={onSubmit}
-    >
-      <div className="min-w-0 space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">Product Name</Label>
-          <Input id="name" value={name} onChange={(e) => onNameChange(e.target.value)} required />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="sku">SKU</Label>
-          <Input
-            id="sku"
-            value={sku}
-            onChange={(e) => {
-              setSkuTouched(true);
-              setSku(e.target.value);
-            }}
-            placeholder="Auto-generated from name"
-            required
-          />
-          <p className="text-muted-foreground text-xs">
-            Generated from the product name. Edit if you need a custom code.
-          </p>
-        </div>
-        <ProductBarcodeField value={barcode} onChange={setBarcode} />
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <Label>Category</Label>
-            <button
-              type="button"
-              className="text-primary text-xs font-medium hover:underline"
-              onClick={() => {
-                setShowNewCategory((open) => {
-                  if (open) setNewCategory("");
-                  return !open;
-                });
-              }}
-            >
-              {showNewCategory ? "Select existing" : "Create new"}
-            </button>
-          </div>
-          {showNewCategory ? (
-            <div className="flex gap-2">
+    <form className="flex w-full min-w-0 flex-col gap-6" onSubmit={onSubmit}>
+      <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_13rem]">
+        <div className="min-w-0 space-y-6">
+          <section className="space-y-4">
+            <div className="space-y-1">
+              <h3 className="text-sm font-medium">Basics</h3>
+              <p className="text-muted-foreground text-xs">What cashiers see on the catalog.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="name">Product name</Label>
               <Input
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                placeholder="New category name"
-              />
-              <Button type="button" variant="secondary" onClick={() => void onCreateCategory()}>
-                Add
-              </Button>
-            </div>
-          ) : (
-            <SearchableSelect
-              options={categoryOptions.map((category) => ({
-                value: category._id,
-                label: category.name,
-              }))}
-              value={categoryId || undefined}
-              onValueChange={setCategoryId}
-              placeholder="Select category"
-              searchPlaceholder="Search categories…"
-              emptyMessage="No categories found."
-            />
-          )}
-        </div>
-        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="sell">Selling Price (GHC)</Label>
-            <Input
-              id="sell"
-              type="number"
-              min="0"
-              step="0.01"
-              value={sellingPrice}
-              onChange={(e) => setSellingPrice(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="cost">Cost Price (GHC)</Label>
-            <Input
-              id="cost"
-              type="number"
-              min="0"
-              step="0.01"
-              value={costPrice}
-              onChange={(e) => setCostPrice(e.target.value)}
-              required
-            />
-          </div>
-        </div>
-        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-          {warehouseIntake ? (
-            <div className="space-y-2">
-              <Label>Opening branch stock</Label>
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                Stays 0. Warehouse quantity is added when you save the supplier purchase.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Label htmlFor="stock">Stock Quantity</Label>
-              <UnsignedQuantityInput
-                id="stock"
-                value={stockQuantity}
-                onValueChange={setStockQuantity}
-                disabled={!!productId}
-                required={!productId}
+                id="name"
+                className="min-h-11"
+                value={name}
+                onChange={(e) => onNameChange(e.target.value)}
+                required
               />
             </div>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="unit">Base stock unit</Label>
-            <Input id="unit" value={unit} onChange={(e) => setUnit(e.target.value)} required />
-          </div>
-        </div>
-        {showSellUnits ? (
-          <div className="space-y-3">
-            {showWeight ? (
-              <div className="space-y-2">
-                <Label>Pricing mode</Label>
-                <Select
-                  value={pricingMode}
-                  onValueChange={(value) => setPricingMode(value as PricingMode)}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label>Category</Label>
+                <button
+                  type="button"
+                  className="text-primary text-xs font-medium hover:underline"
+                  onClick={() => {
+                    setShowNewCategory((open) => {
+                      if (open) setNewCategory("");
+                      return !open;
+                    });
+                  }}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fixed">Fixed (whole / pack qty)</SelectItem>
-                    <SelectItem value="per_weight">Per weight (fractional qty)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-muted-foreground text-xs">
-                  Per weight uses manual entry at checkout. Scale hardware is not wired yet.
-                </p>
+                  {showNewCategory ? "Select existing" : "Create new"}
+                </button>
               </div>
-            ) : null}
-            <ProductSellUnitsEditor
-              drafts={sellUnitDrafts}
-              onChange={setSellUnitDrafts}
-              baseUnitLabel={unit}
-              showPacks={showPacks}
-              showWeight={showWeight}
-            />
-          </div>
-        ) : null}
-        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="low">Low Stock Alert</Label>
-            <UnsignedQuantityInput
-              id="low"
-              value={lowStockThreshold}
-              onValueChange={setLowStockThreshold}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select
-              value={status}
-              onValueChange={(value) => setStatus(value as "active" | "inactive")}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">In Stock</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="border-border space-y-3 rounded-lg border p-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <Label htmlFor="tracks-expiry">Track expiry dates</Label>
-              <p className="text-muted-foreground text-xs">
-                Receive stock in dated lots. Sales use the soonest expiry first.
-              </p>
+              {showNewCategory ? (
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
+                  <Input
+                    className="min-h-11 min-w-0"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    placeholder="New category name"
+                  />
+                  <Button type="button" variant="secondary" onClick={() => void onCreateCategory()}>
+                    Add
+                  </Button>
+                </div>
+              ) : (
+                <SearchableSelect
+                  options={categoryOptions.map((category) => ({
+                    value: category._id,
+                    label: category.name,
+                  }))}
+                  value={categoryId || undefined}
+                  onValueChange={setCategoryId}
+                  placeholder="Select category"
+                  searchPlaceholder="Search categories…"
+                  emptyMessage="No categories found."
+                />
+              )}
             </div>
-            <Switch id="tracks-expiry" checked={tracksExpiry} onCheckedChange={setTracksExpiry} />
-          </div>
-          {tracksExpiry ? (
             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="min-w-0 space-y-2">
-                <Label htmlFor="alert-days">Alert days before expiry</Label>
+                <Label htmlFor="sku">SKU</Label>
                 <Input
-                  id="alert-days"
-                  type="number"
-                  min="0"
-                  step="1"
-                  className="w-full min-w-0"
-                  value={expiryAlertDays}
-                  onChange={(e) => setExpiryAlertDays(e.target.value)}
+                  id="sku"
+                  className="min-h-11"
+                  value={sku}
+                  onChange={(e) => {
+                    setSkuTouched(true);
+                    setSku(e.target.value);
+                  }}
+                  placeholder="Auto from name"
                   required
                 />
               </div>
-              {(!productId && Number(stockQuantity) > 0) ||
-              (productId?.startsWith("local_") && (initialProduct?.stockQuantity ?? 0) > 0) ||
-              (productId &&
-                initialProduct &&
-                !initialProduct.tracksExpiry &&
-                initialProduct.stockQuantity > 0) ? (
+              <div className="min-w-0 space-y-2 sm:pt-0">
+                <ProductBarcodeField value={barcode} onChange={setBarcode} />
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className="space-y-1">
+              <h3 className="text-sm font-medium">Pricing & stock</h3>
+              <p className="text-muted-foreground text-xs">Used at checkout and for stock alerts.</p>
+            </div>
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="min-w-0 space-y-2">
+                <Label htmlFor="sell">Selling price (GHC)</Label>
+                <Input
+                  id="sell"
+                  className="min-h-11"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={sellingPrice}
+                  onChange={(e) => setSellingPrice(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="min-w-0 space-y-2">
+                <Label htmlFor="cost">Cost price (GHC)</Label>
+                <Input
+                  id="cost"
+                  className="min-h-11"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={costPrice}
+                  onChange={(e) => setCostPrice(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+              {warehouseIntake ? (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Opening branch stock</Label>
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    Stays 0. Warehouse quantity is added when you save the supplier purchase.
+                  </p>
+                </div>
+              ) : (
                 <div className="min-w-0 space-y-2">
-                  <Label htmlFor="opening-expiry">
-                    {productId && !productId.startsWith("local_")
-                      ? "Opening expiry date"
-                      : "Expiry date"}
-                  </Label>
-                  <Input
-                    id="opening-expiry"
-                    type="date"
-                    className="w-full min-w-0"
-                    value={expiryDate}
-                    onChange={(e) => setExpiryDate(e.target.value)}
-                    required
+                  <Label htmlFor="stock">Stock quantity</Label>
+                  <UnsignedQuantityInput
+                    id="stock"
+                    value={stockQuantity}
+                    onValueChange={setStockQuantity}
+                    disabled={!!productId}
+                    required={!productId}
                   />
                 </div>
-              ) : productId ? (
-                <p className="text-muted-foreground text-xs sm:col-span-2">
-                  Edit each batch&apos;s expiry on the product page under Expiry lots.
-                </p>
-              ) : null}
+              )}
+              <div className="min-w-0 space-y-2">
+                <Label htmlFor="low">Low stock alert</Label>
+                <UnsignedQuantityInput
+                  id="low"
+                  value={lowStockThreshold}
+                  onValueChange={setLowStockThreshold}
+                  required
+                />
+              </div>
             </div>
-          ) : null}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={4}
-          />
-        </div>
-      </div>
-      <div className="min-w-0 space-y-3">
-        <Label>Product Image</Label>
-        <div className="border-border bg-muted/30 relative flex min-h-48 flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed p-4 text-center">
-          {previewUrl ? (
-            <Image
-              src={previewUrl}
-              alt={name || "Product preview"}
-              fill
-              className="object-cover"
-              sizes="320px"
-              unoptimized
-            />
-          ) : productId ? (
-            <ProductImage
-              productId={productId}
-              remoteUrl={initialProduct?.imageUrl}
-              alt={name || "Product preview"}
-              sizes="320px"
-              fallback={
-                <>
-                  <ImagePlus className="text-muted-foreground mb-2 h-8 w-8" />
-                  <p className="text-sm font-medium">Add a product photo</p>
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    JPG, PNG, or WebP · compressed for offline sync · max 2 MB
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+              {showPacks || showWeight ? (
+                <div className="min-w-0 space-y-2">
+                  <Label htmlFor="unit">Base stock unit</Label>
+                  <Input
+                    id="unit"
+                    className="min-h-11"
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    required
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    Inventory is counted in this unit (e.g. pcs, packs, kg).
                   </p>
-                </>
-              }
+                </div>
+              ) : null}
+              <div className="min-w-0 space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={status}
+                  onValueChange={(value) => setStatus(value as "active" | "inactive")}
+                >
+                  <SelectTrigger className="min-h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">In stock</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </section>
+
+          {showSellUnits ? (
+            <section className="space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium">Advanced selling</h3>
+                <p className="text-muted-foreground text-xs">
+                  Enabled in Settings → Business. Hidden for simple retail shops.
+                </p>
+              </div>
+              {showWeight ? (
+                <div className="space-y-2">
+                  <Label>Pricing mode</Label>
+                  <Select
+                    value={pricingMode}
+                    onValueChange={(value) => setPricingMode(value as PricingMode)}
+                  >
+                    <SelectTrigger className="min-h-11">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed">Fixed (whole / pack qty)</SelectItem>
+                      <SelectItem value="per_weight">Per weight (fractional qty)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-muted-foreground text-xs">
+                    Per weight uses manual entry at checkout. Scale hardware is optional.
+                  </p>
+                </div>
+              ) : null}
+              <ProductSellUnitsEditor
+                drafts={sellUnitDrafts}
+                onChange={setSellUnitDrafts}
+                baseUnitLabel={unit}
+                showPacks={showPacks}
+                showWeight={showWeight}
+              />
+            </section>
+          ) : null}
+
+          {showExpiry ? (
+            <section className="border-border space-y-3 rounded-[16px] border p-3 sm:p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <Label htmlFor="tracks-expiry">Track expiry dates</Label>
+                  <p className="text-muted-foreground text-xs">
+                    Receive stock in dated lots. Sales use the soonest expiry first.
+                  </p>
+                </div>
+                <Switch
+                  id="tracks-expiry"
+                  checked={tracksExpiry}
+                  onCheckedChange={setTracksExpiry}
+                />
+              </div>
+              {tracksExpiry ? (
+                <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="min-w-0 space-y-2">
+                    <Label htmlFor="alert-days">Alert days before expiry</Label>
+                    <Input
+                      id="alert-days"
+                      type="number"
+                      min="0"
+                      step="1"
+                      className="min-h-11 w-full min-w-0"
+                      value={expiryAlertDays}
+                      onChange={(e) => setExpiryAlertDays(e.target.value)}
+                      required
+                    />
+                  </div>
+                  {(!productId && Number(stockQuantity) > 0) ||
+                  (productId?.startsWith("local_") && (initialProduct?.stockQuantity ?? 0) > 0) ||
+                  (productId &&
+                    initialProduct &&
+                    !initialProduct.tracksExpiry &&
+                    initialProduct.stockQuantity > 0) ? (
+                    <div className="min-w-0 space-y-2">
+                      <Label htmlFor="opening-expiry">
+                        {productId && !productId.startsWith("local_")
+                          ? "Opening expiry date"
+                          : "Expiry date"}
+                      </Label>
+                      <Input
+                        id="opening-expiry"
+                        type="date"
+                        className="min-h-11 w-full min-w-0"
+                        value={expiryDate}
+                        onChange={(e) => setExpiryDate(e.target.value)}
+                        required
+                      />
+                    </div>
+                  ) : productId ? (
+                    <p className="text-muted-foreground text-xs sm:col-span-2">
+                      Edit each batch&apos;s expiry on the product page under Expiry lots.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
+          <section className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              placeholder="Optional notes for your team"
             />
-          ) : (
-            <>
-              <ImagePlus className="text-muted-foreground mb-2 h-8 w-8" />
-              <p className="text-sm font-medium">Add a product photo</p>
-              <p className="text-muted-foreground mt-1 text-xs">
-                JPG, PNG, or WebP · compressed for offline sync · max 2 MB
-              </p>
-            </>
-          )}
+          </section>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" asChild>
-            <label htmlFor="image" className="cursor-pointer">
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Image
-            </label>
-          </Button>
-          <Button type="button" variant="outline" onClick={() => void onTakePhoto()}>
-            <Camera className="mr-2 h-4 w-4" />
-            Take Photo
-          </Button>
-          <Input
-            id="image"
-            type="file"
-            accept={IMAGE_ACCEPT}
-            className="sr-only"
-            onChange={(e) => {
-              const next = e.target.files?.[0] ?? null;
-              e.target.value = "";
-              if (!next) return;
-              void applyImageFile(next);
+
+        <aside className="min-w-0 space-y-3 lg:sticky lg:top-0 lg:self-start">
+          <Label>Product image</Label>
+          <div className="border-border bg-muted/30 relative flex aspect-square min-h-40 w-full flex-col items-center justify-center overflow-hidden rounded-[16px] border border-dashed p-4 text-center lg:min-h-0">
+            {previewUrl ? (
+              <Image
+                src={previewUrl}
+                alt={name || "Product preview"}
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 208px"
+                unoptimized
+              />
+            ) : productId ? (
+              <ProductImage
+                productId={productId}
+                remoteUrl={initialProduct?.imageUrl}
+                alt={name || "Product preview"}
+                sizes="(max-width: 1024px) 100vw, 208px"
+                fallback={
+                  <>
+                    <ImagePlus className="text-muted-foreground mb-2 h-8 w-8" />
+                    <p className="text-sm font-medium">Add a photo</p>
+                    <p className="text-muted-foreground mt-1 text-xs">JPG, PNG, or WebP · max 2 MB</p>
+                  </>
+                }
+              />
+            ) : (
+              <>
+                <ImagePlus className="text-muted-foreground mb-2 h-8 w-8" />
+                <p className="text-sm font-medium">Add a photo</p>
+                <p className="text-muted-foreground mt-1 text-xs">JPG, PNG, or WebP · max 2 MB</p>
+              </>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" size="sm" asChild>
+              <label htmlFor="image" className="cursor-pointer">
+                <Upload className="mr-2 h-4 w-4" />
+                Upload
+              </label>
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => void onTakePhoto()}>
+              <Camera className="mr-2 h-4 w-4" />
+              Camera
+            </Button>
+            <Input
+              id="image"
+              type="file"
+              accept={IMAGE_ACCEPT}
+              className="sr-only"
+              onChange={(e) => {
+                const next = e.target.files?.[0] ?? null;
+                e.target.value = "";
+                if (!next) return;
+                void applyImageFile(next);
+              }}
+            />
+          </div>
+          {file ? <p className="text-muted-foreground truncate text-xs">{file.name}</p> : null}
+          <TakeProductPhotoDialog
+            open={cameraOpen}
+            onOpenChange={setCameraOpen}
+            onCapture={(captured) => {
+              void applyImageFile(captured);
             }}
           />
-        </div>
-        {file ? <p className="text-muted-foreground truncate text-xs">{file.name}</p> : null}
-        <TakeProductPhotoDialog
-          open={cameraOpen}
-          onOpenChange={setCameraOpen}
-          onCapture={(captured) => {
-            void applyImageFile(captured);
-          }}
-        />
+        </aside>
       </div>
-      <DialogFooter className="col-span-full">
+
+      <DialogFooter className="gap-2 sm:justify-end">
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
           Cancel
         </Button>
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Save Product"}
+          {pending ? "Saving…" : "Save product"}
         </Button>
       </DialogFooter>
     </form>

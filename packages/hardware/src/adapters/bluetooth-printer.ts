@@ -17,6 +17,7 @@ import {
   createClassicPrinterTransport,
   isClassicBluetoothAvailable,
   openClassicBluetoothSettings,
+  requestClassicBluetoothPermission,
 } from "./bluetooth-transport-classic";
 import type { BluetoothPrinterTransport } from "./bluetooth-transport";
 
@@ -198,6 +199,10 @@ export function createBluetoothPrinterControls(): BluetoothPrinterControls {
 
     async openBluetoothSettings() {
       return openClassicBluetoothSettings();
+    },
+
+    async requestBluetoothPermission() {
+      return requestClassicBluetoothPermission();
     },
   };
 }

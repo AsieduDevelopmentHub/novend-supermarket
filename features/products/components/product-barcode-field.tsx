@@ -20,8 +20,8 @@ type Props = {
 };
 
 /**
- * Optional barcode assignment. HID listens in the background when configured;
- * otherwise opens the camera scanner via the barcode icon.
+ * Optional barcode assignment. HID listens when configured;
+ * otherwise opens the camera scanner.
  */
 export function ProductBarcodeField({ value, onChange }: Props) {
   const [listening, setListening] = useState(false);
@@ -52,42 +52,43 @@ export function ProductBarcodeField({ value, onChange }: Props) {
   }
 
   return (
-    <div className="border-border space-y-3 rounded-lg border p-3">
-      <div className="space-y-2">
-        <Label htmlFor="barcode">Barcode (optional)</Label>
+    <div className="min-w-0 space-y-2">
+      <Label htmlFor="barcode">Barcode</Label>
+      <div className="flex min-w-0 gap-2">
         <Input
           id="barcode"
+          className="min-h-11 min-w-0"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="8901234567890"
+          placeholder="Optional"
           autoComplete="off"
         />
-        <p className="text-muted-foreground text-xs">
-          Unique per organization. Leave blank if this product has no barcode.
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-2">
         {hidActive ? (
           <Button
             type="button"
             variant={listening ? "default" : "outline"}
-            size="sm"
+            className="min-h-11 shrink-0"
             onClick={() => setListening((v) => !v)}
+            aria-label={listening ? "Stop listening" : "Scan barcode"}
           >
-            <ScanBarcode className="mr-2 h-4 w-4" />
-            {listening ? "Listening…" : "Scan barcode"}
+            <ScanBarcode className="h-4 w-4" />
           </Button>
         ) : null}
         {showCamera ? (
-          <Button type="button" variant="outline" size="sm" onClick={() => setCameraOpen(true)}>
-            <ScanBarcode className="mr-2 h-4 w-4" />
-            Scan barcode
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11 shrink-0"
+            onClick={() => setCameraOpen(true)}
+            aria-label="Scan barcode with camera"
+          >
+            <ScanBarcode className="h-4 w-4" />
           </Button>
         ) : null}
       </div>
       {listening && hidActive ? (
         <p className="text-muted-foreground text-xs" aria-live="polite">
-          Point the USB scanner at a barcode. Listening stops after the first scan or 18 seconds.
+          Listening for USB scanner…
         </p>
       ) : null}
       <ScanBarcodeCameraDialog
