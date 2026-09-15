@@ -299,4 +299,9 @@ export const bluetoothPrinter = {
     const controls = await getBluetoothPrinterControls();
     return controls.openBluetoothSettings();
   },
+  requestBluetoothPermission: async () => {
+    const { getBluetoothPrinterControls } = await bluetoothFacade();
+    const controls = await getBluetoothPrinterControls();
+    return controls.requestBluetoothPermission();
+  },
 };

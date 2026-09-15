@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -193,7 +193,7 @@ export function SettingsView() {
 
             {isAdmin && business && template ? (
               <>
-                <TabsContent value="business" className="mt-0 space-y-4">
+                <TabsContent value="business" className="mt-0 space-y-5">
                   <BusinessForm
                     key={JSON.stringify(business)}
                     initial={business}
@@ -419,30 +419,39 @@ function BusinessForm({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Business profile</CardTitle>
+    <Card className="rounded-[20px]">
+      <CardHeader className="space-y-1.5">
+        <CardTitle className="text-base">Business profile</CardTitle>
+        <CardDescription>
+          Name and contact details used on receipts and throughout Novend.
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="grid max-w-2xl gap-4" onSubmit={onSaveBusiness}>
-          <div className="space-y-2">
-            <Label htmlFor="tradeName">Trade name</Label>
-            <Input
-              id="tradeName"
-              value={tradeName}
-              onChange={(e) => setTradeName(e.target.value)}
-              required
-              disabled={readOnly}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="legalName">Legal name</Label>
-            <Input
-              id="legalName"
-              value={legalName}
-              onChange={(e) => setLegalName(e.target.value)}
-              disabled={readOnly}
-            />
+        <form className="grid max-w-2xl gap-5" onSubmit={onSaveBusiness}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="tradeName">Trade name</Label>
+              <Input
+                id="tradeName"
+                value={tradeName}
+                onChange={(e) => setTradeName(e.target.value)}
+                required
+                disabled={readOnly}
+                className="min-h-11"
+              />
+              <p className="text-muted-foreground text-xs">Shown on receipts and in the app.</p>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="legalName">Legal name</Label>
+              <Input
+                id="legalName"
+                value={legalName}
+                onChange={(e) => setLegalName(e.target.value)}
+                disabled={readOnly}
+                className="min-h-11"
+                placeholder="Optional — registered company name"
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="address">Address</Label>
@@ -462,6 +471,7 @@ function BusinessForm({
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 disabled={readOnly}
+                className="min-h-11"
               />
             </div>
             <div className="space-y-2">
@@ -472,6 +482,7 @@ function BusinessForm({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={readOnly}
+                className="min-h-11"
               />
             </div>
           </div>
@@ -482,6 +493,8 @@ function BusinessForm({
               value={taxId}
               onChange={(e) => setTaxId(e.target.value)}
               disabled={readOnly}
+              className="min-h-11"
+              placeholder="Optional"
             />
           </div>
           <Button type="submit" disabled={pending || readOnly} className="w-fit">

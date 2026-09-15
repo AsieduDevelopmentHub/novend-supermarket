@@ -6,10 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Hardware, hasNovendNativeSecurity, type BiometricAvailability } from "@novend/hardware";
 import { randomUuid } from "@/convex/shared/randomId";
+import { runNativeSettingsCheck } from "@/features/settings/native-settings-check";
 import { Fingerprint, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 type BiometricUiState = "idle" | "checking" | "available" | "unavailable" | "unsupported" | "error";
+
+function yieldToUi(): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, 80);
+  });
+}
 
 /**
  * Optional biometric unlock — never stores the account password.
@@ -21,15 +28,19 @@ export function BiometricSecurityCard() {
   const [enabled, setEnabled] = useState(false);
   const [requireOnLaunch, setRequireOnLaunch] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [justVerified, setJustVerified] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const checkGenerationRef = useRef(0);
+  const enabledRef = useRef(false);
 
-  const refreshAvailability = useCallback(async () => {
+  const refreshAvailability = useCallback(async (opts?: { quiet?: boolean }) => {
     const generation = ++checkGenerationRef.current;
-    setUiState("checking");
-    setMessage(null);
+    if (!opts?.quiet) {
+      setUiState("checking");
+      setMessage(null);
+    }
     try {
-      const avail = await Hardware.biometrics.checkAvailability();
+      const avail = await runNativeSettingsCheck(() => Hardware.biometrics.checkAvailability());
       if (generation !== checkGenerationRef.current) return;
       const data = avail.data ?? {
         available: false,
@@ -57,6 +68,11 @@ export function BiometricSecurityCard() {
       }
     } catch {
       if (generation !== checkGenerationRef.current) return;
+      if (opts?.quiet && enabledRef.current) {
+        // Keep showing controls after a successful verify — do not blank the card.
+        setUiState("available");
+        return;
+      }
       setAvailability({
         available: false,
         supported: false,
@@ -74,12 +90,25 @@ export function BiometricSecurityCard() {
       try {
         const prefs = await Hardware.biometrics.getPrefs();
         if (cancelled) return;
+        enabledRef.current = prefs.enabled;
         setEnabled(prefs.enabled);
         setRequireOnLaunch(prefs.requireOnLaunch);
+        // Show controls immediately when already enabled so remount never looks blank.
+        if (prefs.enabled) {
+          setUiState("available");
+          setAvailability({
+            available: true,
+            supported: true,
+            enrolled: true,
+            biometryType: "fingerprint",
+          });
+        }
       } catch {
         /* prefs are best-effort */
       }
-      if (!cancelled && hasNovendNativeSecurity()) await refreshAvailability();
+      if (!cancelled && hasNovendNativeSecurity()) {
+        await refreshAvailability({ quiet: true });
+      }
     })();
     return () => {
       cancelled = true;
@@ -89,8 +118,9 @@ export function BiometricSecurityCard() {
   async function onToggleEnabled(next: boolean) {
     if (busy) return;
     setBusy(true);
+    setJustVerified(false);
     // Let the switch/busy paint before the sync native prompt blocks the WebView.
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
+    await yieldToUi();
     try {
       if (next) {
         if (uiState !== "available") {
@@ -99,6 +129,8 @@ export function BiometricSecurityCard() {
         const auth = await Hardware.biometrics.authenticate(
           "Enable biometric unlock for Novend POS",
         );
+        // Yield after BiometricPrompt so the WebView can paint before more work.
+        await yieldToUi();
         if (!auth.ok) {
           if (auth.message !== "Cancelled") toast.error(auth.message || "Biometrics failed");
           return;
@@ -114,17 +146,31 @@ export function BiometricSecurityCard() {
           toast.error(enabledResult.message || "Could not enable biometrics");
           return;
         }
+        enabledRef.current = true;
         setEnabled(true);
+        setJustVerified(true);
+        setUiState("available");
+        if (!availability?.available) {
+          setAvailability({
+            available: true,
+            supported: true,
+            enrolled: true,
+            biometryType: availability?.biometryType ?? "fingerprint",
+          });
+        }
         toast.success("Biometrics enabled");
       } else {
         await Hardware.biometrics.setEnabled(false);
+        enabledRef.current = false;
         setEnabled(false);
         setRequireOnLaunch(false);
+        setJustVerified(false);
         toast.message("Biometrics disabled");
       }
     } catch {
       toast.error("Could not configure biometrics. Try again.");
     } finally {
+      await yieldToUi();
       setBusy(false);
     }
   }
@@ -149,7 +195,9 @@ export function BiometricSecurityCard() {
         </CardHeader>
         <CardContent className="space-y-3">
           {enabled ? (
-            <p className="text-muted-foreground text-sm">Biometrics are enabled on this device.</p>
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+              Biometrics are enabled on this device.
+            </p>
           ) : null}
           <Button
             type="button"
@@ -164,7 +212,7 @@ export function BiometricSecurityCard() {
     );
   }
 
-  if (uiState === "checking") {
+  if (uiState === "checking" && !enabled) {
     return (
       <Card>
         <CardHeader>
@@ -196,6 +244,57 @@ export function BiometricSecurityCard() {
   }
 
   if (uiState !== "available" || !availability?.available) {
+    if (enabled) {
+      // Prefer showing enabled controls over a blank/error card after verify.
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Fingerprint className="h-4 w-4" />
+              Biometrics
+            </CardTitle>
+            <CardDescription>
+              Optional fingerprint or face unlock. Your password is never stored on this device.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+              Biometrics are enabled on this device.
+            </p>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">Enable biometrics</p>
+                <p className="text-muted-foreground text-xs">Unlock Novend after you sign in once</p>
+              </div>
+              <Switch
+                checked={enabled}
+                disabled={busy}
+                onCheckedChange={(checked) => void onToggleEnabled(checked)}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">Require on app launch</p>
+                <p className="text-muted-foreground text-xs">Prompt each time Novend opens</p>
+              </div>
+              <Switch
+                checked={requireOnLaunch}
+                disabled={!enabled || busy}
+                onCheckedChange={(checked) => void onToggleRequire(checked)}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void onToggleEnabled(false)}
+            >
+              Disable biometrics
+            </Button>
+          </CardContent>
+        </Card>
+      );
+    }
     return (
       <Card>
         <CardHeader>
@@ -233,6 +332,13 @@ export function BiometricSecurityCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {justVerified || enabled ? (
+          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+            {justVerified
+              ? "Verified — biometric unlock is on for this device."
+              : "Biometric unlock is on for this device."}
+          </p>
+        ) : null}
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium">Enable biometrics</p>

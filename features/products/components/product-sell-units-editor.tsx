@@ -90,8 +90,8 @@ type Props = {
 };
 
 /**
- * Edit sell units when multi-unit and/or weight capabilities are enabled.
- * Stock remains in the product base unit (`unit` field).
+ * Sell units when multi-unit and/or weight capabilities are enabled.
+ * Mobile-first stacked rows — never a dense 5-column grid.
  */
 export function ProductSellUnitsEditor({
   drafts,
@@ -107,65 +107,71 @@ export function ProductSellUnitsEditor({
   }
 
   return (
-    <div className="border-border space-y-3 rounded-lg border p-3">
-      <div>
+    <div className="border-border bg-muted/20 space-y-4 rounded-[16px] border p-3 sm:p-4">
+      <div className="space-y-1">
         <p className="text-sm font-medium">Sell units</p>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Base stock unit is <span className="font-medium">{baseUnitLabel || "unit"}</span>. Pack
-          factors convert to that base
-          {showWeight ? "; weight mode allows fractional quantities at checkout" : ""}.
+          Stock is counted in <span className="font-medium">{baseUnitLabel || "unit"}</span>. Each
+          sell unit converts to that base
+          {showWeight ? " · weight mode allows fractional qty at checkout" : ""}.
         </p>
       </div>
       <div className="space-y-3">
         {drafts.map((row, index) => (
           <div
             key={row.key}
-            className="border-border grid gap-2 rounded-md border p-2 sm:grid-cols-2 lg:grid-cols-5"
+            className="border-border bg-background space-y-3 rounded-[14px] border p-3"
           >
-            <div className="space-y-1 lg:col-span-1">
-              <Label className="text-xs">Label</Label>
-              <Input
-                value={row.label}
-                placeholder={showWeight ? "kg" : "Pack of 6"}
-                onChange={(e) => patch(index, { label: e.target.value })}
-              />
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="min-w-0 space-y-1.5">
+                <Label className="text-xs">Label</Label>
+                <Input
+                  className="min-h-11"
+                  value={row.label}
+                  placeholder={showWeight ? "kg" : "Pack of 6"}
+                  onChange={(e) => patch(index, { label: e.target.value })}
+                />
+              </div>
+              <div className="min-w-0 space-y-1.5">
+                <Label className="text-xs">Factor → base</Label>
+                <Input
+                  className="min-h-11"
+                  type="number"
+                  min="0.000001"
+                  step="any"
+                  value={row.factorToBase}
+                  onChange={(e) => patch(index, { factorToBase: e.target.value })}
+                />
+              </div>
+              <div className="min-w-0 space-y-1.5">
+                <Label className="text-xs">Price / sell unit</Label>
+                <Input
+                  className="min-h-11"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={row.sellingPrice}
+                  placeholder="Optional"
+                  onChange={(e) => patch(index, { sellingPrice: e.target.value })}
+                />
+              </div>
+              <div className="min-w-0 space-y-1.5">
+                <Label className="text-xs">Barcode</Label>
+                <Input
+                  className="min-h-11"
+                  value={row.barcode}
+                  placeholder="Optional"
+                  onChange={(e) => patch(index, { barcode: e.target.value })}
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Factor → base</Label>
-              <Input
-                type="number"
-                min="0.000001"
-                step="any"
-                value={row.factorToBase}
-                onChange={(e) => patch(index, { factorToBase: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Price / sell unit</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={row.sellingPrice}
-                placeholder="Uses base × factor"
-                onChange={(e) => patch(index, { sellingPrice: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Barcode</Label>
-              <Input
-                value={row.barcode}
-                placeholder="Optional"
-                onChange={(e) => patch(index, { barcode: e.target.value })}
-              />
-            </div>
-            <div className="flex items-end justify-between gap-2 pb-1">
-              <label className="flex items-center gap-2 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="flex items-center gap-2 text-sm">
                 <Checkbox
                   checked={row.active}
                   onCheckedChange={(v) => patch(index, { active: v === true })}
                 />
-                Active
+                Active at checkout
               </label>
               <Button
                 type="button"

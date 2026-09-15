@@ -145,5 +145,7 @@ export type BluetoothPrinterControls = {
   setPaperWidth: (mm: 58 | 80) => Promise<HardwareResult>;
   setAutoReconnect: (enabled: boolean) => Promise<HardwareResult>;
   setTransport: (transport: BluetoothPrinterTransportKind) => Promise<HardwareResult>;
+  /** In-app Nearby devices / Bluetooth prompt — never opens App Info. */
+  requestBluetoothPermission: () => Promise<HardwareResult>;
   openBluetoothSettings: () => Promise<HardwareResult>;
 };

@@ -207,7 +207,7 @@ export function NotificationsSettingsCard() {
               disabled={busy}
               onClick={() => void enableNotifications()}
             >
-              Open notification settings
+              Enable notifications
             </Button>
           </div>
         ) : null}
@@ -221,7 +221,7 @@ export function NotificationsSettingsCard() {
               disabled={busy}
               onClick={() => void enableNotifications()}
             >
-              Try again
+              Enable notifications
             </Button>
           </div>
         ) : null}
@@ -243,15 +243,15 @@ export function NotificationsSettingsCard() {
         {permissionKnown && state === "error" ? (
           <div className="space-y-2">
             <p className="text-muted-foreground text-sm">
-              {errorMessage || "Could not check notification permission. Try again."}
+              {errorMessage || "Could not check notification permission."}
             </p>
             <Button
               type="button"
               variant="outline"
               disabled={busy}
-              onClick={() => void refreshPermission()}
+              onClick={() => void enableNotifications()}
             >
-              Try again
+              Enable notifications
             </Button>
           </div>
         ) : null}

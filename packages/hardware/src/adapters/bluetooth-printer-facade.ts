@@ -57,6 +57,9 @@ function unsupportedBluetooth(): BluetoothPrinterControls {
     async setTransport(_transport: BluetoothPrinterTransportKind) {
       return unavailable();
     },
+    async requestBluetoothPermission() {
+      return unavailable();
+    },
     async openBluetoothSettings() {
       return unavailable();
     },

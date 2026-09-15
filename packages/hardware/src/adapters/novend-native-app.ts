@@ -21,6 +21,7 @@ function asBtCode(code: string | undefined): BluetoothPrintErrorCode | undefined
 type NovendNativeAppBridge = {
   appInfo?: () => string;
   openAppDetailsSettings?: () => boolean;
+  classicRequestBluetoothPermission?: () => string;
   classicListBondedPrinters?: () => string;
   classicConnect?: (address: string) => string;
   classicDisconnect?: () => void;
@@ -74,6 +75,38 @@ export function openNativeAppDetailsSettings(): boolean {
     return bridge.openAppDetailsSettings() === true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * System Nearby devices / Bluetooth dialog via MainActivity.
+ * Never opens App Info. Returns granted when CONNECT is available.
+ */
+export function nativeClassicRequestBluetoothPermission(): HardwareResult {
+  const bridge = nativeBridge();
+  if (!bridge || typeof bridge.classicRequestBluetoothPermission !== "function") {
+    return {
+      ok: false,
+      code: "unsupported",
+      message: "Bluetooth permissions require the latest Novend Android app.",
+    };
+  }
+  try {
+    const outcome = bridge.classicRequestBluetoothPermission();
+    if (outcome === "granted") {
+      return { ok: true, message: "Bluetooth access allowed" };
+    }
+    return {
+      ok: false,
+      code: "permission",
+      message: "Enable Bluetooth / Nearby devices for Novend, then try again.",
+    };
+  } catch {
+    return {
+      ok: false,
+      code: "permission",
+      message: "Enable Bluetooth / Nearby devices for Novend, then try again.",
+    };
   }
 }
 

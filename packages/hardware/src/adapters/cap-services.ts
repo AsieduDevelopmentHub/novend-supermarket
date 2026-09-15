@@ -271,6 +271,8 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
             } satisfies UpdateInfo,
           };
         }
+        const sameOrigin =
+          typeof window !== "undefined" ? `${window.location.origin}/api/mobile-updates/latest` : null;
         const fromPublic =
           typeof process !== "undefined" && process.env?.NEXT_PUBLIC_MOBILE_UPDATE_JSON
             ? process.env.NEXT_PUBLIC_MOBILE_UPDATE_JSON
@@ -283,8 +285,12 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CONVEX_URL
             ? `${process.env.NEXT_PUBLIC_CONVEX_URL.replace(/\.cloud\/?$/, ".site").replace(/\/$/, "")}/mobile-updates/latest`
             : null;
-        const endpoint = fromPublic || fromSite || fromCloud;
-        if (!endpoint) {
+        // Prefer same-origin proxy — env inlining in @novend/hardware is unreliable,
+        // and Cap WebViews sometimes fail cross-origin Convex.site fetches.
+        const candidates = [sameOrigin, fromPublic, fromSite, fromCloud].filter(
+          (value): value is string => Boolean(value),
+        );
+        if (candidates.length === 0) {
           return {
             ok: true,
             data: {
@@ -295,14 +301,38 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
             } satisfies UpdateInfo,
           };
         }
-        const separator = endpoint.includes("?") ? "&" : "?";
-        const response = await withTimeout(
-          fetch(`${endpoint}${separator}t=${Date.now()}`, {
-            cache: "no-store",
-            headers: { "cache-control": "no-cache", pragma: "no-cache" },
-          }),
-          NATIVE_AVAILABILITY_TIMEOUT_MS,
-        );
+
+        let response: Response | null = null;
+        let lastFetchError: unknown = null;
+        for (const endpoint of candidates) {
+          try {
+            const separator = endpoint.includes("?") ? "&" : "?";
+            response = await withTimeout(
+              fetch(`${endpoint}${separator}t=${Date.now()}`, {
+                cache: "no-store",
+                headers: { "cache-control": "no-cache", pragma: "no-cache" },
+              }),
+              NATIVE_AVAILABILITY_TIMEOUT_MS,
+            );
+            if (response.ok || response.status === 404) break;
+            response = null;
+          } catch (error) {
+            lastFetchError = error;
+            response = null;
+          }
+        }
+        if (!response) {
+          if (lastFetchError) throw lastFetchError;
+          return {
+            ok: false,
+            message: "Could not reach the update server.",
+            data: {
+              available: false,
+              status: "unreachable",
+              notes: "Could not reach the update server.",
+            },
+          };
+        }
         if (response.status === 404) {
           return {
             ok: true,
@@ -463,14 +493,6 @@ export async function setBiometricEnabled(enabled: boolean): Promise<HardwareRes
   if (!enabled) {
     writeLocalPref(BIOMETRIC_REQUIRE_LAUNCH_KEY, "false");
     removeLocalPref(BIOMETRIC_UNLOCK_TOKEN_KEY);
-    try {
-      await withTimeout(
-        SecureStorage.removeItem(BIOMETRIC_UNLOCK_TOKEN_KEY),
-        NATIVE_CALL_TIMEOUT_MS,
-      );
-    } catch {
-      /* ignore */
-    }
   }
   return { ok: true };
 }
@@ -481,13 +503,14 @@ export async function setBiometricRequireOnLaunch(require: boolean): Promise<Har
 }
 
 /**
- * Unlock token is not a password — it only proves the user completed a local
- * biometric challenge. Prefer localStorage: Cap Preferences / SecureStorage
- * often hang after the hosted origin loads.
+ * Unlock token proves a local biometric challenge completed. localStorage only —
+ * Cap SecureStorage often hangs the WebView bridge right after BiometricPrompt
+ * (Security tab freeze / blank UI after verification).
  */
 export async function storeBiometricUnlockToken(token: string): Promise<HardwareResult> {
   try {
     writeLocalPref(BIOMETRIC_UNLOCK_TOKEN_KEY, token);
+    return { ok: true };
   } catch (error) {
     const raw = error instanceof Error ? error.message : String(error ?? "");
     return {
@@ -495,29 +518,10 @@ export async function storeBiometricUnlockToken(token: string): Promise<Hardware
       message: friendlyHardwareMessage(raw, "Could not save biometric unlock on this device."),
     };
   }
-  try {
-    await withTimeout(
-      SecureStorage.setItem(BIOMETRIC_UNLOCK_TOKEN_KEY, token),
-      NATIVE_CALL_TIMEOUT_MS,
-    );
-  } catch {
-    /* localStorage already holds the token */
-  }
-  return { ok: true };
 }
 
 export async function readBiometricUnlockToken(): Promise<HardwareResult<string | null>> {
-  const local = readLocalPref(BIOMETRIC_UNLOCK_TOKEN_KEY);
-  if (local) return { ok: true, data: local };
-  try {
-    const value = await withTimeout(
-      SecureStorage.getItem(BIOMETRIC_UNLOCK_TOKEN_KEY),
-      NATIVE_CALL_TIMEOUT_MS,
-    );
-    return { ok: true, data: value };
-  } catch {
-    return { ok: true, data: null };
-  }
+  return { ok: true, data: readLocalPref(BIOMETRIC_UNLOCK_TOKEN_KEY) };
 }
 
 export { BIOMETRIC_UNLOCK_TOKEN_KEY };
