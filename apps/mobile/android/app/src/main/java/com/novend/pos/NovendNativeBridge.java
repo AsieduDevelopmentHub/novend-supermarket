@@ -2,9 +2,14 @@ package com.novend.pos;
 
 import android.Manifest;
 import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
+import android.bluetooth.BluetoothSocket;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -15,6 +20,7 @@ import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
+import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -22,17 +28,29 @@ import androidx.fragment.app.FragmentActivity;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Method;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
  * WebView JavascriptInterface — not the Capacitor plugin bridge.
  * After the hosted origin loads, official Cap plugins often hang; this channel
- * still writes Downloads and opens the system share sheet.
+ * still writes Downloads, share, biometrics, app info, and Classic Bluetooth print.
  */
 public class NovendNativeBridge {
+
+    private static final UUID SPP_UUID =
+        UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    private static final int CHUNK_SIZE = 512;
 
     private final Activity activity;
     private final Context context;
@@ -41,9 +59,262 @@ public class NovendNativeBridge {
     private String pendingName;
     private String pendingMime;
 
+    private final ExecutorService classicExecutor = Executors.newSingleThreadExecutor();
+    private final AtomicReference<BluetoothSocket> classicSocket = new AtomicReference<>(null);
+    private final AtomicReference<String> classicAddress = new AtomicReference<>(null);
+
     public NovendNativeBridge(Activity activity) {
         this.activity = activity;
         this.context = activity.getApplicationContext();
+    }
+
+    /**
+     * Package / version from PackageManager — Cap App.getInfo hangs on hosted origin.
+     * JSON: name, id, version, build.
+     */
+    @JavascriptInterface
+    public String appInfo() {
+        JSONObject out = new JSONObject();
+        try {
+            PackageManager pm = context.getPackageManager();
+            String packageName = context.getPackageName();
+            PackageInfo info =
+                Build.VERSION.SDK_INT >= 33
+                    ? pm.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+                    : pm.getPackageInfo(packageName, 0);
+            CharSequence label = pm.getApplicationLabel(info.applicationInfo);
+            out.put("name", label != null ? label.toString() : "Novend POS");
+            out.put("id", packageName);
+            out.put("version", info.versionName != null ? info.versionName : "");
+            long code =
+                Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
+            out.put("build", String.valueOf(code));
+        } catch (Exception error) {
+            try {
+                out.put("name", "Novend POS");
+                out.put("id", context.getPackageName());
+                out.put("version", "");
+                out.put("build", "");
+            } catch (Exception ignored) {
+                return "{\"name\":\"Novend POS\",\"id\":\"com.novend.pos\",\"version\":\"\",\"build\":\"\"}";
+            }
+        }
+        return out.toString();
+    }
+
+    @JavascriptInterface
+    public boolean openAppDetailsSettings() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            intent.setData(Uri.fromParts("package", context.getPackageName(), null));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(intent);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /** Classic SPP bonded printers — JSON { ok, code?, message?, devices:[{id,name}] }. */
+    @JavascriptInterface
+    public String classicListBondedPrinters() {
+        JSONObject out = new JSONObject();
+        try {
+            if (!hasBluetoothConnectPermission()) {
+                out.put("ok", false);
+                out.put("code", "permission");
+                out.put(
+                    "message",
+                    "Allow Nearby devices / Bluetooth for Novend in Android settings, then try again."
+                );
+                out.put("devices", new JSONArray());
+                return out.toString();
+            }
+            BluetoothAdapter adapter = bluetoothAdapter();
+            if (adapter == null || !adapter.isEnabled()) {
+                out.put("ok", false);
+                out.put("code", "bluetooth_off");
+                out.put("message", "Turn on Bluetooth and try again.");
+                out.put("devices", new JSONArray());
+                return out.toString();
+            }
+            Set<BluetoothDevice> bonded = adapter.getBondedDevices();
+            JSONArray devices = new JSONArray();
+            if (bonded != null) {
+                for (BluetoothDevice device : bonded) {
+                    JSONObject row = new JSONObject();
+                    row.put("id", device.getAddress());
+                    String name = device.getName();
+                    row.put("name", name != null && !name.isEmpty() ? name : device.getAddress());
+                    devices.put(row);
+                }
+            }
+            out.put("ok", true);
+            out.put("devices", devices);
+        } catch (SecurityException error) {
+            try {
+                out.put("ok", false);
+                out.put("code", "permission");
+                out.put(
+                    "message",
+                    "Allow Nearby devices / Bluetooth for Novend in Android settings, then try again."
+                );
+                out.put("devices", new JSONArray());
+            } catch (Exception ignored) {
+                return "{\"ok\":false,\"code\":\"permission\",\"devices\":[]}";
+            }
+        } catch (Exception error) {
+            try {
+                out.put("ok", false);
+                out.put("code", "write_failed");
+                out.put(
+                    "message",
+                    error.getMessage() != null
+                        ? error.getMessage()
+                        : "Could not list paired Bluetooth printers."
+                );
+                out.put("devices", new JSONArray());
+            } catch (Exception ignored) {
+                return "{\"ok\":false,\"code\":\"write_failed\",\"devices\":[]}";
+            }
+        }
+        return out.toString();
+    }
+
+    /** Blocks until RFCOMM connect settles. Returns ok|permission|bluetooth_off|not_paired|out_of_range. */
+    @JavascriptInterface
+    public String classicConnect(String address) {
+        if (address == null || address.isEmpty()) return "not_paired";
+        if (!hasBluetoothConnectPermission()) return "permission";
+        BluetoothAdapter adapter = bluetoothAdapter();
+        if (adapter == null || !adapter.isEnabled()) return "bluetooth_off";
+
+        final CountDownLatch latch = new CountDownLatch(1);
+        final String[] outcome = {"out_of_range"};
+        classicExecutor.execute(
+            () -> {
+                BluetoothSocket socket = null;
+                try {
+                    closeClassicSocketQuietly(classicSocket.getAndSet(null));
+                    classicAddress.set(null);
+                    try {
+                        adapter.cancelDiscovery();
+                    } catch (SecurityException ignored) {
+                        /* continue */
+                    }
+                    BluetoothDevice device = adapter.getRemoteDevice(address);
+                    if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
+                        outcome[0] = "not_paired";
+                        return;
+                    }
+                    socket = openSppSocket(device);
+                    socket.connect();
+                    classicSocket.set(socket);
+                    classicAddress.set(address);
+                    outcome[0] = "ok";
+                } catch (SecurityException error) {
+                    closeClassicSocketQuietly(socket);
+                    outcome[0] = "permission";
+                } catch (Exception error) {
+                    closeClassicSocketQuietly(socket);
+                    outcome[0] = "out_of_range";
+                } finally {
+                    latch.countDown();
+                }
+            }
+        );
+        try {
+            if (!latch.await(25, TimeUnit.SECONDS)) {
+                return "out_of_range";
+            }
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            return "out_of_range";
+        }
+        return outcome[0];
+    }
+
+    @JavascriptInterface
+    public void classicDisconnect() {
+        classicExecutor.execute(
+            () -> {
+                closeClassicSocketQuietly(classicSocket.getAndSet(null));
+                classicAddress.set(null);
+            }
+        );
+    }
+
+    /** Blocks until write settles. Returns ok|out_of_range|write_failed|permission. */
+    @JavascriptInterface
+    public String classicWriteEscPos(String base64) {
+        if (base64 == null || base64.isEmpty()) return "write_failed";
+        if (!hasBluetoothConnectPermission()) return "permission";
+        final byte[] bytes;
+        try {
+            bytes = Base64.decode(base64, Base64.DEFAULT);
+        } catch (IllegalArgumentException error) {
+            return "write_failed";
+        }
+        final CountDownLatch latch = new CountDownLatch(1);
+        final String[] outcome = {"write_failed"};
+        classicExecutor.execute(
+            () -> {
+                BluetoothSocket socket = classicSocket.get();
+                if (socket == null || !socket.isConnected()) {
+                    outcome[0] = "out_of_range";
+                    latch.countDown();
+                    return;
+                }
+                try {
+                    OutputStream out = socket.getOutputStream();
+                    int offset = 0;
+                    while (offset < bytes.length) {
+                        int length = Math.min(CHUNK_SIZE, bytes.length - offset);
+                        out.write(bytes, offset, length);
+                        offset += length;
+                    }
+                    out.flush();
+                    outcome[0] = "ok";
+                } catch (IOException error) {
+                    closeClassicSocketQuietly(classicSocket.getAndSet(null));
+                    classicAddress.set(null);
+                    outcome[0] = "write_failed";
+                } finally {
+                    latch.countDown();
+                }
+            }
+        );
+        try {
+            if (!latch.await(25, TimeUnit.SECONDS)) {
+                return "write_failed";
+            }
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            return "write_failed";
+        }
+        return outcome[0];
+    }
+
+    @JavascriptInterface
+    public boolean classicOpenBluetoothSettings() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(intent);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    @JavascriptInterface
+    public boolean classicIsConnected(String address) {
+        BluetoothSocket socket = classicSocket.get();
+        String active = classicAddress.get();
+        return socket != null
+            && socket.isConnected()
+            && address != null
+            && address.equals(active);
     }
 
     @JavascriptInterface
@@ -306,6 +577,47 @@ public class NovendNativeBridge {
             return "Install a security update on this device, then try biometrics again.";
         }
         return "This device does not support fingerprint or face unlock.";
+    }
+
+    private boolean hasBluetoothConnectPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true;
+        return ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
+            == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private BluetoothAdapter bluetoothAdapter() {
+        BluetoothManager manager =
+            (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
+        if (manager != null) {
+            return manager.getAdapter();
+        }
+        return BluetoothAdapter.getDefaultAdapter();
+    }
+
+    private BluetoothSocket openSppSocket(BluetoothDevice device) throws IOException {
+        try {
+            return device.createRfcommSocketToServiceRecord(SPP_UUID);
+        } catch (IOException primary) {
+            try {
+                Method method = device.getClass().getMethod("createRfcommSocket", int.class);
+                Object created = method.invoke(device, 1);
+                if (created instanceof BluetoothSocket) {
+                    return (BluetoothSocket) created;
+                }
+            } catch (Exception ignored) {
+                /* fall through */
+            }
+            throw primary;
+        }
+    }
+
+    private static void closeClassicSocketQuietly(BluetoothSocket socket) {
+        if (socket == null) return;
+        try {
+            socket.close();
+        } catch (IOException ignored) {
+            /* ignore */
+        }
     }
 
     private PendingFile takePending() {

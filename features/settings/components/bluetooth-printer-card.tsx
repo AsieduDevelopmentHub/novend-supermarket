@@ -209,8 +209,8 @@ export function BluetoothPrinterCard() {
           Bluetooth printer
         </CardTitle>
         <CardDescription>
-          Pair one thermal printer for this tablet. Use Nearby BLE, or Android paired printers for
-          Classic Bluetooth models.
+          Prefer Android paired (Classic): pair the printer in system Bluetooth, then Discover
+          here. Nearby BLE often fails after the app loads the hosted site.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

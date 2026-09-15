@@ -6,6 +6,17 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ## Unreleased
 
+## v0.3.23 — 2026-09-15
+
+Full product release (`targets: all`). Fixes Cap hosted-origin shell gaps reported on Android About (Native shell showed “Web / browser”).
+
+### Fixed
+
+- **App info / update check** — `NovendNative.appInfo` replaces Cap `App.getInfo` (which hangs after the hosted site loads).
+- **Biometric unlock prefs** — unlock token and toggles use `localStorage` instead of Cap Preferences.
+- **Classic Bluetooth print** — Discover / connect / write / settings go through `NovendNative` (not the Cap plugin bridge). Default printer type on Android is Classic.
+- BLE timeout copy points cashiers to Classic when Nearby BLE is unavailable on hosted Cap.
+
 ## v0.3.22 — 2026-09-15
 
 Full product release (`targets: all`): Windows, macOS, Linux desktop installers, Android APK, and Convex update metadata.

@@ -39,8 +39,9 @@ async function ensureBle(): Promise<HardwareResult> {
     if (isNativeTimeoutError(error)) {
       return {
         ok: false,
-        code: "bluetooth_off",
-        message: "Bluetooth took too long to start. Turn it on and try again.",
+        code: "unsupported",
+        message:
+          "Nearby BLE is unavailable in this shell. Switch Printer type to Android paired (Classic), pair the printer in Bluetooth settings, then Discover.",
       };
     }
     const raw = error instanceof Error ? error.message : String(error ?? "");
