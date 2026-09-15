@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { usePermissions } from "@/hooks/use-permissions";
 import { moreSectionsForRole } from "@/config/mobile-navigation";
+import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import type { AppRole } from "@/config/navigation";
 import { readOfflineSession } from "@/lib/offline/session";
 import { PageHeader } from "@/components/layout/primitives";
@@ -52,6 +53,7 @@ export function MoreView() {
   const router = useRouter();
   const { signOut } = useAuthActions();
   const { role, isLoading } = usePermissions();
+  const { enabledCapabilities } = useBusinessCapabilities();
   const [signingOut, setSigningOut] = useState(false);
   const [sessionRole] = useState<AppRole | null>(() => {
     const stored = readOfflineSession()?.role;
@@ -65,7 +67,7 @@ export function MoreView() {
     return <LoadingState label="Opening More…" />;
   }
 
-  const sections = moreSectionsForRole(effectiveRole ?? "cashier");
+  const sections = moreSectionsForRole(effectiveRole ?? "cashier", enabledCapabilities);
   const hasSystemSection = sections.some((section) => section.id === "system");
 
   async function handleSignOut() {

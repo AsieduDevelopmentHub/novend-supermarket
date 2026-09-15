@@ -62,6 +62,7 @@ UI components must not call Electron preload or Capacitor plugins directly.
 | Notifications           | Check/open via `window.NovendNative` (`NotificationManagerCompat` + system notification settings). Topic prefs use `localStorage`.                                                 |
 | Deep links              | `novend://sale/…`, `novend://product/…` via `Hardware.app`                                                                                                                         |
 | Soft updates            | Optional `NEXT_PUBLIC_MOBILE_UPDATE_JSON` vs native version                                                                                                                        |
+| Weighing scale          | **Not wired.** `sell_by_weight` uses manual qty at checkout. Capability `scale_hardware` + `Hardware.scale` adapter are deferred (Settings → Future devices).                         |
 
 Permissions are requested on tap (or when enabling a feature), never at cold
 start except optional biometric unlock when the user opted in.

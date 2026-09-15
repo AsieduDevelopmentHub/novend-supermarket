@@ -30,7 +30,15 @@ import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { TakeProductPhotoDialog } from "@/features/products/components/take-product-photo-dialog";
 import { ProductBarcodeField } from "@/features/products/components/product-barcode-field";
+import {
+  ProductSellUnitsEditor,
+  draftsFromSellUnits,
+  emptySellUnitDraft,
+  parseSellUnitDrafts,
+  type SellUnitDraft,
+} from "@/features/products/components/product-sell-units-editor";
 import { ProductImage } from "@/components/media/product-image";
+import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCategoriesList, useMirroredProduct } from "@/hooks/use-offline-lists";
@@ -40,6 +48,8 @@ import {
   queueUpsertProduct,
   resolveCategoryIdForProduct,
 } from "@/lib/offline/replica-writes";
+import type { PricingMode, ProductSellUnit } from "@/convex/shared/units";
+
 export type CreatedCatalogProduct = {
   id: string;
   name: string;
@@ -67,6 +77,8 @@ type ProductDetails = {
   costPrice?: number;
   stockQuantity: number;
   unit: string;
+  sellUnits?: ProductSellUnit[] | null;
+  pricingMode?: PricingMode | null;
   lowStockThreshold: number;
   tracksExpiry?: boolean;
   expiryAlertDays?: number;
@@ -116,6 +128,8 @@ export function ProductFormDialog({
             costPrice: mirroredRow.costPrice,
             stockQuantity: mirroredRow.stockQuantity,
             unit: mirroredRow.unit,
+            sellUnits: mirroredRow.sellUnits ?? null,
+            pricingMode: mirroredRow.pricingMode ?? null,
             lowStockThreshold: mirroredRow.lowStockThreshold,
             tracksExpiry: mirroredRow.tracksExpiry,
             expiryAlertDays: mirroredRow.expiryAlertDays ?? undefined,
@@ -188,6 +202,10 @@ function ProductFormBody({
   const createCategory = useMutation(api.categories.create);
   const online = useConnectivity();
   const { branchId: profileBranchId } = usePermissions();
+  const { hasCapability } = useBusinessCapabilities();
+  const showPacks = hasCapability("multi_unit_pricing");
+  const showWeight = hasCapability("sell_by_weight");
+  const showSellUnits = showPacks || showWeight;
 
   const [name, setName] = useState(initialProduct?.name ?? "");
   const [sku, setSku] = useState(initialProduct?.sku ?? "");
@@ -205,6 +223,18 @@ function ProductFormBody({
     String(warehouseIntake ? 0 : (initialProduct?.stockQuantity ?? 0)),
   );
   const [unit, setUnit] = useState(initialProduct?.unit ?? "packs");
+  const [pricingMode, setPricingMode] = useState<PricingMode>(
+    initialProduct?.pricingMode === "per_weight" ? "per_weight" : "fixed",
+  );
+  const [sellUnitDrafts, setSellUnitDrafts] = useState<SellUnitDraft[]>(() =>
+    showSellUnits
+      ? draftsFromSellUnits(
+          initialProduct?.sellUnits,
+          initialProduct?.unit ?? "packs",
+          initialProduct?.sellingPrice ?? 0,
+        )
+      : [emptySellUnitDraft()],
+  );
   const [lowStockThreshold, setLowStockThreshold] = useState(
     String(initialProduct?.lowStockThreshold ?? 10),
   );
@@ -313,6 +343,12 @@ function ProductFormBody({
     }
     setPending(true);
     try {
+      let sellUnits: ProductSellUnit[] | undefined;
+      let resolvedPricingMode: PricingMode | undefined;
+      if (showSellUnits) {
+        sellUnits = parseSellUnitDrafts(sellUnitDrafts);
+        resolvedPricingMode = showWeight && pricingMode === "per_weight" ? "per_weight" : "fixed";
+      }
       let savedId = productId ?? "";
       let resolvedCategoryId = categoryId;
       const kind = await persistBusinessWrite({
@@ -328,6 +364,8 @@ function ProductFormBody({
                 costPrice: Number(costPrice),
                 sellingPrice: Number(sellingPrice),
                 unit,
+                ...(sellUnits ? { sellUnits } : {}),
+                ...(resolvedPricingMode ? { pricingMode: resolvedPricingMode } : {}),
                 lowStockThreshold: Number(lowStockThreshold),
                 status,
                 description,
@@ -344,6 +382,8 @@ function ProductFormBody({
                 sellingPrice: Number(sellingPrice),
                 stockQuantity: warehouseIntake ? 0 : Number(stockQuantity),
                 unit,
+                ...(sellUnits ? { sellUnits } : {}),
+                ...(resolvedPricingMode ? { pricingMode: resolvedPricingMode } : {}),
                 lowStockThreshold: Number(lowStockThreshold),
                 status,
                 description,
@@ -379,6 +419,8 @@ function ProductFormBody({
             sellingPrice: Number(sellingPrice),
             stockQuantity: warehouseIntake ? 0 : Number(stockQuantity),
             unit,
+            sellUnits,
+            pricingMode: resolvedPricingMode,
             lowStockThreshold: Number(lowStockThreshold),
             status,
             description,
@@ -523,10 +565,41 @@ function ProductFormBody({
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="unit">Unit</Label>
+            <Label htmlFor="unit">Base stock unit</Label>
             <Input id="unit" value={unit} onChange={(e) => setUnit(e.target.value)} required />
           </div>
         </div>
+        {showSellUnits ? (
+          <div className="space-y-3">
+            {showWeight ? (
+              <div className="space-y-2">
+                <Label>Pricing mode</Label>
+                <Select
+                  value={pricingMode}
+                  onValueChange={(value) => setPricingMode(value as PricingMode)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Fixed (whole / pack qty)</SelectItem>
+                    <SelectItem value="per_weight">Per weight (fractional qty)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-muted-foreground text-xs">
+                  Per weight uses manual entry at checkout. Scale hardware is not wired yet.
+                </p>
+              </div>
+            ) : null}
+            <ProductSellUnitsEditor
+              drafts={sellUnitDrafts}
+              onChange={setSellUnitDrafts}
+              baseUnitLabel={unit}
+              showPacks={showPacks}
+              showWeight={showWeight}
+            />
+          </div>
+        ) : null}
         <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="low">Low Stock Alert</Label>

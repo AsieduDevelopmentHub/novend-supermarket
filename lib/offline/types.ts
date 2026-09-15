@@ -37,6 +37,15 @@ export type MirroredProduct = {
   stockQuantity: number;
   sellableQuantity?: number;
   unit: string;
+  sellUnits?: Array<{
+    key: string;
+    label: string;
+    factorToBase: number;
+    barcode?: string;
+    sellingPrice?: number;
+    active: boolean;
+  }> | null;
+  pricingMode?: "fixed" | "per_weight" | null;
   lowStockThreshold: number;
   status: "active" | "inactive" | "archived";
   description?: string | null;
@@ -156,6 +165,11 @@ export type LocalSaleItem = {
   unitCost: number;
   discount: number;
   lineTotal: number;
+  sellUnitKey?: string;
+  sellUnitLabel?: string;
+  displayedQuantity?: number;
+  factorToBase?: number;
+  pricingMode?: "fixed" | "per_weight";
 };
 
 export type LocalSale = {
@@ -198,6 +212,7 @@ export type CompleteSaleOutboxPayload = {
     productId: string;
     quantity: number;
     discount: number;
+    sellUnitKey?: string;
   }>;
   discount: number;
   paymentMethod: "cash" | "card" | "mobile_money";
@@ -539,6 +554,15 @@ export type UpsertProductPayload = {
   sellingPrice: number;
   stockQuantity: number;
   unit: string;
+  sellUnits?: Array<{
+    key: string;
+    label: string;
+    factorToBase: number;
+    barcode?: string;
+    sellingPrice?: number;
+    active: boolean;
+  }>;
+  pricingMode?: "fixed" | "per_weight";
   lowStockThreshold: number;
   status: "active" | "inactive";
   description?: string;

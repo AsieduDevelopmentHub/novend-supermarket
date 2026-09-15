@@ -10,6 +10,7 @@ export function isDefinitiveBusinessConflict(message: string) {
     m.includes("forbidden") ||
     m.includes("not authorized") ||
     m.includes("insufficient stock") ||
+    m.includes("not enough stock") ||
     m.includes("already exists") ||
     m.includes("already recorded") ||
     m.includes("must be") ||

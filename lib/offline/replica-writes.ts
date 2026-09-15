@@ -536,6 +536,8 @@ export async function queueUpsertProduct(
     stockQuantity,
     sellableQuantity: isCreate ? stockQuantity : (existing.sellableQuantity ?? stockQuantity),
     unit: payload.unit,
+    sellUnits: payload.sellUnits ?? existing?.sellUnits ?? null,
+    pricingMode: payload.pricingMode ?? existing?.pricingMode ?? null,
     lowStockThreshold: payload.lowStockThreshold,
     status: payload.status,
     description: payload.description ?? existing?.description ?? null,

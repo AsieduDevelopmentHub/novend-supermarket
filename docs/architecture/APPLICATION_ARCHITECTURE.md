@@ -50,6 +50,13 @@ Cashier UI
 Convex is the source of truth for committed business state.
 Dexie is the operational cache. See `OFFLINE_SYNC.md`, `MULTI_TENANT.md`, and `DESKTOP_PLATFORM.md`.
 
+## Configurable capabilities (future / in design)
+
+Industry packs and sell modes (multi-unit, weight, etc.) are specified as a
+capability engine—not industry forks. Principles and target model:
+[`NOVEND_CAPABILITY_EXPANSION.md`](./NOVEND_CAPABILITY_EXPANSION.md). Phased,
+flag-gated delivery: [`ROADMAP_CAPABILITIES.md`](./ROADMAP_CAPABILITIES.md).
+
 ## MVP modules
 
 - Auth, onboarding, app shell

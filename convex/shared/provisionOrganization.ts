@@ -113,6 +113,16 @@ export async function provisionOrganization(
     key: "pos.preferences",
     value: JSON.stringify({ autoPrintReceipt: false, receiptPrintMode: "manual" }),
   });
+  await ctx.db.insert("settings", {
+    organizationId,
+    key: "business.capabilities",
+    value: JSON.stringify({
+      industryProfile: "retail",
+      enabledCapabilities: [],
+      capabilitySettings: {},
+      configurationVersion: 1,
+    }),
+  });
 
   let planKey: PlanKey;
   if (args.license.kind === "trial") {

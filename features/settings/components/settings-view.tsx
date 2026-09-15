@@ -39,6 +39,7 @@ import { SecurityPanel } from "./security-panel";
 import { PrivacyDataPanel } from "./privacy-data-panel";
 import { BranchReceiptPanel } from "./branch-receipt-panel";
 import { ProfilePanel } from "./profile-panel";
+import { BusinessCapabilitiesPanel } from "./business-capabilities-panel";
 import { PrinterPanel } from "./printer-panel";
 import { CustomerDisplayPanel } from "./customer-display-panel";
 import { ScannerPanel } from "./scanner-panel";
@@ -192,12 +193,13 @@ export function SettingsView() {
 
           {isAdmin && business && template ? (
             <>
-              <TabsContent value="business" className="mt-0">
+              <TabsContent value="business" className="mt-0 space-y-4">
                 <BusinessForm
                   key={JSON.stringify(business)}
                   initial={business}
                   readOnly={!online}
                 />
+                <BusinessCapabilitiesPanel />
               </TabsContent>
 
               <TabsContent value="receipt" className="mt-0">

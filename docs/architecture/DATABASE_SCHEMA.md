@@ -42,7 +42,8 @@ or drive hot queries **start with** `organizationId`.
 - `mutationClientOps` — idempotency keys for wholesale, inventory, expenses, and other outbox mutations
 - `heldSales` — suspended carts
 - `receipts` — immutable JSON payloads
-- `settings` — key/value per organization
+- `settings` — key/value per organization (`business.profile`, `receipt.template`,
+  `pos.preferences`, `business.capabilities`)
 - `importJobs` — catalog import results (counts only; spreadsheets are not stored). Super Admin reads these per organization.
 - `importMappings` — saved product column mappings per organization
 - `exportEvents` — export format usage for Super Admin (not a billed quota). Visible per organization on the platform org screens.

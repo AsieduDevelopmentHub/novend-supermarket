@@ -229,6 +229,15 @@ export type QueuedMutators = {
     sellingPrice: number;
     stockQuantity: number;
     unit: string;
+    sellUnits?: Array<{
+      key: string;
+      label: string;
+      factorToBase: number;
+      barcode?: string;
+      sellingPrice?: number;
+      active: boolean;
+    }>;
+    pricingMode?: "fixed" | "per_weight";
     lowStockThreshold: number;
     status: "active" | "inactive";
     description?: string;
@@ -236,6 +245,7 @@ export type QueuedMutators = {
     tracksExpiry?: boolean;
     expiryAlertDays?: number;
     expiryDate?: string;
+    branchId?: Id<"branches">;
   }) => Promise<string | { toString(): string }>;
   updateProduct: (args: {
     id: Id<"products">;
@@ -246,6 +256,15 @@ export type QueuedMutators = {
     costPrice: number;
     sellingPrice: number;
     unit: string;
+    sellUnits?: Array<{
+      key: string;
+      label: string;
+      factorToBase: number;
+      barcode?: string;
+      sellingPrice?: number;
+      active: boolean;
+    }>;
+    pricingMode?: "fixed" | "per_weight";
     lowStockThreshold: number;
     status: "active" | "inactive";
     description?: string;
@@ -359,6 +378,7 @@ export async function drainOutbox(options: {
               productId: i.productId as Id<"products">,
               quantity: i.quantity,
               discount: i.discount,
+              sellUnitKey: i.sellUnitKey,
             })),
             discount: payload.discount,
             paymentMethod: payload.paymentMethod,
@@ -657,6 +677,8 @@ export async function drainOutbox(options: {
               costPrice: payload.costPrice,
               sellingPrice: payload.sellingPrice,
               unit: payload.unit,
+              ...(payload.sellUnits ? { sellUnits: payload.sellUnits } : {}),
+              ...(payload.pricingMode ? { pricingMode: payload.pricingMode } : {}),
               lowStockThreshold: payload.lowStockThreshold,
               status: payload.status,
               tracksExpiry: payload.tracksExpiry,
@@ -675,6 +697,8 @@ export async function drainOutbox(options: {
               sellingPrice: payload.sellingPrice,
               stockQuantity: payload.stockQuantity,
               unit: payload.unit,
+              ...(payload.sellUnits ? { sellUnits: payload.sellUnits } : {}),
+              ...(payload.pricingMode ? { pricingMode: payload.pricingMode } : {}),
               lowStockThreshold: payload.lowStockThreshold,
               status: payload.status,
               tracksExpiry: payload.tracksExpiry,

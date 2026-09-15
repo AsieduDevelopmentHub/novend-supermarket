@@ -12,7 +12,8 @@ const PLANNED = [
   },
   {
     title: "Weighing scale",
-    detail: "Read live weight for catch-weight / bulk items at checkout.",
+    detail:
+      "Live weight for catch-weight items. Manual entry ships with sell_by_weight; scale_hardware + Hardware.scale adapter are next.",
     status: "Planned",
   },
   {

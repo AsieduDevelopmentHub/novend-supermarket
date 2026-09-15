@@ -1,5 +1,6 @@
 import type { AppRole, NavItem } from "@/config/navigation";
 import { flatNavForRole } from "@/config/navigation";
+import type { BusinessCapabilityKey } from "@/convex/shared/businessCapabilities";
 import {
   Boxes,
   ClipboardList,
@@ -59,8 +60,13 @@ const MORE_SECTIONS: Array<{ id: string; label: string; hrefs: string[] }> = [
 ];
 
 /** Routes that live only under More (not duplicated in bottom tabs). */
-export function moreSectionsForRole(role: AppRole): MoreSection[] {
-  const allowed = new Map(flatNavForRole(role).map((item) => [item.href, item]));
+export function moreSectionsForRole(
+  role: AppRole,
+  enabledCapabilities: readonly BusinessCapabilityKey[] = [],
+): MoreSection[] {
+  const allowed = new Map(
+    flatNavForRole(role, enabledCapabilities).map((item) => [item.href, item]),
+  );
   return MORE_SECTIONS.map((section) => ({
     id: section.id,
     label: section.label,

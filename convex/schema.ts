@@ -425,6 +425,20 @@ export default defineSchema({
     sellingPrice: v.number(),
     stockQuantity: v.number(),
     unit: v.string(),
+    /** Optional multi-unit / weight configuration (Stage 2+). */
+    sellUnits: v.optional(
+      v.array(
+        v.object({
+          key: v.string(),
+          label: v.string(),
+          factorToBase: v.number(),
+          barcode: v.optional(v.string()),
+          sellingPrice: v.optional(v.number()),
+          active: v.boolean(),
+        }),
+      ),
+    ),
+    pricingMode: v.optional(v.union(v.literal("fixed"), v.literal("per_weight"))),
     lowStockThreshold: v.number(),
     tracksExpiry: v.optional(v.boolean()),
     expiryAlertDays: v.optional(v.number()),
@@ -602,11 +616,17 @@ export default defineSchema({
     saleId: v.id("sales"),
     productId: v.id("products"),
     productName: v.string(),
+    /** Base inventory quantity deducted (canonical for stock). */
     quantity: v.number(),
     unitPrice: v.number(),
     unitCost: v.optional(v.number()),
     discount: v.number(),
     lineTotal: v.number(),
+    sellUnitKey: v.optional(v.string()),
+    sellUnitLabel: v.optional(v.string()),
+    displayedQuantity: v.optional(v.number()),
+    factorToBase: v.optional(v.number()),
+    pricingMode: v.optional(v.union(v.literal("fixed"), v.literal("per_weight"))),
   })
     .index("by_sale", ["saleId"])
     .index("by_organization", ["organizationId"]),
