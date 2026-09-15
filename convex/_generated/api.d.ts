@@ -80,6 +80,7 @@ import type * as shared_subscriptions from "../shared/subscriptions.js";
 import type * as shared_tenancy from "../shared/tenancy.js";
 import type * as shared_tourProgress from "../shared/tourProgress.js";
 import type * as shared_transactionalEmail from "../shared/transactionalEmail.js";
+import type * as shared_units from "../shared/units.js";
 import type * as shared_validation from "../shared/validation.js";
 import type * as storageUploads from "../storageUploads.js";
 import type * as suppliers from "../suppliers.js";
@@ -167,6 +168,7 @@ declare const fullApi: ApiFromModules<{
   "shared/tenancy": typeof shared_tenancy;
   "shared/tourProgress": typeof shared_tourProgress;
   "shared/transactionalEmail": typeof shared_transactionalEmail;
+  "shared/units": typeof shared_units;
   "shared/validation": typeof shared_validation;
   storageUploads: typeof storageUploads;
   suppliers: typeof suppliers;

@@ -17,6 +17,15 @@ export type CatalogProduct = {
   sellingPrice: number;
   stockQuantity: number;
   unit: string;
+  sellUnits?: Array<{
+    key: string;
+    label: string;
+    factorToBase: number;
+    barcode?: string;
+    sellingPrice?: number;
+    active: boolean;
+  }> | null;
+  pricingMode?: "fixed" | "per_weight" | null;
   imageUrl: string | null;
   isExpiring?: boolean;
 };
@@ -30,6 +39,8 @@ function mapRemoteProducts(
     sellingPrice: number;
     stockQuantity: number;
     unit: string;
+    sellUnits?: CatalogProduct["sellUnits"];
+    pricingMode?: CatalogProduct["pricingMode"];
     imageUrl: string | null;
     isExpiring?: boolean;
   }>,
@@ -42,6 +53,8 @@ function mapRemoteProducts(
     sellingPrice: p.sellingPrice,
     stockQuantity: p.stockQuantity,
     unit: p.unit,
+    sellUnits: p.sellUnits ?? null,
+    pricingMode: p.pricingMode ?? null,
     imageUrl: p.imageUrl,
     isExpiring: p.isExpiring,
   }));

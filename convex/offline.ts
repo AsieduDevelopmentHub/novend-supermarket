@@ -123,6 +123,8 @@ export const getSnapshot = query({
           stockQuantity,
           sellableQuantity: expiry.sellableQuantity,
           unit: product.unit,
+          sellUnits: product.sellUnits ?? null,
+          pricingMode: product.pricingMode ?? null,
           lowStockThreshold: product.lowStockThreshold,
           status: product.status as "active" | "inactive" | "archived",
           description: product.description ?? null,

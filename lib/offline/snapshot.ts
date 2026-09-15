@@ -385,6 +385,8 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
         sellingPrice: product.sellingPrice,
         stockQuantity,
         unit: product.unit,
+        sellUnits: product.sellUnits ?? null,
+        pricingMode: product.pricingMode ?? null,
         imageUrl: product.imageUrl,
         isExpiring,
       };

@@ -1,6 +1,14 @@
 import { roundMoney } from "@/lib/currency";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import {
+  buildSaleLineUnitSnapshot,
+  lineGrossForSellUnit,
+  resolveSellUnit,
+  roundQuantity,
+} from "@/convex/shared/units";
+import { hasBusinessCapability } from "@/convex/shared/businessCapabilities";
+import { loadBusinessCapabilitiesCache } from "./business-capabilities";
+import {
   getMeta,
   getOfflineDb,
   META_KEYS,
@@ -28,6 +36,7 @@ export type CartLineInput = {
   unitPrice: number;
   quantity: number;
   discount: number;
+  sellUnitKey?: string;
 };
 
 function stampPrintedInvoice(payload: unknown, invoiceNumber: string): unknown {
@@ -102,6 +111,9 @@ export async function completeSaleLocally(input: {
   const branchId = input.branchId ?? assignedBranchId;
   const branchName = (await getMeta(db, META_KEYS.profileBranchName)) ?? null;
   const print = await loadPrintSnapshot(db);
+  const businessConfig = await loadBusinessCapabilitiesCache();
+  const multiUnitOn = hasBusinessCapability(businessConfig, "multi_unit_pricing");
+  const weightOn = hasBusinessCapability(businessConfig, "sell_by_weight");
   const clientOperationId = newClientId("sale");
   const localSaleId = newClientId("lsale");
   const invoiceNumber = nextProvisionalInvoice();
@@ -126,9 +138,6 @@ export async function completeSaleLocally(input: {
     ],
     async () => {
       for (const item of input.items) {
-        if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-          throw new Error("Invalid quantity");
-        }
         const product = await db.products.get(item.productId);
         if (!product || product.status !== "active") {
           throw new Error(`Product unavailable: ${item.name}`);
@@ -136,11 +145,33 @@ export async function completeSaleLocally(input: {
         if (!branchId) {
           throw new Error("Branch is required to complete this sale offline");
         }
+
+        const allowFractional = weightOn && product.pricingMode === "per_weight";
+        const displayedQuantity = roundQuantity(item.quantity);
+        if (!Number.isFinite(displayedQuantity) || displayedQuantity <= 0) {
+          throw new Error("Invalid quantity");
+        }
+        if (!allowFractional && !Number.isInteger(displayedQuantity)) {
+          throw new Error("Invalid quantity");
+        }
+
+        const unit = resolveSellUnit(
+          product,
+          multiUnitOn || weightOn ? item.sellUnitKey : undefined,
+        );
+        if (!multiUnitOn && !weightOn && item.sellUnitKey && item.sellUnitKey !== "default") {
+          throw new Error("Multi-unit pricing is not enabled for this organization");
+        }
+        if (unit.pricingMode === "per_weight" && !weightOn) {
+          throw new Error("Sell by weight is not enabled for this organization");
+        }
+
+        const unitSnapshot = buildSaleLineUnitSnapshot(unit, displayedQuantity);
         const available = await getSellableQuantity(db, branchId, item.productId, product);
-        if (available < item.quantity) {
+        if (available < unitSnapshot.baseQuantity) {
           throw new Error(`Not enough stock for ${product.name}. Available: ${available}.`);
         }
-        const gross = roundMoney(product.sellingPrice * item.quantity);
+        const gross = lineGrossForSellUnit(unit, unitSnapshot.displayedQuantity);
         if (!Number.isFinite(item.discount) || item.discount < 0 || item.discount - gross > 0.001) {
           throw new Error(
             item.discount < 0
@@ -150,20 +181,31 @@ export async function completeSaleLocally(input: {
         }
         const lineTotal = roundMoney(gross - item.discount);
         subtotal += lineTotal;
-        itemCount += item.quantity;
+        itemCount += unitSnapshot.baseQuantity;
         lines.push({
           id: newClientId("litem"),
           localSaleId,
           productId: product.id,
           productName: product.name,
           sku: product.sku,
-          quantity: item.quantity,
-          unitPrice: product.sellingPrice,
+          quantity: unitSnapshot.baseQuantity,
+          unitPrice: unit.unitPrice,
           unitCost: product.costPrice,
           discount: item.discount,
           lineTotal,
+          sellUnitKey: unitSnapshot.sellUnitKey,
+          sellUnitLabel: unitSnapshot.sellUnitLabel,
+          displayedQuantity: unitSnapshot.displayedQuantity,
+          factorToBase: unitSnapshot.factorToBase,
+          pricingMode: unitSnapshot.pricingMode,
         });
-        await applyLocalBranchStockChange(db, branchId, product.id, -item.quantity, product);
+        await applyLocalBranchStockChange(
+          db,
+          branchId,
+          product.id,
+          -unitSnapshot.baseQuantity,
+          product,
+        );
       }
 
       const cartDiscount = roundMoney(input.discount);
@@ -209,10 +251,12 @@ export async function completeSaleLocally(input: {
         lines: lines.map((l) => ({
           productName: l.productName,
           sku: l.sku,
-          quantity: l.quantity,
+          quantity: l.displayedQuantity ?? l.quantity,
           unitPrice: l.unitPrice,
           discount: l.discount,
           lineTotal: l.lineTotal,
+          sellUnitLabel: l.sellUnitLabel,
+          pricingMode: l.pricingMode,
         })),
         paymentMethod: input.paymentMethod,
         completedAt,
@@ -241,6 +285,7 @@ export async function completeSaleLocally(input: {
           productId: i.productId,
           quantity: i.quantity,
           discount: i.discount,
+          sellUnitKey: i.sellUnitKey,
         })),
         discount: cartDiscount,
         paymentMethod: input.paymentMethod,

@@ -29,6 +29,8 @@ export type ReceiptLine = {
   unitPrice: number;
   discount: number;
   lineTotal: number;
+  sellUnitLabel?: string;
+  pricingMode?: "fixed" | "per_weight";
 };
 
 export type ReceiptPayload = {

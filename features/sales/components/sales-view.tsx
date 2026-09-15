@@ -32,6 +32,8 @@ import type { ReceiptPayload } from "@/features/receipts/types";
 import { ReceiptPreviewDialog } from "@/features/receipts/components/receipt-preview-dialog";
 import { SaleCompletedDialog } from "@/features/receipts/components/sale-completed-dialog";
 import { isCapacitor } from "@novend/hardware";
+import { listActiveSellUnits, roundQuantity } from "@/convex/shared/units";
+import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import { useSalesCatalog, useSalesCustomerSearch } from "@/hooks/use-offline-catalog";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { usePosPreferences } from "@/hooks/use-pos-preferences";
@@ -81,6 +83,10 @@ type CartItem = {
   unitPrice: number;
   quantity: number;
   discount: number;
+  sellUnitKey?: string;
+  sellUnitLabel?: string;
+  /** When true, quantity may be fractional (weight). */
+  allowFractional?: boolean;
 };
 
 type SelectedCustomer = {
@@ -108,6 +114,9 @@ function formatHoldRef(id: string) {
 export function SalesView() {
   const { isAdmin, branchId: myBranchId, branchName } = usePermissions();
   const { access, capabilities } = useLicense();
+  const { hasCapability } = useBusinessCapabilities();
+  const multiUnitOn = hasCapability("multi_unit_pricing");
+  const weightOn = hasCapability("sell_by_weight");
   const nativeShell = useNativeShell();
   const isDesktop = useDesktopRuntime();
   const [search, setSearch] = useState("");
@@ -318,21 +327,48 @@ export function SalesView() {
     name: string;
     sellingPrice: number;
     stockQuantity: number;
+    unit?: string;
+    costPrice?: number;
+    sellUnits?: Array<{
+      key: string;
+      label: string;
+      factorToBase: number;
+      barcode?: string;
+      sellingPrice?: number;
+      active: boolean;
+    }> | null;
+    pricingMode?: "fixed" | "per_weight" | null;
     isExpiring?: boolean;
   }) {
-    if (product.stockQuantity < 1) {
+    if (product.stockQuantity <= 0) {
       toast.error(`Not enough stock for ${product.name}`);
       return;
     }
+    const units = listActiveSellUnits({
+      unit: product.unit ?? "unit",
+      sellingPrice: product.sellingPrice,
+      costPrice: product.costPrice ?? 0,
+      sellUnits: multiUnitOn || weightOn ? product.sellUnits : null,
+      pricingMode: weightOn ? product.pricingMode : "fixed",
+    });
+    const unit = units[0]!;
+    const allowFractional = weightOn && unit.pricingMode === "per_weight";
+    const step = allowFractional ? 0.001 : 1;
     setCart((prev) => {
-      const existing = prev.find((item) => item.productId === product.id);
+      const existing = prev.find(
+        (item) => item.productId === product.id && (item.sellUnitKey ?? "default") === unit.key,
+      );
       if (existing) {
-        if (existing.quantity + 1 > product.stockQuantity) {
+        const nextQty = roundQuantity(existing.quantity + step);
+        const baseNeeded = roundQuantity(nextQty * unit.factorToBase);
+        if (baseNeeded > product.stockQuantity) {
           toast.error(`Not enough stock for ${product.name}. Available: ${product.stockQuantity}.`);
           return prev;
         }
         return prev.map((item) =>
-          item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item,
+          item.productId === product.id && (item.sellUnitKey ?? "default") === unit.key
+            ? { ...item, quantity: nextQty }
+            : item,
         );
       }
       return [
@@ -340,9 +376,12 @@ export function SalesView() {
         {
           productId: product.id,
           name: product.name,
-          unitPrice: product.sellingPrice,
+          unitPrice: unit.unitPrice,
           quantity: 1,
           discount: 0,
+          sellUnitKey: unit.key,
+          sellUnitLabel: unit.label,
+          allowFractional,
         },
       ];
     });
@@ -473,6 +512,7 @@ export function SalesView() {
         productId: item.productId as Id<"products">,
         quantity: item.quantity,
         discount: item.discount,
+        sellUnitKey: item.sellUnitKey,
       })),
       discount: cartDiscount,
       branchId: saleBranchId,
@@ -609,7 +649,16 @@ export function SalesView() {
     }
     const oversold = cart.find((item) => {
       const available = catalog.find((p) => p.id === item.productId)?.stockQuantity ?? 0;
-      return item.quantity > available;
+      const factor = item.sellUnitKey
+        ? listActiveSellUnits({
+            unit: "unit",
+            sellingPrice: item.unitPrice,
+            costPrice: 0,
+            sellUnits: catalog.find((p) => p.id === item.productId)?.sellUnits,
+            pricingMode: catalog.find((p) => p.id === item.productId)?.pricingMode,
+          }).find((u) => u.key === item.sellUnitKey)?.factorToBase ?? 1
+        : 1;
+      return roundQuantity(item.quantity * factor) > available;
     });
     if (oversold) {
       const available = catalog.find((p) => p.id === oversold.productId)?.stockQuantity ?? 0;

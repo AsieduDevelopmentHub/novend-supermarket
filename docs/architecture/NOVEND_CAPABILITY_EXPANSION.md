@@ -211,15 +211,15 @@ Until an org is on the new model **and** the relevant capability is on:
 
 | Condition | Canonical source |
 | --------- | ---------------- |
-| `configurationVersion < N` **or** capability off | `products.unit`, `sellingPrice`, existing quantity fields |
-| Capability on **and** `configurationVersion >= N` | Product unit configuration + pricing resolution; adapters still **synthesize** a default sell unit (`factorToBase = 1`) from legacy fields for unmigrated products |
+| `configurationVersion < 2` **or** capability off | `products.unit`, `sellingPrice`, existing quantity fields |
+| Capability on **and** `configurationVersion >= 2` | Product unit configuration + pricing resolution; adapters still **synthesize** a default sell unit (`factorToBase = 1`) from legacy fields for unmigrated products |
 
 Rules:
 
 1. Do not reinterpret legacy fields mid-flight.
 2. Dual-read through adapters until every consumer (POS, import, reports, offline) is migrated.
 3. Sale lines already snapshot commercial state; extend snapshots (sell unit, base qty, pricing mode) without rewriting historical rows.
-4. `N` is defined when Stage 2 ships; document the exact version in the Stage 2 PR.
+4. **N = 2** (`UOM_CONFIGURATION_VERSION` in `convex/shared/units.ts`).
 
 ---
 

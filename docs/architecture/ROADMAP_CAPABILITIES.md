@@ -56,45 +56,40 @@ Do not rewrite warehouse wholesale when implementing pack pricing.
 
 ---
 
-## Stage 2 — Catalog foundation (UOM + snapshots)
+## Stage 2 — Catalog foundation (UOM + snapshots) — **implemented**
 
 Treat as one releasable theme; may be one or two PRs if needed, but **sale-line snapshot fields ship with UOM**—do not ship multi-unit UI before historical integrity.
 
 | Item | Notes |
 | ---- | ----- |
-| Units of measure | Base unit + product sell units |
-| Conversion service | Base qty; decimal-safe for mass/volume; numbers + existing rounding (`roundMoney` / qty helpers) |
-| Compatibility adapter | Legacy `unit` + `sellingPrice` canonical until `configurationVersion >= N` and capability on; synthesize `factorToBase = 1` |
-| Sale-line snapshots | Extend `saleItems` (and receipt payload) with sell unit, base qty, factor, pricing mode |
+| Units of measure | `products.sellUnits` + `pricingMode`; [`convex/shared/units.ts`](../../convex/shared/units.ts) |
+| Conversion service | Base qty via `toBaseQuantity` / `buildSaleLineUnitSnapshot` |
+| Compatibility adapter | Legacy `unit` + `sellingPrice` → synthesized default sell unit (`factorToBase = 1`). **N = 2** |
+| Sale-line snapshots | `saleItems` optional `sellUnitKey`, `sellUnitLabel`, `displayedQuantity`, `factorToBase`, `pricingMode`; `quantity` = base |
 | Migration | Existing products behave as single sell unit without manual reconfigure |
-
-**Define `N`** in the Stage 2 PR and update the expansion doc adapter section.
 
 **Exit:** Capability-off orgs unchanged; adapter path tested for dual-read.
 
----
+## Stage 3 — Pricing (narrowed) — **implemented** (scale hardware deferred)
 
-## Stage 3 — Pricing (narrowed)
+### 3a — `multi_unit_pricing`
 
-Central resolve used by POS, returns, receipts, reports, offline, Convex.
+- Sell units on product + POS uses configured units when capability on
+- Inventory deducts **base** qty online and offline
+- Product create/update accept `sellUnits` / `pricingMode`
+- Product form UI edits sell units when capability is enabled
 
-### 3a — `multi_unit_pricing` (one branch)
+### 3b — `sell_by_weight`
 
-- Fixed price per sell unit (bottle / pack / crate)
-- Optional per-unit barcodes
-- Inventory always deducts base qty
-- POS unit selector when capability on
-
-### 3b — `sell_by_weight` (separate branch)
-
-- Per-weight price; manual weight first
-- `scale_hardware` later (dependency optional)
-- Weight-aware receipts and returns
-- Conflict matrix below is **mandatory** for this slice
+- `pricingMode: "per_weight"` allows fractional displayed qty
+- Manual weight first (no scale hardware in this slice)
+- Conflict matrix product choice documented + automated in `tests/weight-conflict-matrix.test.ts`
 
 ### Deferred (Stage 3c — later)
 
-Tiered quantity, customer-group, branch-specific, and open price. Document extension points only; do not implement in 3a/3b.
+Tiered quantity, customer-group, branch-specific, and open price.
+
+`scale_hardware` — optional follow-up after manual weight.
 
 ---
 
@@ -105,12 +100,14 @@ Applies when `sell_by_weight` (or any fractional base qty) is enabled. Harder th
 | Scenario | Required behavior |
 | -------- | ----------------- |
 | Terminal A and B both offline; both sell from same SKU/branch | Each completes a local sale (immutable). Sync must not drop either sale silently. |
-| Combined base qty exceeds on-hand after both sync | Convex rejects or accepts with **explicit reconciliation** (e.g. negative prevented + conflict record / manager adjustment)—product choice must be documented in the PR. Completed sales and receipts are **never** rewritten. |
+| Combined base qty exceeds on-hand after both sync | **Product choice (shipped):** Convex **rejects** the later apply (`Not enough stock…`); inventory never goes negative. The local sale, receipt, and outbox row remain; outbox is marked **failed** (definitive conflict) for Sync Center / manager stock adjustment. Completed sales and receipts are **never** rewritten. |
 | Retry / idempotency | Same outbox id must not double-apply stock. |
 | Piece-only orgs (capability off) | Unchanged vs today’s outbox + validation. |
 | Restart mid-offline | Sale remains in Dexie + outbox; reconnect flushes once. |
 
-Do not ship `sell_by_weight` without automated or scripted multi-terminal conflict coverage for this matrix.
+Automated coverage: `tests/weight-conflict-matrix.test.ts` (oversell → definitive outbox failure). Manual multi-terminal QA still recommended before enabling `sell_by_weight` in production orgs.
+
+`scale_hardware` remains a follow-up (manual weight entry only in this slice). See `docs/architecture/HARDWARE.md`.
 
 ---
 

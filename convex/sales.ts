@@ -11,7 +11,7 @@ import {
 import { assertPositiveMoney, productMatchesLookup, roundMoney } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
 import { Id } from "./_generated/dataModel";
-import { loadPrintSnapshot } from "./settings";
+import { loadPrintSnapshot, loadBusinessConfiguration } from "./settings";
 import { applyBranchStockChange, getBranchQuantity, stockMapForBranch } from "./shared/branchStock";
 import {
   decreaseLots,
@@ -22,11 +22,19 @@ import {
 } from "./shared/lots";
 import { loadReturnableLines } from "./shared/returns";
 import { allocateInvoiceNumber, sanitizeInvoiceNumber } from "./shared/documentReferences";
+import { hasBusinessCapability } from "./shared/businessCapabilities";
+import {
+  buildSaleLineUnitSnapshot,
+  lineGrossForSellUnit,
+  resolveSellUnit,
+  roundQuantity,
+} from "./shared/units";
 
 type CartLine = {
   productId: Id<"products">;
   quantity: number;
   discount: number;
+  sellUnitKey?: string;
 };
 
 async function invoiceNumberTaken(
@@ -102,6 +110,8 @@ export const catalog = query({
           sellingPrice: product.sellingPrice,
           stockQuantity: expiry.sellableQuantity,
           unit: product.unit,
+          sellUnits: product.sellUnits ?? null,
+          pricingMode: product.pricingMode ?? null,
           imageUrl: product.imageStorageId
             ? await ctx.storage.getUrl(product.imageStorageId)
             : null,
@@ -300,8 +310,10 @@ export const completeSale = mutation({
     items: v.array(
       v.object({
         productId: v.id("products"),
+        /** Displayed sell-unit quantity; converted to base for inventory. */
         quantity: v.number(),
         discount: v.number(),
+        sellUnitKey: v.optional(v.string()),
       }),
     ),
     discount: v.number(),
@@ -383,15 +395,21 @@ export const completeSale = mutation({
       unitCost: number;
       discount: number;
       lineTotal: number;
+      sellUnitKey: string;
+      sellUnitLabel: string;
+      displayedQuantity: number;
+      factorToBase: number;
+      pricingMode: "fixed" | "per_weight";
     }> = [];
 
     let subtotal = 0;
     let itemCount = 0;
 
+    const businessConfig = await loadBusinessConfiguration(ctx, profile.organizationId);
+    const multiUnitOn = hasBusinessCapability(businessConfig, "multi_unit_pricing");
+    const weightOn = hasBusinessCapability(businessConfig, "sell_by_weight");
+
     for (const item of args.items as CartLine[]) {
-      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-        throw new Error("Invalid quantity");
-      }
       assertPositiveMoney(item.discount, "line discount");
       const product = await ctx.db.get(item.productId);
       if (
@@ -401,29 +419,56 @@ export const completeSale = mutation({
       ) {
         throw new Error(`Product unavailable`);
       }
+
+      const allowFractional = weightOn && product.pricingMode === "per_weight";
+      const displayedQuantity = roundQuantity(item.quantity);
+      if (!Number.isFinite(displayedQuantity) || displayedQuantity <= 0) {
+        throw new Error("Invalid quantity");
+      }
+      if (!allowFractional && !Number.isInteger(displayedQuantity)) {
+        throw new Error("Invalid quantity");
+      }
+
+      const unit = resolveSellUnit(
+        product,
+        multiUnitOn || weightOn ? item.sellUnitKey : undefined,
+      );
+      if (!multiUnitOn && !weightOn && item.sellUnitKey && item.sellUnitKey !== "default") {
+        throw new Error("Multi-unit pricing is not enabled for this organization");
+      }
+      if (unit.pricingMode === "per_weight" && !weightOn) {
+        throw new Error("Sell by weight is not enabled for this organization");
+      }
+
+      const snapshot = buildSaleLineUnitSnapshot(unit, displayedQuantity);
       const available = productTracksExpiry(product)
         ? await getSellableQuantity(ctx, branchId, product._id)
         : await getBranchQuantity(ctx, branchId, product._id);
-      if (available < item.quantity) {
+      if (available < snapshot.baseQuantity) {
         throw new Error(`Not enough stock for ${product.name}. Available: ${available}.`);
       }
-      const gross = roundMoney(product.sellingPrice * item.quantity);
+      const gross = lineGrossForSellUnit(unit, snapshot.displayedQuantity);
       if (item.discount > gross) {
         throw new Error(`Discount exceeds line total for ${product.name}`);
       }
       const lineTotal = roundMoney(gross - item.discount);
       if (lineTotal < 0) throw new Error("Invalid line discount");
       subtotal += lineTotal;
-      itemCount += item.quantity;
+      itemCount += snapshot.baseQuantity;
       lines.push({
         productId: product._id,
         productName: product.name,
         sku: product.sku,
-        quantity: item.quantity,
-        unitPrice: product.sellingPrice,
+        quantity: snapshot.baseQuantity,
+        unitPrice: unit.unitPrice,
         unitCost: product.costPrice,
         discount: item.discount,
         lineTotal,
+        sellUnitKey: snapshot.sellUnitKey,
+        sellUnitLabel: snapshot.sellUnitLabel,
+        displayedQuantity: snapshot.displayedQuantity,
+        factorToBase: snapshot.factorToBase,
+        pricingMode: snapshot.pricingMode,
       });
     }
 
@@ -466,6 +511,11 @@ export const completeSale = mutation({
         unitCost: saleItem.unitCost,
         discount: saleItem.discount,
         lineTotal: saleItem.lineTotal,
+        sellUnitKey: saleItem.sellUnitKey,
+        sellUnitLabel: saleItem.sellUnitLabel,
+        displayedQuantity: saleItem.displayedQuantity,
+        factorToBase: saleItem.factorToBase,
+        pricingMode: saleItem.pricingMode,
       });
       const product = await ctx.db.get(line.productId);
       if (!product || product.status !== "active") {
