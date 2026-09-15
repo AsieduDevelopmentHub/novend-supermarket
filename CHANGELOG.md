@@ -6,6 +6,28 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ## Unreleased
 
+## v0.3.22 — 2026-09-15
+
+Full product release (`targets: all`): Windows, macOS, Linux desktop installers, Android APK, and Convex update metadata.
+
+Business capability Stages 1–3 (flag-gated; existing orgs default off).
+
+### Added
+
+- **Business capability engine** — org Settings → Business industry pack / toggles; Dexie cache; nav and plan gates.
+- **Units of measure** — `products.sellUnits`, conversion helpers, sale-line unit snapshots (`quantity` remains base stock).
+- **Multi-unit pricing** — pack/crate sell units at checkout when `multi_unit_pricing` is on.
+- **Sell by weight** — `pricingMode: per_weight` with manual fractional qty; oversell sync fails definitively without rewriting receipts.
+- Product form UI to edit sell units and pricing mode when those capabilities are enabled.
+
+### Changed
+
+- Capability-off / piece-only orgs keep prior catalog and POS behavior.
+
+### Notes
+
+- `scale_hardware` remains deferred (manual weight only).
+
 ## v0.3.21 — 2026-09-14
 
 ### Fixed
