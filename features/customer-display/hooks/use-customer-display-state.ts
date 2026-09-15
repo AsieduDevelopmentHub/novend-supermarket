@@ -71,7 +71,9 @@ export function useCustomerDisplayState() {
   );
 
   useEffect(() => {
-    setSnapshot((current) => mergeBranding(current, fallbackBranding));
+    queueMicrotask(() => {
+      setSnapshot((current) => mergeBranding(current, fallbackBranding));
+    });
   }, [fallbackBranding]);
 
   return snapshot;
