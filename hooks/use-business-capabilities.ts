@@ -25,7 +25,7 @@ export function useBusinessCapabilities() {
 
   useEffect(() => {
     if (online && remote) {
-      setCached(remote);
+      queueMicrotask(() => setCached(remote));
       return;
     }
     let cancelled = false;

@@ -64,7 +64,7 @@ export function isClassicBluetoothAvailable(): boolean {
   }
 }
 
-function useNativeClassic(): boolean {
+function preferNativeClassicBridge(): boolean {
   return hasNovendNativeClassicBluetooth();
 }
 
@@ -73,7 +73,7 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
     kind: "classic",
 
     isConnected(deviceId) {
-      if (useNativeClassic()) return nativeClassicIsConnected(deviceId);
+      if (preferNativeClassicBridge()) return nativeClassicIsConnected(deviceId);
       return Boolean(connectedId && connectedId === deviceId);
     },
 
@@ -86,7 +86,7 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
           data: { devices: [] },
         };
       }
-      if (useNativeClassic()) {
+      if (preferNativeClassicBridge()) {
         const listed = nativeClassicListBonded();
         if (!listed.ok && listed.code === "permission") {
           openNativeAppDetailsSettings();
@@ -133,7 +133,7 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
           message: "Classic Bluetooth printing is available on Android tablets and phones.",
         };
       }
-      if (useNativeClassic()) {
+      if (preferNativeClassicBridge()) {
         if (connectedId && connectedId !== deviceId) {
           nativeClassicDisconnect();
           connectedId = null;
@@ -180,7 +180,7 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
     },
 
     async disconnect() {
-      if (useNativeClassic()) {
+      if (preferNativeClassicBridge()) {
         nativeClassicDisconnect();
         connectedId = null;
         return { ok: true };
@@ -199,7 +199,7 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
         const connected = await this.connect(deviceId);
         if (!connected.ok) return connected;
       }
-      if (useNativeClassic()) {
+      if (preferNativeClassicBridge()) {
         const result = nativeClassicWriteEscPos(bytesToBase64(bytes));
         if (!result.ok) connectedId = null;
         return result;
@@ -226,7 +226,7 @@ export async function openClassicBluetoothSettings(): Promise<HardwareResult> {
       message: "Open Bluetooth settings on this device to pair a printer.",
     };
   }
-  if (useNativeClassic()) {
+  if (preferNativeClassicBridge()) {
     return nativeClassicOpenBluetoothSettings();
   }
   try {
