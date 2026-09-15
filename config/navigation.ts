@@ -15,6 +15,7 @@ import {
   Truck,
   type LucideIcon,
 } from "lucide-react";
+import type { BusinessCapabilityKey } from "@/convex/shared/businessCapabilities";
 
 export type AppRole = "administrator" | "manager" | "cashier";
 
@@ -42,6 +43,11 @@ export type NavItem = {
   icon: LucideIcon;
   roles: AppRole[];
   stub?: boolean;
+  /**
+   * When set, every listed org capability must be enabled (and plan-allowed).
+   * Omit for routes that exist for all orgs (default Novend).
+   */
+  capabilities?: BusinessCapabilityKey[];
 };
 
 export type NavGroup = {
@@ -191,15 +197,26 @@ export function defaultActiveAccordionGroup(): NavAccordionGroupId {
   return DEFAULT_NAV_ACCORDION_GROUP;
 }
 
-export function navGroupsForRole(role: AppRole): NavGroup[] {
+export function navGroupsForRole(
+  role: AppRole,
+  enabledCapabilities: readonly BusinessCapabilityKey[] = [],
+): NavGroup[] {
+  const enabled = new Set(enabledCapabilities);
   return NAV_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter((item) => item.roles.includes(role)),
+    items: group.items.filter((item) => {
+      if (!item.roles.includes(role)) return false;
+      if (!item.capabilities?.length) return true;
+      return item.capabilities.every((key) => enabled.has(key));
+    }),
   })).filter((group) => group.items.length > 0);
 }
 
-export function flatNavForRole(role: AppRole): NavItem[] {
-  const items = navGroupsForRole(role).flatMap((group) => group.items);
+export function flatNavForRole(
+  role: AppRole,
+  enabledCapabilities: readonly BusinessCapabilityKey[] = [],
+): NavItem[] {
+  const items = navGroupsForRole(role, enabledCapabilities).flatMap((group) => group.items);
   if (SETTINGS_ITEM.roles.includes(role)) {
     items.push(SETTINGS_ITEM);
   }
@@ -213,20 +230,27 @@ export function isPlatformAppPath(path: string): boolean {
 }
 
 /** True when `path` is allowed for this role (nav + settings). Platform is separate. */
-export function pathAllowedForRole(path: string, role: AppRole): boolean {
+export function pathAllowedForRole(
+  path: string,
+  role: AppRole,
+  enabledCapabilities: readonly BusinessCapabilityKey[] = [],
+): boolean {
   const pathname = path.split("?")[0] || path;
   if (pathname === "/more" || pathname.startsWith("/more/")) return true;
   if (pathname === "/about" || pathname.startsWith("/about/")) return true;
   if (pathname === "/unauthorized") return true;
   if (pathname === "/onboarding" || pathname.startsWith("/onboarding/")) return true;
-  return flatNavForRole(role).some(
+  return flatNavForRole(role, enabledCapabilities).some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
 }
 
 /** @deprecated Prefer navGroupsForRole or flatNavForRole. */
-export function navForRole(role: AppRole) {
-  return flatNavForRole(role);
+export function navForRole(
+  role: AppRole,
+  enabledCapabilities: readonly BusinessCapabilityKey[] = [],
+) {
+  return flatNavForRole(role, enabledCapabilities);
 }
 
 export function findNavGroupForPath(path: string): NavGroupId | null {

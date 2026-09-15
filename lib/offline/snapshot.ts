@@ -24,6 +24,8 @@ import {
   sellableFromBranchStock,
 } from "./branch-stock";
 import { saveShellProfile } from "./shell-profile";
+import type { OrganizationBusinessConfiguration } from "@/convex/shared/businessCapabilities";
+import { DEFAULT_BUSINESS_CONFIGURATION } from "@/convex/shared/businessCapabilities";
 import {
   mergeTourProgress,
   parseTourProgress,
@@ -181,6 +183,7 @@ export async function applySnapshot(
     returns?: MirroredReturn[];
     lots?: MirroredLot[];
     print: PrintSnapshot;
+    businessCapabilities?: OrganizationBusinessConfiguration;
     profile: {
       userId: string;
       name: string;
@@ -287,6 +290,11 @@ export async function applySnapshot(
     await replaceServerRows(db.returns, snapshot.returns ?? [], pendingLocalIds, sameReturnNumber);
     await replaceServerRows(db.lots, snapshot.lots ?? [], pendingLocalIds);
     await setMeta(db, META_KEYS.printSnapshot, JSON.stringify(snapshot.print));
+    await setMeta(
+      db,
+      META_KEYS.businessCapabilities,
+      JSON.stringify(snapshot.businessCapabilities ?? DEFAULT_BUSINESS_CONFIGURATION),
+    );
     await setMeta(db, META_KEYS.profileUserId, snapshot.profile.userId);
     await setMeta(db, META_KEYS.profileName, snapshot.profile.name);
     if (snapshot.profile.role) {

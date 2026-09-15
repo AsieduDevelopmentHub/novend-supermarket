@@ -1,7 +1,7 @@
 import { query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireBranchId, canViewCostPrice, isAdmin } from "./shared/permissions";
-import { loadPrintSnapshot } from "./settings";
+import { loadPrintSnapshot, loadBusinessConfiguration } from "./settings";
 import { stockMapForBranch } from "./shared/branchStock";
 import { deriveExpiryListFields, lotSummaries } from "./shared/lots";
 import { presenceFromLastSeenAt } from "./shared/presence";
@@ -242,6 +242,7 @@ export const getSnapshot = query({
 
     const print = await loadPrintSnapshot(ctx, profile.organizationId, branchId);
     const { business, template } = print;
+    const businessCapabilities = await loadBusinessConfiguration(ctx, profile.organizationId);
     const branch = await ctx.db.get(branchId);
     const canManage = profile.role === "administrator" || profile.role === "manager";
 
@@ -607,6 +608,7 @@ export const getSnapshot = query({
         business,
         template,
       },
+      businessCapabilities,
       profile: {
         userId: userId as string,
         name: profile.name,

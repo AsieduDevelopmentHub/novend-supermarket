@@ -194,6 +194,11 @@ Documentation is part of the implementation.
 When architecture, public Convex contracts, folder ownership, or business rules
 change, update the relevant document in the same change.
 
+Configurable multi-industry evolution (principles vs phased delivery):
+
+- `docs/architecture/NOVEND_CAPABILITY_EXPANSION.md`
+- `docs/architecture/ROADMAP_CAPABILITIES.md`
+
 ---
 
 # 13. AI and engineering behavior

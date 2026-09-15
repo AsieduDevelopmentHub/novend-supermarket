@@ -296,3 +296,30 @@ export function resolveBranchFilter(
   }
   return profile.branchId;
 }
+
+/**
+ * Backend gate for Stage 1+ business capabilities.
+ * Capability enabled ≠ role permission; both must pass, and the plan must allow the key.
+ */
+export async function requireBusinessCapability(
+  ctx: Ctx,
+  organizationId: Id<"organizations">,
+  key: import("./businessCapabilities").BusinessCapabilityKey,
+) {
+  const { loadBusinessConfiguration } = await import("../settings");
+  const {
+    assertBusinessCapabilityEnabled,
+    planAllowsBusinessCapability,
+  } = await import("./businessCapabilities");
+  const { resolveLicense } = await import("./entitlements");
+
+  const organization = await ctx.db.get(organizationId);
+  if (!organization) throw new Error("Organization not found");
+  const license = await resolveLicense(ctx, organization);
+  if (!planAllowsBusinessCapability(license.planKey, key)) {
+    throw new Error("This capability is not available on your plan.");
+  }
+  const config = await loadBusinessConfiguration(ctx, organizationId);
+  assertBusinessCapabilityEnabled(config, key);
+  return config;
+}

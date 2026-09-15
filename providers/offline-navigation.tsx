@@ -18,6 +18,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { isPlatformAppPath, pathAllowedForRole } from "@/config/navigation";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { resolveOfflineView } from "@/providers/offline-views";
+import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 
 type OfflineNavigationContextValue = {
   /** True when the shell is rendering a client-side route instead of Next RSC children. */
@@ -220,6 +221,7 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
 export function OfflineOutlet({ children }: { children: ReactNode }) {
   const { clientRouting, activePath } = useOfflineNavigation();
   const { role, isLoading } = usePermissions();
+  const { enabledCapabilities } = useBusinessCapabilities();
   if (clientRouting && activePath) {
     // Super Admin console is not in tenant nav. Applying pathAllowedForRole
     // here blocked every /platform/* click (Access Denied) or, for
@@ -233,7 +235,7 @@ export function OfflineOutlet({ children }: { children: ReactNode }) {
     if (isLoading || !role) {
       return <>{children}</>;
     }
-    if (!pathAllowedForRole(activePath, role)) {
+    if (!pathAllowedForRole(activePath, role, enabledCapabilities)) {
       return <AccessDenied />;
     }
     return <>{resolveOfflineView(activePath)}</>;

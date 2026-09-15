@@ -3,6 +3,21 @@ import { mutation, query, MutationCtx, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireRole } from "./shared/permissions";
 import { writeAuditLog } from "./shared/audit";
+import { resolveLicense } from "./shared/entitlements";
+import {
+  BUSINESS_CAPABILITY_CONFIGURATION_VERSION,
+  BUSINESS_CAPABILITY_KEYS,
+  BUSINESS_CAPABILITY_REGISTRY,
+  INDUSTRY_PROFILES,
+  configurationFromIndustryPack,
+  isBusinessCapabilityKey,
+  isIndustryProfile,
+  parseBusinessConfiguration,
+  validateBusinessCapabilitySet,
+  type BusinessCapabilityKey,
+  type IndustryProfile,
+  type OrganizationBusinessConfiguration,
+} from "./shared/businessCapabilities";
 import {
   sanitizeEmail,
   sanitizeOptionalText,
@@ -72,6 +87,7 @@ function cleanReceiptCopy(value: unknown, fallback: string) {
 const BUSINESS_KEY = "business.profile";
 const RECEIPT_KEY = "receipt.template";
 const POS_KEY = "pos.preferences";
+const CAPABILITIES_KEY = "business.capabilities";
 
 export type ReceiptPrintMode = "automatic" | "manual" | "never";
 
@@ -195,6 +211,14 @@ export async function loadPrintSnapshot(
   }
 
   return { business, template };
+}
+
+/** Org capability configuration for offline mirror and Convex gates. */
+export async function loadBusinessConfiguration(
+  ctx: DbCtx,
+  organizationId: Id<"organizations">,
+): Promise<OrganizationBusinessConfiguration> {
+  return parseBusinessConfiguration(await getSettingValue(ctx, organizationId, CAPABILITIES_KEY));
 }
 
 export const getBusiness = query({
@@ -328,5 +352,73 @@ export const updateReceiptTemplate = mutation({
       entityId: RECEIPT_KEY,
     });
     return template;
+  },
+});
+
+export const getBusinessCapabilities = query({
+  args: {},
+  handler: async (ctx) => {
+    const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    return loadBusinessConfiguration(ctx, organizationId);
+  },
+});
+
+export const getBusinessCapabilityCatalog = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireRole(ctx, ["administrator"]);
+    return {
+      profiles: INDUSTRY_PROFILES,
+      capabilities: BUSINESS_CAPABILITY_KEYS.map((key) => BUSINESS_CAPABILITY_REGISTRY[key]),
+      configurationVersion: BUSINESS_CAPABILITY_CONFIGURATION_VERSION,
+    };
+  },
+});
+
+export const updateBusinessCapabilities = mutation({
+  args: {
+    industryProfile: v.string(),
+    enabledCapabilities: v.array(v.string()),
+    applyIndustryPack: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const { userId, organizationId } = await requireRole(ctx, ["administrator"]);
+    const organization = await ctx.db.get(organizationId);
+    if (!organization) throw new Error("Organization not found");
+    const license = await resolveLicense(ctx, organization);
+
+    if (!isIndustryProfile(args.industryProfile)) {
+      throw new Error("Invalid industry profile");
+    }
+    const profile: IndustryProfile = args.industryProfile;
+
+    let next: OrganizationBusinessConfiguration;
+    if (args.applyIndustryPack) {
+      next = configurationFromIndustryPack(profile, license.planKey);
+    } else {
+      const keys = args.enabledCapabilities.filter(isBusinessCapabilityKey);
+      const validated = validateBusinessCapabilitySet(keys, license.planKey);
+      if (!validated.ok) throw new Error(validated.message);
+      next = {
+        industryProfile: profile,
+        enabledCapabilities: validated.keys,
+        capabilitySettings: {},
+        configurationVersion: BUSINESS_CAPABILITY_CONFIGURATION_VERSION,
+      };
+    }
+
+    await upsertSetting(ctx, organizationId, CAPABILITIES_KEY, JSON.stringify(next));
+    await writeAuditLog(ctx, {
+      actorId: userId,
+      action: "update_business_capabilities",
+      entityType: "settings",
+      entityId: CAPABILITIES_KEY,
+      metadata: {
+        industryProfile: next.industryProfile,
+        enabledCapabilities: next.enabledCapabilities,
+        configurationVersion: next.configurationVersion,
+      },
+    });
+    return next;
   },
 });
