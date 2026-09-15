@@ -1,9 +1,6 @@
 import { branchStockId, applyLocalBranchStockChange, getSellableQuantity } from "./branch-stock";
 import { getMeta, getOfflineDb, META_KEYS, newClientId } from "./db";
-import {
-  pendingOutboundTransferQuantities,
-  transferStockKey,
-} from "./pending-transfers";
+import { pendingOutboundTransferQuantities, transferStockKey } from "./pending-transfers";
 import { enqueueOutbox } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
 import { putProductImage } from "./image-cache";
@@ -211,7 +208,9 @@ export async function queueAdjustStock(payload: AdjustStockPayload) {
     throw new Error("Select a branch for this adjustment");
   }
   if (product) {
-    const hadBranchRow = Boolean(await db.branchStock.get(branchStockId(branchId, payload.productId)));
+    const hadBranchRow = Boolean(
+      await db.branchStock.get(branchStockId(branchId, payload.productId)),
+    );
     await applyLocalBranchStockChange(
       db,
       branchId,

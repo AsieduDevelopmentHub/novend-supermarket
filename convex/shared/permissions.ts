@@ -307,10 +307,8 @@ export async function requireBusinessCapability(
   key: import("./businessCapabilities").BusinessCapabilityKey,
 ) {
   const { loadBusinessConfiguration } = await import("../settings");
-  const {
-    assertBusinessCapabilityEnabled,
-    planAllowsBusinessCapability,
-  } = await import("./businessCapabilities");
+  const { assertBusinessCapabilityEnabled, planAllowsBusinessCapability } =
+    await import("./businessCapabilities");
   const { resolveLicense } = await import("./entitlements");
 
   const organization = await ctx.db.get(organizationId);

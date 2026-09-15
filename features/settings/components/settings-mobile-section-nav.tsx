@@ -54,9 +54,7 @@ export function SettingsMobileSectionNav({ groups, activeTab, icons, onSelect }:
         <div className="flex items-start justify-between gap-3">
           <div>
             <CardTitle className="text-base">Browse settings</CardTitle>
-            <CardDescription>
-              {sectionCount} sections — tap a row to open it below.
-            </CardDescription>
+            <CardDescription>{sectionCount} sections — tap a row to open it below.</CardDescription>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={() => setExpanded(false)}>
             Done
@@ -94,7 +92,10 @@ export function SettingsMobileSectionNav({ groups, activeTab, icons, onSelect }:
                     {active ? (
                       <span className="text-primary text-xs font-semibold">Active</span>
                     ) : (
-                      <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden />
+                      <ChevronRight
+                        className="text-muted-foreground h-4 w-4 shrink-0"
+                        aria-hidden
+                      />
                     )}
                   </button>
                 );

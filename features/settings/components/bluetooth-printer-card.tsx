@@ -54,9 +54,9 @@ function statusVariant(
 export function BluetoothPrinterCard() {
   const [status, setStatus] = useState<BluetoothPrinterStatus | null>(null);
   const [devices, setDevices] = useState<BluetoothPrinterDevice[]>([]);
-  const [busy, setBusy] = useState<
-    "discover" | "connect" | "test" | "reconnect" | "forget" | null
-  >(null);
+  const [busy, setBusy] = useState<"discover" | "connect" | "test" | "reconnect" | "forget" | null>(
+    null,
+  );
 
   async function refreshStatus() {
     const result = await Hardware.bluetoothPrinter.getStatus();
@@ -119,7 +119,9 @@ export function BluetoothPrinterCard() {
       const transport = device.transport ?? status?.transport ?? "ble";
       const result = await Hardware.bluetoothPrinter.connect(device.id, device.name, transport);
       if (!result.ok) {
-        toast.error(result.message || bluetoothPrintFailedMessage(result.code, "Could not connect"));
+        toast.error(
+          result.message || bluetoothPrintFailedMessage(result.code, "Could not connect"),
+        );
         await refreshStatus();
         return;
       }
@@ -178,8 +180,7 @@ export function BluetoothPrinterCard() {
       });
       if (!result?.ok) {
         toast.error(
-          result?.message ||
-            bluetoothPrintFailedMessage(result?.code, "Test print failed"),
+          result?.message || bluetoothPrintFailedMessage(result?.code, "Test print failed"),
         );
         await refreshStatus();
         return;
@@ -209,8 +210,8 @@ export function BluetoothPrinterCard() {
           Bluetooth printer
         </CardTitle>
         <CardDescription>
-          Prefer Android paired (Classic): pair the printer in system Bluetooth, then Discover
-          here. Nearby BLE often fails after the app loads the hosted site.
+          Prefer Android paired (Classic): pair the printer in system Bluetooth, then Discover here.
+          Nearby BLE often fails after the app loads the hosted site.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -225,9 +226,7 @@ export function BluetoothPrinterCard() {
             <p className="text-muted-foreground text-sm">No preferred printer saved</p>
           )}
         </div>
-        {status?.lastError ? (
-          <p className="text-destructive text-sm">{status.lastError}</p>
-        ) : null}
+        {status?.lastError ? <p className="text-destructive text-sm">{status.lastError}</p> : null}
 
         {status?.classicAvailable ? (
           <div className="space-y-2">
@@ -369,9 +368,7 @@ export function BluetoothPrinterCard() {
                   disabled={busy !== null}
                   onClick={() => void onConnect(device)}
                 >
-                  {busy === "connect" ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
+                  {busy === "connect" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Connect
                 </Button>
               </li>

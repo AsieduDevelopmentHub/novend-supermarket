@@ -187,124 +187,124 @@ export function SettingsView() {
           />
 
           <div className="space-y-4">
-          <TabsContent value="profile" className="mt-0">
-            <ProfilePanel />
-          </TabsContent>
-
-          {isAdmin && business && template ? (
-            <>
-              <TabsContent value="business" className="mt-0 space-y-4">
-                <BusinessForm
-                  key={JSON.stringify(business)}
-                  initial={business}
-                  readOnly={!online}
-                />
-                <BusinessCapabilitiesPanel />
-              </TabsContent>
-
-              <TabsContent value="receipt" className="mt-0">
-                <ReceiptTemplateForm
-                  key={JSON.stringify(template)}
-                  initialTemplate={template}
-                  initialBusiness={business}
-                  readOnly={!online}
-                />
-              </TabsContent>
-            </>
-          ) : isAdmin && !online ? (
-            <>
-              <TabsContent value="business" className="mt-0">
-                <Card>
-                  <CardContent className="text-muted-foreground p-5 text-sm">
-                    Business and receipt settings haven&apos;t been cached on this device yet. Open
-                    Settings once while online to keep them available offline.
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              <TabsContent value="receipt" className="mt-0">
-                <Card>
-                  <CardContent className="text-muted-foreground p-5 text-sm">
-                    Receipt template settings haven&apos;t been cached on this device yet. Open
-                    Settings once while online to review them offline.
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </>
-          ) : null}
-
-          {isAdmin ? (
-            <TabsContent value="billing" className="mt-0">
-              <BillingPanel />
+            <TabsContent value="profile" className="mt-0">
+              <ProfilePanel />
             </TabsContent>
-          ) : null}
 
-          {isManager || isAdmin ? (
-            <>
-              <TabsContent value="branchReceipt" className="mt-0">
-                <BranchReceiptPanel />
-              </TabsContent>
-              <TabsContent value="devices" className="mt-0">
-                <DevicesPanel />
-              </TabsContent>
-            </>
-          ) : null}
+            {isAdmin && business && template ? (
+              <>
+                <TabsContent value="business" className="mt-0 space-y-4">
+                  <BusinessForm
+                    key={JSON.stringify(business)}
+                    initial={business}
+                    readOnly={!online}
+                  />
+                  <BusinessCapabilitiesPanel />
+                </TabsContent>
 
-          {isDesktop ? (
-            <>
-              <TabsContent value="printer" className="mt-0">
-                <PrinterPanel />
+                <TabsContent value="receipt" className="mt-0">
+                  <ReceiptTemplateForm
+                    key={JSON.stringify(template)}
+                    initialTemplate={template}
+                    initialBusiness={business}
+                    readOnly={!online}
+                  />
+                </TabsContent>
+              </>
+            ) : isAdmin && !online ? (
+              <>
+                <TabsContent value="business" className="mt-0">
+                  <Card>
+                    <CardContent className="text-muted-foreground p-5 text-sm">
+                      Business and receipt settings haven&apos;t been cached on this device yet.
+                      Open Settings once while online to keep them available offline.
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                <TabsContent value="receipt" className="mt-0">
+                  <Card>
+                    <CardContent className="text-muted-foreground p-5 text-sm">
+                      Receipt template settings haven&apos;t been cached on this device yet. Open
+                      Settings once while online to review them offline.
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </>
+            ) : null}
+
+            {isAdmin ? (
+              <TabsContent value="billing" className="mt-0">
+                <BillingPanel />
               </TabsContent>
-              <TabsContent value="futureDevices" className="mt-0">
-                <FutureDevicesPanel />
+            ) : null}
+
+            {isManager || isAdmin ? (
+              <>
+                <TabsContent value="branchReceipt" className="mt-0">
+                  <BranchReceiptPanel />
+                </TabsContent>
+                <TabsContent value="devices" className="mt-0">
+                  <DevicesPanel />
+                </TabsContent>
+              </>
+            ) : null}
+
+            {isDesktop ? (
+              <>
+                <TabsContent value="printer" className="mt-0">
+                  <PrinterPanel />
+                </TabsContent>
+                <TabsContent value="futureDevices" className="mt-0">
+                  <FutureDevicesPanel />
+                </TabsContent>
+                <TabsContent value="updates" className="mt-0">
+                  <UpdatesPanel />
+                </TabsContent>
+                <TabsContent value="desktop" className="mt-0">
+                  <DesktopDownloadPanel />
+                </TabsContent>
+              </>
+            ) : isMobileCap ? (
+              <TabsContent value="mobileHardware" className="mt-0">
+                <MobileHardwarePanel />
               </TabsContent>
-              <TabsContent value="updates" className="mt-0">
-                <UpdatesPanel />
-              </TabsContent>
+            ) : (
               <TabsContent value="desktop" className="mt-0">
                 <DesktopDownloadPanel />
               </TabsContent>
-            </>
-          ) : isMobileCap ? (
-            <TabsContent value="mobileHardware" className="mt-0">
-              <MobileHardwarePanel />
+            )}
+
+            {!isMobileCap ? (
+              <TabsContent value="scanner" className="mt-0">
+                <ScannerPanel />
+              </TabsContent>
+            ) : null}
+
+            {sections.some((section) => section.value === "customerDisplay") ? (
+              <TabsContent value="customerDisplay" className="mt-0">
+                <CustomerDisplayPanel />
+              </TabsContent>
+            ) : null}
+
+            <TabsContent value="backup" className="mt-0">
+              <BackupsPanel />
             </TabsContent>
-          ) : (
-            <TabsContent value="desktop" className="mt-0">
-              <DesktopDownloadPanel />
+
+            <TabsContent value="appearance" className="mt-0">
+              <AppearancePanel />
             </TabsContent>
-          )}
 
-          {!isMobileCap ? (
-            <TabsContent value="scanner" className="mt-0">
-              <ScannerPanel />
+            <TabsContent value="security" className="mt-0">
+              <SecurityPanel />
             </TabsContent>
-          ) : null}
 
-          {sections.some((section) => section.value === "customerDisplay") ? (
-            <TabsContent value="customerDisplay" className="mt-0">
-              <CustomerDisplayPanel />
+            <TabsContent value="privacy" className="mt-0">
+              <PrivacyDataPanel />
             </TabsContent>
-          ) : null}
 
-          <TabsContent value="backup" className="mt-0">
-            <BackupsPanel />
-          </TabsContent>
-
-          <TabsContent value="appearance" className="mt-0">
-            <AppearancePanel />
-          </TabsContent>
-
-          <TabsContent value="security" className="mt-0">
-            <SecurityPanel />
-          </TabsContent>
-
-          <TabsContent value="privacy" className="mt-0">
-            <PrivacyDataPanel />
-          </TabsContent>
-
-          <TabsContent value="help" className="mt-0">
-            <HelpToursPanel />
-          </TabsContent>
+            <TabsContent value="help" className="mt-0">
+              <HelpToursPanel />
+            </TabsContent>
           </div>
         </div>
       </Tabs>
@@ -590,118 +590,118 @@ function ReceiptTemplateForm({
             <CardTitle>Receipt template designer</CardTitle>
           </CardHeader>
           <CardContent>
-          <form className="space-y-4" onSubmit={onSaveTemplate}>
-            <div className="space-y-2">
-              <Label>Paper width</Label>
-              <Select
-                value={paperWidthMm}
-                onValueChange={(v) => setPaperWidthMm(v as "58" | "80")}
-                disabled={readOnly}
-              >
-                <SelectTrigger className="max-w-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="80">80mm (recommended)</SelectItem>
-                  <SelectItem value="58">58mm</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-muted-foreground text-xs">
-                Affects receipt layout in preview and print. Desktop silent print uses this width
-                unless the terminal printer settings override it.
-              </p>
-            </div>
+            <form className="space-y-4" onSubmit={onSaveTemplate}>
+              <div className="space-y-2">
+                <Label>Paper width</Label>
+                <Select
+                  value={paperWidthMm}
+                  onValueChange={(v) => setPaperWidthMm(v as "58" | "80")}
+                  disabled={readOnly}
+                >
+                  <SelectTrigger className="max-w-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="80">80mm (recommended)</SelectItem>
+                    <SelectItem value="58">58mm</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-muted-foreground text-xs">
+                  Affects receipt layout in preview and print. Desktop silent print uses this width
+                  unless the terminal printer settings override it.
+                </p>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="receipt-tagline">Header text</Label>
-              <Input
-                id="receipt-tagline"
-                name="receipt-tagline"
-                autoComplete="off"
-                data-1p-ignore
-                data-lpignore="true"
-                placeholder="Smart POS. Strong business."
-                value={headerText}
-                onChange={(e) => setHeaderText(e.target.value)}
-                disabled={readOnly}
-              />
-              <p className="text-muted-foreground text-xs">
-                Tagline under the business name. Not a website URL.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="footerText">Footer text</Label>
-              <Input
-                id="footerText"
-                value={footerText}
-                onChange={(e) => setFooterText(e.target.value)}
-                disabled={readOnly}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="thankYou">Thank-you / policy line</Label>
-              <Input
-                id="thankYou"
-                value={thankYouLine}
-                onChange={(e) => setThankYouLine(e.target.value)}
-                disabled={readOnly}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="receipt-tagline">Header text</Label>
+                <Input
+                  id="receipt-tagline"
+                  name="receipt-tagline"
+                  autoComplete="off"
+                  data-1p-ignore
+                  data-lpignore="true"
+                  placeholder="Smart POS. Strong business."
+                  value={headerText}
+                  onChange={(e) => setHeaderText(e.target.value)}
+                  disabled={readOnly}
+                />
+                <p className="text-muted-foreground text-xs">
+                  Tagline under the business name. Not a website URL.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="footerText">Footer text</Label>
+                <Input
+                  id="footerText"
+                  value={footerText}
+                  onChange={(e) => setFooterText(e.target.value)}
+                  disabled={readOnly}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="thankYou">Thank-you / policy line</Label>
+                <Input
+                  id="thankYou"
+                  value={thankYouLine}
+                  onChange={(e) => setThankYouLine(e.target.value)}
+                  disabled={readOnly}
+                />
+              </div>
 
-            <ReceiptPrintModePicker
-              value={printMode}
-              disabled={readOnly}
-              onChange={(mode) => {
-                if (!readOnly) {
-                  void updatePos({ receiptPrintMode: mode })
-                    .then(() =>
-                      savePosPreferences({
-                        autoPrintReceipt: mode === "automatic",
-                        receiptPrintMode: mode,
-                      }),
-                    )
-                    .catch((error) => showError(error, "Could not save print setting"));
-                }
-              }}
-            />
+              <ReceiptPrintModePicker
+                value={printMode}
+                disabled={readOnly}
+                onChange={(mode) => {
+                  if (!readOnly) {
+                    void updatePos({ receiptPrintMode: mode })
+                      .then(() =>
+                        savePosPreferences({
+                          autoPrintReceipt: mode === "automatic",
+                          receiptPrintMode: mode,
+                        }),
+                      )
+                      .catch((error) => showError(error, "Could not save print setting"));
+                  }
+                }}
+              />
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <ToggleRow
-                id="showCashier"
-                label="Show cashier"
-                checked={showCashier}
-                onChange={setShowCashier}
-                disabled={readOnly}
-              />
-              <ToggleRow
-                id="showCustomer"
-                label="Show customer"
-                checked={showCustomer}
-                onChange={setShowCustomer}
-                disabled={readOnly}
-              />
-              <ToggleRow
-                id="showPayment"
-                label="Show payment method"
-                checked={showPaymentMethod}
-                onChange={setShowPaymentMethod}
-                disabled={readOnly}
-              />
-              <ToggleRow
-                id="showSku"
-                label="Show SKU on lines"
-                checked={showSku}
-                onChange={setShowSku}
-                disabled={readOnly}
-              />
-            </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ToggleRow
+                  id="showCashier"
+                  label="Show cashier"
+                  checked={showCashier}
+                  onChange={setShowCashier}
+                  disabled={readOnly}
+                />
+                <ToggleRow
+                  id="showCustomer"
+                  label="Show customer"
+                  checked={showCustomer}
+                  onChange={setShowCustomer}
+                  disabled={readOnly}
+                />
+                <ToggleRow
+                  id="showPayment"
+                  label="Show payment method"
+                  checked={showPaymentMethod}
+                  onChange={setShowPaymentMethod}
+                  disabled={readOnly}
+                />
+                <ToggleRow
+                  id="showSku"
+                  label="Show SKU on lines"
+                  checked={showSku}
+                  onChange={setShowSku}
+                  disabled={readOnly}
+                />
+              </div>
 
-            <Button type="submit" disabled={pending || readOnly}>
-              {readOnly ? "Can't save offline" : pending ? "Saving…" : "Save receipt template"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              <Button type="submit" disabled={pending || readOnly}>
+                {readOnly ? "Can't save offline" : pending ? "Saving…" : "Save receipt template"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       }
     />
   );

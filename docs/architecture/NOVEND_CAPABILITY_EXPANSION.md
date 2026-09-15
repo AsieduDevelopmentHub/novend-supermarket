@@ -77,19 +77,19 @@ Org capability flags must not bypass billing limits. Plan catalog and enforcemen
 
 Implementers must extend these surfaces—not invent a parallel stack.
 
-| Concern | Anchor |
-| -------- | ------ |
-| Schema overview | [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) — `organizations`, `products`, `branchStock`, `inventoryHistory`, `inventoryLots`, `sales` / `saleItems`, `receipts`, `plans` |
-| Schema source | [`convex/schema.ts`](../../convex/schema.ts) — `products.unit`, `sellingPrice`, `stockQuantity`; `saleItems` quantity / unit price snapshots |
-| Offline / outbox | [OFFLINE_SYNC.md](./OFFLINE_SYNC.md), [`lib/offline/outbox.ts`](../../lib/offline/outbox.ts), [`lib/offline/outbox-policy.ts`](../../lib/offline/outbox-policy.ts), [`lib/offline/sync-engine.ts`](../../lib/offline/sync-engine.ts) — e.g. `complete_sale`, `upsert_product` |
-| Business capabilities (Stage 1) | Settings key `business.capabilities`; registry [`convex/shared/businessCapabilities.ts`](../../convex/shared/businessCapabilities.ts); Dexie `META_KEYS.businessCapabilities` |
-| Inventory history | `inventoryHistory` (quantity change + reason); lots / FEFO via `inventoryLots` |
-| Business vocabulary | [BUSINESS_GLOSSARY.md](../BUSINESS_GLOSSARY.md) |
-| Receipts / print mode | `receipts` table; [`convex/settings.ts`](../../convex/settings.ts) `receiptPrintMode`; [`lib/receipt-print-mode.ts`](../../lib/receipt-print-mode.ts); designer UI under `features/settings` |
-| Billing / entitlements | [BILLING.md](./BILLING.md), [`convex/shared/plans.ts`](../../convex/shared/plans.ts), [`convex/shared/entitlements.ts`](../../convex/shared/entitlements.ts) |
-| Tenancy | [MULTI_TENANT.md](./MULTI_TENANT.md) |
-| Hardware / Cap | [HARDWARE.md](./HARDWARE.md), [CAPACITOR_MOBILE.md](./CAPACITOR_MOBILE.md) |
-| Money rounding | [`lib/currency.ts`](../../lib/currency.ts) `roundMoney` — quantities/money remain **numbers** unless a later migration documents otherwise |
+| Concern                         | Anchor                                                                                                                                                                                                                                                                        |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema overview                 | [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) — `organizations`, `products`, `branchStock`, `inventoryHistory`, `inventoryLots`, `sales` / `saleItems`, `receipts`, `plans`                                                                                                      |
+| Schema source                   | [`convex/schema.ts`](../../convex/schema.ts) — `products.unit`, `sellingPrice`, `stockQuantity`; `saleItems` quantity / unit price snapshots                                                                                                                                  |
+| Offline / outbox                | [OFFLINE_SYNC.md](./OFFLINE_SYNC.md), [`lib/offline/outbox.ts`](../../lib/offline/outbox.ts), [`lib/offline/outbox-policy.ts`](../../lib/offline/outbox-policy.ts), [`lib/offline/sync-engine.ts`](../../lib/offline/sync-engine.ts) — e.g. `complete_sale`, `upsert_product` |
+| Business capabilities (Stage 1) | Settings key `business.capabilities`; registry [`convex/shared/businessCapabilities.ts`](../../convex/shared/businessCapabilities.ts); Dexie `META_KEYS.businessCapabilities`                                                                                                 |
+| Inventory history               | `inventoryHistory` (quantity change + reason); lots / FEFO via `inventoryLots`                                                                                                                                                                                                |
+| Business vocabulary             | [BUSINESS_GLOSSARY.md](../BUSINESS_GLOSSARY.md)                                                                                                                                                                                                                               |
+| Receipts / print mode           | `receipts` table; [`convex/settings.ts`](../../convex/settings.ts) `receiptPrintMode`; [`lib/receipt-print-mode.ts`](../../lib/receipt-print-mode.ts); designer UI under `features/settings`                                                                                  |
+| Billing / entitlements          | [BILLING.md](./BILLING.md), [`convex/shared/plans.ts`](../../convex/shared/plans.ts), [`convex/shared/entitlements.ts`](../../convex/shared/entitlements.ts)                                                                                                                  |
+| Tenancy                         | [MULTI_TENANT.md](./MULTI_TENANT.md)                                                                                                                                                                                                                                          |
+| Hardware / Cap                  | [HARDWARE.md](./HARDWARE.md), [CAPACITOR_MOBILE.md](./CAPACITOR_MOBILE.md)                                                                                                                                                                                                    |
+| Money rounding                  | [`lib/currency.ts`](../../lib/currency.ts) `roundMoney` — quantities/money remain **numbers** unless a later migration documents otherwise                                                                                                                                    |
 
 **Sync rule:** conceptual “domain events” in the target model map to **extensions of existing outbox operation types**, not a second sync protocol.
 
@@ -140,13 +140,7 @@ Specialized domains (restaurant orders, hotel folios, regulated Rx) sit **beside
 
 ```ts
 type IndustryProfile =
-  | "retail"
-  | "wholesale"
-  | "supermarket"
-  | "cold_store"
-  | "electronics"
-  | "pharmacy"
-  | "custom";
+  "retail" | "wholesale" | "supermarket" | "cold_store" | "electronics" | "pharmacy" | "custom";
 // restaurant | hospitality added when Phase B/C domains ship
 
 interface OrganizationBusinessConfiguration {
@@ -209,9 +203,9 @@ Example: crate × 24 bottles → deduct `48` base bottles for 2 crates—not `2`
 
 Until an org is on the new model **and** the relevant capability is on:
 
-| Condition | Canonical source |
-| --------- | ---------------- |
-| `configurationVersion < 2` **or** capability off | `products.unit`, `sellingPrice`, existing quantity fields |
+| Condition                                         | Canonical source                                                                                                                                                   |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `configurationVersion < 2` **or** capability off  | `products.unit`, `sellingPrice`, existing quantity fields                                                                                                          |
 | Capability on **and** `configurationVersion >= 2` | Product unit configuration + pricing resolution; adapters still **synthesize** a default sell unit (`factorToBase = 1`) from legacy fields for unmigrated products |
 
 Rules:
@@ -243,9 +237,9 @@ Centralize price resolution for POS, returns, receipts, reports, offline, and Co
 
 ## 9. Multi-terminal conflict principles
 
-| Mode | Guidance |
-| ---- | -------- |
-| Piece / whole base qty | Keep existing outbox + Convex validation / reject / reconcile patterns ([OFFLINE_SYNC.md](./OFFLINE_SYNC.md)). |
+| Mode                         | Guidance                                                                                                                                                                                                                                                                                                               |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Piece / whole base qty       | Keep existing outbox + Convex validation / reject / reconcile patterns ([OFFLINE_SYNC.md](./OFFLINE_SYNC.md)).                                                                                                                                                                                                         |
 | Fractional base qty (weight) | Harder: two offline terminals can oversell the same SKU. Prefer explicit reconciliation (immutable completed sales + manager-visible conflict / adjustment)—never rewrite completed sales or silently drop an outbox sale. Detail matrix: [ROADMAP_CAPABILITIES.md](./ROADMAP_CAPABILITIES.md) (sell-by-weight slice). |
 
 Always: no cross-org leakage; attributable movements via `inventoryHistory` (extend reasons—do not invent a parallel ledger for core stages).
@@ -275,10 +269,10 @@ Prefer structured configuration over free-form builders:
 
 Documented for orientation only; design and ship under roadmap **Phase B / C**:
 
-| Domain | Why separate |
-| ------ | ------------ |
-| Restaurant | Tables, modifiers, kitchen tickets, recipes ≠ retail `sales` |
-| Hospitality | Rooms, stays, folios ≠ SKU products |
+| Domain        | Why separate                                                                                                |
+| ------------- | ----------------------------------------------------------------------------------------------------------- |
+| Restaurant    | Tables, modifiers, kitchen tickets, recipes ≠ retail `sales`                                                |
+| Hospitality   | Rooms, stays, folios ≠ SKU products                                                                         |
 | `rx_controls` | Regulated; no compliance design yet. Pharmacy **lots / expiry / custom fields** may ship earlier without Rx |
 
 ---

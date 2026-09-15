@@ -429,10 +429,7 @@ export const completeSale = mutation({
         throw new Error("Invalid quantity");
       }
 
-      const unit = resolveSellUnit(
-        product,
-        multiUnitOn || weightOn ? item.sellUnitKey : undefined,
-      );
+      const unit = resolveSellUnit(product, multiUnitOn || weightOn ? item.sellUnitKey : undefined);
       if (!multiUnitOn && !weightOn && item.sellUnitKey && item.sellUnitKey !== "default") {
         throw new Error("Multi-unit pricing is not enabled for this organization");
       }

@@ -28,9 +28,9 @@ staging → feature branch (one capability)
 
 ## Naming: wholesale vs pack pricing
 
-| Term | Meaning in Novend |
-| ---- | ----------------- |
-| Warehouse wholesale | Existing supplier purchases / wholesale stock / issue-to-branch |
+| Term                 | Meaning in Novend                                                     |
+| -------------------- | --------------------------------------------------------------------- |
+| Warehouse wholesale  | Existing supplier purchases / wholesale stock / issue-to-branch       |
 | `multi_unit_pricing` | POS sell units (pack, carton) with `factorToBase` into base inventory |
 
 Do not rewrite warehouse wholesale when implementing pack pricing.
@@ -41,14 +41,14 @@ Do not rewrite warehouse wholesale when implementing pack pricing.
 
 **Primary deliverable:** industry profile + capability registry (not a single sell-mode key).
 
-| Item | Notes |
-| ---- | ----- |
+| Item                       | Notes                                                                                                                         |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Org business configuration | Settings key `business.capabilities` — `industryProfile`, `enabledCapabilities`, `capabilitySettings`, `configurationVersion` |
-| Capability registry | [`convex/shared/businessCapabilities.ts`](../../convex/shared/businessCapabilities.ts) |
-| Nav / RBAC gates | `NavItem.capabilities` + `navGroupsForRole(role, enabled)`; Convex `requireBusinessCapability` |
-| Plan hook | `planAllowsBusinessCapability` / validate on update — Pro+ for pack/weight/serial/scale |
-| Dexie | `META_KEYS.businessCapabilities` via offline snapshot |
-| Admin UI | Settings → Business → Business type & capabilities |
+| Capability registry        | [`convex/shared/businessCapabilities.ts`](../../convex/shared/businessCapabilities.ts)                                        |
+| Nav / RBAC gates           | `NavItem.capabilities` + `navGroupsForRole(role, enabled)`; Convex `requireBusinessCapability`                                |
+| Plan hook                  | `planAllowsBusinessCapability` / validate on update — Pro+ for pack/weight/serial/scale                                       |
+| Dexie                      | `META_KEYS.businessCapabilities` via offline snapshot                                                                         |
+| Admin UI                   | Settings → Business → Business type & capabilities                                                                            |
 
 **Default:** all capabilities off; behavior = today’s Novend.
 
@@ -60,13 +60,13 @@ Do not rewrite warehouse wholesale when implementing pack pricing.
 
 Treat as one releasable theme; may be one or two PRs if needed, but **sale-line snapshot fields ship with UOM**—do not ship multi-unit UI before historical integrity.
 
-| Item | Notes |
-| ---- | ----- |
-| Units of measure | `products.sellUnits` + `pricingMode`; [`convex/shared/units.ts`](../../convex/shared/units.ts) |
-| Conversion service | Base qty via `toBaseQuantity` / `buildSaleLineUnitSnapshot` |
-| Compatibility adapter | Legacy `unit` + `sellingPrice` → synthesized default sell unit (`factorToBase = 1`). **N = 2** |
-| Sale-line snapshots | `saleItems` optional `sellUnitKey`, `sellUnitLabel`, `displayedQuantity`, `factorToBase`, `pricingMode`; `quantity` = base |
-| Migration | Existing products behave as single sell unit without manual reconfigure |
+| Item                  | Notes                                                                                                                      |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Units of measure      | `products.sellUnits` + `pricingMode`; [`convex/shared/units.ts`](../../convex/shared/units.ts)                             |
+| Conversion service    | Base qty via `toBaseQuantity` / `buildSaleLineUnitSnapshot`                                                                |
+| Compatibility adapter | Legacy `unit` + `sellingPrice` → synthesized default sell unit (`factorToBase = 1`). **N = 2**                             |
+| Sale-line snapshots   | `saleItems` optional `sellUnitKey`, `sellUnitLabel`, `displayedQuantity`, `factorToBase`, `pricingMode`; `quantity` = base |
+| Migration             | Existing products behave as single sell unit without manual reconfigure                                                    |
 
 **Exit:** Capability-off orgs unchanged; adapter path tested for dual-read.
 
@@ -97,13 +97,13 @@ Tiered quantity, customer-group, branch-specific, and open price.
 
 Applies when `sell_by_weight` (or any fractional base qty) is enabled. Harder than whole-piece stock.
 
-| Scenario | Required behavior |
-| -------- | ----------------- |
-| Terminal A and B both offline; both sell from same SKU/branch | Each completes a local sale (immutable). Sync must not drop either sale silently. |
-| Combined base qty exceeds on-hand after both sync | **Product choice (shipped):** Convex **rejects** the later apply (`Not enough stock…`); inventory never goes negative. The local sale, receipt, and outbox row remain; outbox is marked **failed** (definitive conflict) for Sync Center / manager stock adjustment. Completed sales and receipts are **never** rewritten. |
-| Retry / idempotency | Same outbox id must not double-apply stock. |
-| Piece-only orgs (capability off) | Unchanged vs today’s outbox + validation. |
-| Restart mid-offline | Sale remains in Dexie + outbox; reconnect flushes once. |
+| Scenario                                                      | Required behavior                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Terminal A and B both offline; both sell from same SKU/branch | Each completes a local sale (immutable). Sync must not drop either sale silently.                                                                                                                                                                                                                                          |
+| Combined base qty exceeds on-hand after both sync             | **Product choice (shipped):** Convex **rejects** the later apply (`Not enough stock…`); inventory never goes negative. The local sale, receipt, and outbox row remain; outbox is marked **failed** (definitive conflict) for Sync Center / manager stock adjustment. Completed sales and receipts are **never** rewritten. |
+| Retry / idempotency                                           | Same outbox id must not double-apply stock.                                                                                                                                                                                                                                                                                |
+| Piece-only orgs (capability off)                              | Unchanged vs today’s outbox + validation.                                                                                                                                                                                                                                                                                  |
+| Restart mid-offline                                           | Sale remains in Dexie + outbox; reconnect flushes once.                                                                                                                                                                                                                                                                    |
 
 Automated coverage: `tests/weight-conflict-matrix.test.ts` (oversell → definitive outbox failure). Manual multi-terminal QA still recommended before enabling `sell_by_weight` in production orgs.
 
@@ -113,11 +113,11 @@ Automated coverage: `tests/weight-conflict-matrix.test.ts` (oversell → definit
 
 ## Stage 4 — Inventory strengthen
 
-| Item | Notes |
-| ---- | ----- |
-| Ledger | **Extend** `inventoryHistory` reasons/fields—do not create a parallel movement table for this stage |
-| `lot_expiry` | Strengthen existing `inventoryLots` / FEFO; capability-gate FEFO where appropriate |
-| `serial_tracking` | Separate branch; electronics-oriented; unique serial sell-once |
+| Item              | Notes                                                                                               |
+| ----------------- | --------------------------------------------------------------------------------------------------- |
+| Ledger            | **Extend** `inventoryHistory` reasons/fields—do not create a parallel movement table for this stage |
+| `lot_expiry`      | Strengthen existing `inventoryLots` / FEFO; capability-gate FEFO where appropriate                  |
+| `serial_tracking` | Separate branch; electronics-oriented; unique serial sell-once                                      |
 
 Pharmacy **lots / expiry / custom field types** may appear here or in Stage 5 **without** `rx_controls`.
 
@@ -125,12 +125,12 @@ Pharmacy **lots / expiry / custom field types** may appear here or in Stage 5 **
 
 ## Stage 5 — Customization
 
-| Item | Notes |
-| ---- | ----- |
-| `custom_fields` | Schema-controlled, org-scoped, Dexie-cached, synced |
-| Import templates | One pipeline; industry column presets ([IMPORT_EXPORT.md](./IMPORT_EXPORT.md)) |
-| Receipt templates | Conditional sections (weight, unit, batch, serial) |
-| `configurable_pos` | Presets only (grid+cart, weight keypad, pack picker)—no page builder |
+| Item               | Notes                                                                          |
+| ------------------ | ------------------------------------------------------------------------------ |
+| `custom_fields`    | Schema-controlled, org-scoped, Dexie-cached, synced                            |
+| Import templates   | One pipeline; industry column presets ([IMPORT_EXPORT.md](./IMPORT_EXPORT.md)) |
+| Receipt templates  | Conditional sections (weight, unit, batch, serial)                             |
+| `configurable_pos` | Presets only (grid+cart, weight keypad, pack picker)—no page builder           |
 
 ---
 
@@ -148,10 +148,10 @@ Capabilities (when designed): `modifiers`, `tables_orders`, `kitchen_tickets`.
 
 ## Phase C — Hospitality and regulated pharmacy (deferred)
 
-| Area | Notes |
-| ---- | ----- |
-| Hospitality | Rooms, guests, reservations, stays, folios—not ordinary products. Capability: `rooms_folio` (and related) when designed. |
-| `rx_controls` | Regulated; **out of scope** until a compliance design exists. |
+| Area          | Notes                                                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Hospitality   | Rooms, guests, reservations, stays, folios—not ordinary products. Capability: `rooms_folio` (and related) when designed. |
+| `rx_controls` | Regulated; **out of scope** until a compliance design exists.                                                            |
 
 ---
 

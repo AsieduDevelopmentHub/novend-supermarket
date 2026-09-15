@@ -15,7 +15,10 @@ describe("native auth navigation", () => {
   });
 
   it("keeps Cap on the hosted origin and always uses Electron boot reload", () => {
-    const source = readFileSync(resolve(process.cwd(), "lib/auth/native-auth-navigation.ts"), "utf8");
+    const source = readFileSync(
+      resolve(process.cwd(), "lib/auth/native-auth-navigation.ts"),
+      "utf8",
+    );
     expect(source).toContain("LOGIN_AFTER_SIGN_OUT_PATH");
     expect(source).toContain("reloadAuthShell");
     expect(source).toContain("CAPACITOR_BOOT_ORIGIN");

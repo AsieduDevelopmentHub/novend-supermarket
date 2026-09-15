@@ -7,12 +7,7 @@ import type { BluetoothPrintErrorCode, HardwareResult } from "./types";
 export type BluetoothPrinterTransportKind = "ble" | "classic";
 
 export type BluetoothPrinterConnectionState =
-  | "none"
-  | "saved"
-  | "connecting"
-  | "connected"
-  | "reconnecting"
-  | "needs_attention";
+  "none" | "saved" | "connecting" | "connected" | "reconnecting" | "needs_attention";
 
 export type BluetoothPrinterDevice = {
   id: string;
@@ -52,10 +47,7 @@ export type BiometricAvailability = {
 };
 
 export type NotificationTopic =
-  | "stock_alerts"
-  | "daily_summary"
-  | "branch_transfers"
-  | "subscription_alerts";
+  "stock_alerts" | "daily_summary" | "branch_transfers" | "subscription_alerts";
 
 export type AppInfo = {
   name: string;

@@ -69,7 +69,12 @@ import {
   type BarcodeMatchProduct,
 } from "@/features/sales/components/barcode-match-dialog";
 import { DraggableCartFab } from "@/features/sales/components/draggable-cart-fab";
-import { readCartDraft, writeCartDraft, clearCartDraft, type CartDraftItem } from "@/lib/sales/cart-draft";
+import {
+  readCartDraft,
+  writeCartDraft,
+  clearCartDraft,
+  type CartDraftItem,
+} from "@/lib/sales/cart-draft";
 import { withTimeout } from "@/lib/async/with-timeout";
 import { loadPrintSnapshotMeta } from "@/lib/offline/ui-cache";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
@@ -650,13 +655,13 @@ export function SalesView() {
     const oversold = cart.find((item) => {
       const available = catalog.find((p) => p.id === item.productId)?.stockQuantity ?? 0;
       const factor = item.sellUnitKey
-        ? listActiveSellUnits({
+        ? (listActiveSellUnits({
             unit: "unit",
             sellingPrice: item.unitPrice,
             costPrice: 0,
             sellUnits: catalog.find((p) => p.id === item.productId)?.sellUnits,
             pricingMode: catalog.find((p) => p.id === item.productId)?.pricingMode,
-          }).find((u) => u.key === item.sellUnitKey)?.factorToBase ?? 1
+          }).find((u) => u.key === item.sellUnitKey)?.factorToBase ?? 1)
         : 1;
       return roundQuantity(item.quantity * factor) > available;
     });

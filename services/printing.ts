@@ -316,8 +316,7 @@ export async function printReceipt(
         printed: false,
         reason: "native_unavailable",
         failureCode: result.code,
-        failureMessage:
-          result.message || bluetoothPrintFailedMessage(result.code),
+        failureMessage: result.message || bluetoothPrintFailedMessage(result.code),
       };
     } catch (error) {
       console.warn("[print:capacitor-error]", error);

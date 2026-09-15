@@ -176,7 +176,10 @@ const bridge: NovendDesktopBridge = {
     ipcRenderer.invoke("desktop:customerDisplay:setAutoOpen", { enabled }),
   onDisplaysChanged: (listener) => {
     void ipcRenderer.invoke("desktop:customerDisplay:onDisplaysChanged");
-    const handler = (_event: IpcRendererEvent, payload: { ok: boolean; displays: DesktopDisplayInfo[] }) => {
+    const handler = (
+      _event: IpcRendererEvent,
+      payload: { ok: boolean; displays: DesktopDisplayInfo[] },
+    ) => {
       listener(payload);
     };
     ipcRenderer.on(CUSTOMER_DISPLAY_DISPLAYS_CHANNEL, handler);

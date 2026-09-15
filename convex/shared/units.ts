@@ -48,17 +48,18 @@ export function roundQuantity(value: number): number {
   return Math.round((value + Number.EPSILON) * QTY_SCALE) / QTY_SCALE;
 }
 
-export function assertSellQuantity(
-  value: number,
-  options?: { allowFractional?: boolean },
-): void {
+export function assertSellQuantity(value: number, options?: { allowFractional?: boolean }): void {
   if (!Number.isFinite(value) || value <= 0) {
     throw new Error("Quantity must be a positive number");
   }
   if (!options?.allowFractional && !Number.isInteger(value)) {
     throw new Error("Quantity must be a positive integer");
   }
-  if (options?.allowFractional && roundQuantity(value) !== value && value !== roundQuantity(value)) {
+  if (
+    options?.allowFractional &&
+    roundQuantity(value) !== value &&
+    value !== roundQuantity(value)
+  ) {
     // allow float noise — normalize callers should pass roundQuantity
   }
 }
@@ -126,10 +127,7 @@ export function resolveSellUnit(
   return match;
 }
 
-export function lineGrossForSellUnit(
-  unit: ResolvedSellUnit,
-  displayedQuantity: number,
-): number {
+export function lineGrossForSellUnit(unit: ResolvedSellUnit, displayedQuantity: number): number {
   return roundMoney(unit.unitPrice * displayedQuantity);
 }
 

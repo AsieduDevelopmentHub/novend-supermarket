@@ -17,9 +17,7 @@ describe("businessCapabilities registry", () => {
     expect(DEFAULT_BUSINESS_CONFIGURATION.configurationVersion).toBe(
       BUSINESS_CAPABILITY_CONFIGURATION_VERSION,
     );
-    expect(hasBusinessCapability(DEFAULT_BUSINESS_CONFIGURATION, "multi_unit_pricing")).toBe(
-      false,
-    );
+    expect(hasBusinessCapability(DEFAULT_BUSINESS_CONFIGURATION, "multi_unit_pricing")).toBe(false);
   });
 
   it("parses missing or invalid JSON as defaults", () => {
