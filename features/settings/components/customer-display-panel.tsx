@@ -73,18 +73,22 @@ export function CustomerDisplayPanel() {
   useEffect(() => {
     const bridge = getDesktopBridge();
     if (!bridge) {
-      setCapabilityAvailable(null);
-      setDesktopBridgeStale(false);
+      queueMicrotask(() => {
+        setCapabilityAvailable(null);
+        setDesktopBridgeStale(false);
+      });
       return;
     }
 
     if (!desktopSupportsCustomerDisplay(bridge)) {
-      setCapabilityAvailable(null);
-      setDesktopBridgeStale(true);
+      queueMicrotask(() => {
+        setCapabilityAvailable(null);
+        setDesktopBridgeStale(true);
+      });
       return;
     }
 
-    setDesktopBridgeStale(false);
+    queueMicrotask(() => setDesktopBridgeStale(false));
 
     void bridge.getCapabilities().then((result) => {
       const row = result.capabilities.find((cap) => cap.kind === "customer_display");

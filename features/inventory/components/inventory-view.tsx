@@ -111,7 +111,7 @@ function InventoryViewInner() {
 
   useEffect(() => {
     if (!transferOpen || !fromBranchId) {
-      setTransferSourceRows([]);
+      queueMicrotask(() => setTransferSourceRows([]));
       return;
     }
     let cancelled = false;
