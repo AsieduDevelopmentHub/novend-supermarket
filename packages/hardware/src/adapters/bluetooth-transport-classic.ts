@@ -1,8 +1,19 @@
 import { Capacitor } from "@capacitor/core";
+import { isAndroid } from "../platform";
 import type { HardwareResult } from "../types";
 import type { BluetoothPrinterDevice } from "../native-types";
 import { NATIVE_SPP_TIMEOUT_MS, isNativeTimeoutError, withTimeout } from "../timeout";
 import { NovendBluetoothClassic } from "./cap-bluetooth-classic";
+import {
+  hasNovendNativeClassicBluetooth,
+  nativeClassicConnect,
+  nativeClassicDisconnect,
+  nativeClassicIsConnected,
+  nativeClassicListBonded,
+  nativeClassicOpenBluetoothSettings,
+  nativeClassicWriteEscPos,
+  openNativeAppDetailsSettings,
+} from "./novend-native-app";
 import {
   type BluetoothPrinterTransport,
   bytesToBase64,
@@ -43,8 +54,18 @@ function pluginError(error: unknown, fallback: string, code: "write_failed" = "w
   return mapBluetoothFailure(raw, fallback, code);
 }
 
+/** Prefer UA / NovendCapacitor detection — Capacitor.getPlatform can lie after remote load. */
 export function isClassicBluetoothAvailable(): boolean {
-  return Capacitor.getPlatform() === "android";
+  if (isAndroid()) return true;
+  try {
+    return Capacitor.getPlatform() === "android";
+  } catch {
+    return false;
+  }
+}
+
+function useNativeClassic(): boolean {
+  return hasNovendNativeClassicBluetooth();
 }
 
 export function createClassicPrinterTransport(): BluetoothPrinterTransport {
@@ -52,6 +73,7 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
     kind: "classic",
 
     isConnected(deviceId) {
+      if (useNativeClassic()) return nativeClassicIsConnected(deviceId);
       return Boolean(connectedId && connectedId === deviceId);
     },
 
@@ -63,6 +85,13 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
           message: "Classic Bluetooth printing is available on Android tablets and phones.",
           data: { devices: [] },
         };
+      }
+      if (useNativeClassic()) {
+        const listed = nativeClassicListBonded();
+        if (!listed.ok && listed.code === "permission") {
+          openNativeAppDetailsSettings();
+        }
+        return listed;
       }
       try {
         const permission = await withTimeout(
@@ -104,6 +133,20 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
           message: "Classic Bluetooth printing is available on Android tablets and phones.",
         };
       }
+      if (useNativeClassic()) {
+        if (connectedId && connectedId !== deviceId) {
+          nativeClassicDisconnect();
+          connectedId = null;
+        }
+        const result = nativeClassicConnect(deviceId);
+        if (!result.ok) {
+          if (result.code === "permission") openNativeAppDetailsSettings();
+          connectedId = null;
+          return result;
+        }
+        connectedId = deviceId;
+        return result;
+      }
       try {
         const permission = await withTimeout(
           NovendBluetoothClassic.requestPermissions(),
@@ -137,6 +180,11 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
     },
 
     async disconnect() {
+      if (useNativeClassic()) {
+        nativeClassicDisconnect();
+        connectedId = null;
+        return { ok: true };
+      }
       try {
         await NovendBluetoothClassic.disconnect();
       } catch {
@@ -150,6 +198,11 @@ export function createClassicPrinterTransport(): BluetoothPrinterTransport {
       if (!this.isConnected(deviceId)) {
         const connected = await this.connect(deviceId);
         if (!connected.ok) return connected;
+      }
+      if (useNativeClassic()) {
+        const result = nativeClassicWriteEscPos(bytesToBase64(bytes));
+        if (!result.ok) connectedId = null;
+        return result;
       }
       try {
         await withTimeout(
@@ -172,6 +225,9 @@ export async function openClassicBluetoothSettings(): Promise<HardwareResult> {
       code: "unsupported",
       message: "Open Bluetooth settings on this device to pair a printer.",
     };
+  }
+  if (useNativeClassic()) {
+    return nativeClassicOpenBluetoothSettings();
   }
   try {
     await NovendBluetoothClassic.openBluetoothSettings();

@@ -52,16 +52,16 @@ UI components must not call Electron preload or Capacitor plugins directly.
 | Camera / Take Photo     | **In-dialog `getUserMedia`** on HTTPS / localhost. Native still is a **manual** button only when live preview is missing (Cap HTTP). Never auto-launch the system camera on open.  |
 | Save receipt / export   | `downloadBlob` writes Android **Downloads** via `window.NovendNative` (WebView JavascriptInterface). Do not call Capacitor Filesystem / NovendPrint after the hosted origin loads. |
 | Share receipt           | Capacitor: Android share sheet via `window.NovendNative.finishShare` (PDF + FileProvider). Web/Electron: Web Share API when it can take a file; otherwise Downloads.               |
-| Print receipt           | Same `receiptPrintMode` on web, Electron, and Capacitor. Cap: Automatic/Manual print one ESC/POS copy over BLE (Android/iOS) or Classic SPP (Android). Share/Save PDF are recovery paths — never counted as thermal print success. |
-| Bluetooth thermal print | Settings → Hardware: pair one device-local printer (Nearby BLE or Android Classic bonded). Auto-reconnect before print + one write retry. Paper width in Hardware drives physical ESC/POS columns. |
+| Print receipt           | Same `receiptPrintMode` on web, Electron, and Capacitor. Cap: Automatic/Manual print one ESC/POS copy over Classic SPP via `NovendNative` (Android) or BLE Cap plugin (may time out on hosted origin). Share/Save PDF are recovery paths — never counted as thermal print success. |
+| Bluetooth thermal print | Settings → Hardware: prefer **Android paired (Classic)**. Pair in system Bluetooth first, then Discover. Nearby BLE still uses Cap BLE and is secondary on hosted Cap. |
 | Local image durability  | Also written under Capacitor `Directory.Data` (`product-images/`)                                                                                                                  |
 | Barcode (camera)        | In-dialog getUserMedia → bundled **ZXing**. Photograph-barcode is a manual fallback only.                                                                                          |
 | Barcode (HID)           | Terminal wedge config + `useBarcodeScanner` (desktop primary)                                                                                                                      |
 | Biometrics              | Status via `BiometricManager.BIOMETRIC_WEAK` (includes Class 3). Prompt prefers Class 3 + device PIN; Class 2-only phones use weak + Cancel. Unlock token only (not the account password). |
-| Unlock token storage    | Capacitor `Preferences` (primary). Best-effort write to `@aparajita/capacitor-secure-storage` with a short timeout — Keystore set after BiometricPrompt often hangs on Class 2 devices.   |
+| Unlock token storage    | `localStorage` (primary). Best-effort Cap SecureStorage with short timeout — Cap Preferences hang after hosted origin. |
 | Notifications           | Check/open via `window.NovendNative` (`NotificationManagerCompat` + system notification settings). Topic prefs use `localStorage`.                                                 |
 | Deep links              | `novend://sale/…`, `novend://product/…` via `Hardware.app`                                                                                                                         |
-| Soft updates            | Optional `NEXT_PUBLIC_MOBILE_UPDATE_JSON` vs native version                                                                                                                        |
+| Soft updates            | Optional `NEXT_PUBLIC_MOBILE_UPDATE_JSON` vs native version. Shell version from `NovendNative.appInfo` (Cap `App.getInfo` hangs on hosted origin). |
 | Weighing scale          | **Not wired.** `sell_by_weight` uses manual qty at checkout. Capability `scale_hardware` + `Hardware.scale` adapter are deferred (Settings → Future devices).                         |
 
 Permissions are requested on tap (or when enabling a feature), never at cold
@@ -73,10 +73,12 @@ bridge**. `withTimeout` does not cancel the native call — the UI stays frozen
 until the app is force-closed.
 
 Critical paths stay off the hung plugin bridge: getUserMedia for camera,
-`window.NovendNative` for Downloads, share, notification state, and biometric
-status/prompt. BLE Discover uses the system device picker when available.
-Classic RFCOMM/SPP uses the first-party `NovendBluetoothClassic` plugin with
-background socket I/O (never block the Capacitor bridge thread).
+`window.NovendNative` for Downloads, share, notification state, biometric
+status/prompt, **app info / update version**, **Classic Bluetooth SPP print**,
+and device-local prefs (`localStorage` instead of Cap Preferences).
+
+Nearby BLE Discover still uses `@capacitor-community/bluetooth-le` and may
+time out on hosted Cap — prefer **Android paired (Classic)** in Hardware.
 
 ## Desktop registry
 

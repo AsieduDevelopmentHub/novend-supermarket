@@ -1,5 +1,6 @@
-import { Preferences } from "@capacitor/preferences";
 import type { BluetoothPrinterTransportKind } from "../native-types";
+import { isAndroid } from "../platform";
+import { readLocalPref, removeLocalPref, writeLocalPref } from "./local-prefs";
 
 export const PREF_DEVICE_ID = "novend.bt.printer.deviceId";
 export const PREF_DEVICE_NAME = "novend.bt.printer.deviceName";
@@ -12,70 +13,53 @@ export type SavedBluetoothPrinterProfile = {
   deviceName: string | null;
   paperWidthMm: 58 | 80;
   autoReconnect: boolean;
-  /** Default ble for legacy profiles that predate Classic SPP. */
+  /** Default classic on Android — Cap BLE hangs on hosted origin. */
   transport: BluetoothPrinterTransportKind;
 };
 
 function parseTransport(raw: string | null): BluetoothPrinterTransportKind {
   if (raw === "classic") return "classic";
-  return "ble";
+  if (raw === "ble") return "ble";
+  // Unset: Classic survives hosted Cap; BLE Cap plugin often does not.
+  return isAndroid() ? "classic" : "ble";
 }
 
 export async function readBluetoothPrinterProfile(): Promise<SavedBluetoothPrinterProfile> {
-  const [id, name, paper, auto, transport] = await Promise.all([
-    Preferences.get({ key: PREF_DEVICE_ID }),
-    Preferences.get({ key: PREF_DEVICE_NAME }),
-    Preferences.get({ key: PREF_PAPER }),
-    Preferences.get({ key: PREF_AUTO }),
-    Preferences.get({ key: PREF_TRANSPORT }),
-  ]);
   return {
-    deviceId: id.value,
-    deviceName: name.value,
-    paperWidthMm: paper.value === "58" ? 58 : 80,
-    autoReconnect: auto.value !== "false",
-    transport: parseTransport(transport.value),
+    deviceId: readLocalPref(PREF_DEVICE_ID),
+    deviceName: readLocalPref(PREF_DEVICE_NAME),
+    paperWidthMm: readLocalPref(PREF_PAPER) === "58" ? 58 : 80,
+    autoReconnect: readLocalPref(PREF_AUTO) !== "false",
+    transport: parseTransport(readLocalPref(PREF_TRANSPORT)),
   };
 }
 
 export async function writeBluetoothPrinterProfile(
   patch: Partial<SavedBluetoothPrinterProfile>,
 ): Promise<void> {
-  const tasks: Promise<unknown>[] = [];
   if (patch.deviceId !== undefined) {
-    if (patch.deviceId) {
-      tasks.push(Preferences.set({ key: PREF_DEVICE_ID, value: patch.deviceId }));
-    } else {
-      tasks.push(Preferences.remove({ key: PREF_DEVICE_ID }));
-    }
+    if (patch.deviceId) writeLocalPref(PREF_DEVICE_ID, patch.deviceId);
+    else removeLocalPref(PREF_DEVICE_ID);
   }
   if (patch.deviceName !== undefined) {
-    if (patch.deviceName) {
-      tasks.push(Preferences.set({ key: PREF_DEVICE_NAME, value: patch.deviceName }));
-    } else {
-      tasks.push(Preferences.remove({ key: PREF_DEVICE_NAME }));
-    }
+    if (patch.deviceName) writeLocalPref(PREF_DEVICE_NAME, patch.deviceName);
+    else removeLocalPref(PREF_DEVICE_NAME);
   }
   if (patch.paperWidthMm !== undefined) {
-    tasks.push(Preferences.set({ key: PREF_PAPER, value: String(patch.paperWidthMm) }));
+    writeLocalPref(PREF_PAPER, String(patch.paperWidthMm));
   }
   if (patch.autoReconnect !== undefined) {
-    tasks.push(
-      Preferences.set({ key: PREF_AUTO, value: patch.autoReconnect ? "true" : "false" }),
-    );
+    writeLocalPref(PREF_AUTO, patch.autoReconnect ? "true" : "false");
   }
   if (patch.transport !== undefined) {
-    tasks.push(Preferences.set({ key: PREF_TRANSPORT, value: patch.transport }));
+    writeLocalPref(PREF_TRANSPORT, patch.transport);
   }
-  await Promise.all(tasks);
 }
 
 export async function clearBluetoothPrinterProfile(): Promise<void> {
-  await Promise.all([
-    Preferences.remove({ key: PREF_DEVICE_ID }),
-    Preferences.remove({ key: PREF_DEVICE_NAME }),
-    Preferences.remove({ key: PREF_TRANSPORT }),
-  ]);
+  removeLocalPref(PREF_DEVICE_ID);
+  removeLocalPref(PREF_DEVICE_NAME);
+  removeLocalPref(PREF_TRANSPORT);
 }
 
 /** Pure helper — used by unit tests and mobile paper-width resolution. */

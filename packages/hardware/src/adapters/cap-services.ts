@@ -1,7 +1,6 @@
 import { SecureStorage } from "@aparajita/capacitor-secure-storage";
 import { App } from "@capacitor/app";
 import { LocalNotifications } from "@capacitor/local-notifications";
-import { Preferences } from "@capacitor/preferences";
 import type { HardwareResult } from "../types";
 import type {
   AppInfo,
@@ -19,6 +18,8 @@ import {
   readNativeBiometricStatus,
   readNativeNotificationState,
 } from "./novend-native-security";
+import { readNativeAppInfo } from "./novend-native-app";
+import { readLocalPref, removeLocalPref, writeLocalPref } from "./local-prefs";
 import { friendlyHardwareMessage } from "../permissions";
 import { NATIVE_AVAILABILITY_TIMEOUT_MS, NATIVE_CALL_TIMEOUT_MS, withTimeout } from "../timeout";
 import { compareAppVersions, normalizeAppVersion } from "../version";
@@ -198,8 +199,10 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
 export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
   return {
     async getInfo() {
+      const native = readNativeAppInfo();
+      if (native) return { ok: true, data: native };
       try {
-        const info = await App.getInfo();
+        const info = await withTimeout(App.getInfo(), NATIVE_CALL_TIMEOUT_MS);
         return {
           ok: true,
           data: {
@@ -219,7 +222,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
     },
     async getLaunchUrl() {
       try {
-        const result = await App.getLaunchUrl();
+        const result = await withTimeout(App.getLaunchUrl(), NATIVE_CALL_TIMEOUT_MS);
         return { ok: true, data: result?.url ?? null };
       } catch {
         return { ok: true, data: null };
@@ -236,7 +239,24 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
     },
     async checkForUpdate() {
       try {
-        const info = await App.getInfo();
+        const native = readNativeAppInfo();
+        let infoVersion = native?.version;
+        if (!infoVersion) {
+          try {
+            const info = await withTimeout(App.getInfo(), NATIVE_CALL_TIMEOUT_MS);
+            infoVersion = info.version;
+          } catch {
+            return {
+              ok: false,
+              message: "Could not read the installed app version. Reinstall the latest Novend APK.",
+              data: {
+                available: false,
+                status: "unknown",
+                notes: "Could not read the installed app version.",
+              },
+            };
+          }
+        }
         if (
           typeof window !== "undefined" &&
           shouldSkipMobileUpdateCheck(window.location.protocol, window.location.hostname)
@@ -246,7 +266,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
             data: {
               available: false,
               status: "dev",
-              version: info.version,
+              version: infoVersion,
               notes: "Development session — update checks run on signed release APKs.",
             } satisfies UpdateInfo,
           };
@@ -270,7 +290,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
             data: {
               available: false,
               status: "unconfigured",
-              version: info.version,
+              version: infoVersion,
               notes: "Update endpoint is not configured for this build.",
             } satisfies UpdateInfo,
           };
@@ -284,13 +304,12 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           NATIVE_AVAILABILITY_TIMEOUT_MS,
         );
         if (response.status === 404) {
-          // No published mobile release yet — treat installed shell as current.
           return {
             ok: true,
             data: {
               available: false,
               status: "latest",
-              version: info.version,
+              version: infoVersion,
               notes: "No newer mobile release is published for this channel.",
             },
           };
@@ -313,7 +332,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           downloadUrl?: string;
           mandatory?: boolean;
         };
-        const installedVersion = normalizeAppVersion(info.version);
+        const installedVersion = normalizeAppVersion(infoVersion);
         const remoteVersion = normalizeAppVersion(remote.version);
         if (!installedVersion || !remoteVersion) {
           return {
@@ -321,7 +340,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
             data: {
               available: false,
               status: "unknown",
-              version: info.version,
+              version: infoVersion,
               notes: "Could not compare shell versions.",
             },
           };
@@ -428,37 +447,22 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
   };
 }
 
-/** Biometric preference helpers (Preferences + Secure Storage unlock token). */
+/** Biometric preference helpers (localStorage — Cap Preferences hangs on hosted origin). */
 export async function getBiometricPrefs(): Promise<{
   enabled: boolean;
   requireOnLaunch: boolean;
 }> {
-  try {
-    const [enabled, requireOnLaunch] = await withTimeout(
-      Promise.all([
-        Preferences.get({ key: BIOMETRIC_ENABLED_KEY }),
-        Preferences.get({ key: BIOMETRIC_REQUIRE_LAUNCH_KEY }),
-      ]),
-      NATIVE_CALL_TIMEOUT_MS,
-    );
-    return {
-      enabled: enabled.value === "true",
-      requireOnLaunch: requireOnLaunch.value === "true",
-    };
-  } catch {
-    return { enabled: false, requireOnLaunch: false };
-  }
+  return {
+    enabled: readLocalPref(BIOMETRIC_ENABLED_KEY) === "true",
+    requireOnLaunch: readLocalPref(BIOMETRIC_REQUIRE_LAUNCH_KEY) === "true",
+  };
 }
 
 export async function setBiometricEnabled(enabled: boolean): Promise<HardwareResult> {
-  await Preferences.set({ key: BIOMETRIC_ENABLED_KEY, value: enabled ? "true" : "false" });
+  writeLocalPref(BIOMETRIC_ENABLED_KEY, enabled ? "true" : "false");
   if (!enabled) {
-    await Preferences.set({ key: BIOMETRIC_REQUIRE_LAUNCH_KEY, value: "false" });
-    try {
-      await Preferences.remove({ key: BIOMETRIC_UNLOCK_TOKEN_KEY });
-    } catch {
-      /* ignore */
-    }
+    writeLocalPref(BIOMETRIC_REQUIRE_LAUNCH_KEY, "false");
+    removeLocalPref(BIOMETRIC_UNLOCK_TOKEN_KEY);
     try {
       await withTimeout(SecureStorage.removeItem(BIOMETRIC_UNLOCK_TOKEN_KEY), NATIVE_CALL_TIMEOUT_MS);
     } catch {
@@ -469,22 +473,18 @@ export async function setBiometricEnabled(enabled: boolean): Promise<HardwareRes
 }
 
 export async function setBiometricRequireOnLaunch(require: boolean): Promise<HardwareResult> {
-  await Preferences.set({
-    key: BIOMETRIC_REQUIRE_LAUNCH_KEY,
-    value: require ? "true" : "false",
-  });
+  writeLocalPref(BIOMETRIC_REQUIRE_LAUNCH_KEY, require ? "true" : "false");
   return { ok: true };
 }
 
 /**
  * Unlock token is not a password — it only proves the user completed a local
- * biometric challenge. Prefer Preferences: Aparajita SecureStorage often hangs
- * or fails right after BiometricPrompt on Class 2 devices (stuck “Enabling…”).
- * Still try SecureStorage briefly; fall back so enable always completes.
+ * biometric challenge. Prefer localStorage: Cap Preferences / SecureStorage
+ * often hang after the hosted origin loads.
  */
 export async function storeBiometricUnlockToken(token: string): Promise<HardwareResult> {
   try {
-    await Preferences.set({ key: BIOMETRIC_UNLOCK_TOKEN_KEY, value: token });
+    writeLocalPref(BIOMETRIC_UNLOCK_TOKEN_KEY, token);
   } catch (error) {
     const raw = error instanceof Error ? error.message : String(error ?? "");
     return {
@@ -495,21 +495,14 @@ export async function storeBiometricUnlockToken(token: string): Promise<Hardware
   try {
     await withTimeout(SecureStorage.setItem(BIOMETRIC_UNLOCK_TOKEN_KEY, token), NATIVE_CALL_TIMEOUT_MS);
   } catch {
-    /* Preferences already holds the token */
+    /* localStorage already holds the token */
   }
   return { ok: true };
 }
 
 export async function readBiometricUnlockToken(): Promise<HardwareResult<string | null>> {
-  try {
-    const pref = await withTimeout(
-      Preferences.get({ key: BIOMETRIC_UNLOCK_TOKEN_KEY }),
-      NATIVE_CALL_TIMEOUT_MS,
-    );
-    if (pref.value) return { ok: true, data: pref.value };
-  } catch {
-    /* try SecureStorage */
-  }
+  const local = readLocalPref(BIOMETRIC_UNLOCK_TOKEN_KEY);
+  if (local) return { ok: true, data: local };
   try {
     const value = await withTimeout(
       SecureStorage.getItem(BIOMETRIC_UNLOCK_TOKEN_KEY),
