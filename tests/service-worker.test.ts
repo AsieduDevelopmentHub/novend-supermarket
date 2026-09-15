@@ -13,10 +13,12 @@ describe("service worker navigation safety", () => {
     expect(sw).toContain('redirect: "follow"');
   });
 
-  it("does not intercept /login so the auth 302 is followed by the browser", () => {
+  it("serves auth documents network-first with a cached login fallback offline", () => {
     expect(sw).toContain("function isAuthDocument");
     expect(sw).toContain('url.pathname === "/login"');
-    expect(sw).toContain("if (isAuthDocument(url)) return;");
+    expect(sw).toContain("if (isAuthDocument(url))");
+    expect(sw).toContain('caches.match("/login")');
+    expect(sw).toContain("await fetch(request)");
   });
 
   it("does not intercept the marketing homepage so a signed-in 302 can change the URL", () => {
@@ -54,7 +56,7 @@ describe("service worker navigation safety", () => {
   });
 
   it("does not precache gated app routes that 302 to login", () => {
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v14"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v15"');
     expect(sw).toContain("/branding/logo_horizontal.png");
     expect(sw).toContain("/docs/releases");
     expect(sw).not.toMatch(/PRECACHE = \[[^\]]*\/dashboard/);
