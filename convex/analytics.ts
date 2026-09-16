@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { Id, Doc } from "./_generated/dataModel";
 import { requireRole, resolveBranchFilter, assertBranchAccess } from "./shared/permissions";
 import { writeAuditLog } from "./shared/audit";
 import { assertActiveOrgBranch } from "./shared/tenancy";
@@ -100,7 +100,7 @@ export const listExpenses = query({
     const endDate = args.endDate;
     const fetchCap = Math.min(Math.max(limit * (branchFilter ? 4 : 2), limit), 400);
 
-    let rows;
+    let rows: Doc<"expenses">[];
     if (startDate !== undefined && endDate !== undefined) {
       rows = await ctx.db
         .query("expenses")
