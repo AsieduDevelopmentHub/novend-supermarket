@@ -19,3 +19,4 @@ scripts/.auth-keys.*
 *.jks
 tmp
 .tmp-vitalgo/
+pos.code-workspace

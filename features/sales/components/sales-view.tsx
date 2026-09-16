@@ -24,7 +24,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { formatCurrency, roundMoney } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
-import { Minus, Package, Plus, ScanBarcode, ShoppingCart, UserRound, X } from "lucide-react";
+import { Minus, Package, Plus, ScanBarcode, ShoppingCart, Trash2, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { printReceipt, loadTerminalPrinterConfig, probePrintBridge } from "@/services/printing";
@@ -1289,71 +1289,91 @@ function SalesCheckoutFields({
         <p className="text-muted-foreground text-sm">Add products to start a sale.</p>
       ) : (
         <ul className="space-y-3">
-          {displayCart.map((item) => (
-            <li key={item.productId} className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{item.name}</p>
-                <p className="text-muted-foreground text-xs">{formatCurrency(item.unitPrice)}</p>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  className="h-7 w-7"
-                  onClick={() =>
-                    onSetCart((prev) =>
-                      prev
-                        .map((row) =>
-                          row.productId === item.productId
-                            ? { ...row, quantity: row.quantity - 1 }
-                            : row,
-                        )
-                        .filter((row) => row.quantity > 0),
-                    )
-                  }
-                >
-                  <Minus className="h-3 w-3" />
-                </Button>
-                <UnsignedQuantityInput
-                  aria-label={`Quantity for ${item.name}`}
-                  className="h-7 w-14 px-1 text-center text-sm"
-                  value={qtyDrafts[item.productId] ?? String(item.quantity)}
-                  onValueChange={(next) => onSetCartQuantity(item.productId, next)}
-                  onBlur={() => onCommitCartQuantity(item.productId)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.currentTarget.blur();
+          {displayCart.map((item) => {
+            const lineKey = `${item.productId}:${item.sellUnitKey ?? "default"}`;
+            function matchesLine(row: CartItem) {
+              return (
+                row.productId === item.productId &&
+                (row.sellUnitKey ?? "default") === (item.sellUnitKey ?? "default")
+              );
+            }
+            return (
+              <li key={lineKey} className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{item.name}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {formatCurrency(item.unitPrice)}
+                    {item.sellUnitLabel ? ` · ${item.sellUnitLabel}` : null}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    aria-label={`Decrease ${item.name}`}
+                    onClick={() =>
+                      onSetCart((prev) =>
+                        prev
+                          .map((row) =>
+                            matchesLine(row) ? { ...row, quantity: row.quantity - 1 } : row,
+                          )
+                          .filter((row) => row.quantity > 0),
+                      )
                     }
-                  }}
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  className="h-7 w-7"
-                  onClick={() => {
-                    const stock =
-                      catalog.find((p) => p.id === item.productId)?.stockQuantity ??
-                      item.quantity + 1;
-                    if (item.quantity + 1 > stock) {
-                      toast.error("Not enough stock");
-                      return;
-                    }
-                    onSetCart((prev) =>
-                      prev.map((row) =>
-                        row.productId === item.productId
-                          ? { ...row, quantity: row.quantity + 1 }
-                          : row,
-                      ),
-                    );
-                  }}
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
-              </div>
-            </li>
-          ))}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                  <UnsignedQuantityInput
+                    aria-label={`Quantity for ${item.name}`}
+                    className="h-7 w-14 px-1 text-center text-sm"
+                    value={qtyDrafts[item.productId] ?? String(item.quantity)}
+                    onValueChange={(next) => onSetCartQuantity(item.productId, next)}
+                    onBlur={() => onCommitCartQuantity(item.productId)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.currentTarget.blur();
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    aria-label={`Increase ${item.name}`}
+                    onClick={() => {
+                      const stock =
+                        catalog.find((p) => p.id === item.productId)?.stockQuantity ??
+                        item.quantity + 1;
+                      if (item.quantity + 1 > stock) {
+                        toast.error("Not enough stock");
+                        return;
+                      }
+                      onSetCart((prev) =>
+                        prev.map((row) =>
+                          matchesLine(row) ? { ...row, quantity: row.quantity + 1 } : row,
+                        ),
+                      );
+                    }}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive h-7 w-7"
+                    aria-label={`Remove ${item.name} from cart`}
+                    onClick={() => onSetCart((prev) => prev.filter((row) => !matchesLine(row)))}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </>

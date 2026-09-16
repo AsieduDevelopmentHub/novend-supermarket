@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { ProductSellUnit } from "@/convex/shared/units";
+import { UnitPresetField } from "@/features/products/components/unit-preset-field";
 
 export type SellUnitDraft = {
   key: string;
@@ -123,15 +124,12 @@ export function ProductSellUnitsEditor({
             className="border-border bg-background space-y-3 rounded-[14px] border p-3"
           >
             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="min-w-0 space-y-1.5">
-                <Label className="text-xs">Label</Label>
-                <Input
-                  className="min-h-11"
-                  value={row.label}
-                  placeholder={showWeight ? "kg" : "Pack of 6"}
-                  onChange={(e) => patch(index, { label: e.target.value })}
-                />
-              </div>
+              <UnitPresetField
+                label="Label"
+                value={row.label}
+                onChange={(label) => patch(index, { label })}
+                dense
+              />
               <div className="min-w-0 space-y-1.5">
                 <Label className="text-xs">Factor → base</Label>
                 <Input
