@@ -75,8 +75,9 @@ export const dashboard = query({
 
     const [
       organizations,
-      profiles,
-      devices,
+      orgStats,
+      activeDevices,
+      recentlyRegisteredDevices,
       subscriptions,
       billing,
       costs,
@@ -88,8 +89,15 @@ export const dashboard = query({
       baselines,
     ] = await Promise.all([
       ctx.db.query("organizations").collect(),
-      ctx.db.query("profiles").collect(),
-      ctx.db.query("devices").collect(),
+      ctx.db.query("organizationPlatformStats").collect(),
+      ctx.db
+        .query("devices")
+        .withIndex("by_isActive", (q) => q.eq("isActive", true))
+        .collect(),
+      ctx.db
+        .query("devices")
+        .withIndex("by_registeredAt", (q) => q.gte("registeredAt", since))
+        .collect(),
       ctx.db.query("subscriptions").collect(),
       ctx.db.query("billingHistory").collect(),
       ctx.db.query("platformOperatingCosts").collect(),
@@ -113,11 +121,11 @@ export const dashboard = query({
       ctx.db.query("releaseDownloadBaselines").collect(),
     ]);
 
+    const staffAccounts = orgStats.reduce((sum, row) => sum + row.userCount, 0);
     const successfulPayments = billing.filter(
       (row) => row.status === "success" && (row.paidAt ?? row.createdAt) >= since,
     );
     const periodCosts = costs.filter((row) => row.occurredAt >= since);
-    const activeDevices = devices.filter((device) => device.isActive);
     const currentRollups = rollups.filter((row) => row.day >= sinceDay);
     const previousRollups =
       range === "all"
@@ -211,7 +219,7 @@ export const dashboard = query({
     const failedPayments = billing.filter((row) => row.status === "failed");
     const createdOrganizations = organizations.filter((row) => row.createdAt >= since);
     const activatedOrganizationIds = new Set(
-      devices.filter((row) => row.registeredAt >= since).map((row) => String(row.organizationId)),
+      recentlyRegisteredDevices.map((row) => String(row.organizationId)),
     );
     const engagedOrganizationIds = new Set(
       activeUsers.filter((row) => row.organizationId).map((row) => String(row.organizationId)),
@@ -238,7 +246,7 @@ export const dashboard = query({
         organizations: organizations.length,
         activeOrganizations: organizations.filter((row) => row.status === "active").length,
         trialOrganizations: organizations.filter((row) => row.status === "trial").length,
-        staffAccounts: profiles.length,
+        staffAccounts,
         dau: countUnique(dauRows, (row) => String(row.userId)),
         wau: countUnique(wauRows, (row) => String(row.userId)),
         mau: countUnique(mauRows, (row) => String(row.userId)),

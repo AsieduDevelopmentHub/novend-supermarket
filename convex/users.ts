@@ -20,6 +20,7 @@ import {
 } from "./shared/permissions";
 import { roleValidator, telemetryRuntimeValidator } from "./schema";
 import { writeAuditLog } from "./shared/audit";
+import { bumpOrgUserCount } from "./shared/organizationStats";
 import { Id } from "./_generated/dataModel";
 import { assertStoredImage, sanitizePhone, sanitizeText, TEXT_LIMITS } from "./shared/validation";
 import { assertPasswordPolicy } from "./shared/passwordPolicy";
@@ -602,6 +603,8 @@ export const insertProfileForUser = internalMutation({
       status: "active",
       lastSeenAt: 0,
     });
+
+    await bumpOrgUserCount(ctx, args.organizationId, 1);
 
     await writeAuditLog(ctx, {
       actorId: args.actorId ?? args.userId,

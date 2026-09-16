@@ -10,6 +10,7 @@ import {
   TEXT_LIMITS,
 } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
+import { bumpOrgBranchCount } from "./shared/organizationStats";
 import { ensureBranchStockRow, stockMapForBranch } from "./shared/branchStock";
 import { completedReturnsInRange, loadItemsForReturns, cogsForLines } from "./shared/returns";
 import {
@@ -267,6 +268,8 @@ export const create = mutation({
       organizationId,
       metadata: { name, code },
     });
+
+    await bumpOrgBranchCount(ctx, organizationId, 1);
 
     return id;
   },

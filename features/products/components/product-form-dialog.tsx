@@ -37,6 +37,7 @@ import {
   parseSellUnitDrafts,
   type SellUnitDraft,
 } from "@/features/products/components/product-sell-units-editor";
+import { UnitPresetField } from "@/features/products/components/unit-preset-field";
 import { ProductImage } from "@/components/media/product-image";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -350,6 +351,10 @@ function ProductFormBody({
       toast.error("SKU is required");
       return;
     }
+    if (!unit.trim()) {
+      toast.error("Select a stock unit");
+      return;
+    }
     setPending(true);
     try {
       let sellUnits: ProductSellUnit[] | undefined;
@@ -358,7 +363,7 @@ function ProductFormBody({
         sellUnits = parseSellUnitDrafts(sellUnitDrafts);
         resolvedPricingMode = showWeight && pricingMode === "per_weight" ? "per_weight" : "fixed";
       }
-      const resolvedUnit = showPacks || showWeight ? unit.trim() || defaultUnit : "pcs";
+      const resolvedUnit = unit.trim() || defaultUnit;
       const resolvedTracksExpiry = showExpiry ? tracksExpiry : false;
       let savedId = productId ?? "";
       let resolvedCategoryId = categoryId;
@@ -608,21 +613,20 @@ function ProductFormBody({
               </div>
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-              {showPacks || showWeight ? (
-                <div className="min-w-0 space-y-2">
-                  <Label htmlFor="unit">Base stock unit</Label>
-                  <Input
-                    id="unit"
-                    className="min-h-11"
-                    value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
-                    required
-                  />
-                  <p className="text-muted-foreground text-xs">
-                    Inventory is counted in this unit (e.g. pcs, packs, kg).
-                  </p>
-                </div>
-              ) : null}
+              <div className="min-w-0">
+                <UnitPresetField
+                  id="unit"
+                  label="Stock unit"
+                  value={unit}
+                  onChange={setUnit}
+                  required
+                  hint={
+                    showPacks || showWeight
+                      ? "Inventory is counted in this unit. Sell units convert to it."
+                      : "How you count this product (pieces, packs, cartons…)."
+                  }
+                />
+              </div>
               <div className="min-w-0 space-y-2">
                 <Label>Status</Label>
                 <Select

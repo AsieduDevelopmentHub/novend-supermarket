@@ -32,19 +32,19 @@ async function assertUniqueBarcode(
   excludeId?: Id<"products">,
 ) {
   if (!barcode) return;
-  const products = await ctx.db
+  const existing = await ctx.db
     .query("products")
-    .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-    .collect();
-  const clash = products.find(
-    (p) =>
-      p._id !== excludeId &&
-      Boolean(p.barcode) &&
-      p.barcode!.toLowerCase() === barcode.toLowerCase(),
-  );
-  if (clash) throw new Error(BARCODE_TAKEN);
+    .withIndex("by_organization_barcode", (q) =>
+      q.eq("organizationId", organizationId).eq("barcode", barcode),
+    )
+    .unique();
+  if (existing && existing._id !== excludeId) throw new Error(BARCODE_TAKEN);
 }
 import { writeAuditLog } from "./shared/audit";
+import {
+  bumpOrgProductCount,
+  productCountsTowardUsage,
+} from "./shared/organizationStats";
 import { ensureBranchStockRow, stockMapForBranch, stockMapOrgWide } from "./shared/branchStock";
 import {
   convertOnHandToOpeningLots,
@@ -365,6 +365,10 @@ export const createProduct = mutation({
       metadata: { branchId },
     });
 
+    if (productCountsTowardUsage(args.status)) {
+      await bumpOrgProductCount(ctx, organizationId, 1);
+    }
+
     return id;
   },
 });
@@ -513,6 +517,12 @@ export const updateProduct = mutation({
       entityId: args.id,
     });
 
+    const wasCounted = productCountsTowardUsage(product.status);
+    const nowCounted = productCountsTowardUsage(args.status);
+    if (wasCounted !== nowCounted) {
+      await bumpOrgProductCount(ctx, organizationId, nowCounted ? 1 : -1);
+    }
+
     return args.id;
   },
 });
@@ -528,6 +538,9 @@ export const archiveProduct = mutation({
     const product = await ctx.db.get(args.id);
     assertOrgDoc(product, organizationId);
     await ctx.db.patch(args.id, { status: "archived" });
+    if (productCountsTowardUsage(product.status)) {
+      await bumpOrgProductCount(ctx, organizationId, -1);
+    }
     await writeAuditLog(ctx, {
       actorId: userId,
       action: "archive_product",

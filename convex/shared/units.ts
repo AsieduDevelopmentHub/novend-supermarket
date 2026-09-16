@@ -10,6 +10,32 @@ export const UOM_CONFIGURATION_VERSION = 2;
 
 export type PricingMode = "fixed" | "per_weight";
 
+/**
+ * Common stock / sell-unit labels for Ghana wholesale & retail.
+ * Free-text “Other” remains available in the product form.
+ */
+export const STOCK_UNIT_PRESETS = [
+  { value: "pcs", label: "Pieces (pcs)" },
+  { value: "units", label: "Units" },
+  { value: "packs", label: "Packs" },
+  { value: "carton", label: "Carton" },
+  { value: "crate", label: "Crate" },
+  { value: "box", label: "Box" },
+  { value: "dozen", label: "Dozen" },
+  { value: "bag", label: "Bag" },
+  { value: "bottle", label: "Bottle" },
+  { value: "pair", label: "Pair" },
+  { value: "kg", label: "Kilogram (kg)" },
+  { value: "g", label: "Gram (g)" },
+  { value: "litre", label: "Litre" },
+] as const;
+
+export type StockUnitPresetValue = (typeof STOCK_UNIT_PRESETS)[number]["value"];
+
+export function isStockUnitPreset(value: string): value is StockUnitPresetValue {
+  return STOCK_UNIT_PRESETS.some((row) => row.value === value);
+}
+
 export type ProductSellUnit = {
   key: string;
   label: string;

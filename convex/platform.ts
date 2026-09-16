@@ -11,16 +11,13 @@ import { writeAuditLog } from "./shared/audit";
 import { planKeyValidator, billingCycleValidator } from "./schema";
 import { effectivePlanLimits, resolvePlan } from "./shared/plans";
 import { planCapabilities } from "./shared/capabilities";
-import {
-  countExportFormats,
-  groupRowsByOrganization,
-  loadOrganizationImportExport,
-} from "./shared/importExportSnapshot";
+import { countExportFormats, loadOrganizationImportExport } from "./shared/importExportSnapshot";
 import { resolveLicense, getActiveSubscription } from "./shared/entitlements";
 import { hasPendingOrganizationClosure } from "./shared/accountClosure";
 import { provisionOrganization } from "./shared/provisionOrganization";
 import { GRACE_PERIOD_MS } from "./shared/licensing";
 import { archiveOrganizationRecord } from "./shared/accountClosure";
+import { readOrgPlatformStatsOrZero } from "./shared/organizationStats";
 
 export const me = query({
   args: {},
@@ -42,25 +39,34 @@ export const overview = query({
   args: {},
   handler: async (ctx) => {
     await requirePlatformAdmin(ctx);
-    const [organizations, profiles, branches, sales, products, importJobs, exportEvents] =
-      await Promise.all([
-        ctx.db.query("organizations").collect(),
-        ctx.db.query("profiles").collect(),
-        ctx.db.query("branches").collect(),
-        ctx.db.query("sales").collect(),
-        ctx.db.query("products").collect(),
-        ctx.db.query("importJobs").collect(),
-        ctx.db.query("exportEvents").collect(),
-      ]);
-
     const now = Date.now();
     const dayAgo = now - 24 * 60 * 60 * 1000;
-    const recentSales = sales.filter((sale) => sale.completedAt >= dayAgo);
-    const productsUsedByOrg = new Map<string, number>();
-    for (const product of products) {
-      if (product.status === "archived") continue;
-      const key = String(product.organizationId);
-      productsUsedByOrg.set(key, (productsUsedByOrg.get(key) ?? 0) + 1);
+
+    const [organizations, orgStats, recentSales, exportEvents] = await Promise.all([
+      ctx.db.query("organizations").collect(),
+      ctx.db.query("organizationPlatformStats").collect(),
+      ctx.db
+        .query("sales")
+        .withIndex("by_completedAt", (q) => q.gte("completedAt", dayAgo))
+        .collect(),
+      // Export volume is small vs sales/products; kept for format breakdown only.
+      ctx.db.query("exportEvents").collect(),
+    ]);
+
+    const statsByOrg = new Map(orgStats.map((row) => [String(row.organizationId), row]));
+    let userCount = 0;
+    let branchCount = 0;
+    let saleCount = 0;
+    let importJobCount = 0;
+    let failedImportJobs = 0;
+    let exportEventCount = 0;
+    for (const row of orgStats) {
+      userCount += row.userCount;
+      branchCount += row.branchCount;
+      saleCount += row.saleCount;
+      importJobCount += row.importJobCount;
+      failedImportJobs += row.failedImportCount;
+      exportEventCount += row.exportEventCount;
     }
 
     let csvOnlyOrganizations = 0;
@@ -80,7 +86,7 @@ export const overview = query({
       const caps = planCapabilities(plan.key, limits);
       if (!caps.canExportXlsx) csvOnlyOrganizations += 1;
       if (limits.products === null) continue;
-      const productsUsed = productsUsedByOrg.get(String(org._id)) ?? 0;
+      const productsUsed = statsByOrg.get(String(org._id))?.productCount ?? 0;
       const percent =
         limits.products === 0 ? 100 : Math.round((productsUsed / limits.products) * 100);
       if (percent < 80) continue;
@@ -105,13 +111,13 @@ export const overview = query({
       inactiveOrganizations: organizations.filter(
         (org) => org.status === "inactive" || org.status === "disabled",
       ).length,
-      userCount: profiles.length,
-      branchCount: branches.length,
-      saleCount: sales.length,
+      userCount,
+      branchCount,
+      saleCount,
       salesLast24h: recentSales.length,
-      importJobCount: importJobs.length,
-      failedImportJobs: importJobs.filter((job) => job.status === "failed").length,
-      exportEventCount: exportEvents.length,
+      importJobCount,
+      failedImportJobs,
+      exportEventCount: Math.max(exportEventCount, exportEvents.length),
       exportsByFormat: countExportFormats(exportEvents),
       csvOnlyOrganizations,
       orgsNearImportCap: orgsNearImportCap.slice(0, 8),
@@ -139,31 +145,15 @@ export const listOrganizations = query({
       const q = args.search.trim().toLowerCase();
       orgs = orgs.filter((org) => org.name.toLowerCase().includes(q) || org.slug.includes(q));
     }
-    const [profiles, sales, products, importJobs, exportEvents] = await Promise.all([
-      ctx.db.query("profiles").collect(),
-      ctx.db.query("sales").collect(),
-      ctx.db.query("products").collect(),
-      ctx.db.query("importJobs").collect(),
-      ctx.db.query("exportEvents").collect(),
-    ]);
-    const jobsByOrg = groupRowsByOrganization(importJobs);
-    const exportsByOrg = groupRowsByOrganization(exportEvents);
-    const productsUsedByOrg = new Map<string, number>();
-    for (const product of products) {
-      if (product.status === "archived") continue;
-      const key = String(product.organizationId);
-      productsUsedByOrg.set(key, (productsUsedByOrg.get(key) ?? 0) + 1);
-    }
+    const orgStats = await ctx.db.query("organizationPlatformStats").collect();
+    const statsByOrg = new Map(orgStats.map((row) => [String(row.organizationId), row]));
     return orgs
       .sort((a, b) => b.createdAt - a.createdAt)
       .map((org) => {
-        const staff = profiles.filter((p) => p.organizationId === org._id);
-        const orgSales = sales.filter((s) => s.organizationId === org._id);
+        const stats = statsByOrg.get(String(org._id));
         const plan = resolvePlan(org.planKey);
         const limits = effectivePlanLimits(plan, org.backupLimitBytes, org.limitOverrides);
         const caps = planCapabilities(plan.key, limits);
-        const orgJobs = jobsByOrg.get(String(org._id)) ?? [];
-        const orgExports = exportsByOrg.get(String(org._id)) ?? [];
         return {
           id: org._id,
           name: org.name,
@@ -174,16 +164,16 @@ export const listOrganizations = query({
           currency: org.currency,
           createdAt: org.createdAt,
           trialEndsAt: org.trialEndsAt ?? null,
-          userCount: staff.length,
-          saleCount: orgSales.length,
-          productsUsed: productsUsedByOrg.get(String(org._id)) ?? 0,
+          userCount: stats?.userCount ?? 0,
+          saleCount: stats?.saleCount ?? 0,
+          productsUsed: stats?.productCount ?? 0,
           productLimit: limits.products,
           maxImportRows: caps.maxImportRows,
           canExportXlsx: caps.canExportXlsx,
           canExportPdf: caps.canExportPdf,
-          importJobCount: orgJobs.length,
-          failedImportCount: orgJobs.filter((job) => job.status === "failed").length,
-          exportEventCount: orgExports.length,
+          importJobCount: stats?.importJobCount ?? 0,
+          failedImportCount: stats?.failedImportCount ?? 0,
+          exportEventCount: stats?.exportEventCount ?? 0,
           productLimitOverridden: org.limitOverrides?.products !== undefined,
         };
       });
@@ -220,7 +210,7 @@ export const getOrganization = query({
       }
     }
 
-    const [profiles, branches, products, sales, wholesale, suppliers, customers, devices, backups] =
+    const [profiles, branches, wholesale, suppliers, customers, devices, backups] =
       await Promise.all([
         ctx.db
           .query("profiles")
@@ -228,14 +218,6 @@ export const getOrganization = query({
           .collect(),
         ctx.db
           .query("branches")
-          .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
-          .collect(),
-        ctx.db
-          .query("products")
-          .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
-          .collect(),
-        ctx.db
-          .query("sales")
           .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
           .collect(),
         ctx.db
@@ -260,13 +242,34 @@ export const getOrganization = query({
           .collect(),
       ]);
 
+    const stats = await readOrgPlatformStatsOrZero(ctx, org._id);
     const now = Date.now();
     const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
-    const recentSales = sales.filter((s) => s.completedAt >= monthAgo);
-    const revenueAll = sales.reduce((sum, s) => sum + s.total, 0);
-    const revenue30d = recentSales.reduce((sum, s) => sum + s.total, 0);
-    const lastSaleAt = sales.reduce((latest, s) => Math.max(latest, s.completedAt), 0);
-    const costByProduct = new Map(products.map((p) => [p._id, p.costPrice]));
+    const [sales30d, lastSale] = await Promise.all([
+      ctx.db
+        .query("sales")
+        .withIndex("by_organization_completedAt", (q) =>
+          q.eq("organizationId", org._id).gte("completedAt", monthAgo),
+        )
+        .collect(),
+      ctx.db
+        .query("sales")
+        .withIndex("by_organization_completedAt", (q) => q.eq("organizationId", org._id))
+        .order("desc")
+        .first(),
+    ]);
+    const revenue30d = sales30d.reduce((sum, s) => sum + s.total, 0);
+    const lastSaleAt = lastSale?.completedAt ?? 0;
+
+    const wholesaleProductIds = [...new Set(wholesale.map((row) => row.productId))];
+    const wholesaleProducts = await Promise.all(
+      wholesaleProductIds.map((productId) => ctx.db.get(productId)),
+    );
+    const costByProduct = new Map(
+      wholesaleProducts
+        .filter((product): product is NonNullable<typeof product> => product !== null)
+        .map((product) => [product._id, product.costPrice]),
+    );
     const wholesaleValue = wholesale.reduce(
       (sum, row) => sum + row.quantity * (costByProduct.get(row.productId) ?? 0),
       0,
@@ -301,7 +304,7 @@ export const getOrganization = query({
     const activeDevices = devices.filter((d) => d.isActive);
     const lastSyncAt = devices.reduce((latest, d) => Math.max(latest, d.lastSeenAt ?? 0), 0);
     const license = await resolveLicense(ctx, org);
-    const productCount = products.filter((p) => p.status !== "archived").length;
+    const productCount = stats.productCount;
     const importExport = await loadOrganizationImportExport(ctx, {
       organizationId: org._id,
       planKey: license.planKey,
@@ -352,9 +355,9 @@ export const getOrganization = query({
         productCount,
         supplierCount: suppliers.length,
         customerCount: customers.length,
-        saleCount: sales.length,
-        saleCount30d: recentSales.length,
-        revenueAll,
+        saleCount: stats.saleCount,
+        saleCount30d: sales30d.length,
+        revenueAll: stats.saleRevenueTotal,
         revenue30d,
         lastSaleAt: lastSaleAt || null,
         lastActiveAt: lastActiveAt || null,

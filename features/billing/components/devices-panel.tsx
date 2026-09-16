@@ -35,7 +35,8 @@ type DeviceConfirm =
   | { kind: "shutdown"; id: Id<"devices"> }
   | { kind: "reenable"; id: Id<"devices"> }
   | { kind: "remove"; id: Id<"devices"> }
-  | { kind: "shutdownOthers" };
+  | { kind: "shutdownOthers" }
+  | { kind: "removeInactive" };
 
 function formatLastSeen(value: number) {
   const diff = Date.now() - value;
@@ -61,6 +62,7 @@ export function DevicesPanel() {
   const deactivateOtherDevices = useMutation(api.devices.deactivateOtherDevices);
   const reactivateDevice = useMutation(api.devices.reactivateDevice);
   const removeDevice = useMutation(api.devices.removeDevice);
+  const removeInactiveDevices = useMutation(api.devices.removeInactiveDevices);
   const [renaming, setRenaming] = useState<{ id: Id<"devices">; name: string } | null>(null);
   const [confirm, setConfirm] = useState<DeviceConfirm | null>(null);
   const [pending, setPending] = useState(false);
@@ -82,6 +84,9 @@ export function DevicesPanel() {
   const atLimit = data.limit !== null && data.activeCount >= data.limit;
   const otherActiveCount = data.devices.filter(
     (device) => device.isActive && !device.isCurrent,
+  ).length;
+  const inactiveCount = data.devices.filter(
+    (device) => !device.isActive && !device.isCurrent,
   ).length;
 
   async function onRename() {
@@ -154,8 +159,25 @@ export function DevicesPanel() {
     }
   }
 
+  async function onRemoveInactive() {
+    setPending(true);
+    try {
+      const result = await removeInactiveDevices({ currentFingerprint: fingerprint });
+      toast.success(
+        result.count === 0
+          ? "No shut-down devices to remove"
+          : `Removed ${result.count} shut-down device${result.count === 1 ? "" : "s"}`,
+      );
+    } catch (error) {
+      showError(error, "Could not remove shut-down devices");
+    } finally {
+      setPending(false);
+      setConfirm(null);
+    }
+  }
+
   const confirmTargetName =
-    confirm && confirm.kind !== "shutdownOthers"
+    confirm && confirm.kind !== "shutdownOthers" && confirm.kind !== "removeInactive"
       ? (data.devices.find((device) => device.id === confirm.id)?.name ?? "this device")
       : null;
 
@@ -188,16 +210,28 @@ export function DevicesPanel() {
             </Alert>
           ) : null}
 
-          {isAdmin && otherActiveCount > 0 ? (
-            <div className="flex flex-wrap justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setConfirm({ kind: "shutdownOthers" })}
-              >
-                <PowerOff className="h-4 w-4" aria-hidden />
-                Shut down all except this device
-              </Button>
+          {isAdmin && (otherActiveCount > 0 || inactiveCount > 0) ? (
+            <div className="flex flex-wrap justify-end gap-2">
+              {otherActiveCount > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setConfirm({ kind: "shutdownOthers" })}
+                >
+                  <PowerOff className="h-4 w-4" aria-hidden />
+                  Shut down all except this device
+                </Button>
+              ) : null}
+              {inactiveCount > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setConfirm({ kind: "removeInactive" })}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden />
+                  Delete all shut-down devices
+                </Button>
+              ) : null}
             </div>
           ) : null}
 
@@ -330,35 +364,42 @@ export function DevicesPanel() {
         title={
           confirm?.kind === "shutdownOthers"
             ? "Shut down all other devices?"
-            : confirm?.kind === "shutdown"
-              ? `Shut down ${confirmTargetName}?`
-              : confirm?.kind === "reenable"
-                ? `Re-enable ${confirmTargetName}?`
-                : `Remove ${confirmTargetName}?`
+            : confirm?.kind === "removeInactive"
+              ? "Delete all shut-down devices?"
+              : confirm?.kind === "shutdown"
+                ? `Shut down ${confirmTargetName}?`
+                : confirm?.kind === "reenable"
+                  ? `Re-enable ${confirmTargetName}?`
+                  : `Remove ${confirmTargetName}?`
         }
         description={
           confirm?.kind === "shutdownOthers"
             ? `This device stays on. ${otherActiveCount} other activated terminal${otherActiveCount === 1 ? "" : "s"} will lose ${otherActiveCount === 1 ? "its" : "their"} slot immediately. Anyone signing in on those terminals again will need a free slot.`
-            : confirm?.kind === "shutdown"
-              ? "It frees an activation slot immediately. You can re-enable it here later, or anyone signing in on that terminal will need a free slot. The terminal you are using stays on."
-              : confirm?.kind === "reenable"
-                ? "It uses one activation slot again. That terminal can keep working without a new sign-in."
-                : "It leaves this list and no longer uses a slot. Signing in on that terminal later is treated as a new device and needs a free slot."
+            : confirm?.kind === "removeInactive"
+              ? `${inactiveCount} shut-down device${inactiveCount === 1 ? "" : "s"} will be removed from this list permanently. Active terminals stay. Signing in on a removed terminal later is treated as a new device and needs a free slot.`
+              : confirm?.kind === "shutdown"
+                ? "It frees an activation slot immediately. You can re-enable it here later, or anyone signing in on that terminal will need a free slot. The terminal you are using stays on."
+                : confirm?.kind === "reenable"
+                  ? "It uses one activation slot again. That terminal can keep working without a new sign-in."
+                  : "It leaves this list and no longer uses a slot. Signing in on that terminal later is treated as a new device and needs a free slot."
         }
         confirmLabel={
           confirm?.kind === "shutdownOthers"
             ? "Shut down others"
-            : confirm?.kind === "shutdown"
-              ? "Shut down"
-              : confirm?.kind === "reenable"
-                ? "Re-enable"
-                : "Remove"
+            : confirm?.kind === "removeInactive"
+              ? "Delete shut-down devices"
+              : confirm?.kind === "shutdown"
+                ? "Shut down"
+                : confirm?.kind === "reenable"
+                  ? "Re-enable"
+                  : "Remove"
         }
         confirmVariant={confirm?.kind === "reenable" ? "default" : "destructive"}
         pending={pending}
         onConfirm={() => {
           if (!confirm) return;
           if (confirm.kind === "shutdownOthers") void onShutdownOthers();
+          else if (confirm.kind === "removeInactive") void onRemoveInactive();
           else if (confirm.kind === "shutdown") void onDeactivate(confirm.id);
           else if (confirm.kind === "reenable") void onReenable(confirm.id);
           else void onRemove(confirm.id);

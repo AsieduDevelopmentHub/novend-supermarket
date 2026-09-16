@@ -13,6 +13,7 @@ import { DEFAULT_BRANCH_CODE, DEFAULT_BRANCH_NAME } from "./defaultBranch";
 import { PLAN_CATALOG, supportsCycle, type BillingCycle, type PlanKey } from "./plans";
 import { activateSubscription, startTrial } from "./subscriptions";
 import { sanitizeOptionalText, sanitizeText, TEXT_LIMITS } from "./validation";
+import { seedOrgPlatformStats } from "./organizationStats";
 
 export function slugifyBusinessName(value: string): string {
   const slug = value
@@ -159,6 +160,8 @@ export async function provisionOrganization(
       trial: args.license.kind === "trial",
     },
   });
+
+  await seedOrgPlatformStats(ctx, organizationId, { branchCount: 1 });
 
   return { organizationId, branchId };
 }

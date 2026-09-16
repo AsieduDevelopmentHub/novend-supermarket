@@ -359,3 +359,38 @@ export const deactivateOtherDevices = mutation({
     return { count: shutdown.length };
   },
 });
+
+/**
+ * Permanently removes every shut-down device from the list.
+ * Active terminals (including this one) are left alone.
+ */
+export const removeInactiveDevices = mutation({
+  args: { currentFingerprint: v.string() },
+  handler: async (ctx, args) => {
+    const { organizationId, userId } = await requireRoleIgnoringLicense(ctx, ["administrator"]);
+    const fingerprint = requireFingerprint(args.currentFingerprint);
+
+    const devices = await ctx.db
+      .query("devices")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
+
+    const removable = devices.filter(
+      (device) => !device.isActive && device.fingerprint !== fingerprint,
+    );
+
+    for (const device of removable) {
+      await writeAuditLog(ctx, {
+        organizationId,
+        actorId: userId,
+        action: "device_removed",
+        entityType: "devices",
+        entityId: device._id,
+        metadata: { name: device.name, bulk: true, wasActive: false },
+      });
+      await ctx.db.delete(device._id);
+    }
+
+    return { count: removable.length };
+  },
+});

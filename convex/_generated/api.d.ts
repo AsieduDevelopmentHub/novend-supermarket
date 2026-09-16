@@ -34,6 +34,7 @@ import type * as payroll from "../payroll.js";
 import type * as platform from "../platform.js";
 import type * as platformAnalytics from "../platformAnalytics.js";
 import type * as platformMonitoring from "../platformMonitoring.js";
+import type * as platformStats from "../platformStats.js";
 import type * as products from "../products.js";
 import type * as profiles from "../profiles.js";
 import type * as reports from "../reports.js";
@@ -62,6 +63,7 @@ import type * as shared_importExportSnapshot from "../shared/importExportSnapsho
 import type * as shared_licensing from "../shared/licensing.js";
 import type * as shared_lots from "../shared/lots.js";
 import type * as shared_multiBranchBootstrap from "../shared/multiBranchBootstrap.js";
+import type * as shared_organizationStats from "../shared/organizationStats.js";
 import type * as shared_passwordPolicy from "../shared/passwordPolicy.js";
 import type * as shared_passwordResetCrypto from "../shared/passwordResetCrypto.js";
 import type * as shared_payroll from "../shared/payroll.js";
@@ -122,6 +124,7 @@ declare const fullApi: ApiFromModules<{
   platform: typeof platform;
   platformAnalytics: typeof platformAnalytics;
   platformMonitoring: typeof platformMonitoring;
+  platformStats: typeof platformStats;
   products: typeof products;
   profiles: typeof profiles;
   reports: typeof reports;
@@ -150,6 +153,7 @@ declare const fullApi: ApiFromModules<{
   "shared/licensing": typeof shared_licensing;
   "shared/lots": typeof shared_lots;
   "shared/multiBranchBootstrap": typeof shared_multiBranchBootstrap;
+  "shared/organizationStats": typeof shared_organizationStats;
   "shared/passwordPolicy": typeof shared_passwordPolicy;
   "shared/passwordResetCrypto": typeof shared_passwordResetCrypto;
   "shared/payroll": typeof shared_payroll;

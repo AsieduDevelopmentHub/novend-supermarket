@@ -29,6 +29,7 @@ import {
   resolveSellUnit,
   roundQuantity,
 } from "./shared/units";
+import { bumpOrgSaleStats } from "./shared/organizationStats";
 
 type CartLine = {
   productId: Id<"products">;
@@ -133,15 +134,27 @@ export const listHeld = query({
       "manager",
       "cashier",
     ]);
-    const all = await ctx.db
-      .query("heldSales")
-      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-      .collect();
-    const scoped = isAdmin(profile)
-      ? all
-      : profile.role === "manager" && profile.branchId
-        ? all.filter((row) => row.branchId === profile.branchId)
-        : all.filter((row) => row.cashierId === userId);
+    let scoped;
+    if (isAdmin(profile)) {
+      scoped = await ctx.db
+        .query("heldSales")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect();
+    } else if (profile.role === "manager" && profile.branchId) {
+      scoped = (
+        await ctx.db
+          .query("heldSales")
+          .withIndex("by_branch", (q) => q.eq("branchId", profile.branchId!))
+          .collect()
+      ).filter((row) => row.organizationId === organizationId);
+    } else {
+      scoped = (
+        await ctx.db
+          .query("heldSales")
+          .withIndex("by_cashier", (q) => q.eq("cashierId", userId))
+          .collect()
+      ).filter((row) => row.organizationId === organizationId);
+    }
     return scoped.sort((a, b) => b.heldAt - a.heldAt);
   },
 });
@@ -603,6 +616,11 @@ export const completeSale = mutation({
       metadata: { invoiceNumber, total, branchId },
     });
 
+    await bumpOrgSaleStats(ctx, profile.organizationId, {
+      revenue: total,
+      completedAt,
+    });
+
     return { saleId, invoiceNumber, total, receiptPayload: payload };
   },
 });
@@ -729,29 +747,50 @@ export const listOrders = query({
       sales = sales.filter((s) => s.total <= args.maxTotal!);
     }
 
-    const [profiles, branches, returnRows] = await Promise.all([
-      ctx.db
-        .query("profiles")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect(),
-      ctx.db
-        .query("branches")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect(),
-      ctx.db
-        .query("saleReturns")
-        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-        .collect(),
-    ]);
-    const nameByUser = new Map(profiles.map((p) => [p.userId, p.name]));
-    const branchName = new Map(branches.map((b) => [b._id, b.name]));
-    const refundedBySale = new Map<Id<"sales">, number>();
-    for (const row of returnRows) {
-      if (row.status !== "completed") continue;
-      refundedBySale.set(row.saleId, (refundedBySale.get(row.saleId) ?? 0) + row.refundAmount);
+    async function refundedAmountsForSales(saleIds: Array<(typeof sales)[number]["_id"]>) {
+      const refundedBySale = new Map<Id<"sales">, number>();
+      await Promise.all(
+        saleIds.map(async (saleId) => {
+          const rows = await ctx.db
+            .query("saleReturns")
+            .withIndex("by_sale", (q) => q.eq("saleId", saleId))
+            .collect();
+          let sum = 0;
+          for (const row of rows) {
+            if (row.status !== "completed") continue;
+            sum += row.refundAmount;
+          }
+          if (sum > 0) refundedBySale.set(saleId, sum);
+        }),
+      );
+      return refundedBySale;
     }
 
+    let refundedBySale = new Map<Id<"sales">, number>();
+    if (args.returnStatus === "none" || args.returnStatus === "returned") {
+      refundedBySale = await refundedAmountsForSales(sales.map((s) => s._id));
+      if (args.returnStatus === "none") {
+        sales = sales.filter((s) => (refundedBySale.get(s._id) ?? 0) === 0);
+      } else {
+        sales = sales.filter((s) => (refundedBySale.get(s._id) ?? 0) > 0);
+      }
+    }
+
+    // Cashier-name search needs profile names for the candidate set only.
+    let nameByUser = new Map<string, string>();
     if (args.search?.trim()) {
+      const cashierIds = [...new Set(sales.map((s) => s.cashierId))];
+      await Promise.all(
+        cashierIds.map(async (cashierId) => {
+          const profileRow = await ctx.db
+            .query("profiles")
+            .withIndex("by_userId", (q) => q.eq("userId", cashierId))
+            .unique();
+          if (profileRow && profileRow.organizationId === organizationId) {
+            nameByUser.set(cashierId, profileRow.name);
+          }
+        }),
+      );
       const q = args.search.trim().toLowerCase();
       sales = sales.filter((s) => {
         const cashierName = nameByUser.get(s.cashierId) ?? "";
@@ -763,33 +802,54 @@ export const listOrders = query({
       });
     }
 
-    if (args.returnStatus === "none") {
-      sales = sales.filter((s) => (refundedBySale.get(s._id) ?? 0) === 0);
-    } else if (args.returnStatus === "returned") {
-      sales = sales.filter((s) => (refundedBySale.get(s._id) ?? 0) > 0);
+    const page = sales.sort((a, b) => b.completedAt - a.completedAt).slice(0, limit);
+
+    if (args.returnStatus !== "none" && args.returnStatus !== "returned") {
+      refundedBySale = await refundedAmountsForSales(page.map((s) => s._id));
     }
 
-    return sales
-      .sort((a, b) => b.completedAt - a.completedAt)
-      .slice(0, limit)
-      .map((sale) => ({
-        id: sale._id,
-        invoiceNumber: sale.invoiceNumber,
-        customerId: sale.customerId ?? null,
-        customerName: sale.customerName,
-        itemCount: sale.itemCount,
-        subtotal: sale.subtotal,
-        discount: sale.discount,
-        total: sale.total,
-        refundedAmount: roundMoney(refundedBySale.get(sale._id) ?? 0),
-        paymentMethod: sale.paymentMethod,
-        status: sale.status,
-        completedAt: sale.completedAt,
-        cashierId: sale.cashierId,
-        cashierName: nameByUser.get(sale.cashierId) ?? "Cashier",
-        branchId: sale.branchId ?? null,
-        branchName: sale.branchId ? (branchName.get(sale.branchId) ?? null) : null,
-      }));
+    const pageCashierIds = [...new Set(page.map((s) => s.cashierId))];
+    const pageBranchIds = [
+      ...new Set(page.map((s) => s.branchId).filter((id): id is NonNullable<typeof id> => Boolean(id))),
+    ];
+    nameByUser = new Map();
+    const branchName = new Map<Id<"branches">, string>();
+    await Promise.all([
+      ...pageCashierIds.map(async (cashierId) => {
+        const profileRow = await ctx.db
+          .query("profiles")
+          .withIndex("by_userId", (q) => q.eq("userId", cashierId))
+          .unique();
+        if (profileRow && profileRow.organizationId === organizationId) {
+          nameByUser.set(cashierId, profileRow.name);
+        }
+      }),
+      ...pageBranchIds.map(async (branchId) => {
+        const branch = await ctx.db.get(branchId);
+        if (branch && branch.organizationId === organizationId) {
+          branchName.set(branchId, branch.name);
+        }
+      }),
+    ]);
+
+    return page.map((sale) => ({
+      id: sale._id,
+      invoiceNumber: sale.invoiceNumber,
+      customerId: sale.customerId ?? null,
+      customerName: sale.customerName,
+      itemCount: sale.itemCount,
+      subtotal: sale.subtotal,
+      discount: sale.discount,
+      total: sale.total,
+      refundedAmount: roundMoney(refundedBySale.get(sale._id) ?? 0),
+      paymentMethod: sale.paymentMethod,
+      status: sale.status,
+      completedAt: sale.completedAt,
+      cashierId: sale.cashierId,
+      cashierName: nameByUser.get(sale.cashierId) ?? "Cashier",
+      branchId: sale.branchId ?? null,
+      branchName: sale.branchId ? (branchName.get(sale.branchId) ?? null) : null,
+    }));
   },
 });
 

@@ -96,50 +96,90 @@ export const listExpenses = query({
     const { profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
     const limit = Math.min(args.limit ?? 100, 300);
-    let rows = await ctx.db
-      .query("expenses")
-      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-      .collect();
+    const startDate = args.startDate;
+    const endDate = args.endDate;
+    const fetchCap = Math.min(Math.max(limit * (branchFilter ? 4 : 2), limit), 400);
+
+    let rows;
+    if (startDate !== undefined && endDate !== undefined) {
+      rows = await ctx.db
+        .query("expenses")
+        .withIndex("by_organization_occurredAt", (q) =>
+          q
+            .eq("organizationId", organizationId)
+            .gte("occurredAt", startDate)
+            .lte("occurredAt", endDate),
+        )
+        .order("desc")
+        .take(fetchCap);
+    } else if (startDate !== undefined) {
+      rows = await ctx.db
+        .query("expenses")
+        .withIndex("by_organization_occurredAt", (q) =>
+          q.eq("organizationId", organizationId).gte("occurredAt", startDate),
+        )
+        .order("desc")
+        .take(fetchCap);
+    } else if (endDate !== undefined) {
+      rows = await ctx.db
+        .query("expenses")
+        .withIndex("by_organization_occurredAt", (q) =>
+          q.eq("organizationId", organizationId).lte("occurredAt", endDate),
+        )
+        .order("desc")
+        .take(fetchCap);
+    } else {
+      rows = await ctx.db
+        .query("expenses")
+        .withIndex("by_organization_occurredAt", (q) => q.eq("organizationId", organizationId))
+        .order("desc")
+        .take(fetchCap);
+    }
 
     if (branchFilter) {
       rows = rows.filter((e) => e.branchId === branchFilter);
     }
-    if (args.startDate !== undefined) {
-      rows = rows.filter((e) => e.occurredAt >= args.startDate!);
-    }
-    if (args.endDate !== undefined) {
-      rows = rows.filter((e) => e.occurredAt <= args.endDate!);
-    }
 
-    const profiles = await ctx.db
-      .query("profiles")
-      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-      .collect();
-    const nameByUser = new Map(profiles.map((p) => [p.userId, p.name]));
-    const branches = await ctx.db
-      .query("branches")
-      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
-      .collect();
-    const branchName = new Map(branches.map((b) => [b._id, b.name]));
+    const page = rows.slice(0, limit);
+    const recorderIds = [...new Set(page.map((e) => e.recordedBy))];
+    const branchIds = [
+      ...new Set(
+        page.map((e) => e.branchId).filter((id): id is NonNullable<typeof id> => Boolean(id)),
+      ),
+    ];
+    const nameByUser = new Map<string, string>();
+    const branchName = new Map<string, string>();
+    await Promise.all([
+      ...recorderIds.map(async (userId) => {
+        const row = await ctx.db
+          .query("profiles")
+          .withIndex("by_userId", (q) => q.eq("userId", userId))
+          .unique();
+        if (row && row.organizationId === organizationId) nameByUser.set(userId, row.name);
+      }),
+      ...branchIds.map(async (branchId) => {
+        const branch = await ctx.db.get(branchId);
+        if (branch && branch.organizationId === organizationId) {
+          branchName.set(branchId, branch.name);
+        }
+      }),
+    ]);
 
-    return rows
-      .sort((a, b) => b.occurredAt - a.occurredAt)
-      .slice(0, limit)
-      .map((e) => ({
-        id: e._id,
-        amount: e.amount,
-        category: e.category,
-        occurredAt: e.occurredAt,
-        description: e.description ?? null,
-        recordedBy: e.recordedBy,
-        recordedByName: nameByUser.get(e.recordedBy) ?? "Unknown",
-        createdAt: e.createdAt,
-        branchId: e.branchId ?? null,
-        branchName: e.branchId ? (branchName.get(e.branchId) ?? null) : null,
-        beneficiaryProfileId: e.beneficiaryProfileId ?? null,
-        payPeriodKey: e.payPeriodKey ?? null,
-        sourceKind: e.sourceKind ?? null,
-      }));
+    return page.map((e) => ({
+      id: e._id,
+      amount: e.amount,
+      category: e.category,
+      occurredAt: e.occurredAt,
+      description: e.description ?? null,
+      recordedBy: e.recordedBy,
+      recordedByName: nameByUser.get(e.recordedBy) ?? "Unknown",
+      createdAt: e.createdAt,
+      branchId: e.branchId ?? null,
+      branchName: e.branchId ? (branchName.get(e.branchId) ?? null) : null,
+      beneficiaryProfileId: e.beneficiaryProfileId ?? null,
+      payPeriodKey: e.payPeriodKey ?? null,
+      sourceKind: e.sourceKind ?? null,
+    }));
   },
 });
 
