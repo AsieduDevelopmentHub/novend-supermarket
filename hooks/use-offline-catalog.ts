@@ -8,6 +8,7 @@ import { listLocalCatalogProducts, searchLocalCustomers } from "@/lib/offline/sn
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { canServeListsFromMirror } from "@/lib/offline/freshness";
 import { useOfflineStatus } from "@/providers/offline-provider";
+import { useConnectivity } from "@/hooks/use-connectivity";
 
 export type CatalogProduct = {
   id: string;
@@ -62,15 +63,33 @@ function mapRemoteProducts(
 
 /**
  * Branch-scoped product catalog for Sales.
- * Always hydrate Dexie first so Cap false-online never blocks the POS.
- * Prefer live Convex when it settles.
+ * Warm Dexie mirror skips the live Convex subscription (same gate as Products list).
  */
 export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null) {
-  const { online, lastSyncAt } = useOfflineStatus();
+  const online = useConnectivity();
+  const { lastSyncAt } = useOfflineStatus();
   const branchKey = branchId ?? undefined;
+  const [serveLocal, setServeLocal] = useState(false);
+  const [gateReady, setGateReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const ok = !online ? true : await canServeListsFromMirror();
+      if (cancelled) return;
+      setServeLocal(ok);
+      setGateReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [online, lastSyncAt]);
+
   const remote = useQuery(
     api.sales.catalog,
-    online ? { search: search || undefined, branchId: branchKey } : "skip",
+    online && gateReady && !serveLocal
+      ? { search: search || undefined, branchId: branchKey }
+      : "skip",
   );
   const [local, setLocal] = useState<CatalogProduct[] | null>(null);
 
@@ -95,7 +114,24 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
     };
   }, [search, branchKey, lastSyncAt]);
 
-  if (online && remote !== undefined) {
+  if (!online || serveLocal) {
+    if (local != null) {
+      return {
+        products: local,
+        source: "local" as const,
+        loading: false,
+        refreshLocal,
+      };
+    }
+    return {
+      products: [] as CatalogProduct[],
+      source: "local" as const,
+      loading: !gateReady || local == null,
+      refreshLocal,
+    };
+  }
+
+  if (remote !== undefined) {
     return {
       products: mapRemoteProducts(remote),
       source: "remote" as const,
@@ -115,7 +151,7 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
 
   return {
     products: [] as CatalogProduct[],
-    source: online ? ("remote" as const) : ("local" as const),
+    source: "remote" as const,
     loading: true,
     refreshLocal,
   };

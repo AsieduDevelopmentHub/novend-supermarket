@@ -255,22 +255,43 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const HEARTBEAT_MS = 2 * 60_000;
     let cancelled = false;
     let interval: number | undefined;
+    let identityPayload:
+      | {
+          device: string;
+          runtime: ReturnType<typeof telemetryRuntimeForDevice>;
+          appVersion: string | undefined;
+        }
+      | undefined;
+
+    function tick() {
+      if (cancelled || !identityPayload) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void heartbeat(identityPayload);
+    }
+
     void describeClientDevice().then((identity) => {
       if (cancelled) return;
-      const payload = {
+      identityPayload = {
         device: identity.name,
         runtime: telemetryRuntimeForDevice(identity),
         appVersion: identity.appVersion,
       };
-      void heartbeat(payload);
-      interval = window.setInterval(() => void heartbeat(payload), 30_000);
+      tick();
+      interval = window.setInterval(tick, HEARTBEAT_MS);
     });
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelled = true;
       if (interval !== undefined) window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [heartbeat, isAuthenticated, online, user]);
 

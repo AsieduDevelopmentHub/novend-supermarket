@@ -95,8 +95,9 @@ online paint does not `getUrl` every image. Default page size is 20
 (`constants/list-page.ts`). Sales POS search stays unpaged.
 
 When the Dexie mirror is warm (`canServeListsFromMirror`), list hooks **skip**
-the live Convex subscription. Snapshot sync + `novend:replica-changed` keep
-the replica current. Local joins (product → category / branch stock / lots)
+the live Convex subscription. This includes Products, Inventory, Orders, and
+**Sales catalog** (`useSalesCatalog`). Snapshot sync + `novend:replica-changed`
+keep the replica current. Local joins (product → category / branch stock / lots)
 stay in `lib/offline/mirror-queries.ts` — do not add a second query language.
 
 Downloads / Releases use Convex `useQuery` as the pub/sub. Publishing a

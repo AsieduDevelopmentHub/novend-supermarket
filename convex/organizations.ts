@@ -10,6 +10,7 @@ import {
 import { provisionOrganization } from "./shared/provisionOrganization";
 import { DEFAULT_BRANCH_NAME } from "./shared/defaultBranch";
 import { sanitizeText, TEXT_LIMITS } from "./shared/validation";
+import { bumpOrgUserCount } from "./shared/organizationStats";
 
 export const mine = query({
   args: {},
@@ -86,6 +87,7 @@ export const create = mutation({
       status: "active",
       lastSeenAt: 0,
     });
+    await bumpOrgUserCount(ctx, organizationId, 1);
 
     return { organizationId, branchId };
   },

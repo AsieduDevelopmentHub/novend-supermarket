@@ -51,6 +51,10 @@ or drive hot queries **start with** `organizationId`.
 - `platformEvents` — 90-day privacy-limited product and operational telemetry
 - `platformDailyActiveUsers` — one pseudonymous active-user row per UTC day
 - `platformDailyRollups` — durable Super Admin monitoring aggregates
+- `organizationPlatformStats` — denormalized per-org counters (sales, products,
+  users, branches, imports, exports) for Super Admin overview / org list without
+  global `.collect()` on sales or products. Maintained on write paths; backfill
+  via `platformStats.backfillOrganizationStats` after deploy.
 - `releaseDownloadBaselines` — immutable historical GitHub asset totals
 - `userTourProgress` — versioned, user-owned onboarding progress
 - `loginAttempts` — brute-force protection

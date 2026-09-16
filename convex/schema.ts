@@ -294,7 +294,9 @@ export default defineSchema({
     .index("by_organization", ["organizationId"])
     .index("by_organization_fingerprint", ["organizationId", "fingerprint"])
     .index("by_organization_active", ["organizationId", "isActive"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_isActive", ["isActive"])
+    .index("by_registeredAt", ["registeredAt"]),
 
   billingHistory: defineTable({
     organizationId: v.id("organizations"),
@@ -919,6 +921,23 @@ export default defineSchema({
   })
     .index("by_day_metric_dimension", ["day", "metric", "dimension"])
     .index("by_metric_day", ["metric", "day"]),
+
+  /**
+   * Denormalized per-org counters for Super Admin overview / org list.
+   * Maintained on sale/product/user/branch/import/export mutations; backfillable.
+   */
+  organizationPlatformStats: defineTable({
+    organizationId: v.id("organizations"),
+    saleCount: v.number(),
+    saleRevenueTotal: v.number(),
+    productCount: v.number(),
+    userCount: v.number(),
+    branchCount: v.number(),
+    importJobCount: v.number(),
+    failedImportCount: v.number(),
+    exportEventCount: v.number(),
+    updatedAt: v.number(),
+  }).index("by_organization", ["organizationId"]),
 
   /** Imported GitHub totals at telemetry launch; local trends start from trackedAt. */
   releaseDownloadBaselines: defineTable({

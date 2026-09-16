@@ -53,7 +53,18 @@ The redirect must succeed even when telemetry recording fails.
 `platformEvents` and `platformDailyActiveUsers` retain detailed pseudonymous
 rows for 90 days. Nightly maintenance deletes expired rows in bounded batches.
 `platformDailyRollups` is durable and powers range queries without retaining
-business payloads.
+business payloads. Sale completions also increment a `sale_completed` rollup
+dimension for Super Admin trend cards.
+
+Tenant list and overview screens read `organizationPlatformStats` (per-org
+counters) instead of collecting every sale or product document. After deploying
+the table, run `platformStats.backfillOrganizationStats` in pages until
+`isDone` so historical orgs have accurate counters.
+
+Runtime mix and device health query only **active** devices (`by_isActive`).
+Activation funnel registrations use `by_registeredAt` for the selected range.
+Staff account totals come from `organizationPlatformStats` (no global profiles
+collect).
 
 ## Offline behavior
 

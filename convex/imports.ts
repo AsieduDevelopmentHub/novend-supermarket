@@ -5,6 +5,10 @@ import { resolveLicense } from "./shared/entitlements";
 import { planCapabilities, capabilityDeniedMessage } from "./shared/capabilities";
 import { sanitizeText, TEXT_LIMITS } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
+import {
+  bumpOrgExportEventCount,
+  bumpOrgImportJobStats,
+} from "./shared/organizationStats";
 
 const FORMAT = v.union(v.literal("csv"), v.literal("xlsx"), v.literal("pdf"), v.literal("json"));
 
@@ -79,6 +83,7 @@ export const recordJob = mutation({
       entityId: id,
       metadata: { status: args.status, createdCount: args.createdCount },
     });
+    await bumpOrgImportJobStats(ctx, organizationId, { failed: args.status === "failed" });
     return id;
   },
 });
@@ -181,5 +186,6 @@ export const recordExport = mutation({
       rowCount: Math.max(0, Math.floor(args.rowCount)),
       createdAt: Date.now(),
     });
+    await bumpOrgExportEventCount(ctx, organizationId);
   },
 });
