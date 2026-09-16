@@ -91,11 +91,11 @@ async function computeOrgPlatformStats(
       .collect(),
     ctx.db
       .query("importJobs")
-      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .withIndex("by_organization_createdAt", (q) => q.eq("organizationId", organizationId))
       .collect(),
     ctx.db
       .query("exportEvents")
-      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .withIndex("by_organization_createdAt", (q) => q.eq("organizationId", organizationId))
       .collect(),
   ]);
 

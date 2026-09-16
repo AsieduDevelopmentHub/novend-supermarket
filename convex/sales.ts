@@ -10,7 +10,7 @@ import {
 } from "./shared/permissions";
 import { assertPositiveMoney, productMatchesLookup, roundMoney } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { loadPrintSnapshot, loadBusinessConfiguration } from "./settings";
 import { applyBranchStockChange, getBranchQuantity, stockMapForBranch } from "./shared/branchStock";
 import {
@@ -695,7 +695,7 @@ export const listOrders = query({
     const startDate = args.startDate;
     const endDate = args.endDate;
     const fetchCap = Math.min(Math.max(limit * 8, 400), 2000);
-    let sales;
+    let sales: Doc<"sales">[];
     if (startDate !== undefined && endDate !== undefined) {
       sales = await ctx.db
         .query("sales")
