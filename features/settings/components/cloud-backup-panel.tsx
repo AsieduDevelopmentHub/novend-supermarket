@@ -22,6 +22,7 @@ import { showError } from "@/lib/errors";
 import { uploadAndClaimStorage } from "@/lib/uploads/convex-storage";
 import { toast } from "sonner";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useLicense } from "@/hooks/use-license";
 
 function formatDateTime(value: number) {
   return new Date(value).toLocaleString("en-GH", {
@@ -45,6 +46,7 @@ type CloudBackupCardProps = {
  */
 export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackupCardProps) {
   const online = useConnectivity();
+  const { cloudMode } = useLicense();
   const convex = useConvex();
   const usage = useQuery(api.cloudBackups.usage, online ? {} : "skip");
   const generateUploadUrl = useMutation(api.cloudBackups.generateBackupUploadUrl);
@@ -176,6 +178,12 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {cloudMode === "backup_only" ? (
+          <p className="text-muted-foreground text-xs">
+            Scheduled cloud backups are on for this organization. Keep a backup password entered
+            here to let automatic daily backups run.
+          </p>
+        ) : null}
         <div className="space-y-2">
           <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
             <span className="font-medium">

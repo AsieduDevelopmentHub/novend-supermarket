@@ -22,11 +22,15 @@ import {
   buildUsageMetrics,
   countUsage,
   getActiveSubscription,
+  resolveAllowedCloudModes,
+  resolveCloudEntitlements,
   resolveLicense,
 } from "./shared/entitlements";
 import { planCapabilities } from "./shared/capabilities";
 import { GRACE_PERIOD_MS } from "./shared/licensing";
 import { normalizeCloudMode } from "./shared/cloudMode";
+import { bumpEntitlementVersion, currentEntitlementVersion } from "./shared/entitlementVersion";
+import { onOrganizationPlanChanged } from "./shared/platformStatsAggregate";
 import { hasPendingOrganizationClosure } from "./shared/accountClosure";
 import {
   DEFAULT_PLAN_KEY,
@@ -119,11 +123,16 @@ export const licenseSnapshot = query({
     const license = await resolveLicense(ctx, organization);
     const now = Date.now();
     const pendingClosure = hasPendingOrganizationClosure(organization, now);
+    const cloudEntitlements = resolveCloudEntitlements(organization);
     return {
       organizationId: organization._id,
       organizationName: organization.name,
       organizationStatus: organization.status,
       cloudMode: normalizeCloudMode(organization.cloudMode),
+      entitlementVersion: currentEntitlementVersion(organization),
+      allowedCloudModes: resolveAllowedCloudModes(organization, license.plan),
+      cloudBackupEnabled: cloudEntitlements.cloudBackupEnabled,
+      remoteMonitoringEnabled: cloudEntitlements.remoteMonitoringEnabled,
       planKey: license.planKey,
       planName: license.plan.name,
       access: license.access,
@@ -1593,6 +1602,7 @@ export const assignPlan = mutation({
     const { userId } = await requirePlatformAdmin(ctx);
     const organization = await ctx.db.get(args.organizationId);
     if (!organization) throw new Error("Organization not found");
+    const previousPlanKey = organization.planKey ?? args.planKey;
     const plan = PLAN_CATALOG[args.planKey];
     if (!supportsCycle(plan, args.cycle)) {
       throw new Error(`The ${plan.name} plan is not sold on a ${args.cycle} cycle.`);
@@ -1626,6 +1636,9 @@ export const assignPlan = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    await bumpEntitlementVersion(ctx, args.organizationId);
+    await onOrganizationPlanChanged(ctx, { from: previousPlanKey, to: args.planKey });
 
     return subscriptionId;
   },
@@ -1729,6 +1742,7 @@ export const setBackupLimit = mutation({
       entityId: organization._id,
       metadata: { backupLimitGb: args.backupLimitGb, backupLimitBytes },
     });
+    await bumpEntitlementVersion(ctx, organization._id);
     return { backupLimitBytes };
   },
 });
@@ -1792,6 +1806,7 @@ export const organizationLicense = query({
       .take(10);
     const capabilities = planCapabilities(license.planKey, license.limits);
 
+    const cloudEntitlements = resolveCloudEntitlements(organization);
     return {
       planKey: license.planKey,
       planName: license.plan.name,
@@ -1802,6 +1817,11 @@ export const organizationLicense = query({
       productLimitOverridden: organization.limitOverrides?.products !== undefined,
       variableBackup: license.plan.variableBackup,
       backupLimitBytes: organization.backupLimitBytes ?? null,
+      cloudMode: normalizeCloudMode(organization.cloudMode),
+      entitlementVersion: currentEntitlementVersion(organization),
+      allowedCloudModes: resolveAllowedCloudModes(organization, license.plan),
+      cloudBackupEnabled: cloudEntitlements.cloudBackupEnabled,
+      remoteMonitoringEnabled: cloudEntitlements.remoteMonitoringEnabled,
       access: license.access,
       status: organization.status,
       trialEndsAt: organization.trialEndsAt ?? null,

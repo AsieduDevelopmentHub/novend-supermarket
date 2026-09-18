@@ -61,6 +61,13 @@ counters) instead of collecting every sale or product document. After deploying
 the table, run `platformStats.backfillOrganizationStats` in pages until
 `isDone` so historical orgs have accurate counters.
 
+**Cloud query policy.** Super Admin overview KPI cards prefer aggregates over
+`.collect()`. Deployment-wide totals (organization / cloud-mode / plan / device /
+branch / user counts) come from the `platformStats` singleton via
+`platformStats.getGlobal`, maintained incrementally on org write paths and
+repairable with `platformStats.rebuild`. Reserve full-table scans for near-cap
+lists and recent-org drill-downs, not headline cards.
+
 Runtime mix and device health query only **active** devices (`by_isActive`).
 Activation funnel registrations use `by_registeredAt` for the selected range.
 Staff account totals come from `organizationPlatformStats` (no global profiles

@@ -14,6 +14,7 @@ import { PLAN_CATALOG, supportsCycle, type BillingCycle, type PlanKey } from "./
 import { activateSubscription, startTrial } from "./subscriptions";
 import { sanitizeOptionalText, sanitizeText, TEXT_LIMITS } from "./validation";
 import { seedOrgPlatformStats } from "./organizationStats";
+import { onOrganizationProvisioned } from "./platformStatsAggregate";
 
 export function slugifyBusinessName(value: string): string {
   const slug = value
@@ -69,6 +70,7 @@ export async function provisionOrganization(
     taxId,
     plan: "standard",
     cloudMode: "full_sync",
+    entitlementVersion: 1,
     createdAt: now,
     updatedAt: now,
   });
@@ -163,6 +165,12 @@ export async function provisionOrganization(
   });
 
   await seedOrgPlatformStats(ctx, organizationId, { branchCount: 1 });
+  await onOrganizationProvisioned(ctx, {
+    planKey,
+    cloudMode: "full_sync",
+    status: "active",
+    branchCount: 1,
+  });
 
   return { organizationId, branchId };
 }

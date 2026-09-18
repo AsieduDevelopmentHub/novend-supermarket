@@ -1,23 +1,34 @@
 import { createAccount, getAuthUserId, modifyAccountCredentials } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { action, internalMutation, mutation, query } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { getPlatformAdmin, requirePlatformAdmin } from "./shared/permissions";
 import { assertPasswordPolicy } from "./shared/passwordPolicy";
 import { notifyPasswordChanged } from "./shared/transactionalEmail";
 import { sanitizeOptionalText, TEXT_LIMITS } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
-import { planKeyValidator, billingCycleValidator } from "./schema";
+import { planKeyValidator, billingCycleValidator, cloudModeValidator } from "./schema";
 import { effectivePlanLimits, resolvePlan } from "./shared/plans";
 import { planCapabilities } from "./shared/capabilities";
 import { countExportFormats, loadOrganizationImportExport } from "./shared/importExportSnapshot";
-import { resolveLicense, getActiveSubscription } from "./shared/entitlements";
+import {
+  resolveLicense,
+  getActiveSubscription,
+  resolveAllowedCloudModes,
+} from "./shared/entitlements";
 import { hasPendingOrganizationClosure } from "./shared/accountClosure";
 import { provisionOrganization } from "./shared/provisionOrganization";
 import { GRACE_PERIOD_MS } from "./shared/licensing";
 import { archiveOrganizationRecord } from "./shared/accountClosure";
 import { readOrgPlatformStatsOrZero } from "./shared/organizationStats";
+import { normalizeCloudMode } from "./shared/cloudMode";
+import { bumpEntitlementVersion } from "./shared/entitlementVersion";
+import {
+  onOrganizationCloudModeChanged,
+  onOrganizationStatusChanged,
+  readPlatformStats,
+} from "./shared/platformStatsAggregate";
 
 export const me = query({
   args: {},
@@ -42,7 +53,7 @@ export const overview = query({
     const now = Date.now();
     const dayAgo = now - 24 * 60 * 60 * 1000;
 
-    const [organizations, orgStats, recentSales, exportEvents] = await Promise.all([
+    const [organizations, orgStats, recentSales, exportEvents, globalStats] = await Promise.all([
       ctx.db.query("organizations").collect(),
       ctx.db.query("organizationPlatformStats").collect(),
       ctx.db
@@ -51,6 +62,7 @@ export const overview = query({
         .collect(),
       // Export volume is small vs sales/products; kept for format breakdown only.
       ctx.db.query("exportEvents").collect(),
+      readPlatformStats(ctx),
     ]);
 
     const statsByOrg = new Map(orgStats.map((row) => [String(row.organizationId), row]));
@@ -102,15 +114,38 @@ export const overview = query({
     }
     orgsNearImportCap.sort((a, b) => b.percent - a.percent);
 
+    // Cloud-mode distribution: prefer the incremental singleton, fall back to a
+    // fresh scan of the collected organizations so the card is never blank
+    // before the first rebuild.
+    const cloudModeCounts = globalStats
+      ? {
+          fullSync: globalStats.fullSyncCount,
+          backupOnly: globalStats.backupOnlyCount,
+          localOnly: globalStats.localOnlyCount,
+        }
+      : organizations.reduce(
+          (acc, org) => {
+            const mode = normalizeCloudMode(org.cloudMode);
+            if (mode === "backup_only") acc.backupOnly += 1;
+            else if (mode === "local_only") acc.localOnly += 1;
+            else acc.fullSync += 1;
+            return acc;
+          },
+          { fullSync: 0, backupOnly: 0, localOnly: 0 },
+        );
+
     return {
-      organizationCount: organizations.length,
-      activeOrganizations: organizations.filter((org) => org.status === "active").length,
+      organizationCount: globalStats?.organizationCount ?? organizations.length,
+      activeOrganizations:
+        globalStats?.activeOrganizationCount ??
+        organizations.filter((org) => org.status === "active").length,
       trialOrganizations: organizations.filter((org) => org.status === "trial").length,
       suspendedOrganizations: organizations.filter((org) => org.status === "suspended").length,
       expiredOrganizations: organizations.filter((org) => org.status === "expired").length,
       inactiveOrganizations: organizations.filter(
         (org) => org.status === "inactive" || org.status === "disabled",
       ).length,
+      cloudModeCounts,
       userCount,
       branchCount,
       saleCount,
@@ -404,13 +439,55 @@ export const setOrganizationStatus = mutation({
     const { userId } = await requirePlatformAdmin(ctx);
     const org = await ctx.db.get(args.organizationId);
     if (!org) throw new Error("Organization not found");
+    const previousStatus = org.status;
     await ctx.db.patch(args.organizationId, { status: args.status, updatedAt: Date.now() });
+    await bumpEntitlementVersion(ctx, args.organizationId);
+    await onOrganizationStatusChanged(ctx, { from: previousStatus, to: args.status });
     await writeAuditLog(ctx, {
       actorId: userId,
       action: "platform_set_org_status",
       entityType: "organizations",
       entityId: args.organizationId,
       metadata: { status: args.status },
+    });
+    return args.organizationId;
+  },
+});
+
+/**
+ * PEAS — Super Admin selection of the organization's cloud usage mode.
+ *
+ * Validated against the organization's allowed modes, audited, and reflected in
+ * the entitlement version and platform aggregate. Switching to `local_only`
+ * stops routine business synchronization (the client keeps operating locally
+ * and still sends the minimal platform heartbeat). See CLOUD_MODE_PLAN_V2 (§42).
+ */
+export const setOrganizationCloudMode = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    cloudMode: cloudModeValidator,
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    const org = await ctx.db.get(args.organizationId);
+    if (!org) throw new Error("Organization not found");
+    const allowed = resolveAllowedCloudModes(org);
+    if (!allowed.includes(args.cloudMode)) {
+      throw new Error("That cloud mode is not permitted for this organization.");
+    }
+    const previousMode = normalizeCloudMode(org.cloudMode);
+    if (previousMode === args.cloudMode) return args.organizationId;
+
+    await ctx.db.patch(args.organizationId, { cloudMode: args.cloudMode, updatedAt: Date.now() });
+    await bumpEntitlementVersion(ctx, args.organizationId);
+    await onOrganizationCloudModeChanged(ctx, { from: previousMode, to: args.cloudMode });
+    await writeAuditLog(ctx, {
+      organizationId: args.organizationId,
+      actorId: userId,
+      action: "platform_set_cloud_mode",
+      entityType: "organizations",
+      entityId: args.organizationId,
+      metadata: { cloudMode: args.cloudMode, previousMode },
     });
     return args.organizationId;
   },
@@ -474,6 +551,14 @@ export const setOrganizationLimitOverrides = mutation({
         ),
       ),
     ),
+    /**
+     * Cloud entitlements (Phase G). `allowedCloudModes: null` clears the
+     * restriction back to "all modes"; an array restricts selectable modes.
+     * The boolean toggles default to enabled when the field is cleared.
+     */
+    allowedCloudModes: v.optional(v.union(v.array(cloudModeValidator), v.null())),
+    cloudBackupEnabled: v.optional(v.boolean()),
+    remoteMonitoringEnabled: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { userId } = await requirePlatformAdmin(ctx);
@@ -499,14 +584,38 @@ export const setOrganizationLimitOverrides = mutation({
       delete next[key];
     }
 
-    await ctx.db.patch(args.organizationId, { limitOverrides: next, updatedAt: Date.now() });
+    const patch: Partial<Doc<"organizations">> = {
+      limitOverrides: next,
+      updatedAt: Date.now(),
+    };
+
+    if (args.allowedCloudModes !== undefined) {
+      // Clear the restriction (all modes allowed) with an empty array — Convex
+      // has no delete-field, and `resolveAllowedCloudModes` treats [] as "all".
+      patch.allowedCloudModes =
+        args.allowedCloudModes === null || args.allowedCloudModes.length === 0
+          ? []
+          : Array.from(new Set(args.allowedCloudModes));
+    }
+    if (args.cloudBackupEnabled !== undefined) patch.cloudBackupEnabled = args.cloudBackupEnabled;
+    if (args.remoteMonitoringEnabled !== undefined) {
+      patch.remoteMonitoringEnabled = args.remoteMonitoringEnabled;
+    }
+
+    await ctx.db.patch(args.organizationId, patch);
+    await bumpEntitlementVersion(ctx, args.organizationId);
     await writeAuditLog(ctx, {
       organizationId: args.organizationId,
       actorId: userId,
       action: "platform_set_limit_overrides",
       entityType: "organizations",
       entityId: args.organizationId,
-      metadata: next,
+      metadata: {
+        ...next,
+        allowedCloudModes: args.allowedCloudModes ?? undefined,
+        cloudBackupEnabled: args.cloudBackupEnabled,
+        remoteMonitoringEnabled: args.remoteMonitoringEnabled,
+      },
     });
     return next;
   },

@@ -8,6 +8,7 @@ import { loadLicenseSnapshot, saveLicenseSnapshot } from "@/lib/offline/license"
 import type { LicenseAccess, LicenseSnapshot } from "@/convex/shared/licensing";
 import { resolvePlan, type PlanKey, type PlanLimits } from "@/convex/shared/plans";
 import { planCapabilities, type PlanCapabilities } from "@/convex/shared/capabilities";
+import { DEFAULT_CLOUD_MODE, normalizeCloudMode, type CloudMode } from "@/convex/shared/cloudMode";
 
 export type LicenseState = {
   isLoading: boolean;
@@ -17,6 +18,8 @@ export type LicenseState = {
   capabilities: PlanCapabilities;
   features: string[];
   access: LicenseAccess;
+  /** Cloud usage mode for this organization. Defaults to full_sync. */
+  cloudMode: CloudMode;
   /** True when the licence came from the offline cache rather than Convex. */
   fromCache: boolean;
   /** Cached licence that is too old to be trusted for writes. */
@@ -75,6 +78,7 @@ export function useLicense(): LicenseState {
       capabilities: remote.capabilities ?? planCapabilities(plan.key, remote.limits),
       features: remote.features,
       access: remote.access,
+      cloudMode: normalizeCloudMode(remote.cloudMode),
       fromCache: false,
       stale: false,
       subscription: remote.subscription,
@@ -94,6 +98,7 @@ export function useLicense(): LicenseState {
       capabilities: cached.capabilities ?? planCapabilities(plan.key, cached.limits),
       features: cached.features,
       access: cached.access,
+      cloudMode: normalizeCloudMode(cached.cloudMode),
       fromCache: true,
       stale: cached.access.stale,
       subscription: cached.subscription,
@@ -112,6 +117,7 @@ export function useLicense(): LicenseState {
     capabilities: planCapabilities(fallback.key, fallback.limits),
     features: fallback.features,
     access: DEFAULT_ACCESS,
+    cloudMode: DEFAULT_CLOUD_MODE,
     fromCache: false,
     stale: false,
     subscription: null,

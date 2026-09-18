@@ -40,3 +40,22 @@ export function assertBackupUnlockPassword(password: string): void {
     throw new Error("Enter the backup password to restore");
   }
 }
+
+/**
+ * In-memory backup password for the current session only.
+ *
+ * Deliberately never persisted to disk — the encrypted backups' only protection
+ * is this password, so it must not be written to IndexedDB, localStorage, or
+ * Preferences. Held in a module variable so automatic `backup_only` cloud
+ * backups can encrypt while the admin keeps a valid password entered in
+ * Settings. It is cleared when the Settings panel unmounts (or on reload).
+ */
+let sessionBackupPassword: string | null = null;
+
+export function setSessionBackupPassword(password: string | null): void {
+  sessionBackupPassword = password && password.trim() ? password : null;
+}
+
+export function getSessionBackupPassword(): string | null {
+  return sessionBackupPassword;
+}

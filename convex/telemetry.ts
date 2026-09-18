@@ -2,7 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { requirePlatformAdmin } from "./shared/permissions";
+import { requirePlatformAdmin, requireSessionIgnoringLicense } from "./shared/permissions";
 import {
   classifyReleaseAsset,
   clampTelemetryTimestamp,
@@ -15,6 +15,96 @@ import {
 } from "./shared/platformTelemetry";
 import { telemetryEventKindValidator, telemetryRuntimeValidator } from "./schema";
 import { writeAuditLog } from "./shared/audit";
+import { normalizeCloudMode } from "./shared/cloudMode";
+import { resolveLicense } from "./shared/entitlements";
+import { currentEntitlementVersion } from "./shared/entitlementVersion";
+import { readOrgPlatformStatsOrZero } from "./shared/organizationStats";
+
+const HEARTBEAT_MIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+/** Clamps a client-reported count to a sane non-negative integer. */
+function clampCount(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value)) return undefined;
+  return Math.min(Math.max(Math.trunc(value), 0), 1_000_000_000);
+}
+
+/**
+ * Minimal platform telemetry heartbeat — separate from the product event
+ * pipeline (`recordBatch` / `platformEvents`). Works for every cloud mode,
+ * including `local_only`, because it uses `requireSessionIgnoringLicense` and
+ * never uploads business records. Authoritative fields (cloud mode, plan,
+ * entitlement version, branch / user / device counts) are derived server-side;
+ * the client only contributes app version, storage estimate, last backup, and
+ * outbox counts. Deduplicated to at most one write per 24h unless a meaningful
+ * field changed. See CLOUD_MODE_PLAN_V2.md (§3–§9).
+ */
+export const recordHeartbeat = mutation({
+  args: {
+    appVersion: v.optional(v.string()),
+    localStorageBytes: v.optional(v.number()),
+    lastBackupAt: v.optional(v.number()),
+    pendingSyncCount: v.optional(v.number()),
+    failedSyncCount: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { organization } = await requireSessionIgnoringLicense(ctx);
+    const now = Date.now();
+
+    const license = await resolveLicense(ctx, organization);
+    const orgStats = await readOrgPlatformStatsOrZero(ctx, organization._id);
+    const activeDevices = await ctx.db
+      .query("devices")
+      .withIndex("by_organization_active", (q) =>
+        q.eq("organizationId", organization._id).eq("isActive", true),
+      )
+      .collect();
+
+    const snapshot = {
+      cloudMode: normalizeCloudMode(organization.cloudMode),
+      planKey: license.planKey,
+      appVersion: args.appVersion?.slice(0, 32),
+      branchCount: orgStats.branchCount,
+      userCount: orgStats.userCount,
+      deviceCount: activeDevices.length,
+      entitlementVersion: currentEntitlementVersion(organization),
+      localStorageBytes: clampCount(args.localStorageBytes),
+      lastBackupAt: args.lastBackupAt,
+      pendingSyncCount: clampCount(args.pendingSyncCount),
+      failedSyncCount: clampCount(args.failedSyncCount),
+    };
+
+    const latest = await ctx.db
+      .query("platformTelemetryHeartbeats")
+      .withIndex("by_organization_sentAt", (q) => q.eq("organizationId", organization._id))
+      .order("desc")
+      .first();
+
+    // Skip only when nothing meaningful changed AND the last write is recent.
+    // Volatile fields (sync counts, storage, last backup) never force a write.
+    const unchanged =
+      latest !== null &&
+      now - latest.sentAt < HEARTBEAT_MIN_INTERVAL_MS &&
+      latest.cloudMode === snapshot.cloudMode &&
+      latest.planKey === snapshot.planKey &&
+      latest.appVersion === snapshot.appVersion &&
+      latest.branchCount === snapshot.branchCount &&
+      latest.userCount === snapshot.userCount &&
+      latest.deviceCount === snapshot.deviceCount &&
+      latest.entitlementVersion === snapshot.entitlementVersion;
+
+    if (unchanged) {
+      return { written: false as const, entitlementVersion: snapshot.entitlementVersion };
+    }
+
+    await ctx.db.insert("platformTelemetryHeartbeats", {
+      organizationId: organization._id,
+      ...snapshot,
+      sentAt: now,
+    });
+
+    return { written: true as const, entitlementVersion: snapshot.entitlementVersion };
+  },
+});
 
 type BaselineRelease = {
   releaseKind: "desktop" | "mobile";

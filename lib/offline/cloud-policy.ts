@@ -17,5 +17,9 @@ export async function loadCloudPolicy(): Promise<CloudPolicy> {
   const license = await loadLicenseSnapshot();
   const mode =
     license?.cloudMode != null ? normalizeCloudMode(license.cloudMode) : DEFAULT_CLOUD_MODE;
-  return resolveCloudPolicy(mode);
+  return resolveCloudPolicy(mode, {
+    // Missing flags on older cached snapshots default to enabled.
+    cloudBackupEnabled: license?.cloudBackupEnabled,
+    remoteMonitoringEnabled: license?.remoteMonitoringEnabled,
+  });
 }
