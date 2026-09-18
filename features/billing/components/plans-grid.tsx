@@ -216,6 +216,18 @@ export function PlansGrid({
         })}
       </div>
 
+      <p className="text-muted-foreground text-xs leading-relaxed">
+        Purchases are subject to the{" "}
+        <a href="/terms" className="text-primary underline-offset-2 hover:underline">
+          Terms of Service
+        </a>{" "}
+        and{" "}
+        <a href="/refund" className="text-primary underline-offset-2 hover:underline">
+          Refund &amp; Cancellation Policy
+        </a>
+        .
+      </p>
+
       <PlanChangeDialog
         open={Boolean(dialogPlan)}
         preview={preview ?? null}

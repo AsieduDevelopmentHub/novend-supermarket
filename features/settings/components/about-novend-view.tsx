@@ -166,6 +166,18 @@ export function AboutNovendView() {
             <a href="/terms">Terms of Service</a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
+            <a href="/refund">Refund Policy</a>
+          </Button>
+          <Button asChild variant="outline" className="min-h-11 justify-start">
+            <a href="/cookies">Cookie Policy</a>
+          </Button>
+          <Button asChild variant="outline" className="min-h-11 justify-start">
+            <a href="/aup">Acceptable Use</a>
+          </Button>
+          <Button asChild variant="outline" className="min-h-11 justify-start">
+            <a href="/dpa">Data Processing</a>
+          </Button>
+          <Button asChild variant="outline" className="min-h-11 justify-start">
             <Link href="/settings?section=help">Help &amp; tours</Link>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">

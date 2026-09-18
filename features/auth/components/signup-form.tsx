@@ -187,8 +187,8 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
                 className="text-primary font-medium hover:underline"
               >
                 Terms of Service
-              </Link>{" "}
-              and{" "}
+              </Link>
+              ,{" "}
               <Link
                 href={ROUTES.privacy}
                 target="_blank"
@@ -196,6 +196,24 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
                 className="text-primary font-medium hover:underline"
               >
                 Privacy Policy
+              </Link>
+              , and related policies including{" "}
+              <Link
+                href={ROUTES.refund}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary font-medium hover:underline"
+              >
+                Refunds
+              </Link>{" "}
+              and{" "}
+              <Link
+                href={ROUTES.aup}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary font-medium hover:underline"
+              >
+                Acceptable Use
               </Link>
               .
             </Label>

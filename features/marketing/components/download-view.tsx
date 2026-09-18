@@ -386,6 +386,22 @@ export function DownloadView() {
             </ul>
           )}
         </section>
+
+        <p className="text-center text-xs leading-relaxed text-slate-500">
+          By downloading you agree to the{" "}
+          <a href="/terms" className="text-primary underline-offset-2 hover:underline">
+            Terms
+          </a>
+          ,{" "}
+          <a href="/privacy" className="text-primary underline-offset-2 hover:underline">
+            Privacy
+          </a>
+          , and{" "}
+          <a href="/aup" className="text-primary underline-offset-2 hover:underline">
+            Acceptable Use
+          </a>{" "}
+          policies.
+        </p>
       </div>
     </MarketingSitePage>
   );

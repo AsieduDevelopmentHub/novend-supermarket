@@ -242,9 +242,15 @@ export function PrivacyDataPanel() {
             such as completed sales may be retained in anonymized form where the law requires it.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" asChild>
-            <Link href="/privacy">Read privacy policy</Link>
+            <Link href="/privacy">Privacy Policy</Link>
+          </Button>
+          <Button type="button" variant="outline" asChild>
+            <Link href="/cookies">Cookie Policy</Link>
+          </Button>
+          <Button type="button" variant="outline" asChild>
+            <Link href="/dpa">Data Processing</Link>
           </Button>
         </CardContent>
       </Card>

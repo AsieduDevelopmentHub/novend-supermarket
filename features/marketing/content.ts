@@ -567,6 +567,10 @@ export const landingCopy = {
     legal: [
       { href: "/privacy", label: "Privacy Policy" },
       { href: "/terms", label: "Terms of Service" },
+      { href: "/refund", label: "Refund Policy" },
+      { href: "/cookies", label: "Cookie Policy" },
+      { href: "/aup", label: "Acceptable Use" },
+      { href: "/dpa", label: "Data Processing" },
     ],
     contact: {
       title: "Get in Touch",

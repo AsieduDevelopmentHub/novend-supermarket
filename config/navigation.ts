@@ -273,4 +273,8 @@ export const ROUTES = {
   download: "/download",
   privacy: "/privacy",
   terms: "/terms",
+  refund: "/refund",
+  cookies: "/cookies",
+  aup: "/aup",
+  dpa: "/dpa",
 } as const;
