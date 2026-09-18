@@ -7,6 +7,7 @@
 
 import type { LimitResource, PlanKey } from "./plans";
 import type { PlanCapabilities } from "./capabilities";
+import type { CloudMode } from "./cloudMode";
 
 export const ORGANIZATION_STATUSES = [
   "active",
@@ -248,6 +249,8 @@ export type LicenseSnapshot = {
   planKey: PlanKey;
   planName: string;
   organizationStatus: OrganizationStatus;
+  /** Cloud usage mode. Older caches normalize via `normalizeCloudMode`. */
+  cloudMode: CloudMode;
   subscription: SubscriptionSnapshot | null;
   access: LicenseAccess;
   limits: Record<LimitResource, number | null>;

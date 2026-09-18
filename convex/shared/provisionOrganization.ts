@@ -68,6 +68,7 @@ export async function provisionOrganization(
     currency,
     taxId,
     plan: "standard",
+    cloudMode: "full_sync",
     createdAt: now,
     updatedAt: now,
   });
