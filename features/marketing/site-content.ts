@@ -251,7 +251,7 @@ export const sitePages = {
         items: [
           {
             q: "Where are the legal documents?",
-            a: "Privacy Policy is at /privacy and Terms of Service at /terms. You must accept both before creating an account on signup.",
+            a: "Privacy Policy is at /privacy, Terms of Service at /terms, Refund & Cancellation at /refund, Cookie Policy at /cookies, Acceptable Use at /aup, and Data Processing Addendum at /dpa. You must accept Terms and Privacy before creating an account on signup.",
           },
           {
             q: "Do you sell my customer lists?",
@@ -287,7 +287,7 @@ export const sitePages = {
   privacy: {
     badge: "Legal",
     title: "Privacy Policy",
-    effective: "Effective August 31, 2026",
+    effective: "Effective September 18, 2026",
     intro:
       "This Privacy Policy explains how Asiedu Development Hub (“we”, “us”, “our”) collects, uses, stores, shares, and protects information when you access Novend POS and related websites, the web application, desktop applications, the Android application, and the iOS Progressive Web App (together, the “Service”). Additional native applications we publish later remain covered. Please read it carefully. By creating an account or using Novend, you acknowledge this Policy.",
     sections: [
@@ -396,7 +396,7 @@ export const sitePages = {
   terms: {
     badge: "Legal",
     title: "Terms of Service",
-    effective: "Effective August 31, 2026",
+    effective: "Effective September 18, 2026",
     intro:
       "These Terms of Service (“Terms”) form a binding agreement between you and Asiedu Development Hub governing access to and use of Novend POS, including the website, web application, desktop applications, Android application, iOS Progressive Web App, documentation, and related services (the “Service”). Additional native applications we publish later remain part of the Service. By creating an account, clicking to accept, or using Novend, you agree to these Terms.",
     sections: [
@@ -432,7 +432,7 @@ export const sitePages = {
         paragraphs: [
           "Paid plans are billed according to the pricing and billing interval shown at purchase or in an Enterprise agreement, including monthly, yearly, or lifetime options where available.",
           "Free trials, if offered, are time-limited and may require payment details depending on the checkout flow. When a trial ends, continued use of paid features may require an active subscription or licence.",
-          "Fees are generally non-refundable except where required by law or expressly stated otherwise.",
+          "Fees for subscriptions, licences, and related paid services are governed by our Refund & Cancellation Policy at /refund. Except where that policy or applicable law requires otherwise, fees are non-refundable.",
           "You are responsible for applicable taxes. We may collect tax where legally required.",
           "Enterprise pricing, onboarding, and custom limits may be set in a separate order form or sales agreement, which prevails for those commercial terms if it conflicts with this summary.",
         ],
@@ -440,10 +440,8 @@ export const sitePages = {
       {
         title: "5. Acceptable use",
         paragraphs: [
-          "You may not misuse Novend, probe or breach security, attempt unauthorized access to other organizations’ data, interfere with other customers, or use the Service for unlawful, fraudulent, or abusive activity.",
-          "You may not reverse engineer proprietary parts of the Service except to the limited extent permitted by applicable law that cannot be waived.",
-          "You may not resell, white-label, or provide Novend as a competing hosted service to third parties without our written consent.",
-          "We may suspend access that threatens the stability, security, or integrity of the Service.",
+          "Your use of Novend must comply with our Acceptable Use Policy at /aup, which is incorporated into these Terms. Prohibited conduct includes misuse, unauthorized access, unlawful activity, and providing Novend as a competing hosted service without written consent.",
+          "We may suspend access that threatens the stability, security, or integrity of the Service or that violates the Acceptable Use Policy.",
         ],
       },
       {
@@ -452,7 +450,8 @@ export const sitePages = {
           "Novend supports offline operation. You acknowledge that local device storage, timely sync, and device security are part of normal use.",
           "The Novend cloud is the authority for committed synchronized business state. On-device storage helps you keep selling offline, but it is not a substitute for proper device care and timely sync.",
           "We work to protect synchronized data with commercially reasonable measures, but you should maintain operational practices: control staff access, keep devices updated from official channels, and export or back up critical records according to your own compliance needs. In-app catalog import (CSV or Excel) and report export are tools your authorized staff operate; you remain responsible for the files you import and the records you export.",
-          "Our Privacy Policy describes how we process personal data and is incorporated by reference.",
+          "Our Privacy Policy at /privacy describes how we process personal data and is incorporated by reference. Where we process personal data on your behalf as a processor, our Data Processing Addendum at /dpa applies.",
+          "Our Cookie Policy at /cookies describes cookies and similar technologies used on our websites and marketing surfaces.",
         ],
       },
       {
@@ -527,6 +526,323 @@ export const sitePages = {
         title: "16. Contact",
         paragraphs: [
           `For questions about these Terms, contact ${LANDING_CONTACT_EMAIL}, WhatsApp/calls +44 7868 178108, or local support +233 55 525 7482.`,
+          "Related policies: Privacy Policy (/privacy), Refund & Cancellation Policy (/refund), Cookie Policy (/cookies), Acceptable Use Policy (/aup), and Data Processing Addendum (/dpa).",
+          "Asiedu Development Hub — Sunyani, Bono Region, Ghana.",
+        ],
+      },
+    ],
+  },
+
+  refund: {
+    badge: "Legal",
+    title: "Refund & Cancellation Policy",
+    effective: "Effective September 18, 2026",
+    intro:
+      "This Refund & Cancellation Policy explains how subscriptions, licences, trials, and paid Novend services from Asiedu Development Hub may be cancelled and when refunds apply. It forms part of your agreement with us together with the Terms of Service.",
+    sections: [
+      {
+        title: "1. Scope",
+        paragraphs: [
+          "This policy covers fees paid to Asiedu Development Hub for Novend POS plans (monthly, yearly, or lifetime where offered), paid upgrades, and related Novend SaaS charges processed through our official checkout or invoicing.",
+          "It does not cover money you collect from your own retail or wholesale customers at the point of sale. Returns of goods you sell are your business responsibility and are handled inside Novend as sales returns, not as SaaS refunds.",
+          "Payment processors (for example card or mobile-money gateways) may apply their own timelines for settling refunds once we approve them.",
+        ],
+      },
+      {
+        title: "2. General rule",
+        paragraphs: [
+          "Except where this policy or applicable law requires otherwise, all fees are non-refundable, including partial months, unused seats, unused device activations, and prepaid yearly or lifetime licence fees.",
+          "Purchasing a plan, activating paid features after a trial, or renewing a subscription constitutes acceptance of this policy.",
+        ],
+      },
+      {
+        title: "3. Trials and evaluations",
+        paragraphs: [
+          "If we offer a free trial, you may cancel before the trial ends without charge for the paid plan that would otherwise start, provided you cancel through the billing settings or by contacting support in time for us to stop conversion.",
+          "If payment is captured at trial end according to the checkout you accepted, that charge is treated as a normal paid subscription under this policy.",
+        ],
+      },
+      {
+        title: "4. How to cancel",
+        paragraphs: [
+          "You may cancel auto-renewal from Settings → Billing (or the equivalent billing screen) while signed in as an organization administrator, or by emailing support from an authorized address.",
+          "Cancellation stops future renewals. You retain access to paid features until the end of the then-current paid period already charged, unless we terminate earlier for breach under the Terms.",
+          "Closing or archiving an organization does not automatically create a refund for prepaid time.",
+        ],
+      },
+      {
+        title: "5. When we may refund",
+        paragraphs: [
+          "We may issue a full or partial refund, at our discretion or where required by law, in cases such as: duplicate charges for the same period; a clear billing error on our side; inability to deliver the core Service for a material continuous period attributable to us (not including your devices, local internet, or third-party gateways); or a statutory cooling-off or consumer right that applies to your purchase.",
+          "Refund requests should be sent to support within fourteen (14) days of the charge, with your organization name, invoice or payment reference, and reason. We may request identity and payment verification.",
+          "Approved refunds are returned to the original payment method where possible. Timing depends on the processor and your bank or wallet.",
+        ],
+      },
+      {
+        title: "6. What we do not refund",
+        paragraphs: [
+          "Change of mind after purchase; underuse of features or seats; staff mistakes; choosing the wrong plan; dissatisfaction with third-party hardware or printers; issues caused by unsupported or outdated clients you declined to update; or suspension for violation of the Terms or Acceptable Use Policy.",
+          "Lifetime licences, once activated on an eligible organization, are generally not refundable after the limited review window in section 5, except where mandatory law says otherwise.",
+        ],
+      },
+      {
+        title: "7. Chargebacks",
+        paragraphs: [
+          "Please contact us before disputing a charge with your bank or wallet. Unwarranted chargebacks may result in suspension of the organization until the dispute is resolved, and we may share transaction records with the processor.",
+        ],
+      },
+      {
+        title: "8. Enterprise and custom agreements",
+        paragraphs: [
+          "If you signed a separate order form, enterprise agreement, or invoice terms, those commercial terms control for refunds and cancellation where they conflict with this policy.",
+        ],
+      },
+      {
+        title: "9. Changes",
+        paragraphs: [
+          "We may update this policy from time to time. The effective date above will change when we do. Material changes may also be announced in-product or by email. Continued paid use after the effective date constitutes acceptance where permitted by law.",
+        ],
+      },
+      {
+        title: "10. Contact",
+        paragraphs: [
+          `Refund and billing questions: ${LANDING_CONTACT_EMAIL}. WhatsApp/calls +44 7868 178108 or local support +233 55 525 7482.`,
+          "Asiedu Development Hub — Sunyani, Bono Region, Ghana. Governing law aligns with the Terms of Service (Ghana), subject to any non-waivable consumer rights.",
+        ],
+      },
+    ],
+  },
+
+  cookies: {
+    badge: "Legal",
+    title: "Cookie Policy",
+    effective: "Effective September 18, 2026",
+    intro:
+      "This Cookie Policy explains how Asiedu Development Hub uses cookies and similar technologies on Novend marketing sites and related web surfaces. It should be read with our Privacy Policy.",
+    sections: [
+      {
+        title: "1. What we mean by cookies",
+        paragraphs: [
+          "Cookies are small text files stored on your device. Similar technologies include local storage, session storage, and pixels used for security, preferences, or measurement.",
+          "The signed-in Novend application also uses local device storage (including IndexedDB) to support offline POS operation. That operational storage is described in the Privacy Policy and is not limited to marketing cookies.",
+        ],
+      },
+      {
+        title: "2. Who this policy covers",
+        paragraphs: [
+          "This policy focuses on visitors to our public website, documentation, download, and legal pages. Staff using Novend inside an organization are also covered by the Privacy Policy and their employer’s instructions.",
+        ],
+      },
+      {
+        title: "3. Categories we use",
+        paragraphs: [
+          "Strictly necessary: authentication session cookies, security, load balancing, and fraud prevention required to run the site or Service.",
+          "Preferences: remembering UI choices such as theme or dismissed notices where we offer them.",
+          "Analytics and performance: understanding how public pages are used so we can improve reliability and content. We configure analytics to avoid collecting unnecessary personal detail where practical.",
+          "We do not sell personal information collected via cookies as a business model.",
+        ],
+      },
+      {
+        title: "4. Third parties",
+        paragraphs: [
+          "Hosting, authentication, payment, and analytics providers may set their own cookies when you use their features. Their policies apply to those technologies.",
+          "Embedded third-party content (if any) may set cookies we do not control.",
+        ],
+      },
+      {
+        title: "5. Your choices",
+        paragraphs: [
+          "You can control cookies through your browser settings, including blocking or deleting cookies. Blocking strictly necessary cookies may prevent login or core site functions from working.",
+          "Where a consent banner or preference control is shown, you can adjust non-essential cookies through that control.",
+          "Device-level advertising or tracking settings on mobile operating systems may also limit some measurement technologies.",
+        ],
+      },
+      {
+        title: "6. Retention",
+        paragraphs: [
+          "Session cookies typically expire when you close the browser. Persistent cookies remain until they expire or you delete them. Exact lifetimes depend on the cookie purpose and provider.",
+        ],
+      },
+      {
+        title: "7. Updates",
+        paragraphs: [
+          "We may update this Cookie Policy as our sites and vendors change. The effective date above will be revised when we do.",
+        ],
+      },
+      {
+        title: "8. Contact",
+        paragraphs: [
+          `Questions about cookies or privacy: ${LANDING_CONTACT_EMAIL}.`,
+          "See also Privacy Policy (/privacy) and Terms of Service (/terms).",
+        ],
+      },
+    ],
+  },
+
+  aup: {
+    badge: "Legal",
+    title: "Acceptable Use Policy",
+    effective: "Effective September 18, 2026",
+    intro:
+      "This Acceptable Use Policy (“AUP”) sets rules for using Novend. It is part of the Terms of Service between you and Asiedu Development Hub. Violations may result in suspension or termination.",
+    sections: [
+      {
+        title: "1. Lawful use only",
+        paragraphs: [
+          "You may use Novend only for lawful business purposes. You must not use the Service to commit fraud, money laundering, sanctions evasion, IP theft, harassment, or any crime.",
+          "You are responsible for complying with tax, consumer, employment, and sector rules that apply to your sales and staff.",
+        ],
+      },
+      {
+        title: "2. Security and access",
+        paragraphs: [
+          "Do not attempt to access another organization’s data, bypass authentication or role permissions, probe, scan, or stress-test systems without our prior written consent, or interfere with Service integrity.",
+          "Do not share administrator credentials broadly; use invited staff accounts with least privilege. Report suspected breaches promptly.",
+        ],
+      },
+      {
+        title: "3. Content and customer data",
+        paragraphs: [
+          "Do not upload malware, illegal content, or content you do not have rights to process. Do not use Novend to store regulated data types the product is not designed for (for example, full payment card PAN/CVV storage) beyond what official payment integrations allow.",
+          "Customer and staff personal data you enter remains your responsibility as a business. Follow applicable privacy law for your checkout and HR practices.",
+        ],
+      },
+      {
+        title: "4. Fair use and abuse",
+        paragraphs: [
+          "Do not reverse engineer proprietary parts of the Service except where mandatory law allows. Do not resell, white-label, or offer Novend as a competing multi-tenant service without written permission.",
+          "Do not automate abusive bulk traffic, scrape non-public APIs, or use the Service in a way that degrades performance for others.",
+        ],
+      },
+      {
+        title: "5. Offline clients and updates",
+        paragraphs: [
+          "Keep official desktop and mobile clients reasonably up to date. We may block critically outdated clients that create security risk.",
+          "Do not redistribute installers or license keys outside your organization.",
+        ],
+      },
+      {
+        title: "6. Enforcement",
+        paragraphs: [
+          "We may investigate suspected violations, remove or restrict content or access, and cooperate with law enforcement where legally required.",
+          "We may suspend or terminate accounts for AUP or Terms breaches, with or without prior notice when risk is urgent.",
+        ],
+      },
+      {
+        title: "7. Reporting",
+        paragraphs: [
+          `Report abuse or security concerns to ${LANDING_CONTACT_EMAIL} with details and, if possible, organization identifiers and timestamps.`,
+        ],
+      },
+      {
+        title: "8. Changes",
+        paragraphs: [
+          "We may update this AUP. Continued use after the new effective date constitutes acceptance where permitted by law.",
+        ],
+      },
+    ],
+  },
+
+  dpa: {
+    badge: "Legal",
+    title: "Data Processing Addendum",
+    effective: "Effective September 18, 2026",
+    intro:
+      "This Data Processing Addendum (“DPA”) applies when Asiedu Development Hub (“Processor”, “we”) processes personal data on behalf of a Novend customer organization (“Controller”, “you”) in providing the Novend Service. It supplements the Terms of Service and Privacy Policy.",
+    sections: [
+      {
+        title: "1. Roles",
+        paragraphs: [
+          "You are the controller (or equivalent) of personal data you and your staff enter into Novend about your customers, employees, and business contacts.",
+          "We act as processor (or equivalent) for that customer content when we host, sync, back up, and process it to provide the Service. We act as an independent controller for account administration data, billing, security logs, and product telemetry as described in the Privacy Policy.",
+        ],
+      },
+      {
+        title: "2. Subject matter and duration",
+        paragraphs: [
+          "Subject matter: cloud hosting and processing of POS, inventory, staff, customer, and related business records in Novend, including offline sync and support.",
+          "Duration: for the term of your subscription or access, and for any retention period required for backups, legal holds, dispute resolution, or statutory obligations after closure.",
+        ],
+      },
+      {
+        title: "3. Nature and purpose of processing",
+        paragraphs: [
+          "We process personal data only to provide, secure, maintain, support, and improve the Service; to prevent abuse; and to comply with law — not for unrelated advertising profiles of your end customers.",
+          "Processing includes storage, transmission, backup, indexing for search, and display to authorized users of your organization.",
+        ],
+      },
+      {
+        title: "4. Types of personal data and data subjects",
+        paragraphs: [
+          "Depending on how you configure and use Novend, data may include names, phone numbers, emails, role and branch assignments, device identifiers, sale and return records, and similar business operations data about staff, customers, and suppliers.",
+          "You must not instruct us to process special-category or highly regulated data unless Novend expressly supports that use and you have a lawful basis.",
+        ],
+      },
+      {
+        title: "5. Controller instructions",
+        paragraphs: [
+          "We process customer content according to your documented instructions: use of the product features, configuration, exports/imports you initiate, and written instructions consistent with the Terms.",
+          "If an instruction appears unlawful, we will inform you unless law prohibits that notice.",
+        ],
+      },
+      {
+        title: "6. Confidentiality and security",
+        paragraphs: [
+          "We require personnel with access to customer content to maintain confidentiality and limit access on a need-to-know basis.",
+          "We implement commercially reasonable technical and organizational measures appropriate to the risk, including access controls, encryption in transit for cloud connections, and monitoring for abuse. No method of transmission or storage is perfectly secure.",
+        ],
+      },
+      {
+        title: "7. Subprocessors",
+        paragraphs: [
+          "You authorize us to engage subprocessors reasonably needed to operate Novend (for example cloud hosting, authentication, email delivery, error monitoring, and payment processing).",
+          "We remain responsible for subprocessors’ performance insofar as they process customer content for us. We will impose data-protection terms no less protective than this DPA in material respects.",
+          "A current high-level list of infrastructure categories is available on request at the contact below. We will provide reasonable notice of material subprocessor changes where required by applicable law or contract.",
+        ],
+      },
+      {
+        title: "8. International transfers",
+        paragraphs: [
+          "Customer content may be processed in countries where we or our subprocessors operate. Where required, we use appropriate transfer mechanisms or contractual safeguards.",
+        ],
+      },
+      {
+        title: "9. Assistance with rights and assessments",
+        paragraphs: [
+          "Taking into account the nature of processing, we will provide reasonable assistance so you can respond to data-subject requests, security incidents affecting customer content, and documented DPIA/risk assessments you are legally required to perform — via product features (export, user deactivation, organization closure) and support.",
+          "You are responsible for verifying the identity of requesters who contact you about your customers.",
+        ],
+      },
+      {
+        title: "10. Breach notification",
+        paragraphs: [
+          "If we become aware of a personal-data breach affecting your customer content in our systems, we will notify you without undue delay and provide information reasonably available to help you meet your own notification duties.",
+        ],
+      },
+      {
+        title: "11. Return and deletion",
+        paragraphs: [
+          "During the subscription you may export many records through product features. After organization closure or termination, we delete or de-identify customer content from active systems within a commercially reasonable period, except copies retained in encrypted backups for a limited rolling window or where law requires retention.",
+          "Certified deletion timelines may vary by storage layer; contact support for status after closure.",
+        ],
+      },
+      {
+        title: "12. Audits",
+        paragraphs: [
+          "Upon reasonable written request no more than once per year (unless a supervisory authority or confirmed incident requires more), we will provide information reasonably necessary to demonstrate compliance with this DPA, such as security summaries. On-site audits require mutual agreement on scope, timing, confidentiality, and cost.",
+        ],
+      },
+      {
+        title: "13. Liability and order of precedence",
+        paragraphs: [
+          "Liability under this DPA is subject to the limitations in the Terms of Service unless mandatory law provides otherwise.",
+          "If this DPA conflicts with the Terms on data-processing topics, this DPA controls for those topics. Enterprise DPAs or SCCs signed separately control where they conflict with this online DPA.",
+        ],
+      },
+      {
+        title: "14. Contact",
+        paragraphs: [
+          `Privacy and DPA contact: ${LANDING_CONTACT_EMAIL}.`,
           "Asiedu Development Hub — Sunyani, Bono Region, Ghana.",
         ],
       },

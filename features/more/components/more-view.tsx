@@ -25,7 +25,14 @@ function PublicOrAppLink({
   className: string;
   children: React.ReactNode;
 }) {
-  const publicDoc = href === "/privacy" || href === "/terms" || href.startsWith("/docs");
+  const publicDoc =
+    href === "/privacy" ||
+    href === "/terms" ||
+    href === "/refund" ||
+    href === "/cookies" ||
+    href === "/aup" ||
+    href === "/dpa" ||
+    href.startsWith("/docs");
   if (publicDoc) {
     return (
       <a href={href} className={className}>

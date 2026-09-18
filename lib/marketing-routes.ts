@@ -6,6 +6,10 @@ export function isMarketingPath(pathname: string | null | undefined): boolean {
     pathname.startsWith("/download") ||
     pathname.startsWith("/docs") ||
     pathname.startsWith("/privacy") ||
-    pathname.startsWith("/terms")
+    pathname.startsWith("/terms") ||
+    pathname.startsWith("/refund") ||
+    pathname.startsWith("/cookies") ||
+    pathname.startsWith("/aup") ||
+    pathname.startsWith("/dpa")
   );
 }

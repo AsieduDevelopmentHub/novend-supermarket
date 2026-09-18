@@ -53,6 +53,10 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
     pathname.startsWith("/docs") ||
     pathname === "/privacy" ||
     pathname === "/terms" ||
+    pathname === "/refund" ||
+    pathname === "/cookies" ||
+    pathname === "/aup" ||
+    pathname === "/dpa" ||
     pathname === "/unauthorized";
   const skipSplash = skipFromLogin || isMarketingLanding || isAuthRoute || isPublicSitePage;
 

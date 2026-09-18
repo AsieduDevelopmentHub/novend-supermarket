@@ -23,6 +23,10 @@ const isPublicRoute = createRouteMatcher([
   "/download",
   "/privacy",
   "/terms",
+  "/refund",
+  "/cookies",
+  "/aup",
+  "/dpa",
   "/api/health",
   "/api/boot",
 ]);

@@ -51,6 +51,10 @@ app/(site)/docs/help
 app/(site)/docs/releases
 app/(site)/privacy
 app/(site)/terms
+app/(site)/refund
+app/(site)/cookies
+app/(site)/aup
+app/(site)/dpa
 app/(auth)/login
 app/(auth)/signup
 app/(auth)/forgot-password
@@ -78,7 +82,8 @@ Navigation: `config/navigation.ts` (permission-aware). Marketing copy:
 
 - Unauthenticated on protected routes → `/login`
 - Unauthenticated may access `/`, `/login`, `/signup`, `/forgot-password`,
-  `/reset-password`, `/download`, `/docs(.*)`, `/privacy`, and `/terms`
+  `/reset-password`, `/download`, `/docs(.*)`, `/privacy`, `/terms`, `/refund`,
+  `/cookies`, `/aup`, and `/dpa`
 - Authenticated on `/` (app host / unsplit) → `/platform`, `/onboarding`, or
   `/dashboard`
 - Authenticated on `/` (dedicated marketing host) → landing stays
