@@ -59,6 +59,12 @@ export const organizationStatusValidator = v.union(
   v.literal("inactive"),
 );
 
+export const cloudModeValidator = v.union(
+  v.literal("full_sync"),
+  v.literal("backup_only"),
+  v.literal("local_only"),
+);
+
 export const subscriptionStatusValidator = v.union(
   v.literal("trialing"),
   v.literal("active"),
@@ -187,6 +193,11 @@ export default defineSchema({
         devices: v.optional(v.union(v.number(), v.null())),
       }),
     ),
+    /**
+     * Per-org cloud usage mode. Missing → treated as full_sync (no migration).
+     * See docs/architecture/CLOUD_MODE_PLAN_V1.md.
+     */
+    cloudMode: v.optional(cloudModeValidator),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
     /** Owner-initiated closure; org stays recoverable until `closureEffectiveAt`. */
@@ -199,7 +210,8 @@ export default defineSchema({
     .index("by_slug", ["slug"])
     .index("by_ownerUserId", ["ownerUserId"])
     .index("by_status", ["status"])
-    .index("by_planKey", ["planKey"]),
+    .index("by_planKey", ["planKey"])
+    .index("by_cloudMode", ["cloudMode"]),
 
   /**
    * Commercial plan catalog. Mirrors `convex/shared/plans.ts`, which stays the
