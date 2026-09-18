@@ -10,15 +10,23 @@ import {
   type OrganizationBusinessConfiguration,
 } from "@/convex/shared/businessCapabilities";
 import { loadBusinessCapabilitiesCache } from "@/lib/offline/business-capabilities";
+import { getBoundOrganizationId } from "@/lib/offline/db";
+import { PLATFORM_OFFLINE_ORG_ID } from "@/lib/offline/platform-cache";
 import { useOfflineStatus } from "@/providers/offline-provider";
 
 /**
  * Org business capabilities (industry packs / sell modes).
  * Online: Convex. Offline: Dexie meta cache from snapshot.
+ * Skipped on the Super Admin platform replica (no tenant org).
  */
 export function useBusinessCapabilities() {
   const { online } = useOfflineStatus();
-  const remote = useQuery(api.settings.getBusinessCapabilities, online ? {} : "skip");
+  const skipTenantQuery =
+    typeof window !== "undefined" && getBoundOrganizationId() === PLATFORM_OFFLINE_ORG_ID;
+  const remote = useQuery(
+    api.settings.getBusinessCapabilities,
+    online && !skipTenantQuery ? {} : "skip",
+  );
   const [cached, setCached] = useState<OrganizationBusinessConfiguration>(
     DEFAULT_BUSINESS_CONFIGURATION,
   );
