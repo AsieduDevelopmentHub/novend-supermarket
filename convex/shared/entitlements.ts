@@ -17,8 +17,33 @@ import {
   type PlanKey,
   type PlanLimits,
 } from "./plans";
+import { CLOUD_MODES, type CloudEntitlements, type CloudMode } from "./cloudMode";
 
 type Ctx = QueryCtx | MutationCtx;
+
+/**
+ * Cloud modes an organization is allowed to select. A Super Admin restriction
+ * (`allowedCloudModes`) wins; otherwise every mode is allowed on every plan.
+ * The plan argument is accepted for future per-plan restrictions.
+ */
+export function resolveAllowedCloudModes(
+  org: Pick<Doc<"organizations">, "allowedCloudModes">,
+  _plan?: PlanDefinition,
+): CloudMode[] {
+  const restricted = org.allowedCloudModes;
+  if (restricted && restricted.length > 0) return [...restricted];
+  return [...CLOUD_MODES];
+}
+
+/** Backup / monitoring entitlement flags, each defaulting to enabled. */
+export function resolveCloudEntitlements(
+  org: Pick<Doc<"organizations">, "cloudBackupEnabled" | "remoteMonitoringEnabled">,
+): Required<CloudEntitlements> {
+  return {
+    cloudBackupEnabled: org.cloudBackupEnabled !== false,
+    remoteMonitoringEnabled: org.remoteMonitoringEnabled !== false,
+  };
+}
 
 export type OrganizationLicense = {
   organization: Doc<"organizations">;

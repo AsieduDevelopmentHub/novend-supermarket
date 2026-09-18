@@ -28,8 +28,24 @@ export function normalizeCloudMode(value: unknown): CloudMode {
   return DEFAULT_CLOUD_MODE;
 }
 
-export function resolveCloudPolicy(mode: CloudMode | unknown): CloudPolicy {
+/**
+ * Platform-owned entitlement flags layered on top of the cloud mode. Both
+ * default to enabled when missing, matching pre-entitlement behaviour. Cloud
+ * backup and remote monitoring can each be switched off for an organization by
+ * a Super Admin regardless of the selected cloud mode.
+ */
+export type CloudEntitlements = {
+  cloudBackupEnabled?: boolean;
+  remoteMonitoringEnabled?: boolean;
+};
+
+export function resolveCloudPolicy(
+  mode: CloudMode | unknown,
+  entitlements?: CloudEntitlements,
+): CloudPolicy {
   const normalized = normalizeCloudMode(mode);
+  const backupEntitled = entitlements?.cloudBackupEnabled !== false;
+  const monitoringEntitled = entitlements?.remoteMonitoringEnabled !== false;
   // Matrix from CLOUD_MODE_PLAN_V1:
   // full_sync: all yes
   // backup_only: no realtime flush/subs/remote device sync; backup yes; remote
@@ -41,7 +57,7 @@ export function resolveCloudPolicy(mode: CloudMode | unknown): CloudPolicy {
       return {
         mode: normalized,
         shouldQueueRealtimeSync: () => false,
-        shouldQueueBackup: () => true,
+        shouldQueueBackup: () => backupEntitled,
         shouldRunBackgroundSync: () => false,
         shouldUseRealtimeSubscriptions: () => false,
         shouldAllowRemoteMonitoring: () => false, // limited → deny for foundation
@@ -62,10 +78,10 @@ export function resolveCloudPolicy(mode: CloudMode | unknown): CloudPolicy {
       return {
         mode: "full_sync",
         shouldQueueRealtimeSync: () => true,
-        shouldQueueBackup: () => true,
+        shouldQueueBackup: () => backupEntitled,
         shouldRunBackgroundSync: () => true,
         shouldUseRealtimeSubscriptions: () => true,
-        shouldAllowRemoteMonitoring: () => true,
+        shouldAllowRemoteMonitoring: () => monitoringEntitled,
         shouldAllowRemoteDeviceSync: () => true,
       };
   }

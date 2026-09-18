@@ -31,8 +31,53 @@ enforced at these points:
   client-side through `lib/offline/cloud-policy.ts`. Missing / unknown values
   normalize to `full_sync`, so existing tenants and stale caches keep today's
   behaviour with no migration.
-- Future phases add scheduled backup uploads and platform telemetry gating;
-  those are **not** wired in this foundation phase.
+- **Entitlement flags.** `cloudBackupEnabled` and `remoteMonitoringEnabled`
+  (defaults: enabled) are ANDed into the policy: `resolveCloudPolicy(mode, {
+  cloudBackupEnabled, remoteMonitoringEnabled })`. A Super Admin can switch either
+  off regardless of mode. `loadCloudPolicy()` passes both from the cached snapshot.
+- **Scheduled backup (`backup_only`).** `lib/offline/scheduled-backup.ts`
+  `maybeRunScheduledCloudBackup` runs a daily encrypted cloud backup
+  (export → encrypt → upload → `cloudBackups.recordBackup({ kind: "automatic" })`)
+  when the policy queues backups but not realtime sync. It never flushes the
+  outbox and silently skips when no backup password is available this session
+  (the password is held in memory only via `backup-password.ts`, never persisted).
+  Wired in `OfflineProvider`.
+
+## Cloud mode super admin control
+
+- **`platform.setOrganizationCloudMode`** validates the requested mode against
+  `resolveAllowedCloudModes(org)`, patches `cloudMode`, bumps the entitlement
+  version, updates the `platformStats` cloud-mode counters, and audits the change.
+  The PEAS licence panel exposes the Select (with a confirm dialog before
+  `local_only`) next to Account status.
+
+## Entitlement version
+
+`organizations.entitlementVersion` (missing → 0) is a monotonic counter bumped by
+`bumpEntitlementVersion` whenever plan, status, limit overrides, cloud mode, or
+the backup/monitoring flags change (`assignPlan`, `setBackupLimit`,
+`setOrganizationStatus`, `setOrganizationCloudMode`, `setOrganizationLimitOverrides`,
+and `provisionOrganization` which starts at 1). It ships in `billing.licenseSnapshot`
+and the platform telemetry heartbeat so offline clients can detect a stale cache.
+
+## Platform telemetry heartbeat
+
+Separate from the product-event pipeline (`platformEvents`) and from business
+sync. `telemetry.recordHeartbeat` (`requireSessionIgnoringLicense`, so it works in
+**every** cloud mode including `local_only`) writes a minimal
+`platformTelemetryHeartbeats` row: cloud mode, plan, entitlement version, branch /
+user / device counts (derived server-side), plus client-supplied app version,
+storage estimate, last backup, and outbox counts. Deduplicated to at most one write
+per 24h unless a meaningful field changes. The client (`lib/telemetry/heartbeat.ts`)
+is wired into `OfflineProvider` and runs on mount / focus / reconnect, **not** gated
+by the cloud policy — `local_only` means business sync off, heartbeat on.
+
+## Local backup recovery
+
+Restore-from-cloud is implemented in `CloudBackupCard` (`onRestore`): download the
+stored file via `cloudBackups.backupDownloadUrl` → `parseBackupPayload(text,
+password)` → `importOfflineBackup(payload)`. It uses the same backup password as
+cloud upload and this-device backups.
 
 ## Data flow
 

@@ -5,6 +5,7 @@ import { enqueueOutbox } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
 import { putProductImage } from "./image-cache";
 import { BARCODE_ALREADY_ASSIGNED, barcodesEqual, normalizeBarcodeInput } from "./barcode-lookup";
+import { assertLocalCapacity } from "./license-guard";
 import { nextCatalogPrices } from "@/lib/wholesale/purchase-prices";
 import { DEFAULT_EXPIRY_ALERT_DAYS, lotStatus } from "@/lib/expiry";
 import type {
@@ -516,6 +517,9 @@ export async function queueUpsertProduct(
     if (clash) throw new Error(BARCODE_ALREADY_ASSIGNED);
   }
   const isCreate = !existing;
+  // Enforce the plan product limit locally before queueing an offline create;
+  // Convex re-checks on sync. Updates never hit the create limit.
+  if (isCreate) await assertLocalCapacity("products");
   const stockQuantity = isCreate ? payload.stockQuantity : (existing.stockQuantity ?? 0);
   const openingQty = Math.max(0, Math.floor(stockQuantity));
   const tracksExpiry = payload.tracksExpiry === true;
