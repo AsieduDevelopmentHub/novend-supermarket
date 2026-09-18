@@ -652,8 +652,8 @@ export const sitePages = {
       {
         title: "5. Your choices",
         paragraphs: [
-          "You can control cookies through your browser settings, including blocking or deleting cookies. Blocking strictly necessary cookies may prevent login or core site functions from working.",
-          "Where a consent banner or preference control is shown, you can adjust non-essential cookies through that control.",
+          "On public Novend pages you can use the cookie banner (Accept all, Reject non-essential, or Customize) and reopen it anytime from Cookie settings in the site footer.",
+          "You can also control cookies through your browser settings, including blocking or deleting cookies. Blocking strictly necessary cookies may prevent login or core site functions from working.",
           "Device-level advertising or tracking settings on mobile operating systems may also limit some measurement technologies.",
         ],
       },
