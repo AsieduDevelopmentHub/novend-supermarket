@@ -46,6 +46,14 @@ import type { PlatformInsightMetric } from "@/convex/platformAnalytics";
 
 type CacheSource = "live" | "cache";
 
+/** Skip Super Admin queries until `platform.me` confirms the session is allowed. */
+function usePlatformAdminLiveArgs(online: boolean): {} | "skip" {
+  const gate = useQuery(api.platform.me, online ? {} : "skip");
+  if (!online) return "skip";
+  if (gate === undefined) return "skip";
+  return gate.isPlatformAdmin ? {} : "skip";
+}
+
 /**
  * Live Convex query with an IndexedDB fallback for offline viewing.
  *
@@ -106,7 +114,8 @@ function useLiveWithDiskCache<TValue>(
 
 export function usePlatformOverviewData() {
   const online = useConnectivity();
-  const live = useQuery(api.platform.overview, online ? {} : "skip");
+  const liveArgs = usePlatformAdminLiveArgs(online);
+  const live = useQuery(api.platform.overview, liveArgs);
   const { data, loading, source } = useLiveWithDiskCache(
     live,
     "overview",
@@ -118,7 +127,8 @@ export function usePlatformOverviewData() {
 
 export function usePlatformOrganizationsData() {
   const online = useConnectivity();
-  const live = useQuery(api.platform.listOrganizations, online ? {} : "skip");
+  const liveArgs = usePlatformAdminLiveArgs(online);
+  const live = useQuery(api.platform.listOrganizations, liveArgs);
   const { data, loading, source } = useLiveWithDiskCache(
     live,
     "organizations",
@@ -130,7 +140,11 @@ export function usePlatformOrganizationsData() {
 
 export function usePlatformReleasesData(channel: "stable" | "beta" = "stable") {
   const online = useConnectivity();
-  const live = useQuery(api.desktopReleases.listRecent, online ? { channel, limit: 20 } : "skip");
+  const liveArgs = usePlatformAdminLiveArgs(online);
+  const live = useQuery(
+    api.desktopReleases.listRecent,
+    liveArgs === "skip" ? "skip" : { channel, limit: 20 },
+  );
   const mapped = useMemo<PlatformReleaseCacheItem[] | undefined>(() => {
     if (!live) return undefined;
     return live.map((row) => ({
@@ -162,10 +176,11 @@ export function usePlatformReleasesData(channel: "stable" | "beta" = "stable") {
 
 export function usePlatformOrgDetailData(organizationId: string) {
   const online = useConnectivity();
+  const liveArgs = usePlatformAdminLiveArgs(online);
   const id = organizationId as Id<"organizations">;
   const live = useQuery(
     api.platform.getOrganization,
-    online && organizationId ? { organizationId: id } : "skip",
+    liveArgs === "skip" || !organizationId ? "skip" : { organizationId: id },
   );
   const { data, loading, source } = useLiveWithDiskCache(
     live,
@@ -179,7 +194,11 @@ export function usePlatformOrgDetailData(organizationId: string) {
 
 export function usePlatformRevenueData(range: PlatformRevenueRange) {
   const online = useConnectivity();
-  const live = useQuery(api.platformAnalytics.revenueAnalytics, online ? { range } : "skip");
+  const liveArgs = usePlatformAdminLiveArgs(online);
+  const live = useQuery(
+    api.platformAnalytics.revenueAnalytics,
+    liveArgs === "skip" ? "skip" : { range },
+  );
   const { data, loading, source } = useLiveWithDiskCache(
     live,
     range,
@@ -191,7 +210,8 @@ export function usePlatformRevenueData(range: PlatformRevenueRange) {
 
 export function usePlatformSubscriptionsData() {
   const online = useConnectivity();
-  const live = useQuery(api.platformAnalytics.listSubscriptions, online ? {} : "skip");
+  const liveArgs = usePlatformAdminLiveArgs(online);
+  const live = useQuery(api.platformAnalytics.listSubscriptions, liveArgs);
   const { data, loading, source } = useLiveWithDiskCache(
     live,
     "subscriptions",
@@ -203,7 +223,8 @@ export function usePlatformSubscriptionsData() {
 
 export function usePlatformHealthData() {
   const online = useConnectivity();
-  const live = useQuery(api.platformAnalytics.systemHealth, online ? {} : "skip");
+  const liveArgs = usePlatformAdminLiveArgs(online);
+  const live = useQuery(api.platformAnalytics.systemHealth, liveArgs);
   const { data, loading, source } = useLiveWithDiskCache(
     live,
     "health",
@@ -215,7 +236,11 @@ export function usePlatformHealthData() {
 
 export function usePlatformMonitoringData(range: PlatformMonitoringRange) {
   const online = useConnectivity();
-  const live = useQuery(api.platformMonitoring.dashboard, online ? { range } : "skip");
+  const liveArgs = usePlatformAdminLiveArgs(online);
+  const live = useQuery(
+    api.platformMonitoring.dashboard,
+    liveArgs === "skip" ? "skip" : { range },
+  );
   const typedLive = live as PlatformReportData | undefined;
   const { data, loading, source } = useLiveWithDiskCache(
     typedLive,
@@ -228,10 +253,11 @@ export function usePlatformMonitoringData(range: PlatformMonitoringRange) {
 
 export function usePlatformPaymentData(paymentId: string) {
   const online = useConnectivity();
+  const liveArgs = usePlatformAdminLiveArgs(online);
   const id = paymentId as Id<"billingHistory">;
   const live = useQuery(
     api.platformAnalytics.getPayment,
-    online && paymentId ? { paymentId: id } : "skip",
+    liveArgs === "skip" || !paymentId ? "skip" : { paymentId: id },
   );
   const { data, loading, source } = useLiveWithDiskCache(
     live,
@@ -244,9 +270,10 @@ export function usePlatformPaymentData(paymentId: string) {
 
 export function usePlatformReleaseBundleData(version: string) {
   const online = useConnectivity();
+  const liveArgs = usePlatformAdminLiveArgs(online);
   const live = useQuery(
     api.platformAnalytics.getReleaseBundle,
-    online && version ? { version } : "skip",
+    liveArgs === "skip" || !version ? "skip" : { version },
   );
   const { data, loading, source } = useLiveWithDiskCache(
     live,
@@ -260,9 +287,10 @@ export function usePlatformReleaseBundleData(version: string) {
 /** Downloads screen — merged desktop + mobile release bundles. */
 export function usePlatformReleaseBundlesData(channel: "stable" | "beta" = "stable") {
   const online = useConnectivity();
+  const liveArgs = usePlatformAdminLiveArgs(online);
   const live = useQuery(
     api.platformAnalytics.listReleaseBundles,
-    online ? { channel, limit: 20 } : "skip",
+    liveArgs === "skip" ? "skip" : { channel, limit: 20 },
   );
   const { data, loading, source } = useLiveWithDiskCache(
     live,
@@ -275,9 +303,10 @@ export function usePlatformReleaseBundlesData(channel: "stable" | "beta" = "stab
 
 export function usePlatformInsightData(metric: PlatformInsightMetric, range: PlatformRevenueRange) {
   const online = useConnectivity();
+  const liveArgs = usePlatformAdminLiveArgs(online);
   const live = useQuery(
     api.platformAnalytics.getInsightDetail,
-    online ? { metric, range } : "skip",
+    liveArgs === "skip" ? "skip" : { metric, range },
   );
   const { data, loading, source } = useLiveWithDiskCache(
     live,
@@ -294,7 +323,8 @@ function newDraftId() {
 
 export function usePlatformOperatingCostsData() {
   const online = useConnectivity();
-  const live = useQuery(api.platformAnalytics.listOperatingCosts, online ? {} : "skip");
+  const liveArgs = usePlatformAdminLiveArgs(online);
+  const live = useQuery(api.platformAnalytics.listOperatingCosts, liveArgs);
   const createCost = useMutation(api.platformAnalytics.createOperatingCost);
   const removeCost = useMutation(api.platformAnalytics.removeOperatingCost);
   const liveRows = useMemo<PlatformOperatingCostRow[] | undefined>(() => {
