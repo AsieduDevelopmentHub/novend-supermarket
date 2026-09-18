@@ -59,6 +59,11 @@ describe("product tour access", () => {
     ]);
   });
 
+  it("keeps platform-only Super Admins on the platform tour", () => {
+    expect(onboardingQueue(null, true)).toEqual(["platform"]);
+    expect(onboardingQueue("administrator", true)[0]).toBe("shell");
+  });
+
   it("does not treat empty progress as an existing tour record", () => {
     expect(hasTourProgress([], toursForAccess("cashier", false))).toBe(false);
     expect(hasTourProgress([{ tourId: "shell" }], toursForAccess("cashier", false))).toBe(true);

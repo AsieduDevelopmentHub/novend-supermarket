@@ -293,6 +293,10 @@ export const ONBOARDING_TOUR_ORDER: TourId[] = [
 
 /** First-run walkthrough order, filtered to the caller's role. */
 export function onboardingQueue(role: AppRole | null, isPlatformAdmin: boolean): TourId[] {
+  // Platform-only Super Admins must never enter the tenant POS tour chain
+  // (shell → sales → …), which would router.push them off /platform into
+  // tenant queries that throw Forbidden without an org profile.
+  if (isPlatformAdmin && !role) return ["platform"];
   const allowed = new Set(toursForAccess(role, isPlatformAdmin).map((tour) => tour.id));
   return ONBOARDING_TOUR_ORDER.filter((id) => allowed.has(id));
 }

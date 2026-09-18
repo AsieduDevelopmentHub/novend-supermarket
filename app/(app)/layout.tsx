@@ -429,6 +429,22 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const isPlatformRoute = pathname.startsWith("/platform");
   const platformAdminOnly = Boolean(user?.isPlatformAdmin) && !user?.role;
 
+  // Authenticated but not in `platformAdmins` — Super Admin queries throw Forbidden
+  // ("You don't have permission"), which used to crash into the app error boundary.
+  if (isPlatformRoute && online && user && !user.isPlatformAdmin) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-4 text-center">
+        <ErrorState
+          title="Platform access required"
+          message="This account is not a Novend platform administrator. Bootstrap must write a platformAdmins row on the same Convex deployment as NEXT_PUBLIC_CONVEX_URL. Organization owners use the POS, not /platform."
+        />
+        <Button type="button" variant="outline" onClick={() => router.replace("/dashboard")}>
+          Go to dashboard
+        </Button>
+      </div>
+    );
+  }
+
   if (platformAdminOnly && !isPlatformRoute) {
     return <AppSplash label="Opening platform…" />;
   }

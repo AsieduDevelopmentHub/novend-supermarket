@@ -13,7 +13,7 @@ import {
 import { useAction, useConvex, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { getOfflineDb, isOfflineDbAvailable } from "@/lib/offline/db";
+import { getOfflineDb, getBoundOrganizationId, isOfflineDbAvailable } from "@/lib/offline/db";
 import {
   AUTO_SYNC_INTERVAL_MS,
   AUTO_SYNC_PENDING_THRESHOLD,
@@ -29,6 +29,11 @@ import { maybeRunScheduledCloudBackup } from "@/lib/offline/scheduled-backup";
 import type { OfflineStatus } from "@/lib/offline/types";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { toUserMessage } from "@/lib/errors";
+import { PLATFORM_OFFLINE_ORG_ID } from "@/lib/offline/platform-cache";
+
+function isPlatformReplicaBound() {
+  return getBoundOrganizationId() === PLATFORM_OFFLINE_ORG_ID;
+}
 
 type OfflineContextValue = OfflineStatus & {
   refreshStatus: () => Promise<void>;
@@ -111,6 +116,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const pullSnapshot = useCallback(
     async (options?: { force?: boolean }) => {
       if (!navigator.onLine) return;
+      // Super Admin platform replica has no tenant org — offline.getSnapshot
+      // would throw Forbidden and can surface as the app error boundary.
+      if (isPlatformReplicaBound()) return;
       // Snapshot pull is the subscription-like mirror path; skip it entirely
       // when the tenant's cloud mode does not use realtime mirroring.
       if (!(await loadCloudPolicy()).shouldUseRealtimeSubscriptions()) return;
@@ -148,6 +156,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const flushOutbox = useCallback(
     async (options?: { force?: boolean; showProgress?: boolean }) => {
       if (!navigator.onLine) return;
+      if (isPlatformReplicaBound()) return;
       // Outbox flush only runs when the tenant's cloud mode queues realtime
       // sync. Sync Center force still routes here, so the policy always applies.
       if (!(await loadCloudPolicy()).shouldQueueRealtimeSync()) return;
@@ -420,9 +429,11 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   // Platform telemetry heartbeat. Intentionally NOT gated by the cloud policy:
   // it must run even in local_only (business sync off, heartbeat on) so Novend
   // can license, manage, and monitor the organization. Self-throttled to at most
-  // one write per 24h unless a meaningful field changes.
+  // one write per 24h unless a meaningful field changes. Skipped on the Super
+  // Admin platform replica (no tenant licence / org session).
   useEffect(() => {
     if (!online) return;
+    if (isPlatformReplicaBound()) return;
     const send = () => void maybeSendHeartbeat((args) => recordHeartbeat(args));
     send();
     const onOnline = () => send();
@@ -442,6 +453,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   // it never flushes the business outbox. (Phase D)
   useEffect(() => {
     if (!online) return;
+    if (isPlatformReplicaBound()) return;
     const run = () =>
       void maybeRunScheduledCloudBackup({
         generateBackupUploadUrl: () => generateBackupUploadUrl({}),
