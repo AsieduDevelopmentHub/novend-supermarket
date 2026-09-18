@@ -28,7 +28,7 @@ export async function requirePlatformAdmin(ctx: Ctx) {
   const { userId, user } = await requireAuth(ctx);
   const admin = await getPlatformAdmin(ctx, userId);
   if (!admin) {
-    throw new Error("Forbidden");
+    throw new Error("Platform administrator access required.");
   }
   return { userId, user };
 }

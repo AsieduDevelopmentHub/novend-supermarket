@@ -481,7 +481,13 @@ export function ProductTourProvider({
     }
 
     if (!hasTourProgress(progressRef.current, availableTours) && !isSingleTourMode()) {
-      const queue = onboardingQueue(role, isPlatformAdmin);
+      const onPlatformRoute = pathname.startsWith("/platform");
+      // While the Super Admin console is open, only the platform walkthrough may
+      // auto-start. Dual-role admins must not be yanked to /dashboard for "shell".
+      const queue =
+        onPlatformRoute && isPlatformAdmin
+          ? onboardingQueue(null, true)
+          : onboardingQueue(role, isPlatformAdmin);
       const [firstId, ...rest] = queue;
       const first = firstId ? getTourDefinition(firstId) : undefined;
       if (first) {
@@ -491,6 +497,10 @@ export function ProductTourProvider({
             void driveTour(first);
           }, 1200);
           return () => window.clearTimeout(timer);
+        }
+        // Never navigate a platform session onto a tenant POS path.
+        if (onPlatformRoute && isPlatformAdmin && !first.path.startsWith("/platform")) {
+          return;
         }
         window.sessionStorage.setItem(PENDING_TOUR_KEY, first.id);
         router.push(first.path);

@@ -116,6 +116,11 @@ export function bindOfflineOrganization(organizationId: string, userId?: string)
   }
 }
 
+/** Current org binding (in-memory or localStorage). Used to skip tenant sync on PEAS. */
+export function getBoundOrganizationId(): string | null {
+  return readStoredOrganizationId() ?? null;
+}
+
 /** Drop the session org binding (sign-out). Does not delete the org replica. */
 export function unbindOfflineOrganization() {
   boundOrganizationId = null;

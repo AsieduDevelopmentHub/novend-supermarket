@@ -129,6 +129,19 @@ export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): strin
     return "Incorrect email or password.";
   }
   if (
+    lower.includes("unauthenticated") ||
+    lower.includes("not authenticated") ||
+    lower.includes("signed in") ||
+    lower.includes("missing session") ||
+    lower.includes("[unauthorized]") ||
+    lower.trim() === "unauthorized"
+  ) {
+    return "Please sign in again to continue.";
+  }
+  if (lower.includes("platform administrator")) {
+    return "This account is not a Novend platform administrator on this Convex deployment. Confirm platformAdmins for your user on the same deployment as NEXT_PUBLIC_CONVEX_URL.";
+  }
+  if (
     lower.includes("forbidden") ||
     lower.includes("not authorized") ||
     lower.includes("access denied")
@@ -137,14 +150,6 @@ export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): strin
   }
   if (lower.includes("auth provider discovery")) {
     return SERVER_UNREACHABLE_MESSAGE;
-  }
-  if (
-    lower.includes("unauthenticated") ||
-    lower.includes("not authenticated") ||
-    lower.includes("signed in") ||
-    lower.includes("missing session")
-  ) {
-    return "Please sign in again to continue.";
   }
   if (isOfflineError(message)) return OFFLINE_MESSAGE;
   if (isConnectivityError(message)) return SERVER_UNREACHABLE_MESSAGE;

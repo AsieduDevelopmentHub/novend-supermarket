@@ -5,7 +5,7 @@ import {
   recoverInterruptedSync,
   recordSyncDiagnostics,
 } from "./cleanup";
-import { getMeta, getOfflineDb, META_KEYS } from "./db";
+import { getMeta, getOfflineDb, getBoundOrganizationId, META_KEYS } from "./db";
 import {
   claimOutboxRow,
   listPendingOutbox,
@@ -24,6 +24,7 @@ import { isSyncBusinessConflict, isSyncDependencyWait } from "./sync-errors";
 import { shouldMarkOutboxFailed } from "./outbox-policy";
 import { rekeyProductImage } from "./image-cache";
 import { loadCloudPolicy } from "./cloud-policy";
+import { PLATFORM_OFFLINE_ORG_ID } from "./platform-cache";
 import type {
   AdjustStockPayload,
   CreateCategoryPayload,
@@ -303,6 +304,10 @@ export async function drainOutbox(options: {
   onStart?: () => void;
 }): Promise<{ processed: number; failed: number; skipped: boolean }> {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
+    return { processed: 0, failed: 0, skipped: true };
+  }
+  // Super Admin platform replica — no tenant org session to flush against.
+  if (getBoundOrganizationId() === PLATFORM_OFFLINE_ORG_ID) {
     return { processed: 0, failed: 0, skipped: true };
   }
   // Tenant cloud mode may disable realtime sync entirely; no outbox escape hatch.
