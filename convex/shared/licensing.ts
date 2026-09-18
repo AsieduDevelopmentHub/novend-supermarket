@@ -251,6 +251,14 @@ export type LicenseSnapshot = {
   organizationStatus: OrganizationStatus;
   /** Cloud usage mode. Older caches normalize via `normalizeCloudMode`. */
   cloudMode: CloudMode;
+  /** Monotonic entitlement counter; older caches default to 0. */
+  entitlementVersion: number;
+  /** Cloud modes this organization may select. Missing override → all modes. */
+  allowedCloudModes: CloudMode[];
+  /** Platform toggle for cloud backups. Missing → true. */
+  cloudBackupEnabled: boolean;
+  /** Platform toggle for remote monitoring. Missing → true. */
+  remoteMonitoringEnabled: boolean;
   subscription: SubscriptionSnapshot | null;
   access: LicenseAccess;
   limits: Record<LimitResource, number | null>;

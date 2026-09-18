@@ -12,7 +12,10 @@ or drive hot queries **start with** `organizationId`.
 ## Core tables
 
 - `organizations` — name, slug, status, ownerUserId, currency, planKey,
-  subscriptionId, trialEndsAt, backupLimitBytes (Enterprise quota override)
+  subscriptionId, trialEndsAt, backupLimitBytes (Enterprise quota override),
+  cloudMode, entitlementVersion (monotonic; missing → 0), and optional Super Admin
+  entitlement overrides: allowedCloudModes (missing → all modes),
+  cloudBackupEnabled / remoteMonitoringEnabled (missing → enabled)
 - `plans` — catalog mirror of `convex/shared/plans.ts` plus gateway plan codes
 - `subscriptions` — one live licence per organization
 - `devices` — activated terminals counted against the plan; shut-down rows can
@@ -55,6 +58,18 @@ or drive hot queries **start with** `organizationId`.
   users, branches, imports, exports) for Super Admin overview / org list without
   global `.collect()` on sales or products. Maintained on write paths; backfill
   via `platformStats.backfillOrganizationStats` after deploy.
+- `platformStats` — deployment-wide singleton (`key: "global"`) with organization,
+  cloud-mode, plan, and device/branch/user counters for overview KPI cards without
+  scanning every organization. Maintained incrementally
+  (`convex/shared/platformStatsAggregate.ts`) from `provisionOrganization`,
+  `setOrganizationStatus`, `assignPlan`, and `setOrganizationCloudMode`; fully
+  repairable via `platformStats.rebuild`.
+- `platformTelemetryHeartbeats` — minimal per-organization heartbeats (cloud mode,
+  plan, entitlement version, branch/user/device counts, app version, storage
+  estimate, last backup, outbox counts, `sentAt`). Written by
+  `telemetry.recordHeartbeat` in every cloud mode (including `local_only`) and
+  deduplicated to ~one row per 24h unless a field changes. Indexed
+  `by_organization` and `by_organization_sentAt`. Separate from `platformEvents`.
 - `releaseDownloadBaselines` — immutable historical GitHub asset totals
 - `userTourProgress` — versioned, user-owned onboarding progress
 - `loginAttempts` — brute-force protection

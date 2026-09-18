@@ -1,8 +1,10 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
-import { internalMutation, mutation } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { requirePlatformAdmin } from "./shared/permissions";
 import { recomputeOrgPlatformStats } from "./shared/organizationStats";
+import { writeAuditLog } from "./shared/audit";
+import { readPlatformStats, rebuildPlatformStats } from "./shared/platformStatsAggregate";
 
 /**
  * Backfill / repair organizationPlatformStats in batches.
@@ -48,5 +50,38 @@ export const recomputeOne = mutation({
   handler: async (ctx, args) => {
     await requirePlatformAdmin(ctx);
     return await recomputeOrgPlatformStats(ctx, args.organizationId);
+  },
+});
+
+/**
+ * Deployment-wide platform aggregate (`platformStats` singleton).
+ *
+ * `getGlobal` reads the singleton for overview KPI cards without scanning every
+ * organization; `rebuild` repairs it from a single full scan.
+ * See docs/architecture/CLOUD_MODE_PLAN_V2.md (§11–§12, §40).
+ */
+export const getGlobal = query({
+  args: {},
+  handler: async (ctx) => {
+    await requirePlatformAdmin(ctx);
+    return await readPlatformStats(ctx);
+  },
+});
+
+export const rebuild = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    const stats = await rebuildPlatformStats(ctx);
+    await writeAuditLog(ctx, {
+      actorId: userId,
+      action: "platform_stats_rebuilt",
+      entityType: "platformStats",
+      metadata: {
+        organizationCount: stats.organizationCount,
+        activeOrganizationCount: stats.activeOrganizationCount,
+      },
+    });
+    return stats;
   },
 });

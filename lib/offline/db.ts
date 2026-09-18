@@ -476,6 +476,10 @@ export const META_KEYS = {
   platformReleaseBundles: "platformReleaseBundles",
   platformMonitoring: "platformMonitoring",
   platformActivity: "platformActivity",
+  /** Last platform telemetry heartbeat: JSON { signature, sentAt }. */
+  telemetryHeartbeat: "telemetryHeartbeat",
+  /** Last automatic backup_only cloud backup timestamp (ms). */
+  scheduledCloudBackupAt: "scheduledCloudBackupAt",
 } as const;
 
 /** Bump when Dexie adds replica tables so TTL snapshot skips cannot leave new stores empty. */

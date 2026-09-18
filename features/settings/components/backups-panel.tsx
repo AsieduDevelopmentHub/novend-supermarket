@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePermissions } from "@/hooks/use-permissions";
+import { setSessionBackupPassword } from "@/lib/offline/backup-password";
 import { BackupPasswordFields, canProtectBackup, canUnlockBackup } from "./backup-password-fields";
 import { LocalBackupCard } from "./local-backup-panel";
 import { CloudBackupCard } from "./cloud-backup-panel";
@@ -14,6 +15,13 @@ export function BackupsPanel() {
   const [confirm, setConfirm] = useState("");
   const canProtect = canProtectBackup(password, confirm);
   const canUnlock = canUnlockBackup(password);
+
+  // Expose a valid password to the automatic backup_only runner for this session
+  // only. Never persisted; cleared when the panel unmounts.
+  useEffect(() => {
+    setSessionBackupPassword(canProtect ? password : null);
+    return () => setSessionBackupPassword(null);
+  }, [canProtect, password]);
 
   return (
     <div className="space-y-4">

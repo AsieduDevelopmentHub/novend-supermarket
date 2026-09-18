@@ -24,6 +24,8 @@ import { countOutboxByStatus, listOpenOutbox } from "@/lib/offline/outbox";
 import { pullOfflineSnapshot } from "@/lib/offline/snapshot";
 import { loadCloudPolicy } from "@/lib/offline/cloud-policy";
 import { drainOutbox } from "@/lib/offline/sync-engine";
+import { maybeSendHeartbeat } from "@/lib/telemetry/heartbeat";
+import { maybeRunScheduledCloudBackup } from "@/lib/offline/scheduled-backup";
 import type { OfflineStatus } from "@/lib/offline/types";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { toUserMessage } from "@/lib/errors";
@@ -79,6 +81,10 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const upsertStaffCompensation = useMutation(api.payroll.upsertCompensation);
   const paySalary = useMutation(api.payroll.paySalary);
   const payCommission = useMutation(api.payroll.payCommission);
+  const recordHeartbeat = useMutation(api.telemetry.recordHeartbeat);
+  const generateBackupUploadUrl = useMutation(api.cloudBackups.generateBackupUploadUrl);
+  const claimBackupUpload = useMutation(api.storageUploads.claimBackup);
+  const recordBackup = useMutation(api.cloudBackups.recordBackup);
   const [status, setStatus] = useState<OfflineStatus>(emptyStatus);
   const [syncCenterOpen, setSyncCenterOpen] = useState(false);
   const pullingRef = useRef(false);
@@ -410,6 +416,42 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("focus", onFocus);
     };
   }, [pullSnapshot, flushOutbox]);
+
+  // Platform telemetry heartbeat. Intentionally NOT gated by the cloud policy:
+  // it must run even in local_only (business sync off, heartbeat on) so Novend
+  // can license, manage, and monitor the organization. Self-throttled to at most
+  // one write per 24h unless a meaningful field changes.
+  useEffect(() => {
+    if (!online) return;
+    const send = () => void maybeSendHeartbeat((args) => recordHeartbeat(args));
+    send();
+    const onOnline = () => send();
+    const onFocus = () => {
+      if (typeof navigator === "undefined" || navigator.onLine) send();
+    };
+    window.addEventListener("online", onOnline);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [online, recordHeartbeat]);
+
+  // Automatic cloud backups for backup_only organizations. Self-throttled to
+  // once per 24h and only runs when a backup password is available this session;
+  // it never flushes the business outbox. (Phase D)
+  useEffect(() => {
+    if (!online) return;
+    const run = () =>
+      void maybeRunScheduledCloudBackup({
+        generateBackupUploadUrl: () => generateBackupUploadUrl({}),
+        claimBackup: (args) => claimBackupUpload(args),
+        recordBackup: (args) => recordBackup(args),
+      });
+    run();
+    const id = window.setInterval(run, 60 * 60 * 1000);
+    return () => window.clearInterval(id);
+  }, [online, generateBackupUploadUrl, claimBackupUpload, recordBackup]);
 
   const value = useMemo<OfflineContextValue>(
     () => ({

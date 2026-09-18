@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -40,6 +42,13 @@ import { PlatformImportExportCard } from "./platform-import-export-card";
 import { formatClosureReason } from "@/convex/shared/accountClosure";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
+import type { CloudMode } from "@/convex/shared/cloudMode";
+
+const CLOUD_MODE_OPTIONS: { value: CloudMode; label: string; hint: string }[] = [
+  { value: "full_sync", label: "Full sync", hint: "Realtime cloud sync and backups" },
+  { value: "backup_only", label: "Backup only", hint: "Scheduled cloud backups, no realtime sync" },
+  { value: "local_only", label: "Local only", hint: "Device-only — stops cloud sync" },
+];
 
 type LimitOverrides = {
   products?: number | null;
@@ -96,6 +105,7 @@ export function PlatformLicensePanel({
   const resetActivation = useMutation(api.billing.resetActivation);
   const setBackupLimit = useMutation(api.billing.setBackupLimit);
   const setStatus = useMutation(api.platform.setOrganizationStatus);
+  const setCloudMode = useMutation(api.platform.setOrganizationCloudMode);
   const setLimitOverrides = useMutation(api.platform.setOrganizationLimitOverrides);
   const extendSubscription = useMutation(api.platform.extendSubscription);
   const archiveOrganization = useMutation(api.platform.archiveOrganization);
@@ -108,6 +118,7 @@ export function PlatformLicensePanel({
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmArchiveName, setConfirmArchiveName] = useState("");
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [confirmLocalOnly, setConfirmLocalOnly] = useState(false);
 
   if (!online && license === undefined) {
     return (
@@ -211,12 +222,15 @@ export function PlatformLicensePanel({
           )}
 
           <LimitOverridesEditor
-            key={`${organizationId}-${JSON.stringify(limitOverrides)}`}
+            key={`${organizationId}-${JSON.stringify(limitOverrides)}-${license.entitlementVersion}`}
             overrides={limitOverrides}
             effectiveLimits={license.usage}
             catalogProductLimit={
               PLAN_LIST.find((plan) => plan.key === license.planKey)?.limits.products ?? null
             }
+            allowedCloudModes={license.allowedCloudModes}
+            cloudBackupEnabled={license.cloudBackupEnabled}
+            remoteMonitoringEnabled={license.remoteMonitoringEnabled}
             disabled={pending || !online}
             onSave={(payload) =>
               void run("Resource limits updated", () =>
@@ -299,6 +313,44 @@ export function PlatformLicensePanel({
                 Reset activation
               </Button>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="license-cloud-mode">Cloud mode</Label>
+            <Select
+              value={license.cloudMode}
+              disabled={pending || !online}
+              onValueChange={(value) => {
+                const nextMode = value as CloudMode;
+                if (nextMode === license.cloudMode) return;
+                if (nextMode === "local_only") {
+                  setConfirmLocalOnly(true);
+                  return;
+                }
+                void run("Cloud mode updated", () =>
+                  setCloudMode({ organizationId, cloudMode: nextMode }),
+                );
+              }}
+            >
+              <SelectTrigger id="license-cloud-mode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CLOUD_MODE_OPTIONS.filter((option) =>
+                  license.allowedCloudModes.includes(option.value),
+                ).map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label} — {option.hint}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              {license.allowedCloudModes.length < CLOUD_MODE_OPTIONS.length
+                ? "Some cloud modes are restricted for this organization. "
+                : ""}
+              Entitlement version {license.entitlementVersion}.
+            </p>
           </div>
 
           <div className="border-border space-y-3 rounded-lg border p-4">
@@ -447,6 +499,21 @@ export function PlatformLicensePanel({
       </Card>
 
       <ConfirmDialog
+        open={confirmLocalOnly}
+        onOpenChange={setConfirmLocalOnly}
+        title="Switch to local-only?"
+        description="Cloud sync and scheduled backups stop for this organization. The business keeps operating on-device and Novend still receives the minimal platform heartbeat, but its data will no longer sync to the cloud until you change the mode back."
+        confirmLabel="Switch to local only"
+        confirmVariant="destructive"
+        pending={pending}
+        onConfirm={() =>
+          void run("Cloud mode updated", () =>
+            setCloudMode({ organizationId, cloudMode: "local_only" }),
+          ).then(() => setConfirmLocalOnly(false))
+        }
+      />
+
+      <ConfirmDialog
         open={confirmReset}
         onOpenChange={setConfirmReset}
         title="Reset device activations?"
@@ -511,12 +578,18 @@ function LimitOverridesEditor({
   overrides,
   effectiveLimits,
   catalogProductLimit,
+  allowedCloudModes,
+  cloudBackupEnabled,
+  remoteMonitoringEnabled,
   disabled,
   onSave,
 }: {
   overrides: LimitOverrides;
   effectiveLimits: Array<{ resource: LimitResource; limit: number | null }>;
   catalogProductLimit: number | null;
+  allowedCloudModes: CloudMode[];
+  cloudBackupEnabled: boolean;
+  remoteMonitoringEnabled: boolean;
   disabled: boolean;
   onSave: (payload: {
     products?: number | null;
@@ -524,6 +597,9 @@ function LimitOverridesEditor({
     branches?: number | null;
     devices?: number | null;
     clear?: OverrideResource[];
+    allowedCloudModes?: CloudMode[] | null;
+    cloudBackupEnabled?: boolean;
+    remoteMonitoringEnabled?: boolean;
   }) => void;
 }) {
   const [state, setState] = useState<
@@ -539,8 +615,23 @@ function LimitOverridesEditor({
         }),
       ) as Record<OverrideResource, { mode: OverrideMode; value: string }>,
   );
+  // An empty allowlist means "all modes allowed"; seed the toggles from that.
+  const initialModes =
+    allowedCloudModes.length === 0 ? CLOUD_MODE_OPTIONS.map((option) => option.value) : allowedCloudModes;
+  const [modes, setModes] = useState<Set<CloudMode>>(() => new Set(initialModes));
+  const [backupOn, setBackupOn] = useState(cloudBackupEnabled);
+  const [monitoringOn, setMonitoringOn] = useState(remoteMonitoringEnabled);
 
   const limitByResource = new Map(effectiveLimits.map((row) => [row.resource, row.limit]));
+
+  function toggleMode(mode: CloudMode, checked: boolean) {
+    setModes((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(mode);
+      else next.delete(mode);
+      return next;
+    });
+  }
 
   function submit() {
     const payload: {
@@ -549,6 +640,9 @@ function LimitOverridesEditor({
       branches?: number | null;
       devices?: number | null;
       clear: OverrideResource[];
+      allowedCloudModes?: CloudMode[] | null;
+      cloudBackupEnabled?: boolean;
+      remoteMonitoringEnabled?: boolean;
     } = { clear: [] };
 
     for (const resource of OVERRIDE_RESOURCES) {
@@ -568,6 +662,21 @@ function LimitOverridesEditor({
       }
       payload[resource] = parsed;
     }
+
+    if (modes.size === 0) {
+      toast.error("Allow at least one cloud mode.");
+      return;
+    }
+    // All three selected → clear the restriction (null); otherwise send the list.
+    payload.allowedCloudModes =
+      modes.size === CLOUD_MODE_OPTIONS.length
+        ? null
+        : CLOUD_MODE_OPTIONS.filter((option) => modes.has(option.value)).map(
+            (option) => option.value,
+          );
+    payload.cloudBackupEnabled = backupOn;
+    payload.remoteMonitoringEnabled = monitoringOn;
+
     onSave(payload);
   }
 
@@ -653,6 +762,59 @@ function LimitOverridesEditor({
           );
         })}
       </div>
+
+      <div className="border-border space-y-3 border-t pt-3">
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Cloud entitlements</p>
+          <p className="text-muted-foreground text-xs">
+            Restrict which cloud modes this organization may select, and toggle cloud backup and
+            remote monitoring. Selecting all modes removes the restriction.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs font-normal">Allowed cloud modes</Label>
+          <div className="flex flex-wrap gap-4">
+            {CLOUD_MODE_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                className="flex items-center gap-2 text-sm"
+                htmlFor={`allow-mode-${option.value}`}
+              >
+                <Checkbox
+                  id={`allow-mode-${option.value}`}
+                  checked={modes.has(option.value)}
+                  disabled={disabled}
+                  onCheckedChange={(checked) => toggleMode(option.value, checked === true)}
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="entitlement-backup" className="text-sm font-normal">
+            Cloud backup
+          </Label>
+          <Switch
+            id="entitlement-backup"
+            checked={backupOn}
+            disabled={disabled}
+            onCheckedChange={setBackupOn}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="entitlement-monitoring" className="text-sm font-normal">
+            Remote monitoring
+          </Label>
+          <Switch
+            id="entitlement-monitoring"
+            checked={monitoringOn}
+            disabled={disabled}
+            onCheckedChange={setMonitoringOn}
+          />
+        </div>
+      </div>
+
       <Button type="button" variant="outline" disabled={disabled} onClick={submit}>
         Save limits
       </Button>

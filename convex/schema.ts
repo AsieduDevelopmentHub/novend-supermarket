@@ -198,6 +198,22 @@ export default defineSchema({
      * See docs/architecture/CLOUD_MODE_PLAN_V1.md.
      */
     cloudMode: v.optional(cloudModeValidator),
+    /**
+     * Monotonic entitlement counter. Bumped whenever plan, status, limits, cloud
+     * mode, or backup/monitoring entitlements change so offline clients can tell
+     * their cached licence is stale. Missing → treated as 0.
+     * See docs/architecture/CLOUD_MODE_PLAN_V2.md (§38).
+     */
+    entitlementVersion: v.optional(v.number()),
+    /**
+     * Super Admin restriction of the cloud modes this organization may select.
+     * Missing → every mode is allowed (current behaviour).
+     */
+    allowedCloudModes: v.optional(v.array(cloudModeValidator)),
+    /** Platform toggle for cloud backups. Missing → enabled. */
+    cloudBackupEnabled: v.optional(v.boolean()),
+    /** Platform toggle for remote monitoring. Missing → enabled. */
+    remoteMonitoringEnabled: v.optional(v.boolean()),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
     /** Owner-initiated closure; org stays recoverable until `closureEffectiveAt`. */
@@ -950,6 +966,55 @@ export default defineSchema({
     exportEventCount: v.number(),
     updatedAt: v.number(),
   }).index("by_organization", ["organizationId"]),
+
+  /**
+   * Deployment-wide singleton for Super Admin overview cards. One row keyed
+   * `global`; maintained incrementally on organization lifecycle changes and
+   * fully repairable via `platformStats.rebuild`. Avoids scanning every
+   * organization on each dashboard load. See CLOUD_MODE_PLAN_V2.md (§11, §40).
+   */
+  platformStats: defineTable({
+    key: v.literal("global"),
+    organizationCount: v.number(),
+    activeOrganizationCount: v.number(),
+    fullSyncCount: v.number(),
+    backupOnlyCount: v.number(),
+    localOnlyCount: v.number(),
+    basicPlanCount: v.number(),
+    proPlanCount: v.number(),
+    enterprisePlanCount: v.number(),
+    lifetimePlanCount: v.number(),
+    deviceCount: v.number(),
+    branchCount: v.number(),
+    userCount: v.number(),
+    saleCount: v.number(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
+
+  /**
+   * Minimal per-organization platform telemetry heartbeat. Separate from the
+   * privacy-limited product event pipeline (`platformEvents`): this exists so
+   * the platform can license, manage, and monitor organizations — including
+   * `local_only` tenants that never sync business data. Deduplicated to at most
+   * one row per meaningful change / 24h. See CLOUD_MODE_PLAN_V2.md (§3–§9).
+   */
+  platformTelemetryHeartbeats: defineTable({
+    organizationId: v.id("organizations"),
+    cloudMode: cloudModeValidator,
+    planKey: v.optional(planKeyValidator),
+    appVersion: v.optional(v.string()),
+    branchCount: v.number(),
+    userCount: v.number(),
+    deviceCount: v.number(),
+    entitlementVersion: v.number(),
+    localStorageBytes: v.optional(v.number()),
+    lastBackupAt: v.optional(v.number()),
+    pendingSyncCount: v.optional(v.number()),
+    failedSyncCount: v.optional(v.number()),
+    sentAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_sentAt", ["organizationId", "sentAt"]),
 
   /** Imported GitHub totals at telemetry launch; local trends start from trackedAt. */
   releaseDownloadBaselines: defineTable({
