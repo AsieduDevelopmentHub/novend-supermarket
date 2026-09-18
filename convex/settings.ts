@@ -14,6 +14,7 @@ import {
   isIndustryProfile,
   parseBusinessConfiguration,
   validateBusinessCapabilitySet,
+  DEFAULT_BUSINESS_CONFIGURATION,
   type BusinessCapabilityKey,
   type IndustryProfile,
   type OrganizationBusinessConfiguration,
@@ -24,6 +25,8 @@ import {
   sanitizePhone,
   TEXT_LIMITS,
 } from "./shared/validation";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { getPlatformAdmin, getProfileByUserId } from "./shared/permissions";
 
 export type BusinessProfile = {
   tradeName: string;
@@ -358,8 +361,19 @@ export const updateReceiptTemplate = mutation({
 export const getBusinessCapabilities = query({
   args: {},
   handler: async (ctx) => {
-    const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
-    return loadBusinessConfiguration(ctx, organizationId);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthenticated");
+
+    // Platform-only Super Admins have no tenant profile. OfflineOutlet still
+    // mounts this hook under /platform — return defaults instead of Forbidden.
+    const profile = await getProfileByUserId(ctx, userId);
+    if (!profile || profile.status !== "active") {
+      const platformAdmin = await getPlatformAdmin(ctx, userId);
+      if (platformAdmin) return { ...DEFAULT_BUSINESS_CONFIGURATION };
+      throw new Error("Forbidden");
+    }
+
+    return loadBusinessConfiguration(ctx, profile.organizationId);
   },
 });
 
