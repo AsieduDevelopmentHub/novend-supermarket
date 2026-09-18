@@ -1,9 +1,12 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Headset, Mail, MapPin, Phone } from "lucide-react";
 import { BRANDING } from "@/constants/branding";
 import { landingCopy } from "@/features/marketing/content";
+import { openCookiePreferences } from "@/lib/cookies/consent";
 import { cn } from "@/lib/utils";
 
 /** Section 8 — premium Onyx footer with real Novend business information. */
@@ -84,7 +87,16 @@ export function LandingFooter() {
           <p>
             © {year} {footer.copyright}
           </p>
-          <p className="font-medium text-slate-400">{footer.builtBy}</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 sm:justify-end">
+            <button
+              type="button"
+              onClick={() => openCookiePreferences()}
+              className="font-medium text-slate-400 transition-colors hover:text-[#38BDF8] focus-visible:text-[#38BDF8] focus-visible:outline-none"
+            >
+              Cookie settings
+            </button>
+            <p className="font-medium text-slate-400">{footer.builtBy}</p>
+          </div>
         </div>
       </div>
     </footer>
