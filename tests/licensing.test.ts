@@ -118,6 +118,7 @@ describe("evaluateCachedLicense", () => {
       planKey: "pro",
       planName: "Pro",
       organizationStatus: "active",
+      cloudMode: "full_sync",
       subscription: subscription(),
       access: deriveAccess("active", subscription(), issuedAt),
       limits: { products: 5000, users: 15, branches: 5, devices: 15, backupBytes: null },

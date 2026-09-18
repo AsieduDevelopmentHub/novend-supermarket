@@ -22,6 +22,7 @@ import {
 } from "@/lib/offline/freshness";
 import { countOutboxByStatus, listOpenOutbox } from "@/lib/offline/outbox";
 import { pullOfflineSnapshot } from "@/lib/offline/snapshot";
+import { loadCloudPolicy } from "@/lib/offline/cloud-policy";
 import { drainOutbox } from "@/lib/offline/sync-engine";
 import type { OfflineStatus } from "@/lib/offline/types";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
@@ -104,6 +105,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const pullSnapshot = useCallback(
     async (options?: { force?: boolean }) => {
       if (!navigator.onLine) return;
+      // Snapshot pull is the subscription-like mirror path; skip it entirely
+      // when the tenant's cloud mode does not use realtime mirroring.
+      if (!(await loadCloudPolicy()).shouldUseRealtimeSubscriptions()) return;
       if (pullingRef.current) return;
       pullingRef.current = true;
       try {
@@ -138,6 +142,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const flushOutbox = useCallback(
     async (options?: { force?: boolean; showProgress?: boolean }) => {
       if (!navigator.onLine) return;
+      // Outbox flush only runs when the tenant's cloud mode queues realtime
+      // sync. Sync Center force still routes here, so the policy always applies.
+      if (!(await loadCloudPolicy()).shouldQueueRealtimeSync()) return;
 
       const counts = await countOutboxByStatus();
       const work = counts.pending + counts.syncing;

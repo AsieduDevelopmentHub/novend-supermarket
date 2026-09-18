@@ -23,6 +23,7 @@ import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
 import { isSyncBusinessConflict, isSyncDependencyWait } from "./sync-errors";
 import { shouldMarkOutboxFailed } from "./outbox-policy";
 import { rekeyProductImage } from "./image-cache";
+import { loadCloudPolicy } from "./cloud-policy";
 import type {
   AdjustStockPayload,
   CreateCategoryPayload,
@@ -302,6 +303,10 @@ export async function drainOutbox(options: {
   onStart?: () => void;
 }): Promise<{ processed: number; failed: number; skipped: boolean }> {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
+    return { processed: 0, failed: 0, skipped: true };
+  }
+  // Tenant cloud mode may disable realtime sync entirely; no outbox escape hatch.
+  if (!(await loadCloudPolicy()).shouldQueueRealtimeSync()) {
     return { processed: 0, failed: 0, skipped: true };
   }
   if (options.force) {

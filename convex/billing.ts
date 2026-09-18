@@ -26,6 +26,7 @@ import {
 } from "./shared/entitlements";
 import { planCapabilities } from "./shared/capabilities";
 import { GRACE_PERIOD_MS } from "./shared/licensing";
+import { normalizeCloudMode } from "./shared/cloudMode";
 import { hasPendingOrganizationClosure } from "./shared/accountClosure";
 import {
   DEFAULT_PLAN_KEY,
@@ -122,6 +123,7 @@ export const licenseSnapshot = query({
       organizationId: organization._id,
       organizationName: organization.name,
       organizationStatus: organization.status,
+      cloudMode: normalizeCloudMode(organization.cloudMode),
       planKey: license.planKey,
       planName: license.plan.name,
       access: license.access,

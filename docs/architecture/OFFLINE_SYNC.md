@@ -13,6 +13,27 @@ This is local-first operations, not a second source of truth. Negative
 inventory and immutable completed sales are still enforced when the outbox
 drains to Convex.
 
+## Cloud mode decision points
+
+How aggressively a device talks to the cloud is governed by the tenant's
+`organizations.cloudMode` (see `CLOUD_MODE_PLAN_V1.md` / `CLOUD_MODE_PLAN_V2.md`).
+The mode is resolved into a `CloudPolicy` (`convex/shared/cloudMode.ts`) and
+enforced at these points:
+
+- **OfflineProvider** gates `pullSnapshot` on `shouldUseRealtimeSubscriptions()`
+  and `flushOutbox` on `shouldQueueRealtimeSync()`. Sync Center "Sync now"
+  routes through the same functions, so the policy always applies — there is no
+  escape hatch.
+- **sync-engine** `drainOutbox` returns a no-op skip when
+  `shouldQueueRealtimeSync()` is false.
+- The mode originates from `organizations.cloudMode` via
+  `billing.licenseSnapshot`, is cached in the Dexie license snapshot, and is read
+  client-side through `lib/offline/cloud-policy.ts`. Missing / unknown values
+  normalize to `full_sync`, so existing tenants and stale caches keep today's
+  behaviour with no migration.
+- Future phases add scheduled backup uploads and platform telemetry gating;
+  those are **not** wired in this foundation phase.
+
 ## Data flow
 
 ```text
