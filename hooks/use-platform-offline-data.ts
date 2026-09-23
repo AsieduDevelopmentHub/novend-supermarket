@@ -237,10 +237,7 @@ export function usePlatformHealthData() {
 export function usePlatformMonitoringData(range: PlatformMonitoringRange) {
   const online = useConnectivity();
   const liveArgs = usePlatformAdminLiveArgs(online);
-  const live = useQuery(
-    api.platformMonitoring.dashboard,
-    liveArgs === "skip" ? "skip" : { range },
-  );
+  const live = useQuery(api.platformMonitoring.dashboard, liveArgs === "skip" ? "skip" : { range });
   const typedLive = live as PlatformReportData | undefined;
   const { data, loading, source } = useLiveWithDiskCache(
     typedLive,

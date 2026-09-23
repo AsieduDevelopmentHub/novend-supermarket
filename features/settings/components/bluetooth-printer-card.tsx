@@ -323,8 +323,8 @@ export function BluetoothPrinterCard() {
           <p className="text-sm font-medium">Find a printer</p>
           {needsPermission || status?.lastErrorCode === "permission" ? (
             <p className="text-muted-foreground text-sm">
-              Novend needs Bluetooth / Nearby devices access on this phone before it can list
-              paired printers.
+              Novend needs Bluetooth / Nearby devices access on this phone before it can list paired
+              printers.
             </p>
           ) : (
             <p className="text-muted-foreground text-sm">
@@ -456,7 +456,9 @@ export function BluetoothPrinterCard() {
             <Switch
               checked={status?.autoReconnect ?? true}
               onCheckedChange={(checked) => {
-                void Hardware.bluetoothPrinter.setAutoReconnect(checked).then(() => refreshStatus());
+                void Hardware.bluetoothPrinter
+                  .setAutoReconnect(checked)
+                  .then(() => refreshStatus());
               }}
             />
           </div>

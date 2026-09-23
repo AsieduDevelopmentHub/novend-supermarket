@@ -35,10 +35,7 @@ export function passwordResetRejectReason(row: {
   return null;
 }
 
-export function tooManyPasswordResetRequests(
-  createdAtList: number[],
-  now = Date.now(),
-): boolean {
+export function tooManyPasswordResetRequests(createdAtList: number[], now = Date.now()): boolean {
   const windowStart = now - PASSWORD_RESET_WINDOW_MS;
   return (
     createdAtList.filter((createdAt) => createdAt >= windowStart).length >=

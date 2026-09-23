@@ -87,7 +87,10 @@ export function recordIdleActivity(state: IdleLockState, now: number): IdleLockS
   return { ...state, lastActivityAt: now };
 }
 
-export function setIdleLockTimeout(state: IdleLockState, timeoutMinutes: IdleLockTimeoutMinutes): IdleLockState {
+export function setIdleLockTimeout(
+  state: IdleLockState,
+  timeoutMinutes: IdleLockTimeoutMinutes,
+): IdleLockState {
   return { ...state, timeoutMinutes };
 }
 

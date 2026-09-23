@@ -272,7 +272,9 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           };
         }
         const sameOrigin =
-          typeof window !== "undefined" ? `${window.location.origin}/api/mobile-updates/latest` : null;
+          typeof window !== "undefined"
+            ? `${window.location.origin}/api/mobile-updates/latest`
+            : null;
         const fromPublic =
           typeof process !== "undefined" && process.env?.NEXT_PUBLIC_MOBILE_UPDATE_JSON
             ? process.env.NEXT_PUBLIC_MOBILE_UPDATE_JSON

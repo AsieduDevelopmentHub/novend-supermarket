@@ -41,10 +41,7 @@ async function assertUniqueBarcode(
   if (existing && existing._id !== excludeId) throw new Error(BARCODE_TAKEN);
 }
 import { writeAuditLog } from "./shared/audit";
-import {
-  bumpOrgProductCount,
-  productCountsTowardUsage,
-} from "./shared/organizationStats";
+import { bumpOrgProductCount, productCountsTowardUsage } from "./shared/organizationStats";
 import { ensureBranchStockRow, stockMapForBranch, stockMapOrgWide } from "./shared/branchStock";
 import {
   convertOnHandToOpeningLots,

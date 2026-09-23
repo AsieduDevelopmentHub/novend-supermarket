@@ -399,8 +399,7 @@ function ProductFormBody({
                 description,
                 tracksExpiry: resolvedTracksExpiry,
                 expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
-                openingExpiryDate:
-                  resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
+                openingExpiryDate: resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
               })
             : createProduct({
                 name,
@@ -565,7 +564,9 @@ function ProductFormBody({
           <section className="space-y-4">
             <div className="space-y-1">
               <h3 className="text-sm font-medium">Pricing & stock</h3>
-              <p className="text-muted-foreground text-xs">Used at checkout and for stock alerts.</p>
+              <p className="text-muted-foreground text-xs">
+                Used at checkout and for stock alerts.
+              </p>
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="min-w-0 space-y-2">
@@ -820,7 +821,12 @@ function ProductFormBody({
                     Upload
                   </label>
                 </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => void onTakePhoto()}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void onTakePhoto()}
+                >
                   <Camera className="mr-2 h-4 w-4" />
                   Camera
                 </Button>

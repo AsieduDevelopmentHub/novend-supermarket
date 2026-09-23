@@ -107,15 +107,13 @@ export const landingCopy = {
         id: "sell",
         number: "03",
         title: "Sell at the Counter",
-        detail:
-          "Scan barcodes, take payments, and print receipts — including offline after setup.",
+        detail: "Scan barcodes, take payments, and print receipts — including offline after setup.",
       },
       {
         id: "sync",
         number: "04",
         title: "Sync & Stay Updated",
-        detail:
-          "When you reconnect, sales and stock changes sync so connected dashboards refresh.",
+        detail: "When you reconnect, sales and stock changes sync so connected dashboards refresh.",
       },
     ],
     diagramLabels: [
@@ -183,8 +181,7 @@ export const landingCopy = {
       {
         id: "ownership",
         title: "Data Protected",
-        detail:
-          "Cloud traffic and encrypted backups; local ops data uses device security.",
+        detail: "Cloud traffic and encrypted backups; local ops data uses device security.",
       },
       {
         id: "branches",
@@ -493,7 +490,8 @@ export const landingCopy = {
   },
   cta: {
     title: "Ready to Transform Your Business?",
-    subtitle: "Start a 14-day free trial — set up your catalog, sell on the counter, and sync when you reconnect.",
+    subtitle:
+      "Start a 14-day free trial — set up your catalog, sell on the counter, and sync when you reconnect.",
     primary: "Start Free Trial",
     secondary: "Download App",
     secondaryHref: "/download",

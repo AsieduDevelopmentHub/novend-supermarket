@@ -31,10 +31,7 @@ import { SaleCompletedDialog } from "@/features/receipts/components/sale-complet
 import { isCapacitor } from "@novend/hardware";
 import { listActiveSellUnits, roundQuantity } from "@/convex/shared/units";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
-import {
-  useSalesCatalog,
-  useSalesCustomerSearch,
-} from "@/hooks/use-offline-catalog";
+import { useSalesCatalog, useSalesCustomerSearch } from "@/hooks/use-offline-catalog";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { usePosPreferences } from "@/hooks/use-pos-preferences";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
@@ -68,7 +65,10 @@ import {
   type BarcodeMatchProduct,
 } from "@/features/sales/components/barcode-match-dialog";
 import { DraggableCartFab } from "@/features/sales/components/draggable-cart-fab";
-import { SalesProductCatalog, SalesProductDisplayControls } from "@/features/sales/components/sales-product-catalog";
+import {
+  SalesProductCatalog,
+  SalesProductDisplayControls,
+} from "@/features/sales/components/sales-product-catalog";
 import {
   readCartDraft,
   writeCartDraft,
@@ -815,7 +815,7 @@ export function SalesView() {
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <div className="min-w-0 space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:flex-wrap">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
             <div className="flex max-w-lg flex-1 gap-2">
               <Input
                 data-tour="sales-search"

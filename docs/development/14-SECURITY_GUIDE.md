@@ -131,13 +131,13 @@ the browser / WebView profile**.
 
 Distinguish these protections carefully:
 
-| Layer | What is protected | What it is not |
-| --- | --- | --- |
-| Encryption in transit | TLS between the client and Convex / hosted app origin | Not a substitute for device custody |
-| Encrypted portable / cloud backups | `.novend-backup` archives (password + AES-GCM) | Does not encrypt the live Dexie database |
-| Local operational store | Relies on OS lock screen, browser profile isolation, app sandbox, and physical control of the till | Not field-level encryption of every IndexedDB row |
-| Explicit logout | Deletes the bound org/user Dexie replica (including product image blobs), offline session hints, cart drafts, customer-display snapshot, and other sensitive session keys — without deleting another tenant’s database | Does not wipe the entire device |
-| Inactivity lock | Configurable UI lock (default 10 minutes; Off / 5 / 10 / 15 / 30) requiring Convex Auth password reauthentication (optional native biometrics when already enabled) | Obscures the UI; does not encrypt Dexie at rest |
+| Layer                              | What is protected                                                                                                                                                                                                      | What it is not                                    |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Encryption in transit              | TLS between the client and Convex / hosted app origin                                                                                                                                                                  | Not a substitute for device custody               |
+| Encrypted portable / cloud backups | `.novend-backup` archives (password + AES-GCM)                                                                                                                                                                         | Does not encrypt the live Dexie database          |
+| Local operational store            | Relies on OS lock screen, browser profile isolation, app sandbox, and physical control of the till                                                                                                                     | Not field-level encryption of every IndexedDB row |
+| Explicit logout                    | Deletes the bound org/user Dexie replica (including product image blobs), offline session hints, cart drafts, customer-display snapshot, and other sensitive session keys — without deleting another tenant’s database | Does not wipe the entire device                   |
+| Inactivity lock                    | Configurable UI lock (default 10 minutes; Off / 5 / 10 / 15 / 30) requiring Convex Auth password reauthentication (optional native biometrics when already enabled)                                                    | Obscures the UI; does not encrypt Dexie at rest   |
 
 **Deferred (do not invent weak custom cryptography):** field-level encryption of
 sensitive Dexie fields / full live-database encryption. Document any future
@@ -162,8 +162,8 @@ on the device across logout.
 | XSS                  | Safe rendering, CSP nonce + strict-dynamic. `proxy.ts` sets the nonce on the request (`x-nonce` + CSP) so Next.js stamps its scripts; `ThemeProvider` receives the same nonce so next-themes’ inline boot script is not blocked. |
 | Clickjacking         | `X-Frame-Options: DENY` + CSP `frame-ancestors 'none'`                                                                                                                                                                           |
 | MIME sniffing        | `X-Content-Type-Options: nosniff`                                                                                                                                                                                                |
-| HTTPS downgrade      | Production-only `Strict-Transport-Security` (`lib/security/response-headers.ts`). Do not add `preload` until every hostname is permanently HTTPS.                                                                               |
-| Cross-window attacks | `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Resource-Policy: same-origin`. **COEP deferred** — `require-corp` would break Convex file URLs without matching CORP.                                                  |
+| HTTPS downgrade      | Production-only `Strict-Transport-Security` (`lib/security/response-headers.ts`). Do not add `preload` until every hostname is permanently HTTPS.                                                                                |
+| Cross-window attacks | `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Resource-Policy: same-origin`. **COEP deferred** — `require-corp` would break Convex file URLs without matching CORP.                                                |
 | CSRF                 | Auth cookie guidance; same-site                                                                                                                                                                                                  |
 | Injection            | Validated inputs; Convex parameterized access                                                                                                                                                                                    |
 | Privilege escalation | Server-side role + org checks                                                                                                                                                                                                    |

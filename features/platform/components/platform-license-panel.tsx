@@ -128,9 +128,7 @@ export function PlatformLicensePanel({
     enabled: boolean;
   } | null>(null);
   const imagesEnabled =
-    imagesDraft?.organizationId === organizationId
-      ? imagesDraft.enabled
-      : productImagesEnabled;
+    imagesDraft?.organizationId === organizationId ? imagesDraft.enabled : productImagesEnabled;
 
   if (!online && license === undefined) {
     return (
@@ -258,8 +256,8 @@ export function PlatformLicensePanel({
               <p className="text-sm font-medium">Product images</p>
               <p className="text-muted-foreground text-xs">
                 When disabled, staff cannot upload or capture new product photos. Existing images
-                remain visible and can still be removed. Organization admins can also change this
-                in Settings.
+                remain visible and can still be removed. Organization admins can also change this in
+                Settings.
               </p>
             </div>
             <div className="flex items-center justify-between gap-3">
@@ -662,7 +660,9 @@ function LimitOverridesEditor({
   );
   // An empty allowlist means "all modes allowed"; seed the toggles from that.
   const initialModes =
-    allowedCloudModes.length === 0 ? CLOUD_MODE_OPTIONS.map((option) => option.value) : allowedCloudModes;
+    allowedCloudModes.length === 0
+      ? CLOUD_MODE_OPTIONS.map((option) => option.value)
+      : allowedCloudModes;
   const [modes, setModes] = useState<Set<CloudMode>>(() => new Set(initialModes));
   const [backupOn, setBackupOn] = useState(cloudBackupEnabled);
   const [monitoringOn, setMonitoringOn] = useState(remoteMonitoringEnabled);

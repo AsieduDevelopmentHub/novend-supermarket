@@ -100,13 +100,19 @@ export function CookieConsentBanner({ enabled = true }: Props) {
           </span>
           <div className="min-w-0 flex-1 space-y-3">
             <div>
-              <h2 id="cookie-consent-title" className="text-sm font-semibold tracking-tight sm:text-base">
+              <h2
+                id="cookie-consent-title"
+                className="text-sm font-semibold tracking-tight sm:text-base"
+              >
                 Cookies on Novend
               </h2>
               <p id="cookie-consent-desc" className="mt-1 text-sm leading-relaxed text-slate-600">
                 We use strictly necessary cookies to run the site and sign-in. Optional cookies help
                 with preferences and measuring how public pages perform. See our{" "}
-                <Link href="/cookies" className="text-primary font-medium underline-offset-2 hover:underline">
+                <Link
+                  href="/cookies"
+                  className="text-primary font-medium underline-offset-2 hover:underline"
+                >
                   Cookie Policy
                 </Link>
                 .
@@ -118,7 +124,10 @@ export function CookieConsentBanner({ enabled = true }: Props) {
                 <div className="flex items-start gap-3">
                   <Checkbox id="cookie-necessary" checked disabled className="mt-0.5" />
                   <div>
-                    <Label htmlFor="cookie-necessary" className="text-sm font-medium text-[#111827]">
+                    <Label
+                      htmlFor="cookie-necessary"
+                      className="text-sm font-medium text-[#111827]"
+                    >
                       Strictly necessary
                     </Label>
                     <p className="text-xs leading-relaxed text-slate-500">
@@ -134,7 +143,10 @@ export function CookieConsentBanner({ enabled = true }: Props) {
                     className="mt-0.5"
                   />
                   <div>
-                    <Label htmlFor="cookie-preferences" className="text-sm font-medium text-[#111827]">
+                    <Label
+                      htmlFor="cookie-preferences"
+                      className="text-sm font-medium text-[#111827]"
+                    >
                       Preferences
                     </Label>
                     <p className="text-xs leading-relaxed text-slate-500">
@@ -150,7 +162,10 @@ export function CookieConsentBanner({ enabled = true }: Props) {
                     className="mt-0.5"
                   />
                   <div>
-                    <Label htmlFor="cookie-analytics" className="text-sm font-medium text-[#111827]">
+                    <Label
+                      htmlFor="cookie-analytics"
+                      className="text-sm font-medium text-[#111827]"
+                    >
                       Analytics
                     </Label>
                     <p className="text-xs leading-relaxed text-slate-500">
@@ -178,12 +193,7 @@ export function CookieConsentBanner({ enabled = true }: Props) {
                 Reject non-essential
               </Button>
               {customize ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="min-h-10"
-                  onClick={saveCustom}
-                >
+                <Button type="button" variant="secondary" className="min-h-10" onClick={saveCustom}>
                   Save choices
                 </Button>
               ) : (

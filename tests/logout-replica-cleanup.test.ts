@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  offlineReplicaDbName,
-  shouldDeleteOfflineReplicaOnLogout,
-} from "@/lib/offline/db";
+import { offlineReplicaDbName, shouldDeleteOfflineReplicaOnLogout } from "@/lib/offline/db";
 
 describe("logout offline replica cleanup policy", () => {
   it("names org and org+user replicas predictably", () => {
@@ -27,8 +24,8 @@ describe("logout offline replica cleanup policy", () => {
 
   it("does not treat another org id as a substring match", () => {
     // org ids are opaque strings; still refuse loose includes-style matching.
-    expect(
-      shouldDeleteOfflineReplicaOnLogout("novend-offline-org_bound_extra", "org_bound"),
-    ).toBe(false);
+    expect(shouldDeleteOfflineReplicaOnLogout("novend-offline-org_bound_extra", "org_bound")).toBe(
+      false,
+    );
   });
 });

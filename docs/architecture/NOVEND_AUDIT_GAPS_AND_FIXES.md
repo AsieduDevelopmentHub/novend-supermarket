@@ -8,22 +8,22 @@
 
 ## Remediation status (this pass)
 
-| ID | Status | Notes |
-|---|---|---|
-| P0-1 Electron trust | **Done** | `apps/desktop/src/trusted-origin.ts` + IPC/nav/openExternal/media; `tests/desktop-trusted-origin.test.ts` |
-| P0-2 Capacitor hosts | **Done** | Exact-host policy; `*.vercel.app` removed; `pnpm mobile:verify-origin` |
-| P0-3 Local-data security | **Done (code)** | Idle lock (default 10m), logout replica tests, threat-model docs. Field-level Dexie encryption + OS keychain **deferred** |
-| P0-4 Offline licence | **Done** | Fail-closed state machine; recovery/read-only; tests |
-| P0-5 Auth abuse | **Done (in-app)** | `loginAttempts` + progressive delay. Edge/WAF evidence, MFA, remote session revoke = **BLOCKED** (ops) |
-| P0-6 Marketing claims | **Done** | Claims corrected; fake logos removed; landing shortened |
-| P1-1 Desktop signing | **BLOCKED** | Needs Authenticode / Apple certs — checklist only |
-| P1-2 Actions supply chain | **Partial** | SHA pins + least privilege; SBOM/secret-scanning still open |
-| P1-3 Security headers | **Done** | HSTS (prod); header unit tests |
-| P1-4 Live IDOR / E2E | **Open** | Not in this pass |
-| P1-5 Observability | **BLOCKED** | Runbook/checklist only; no Sentry without keys |
-| P2 Legal | **Draft only** | `SUBPROCESSORS.md`, `DATA_RETENTION_PROPOSAL.md` — **LEGAL REVIEW REQUIRED** |
-| UX-1 / UX-2 / UX-3 | **Done** | Landing path, login back link, clearer outbox conflict labels |
-| RH-1 / RH-2 | **Done** | gitignore + untracked APKs/store; `SECURITY.md`, `CODEOWNERS`, Dependabot, readiness checklist |
+| ID                        | Status            | Notes                                                                                                                     |
+| ------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| P0-1 Electron trust       | **Done**          | `apps/desktop/src/trusted-origin.ts` + IPC/nav/openExternal/media; `tests/desktop-trusted-origin.test.ts`                 |
+| P0-2 Capacitor hosts      | **Done**          | Exact-host policy; `*.vercel.app` removed; `pnpm mobile:verify-origin`                                                    |
+| P0-3 Local-data security  | **Done (code)**   | Idle lock (default 10m), logout replica tests, threat-model docs. Field-level Dexie encryption + OS keychain **deferred** |
+| P0-4 Offline licence      | **Done**          | Fail-closed state machine; recovery/read-only; tests                                                                      |
+| P0-5 Auth abuse           | **Done (in-app)** | `loginAttempts` + progressive delay. Edge/WAF evidence, MFA, remote session revoke = **BLOCKED** (ops)                    |
+| P0-6 Marketing claims     | **Done**          | Claims corrected; fake logos removed; landing shortened                                                                   |
+| P1-1 Desktop signing      | **BLOCKED**       | Needs Authenticode / Apple certs — checklist only                                                                         |
+| P1-2 Actions supply chain | **Partial**       | SHA pins + least privilege; SBOM/secret-scanning still open                                                               |
+| P1-3 Security headers     | **Done**          | HSTS (prod); header unit tests                                                                                            |
+| P1-4 Live IDOR / E2E      | **Open**          | Not in this pass                                                                                                          |
+| P1-5 Observability        | **BLOCKED**       | Runbook/checklist only; no Sentry without keys                                                                            |
+| P2 Legal                  | **Draft only**    | `SUBPROCESSORS.md`, `DATA_RETENTION_PROPOSAL.md` — **LEGAL REVIEW REQUIRED**                                              |
+| UX-1 / UX-2 / UX-3        | **Done**          | Landing path, login back link, clearer outbox conflict labels                                                             |
+| RH-1 / RH-2               | **Done**          | gitignore + untracked APKs/store; `SECURITY.md`, `CODEOWNERS`, Dependabot, readiness checklist                            |
 
 **Verification (local, this pass):** `pnpm test` 484 passed; `pnpm typecheck` passed; `pnpm lint` passed; `pnpm build` passed. Full-repo `pnpm format:check` still reports many pre-existing Prettier drifts outside this remediation — format was applied to remediation files.
 

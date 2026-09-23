@@ -9,10 +9,7 @@ Implement a production-ready **per-organization cloud mode architecture** for No
 The three supported modes are:
 
 ```ts
-type CloudMode =
-  | "full_sync"
-  | "backup_only"
-  | "local_only";
+type CloudMode = "full_sync" | "backup_only" | "local_only";
 ```
 
 The purpose is to reduce recurring Convex usage for selected organizations, especially lifetime-license customers, while preserving Novend's local-first functionality.
@@ -41,13 +38,13 @@ Convex
 
 Provides:
 
-* Cloud backup
-* Cross-device synchronization
-* Remote monitoring
-* Multi-branch cloud synchronization
-* Remote admin access
-* Cloud recovery
-* Regular synchronization
+- Cloud backup
+- Cross-device synchronization
+- Remote monitoring
+- Multi-branch cloud synchronization
+- Remote admin access
+- Cloud recovery
+- Regular synchronization
 
 ---
 
@@ -73,12 +70,12 @@ The system must NOT continuously synchronize routine changes.
 
 Synchronization occurs only according to configured policy, such as:
 
-* Manual backup
-* Scheduled backup
-* Application close if appropriate
-* Daily interval
-* Explicit administrator trigger
-* Critical configuration changes where absolutely required
+- Manual backup
+- Scheduled backup
+- Application close if appropriate
+- Daily interval
+- Explicit administrator trigger
+- Critical configuration changes where absolutely required
 
 This mode is intended for customers who want cloud protection but do not require real-time synchronization.
 
@@ -100,21 +97,21 @@ Local operation complete
 
 Supported local functionality should continue working normally:
 
-* POS
-* Sales
-* Products
-* Inventory
-* Returns
-* Customers
-* Expenses
-* Reports
-* Analytics
-* Printing
-* Users
-* Settings
-* Branch functionality that can operate locally
-* Hardware
-* Electron offline operation
+- POS
+- Sales
+- Products
+- Inventory
+- Returns
+- Customers
+- Expenses
+- Reports
+- Analytics
+- Printing
+- Users
+- Settings
+- Branch functionality that can operate locally
+- Hardware
+- Electron offline operation
 
 Cloud-dependent functionality must be explicitly marked unavailable where applicable.
 
@@ -137,7 +134,7 @@ The UI must never require Convex availability before completing local operations
 All current organizations should default to:
 
 ```ts
-cloudMode = "full_sync"
+cloudMode = "full_sync";
 ```
 
 unless explicitly changed.
@@ -269,13 +266,13 @@ Implement the central architecture first.
 Add an organization-level setting:
 
 ```ts
-cloudMode: "full_sync" | "backup_only" | "local_only"
+cloudMode: "full_sync" | "backup_only" | "local_only";
 ```
 
 Default:
 
 ```ts
-"full_sync"
+"full_sync";
 ```
 
 Existing organizations must automatically behave as `full_sync` when the field is missing.
@@ -333,21 +330,21 @@ Adjust based on actual Novend implementation.
 
 Before modifying sync logic, inspect:
 
-* Dexie repositories
-* Convex repositories
-* outbox implementation
-* sync triggers
-* query hooks
-* background synchronization
-* application startup
-* page boot queries
-* tab-focus synchronization
-* periodic synchronization
-* branch synchronization
-* remote monitoring
-* authentication/session dependencies
-* Electron startup
-* browser/PWA startup
+- Dexie repositories
+- Convex repositories
+- outbox implementation
+- sync triggers
+- query hooks
+- background synchronization
+- application startup
+- page boot queries
+- tab-focus synchronization
+- periodic synchronization
+- branch synchronization
+- remote monitoring
+- authentication/session dependencies
+- Electron startup
+- browser/PWA startup
 
 Identify every path that causes Convex usage.
 
@@ -484,8 +481,8 @@ The key rule:
 
 Decide whether to:
 
-* reuse the existing outbox with different flush policy
-* or introduce a dedicated deferred backup queue
+- reuse the existing outbox with different flush policy
+- or introduce a dedicated deferred backup queue
 
 Prefer reusing existing outbox architecture where safe.
 
@@ -584,11 +581,11 @@ Respect Convex limits and existing sync architecture.
 Store local metadata such as:
 
 ```ts
-lastBackupAt
-lastBackupSuccessAt
-lastBackupError
-pendingBackupCount
-backupCheckpoint
+lastBackupAt;
+lastBackupSuccessAt;
+lastBackupError;
+pendingBackupCount;
+backupCheckpoint;
 ```
 
 This should be visible in settings.
@@ -623,13 +620,13 @@ Do not expose unnecessary internal technical terminology to normal business user
 
 If backup fails:
 
-* local operation remains valid
-* POS must continue working
-* pending data stays queued
-* retry must be possible
-* no duplicate operations
-* show actionable status
-* never delete pending data
+- local operation remains valid
+- POS must continue working
+- pending data stays queued
+- retry must be possible
+- no duplicate operations
+- show actionable status
+- never delete pending data
 
 ---
 
@@ -782,11 +779,11 @@ Stop there.
 
 Do not automatically:
 
-* queue Convex sync
-* run Convex mutations
-* run realtime subscriptions
-* run periodic cloud sync
-* run remote monitoring synchronization
+- queue Convex sync
+- run Convex mutations
+- run realtime subscriptions
+- run periodic cloud sync
+- run remote monitoring synchronization
 
 ---
 
@@ -797,7 +794,7 @@ Do not lose architectural compatibility.
 Consider marking operations as:
 
 ```ts
-syncPolicy: "local_only"
+syncPolicy: "local_only";
 ```
 
 or equivalent.
@@ -812,13 +809,13 @@ Do not permanently discard information needed if the organization upgrades to cl
 
 Local-only must still preserve:
 
-* actor
-* timestamp
-* branch
-* device
-* operation
-* before/after where applicable
-* transaction references
+- actor
+- timestamp
+- branch
+- device
+- operation
+- before/after where applicable
+- transaction references
 
 Cloud-disabled must never mean audit-disabled.
 
@@ -1121,19 +1118,11 @@ Cloud Mode Policy
 Example:
 
 ```ts
-Lifetime:
-  allowedCloudModes:
-    - local_only
-    - backup_only
+Lifetime: allowedCloudModes: -local_only - backup_only;
 
-Pro:
-  allowedCloudModes:
-    - full_sync
+Pro: allowedCloudModes: -full_sync;
 
-Enterprise:
-  allowedCloudModes:
-    - full_sync
-    - backup_only
+Enterprise: allowedCloudModes: -full_sync - backup_only;
 ```
 
 This gives you flexibility later.
@@ -1275,18 +1264,18 @@ During this architecture work, also eliminate obvious waste.
 
 Examples:
 
-* Fetch one record instead of full collections.
-* Use indexed queries.
-* Avoid duplicate subscriptions.
-* Avoid queries on every render.
-* Avoid sync cycles when outbox is empty.
-* Cache stable organization settings.
-* Cache permissions.
-* Cache catalog locally.
-* Batch sync operations.
-* Use delta sync.
-* Avoid fetching unchanged records.
-* Reduce polling.
+- Fetch one record instead of full collections.
+- Use indexed queries.
+- Avoid duplicate subscriptions.
+- Avoid queries on every render.
+- Avoid sync cycles when outbox is empty.
+- Cache stable organization settings.
+- Cache permissions.
+- Cache catalog locally.
+- Batch sync operations.
+- Use delta sync.
+- Avoid fetching unchanged records.
+- Reduce polling.
 
 Do not perform risky unrelated refactors.
 
@@ -1317,14 +1306,14 @@ This will help measure whether Convex usage is actually reduced.
 
 Cloud mode must never bypass:
 
-* organization isolation
-* branch authorization
-* RBAC
-* audit attribution
-* completed-sale immutability
-* input validation
-* inventory validation
-* secure local sessions
+- organization isolation
+- branch authorization
+- RBAC
+- audit attribution
+- completed-sale immutability
+- input validation
+- inventory validation
+- secure local sessions
 
 Local-only means local persistence, not weaker security.
 

@@ -64,11 +64,11 @@ export function SalesProductDisplayControls({
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <Select value={display.mode} onValueChange={(value) => setMode(value as SalesProductDisplayMode)}>
-        <SelectTrigger
-          className="min-h-10 w-[8.5rem] sm:min-h-9"
-          aria-label="Product display mode"
-        >
+      <Select
+        value={display.mode}
+        onValueChange={(value) => setMode(value as SalesProductDisplayMode)}
+      >
+        <SelectTrigger className="min-h-10 w-[8.5rem] sm:min-h-9" aria-label="Product display mode">
           <SelectValue placeholder="View" />
         </SelectTrigger>
         <SelectContent>
@@ -84,16 +84,11 @@ export function SalesProductDisplayControls({
           value={display.columns ? String(display.columns) : "auto"}
           onValueChange={setColumns}
         >
-          <SelectTrigger
-            className="min-h-10 w-[7.5rem] sm:min-h-9"
-            aria-label="Products per row"
-          >
+          <SelectTrigger className="min-h-10 w-[7.5rem] sm:min-h-9" aria-label="Products per row">
             <SelectValue placeholder="Columns" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="auto">
-              {display.mode === "dense" ? "Auto (5)" : "Auto"}
-            </SelectItem>
+            <SelectItem value="auto">{display.mode === "dense" ? "Auto (5)" : "Auto"}</SelectItem>
             {SALES_PRODUCT_DISPLAY_COLUMNS.map((count) => (
               <SelectItem key={count} value={String(count)}>
                 {count} per row

@@ -79,9 +79,7 @@ describe("sales product display preferences", () => {
       `repeat(auto-fill, minmax(${productDisplayMinTileRem("grid")}rem, 1fr))`,
     );
     expect(productDisplayGridTemplate({ mode: "dense" })).toContain("calc(100% / 5)");
-    expect(productDisplayGridTemplate({ mode: "cards", columns: 3 })).toContain(
-      "calc(100% / 3)",
-    );
+    expect(productDisplayGridTemplate({ mode: "cards", columns: 3 })).toContain("calc(100% / 3)");
     expect(productDisplayGridTemplate({ mode: "icons", columns: 4 })).toContain("minmax(max(");
   });
 });

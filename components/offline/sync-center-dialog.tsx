@@ -17,7 +17,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateTime, formatRelative } from "@/lib/date";
 import { listOpenOutbox, listRecentSyncedOutbox } from "@/lib/offline/outbox";
 import { discardOutboxEvent, retryOutboxEvent } from "@/lib/offline/outbox-actions";
-import { describeOutboxEvent, describeOutboxConflict, outboxFixPath, outboxStatusLabel } from "@/lib/offline/outbox-labels";
+import {
+  describeOutboxEvent,
+  describeOutboxConflict,
+  outboxFixPath,
+  outboxStatusLabel,
+} from "@/lib/offline/outbox-labels";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { shouldMarkOutboxFailed } from "@/lib/offline/outbox-policy";
 import type { OutboxRow } from "@/lib/offline/types";
