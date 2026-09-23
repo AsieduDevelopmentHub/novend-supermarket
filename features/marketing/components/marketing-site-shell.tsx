@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { LandingNav } from "@/features/marketing/components/landing-nav";
 import { LandingFooter } from "@/features/marketing/components/landing-footer";
-import { CookieConsentBanner } from "@/features/marketing/components/cookie-consent-banner";
 import { isCapacitor, isElectron } from "@novend/hardware";
 import { isStandaloneWebApp } from "@/lib/device-install";
 
@@ -29,7 +28,6 @@ export function MarketingSiteShell({ children }: { children: ReactNode }) {
         {children}
       </main>
       {embedded === false ? <LandingFooter /> : null}
-      {embedded === false ? <CookieConsentBanner /> : null}
     </div>
   );
 }

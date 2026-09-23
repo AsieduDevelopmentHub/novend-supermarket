@@ -18,7 +18,6 @@ import { LandingPricing } from "@/features/marketing/components/landing-pricing"
 import { LandingFaq } from "@/features/marketing/components/landing-faq";
 import { LandingCta } from "@/features/marketing/components/landing-cta";
 import { LandingFooter } from "@/features/marketing/components/landing-footer";
-import { CookieConsentBanner } from "@/features/marketing/components/cookie-consent-banner";
 
 /**
  * Web-only SaaS landing V3 — reference layout with Novend brand tokens.
@@ -66,7 +65,6 @@ export function LandingPage() {
           <LandingCta />
         </main>
         <LandingFooter />
-        <CookieConsentBanner />
       </div>
     </div>
   );
