@@ -12,6 +12,7 @@ import {
   AppearanceProfileSync,
   THEME_STORAGE_KEY,
 } from "@/hooks/use-appearance";
+import { MarketingCookieConsentHost } from "@/features/marketing/components/marketing-cookie-consent-host";
 import { isMarketingPath } from "@/lib/marketing-routes";
 import { StartupSplash } from "@/providers/startup-splash";
 
@@ -48,6 +49,7 @@ function MissingConvexConfig({ children, nonce }: { children: ReactNode; nonce?:
           </div>
           {children}
         </div>
+        <MarketingCookieConsentHost />
         <Toaster />
       </AppearanceBootstrap>
     </AppThemeProvider>
@@ -70,6 +72,7 @@ export function AppProviders({ children, nonce }: { children: ReactNode; nonce?:
         <AppearanceBootstrap>
           <AppearanceProfileSync />
           <StartupSplash>{children}</StartupSplash>
+          <MarketingCookieConsentHost />
           <Toaster />
         </AppearanceBootstrap>
       </AppThemeProvider>

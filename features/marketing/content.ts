@@ -397,7 +397,7 @@ export const landingCopy = {
         href: "/signup",
       },
       pro: {
-        badge: "Most Popular",
+        badge: "Recommended",
         description:
           "Built for supermarkets, pharmacies, electronics stores, and growing wholesalers.",
         additional: [
@@ -491,7 +491,7 @@ export const landingCopy = {
   cta: {
     title: "Ready to Transform Your Business?",
     subtitle:
-      "Start a 14-day free trial — set up your catalog, sell on the counter, and sync when you reconnect.",
+      "Start a 14-day free trial — set up your catalog, sell on the counter, and sync when you reconnect. Then install Novend where you work: desktop, Android, or Home Screen on iPhone and iPad.",
     primary: "Start Free Trial",
     secondary: "Download App",
     secondaryHref: "/download",
@@ -500,9 +500,9 @@ export const landingCopy = {
   desktop: {
     id: "desktop",
     badge: "Apps & Downloads",
-    title: "Run Novend on every counter — and in every pocket",
+    title: "One account on every counter and in every pocket",
     detail:
-      "Install the desktop app for Windows, macOS, and Linux. Download the Android app for phones and tablets. On iPhone and iPad, add Novend to your Home Screen as a PWA. One account works across the counter, the web, and your pocket.",
+      "Desktop for Windows, macOS, and Linux. Android for phones and tablets. On iPhone and iPad, add Novend to your Home Screen as a PWA.",
     platforms: [
       { id: "desktop", label: "Windows, macOS & Linux" },
       { id: "android", label: "Android app" },

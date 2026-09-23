@@ -10,6 +10,7 @@ import {
   COOKIE_PREFERENCES_EVENT,
   readCookieConsent,
   writeCookieConsent,
+  type CookiePreferencesDetail,
 } from "@/lib/cookies/consent";
 
 type Props = {
@@ -22,7 +23,7 @@ type Props = {
  * Necessary cookies stay on; preferences and analytics are opt-in.
  */
 export function CookieConsentBanner({ enabled = true }: Props) {
-  const [ready, setReady] = useState(() => !enabled);
+  const [ready, setReady] = useState(false);
   const [visible, setVisible] = useState(false);
   const [customize, setCustomize] = useState(false);
   const [preferences, setPreferences] = useState(false);
@@ -38,6 +39,7 @@ export function CookieConsentBanner({ enabled = true }: Props) {
       if (existing) {
         setPreferences(existing.preferences);
         setAnalytics(existing.analytics);
+        setCustomize(false);
         setVisible(false);
       } else {
         setVisible(true);
@@ -46,7 +48,17 @@ export function CookieConsentBanner({ enabled = true }: Props) {
     });
 
     function onPreferences(event: Event) {
-      const detail = (event as CustomEvent<{ open?: boolean }>).detail;
+      const detail = (event as CustomEvent<CookiePreferencesDetail>).detail;
+      if (detail?.saved) {
+        const current = readCookieConsent();
+        if (current) {
+          setPreferences(current.preferences);
+          setAnalytics(current.analytics);
+          setCustomize(false);
+          setVisible(false);
+        }
+        return;
+      }
       if (detail?.open) {
         const current = readCookieConsent();
         setPreferences(current?.preferences ?? false);

@@ -63,6 +63,7 @@ import type * as shared_entitlementVersion from "../shared/entitlementVersion.js
 import type * as shared_entitlements from "../shared/entitlements.js";
 import type * as shared_importExportSnapshot from "../shared/importExportSnapshot.js";
 import type * as shared_licensing from "../shared/licensing.js";
+import type * as shared_loginRateLimit from "../shared/loginRateLimit.js";
 import type * as shared_lots from "../shared/lots.js";
 import type * as shared_multiBranchBootstrap from "../shared/multiBranchBootstrap.js";
 import type * as shared_organizationStats from "../shared/organizationStats.js";
@@ -76,6 +77,7 @@ import type * as shared_plans from "../shared/plans.js";
 import type * as shared_platformStatsAggregate from "../shared/platformStatsAggregate.js";
 import type * as shared_platformTelemetry from "../shared/platformTelemetry.js";
 import type * as shared_presence from "../shared/presence.js";
+import type * as shared_productImagesPolicy from "../shared/productImagesPolicy.js";
 import type * as shared_provisionOrganization from "../shared/provisionOrganization.js";
 import type * as shared_randomId from "../shared/randomId.js";
 import type * as shared_returns from "../shared/returns.js";
@@ -156,6 +158,7 @@ declare const fullApi: ApiFromModules<{
   "shared/entitlements": typeof shared_entitlements;
   "shared/importExportSnapshot": typeof shared_importExportSnapshot;
   "shared/licensing": typeof shared_licensing;
+  "shared/loginRateLimit": typeof shared_loginRateLimit;
   "shared/lots": typeof shared_lots;
   "shared/multiBranchBootstrap": typeof shared_multiBranchBootstrap;
   "shared/organizationStats": typeof shared_organizationStats;
@@ -169,6 +172,7 @@ declare const fullApi: ApiFromModules<{
   "shared/platformStatsAggregate": typeof shared_platformStatsAggregate;
   "shared/platformTelemetry": typeof shared_platformTelemetry;
   "shared/presence": typeof shared_presence;
+  "shared/productImagesPolicy": typeof shared_productImagesPolicy;
   "shared/provisionOrganization": typeof shared_provisionOrganization;
   "shared/randomId": typeof shared_randomId;
   "shared/returns": typeof shared_returns;

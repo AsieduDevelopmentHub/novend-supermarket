@@ -1,15 +1,23 @@
 import Image from "next/image";
 import Link from "next/link";
+import { MonitorSmartphone } from "lucide-react";
 import { BRANDING } from "@/constants/branding";
 import { Button } from "@/components/ui/button";
 import { landingCopy } from "@/features/marketing/content";
 
-/** Final CTA — laptop + phone, rounded and blended into the card. */
+/**
+ * Final CTA — trial + downloads in one composition.
+ * Absorbs the former Apps & Downloads band so the page has a single close.
+ */
 export function LandingCta() {
-  const { cta } = landingCopy;
+  const { cta, desktop } = landingCopy;
 
   return (
     <section id="contact" className="scroll-mt-24 bg-white px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
+      {/* Keep #desktop anchors working after the standalone downloads section was removed */}
+      <div id={desktop.id} className="sr-only" aria-hidden>
+        Downloads
+      </div>
       <div
         data-reveal
         className="border-border relative mx-auto grid max-w-6xl overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-[#F8FAFC] lg:grid-cols-2 lg:items-center"
@@ -50,6 +58,33 @@ export function LandingCta() {
               </li>
             ))}
           </ul>
+
+          <div className="mt-10 border-t border-slate-200/90 pt-8 text-left">
+            <div className="flex items-start gap-3">
+              <span className="bg-primary/12 text-primary mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
+                <MonitorSmartphone className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className="text-primary text-[12px] font-semibold tracking-[0.12em] uppercase">
+                  {desktop.badge}
+                </p>
+                <p className="mt-1 text-sm font-semibold tracking-tight text-[#111827] sm:text-base">
+                  {desktop.title}
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{desktop.detail}</p>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {desktop.platforms.map((platform) => (
+                    <li
+                      key={platform.id}
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
+                    >
+                      {platform.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="landing-cta-devices relative flex min-h-[240px] items-end justify-center px-4 pt-4 pb-6 sm:px-8 lg:min-h-[340px] lg:pb-8">
