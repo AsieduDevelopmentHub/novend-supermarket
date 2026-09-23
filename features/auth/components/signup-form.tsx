@@ -91,20 +91,20 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[360px]">
-      <div className={cn("text-center", compact ? "mb-6 space-y-3" : "mb-8 space-y-4")}>
-        <div className={cn("relative mx-auto", compact ? "h-14 w-14" : "h-16 w-16")}>
+    <div className="mx-auto w-full max-w-[360px] py-1">
+      <div className={cn("text-center", compact ? "mb-5 space-y-2.5" : "mb-5 space-y-3")}>
+        <div className={cn("relative mx-auto", compact ? "h-12 w-12" : "h-14 w-14")}>
           <Image
             src={BRANDING.brandmark}
             alt=""
             fill
             priority
             unoptimized
-            sizes="64px"
+            sizes="56px"
             className="object-contain"
           />
         </div>
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">
             Create your account
           </h1>
@@ -112,8 +112,8 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
         </div>
       </div>
 
-      <form className="space-y-4" onSubmit={onSubmit}>
-        <div className="space-y-2">
+      <form className="space-y-3.5" onSubmit={onSubmit}>
+        <div className="space-y-1.5">
           <Label htmlFor="name">Your name</Label>
           <div className="relative">
             <Input
@@ -132,7 +132,7 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
           <div className="relative">
             <Input
@@ -150,12 +150,9 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
               aria-hidden
             />
           </div>
-          <p className="text-muted-foreground text-xs leading-relaxed">
-            Use a mailbox you can access. Password reset and security notices go here.
-          </p>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label htmlFor="password">Password</Label>
           <PasswordInput
             id="password"
@@ -166,7 +163,7 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
             required
             minLength={PASSWORD_MIN_LENGTH}
           />
-          <PasswordStrengthMeter password={password} />
+          <PasswordStrengthMeter password={password} compact />
         </div>
 
         <div className="flex items-start gap-3">
@@ -175,52 +172,46 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
             checked={acceptedLegal}
             onCheckedChange={(value) => setAcceptedLegal(value === true)}
             className="mt-0.5"
-            aria-describedby="accept-legal-hint"
           />
-          <div className="space-y-1">
-            <Label htmlFor="accept-legal" className="text-sm leading-relaxed font-normal">
-              I agree to the{" "}
-              <Link
-                href={ROUTES.terms}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary font-medium hover:underline"
-              >
-                Terms of Service
-              </Link>
-              ,{" "}
-              <Link
-                href={ROUTES.privacy}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary font-medium hover:underline"
-              >
-                Privacy Policy
-              </Link>
-              , and related policies including{" "}
-              <Link
-                href={ROUTES.refund}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary font-medium hover:underline"
-              >
-                Refunds
-              </Link>{" "}
-              and{" "}
-              <Link
-                href={ROUTES.aup}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary font-medium hover:underline"
-              >
-                Acceptable Use
-              </Link>
-              .
-            </Label>
-            <p id="accept-legal-hint" className="text-muted-foreground text-xs leading-relaxed">
-              Required before creating an account.
-            </p>
-          </div>
+          <Label htmlFor="accept-legal" className="text-sm leading-snug font-normal">
+            I agree to the{" "}
+            <Link
+              href={ROUTES.terms}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary font-medium hover:underline"
+            >
+              Terms
+            </Link>
+            ,{" "}
+            <Link
+              href={ROUTES.privacy}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary font-medium hover:underline"
+            >
+              Privacy
+            </Link>
+            ,{" "}
+            <Link
+              href={ROUTES.refund}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary font-medium hover:underline"
+            >
+              Refunds
+            </Link>
+            , and{" "}
+            <Link
+              href={ROUTES.aup}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary font-medium hover:underline"
+            >
+              Acceptable Use
+            </Link>
+            .
+          </Label>
         </div>
 
         <Button
@@ -232,14 +223,11 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
         </Button>
       </form>
 
-      <p className="text-muted-foreground mt-6 text-center text-sm">
+      <p className="text-muted-foreground mt-5 text-center text-sm">
         Already have an account?{" "}
         <Link href="/login" className="text-primary font-medium hover:underline">
           Sign in
         </Link>
-      </p>
-      <p className="text-muted-foreground mt-3 text-center text-xs leading-relaxed">
-        Then set up your business. Staff accounts are created by your administrator.
       </p>
     </div>
   );

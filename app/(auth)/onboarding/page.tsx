@@ -12,12 +12,14 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      <div className="bg-background relative hidden max-h-dvh min-h-dvh items-center justify-center overflow-y-auto p-5 md:flex lg:p-8 xl:p-10">
+      <div className="bg-background relative hidden max-h-dvh min-h-dvh items-center justify-center overflow-hidden p-5 md:flex lg:p-8 xl:p-10">
         <LoginAtmosphere />
-        <div className="border-border bg-card relative z-10 grid w-full max-w-[960px] overflow-hidden rounded-2xl border shadow-[0_20px_50px_rgba(15,23,42,0.08)] md:min-h-[min(620px,calc(100dvh-4rem))] md:grid-cols-[1.05fr_1fr]">
-          <LoginBrandPanel variant="desktop" className="hidden min-h-full md:block" />
-          <div className="flex items-center justify-center overflow-y-auto px-8 py-12 lg:px-12">
-            <OnboardingForm />
+        <div className="border-border bg-card relative z-10 grid max-h-full w-full max-w-[960px] overflow-hidden rounded-2xl border shadow-[0_20px_50px_rgba(15,23,42,0.08)] md:h-[min(620px,calc(100dvh-4rem))] md:max-h-[calc(100dvh-4rem)] md:grid-cols-[1.05fr_1fr]">
+          <LoginBrandPanel variant="desktop" className="hidden min-h-0 md:block" />
+          <div className="min-h-0 overflow-y-auto overscroll-y-contain">
+            <div className="flex min-h-full items-center justify-center px-8 py-8 lg:px-12 lg:py-10">
+              <OnboardingForm />
+            </div>
           </div>
         </div>
       </div>
