@@ -10,6 +10,11 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 First production release (`targets: all`): Windows, macOS, Linux desktop installers, Android APK, and Convex update metadata against the production Convex deployment.
 
+### Fixed
+
+- Restore desktop `build/icon.png` / `icon.ico` required by electron-builder (accidentally removed earlier).
+- Android release Gradle: attach origin verification after `preReleaseBuild` exists (`afterEvaluate`).
+
 ### Added
 
 - Organization product-image upload policy (platform + org admin) with online/offline enforcement.
