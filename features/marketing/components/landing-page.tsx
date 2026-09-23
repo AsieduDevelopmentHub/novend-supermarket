@@ -17,7 +17,6 @@ import { LandingIndustries } from "@/features/marketing/components/landing-indus
 import { LandingPricing } from "@/features/marketing/components/landing-pricing";
 import { LandingFaq } from "@/features/marketing/components/landing-faq";
 import { LandingCta } from "@/features/marketing/components/landing-cta";
-import { LandingDesktop } from "@/features/marketing/components/landing-desktop";
 import { LandingFooter } from "@/features/marketing/components/landing-footer";
 import { CookieConsentBanner } from "@/features/marketing/components/cookie-consent-banner";
 
@@ -65,7 +64,6 @@ export function LandingPage() {
           <LandingPricing />
           <LandingFaq />
           <LandingCta />
-          <LandingDesktop />
         </main>
         <LandingFooter />
         <CookieConsentBanner />

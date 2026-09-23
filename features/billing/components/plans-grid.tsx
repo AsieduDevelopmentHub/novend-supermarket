@@ -327,7 +327,7 @@ function PlanCard({
             {!isCurrent && !scheduled && plan.featured ? (
               <Badge className="gap-1">
                 <Sparkles className="h-3 w-3" aria-hidden />
-                Most Popular
+                Recommended
               </Badge>
             ) : null}
             {plan.isLifetime ? <Badge variant="outline">Lifetime</Badge> : null}

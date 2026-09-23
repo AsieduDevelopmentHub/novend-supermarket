@@ -7,17 +7,17 @@ export type ArchitectureSyncPhase =
   "idle" | "sale" | "local" | "pending" | "reconnect" | "syncing" | "synced" | "dashboard";
 
 const PHASE_SEQUENCE: ReadonlyArray<{ phase: ArchitectureSyncPhase; ms: number }> = [
-  { phase: "idle", ms: 1600 },
-  { phase: "sale", ms: 1800 },
-  { phase: "local", ms: 2000 },
-  { phase: "pending", ms: 2200 },
-  { phase: "reconnect", ms: 1800 },
-  { phase: "syncing", ms: 2600 },
-  { phase: "synced", ms: 2000 },
-  { phase: "dashboard", ms: 2400 },
+  { phase: "idle", ms: 700 },
+  { phase: "sale", ms: 900 },
+  { phase: "local", ms: 900 },
+  { phase: "pending", ms: 1000 },
+  { phase: "reconnect", ms: 800 },
+  { phase: "syncing", ms: 1100 },
+  { phase: "synced", ms: 900 },
+  { phase: "dashboard", ms: 1100 },
 ];
 
-/** ~16s calm loop. Disabled when prefers-reduced-motion. */
+/** ~7s loop (was ~16s). Disabled when prefers-reduced-motion. */
 export function useArchitectureSyncCycle() {
   const [phase, setPhase] = useState<ArchitectureSyncPhase>(() => {
     if (typeof window === "undefined") return "idle";

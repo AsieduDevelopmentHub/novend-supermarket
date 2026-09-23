@@ -2,20 +2,13 @@
 
 import {
   BarChart3,
-  Building2,
-  ChevronDown,
-  ChevronRight,
   CloudUpload,
   Database,
   Laptop,
-  Monitor,
-  Package,
-  Receipt,
   RefreshCw,
   Shield,
   ShoppingCart,
   Split,
-  Tablet,
   WifiOff,
 } from "lucide-react";
 import { landingCopy } from "@/features/marketing/content";
@@ -26,13 +19,6 @@ import {
 } from "@/features/marketing/hooks/use-architecture-sync-cycle";
 import { cn } from "@/lib/utils";
 
-const FLOW_VISUALS = {
-  device: DeviceVisual,
-  local: LocalVisual,
-  sync: SyncVisual,
-  dashboard: DashboardVisual,
-} as const;
-
 const GUARANTEE_ICONS = {
   selling: WifiOff,
   ownership: Shield,
@@ -40,106 +26,72 @@ const GUARANTEE_ICONS = {
   branches: Split,
 } as const;
 
-/** Section 3 — offline trust & differentiation on Novend Onyx. */
+const FLOW_NODE_ICONS = {
+  device: ShoppingCart,
+  local: Database,
+  sync: RefreshCw,
+  dashboard: BarChart3,
+} as const;
+
+/**
+ * Offline trust section — light canvas matching the rest of the landing page,
+ * with a how-it-works-style flow diagram instead of dark plan-style cards.
+ */
 export function LandingArchitecture() {
-  const { phase, cycle } = useArchitectureSyncCycle();
+  const { phase } = useArchitectureSyncCycle();
   const activeNode = architectureActiveNode(phase);
   const copy = landingCopy.architecture;
 
   return (
     <section
       id="architecture"
-      className="landing-arch-section scroll-mt-24 bg-[#111827] px-4 text-white sm:px-6 lg:px-8"
+      className="landing-arch-section border-border scroll-mt-24 border-t bg-[#F8FAFC] px-4 text-[#111827] sm:px-6 lg:px-8"
       aria-labelledby="architecture-heading"
     >
       <div className="mx-auto max-w-6xl">
         <header data-reveal className="mx-auto max-w-[680px] text-center">
-          <p className="text-[13px] font-semibold tracking-[0.14em] text-[#38BDF8] uppercase">
+          <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
             {copy.badge}
           </p>
           <h2
             id="architecture-heading"
-            className="mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-[2.75rem] lg:leading-tight"
+            className="mt-3 text-3xl font-semibold tracking-tight text-balance text-[#111827] sm:text-4xl lg:text-[2.75rem] lg:leading-tight"
           >
             {copy.title}
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-pretty text-slate-300 sm:text-lg">
+          <p className="mt-4 text-base leading-relaxed text-pretty text-slate-600 sm:text-lg">
             {copy.subtitle}
           </p>
         </header>
 
-        <div data-reveal className="mt-12 sm:mt-16">
+        <div data-reveal className="mt-10 sm:mt-12">
           <SyncStatusBar phase={phase} />
         </div>
 
-        <ol
-          data-reveal
-          className="landing-arch-flow mt-8 sm:mt-10"
-          aria-label="How Novend keeps your store running"
-        >
-          {copy.flow.map((node, index) => {
-            const Visual = FLOW_VISUALS[node.id as keyof typeof FLOW_VISUALS];
-            const isActive = activeNode === node.id;
-            const isLit = phase === "dashboard" && node.id === "dashboard";
-
-            return (
-              <li key={node.id} className="landing-arch-flow-item">
-                <article
-                  className={cn(
-                    "landing-arch-flow-card landing-shadow-onyx",
-                    isActive && "landing-arch-flow-card-active",
-                    isLit && "landing-arch-flow-card-lit",
-                  )}
-                  data-active={isActive || undefined}
-                >
-                  <div className="landing-arch-flow-visual" aria-hidden>
-                    <Visual phase={phase} cycle={cycle} active={isActive} />
-                  </div>
-                  <p className="text-[11px] font-bold tracking-[0.16em] text-[#38BDF8] uppercase">
-                    {node.label}
-                  </p>
-                  <h3 className="mt-2 text-lg font-semibold tracking-tight text-white">
-                    {node.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-300">{node.detail}</p>
-                </article>
-
-                {index < copy.flow.length - 1 ? (
-                  <div
-                    className={cn(
-                      "landing-arch-connector",
-                      shouldPulseConnector(phase, index) && "landing-arch-connector-active",
-                    )}
-                    aria-hidden
-                  >
-                    <span className="landing-arch-connector-line" />
-                    <ChevronDown className="landing-arch-connector-chevron landing-arch-connector-chevron-mobile" />
-                    <ChevronRight className="landing-arch-connector-chevron landing-arch-connector-chevron-desktop" />
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ol>
+        <div data-reveal className="mt-8 sm:mt-10">
+          <OfflineFlowDiagram phase={phase} activeNode={activeNode} />
+        </div>
 
         <ul
           data-reveal
-          className="mt-12 grid gap-4 sm:mt-16 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5"
+          className="mt-10 grid gap-3 sm:mt-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4"
         >
           {copy.guarantees.map((item) => {
-            const Icon = GUARANTEE_ICONS[item.id as keyof typeof GUARANTEE_ICONS] ?? Receipt;
+            const Icon = GUARANTEE_ICONS[item.id as keyof typeof GUARANTEE_ICONS] ?? Shield;
             return (
               <li
                 key={item.id}
-                className="landing-arch-kpi landing-shadow-onyx rounded-2xl border border-white/10 bg-white/[0.04] p-5"
+                className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-[0_12px_28px_-20px_rgba(15,23,42,0.35)]"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#38BDF8]/12 text-[#38BDF8]">
-                  <Icon className="h-5 w-5" aria-hidden />
+                <div className="bg-primary/12 text-primary flex h-9 w-9 items-center justify-center rounded-xl">
+                  <Icon className="h-4 w-4" aria-hidden />
                 </div>
-                <h3 className="mt-4 text-base font-semibold tracking-tight text-white">
+                <h3 className="mt-3 text-sm font-semibold tracking-tight text-[#111827]">
                   {item.title}
                 </h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{item.detail}</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm">
+                  {item.detail}
+                </p>
               </li>
             );
           })}
@@ -155,25 +107,113 @@ function SyncStatusBar({ phase }: { phase: ArchitectureSyncPhase }) {
 
   return (
     <div
-      className="landing-arch-status mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 sm:px-5"
+      className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white px-4 py-3 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)] sm:px-5"
       role="status"
       aria-live="polite"
     >
       <div className="flex min-w-0 items-center gap-3">
         <span className={cn("landing-arch-status-dot", `landing-arch-status-dot-${tone}`)} />
-        <p className="truncate text-sm text-slate-200">{message}</p>
+        <p className="truncate text-sm text-slate-700">{message}</p>
       </div>
       <span
         className={cn(
           "shrink-0 rounded-md border px-2.5 py-1 text-[11px] font-bold tracking-[0.08em] uppercase",
-          tone === "ok" && "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
-          tone === "warn" && "border-amber-400/30 bg-amber-400/10 text-amber-200",
-          tone === "info" && "border-[#38BDF8]/30 bg-[#38BDF8]/10 text-[#7DD3FC]",
-          tone === "idle" && "border-white/15 bg-white/5 text-slate-300",
+          tone === "ok" && "border-emerald-500/25 bg-emerald-50 text-emerald-700",
+          tone === "warn" && "border-amber-500/25 bg-amber-50 text-amber-800",
+          tone === "info" && "border-primary/25 bg-primary/10 text-primary",
+          tone === "idle" && "border-slate-200 bg-slate-50 text-slate-600",
         )}
       >
         {badge}
       </span>
+    </div>
+  );
+}
+
+/**
+ * Single diagram composition (how-it-works style): connected nodes, not a
+ * row of marketing plan cards.
+ */
+function OfflineFlowDiagram({
+  phase,
+  activeNode,
+}: {
+  phase: ArchitectureSyncPhase;
+  activeNode: ReturnType<typeof architectureActiveNode>;
+}) {
+  const flow = landingCopy.architecture.flow;
+
+  return (
+    <div
+      className="landing-offline-diagram relative overflow-hidden rounded-[1.5rem] border border-slate-200/90 bg-white px-4 py-8 sm:px-8 sm:py-10"
+      aria-label="How Novend keeps your store running"
+    >
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.55]"
+        aria-hidden
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 18% 20%, rgba(13,148,136,0.12), transparent 42%), radial-gradient(circle at 82% 70%, rgba(56,189,248,0.10), transparent 40%)",
+        }}
+      />
+
+      <ol className="landing-offline-flow relative z-[1]">
+        {flow.map((node, index) => {
+          const Icon = FLOW_NODE_ICONS[node.id as keyof typeof FLOW_NODE_ICONS] ?? Laptop;
+          const isActive = activeNode === node.id;
+          const isLit = phase === "dashboard" && node.id === "dashboard";
+
+          return (
+            <li key={node.id} className="landing-offline-flow-item">
+              <article
+                className={cn(
+                  "landing-offline-node",
+                  isActive && "landing-offline-node-active",
+                  isLit && "landing-offline-node-lit",
+                )}
+              >
+                <span
+                  className={cn(
+                    "landing-offline-node-icon",
+                    isActive && "landing-offline-node-icon-active",
+                    node.id === "sync" &&
+                      (phase === "syncing" || phase === "reconnect") &&
+                      "landing-arch-spin",
+                  )}
+                >
+                  <Icon className="h-5 w-5" aria-hidden />
+                </span>
+                <p className="text-primary text-[10px] font-bold tracking-[0.14em] uppercase">
+                  {node.label}
+                </p>
+                <h3 className="mt-1 text-sm font-semibold tracking-tight text-[#111827] sm:text-base">
+                  {node.title}
+                </h3>
+                <p className="mt-1 hidden text-xs leading-relaxed text-slate-600 sm:block">
+                  {node.detail}
+                </p>
+              </article>
+
+              {index < flow.length - 1 ? (
+                <div
+                  className={cn(
+                    "landing-offline-connector",
+                    shouldPulseConnector(phase, index) && "landing-offline-connector-active",
+                  )}
+                  aria-hidden
+                >
+                  <span className="landing-offline-connector-line" />
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+
+      <p className="relative z-[1] mt-6 text-center text-xs text-slate-500 sm:hidden">
+        {flow.find((node) => node.id === activeNode)?.detail ??
+          "Sell on device first, then sync when you reconnect."}
+      </p>
     </div>
   );
 }
@@ -211,80 +251,4 @@ function shouldPulseConnector(phase: ArchitectureSyncPhase, index: number) {
   if (index === 1) return phase === "pending" || phase === "reconnect";
   if (index === 2) return phase === "syncing" || phase === "synced" || phase === "dashboard";
   return false;
-}
-
-type SceneProps = {
-  phase: ArchitectureSyncPhase;
-  cycle: number;
-  active: boolean;
-};
-
-function DeviceVisual({ active }: SceneProps) {
-  return (
-    <div className={cn("landing-arch-scene", active && "landing-arch-scene-active")}>
-      <Monitor className="landing-arch-scene-icon landing-arch-scene-icon-lg" />
-      <Laptop className="landing-arch-scene-icon landing-arch-scene-icon-md" />
-      <Tablet className="landing-arch-scene-icon landing-arch-scene-icon-sm" />
-      <ShoppingCart className="landing-arch-scene-badge" />
-    </div>
-  );
-}
-
-function LocalVisual({ phase, active }: SceneProps) {
-  const flowing = phase === "local" || phase === "sale";
-  return (
-    <div className={cn("landing-arch-scene", active && "landing-arch-scene-active")}>
-      <Database className="landing-arch-scene-icon landing-arch-scene-icon-lg" />
-      <Receipt className="landing-arch-scene-icon landing-arch-scene-icon-md" />
-      <Package className="landing-arch-scene-icon landing-arch-scene-icon-sm" />
-      <span className={cn("landing-arch-particles", flowing && "landing-arch-particles-on")} />
-    </div>
-  );
-}
-
-function SyncVisual({ phase, cycle, active }: SceneProps) {
-  const spinning = phase === "syncing" || phase === "reconnect";
-  return (
-    <div className={cn("landing-arch-scene", active && "landing-arch-scene-active")}>
-      <RefreshCw
-        className={cn(
-          "landing-arch-scene-icon landing-arch-scene-icon-lg",
-          spinning && "landing-arch-spin",
-        )}
-      />
-      <span
-        className={cn(
-          "landing-arch-pulse-ring",
-          (phase === "reconnect" || phase === "syncing") && "landing-arch-pulse-ring-on",
-        )}
-      />
-      {phase === "syncing" ? (
-        <span key={cycle} className="landing-arch-progress landing-arch-progress-on" />
-      ) : (
-        <span className="landing-arch-progress" />
-      )}
-    </div>
-  );
-}
-
-function DashboardVisual({ phase, active }: SceneProps) {
-  const lit = phase === "dashboard" || phase === "synced";
-  return (
-    <div
-      className={cn(
-        "landing-arch-scene",
-        active && "landing-arch-scene-active",
-        lit && "landing-arch-scene-lit",
-      )}
-    >
-      <BarChart3 className="landing-arch-scene-icon landing-arch-scene-icon-lg" />
-      <Building2 className="landing-arch-scene-icon landing-arch-scene-icon-md" />
-      <span className="landing-arch-chart-bars" aria-hidden>
-        <i />
-        <i />
-        <i />
-        <i />
-      </span>
-    </div>
-  );
 }
