@@ -31,3 +31,7 @@ pos.code-workspace
 /*.dmg
 /*.AppImage
 /*.deb
+
+# Local CLI downloads
+.tools/
+
