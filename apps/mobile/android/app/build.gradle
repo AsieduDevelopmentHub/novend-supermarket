@@ -70,7 +70,7 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
-def verifyMobileProductionOrigin = tasks.register('verifyMobileProductionOrigin', Exec) {
+tasks.register('verifyMobileProductionOrigin', Exec) {
     group = 'verification'
     description = 'Verifies the exact application origin baked into the release WebView.'
     workingDir file('../../../..')
@@ -78,8 +78,11 @@ def verifyMobileProductionOrigin = tasks.register('verifyMobileProductionOrigin'
     environment 'NOVEND_MOBILE_BUILD', 'production'
 }
 
-tasks.named('preReleaseBuild').configure {
-    dependsOn verifyMobileProductionOrigin
+afterEvaluate {
+    def preRelease = tasks.findByName('preReleaseBuild')
+    if (preRelease != null) {
+        preRelease.dependsOn('verifyMobileProductionOrigin')
+    }
 }
 
 try {
