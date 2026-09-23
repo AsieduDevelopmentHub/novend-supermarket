@@ -1,4 +1,8 @@
 import type { CapacitorConfig } from "@capacitor/cli";
+import {
+  mobileNavigationHosts,
+  resolveMobileAppOrigin,
+} from "../../scripts/mobile-origin-policy.mjs";
 
 /**
  * Capacitor loads the same hosted Next.js app as Electron.
@@ -12,34 +16,20 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * Local HTTP live-reload: keep `server.url` so the WebView hits the LAN/emulator
  * Next server. Offline cold-start testing must use an HTTPS hosted origin.
  *
- * Override host with NOVEND_APP_URL when syncing.
+ * Production syncs require an approved NOVEND_APP_URL. Development may use a
+ * private LAN/emulator HTTP origin for live reload.
  *
  * Local dev (device/emulator): use your machine's LAN IP, not localhost —
  * Android emulator → http://10.0.2.2:3000
  * Also set Convex auth to the same origin:
  *   npx convex env set SITE_URL http://10.0.2.2:3000
  */
-const appUrl = (process.env.NOVEND_APP_URL || "https://novend-pos.vercel.app").replace(/\/$/, "");
+const mobileOrigin = resolveMobileAppOrigin();
+const appUrl = mobileOrigin.origin;
 /** Matches Electron `OFFLINE_ENTRY_PATH` in apps/desktop/src/window.ts */
 const APP_ENTRY_PATH = "/dashboard";
-const liveReload = appUrl.startsWith("http://");
-
-function hostedHostname(url: string): string {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return "novend-pos.vercel.app";
-  }
-}
-
-const allowNavigation = Array.from(
-  new Set([
-    hostedHostname(appUrl),
-    "novend-pos.vercel.app",
-    "*.vercel.app",
-    appUrl.replace(/^https?:\/\//, ""),
-  ]),
-);
+const liveReload = mobileOrigin.liveReload;
+const allowNavigation = mobileNavigationHosts(mobileOrigin.hostname);
 
 const localServer = {
   androidScheme: "https" as const,

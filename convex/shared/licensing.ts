@@ -280,8 +280,15 @@ export function evaluateCachedLicense(
   snapshot: LicenseSnapshot,
   now: number,
 ): LicenseAccess & { stale: boolean } {
-  const stale = now - snapshot.issuedAt > OFFLINE_LICENSE_TTL_MS;
   const access = deriveAccess(snapshot.organizationStatus, snapshot.subscription, now);
+  // Lifetime licences and explicitly local-only organizations are designed to
+  // operate without periodic business-cloud checks. Their cached entitlement
+  // still enforces suspension, disablement, and subscription access rules.
+  const perpetualOffline =
+    snapshot.planKey === "lifetime" ||
+    snapshot.subscription?.isLifetime === true ||
+    snapshot.cloudMode === "local_only";
+  const stale = !perpetualOffline && now - snapshot.issuedAt > OFFLINE_LICENSE_TTL_MS;
   if (!stale) return { ...access, stale };
   return {
     ...access,

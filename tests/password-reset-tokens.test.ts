@@ -4,6 +4,7 @@ import {
   hashPasswordResetToken,
   isPasswordResetExpired,
   passwordResetRejectReason,
+  tooManyPasswordResetRequests,
 } from "@/convex/shared/passwordResetCrypto";
 
 describe("password reset tokens", () => {
@@ -24,5 +25,27 @@ describe("password reset tokens", () => {
       "used",
     );
     expect(passwordResetRejectReason({ expiresAt: Date.now() - 1 })).toBe("expired");
+  });
+
+  it("limits reset email volume per account without changing the public response", () => {
+    const now = 1_000_000;
+    expect(
+      tooManyPasswordResetRequests(
+        Array.from({ length: 5 }, () => now - 1_000),
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      tooManyPasswordResetRequests(
+        Array.from({ length: 4 }, () => now - 1_000),
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      tooManyPasswordResetRequests(
+        Array.from({ length: 5 }, () => now - 3_700_000),
+        now,
+      ),
+    ).toBe(false);
   });
 });

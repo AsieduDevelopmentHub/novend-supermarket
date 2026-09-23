@@ -35,17 +35,20 @@ concurrency:
   group: product-release-${{ github.ref }}
   cancel-in-progress: false
 
+# Default deny; jobs that publish releases elevate contents:write.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
     name: Verify version
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       targets: ${{ steps.targets.outputs.targets }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
 
@@ -90,8 +93,10 @@ jobs:
     name: Create GitHub Release
     needs: verify
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
 
@@ -121,21 +126,23 @@ jobs:
     needs: verify
     if: needs.verify.outputs.targets == 'all'
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 11.18.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
@@ -166,11 +173,13 @@ jobs:
           NOVEND_APP_URL: ${{ secrets.NOVEND_APP_URL }}
           NOVEND_CONVEX_SITE_URL: ${{ secrets.CONVEX_SITE_URL }}
           CONVEX_SITE_URL: ${{ secrets.CONVEX_SITE_URL }}
+          # P1-1 BLOCKER: desktop Authenticode / Apple notarization not configured.
+          # Do not claim signed desktop releases until credentials + verification exist.
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: novend-pos-${{ matrix.os }}
           path: |
@@ -187,17 +196,19 @@ jobs:
     name: Build Android APK
     needs: [verify]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 11.18.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
@@ -216,6 +227,13 @@ jobs:
         run: pnpm mobile:sync
         env:
           NOVEND_APP_URL: ${{ secrets.NOVEND_APP_URL }}
+          NOVEND_MOBILE_BUILD: production
+
+      - name: Verify baked mobile origin
+        run: pnpm mobile:verify-origin
+        env:
+          NOVEND_APP_URL: ${{ secrets.NOVEND_APP_URL }}
+          NOVEND_MOBILE_BUILD: production
 
       - name: Decode release keystore
         env:
@@ -238,6 +256,8 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          NOVEND_APP_URL: ${{ secrets.NOVEND_APP_URL }}
+          NOVEND_MOBILE_BUILD: production
         run: |
           chmod +x ./gradlew
           ./gradlew assembleRelease --no-daemon
@@ -295,7 +315,7 @@ jobs:
 
       - name: Upload artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: novend-pos-android
           path: NovendPOS-*-android.apk
@@ -303,7 +323,7 @@ jobs:
           retention-days: 14
 
       - name: Upload APK checksum
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: novend-pos-android-checksum
           path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk.sha256
@@ -312,6 +332,8 @@ jobs:
     name: Publish update metadata to Convex
     needs: [verify, github-release, build, build-android]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     # Still publish mobile when desktop fails after an APK re-upload (clobber
     # invalidates the previous githubAssetId and 404s Convex downloads).
     if: |
@@ -323,7 +345,7 @@ jobs:
         (needs.verify.outputs.targets == 'all' && needs.build.result == 'success')
       )
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
 

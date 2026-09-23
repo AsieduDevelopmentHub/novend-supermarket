@@ -30,6 +30,7 @@
     "desktop:secret": "node scripts/generate-desktop-publish-secret.mjs",
     "desktop:verify-github-token": "node scripts/verify-desktop-github-token.mjs",
     "mobile:sync": "pnpm --filter @novend/mobile sync",
+    "mobile:verify-origin": "node scripts/verify-mobile-origin.mjs",
     "mobile:build:android:release": "node --env-file-if-exists=.env.local scripts/build-android-release.mjs",
     "mobile:open:android": "pnpm --filter @novend/mobile open:android",
     "mobile:run:android": "node scripts/run-capacitor-android.mjs run android",

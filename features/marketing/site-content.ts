@@ -30,6 +30,7 @@ export const sitePages = {
         items: [
           "Search or scan products into the cart; quantities and prices are locked in at sale time",
           "Apply discounts according to your store policy before taking payment",
+          "Choose one payment method per sale (cash, card, or mobile money)",
           "Hold incomplete sales to free the counter, then resume without losing the cart",
           "Complete checkout to create one receipt and reduce inventory with a recorded reason",
           "Open Orders to review history, reprint receipts, or start a return",
@@ -332,9 +333,10 @@ export const sitePages = {
       {
         title: "5. Local-first storage, offline use, and cloud sync",
         paragraphs: [
-          "Novend is designed so operational data can be stored on your device first, allowing sales to continue without internet connectivity.",
-          "When connectivity is available, committed changes synchronize to Novend cloud services so you can access dashboards, backups, multi-device workflows, and organization-wide reports.",
-          "Because offline devices may hold pending changes, you should treat POS devices as sensitive business equipment: lock screens, control physical access, and deactivate lost devices through your administrator where possible.",
+          "Novend is designed so operational data can be stored on your device first, allowing sales to continue without internet connectivity after setup and activation.",
+          "When connectivity is available, committed changes synchronize to Novend cloud services so you can access dashboards, backups, multi-device workflows, and organization-wide reports. Dashboards update from local data while you work and refresh after synchronization, depending on your connectivity and plan mode.",
+          "Cloud connections use encrypted transport. Portable backups you export can be encrypted with a password you control. The active local operational database (IndexedDB) on a till or phone is not field-encrypted — it relies on device lock screens, browser or WebView profile isolation, and physical custody of the hardware.",
+          "Treat POS devices as sensitive business equipment: enable Settings → Security → Inactivity lock on shared tills, use OS lock screens, control physical access, sign out when handing a device to another person, and deactivate lost devices through your administrator where possible.",
           "You remain responsible for the accuracy of business records you enter and for deciding which staff may access which branches and capabilities inside your organization.",
         ],
       },
@@ -367,7 +369,8 @@ export const sitePages = {
         title: "9. Security",
         paragraphs: [
           "We use administrative, technical, and organizational measures designed to protect information, including authentication, access control, transport encryption for network traffic to our services, and least-privilege practices for staff tools.",
-          "No method of transmission or storage is perfectly secure. You should use strong passwords, limit admin access, keep clients updated from official download channels (including the Android app), and report suspected unauthorized access promptly.",
+          "Encryption in transit protects data between your client and Novend cloud services. Encrypted portable backups protect exported archives with a password. Local operational storage on the device is protected by device and browser security controls rather than application-level field encryption of every IndexedDB record.",
+          "No method of transmission or storage is perfectly secure. You should use strong passwords, enable inactivity locking on shared tills, limit admin access, keep clients updated from official download channels (including the Android app), and report suspected unauthorized access promptly.",
         ],
       },
       {

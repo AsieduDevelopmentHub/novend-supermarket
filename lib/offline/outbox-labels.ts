@@ -1,4 +1,7 @@
 import type { OutboxOpType, OutboxRow, OutboxStatus } from "./types";
+import { isConnectivityError } from "@/lib/errors";
+import { isDefinitiveBusinessConflict } from "./outbox-policy";
+import { isSyncBusinessConflict, isSyncDependencyWait } from "./sync-errors";
 
 const OP_LABELS: Record<OutboxOpType, string> = {
   complete_sale: "Sale",
@@ -125,4 +128,97 @@ export function describeOutboxEvent(row: OutboxRow): { title: string; detail: st
   }
 
   return { title, detail: row.lastError ?? "Waiting to upload" };
+}
+
+export type OutboxConflictKind = "network" | "waiting" | "business";
+
+export type OutboxConflictView = {
+  kind: OutboxConflictKind;
+  headline: string;
+  explanation: string;
+  /** True when Retry is unlikely to help without a data change. */
+  permanent: boolean;
+};
+
+function stockConflictExplanation(message: string, payload: Record<string, unknown>) {
+  const invoice = text(payload.invoiceNumber);
+  const product = text(payload.productName) ?? text(payload.name) ?? text(payload.sku);
+  const requested = number(payload.quantity) ?? number(payload.requestedQuantity);
+  const available = number(payload.availableQuantity) ?? number(payload.currentStock);
+  const parts = [
+    invoice ? `Receipt ${invoice}` : null,
+    product ? `product ${product}` : null,
+    requested !== null ? `requested ${requested}` : null,
+    available !== null ? `server has ${available}` : null,
+  ].filter(Boolean);
+  const subject = parts.length > 0 ? `${parts.join(" · ")}. ` : "";
+  return `${subject}${message} This sale did not finish on the server — fix stock or discard the local event, then retry.`;
+}
+
+/**
+ * Cashier-facing conflict copy. Separates retryable network failures from
+ * permanent business rejections so a rejected sale is never a generic tech error.
+ */
+export function describeOutboxConflict(row: OutboxRow): OutboxConflictView {
+  const message = (row.lastError ?? "").trim();
+  const base = describeOutboxEvent(row);
+  const payload = payloadRecord(row);
+
+  if (!message) {
+    return {
+      kind: "business",
+      headline: `${base.title} needs a review`,
+      explanation: `${base.detail}. Open Fix or discard this event so it does not look complete on this device only.`,
+      permanent: true,
+    };
+  }
+
+  if (isSyncDependencyWait(message)) {
+    return {
+      kind: "waiting",
+      headline: "Waiting on another upload",
+      explanation: `${base.title}: ${message}`,
+      permanent: false,
+    };
+  }
+
+  if (isConnectivityError(new Error(message)) || !isSyncBusinessConflict(message)) {
+    return {
+      kind: "network",
+      headline: "Could not reach the server",
+      explanation: `${base.title} (${base.detail}) will retry when you are online. This is not a permanent rejection.`,
+      permanent: false,
+    };
+  }
+
+  const lower = message.toLowerCase();
+  const stockRelated =
+    lower.includes("insufficient stock") ||
+    lower.includes("not enough stock") ||
+    lower.includes("stock");
+
+  if (row.type === "complete_sale" && stockRelated) {
+    return {
+      kind: "business",
+      headline: "Sale rejected — not enough stock",
+      explanation: stockConflictExplanation(message, payload),
+      permanent: true,
+    };
+  }
+
+  if (row.type === "complete_sale") {
+    return {
+      kind: "business",
+      headline: "Sale rejected by the server",
+      explanation: `${base.detail}. ${message} The local checkout is not a completed cloud sale until this is fixed or discarded.`,
+      permanent: isDefinitiveBusinessConflict(message),
+    };
+  }
+
+  return {
+    kind: "business",
+    headline: `${base.title} was rejected`,
+    explanation: `${base.detail}. ${message}`,
+    permanent: isDefinitiveBusinessConflict(message),
+  };
 }

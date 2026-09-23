@@ -70,6 +70,18 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
+def verifyMobileProductionOrigin = tasks.register('verifyMobileProductionOrigin', Exec) {
+    group = 'verification'
+    description = 'Verifies the exact application origin baked into the release WebView.'
+    workingDir file('../../../..')
+    commandLine 'node', 'scripts/verify-mobile-origin.mjs'
+    environment 'NOVEND_MOBILE_BUILD', 'production'
+}
+
+tasks.named('preReleaseBuild').configure {
+    dependsOn verifyMobileProductionOrigin
+}
+
 try {
     def servicesJSON = file('google-services.json')
     if (servicesJSON.text) {

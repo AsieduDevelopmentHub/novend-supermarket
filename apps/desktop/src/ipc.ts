@@ -1,4 +1,5 @@
-import { ipcMain } from "electron";
+import { ipcMain, type IpcMainInvokeEvent } from "electron";
+import { pathToFileURL } from "node:url";
 import {
   discoverDevices,
   getRuntimeInfo,
@@ -14,8 +15,13 @@ import {
   UPDATE_STATUS_CHANNEL,
 } from "./updater";
 import { resolveAppUrl } from "./desktop-config";
-import { reloadMainWindowShell } from "./window";
+import { offlineBootPath, reloadMainWindowShell } from "./window";
 import { closeCustomerDisplayWithMainWindow } from "./customer-display";
+import {
+  assertTrustedIpcSender,
+  createTrustedOriginPolicy,
+  validateAuthShellEntry,
+} from "./trusted-origin";
 
 const CHANNELS = {
   getRuntime: "desktop:getRuntime",
@@ -37,16 +43,32 @@ function isPrintJobRequest(value: unknown): value is PrintJobRequest {
 
 /** Register secure IPC handlers. Renderer only reaches these via preload. */
 export function registerDesktopIpc() {
-  ipcMain.handle(CHANNELS.getRuntime, () => getRuntimeInfo());
+  const appUrl = resolveAppUrl();
+  const trustedOrigin = createTrustedOriginPolicy(appUrl, [pathToFileURL(offlineBootPath()).href]);
+  const requireTrustedSender = (event: IpcMainInvokeEvent) => {
+    assertTrustedIpcSender(trustedOrigin, event);
+  };
 
-  ipcMain.handle(CHANNELS.getCapabilities, () => ({
-    ok: true,
-    capabilities: listCapabilities(),
-  }));
+  ipcMain.handle(CHANNELS.getRuntime, (event) => {
+    requireTrustedSender(event);
+    return getRuntimeInfo();
+  });
 
-  ipcMain.handle(CHANNELS.discover, async () => discoverDevices());
+  ipcMain.handle(CHANNELS.getCapabilities, (event) => {
+    requireTrustedSender(event);
+    return {
+      ok: true,
+      capabilities: listCapabilities(),
+    };
+  });
 
-  ipcMain.handle(CHANNELS.print, async (_event, payload: unknown) => {
+  ipcMain.handle(CHANNELS.discover, async (event) => {
+    requireTrustedSender(event);
+    return discoverDevices();
+  });
+
+  ipcMain.handle(CHANNELS.print, async (event, payload: unknown) => {
+    requireTrustedSender(event);
     if (!isPrintJobRequest(payload)) {
       return { ok: false, message: "Invalid print request" };
     }
@@ -70,28 +92,43 @@ export function registerDesktopIpc() {
     });
   });
 
-  ipcMain.handle(CHANNELS.testPrint, async (_event, partial?: unknown) => {
+  ipcMain.handle(CHANNELS.testPrint, async (event, partial?: unknown) => {
+    requireTrustedSender(event);
     const p =
       partial && typeof partial === "object" ? (partial as Partial<PrintJobRequest>) : undefined;
     return runTestPrint(p);
   });
 
-  ipcMain.handle(CHANNELS.updatesGetStatus, () => getUpdateStatus());
+  ipcMain.handle(CHANNELS.updatesGetStatus, (event) => {
+    requireTrustedSender(event);
+    return getUpdateStatus();
+  });
 
-  ipcMain.handle(CHANNELS.updatesCheck, async () => checkForUpdates());
+  ipcMain.handle(CHANNELS.updatesCheck, async (event) => {
+    requireTrustedSender(event);
+    return checkForUpdates();
+  });
 
-  ipcMain.handle(CHANNELS.updatesInstall, () => installDownloadedUpdate());
+  ipcMain.handle(CHANNELS.updatesInstall, (event) => {
+    requireTrustedSender(event);
+    return installDownloadedUpdate();
+  });
 
-  ipcMain.handle(CHANNELS.reloadAuthShell, async (_event, payload?: unknown) => {
-    const entry =
+  ipcMain.handle(CHANNELS.reloadAuthShell, async (event, payload?: unknown) => {
+    requireTrustedSender(event);
+    const requestedEntry =
       payload &&
       typeof payload === "object" &&
       typeof (payload as { entry?: unknown }).entry === "string" &&
       (payload as { entry: string }).entry.length > 0
         ? (payload as { entry: string }).entry
         : "/login?signedOut=1";
+    const entry = validateAuthShellEntry(requestedEntry);
+    if (!entry) {
+      return { ok: false, message: "Invalid authentication route." };
+    }
     closeCustomerDisplayWithMainWindow();
-    return reloadMainWindowShell(resolveAppUrl(), entry.startsWith("/") ? entry : `/${entry}`);
+    return reloadMainWindowShell(appUrl, entry);
   });
 }
 

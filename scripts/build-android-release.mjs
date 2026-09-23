@@ -40,6 +40,7 @@ try {
   env = {
     ...envWithJava21(process.env),
     ANDROID_KEYSTORE_PATH: keystorePath,
+    NOVEND_MOBILE_BUILD: "production",
   };
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
@@ -66,6 +67,7 @@ function run(command, args, cwd = repoRoot) {
 }
 
 run(process.platform === "win32" ? "pnpm.cmd" : "pnpm", ["mobile:sync"]);
+run(process.execPath, ["scripts/verify-mobile-origin.mjs"]);
 
 const gradle = process.platform === "win32" ? "gradlew.bat" : "./gradlew";
 run(gradle, ["assembleRelease", "--no-daemon"], resolve(repoRoot, "apps/mobile/android"));

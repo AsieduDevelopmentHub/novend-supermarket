@@ -88,9 +88,30 @@ function readStoredUserId(): string | undefined {
   return undefined;
 }
 
-function replicaDbName(organizationId?: string, userId?: string) {
+/** Dexie database name for an org (and optional user) replica. */
+export function offlineReplicaDbName(organizationId?: string, userId?: string) {
   const org = organizationId ?? "anon";
   return userId ? `novend-offline-${org}-${userId}` : `novend-offline-${org}`;
+}
+
+function replicaDbName(organizationId?: string, userId?: string) {
+  return offlineReplicaDbName(organizationId, userId);
+}
+
+/**
+ * Logout may only delete the bound organization's offline replicas (including
+ * product image blobs in those DBs). Never delete another tenant's Dexie DB or
+ * the platform Super Admin replica.
+ */
+export function shouldDeleteOfflineReplicaOnLogout(
+  dbName: string,
+  boundOrganizationId: string | null,
+): boolean {
+  if (!dbName.startsWith("novend-offline-")) return false;
+  if (dbName.startsWith("novend-offline-platform-")) return false;
+  if (!boundOrganizationId) return false;
+  const rest = dbName.slice("novend-offline-".length);
+  return rest === boundOrganizationId || rest.startsWith(`${boundOrganizationId}-`);
 }
 
 /** Bind IndexedDB to the session organization + user so cashiers don't share an admin replica. */
@@ -140,13 +161,16 @@ export function unbindOfflineOrganization() {
 }
 
 /**
- * Delete this organization's Dexie replicas so the next login cannot inherit
- * another user's sales, returns, or dashboard cache.
+ * Delete this organization's Dexie replicas (meta, sales, receipts, product
+ * image cache, outbox) so the next login cannot inherit another user's data.
+ * Does not delete another organization's IndexedDB databases.
  */
 export async function deleteBoundOfflineReplica(): Promise<void> {
-  const org = readStoredOrganizationId();
+  const org = readStoredOrganizationId() ?? null;
   const names = new Set<string>();
-  if (dbInstance) names.add(dbInstance.name);
+  if (dbInstance && shouldDeleteOfflineReplicaOnLogout(dbInstance.name, org)) {
+    names.add(dbInstance.name);
+  }
   if (org) {
     names.add(replicaDbName(org, readStoredUserId()));
     names.add(replicaDbName(org));
@@ -165,9 +189,8 @@ export async function deleteBoundOfflineReplica(): Promise<void> {
       const listed = await indexedDB.databases();
       for (const info of listed) {
         const name = info.name;
-        if (!name?.startsWith("novend-offline-")) continue;
-        if (name.startsWith("novend-offline-platform-")) continue;
-        if (org && name.includes(org)) names.add(name);
+        if (!name || !shouldDeleteOfflineReplicaOnLogout(name, org)) continue;
+        names.add(name);
       }
     } catch {
       /* Safari / private mode */
@@ -454,6 +477,8 @@ export const META_KEYS = {
   profilePhone: "profilePhone",
   profileOrganizationName: "profileOrganizationName",
   licenseSnapshot: "licenseSnapshot",
+  /** Durable evidence that this installation previously received a valid licence. */
+  licenseActivated: "licenseActivated",
   billingOverview: "billingOverview",
   billingHistory: "billingHistory",
   posPreferences: "posPreferences",

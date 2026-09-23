@@ -5,6 +5,8 @@ const KEEP_EXACT = new Set([
   "novend.terminal.printer",
   "novend.terminal.scanner",
   "novend.posPreferences",
+  /** Shared-till idle timeout — device preference, not user session data. */
+  "novend.idleLock.timeoutMinutes",
   "princellen.terminal.printer",
   "novend-theme",
   "novend-font-size",

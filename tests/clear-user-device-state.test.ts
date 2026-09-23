@@ -10,6 +10,7 @@ describe("clearUserDeviceState", () => {
       ["novend.device.fingerprint", "keep-me"],
       ["novend.terminal.printer", "printer"],
       ["novend.posPreferences", '{"receiptPrintMode":"never"}'],
+      ["novend.idleLock.timeoutMinutes", "10"],
     ]);
     vi.stubGlobal("localStorage", {
       get length() {
@@ -45,5 +46,6 @@ describe("clearUserDeviceState", () => {
     expect(store.get("novend.device.fingerprint")).toBe("keep-me");
     expect(store.get("novend.terminal.printer")).toBe("printer");
     expect(store.get("novend.posPreferences")).toContain("never");
+    expect(store.get("novend.idleLock.timeoutMinutes")).toBe("10");
   });
 });

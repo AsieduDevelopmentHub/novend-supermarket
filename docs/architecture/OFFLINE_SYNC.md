@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.26
+Version: 2.4.27
 
 ## Purpose
 
@@ -33,7 +33,7 @@ enforced at these points:
   behaviour with no migration.
 - **Entitlement flags.** `cloudBackupEnabled` and `remoteMonitoringEnabled`
   (defaults: enabled) are ANDed into the policy: `resolveCloudPolicy(mode, {
-  cloudBackupEnabled, remoteMonitoringEnabled })`. A Super Admin can switch either
+cloudBackupEnabled, remoteMonitoringEnabled })`. A Super Admin can switch either
   off regardless of mode. `loadCloudPolicy()` passes both from the cached snapshot.
 - **Scheduled backup (`backup_only`).** `lib/offline/scheduled-backup.ts`
   `maybeRunScheduledCloudBackup` runs a daily encrypted cloud backup
@@ -287,6 +287,24 @@ lists, org detail, and release metadata are written into Dexie `meta`. While
 offline, those screens paint from cache; mutating tenants (create org, reset
 password, license edits) still requires a connection.
 
+## Local data security (P0-3)
+
+The live Dexie replica is **plaintext within the browser / WebView profile**.
+Protections are layered as:
+
+1. TLS for cloud traffic
+2. Password-encrypted portable / cloud backups
+3. Device/OS/browser custody for the operational store
+4. Explicit logout deleting the bound org/user replica (including `productImages`)
+   without deleting other tenants’ databases
+5. Configurable inactivity lock (Settings → Security; default 10 minutes) that
+   requires Convex Auth password reauthentication (optional native biometrics)
+
+**Deferred:** field-level encryption of sensitive Dexie fields. Do not invent
+weak custom cryptography; any future design needs audited libraries and key
+management. See `docs/development/14-SECURITY_GUIDE.md` (Local-device threat
+model).
+
 ## Desktop and Capacitor
 
 Electron first-run must load the hosted app so the service worker and Dexie
@@ -303,4 +321,11 @@ Settings → Billing renders from Dexie (`billingOverview`, `billingHistory`,
 / Renew / Schedule require a connection and must not hide the rest of the
 billing page or lock the POS. Downgrades never delete existing records; over-
 limit usage is a warning and create-path limits apply after the effective date.
-The last valid licence snapshot keeps selling while offline.
+The last valid licence snapshot keeps selling while offline within its policy.
+`full_sync` and `backup_only` snapshots become read-only after the licence TTL;
+activated `local_only` and lifetime licences continue without periodic checks.
+A new installation must cache one valid licence before commercial writes.
+Missing, malformed, or tenant-mismatched licence data on an established
+installation enters recovery/read-only mode. The local repositories enforce this
+before writing a sale, return, product, user, or branch, so a rejected operation
+cannot produce a final-looking receipt or a misleading completed-sale message.

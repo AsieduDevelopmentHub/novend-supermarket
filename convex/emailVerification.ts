@@ -295,14 +295,27 @@ export const changeOwnEmail = action({
     if (!isWellFormedEmail(email)) throw new Error("Enter a valid email address.");
     const state = await ctx.runQuery(internal.emailVerification.getState, { userId });
     if (!state.email) throw new Error("Add an email address before updating it.");
+    const decision = await ctx.runMutation(internal.loginGuards.beginCredentialAttempt, {
+      purpose: "email_change",
+      email: state.email,
+      now: Date.now(),
+    });
+    if (!decision.allowed) throw new Error(GENERIC_CHANGE_ERROR);
+    if (decision.delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, decision.delayMs));
+    }
     try {
       await retrieveAccount(ctx, {
         provider: "password",
         account: { id: state.email, secret: args.currentPassword },
       });
     } catch {
-      throw new Error("Current password is incorrect");
+      throw new Error(GENERIC_CHANGE_ERROR);
     }
+    await ctx.runMutation(internal.loginGuards.clearCredentialFailures, {
+      purpose: "email_change",
+      email: state.email,
+    });
     const changed = await ctx.runMutation(internal.emailVerification.applyOwnEmailChange, {
       userId,
       newEmail: email,

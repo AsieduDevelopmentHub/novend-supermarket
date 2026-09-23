@@ -26,8 +26,8 @@ export function LandingHero() {
             <p className="text-primary text-[13px] font-semibold tracking-wide">{hero.badge}</p>
 
             <h1 className="mt-4 text-[2rem] leading-[1.08] font-semibold tracking-tight text-balance text-[#111827] sm:text-5xl lg:text-[3.5rem] lg:leading-[1.08] xl:text-[4rem]">
-              {hero.headlineLead} <span className="text-primary">{hero.headlineAccent}</span> Even{" "}
-              <span className="text-primary">Offline.</span>
+              {hero.headlineLead}{" "}
+              <span className="text-primary">{hero.headlineAccent}</span>
             </h1>
 
             <p className="mt-5 text-base leading-relaxed text-pretty text-slate-600 sm:text-lg">

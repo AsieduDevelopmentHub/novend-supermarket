@@ -496,6 +496,32 @@ export const changePassword = action({
   },
 });
 
+/**
+ * Re-check the signed-in user's password (idle lock unlock).
+ * Uses Convex Auth account verification — not a second credential store.
+ */
+export const verifyPassword = action({
+  args: { password: v.string() },
+  handler: async (ctx, args) => {
+    const me = await ctx.runQuery(api.users.me, {});
+    if (!me?.email) {
+      throw new Error("You must be signed in to unlock");
+    }
+    if (!args.password) {
+      throw new Error("Incorrect password");
+    }
+    try {
+      await retrieveAccount(ctx, {
+        provider: "password",
+        account: { id: me.email, secret: args.password },
+      });
+    } catch {
+      throw new Error("Incorrect password");
+    }
+    return { ok: true as const };
+  },
+});
+
 export const writePasswordChangeAudit = internalMutation({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {

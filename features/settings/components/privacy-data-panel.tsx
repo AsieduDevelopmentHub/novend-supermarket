@@ -240,6 +240,8 @@ export function PrivacyDataPanel() {
           <CardDescription>
             Access, correction, and deletion are described in our Privacy Policy. Business records
             such as completed sales may be retained in anonymized form where the law requires it.
+            Cloud traffic and portable backups can be encrypted; the live offline replica on this
+            device relies on device and browser security plus logout and inactivity lock.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">

@@ -18,6 +18,13 @@ describe("Capacitor local boot page", () => {
     expect(config).toContain('NOVEND_APP_ENTRY = "/dashboard"');
   });
 
+  it("uses only the baked origin and a narrow boot-entry allowlist", () => {
+    expect(source).not.toContain('params.get("appUrl")');
+    expect(source).toContain("window.NOVEND_ALLOWED_HOSTS");
+    expect(source).toContain('requestedEntry === "/login?signedOut=1"');
+    expect(config).toContain('NOVEND_ALLOWED_HOSTS = ["novend-pos.vercel.app"]');
+  });
+
   it("only shows the connect-once screen after a WebView load failure (stay=1)", () => {
     expect(source).toContain('params.get("stay") === "1"');
     expect(source).toContain("showFailed");

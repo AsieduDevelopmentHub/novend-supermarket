@@ -13,7 +13,26 @@ goes through `@novend/hardware`.
 ## Hosted origin
 
 Same pattern as Electron: the WebView **client-navigates** to the hosted Next
-app (`https://novend-pos.vercel.app`, overridable with `NOVEND_APP_URL`).
+app. The origin is baked from `NOVEND_APP_URL`; production builds do not use a
+fallback.
+
+### Owned-host policy
+
+The only production hostname currently approved to run inside the native
+WebView is:
+
+- `novend-pos.vercel.app` — Novend production deployment
+
+There are currently no approved preview hostnames. Vercel's
+`*.vercel.app` wildcard is intentionally forbidden. A preview must receive a
+stable, Novend-controlled exact hostname and be added to
+`scripts/mobile-origin-policy.mjs` plus this list before it can be used in a
+native production build.
+
+Production mobile syncs set `NOVEND_MOBILE_BUILD=production` and fail when
+`NOVEND_APP_URL` is missing, malformed, non-HTTPS, localhost/private LAN, uses
+a non-standard port, contains a path/query/hash, or names a host outside that
+allowlist. `allowNavigation` contains exact hostnames only.
 
 Production builds do **not** set Capacitor `server.url`. A remote `loadUrl`
 fails offline even when the service worker already cached the document (same
@@ -33,8 +52,11 @@ Shared Next.js app
 ```
 
 HTTP live-reload (`NOVEND_APP_URL=http://…`) still uses `server.url` so the
-device can hit a LAN Next server. Offline cold-start testing requires an HTTPS
-hosted origin after at least one successful online sync.
+device can hit a localhost, Android emulator (`10.0.2.2`), or RFC1918 private
+LAN Next server. Public HTTP hosts are rejected, and cleartext/mixed-content
+settings are enabled only for this development mode. Offline cold-start
+testing requires an HTTPS hosted origin after at least one successful online
+sync.
 
 ## Offline launch
 
@@ -87,7 +109,12 @@ Web and Electron keep the existing sidebar unchanged.
 - Biometrics + unlock token (Settings → Security)
 - Local notification topic prefs (push delivery can plug in later)
 - Soft OTA check via `NEXT_PUBLIC_MOBILE_UPDATE_JSON` (Later / Update now)
-- Deep links: `novend://sale/{id}`, `novend://product/{id}`, …
+- Deep links: `novend://sale/{id}`, `novend://order/{id}`,
+  `novend://product/{id}`, `novend://dashboard`, and `novend://sales`.
+  Unknown custom hosts, foreign HTTP(S) origins, malformed or multi-segment
+  entity paths, protocol-relative URLs, fragments, and all query parameters
+  are rejected. This prevents redirect parameters from becoming a navigation
+  escape.
 - Offline backup / restore (Documents on device)
 - About page: `/about`. Hosted **App version** is `package.json` via `APP_VERSION`
   (not a second hardcoded string). Native shell version can still differ until the
@@ -128,6 +155,19 @@ that banner is not the compile error.
 On Windows, `pnpm mobile:sync` runs icon generation then `cap sync android` only.
 A partial `ios/` tree without a Podfile makes full `cap sync` fail — use
 `pnpm --filter @novend/mobile sync:ios` on macOS after `add:ios`.
+
+## Release origin verification
+
+Release automation syncs with `NOVEND_MOBILE_BUILD=production`, then runs:
+
+```bash
+pnpm mobile:verify-origin
+```
+
+The check reads both the source boot config and the copy baked into Android
+assets, prints `Baked mobile application origin: <origin>`, and fails unless
+both exactly match the approved production `NOVEND_APP_URL`. The local signed
+release builder runs the same check before Gradle.
 
 ## App entry & icons
 

@@ -1,6 +1,12 @@
 import { BrowserWindow, nativeImage, net, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
+import {
+  createTrustedOriginPolicy,
+  isAllowedExternalUrl,
+  isTrustedRendererUrl,
+} from "./trusted-origin";
 
 const APP_DISPLAY_NAME = "Novend POS";
 export const PERSIST_PARTITION = "persist:novend";
@@ -144,7 +150,7 @@ export async function reloadMainWindowShell(
 
 export function createMainWindow(appUrl: string): BrowserWindow {
   const icon = windowIcon();
-  const origin = appUrl.replace(/\/$/, "");
+  const trustedOrigin = createTrustedOriginPolicy(appUrl, [pathToFileURL(offlineBootPath()).href]);
   let showingRecovery = false;
 
   const win = new BrowserWindow({
@@ -171,8 +177,16 @@ export function createMainWindow(appUrl: string): BrowserWindow {
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    if (isAllowedExternalUrl(url)) {
+      void shell.openExternal(url);
+    }
     return { action: "deny" };
+  });
+
+  win.webContents.on("will-navigate", (event, url) => {
+    if (!isTrustedRendererUrl(trustedOrigin, url)) {
+      event.preventDefault();
+    }
   });
 
   win.webContents.on(
@@ -182,7 +196,7 @@ export function createMainWindow(appUrl: string): BrowserWindow {
       if (errorCode === -3) return;
       if (!isNetworkFailure(errorCode)) return;
       if (validatedURL.startsWith("file:") || validatedURL.startsWith("data:")) return;
-      if (!validatedURL.startsWith(origin)) return;
+      if (!isTrustedRendererUrl(trustedOrigin, validatedURL)) return;
       showingRecovery = true;
       void win
         .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(recoveryHtml(appUrl))}`)

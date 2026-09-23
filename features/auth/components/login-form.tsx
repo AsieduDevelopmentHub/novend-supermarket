@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { SERVER_UNREACHABLE_MESSAGE, showError } from "@/lib/errors";
 import Image from "next/image";
-import { Mail } from "lucide-react";
+import { ArrowLeft, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -27,6 +27,26 @@ import { hasOfflineSession } from "@/lib/offline/session";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 
 const REMEMBER_KEY = "novend.login.rememberEmail";
+const LOGIN_DEVICE_KEY = "novend.login.deviceKey";
+let volatileLoginDeviceKey: string | null = null;
+
+function getLoginDeviceKey(): string {
+  if (volatileLoginDeviceKey) return volatileLoginDeviceKey;
+  try {
+    const stored = window.localStorage.getItem(LOGIN_DEVICE_KEY);
+    if (stored) {
+      volatileLoginDeviceKey = stored;
+      return stored;
+    }
+    const created = crypto.randomUUID();
+    window.localStorage.setItem(LOGIN_DEVICE_KEY, created);
+    volatileLoginDeviceKey = created;
+    return created;
+  } catch {
+    volatileLoginDeviceKey = crypto.randomUUID();
+    return volatileLoginDeviceKey;
+  }
+}
 
 export function LoginForm({ compact = false }: { compact?: boolean }) {
   const configured = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
@@ -171,6 +191,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       formData.set("email", normalizedEmail);
       formData.set("password", password);
       formData.set("flow", "signIn");
+      formData.set("deviceKey", getLoginDeviceKey());
       await signIn("password", formData);
       consumeExplicitLogout();
       toast.success("Welcome");
@@ -187,13 +208,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       const lower = raw.toLowerCase();
       if (lower.includes("auth provider discovery")) {
         showError(error, SERVER_UNREACHABLE_MESSAGE);
-      } else if (
-        lower.includes("rate limit") ||
-        lower.includes("too many") ||
-        lower.includes("locked") ||
-        /TOO_MANY|RATE_LIMIT/i.test(raw)
-      ) {
-        showError(error, "Too many attempts. Please wait a moment and try again.");
       } else {
         showError(error, "Sign in failed. Check your email and password.");
       }
@@ -211,16 +225,29 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 
   return (
     <div className="mx-auto w-full max-w-[360px]">
+      <Link
+        href="/"
+        className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+        Back to website
+      </Link>
+
       <FormHeader compact={compact} />
 
-      <form className="space-y-4" onSubmit={onSubmit}>
+      <form className="space-y-4" onSubmit={onSubmit} noValidate>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <div className="relative">
             <Input
               id="email"
+              name="email"
               type="email"
               autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@business.com"
@@ -246,6 +273,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
           </div>
           <PasswordInput
             id="password"
+            name="password"
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -263,7 +291,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
           <span className="text-foreground/90">Remember me</span>
         </label>
 
-        <Button type="submit" className="h-11 w-full text-[15px] font-semibold" disabled={pending}>
+        <Button
+          type="submit"
+          className="h-11 w-full text-[15px] font-semibold"
+          disabled={pending}
+          aria-busy={pending}
+        >
           {pending ? "Signing in…" : "Sign in"}
         </Button>
       </form>

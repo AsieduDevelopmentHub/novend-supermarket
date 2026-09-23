@@ -22,28 +22,28 @@ type Props = {
  * Necessary cookies stay on; preferences and analytics are opt-in.
  */
 export function CookieConsentBanner({ enabled = true }: Props) {
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(() => !enabled);
   const [visible, setVisible] = useState(false);
   const [customize, setCustomize] = useState(false);
   const [preferences, setPreferences] = useState(false);
   const [analytics, setAnalytics] = useState(false);
 
   useEffect(() => {
-    if (!enabled) {
-      setReady(true);
-      setVisible(false);
-      return;
-    }
+    if (!enabled) return;
 
-    const existing = readCookieConsent();
-    if (existing) {
-      setPreferences(existing.preferences);
-      setAnalytics(existing.analytics);
-      setVisible(false);
-    } else {
-      setVisible(true);
-    }
-    setReady(true);
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      const existing = readCookieConsent();
+      if (existing) {
+        setPreferences(existing.preferences);
+        setAnalytics(existing.analytics);
+        setVisible(false);
+      } else {
+        setVisible(true);
+      }
+      setReady(true);
+    });
 
     function onPreferences(event: Event) {
       const detail = (event as CustomEvent<{ open?: boolean }>).detail;
@@ -57,7 +57,10 @@ export function CookieConsentBanner({ enabled = true }: Props) {
     }
 
     window.addEventListener(COOKIE_PREFERENCES_EVENT, onPreferences);
-    return () => window.removeEventListener(COOKIE_PREFERENCES_EVENT, onPreferences);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(COOKIE_PREFERENCES_EVENT, onPreferences);
+    };
   }, [enabled]);
 
   function persist(next: { preferences: boolean; analytics: boolean }) {

@@ -1,4 +1,4 @@
-import { loadLicenseSnapshot } from "./license";
+import { loadOfflineLicenseState } from "./license";
 import { getOfflineDb } from "./db";
 import { limitReachedMessage, type LimitResource } from "@/convex/shared/plans";
 
@@ -10,10 +10,9 @@ import { limitReachedMessage, type LimitResource } from "@/convex/shared/plans";
  * IndexedDB while the business is meant to be paused.
  */
 export async function assertLocalWriteAllowed(): Promise<void> {
-  const cached = await loadLicenseSnapshot();
-  if (!cached) return;
-  if (!cached.access.canWrite) {
-    throw new Error(cached.access.reason ?? "This business cannot record new activity right now.");
+  const license = await loadOfflineLicenseState();
+  if (!license.access.canWrite) {
+    throw new Error(license.access.reason ?? "This business cannot record new activity right now.");
   }
 }
 
@@ -36,8 +35,8 @@ async function countLocalResource(resource: LocalCapacityResource): Promise<numb
 /**
  * Local-first mirror of `assertWithinLimit`. Reads the cached licence limits and
  * counts local rows so an offline create is refused before it is queued, matching
- * the server-side plan enforcement. When no licence is cached (limit unknown) the
- * guard fails open — Convex remains the authority on the next sync.
+ * the server-side plan enforcement. Unknown, missing, or corrupt licence state is
+ * rejected by the write gate rather than deferred as a future sync conflict.
  *
  * See docs/architecture/CLOUD_MODE_PLAN_V2.md (§38) and CLOUD_MODE_PLAN_V1 offline gates.
  */
@@ -45,8 +44,11 @@ export async function assertLocalCapacity(
   resource: LocalCapacityResource,
   additional = 1,
 ): Promise<void> {
-  const cached = await loadLicenseSnapshot();
-  if (!cached) return;
+  const license = await loadOfflineLicenseState();
+  if (!license.access.canWrite || !license.snapshot) {
+    throw new Error(license.access.reason ?? "This business cannot record new activity right now.");
+  }
+  const cached = license.snapshot;
   const limit = cached.limits[resource];
   if (limit === null || limit === undefined) return;
   const used = await countLocalResource(resource);

@@ -10,9 +10,8 @@ import {
 } from "@/features/marketing/hooks/use-landing-motion";
 import { LandingNav } from "@/features/marketing/components/landing-nav";
 import { LandingHero } from "@/features/marketing/components/landing-hero";
-import { LandingTrustedStrip } from "@/features/marketing/components/landing-trusted-strip";
-import { LandingHowItWorks } from "@/features/marketing/components/landing-how-it-works";
 import { LandingArchitecture } from "@/features/marketing/components/landing-architecture";
+import { LandingHowItWorks } from "@/features/marketing/components/landing-how-it-works";
 import { LandingFeatures } from "@/features/marketing/components/landing-features";
 import { LandingIndustries } from "@/features/marketing/components/landing-industries";
 import { LandingPricing } from "@/features/marketing/components/landing-pricing";
@@ -59,9 +58,8 @@ export function LandingPage() {
         <LandingNav scrollRootRef={scrollRef} />
         <main>
           <LandingHero />
-          <LandingTrustedStrip />
-          <LandingHowItWorks />
           <LandingArchitecture />
+          <LandingHowItWorks />
           <LandingFeatures />
           <LandingIndustries />
           <LandingPricing />

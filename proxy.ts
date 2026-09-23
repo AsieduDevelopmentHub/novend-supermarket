@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
 import { loginPathWithNext, resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 import { resolveHostingOrigins, shouldRedirectAuthenticatedHome } from "@/lib/hosting/hosts";
+import { applySecurityHeaders } from "@/lib/security/response-headers";
 
 const isLoginPage = createRouteMatcher([
   "/login",
@@ -71,17 +72,8 @@ function buildCsp(nonce: string) {
 }
 
 function withSecurityHeaders(response: NextResponse, nonce: string) {
-  const csp = buildCsp(nonce);
-  response.headers.set("Content-Security-Policy", csp);
-  response.headers.set("X-DNS-Prefetch-Control", "on");
-  response.headers.set("X-Frame-Options", "DENY");
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set(
-    "Permissions-Policy",
-    // camera=(self) — product Take Photo (desktop + PWA). Mic/geo/payment stay blocked.
-    "camera=(self), microphone=(), geolocation=(), payment=()",
-  );
+  response.headers.set("Content-Security-Policy", buildCsp(nonce));
+  applySecurityHeaders(response);
   return response;
 }
 

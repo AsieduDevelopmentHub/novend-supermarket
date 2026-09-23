@@ -1,7 +1,14 @@
 import { BrowserWindow, Display, screen, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { PERSIST_PARTITION, preloadPath, windowIcon } from "./window";
+import {
+  createTrustedOriginPolicy,
+  isAllowedExternalUrl,
+  isTrustedRendererUrl,
+} from "./trusted-origin";
+import { resolveAppUrl } from "./desktop-config";
 
 const CUSTOMER_DISPLAY_TITLE = "Novend Customer Display";
 
@@ -210,6 +217,7 @@ export async function openCustomerDisplayWindow(options?: {
   if (!fs.existsSync(shellPath)) {
     return { ok: false, message: "Customer display shell is missing from this install." };
   }
+  const trustedOrigin = createTrustedOriginPolicy(resolveAppUrl(), [pathToFileURL(shellPath).href]);
 
   const icon = windowIcon();
   const { workArea } = targetDisplay;
@@ -257,8 +265,16 @@ export async function openCustomerDisplayWindow(options?: {
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    if (isAllowedExternalUrl(url)) {
+      void shell.openExternal(url);
+    }
     return { action: "deny" };
+  });
+
+  win.webContents.on("will-navigate", (event, url) => {
+    if (!isTrustedRendererUrl(trustedOrigin, url)) {
+      event.preventDefault();
+    }
   });
 
   win.webContents.on(
@@ -309,5 +325,5 @@ export function registerCustomerDisplayHotplug() {
 
 /** @deprecated Customer display no longer loads the hosted app shell. */
 export function setCustomerDisplayAppUrl(_url: string) {
-  /* kept for main.ts compatibility */
+  void _url;
 }

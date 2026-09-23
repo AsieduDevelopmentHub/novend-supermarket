@@ -69,24 +69,20 @@ export const landingCopy = {
   brand: APP_BRAND,
   tagline: APP_TAGLINE,
   hero: {
-    badge: "Offline-First POS & Inventory System",
+    badge: "Commercial POS & Inventory",
     /** Headline parts — Candy Blue accents on key phrases in the UI. */
     headlineLead: "Run Your Business.",
     headlineAccent: "Anywhere.",
     subhead:
-      "Sell, manage inventory, transfer stock between branches, and sync automatically when internet returns. Built for supermarkets, pharmacies, wholesalers, and modern retail businesses.",
+      "Sell, manage inventory, transfer stock between branches, and sync when you reconnect. Built for supermarkets, pharmacies, wholesalers, and modern retail.",
     primaryCta: "Start Free Trial",
     secondaryCta: "Download App",
     secondaryHref: "/download",
     trustChips: [
-      { id: "offline", label: "Offline First" },
+      { id: "offline", label: "Works Offline" },
       { id: "branches", label: "Multi-Branch" },
-      { id: "secure", label: "Secure & Reliable" },
+      { id: "secure", label: "Secure Sync" },
     ],
-  },
-  trustedBy: {
-    title: "Trusted by growing businesses.",
-    names: ["Pharmex", "Sunyani Mart", "QuickShop", "ElectroHub", "TrendWear"],
   },
   howItWorks: {
     badge: "How Novend Works",
@@ -112,13 +108,14 @@ export const landingCopy = {
         number: "03",
         title: "Sell at the Counter",
         detail:
-          "Scan barcodes, take payments, and print receipts — even when the internet is down.",
+          "Scan barcodes, take payments, and print receipts — including offline after setup.",
       },
       {
         id: "sync",
         number: "04",
         title: "Sync & Stay Updated",
-        detail: "When you reconnect, sales and stock changes sync to the cloud automatically.",
+        detail:
+          "When you reconnect, sales and stock changes sync so connected dashboards refresh.",
       },
     ],
     diagramLabels: [
@@ -143,7 +140,7 @@ export const landingCopy = {
     badge: "Built for the Real World",
     title: "Offline-First. Always Reliable.",
     subtitle:
-      "Work offline, save locally, automatically sync, and stay updated. Novend writes every sale, inventory update, customer, and receipt on your device. When internet returns, everything synchronizes without interrupting the counter.",
+      "After setup, core selling and local operations continue on the device when the network drops. Pending work uploads in the background when you reconnect — without interrupting the counter.",
     flow: [
       {
         id: "device",
@@ -168,36 +165,38 @@ export const landingCopy = {
         id: "dashboard",
         title: "Stay Updated",
         label: "Step 04",
-        detail: "Managers see branches, revenue, and stock from any connected device.",
+        detail:
+          "Dashboards update from local data while you work, then refresh after sync on connected devices.",
       },
     ],
     guarantees: [
       {
         id: "selling",
         title: "Works Offline",
-        detail: "100% operational without internet.",
+        detail: "Core selling and local ops continue offline after setup.",
       },
       {
         id: "backup",
         title: "Auto Sync",
-        detail: "Seamless and fast when online.",
+        detail: "Background upload when you reconnect.",
       },
       {
         id: "ownership",
-        title: "Data Safe",
-        detail: "Encrypted and stored securely.",
+        title: "Data Protected",
+        detail:
+          "Cloud traffic and encrypted backups; local ops data uses device security.",
       },
       {
         id: "branches",
         title: "Conflict Handling",
-        detail: "Smart resolution across devices.",
+        detail: "Clear resolution when devices disagree.",
       },
     ],
     metrics: [
       { label: "Checkout", value: "Instant" },
-      { label: "Internet Required", value: "No" },
+      { label: "Selling Offline", value: "After setup" },
       { label: "Background Sync", value: "Automatic" },
-      { label: "Branch Support", value: "Enterprise Ready" },
+      { label: "Branch Support", value: "Plan-based" },
     ],
     syncCycle: {
       sale: "New sale recorded",
@@ -213,14 +212,19 @@ export const landingCopy = {
     badge: "Complete Business Platform",
     title: "Everything You Need to Run a Modern Store",
     subtitle:
-      "From checkout and barcode scanning to wholesale inventory and multi-branch management, Novend brings every business operation into one beautifully connected platform.",
+      "Checkout, inventory, wholesale, analytics, and reports — the screens that matter for day-to-day retail.",
     blocks: [
       {
         id: "checkout",
         title: "Smart Checkout Built for Speed",
         detail:
-          "Complete sales in seconds using barcode scanning, discounts, multiple payment methods, and instant receipt printing—even while offline.",
-        bullets: ["Barcode ready", "Split payments", "Hold & resume sales", "Offline checkout"],
+          "Complete sales in seconds with barcode scanning, discounts, one payment method per sale, and receipt printing — including while offline after setup.",
+        bullets: [
+          "Barcode ready",
+          "Cash, card & mobile money",
+          "Hold & resume sales",
+          "Offline checkout",
+        ],
       },
       {
         id: "inventory",
@@ -240,20 +244,8 @@ export const landingCopy = {
         id: "analytics",
         title: "See Your Business at a Glance",
         detail:
-          "Monitor revenue, profit, inventory value, customer growth, and best-selling products through beautiful real-time dashboards.",
+          "Monitor revenue, profit, inventory value, customer growth, and best sellers on dashboards that update locally as you work and refresh after sync.",
         bullets: ["Revenue insights", "Profit tracking", "Category performance", "Best sellers"],
-      },
-      {
-        id: "relationships",
-        title: "Build Stronger Customer & Supplier Relationships",
-        detail:
-          "Keep complete customer histories, outstanding balances, and supplier records in one connected system.",
-        bullets: [
-          "Customer history",
-          "Supplier management",
-          "Outstanding balances",
-          "Notes & contacts",
-        ],
       },
       {
         id: "reports",
@@ -282,7 +274,7 @@ export const landingCopy = {
           "Barcode dispensing",
           "Supplier restocking",
         ],
-        cta: "Explore Pharmacy Demo",
+        cta: "How it works",
         kpis: [
           { label: "Near expiry", value: "12" },
           { label: "SKUs tracked", value: "840" },
@@ -301,7 +293,7 @@ export const landingCopy = {
           "Hold & resume sales",
           "Instant receipts",
         ],
-        cta: "Explore Supermarket Demo",
+        cta: "How it works",
         kpis: [
           { label: "Avg. checkout", value: "18s" },
           { label: "Categories", value: "36" },
@@ -320,7 +312,7 @@ export const landingCopy = {
           "Supplier deliveries",
           "Bulk quantities",
         ],
-        cta: "Explore Wholesale Demo",
+        cta: "How it works",
         kpis: [
           { label: "Warehouse SKUs", value: "2.1k" },
           { label: "Open transfers", value: "7" },
@@ -339,7 +331,7 @@ export const landingCopy = {
           "Stock by variation",
           "Boutique-ready receipts",
         ],
-        cta: "Explore Fashion Demo",
+        cta: "How it works",
         kpis: [
           { label: "Variants", value: "318" },
           { label: "Low stock", value: "9" },
@@ -358,7 +350,7 @@ export const landingCopy = {
           "Product detail records",
           "Precise stock counts",
         ],
-        cta: "Explore Electronics Demo",
+        cta: "How it works",
         kpis: [
           { label: "Active SKUs", value: "1.4k" },
           { label: "High value", value: "86" },
@@ -377,7 +369,7 @@ export const landingCopy = {
           "Low-stock alerts",
           "Offline-ready till",
         ],
-        cta: "Explore Convenience Demo",
+        cta: "How it works",
         kpis: [
           { label: "Catalog size", value: "220" },
           { label: "Low stock", value: "14" },
@@ -390,7 +382,7 @@ export const landingCopy = {
     badge: "Pricing",
     title: "Simple, Transparent Pricing.",
     subtitle:
-      "Every plan includes offline-first POS, barcode support, receipt printing, inventory, and cloud sync. Upgrade only as you grow.",
+      "Every plan includes offline POS, barcode support, receipt printing, inventory, and cloud sync. Limits and cloud backup match the published catalog — upgrade only as you grow.",
     trialNote: "14-day free trial",
     cards: {
       basic: {
@@ -431,14 +423,14 @@ export const landingCopy = {
       lifetime: {
         badge: "One-Time License",
         description:
-          "Own Novend permanently with unlimited operational capacity and 1 year of updates included.",
+          "Own Novend permanently with unlimited operational capacity and 1 year of updates and premium support included.",
         includes: [
           "Unlimited Products",
           "Unlimited Users",
           "Unlimited Branches",
           "Unlimited Devices",
           "1 GB Cloud Backup",
-          "1 Year Updates",
+          "1 Year Updates & Support",
         ],
         cta: "Buy Lifetime",
         href: "/signup",
@@ -457,7 +449,7 @@ export const landingCopy = {
     trust: [
       { title: "No Setup Fees", detail: "Start without hidden costs" },
       { title: "Cancel Anytime", detail: "No long-term lock-in" },
-      { title: "Secure & Reliable", detail: "Offline-first by design" },
+      { title: "Secure Sync", detail: "Encrypted cloud traffic & backups" },
       { title: "Free Updates", detail: "During your plan term" },
     ],
   },
@@ -471,7 +463,7 @@ export const landingCopy = {
     items: [
       {
         q: "Does Novend work offline?",
-        a: "Yes. Every core business operation runs locally and automatically synchronizes when internet returns.",
+        a: "Yes. After setup and activation, core selling and local operations continue on the device without internet. Sign-in, billing, and some account actions need connectivity. When you reconnect, pending work synchronizes automatically.",
       },
       {
         q: "Can I upgrade my plan later?",
@@ -501,12 +493,11 @@ export const landingCopy = {
   },
   cta: {
     title: "Ready to Transform Your Business?",
-    subtitle:
-      "Start your 14-day free trial and experience the complete offline-first commercial POS built for modern retail.",
+    subtitle: "Start a 14-day free trial — set up your catalog, sell on the counter, and sync when you reconnect.",
     primary: "Start Free Trial",
     secondary: "Download App",
     secondaryHref: "/download",
-    chips: ["No Card Required", "Setup in Minutes", "Works Offline"],
+    chips: ["No Card Required", "Setup in Minutes", "Cancel Anytime"],
   },
   desktop: {
     id: "desktop",
@@ -550,8 +541,8 @@ export const landingCopy = {
   footer: {
     brandTitle: "Novend by Asiedu Development Hub",
     description:
-      "Offline-first commercial POS built for supermarkets, pharmacies, wholesalers, boutiques, electronics stores, and modern retail businesses.",
-    badges: ["Offline First", "Multi-Branch", "Desktop, Web & Mobile"],
+      "Commercial POS built for supermarkets, pharmacies, wholesalers, boutiques, electronics stores, and modern retail businesses.",
+    badges: ["Works Offline", "Multi-Branch", "Desktop, Web & Mobile"],
     product: [
       { href: "/#features", label: "Features" },
       { href: "/#industries", label: "Industries" },

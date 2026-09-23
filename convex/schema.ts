@@ -1046,12 +1046,25 @@ export default defineSchema({
     .index("by_user", ["userId"]),
 
   loginAttempts: defineTable({
+    purpose: v.optional(v.union(v.literal("login"), v.literal("email_change"))),
     email: v.string(),
     failedCount: v.number(),
     windowStartedAt: v.number(),
     lockedUntil: v.optional(v.number()),
+    deviceBuckets: v.optional(
+      v.array(
+        v.object({
+          key: v.string(),
+          failedCount: v.number(),
+          windowStartedAt: v.number(),
+          lockedUntil: v.optional(v.number()),
+        }),
+      ),
+    ),
     updatedAt: v.number(),
-  }).index("by_email", ["email"]),
+  })
+    .index("by_email", ["email"])
+    .index("by_purpose_email", ["purpose", "email"]),
 
   storageUploadSessions: defineTable({
     organizationId: v.id("organizations"),
