@@ -333,7 +333,7 @@ jobs:
     needs: [verify, github-release, build, build-android]
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     # Still publish mobile when desktop fails after an APK re-upload (clobber
     # invalidates the previous githubAssetId and 404s Convex downloads).
     if: |
@@ -369,6 +369,7 @@ jobs:
       # electron-builder often creates the Release with a bare version title and empty body.
       # Replace those with the matching CHANGELOG.md section before Convex publish reads notes.
       - name: Sync GitHub Release notes from CHANGELOG
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
