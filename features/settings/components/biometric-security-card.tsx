@@ -264,7 +264,9 @@ export function BiometricSecurityCard() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-medium">Enable biometrics</p>
-                <p className="text-muted-foreground text-xs">Unlock Novend after you sign in once</p>
+                <p className="text-muted-foreground text-xs">
+                  Unlock Novend after you sign in once
+                </p>
               </div>
               <Switch
                 checked={enabled}

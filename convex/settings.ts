@@ -20,6 +20,11 @@ import {
   type OrganizationBusinessConfiguration,
 } from "./shared/businessCapabilities";
 import {
+  PRODUCT_IMAGES_SETTINGS_KEY,
+  parseProductImagesPolicy,
+  type ProductImagesPolicy,
+} from "./shared/productImagesPolicy";
+import {
   sanitizeEmail,
   sanitizeOptionalText,
   sanitizePhone,
@@ -222,6 +227,27 @@ export async function loadBusinessConfiguration(
   organizationId: Id<"organizations">,
 ): Promise<OrganizationBusinessConfiguration> {
   return parseBusinessConfiguration(await getSettingValue(ctx, organizationId, CAPABILITIES_KEY));
+}
+
+/** Product-image upload policy for Convex gates and offline snapshot. */
+export async function loadProductImagesPolicy(
+  ctx: DbCtx,
+  organizationId: Id<"organizations">,
+): Promise<ProductImagesPolicy> {
+  return parseProductImagesPolicy(
+    await getSettingValue(ctx, organizationId, PRODUCT_IMAGES_SETTINGS_KEY),
+  );
+}
+
+/** Persist product-image policy (org admin or platform). */
+export async function writeProductImagesPolicy(
+  ctx: MutationCtx,
+  organizationId: Id<"organizations">,
+  enabled: boolean,
+): Promise<ProductImagesPolicy> {
+  const policy: ProductImagesPolicy = { enabled };
+  await upsertSetting(ctx, organizationId, PRODUCT_IMAGES_SETTINGS_KEY, JSON.stringify(policy));
+  return policy;
 }
 
 export const getBusiness = query({
@@ -434,5 +460,32 @@ export const updateBusinessCapabilities = mutation({
       },
     });
     return next;
+  },
+});
+
+export const getProductImages = query({
+  args: {},
+  handler: async (ctx) => {
+    const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    return loadProductImagesPolicy(ctx, organizationId);
+  },
+});
+
+export const updateProductImages = mutation({
+  args: {
+    enabled: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const { userId, organizationId } = await requireRole(ctx, ["administrator"]);
+    const previous = await loadProductImagesPolicy(ctx, organizationId);
+    const policy = await writeProductImagesPolicy(ctx, organizationId, args.enabled);
+    await writeAuditLog(ctx, {
+      actorId: userId,
+      action: "update_product_images_policy",
+      entityType: "settings",
+      entityId: PRODUCT_IMAGES_SETTINGS_KEY,
+      metadata: { enabled: policy.enabled, previousEnabled: previous.enabled },
+    });
+    return policy;
   },
 });

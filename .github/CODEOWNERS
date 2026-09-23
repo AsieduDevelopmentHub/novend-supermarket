@@ -1,0 +1,29 @@
+# Sensitive paths require review from maintainers.
+# Update the team slug if the org roster changes.
+# Team must exist on GitHub for required-review enforcement to apply.
+
+# Default ownership for unlisted paths
+* @AsieduDevelopmentHub/maintainers
+
+# Backend / tenancy / billing authority
+/convex/ @AsieduDevelopmentHub/maintainers
+/convex/billing.ts @AsieduDevelopmentHub/maintainers
+/convex/shared/licensing.ts @AsieduDevelopmentHub/maintainers
+/docs/architecture/BILLING.md @AsieduDevelopmentHub/maintainers
+/docs/architecture/MULTI_TENANT.md @AsieduDevelopmentHub/maintainers
+
+# Edge auth and security headers
+/proxy.ts @AsieduDevelopmentHub/maintainers
+/docs/development/14-SECURITY_GUIDE.md @AsieduDevelopmentHub/maintainers
+/SECURITY.md @AsieduDevelopmentHub/maintainers
+
+# Native shells (privileged IPC / WebView trust boundaries)
+/apps/desktop/ @AsieduDevelopmentHub/maintainers
+/apps/mobile/ @AsieduDevelopmentHub/maintainers
+/scripts/mobile-origin-policy.mjs @AsieduDevelopmentHub/maintainers
+/scripts/mobile-origin-policy.d.mts @AsieduDevelopmentHub/maintainers
+
+# Release supply chain
+/.github/workflows/ @AsieduDevelopmentHub/maintainers
+/.github/actions/ @AsieduDevelopmentHub/maintainers
+/.github/dependabot.yml @AsieduDevelopmentHub/maintainers

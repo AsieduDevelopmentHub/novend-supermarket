@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { BiometricSecurityCard } from "@/features/settings/components/biometric-security-card";
+import { IdleLockSettingsCard } from "@/features/settings/components/idle-lock-settings-card";
 import { NotificationsSettingsCard } from "@/features/settings/components/notifications-settings-card";
 import { VerifyEmailDialog } from "@/features/auth/components/verify-email-dialog";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -32,6 +33,7 @@ export function SecurityPanel() {
 
   return (
     <div className="grid max-w-2xl gap-6">
+      <IdleLockSettingsCard />
       {nativeShell ? (
         <>
           <BiometricSecurityCard />

@@ -24,7 +24,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { generateSkuFromName } from "@/lib/sku";
 import { DEFAULT_EXPIRY_ALERT_DAYS } from "@/lib/expiry";
 import { assertValidImageFile, compressProductImage, IMAGE_ACCEPT } from "@/lib/uploads/image";
-import { Camera, ImagePlus, Upload } from "lucide-react";
+import { Camera, ImagePlus, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -40,6 +40,7 @@ import {
 import { UnitPresetField } from "@/features/products/components/unit-preset-field";
 import { ProductImage } from "@/components/media/product-image";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { useProductImagesPolicy } from "@/hooks/use-product-images-policy";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCategoriesList, useMirroredProduct } from "@/hooks/use-offline-lists";
@@ -209,6 +210,8 @@ function ProductFormBody({
   const online = useConnectivity();
   const { branchId: profileBranchId } = usePermissions();
   const { hasCapability } = useBusinessCapabilities();
+  const productImagesPolicy = useProductImagesPolicy();
+  const imagesUploadEnabled = productImagesPolicy.enabled;
   const showPacks = hasCapability("multi_unit_pricing");
   const showWeight = hasCapability("sell_by_weight");
   const showSellUnits = showPacks || showWeight;
@@ -258,16 +261,24 @@ function ProductFormBody({
   );
   const [description, setDescription] = useState(initialProduct?.description ?? "");
   const [file, setFile] = useState<File | null>(null);
+  const [removeImage, setRemoveImage] = useState(false);
   const [pending, setPending] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
 
   const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  const canRemoveImage =
+    Boolean(file) || (!removeImage && Boolean(initialProduct?.imageUrl || productId));
 
   useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  function clearSelectedImage() {
+    setFile(null);
+    setRemoveImage(true);
+  }
 
   function onNameChange(value: string) {
     setName(value);
@@ -329,6 +340,7 @@ function ProductFormBody({
     try {
       const compressed = await compressProductImage(next);
       await assertValidImageFile(compressed);
+      setRemoveImage(false);
       setFile(compressed);
     } catch (error) {
       showError(error, "Invalid image file");
@@ -387,8 +399,7 @@ function ProductFormBody({
                 description,
                 tracksExpiry: resolvedTracksExpiry,
                 expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
-                openingExpiryDate:
-                  resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
+                openingExpiryDate: resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
               })
             : createProduct({
                 name,
@@ -445,8 +456,9 @@ function ProductFormBody({
             expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
             expiryDate: resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
             branchId: profileBranchId ?? undefined,
-            imageBlob: file ?? undefined,
-            hasLocalImage: Boolean(file),
+            imageBlob: removeImage ? undefined : (file ?? undefined),
+            hasLocalImage: removeImage ? false : Boolean(file),
+            clearImage: removeImage || undefined,
           });
         },
       });
@@ -552,7 +564,9 @@ function ProductFormBody({
           <section className="space-y-4">
             <div className="space-y-1">
               <h3 className="text-sm font-medium">Pricing & stock</h3>
-              <p className="text-muted-foreground text-xs">Used at checkout and for stock alerts.</p>
+              <p className="text-muted-foreground text-xs">
+                Used at checkout and for stock alerts.
+              </p>
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="min-w-0 space-y-2">
@@ -759,7 +773,7 @@ function ProductFormBody({
         <aside className="min-w-0 space-y-3 lg:sticky lg:top-0 lg:self-start">
           <Label>Product image</Label>
           <div className="border-border bg-muted/30 relative flex aspect-square min-h-40 w-full flex-col items-center justify-center overflow-hidden rounded-[16px] border border-dashed p-4 text-center lg:min-h-0">
-            {previewUrl ? (
+            {previewUrl && !removeImage ? (
               <Image
                 src={previewUrl}
                 alt={name || "Product preview"}
@@ -768,60 +782,93 @@ function ProductFormBody({
                 sizes="(max-width: 1024px) 100vw, 208px"
                 unoptimized
               />
-            ) : productId ? (
+            ) : productId && !removeImage ? (
               <ProductImage
                 productId={productId}
                 remoteUrl={initialProduct?.imageUrl}
                 alt={name || "Product preview"}
                 sizes="(max-width: 1024px) 100vw, 208px"
                 fallback={
-                  <>
-                    <ImagePlus className="text-muted-foreground mb-2 h-8 w-8" />
-                    <p className="text-sm font-medium">Add a photo</p>
-                    <p className="text-muted-foreground mt-1 text-xs">JPG, PNG, or WebP · max 2 MB</p>
-                  </>
+                  imagesUploadEnabled ? (
+                    <>
+                      <ImagePlus className="text-muted-foreground mb-2 h-8 w-8" />
+                      <p className="text-sm font-medium">Add a photo</p>
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        JPG, PNG, or WebP · max 2 MB
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground text-xs">No photo</p>
+                  )
                 }
               />
-            ) : (
+            ) : imagesUploadEnabled ? (
               <>
                 <ImagePlus className="text-muted-foreground mb-2 h-8 w-8" />
                 <p className="text-sm font-medium">Add a photo</p>
                 <p className="text-muted-foreground mt-1 text-xs">JPG, PNG, or WebP · max 2 MB</p>
               </>
+            ) : (
+              <p className="text-muted-foreground text-xs">Image uploads are disabled</p>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" asChild>
-              <label htmlFor="image" className="cursor-pointer">
-                <Upload className="mr-2 h-4 w-4" />
-                Upload
-              </label>
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => void onTakePhoto()}>
-              <Camera className="mr-2 h-4 w-4" />
-              Camera
-            </Button>
-            <Input
-              id="image"
-              type="file"
-              accept={IMAGE_ACCEPT}
-              className="sr-only"
-              onChange={(e) => {
-                const next = e.target.files?.[0] ?? null;
-                e.target.value = "";
-                if (!next) return;
-                void applyImageFile(next);
+            {imagesUploadEnabled ? (
+              <>
+                <Button type="button" variant="outline" size="sm" asChild>
+                  <label htmlFor="image" className="cursor-pointer">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload
+                  </label>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void onTakePhoto()}
+                >
+                  <Camera className="mr-2 h-4 w-4" />
+                  Camera
+                </Button>
+                <Input
+                  id="image"
+                  type="file"
+                  accept={IMAGE_ACCEPT}
+                  className="sr-only"
+                  onChange={(e) => {
+                    const next = e.target.files?.[0] ?? null;
+                    e.target.value = "";
+                    if (!next) return;
+                    void applyImageFile(next);
+                  }}
+                />
+              </>
+            ) : null}
+            {canRemoveImage ? (
+              <Button type="button" variant="outline" size="sm" onClick={clearSelectedImage}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Remove
+              </Button>
+            ) : null}
+          </div>
+          {!imagesUploadEnabled ? (
+            <p className="text-muted-foreground text-xs">
+              New photo uploads are turned off for this organization. Existing images still display
+              and can be removed.
+            </p>
+          ) : null}
+          {file && !removeImage ? (
+            <p className="text-muted-foreground truncate text-xs">{file.name}</p>
+          ) : null}
+          {imagesUploadEnabled ? (
+            <TakeProductPhotoDialog
+              open={cameraOpen}
+              onOpenChange={setCameraOpen}
+              onCapture={(captured) => {
+                void applyImageFile(captured);
               }}
             />
-          </div>
-          {file ? <p className="text-muted-foreground truncate text-xs">{file.name}</p> : null}
-          <TakeProductPhotoDialog
-            open={cameraOpen}
-            onOpenChange={setCameraOpen}
-            onCapture={(captured) => {
-              void applyImageFile(captured);
-            }}
-          />
+          ) : null}
         </aside>
       </div>
 

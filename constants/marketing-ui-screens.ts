@@ -60,13 +60,12 @@ export const JOURNEY_STEP_SCREENS = {
   sync: MARKETING_UI_SCREENS.syncRecent,
 } as const;
 
-/** Feature showcase — one real screen (or split pair) per capability block. */
+/** Feature showcase — strongest product screens (keep to ~5). */
 export const FEATURE_BLOCK_SCREENS = {
   checkout: "/marketing/ui/sales-pos.jpg",
   inventory: MARKETING_UI_SCREENS.inventoryStock,
   wholesale: MARKETING_UI_SCREENS.inventoryWholesale,
   analytics: MARKETING_UI_SCREENS.businessAnalyticsOverview,
-  relationships: MARKETING_UI_SCREENS.salesCustomerDetail,
   reports: MARKETING_UI_SCREENS.businessReports,
 } as const;
 
@@ -206,7 +205,7 @@ export const DOCS_SECTION_DEMOS: Record<string, readonly DocsDemoShot[]> = {
     {
       src: MARKETING_UI_SCREENS.salesCustomerDetail,
       alt: "Novend customer profile",
-      caption: "Customer history and balances",
+      caption: "Customer profile and purchase history",
     },
     {
       src: MARKETING_UI_SCREENS.inventorySuppliers,

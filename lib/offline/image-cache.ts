@@ -66,6 +66,28 @@ export async function putProductImage(args: {
   }
 }
 
+export async function deleteProductImage(productId: string) {
+  const db = await getOfflineDb();
+  if (!db) return;
+  try {
+    await db.productImages.delete(productId);
+  } catch {
+    /* best-effort */
+  }
+  const cached = objectUrls.get(productId);
+  if (cached) {
+    URL.revokeObjectURL(cached.url);
+    objectUrls.delete(productId);
+  }
+  for (const key of [...objectUrls.keys()]) {
+    if (key.startsWith(`${productId}:`)) {
+      const entry = objectUrls.get(key);
+      if (entry) URL.revokeObjectURL(entry.url);
+      objectUrls.delete(key);
+    }
+  }
+}
+
 export async function rekeyProductImage(fromId: string, toId: string) {
   if (!fromId || fromId === toId) return;
   const db = await getOfflineDb();

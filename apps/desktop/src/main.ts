@@ -8,6 +8,7 @@ import {
   closeCustomerDisplayWithMainWindow,
   registerCustomerDisplayHotplug,
 } from "./customer-display";
+import { createTrustedOriginPolicy, isAllowedMediaPermission } from "./trusted-origin";
 
 const APP_USER_MODEL_ID = "com.novend.pos";
 const APP_DISPLAY_NAME = "Novend POS";
@@ -21,15 +22,27 @@ let mainWindow: BrowserWindow | null = null;
 
 function allowMediaPermissions() {
   const ses = session.fromPartition(PERSIST_PARTITION);
-  const allow = (permission: string) => permission === "media" || permission === "mediaKeySystem";
+  const trustedOrigin = createTrustedOriginPolicy(resolveAppUrl());
 
   // Auto-approve Chromium's media permission so getUserMedia can open the OS
   // camera prompt / stream. Still requires Permissions-Policy camera=(self)
   // on the hosted app (see proxy.ts).
-  ses.setPermissionRequestHandler((_webContents, permission, callback) => {
-    callback(allow(permission));
+  ses.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    callback(
+      isAllowedMediaPermission(
+        trustedOrigin,
+        permission,
+        details.requestingUrl || webContents.getURL(),
+      ),
+    );
   });
-  ses.setPermissionCheckHandler((_webContents, permission) => allow(permission));
+  ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) =>
+    isAllowedMediaPermission(
+      trustedOrigin,
+      permission,
+      requestingOrigin || webContents?.getURL() || "",
+    ),
+  );
 }
 
 function showWindow() {

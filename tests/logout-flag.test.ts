@@ -30,12 +30,22 @@ describe("explicit logout flag", () => {
   it("clears Dexie replica and session keys before a hard login navigation", () => {
     const source = readFileSync(resolve(process.cwd(), "lib/auth/sign-out.ts"), "utf8");
     expect(source).toContain("await deleteBoundOfflineReplica()");
+    expect(source).toContain("clearOfflineSession()");
     expect(source).toContain("clearUserDeviceState()");
+    expect(source).toContain("clearCartDraft()");
+    expect(source).toContain("clearCustomerDisplaySnapshot()");
     expect(source).toContain("navigateToLoginAfterSignOut()");
     expect(source).toContain("markExplicitLogout()");
     expect(source).not.toContain("router.refresh()");
     expect(source).not.toContain("router.replace(");
     expect(source).not.toContain("await clearShellProfile()");
+  });
+
+  it("documents tenant-safe replica deletion that includes the image cache", () => {
+    const db = readFileSync(resolve(process.cwd(), "lib/offline/db.ts"), "utf8");
+    expect(db).toContain("shouldDeleteOfflineReplicaOnLogout");
+    expect(db).toContain("product image");
+    expect(db).toContain("Does not delete another organization's");
   });
 
   it("does not cover login with Convex isLoading", () => {

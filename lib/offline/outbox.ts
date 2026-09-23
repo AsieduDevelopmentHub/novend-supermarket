@@ -162,6 +162,10 @@ export async function enqueueOutbox(
         stockQuantity: previous.stockQuantity || incoming.stockQuantity,
         branchId: previous.branchId ?? incoming.branchId,
         expiryDate: incoming.expiryDate ?? previous.expiryDate,
+        hasLocalImage: incoming.clearImage
+          ? false
+          : Boolean(incoming.hasLocalImage || previous.hasLocalImage),
+        clearImage: incoming.clearImage || undefined,
       };
       const next: OutboxRow = {
         ...existing,

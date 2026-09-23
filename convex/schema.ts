@@ -425,6 +425,8 @@ export default defineSchema({
       v.union(v.literal("light"), v.literal("dark"), v.literal("system")),
     ),
     appearanceFontSize: v.optional(v.union(v.literal("sm"), v.literal("md"), v.literal("lg"))),
+    /** JSON SalesProductDisplay — catalog layout preference synced across devices. */
+    salesProductDisplay: v.optional(v.string()),
     /** Compact denormalized copy of userTourProgress for session + snapshot bootstrap. */
     tourProgress: v.optional(v.array(tourProgressEntryValidator)),
   })
@@ -1046,12 +1048,25 @@ export default defineSchema({
     .index("by_user", ["userId"]),
 
   loginAttempts: defineTable({
+    purpose: v.optional(v.union(v.literal("login"), v.literal("email_change"))),
     email: v.string(),
     failedCount: v.number(),
     windowStartedAt: v.number(),
     lockedUntil: v.optional(v.number()),
+    deviceBuckets: v.optional(
+      v.array(
+        v.object({
+          key: v.string(),
+          failedCount: v.number(),
+          windowStartedAt: v.number(),
+          lockedUntil: v.optional(v.number()),
+        }),
+      ),
+    ),
     updatedAt: v.number(),
-  }).index("by_email", ["email"]),
+  })
+    .index("by_email", ["email"])
+    .index("by_purpose_email", ["purpose", "email"]),
 
   storageUploadSessions: defineTable({
     organizationId: v.id("organizations"),

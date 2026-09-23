@@ -5,7 +5,7 @@
   "server": {
     "androidScheme": "https",
     "hostname": "localhost",
-    "allowNavigation": ["novend-pos.vercel.app", "*.vercel.app"],
+    "allowNavigation": ["novend-pos.vercel.app"],
     "errorPath": "error.html"
   },
   "android": {

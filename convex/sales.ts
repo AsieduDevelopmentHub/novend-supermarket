@@ -810,7 +810,9 @@ export const listOrders = query({
 
     const pageCashierIds = [...new Set(page.map((s) => s.cashierId))];
     const pageBranchIds = [
-      ...new Set(page.map((s) => s.branchId).filter((id): id is NonNullable<typeof id> => Boolean(id))),
+      ...new Set(
+        page.map((s) => s.branchId).filter((id): id is NonNullable<typeof id> => Boolean(id)),
+      ),
     ];
     nameByUser = new Map();
     const branchName = new Map<Id<"branches">, string>();

@@ -40,6 +40,7 @@ import { PrivacyDataPanel } from "./privacy-data-panel";
 import { BranchReceiptPanel } from "./branch-receipt-panel";
 import { ProfilePanel } from "./profile-panel";
 import { BusinessCapabilitiesPanel } from "./business-capabilities-panel";
+import { ProductImagesSettingsCard } from "./product-images-settings-card";
 import { PrinterPanel } from "./printer-panel";
 import { CustomerDisplayPanel } from "./customer-display-panel";
 import { ScannerPanel } from "./scanner-panel";
@@ -199,6 +200,7 @@ export function SettingsView() {
                     initial={business}
                     readOnly={!online}
                   />
+                  <ProductImagesSettingsCard />
                   <BusinessCapabilitiesPanel />
                 </TabsContent>
 
@@ -213,13 +215,14 @@ export function SettingsView() {
               </>
             ) : isAdmin && !online ? (
               <>
-                <TabsContent value="business" className="mt-0">
+                <TabsContent value="business" className="mt-0 space-y-6">
                   <Card>
                     <CardContent className="text-muted-foreground p-5 text-sm">
                       Business and receipt settings haven&apos;t been cached on this device yet.
                       Open Settings once while online to keep them available offline.
                     </CardContent>
                   </Card>
+                  <ProductImagesSettingsCard />
                 </TabsContent>
                 <TabsContent value="receipt" className="mt-0">
                   <Card>

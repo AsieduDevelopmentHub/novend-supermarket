@@ -1,42 +1,53 @@
-Now that everything is working perfectly, I want us to implement a **core feature: a Customer Display / Second Screen system**.
+## Final Feature Implementation and Release
 
-The goal is to support a **customer-facing display on Electron POS**, using a second monitor connected to the same computer. If technically feasible, we should also explore supporting the same experience on **desktop web**.
+This may be the final major feature for now.
 
-### Requirements
+**Implementation record:** [`GPT_FEATURE_IMAGES_AND_SALES_DISPLAY.md`](./GPT_FEATURE_IMAGES_AND_SALES_DISPLAY.md)
 
-* Add a dedicated **Customer Display** view designed specifically for the customer-facing screen.
-* On Electron, detect/use a connected secondary display and open the Customer Display window there.
-* Keep the cashier/POS screen completely independent from the customer screen.
-* Customer Display should update **in real time** as the cashier:
+### 1. Product-image controls
 
-  * Adds/removes products
-  * Changes quantities
-  * Applies discounts
-  * Updates totals
-  * Completes/cancels a sale
-* Show a clean customer-facing experience:
+Add organization-level control over product-image uploads:
 
-  * Business/Novend branding
-  * Cart items
-  * Product images where available
-  * Quantities and prices
-  * Discounts
-  * Subtotal
-  * Tax
-  * Grand total
-  * Payment status
-  * Thank-you/completed-sale state
-* It must work **offline-first** and must not depend on Convex/network connectivity for real-time updates.
-* Use the existing POS/cart state and architecture rather than creating a duplicate sales system.
-* Properly handle Electron multi-window lifecycle, display detection, window closing, reconnecting, and app restart.
-* If possible, design the architecture so **desktop web can also support a second-screen/customer-display mode**, while respecting browser limitations around opening windows and multi-monitor placement.
-* Keep the implementation modular so it can later support additional customer-display features such as promotional banners, loyalty information, or QR/payment displays.
+* Platform administrators can enable or disable product-image uploads for a specific organization.
+* Organization administrators can also disable or re-enable product images for their own organization.
+* When disabled:
 
-### Important
+  * Hide or disable image-upload controls.
+  * Prevent image uploads on the backend.
+  * Continue displaying existing product images unless a separate removal option is selected.
+  * Ensure the restriction works online and offline.
+* Record changes in the audit log.
 
-Before implementing, **audit the existing Electron architecture, POS/cart state, routing, and desktop window management** and determine the cleanest approach. Do not create a parallel state-management system or workaround if the existing architecture can be extended.
+### 2. Sales product-display preferences
 
-Implement this as a **production-quality core feature**, including responsive UI, proper error/edge-case handling, tests, and a meaningful Git commit.
+Add multiple display modes for products on the Sales page:
 
+* List view
+* Standard grid
+* Small cards/icons
+* Medium cards
+* Five products per row
+* Configurable number of products per row where screen size permits
 
-before you start commiting lemme do personal tests before we start pushing to git. and show me workaround on how to test locally
+Requirements:
+
+* Make the layout fully responsive.
+* Prevent excessive shrinking on smaller screens.
+* Save each user’s preferred view locally so it works offline.
+* Optionally sync the preference across the user’s devices.
+* Keep product names, prices, stock status and images readable in every mode.
+* Ensure barcode scanning, product selection and cart operations behave identically across all views.
+
+### 3. Verification and release workflow
+
+After implementation:
+
+1. Run linting, type checking, tests, formatting checks and the production build.
+2. Test the feature on desktop, web and mobile layouts.
+3. Verify administrator permissions and organization isolation.
+4. Verify the settings and selected sales view work offline.
+5. Commit the completed changes.
+6. Push them to the `staging` branch.
+7. Confirm staging is stable.
+8. Open a pull request from `staging` into `main`.
+9. Include a clear PR description, testing evidence, screenshots and any migration or deployment instructions.

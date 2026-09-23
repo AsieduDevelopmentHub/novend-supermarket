@@ -1,4 +1,5 @@
-import { ipcMain } from "electron";
+import { ipcMain, type IpcMainInvokeEvent } from "electron";
+import { pathToFileURL } from "node:url";
 import {
   closeCustomerDisplayWindow,
   CUSTOMER_DISPLAY_STATE_CHANNEL,
@@ -10,6 +11,9 @@ import {
   relayCustomerDisplayState,
   setCustomerDisplayAutoOpenEnabled,
 } from "./customer-display";
+import { resolveAppUrl } from "./desktop-config";
+import { offlineBootPath } from "./window";
+import { assertTrustedIpcSender, createTrustedOriginPolicy } from "./trusted-origin";
 
 export { CUSTOMER_DISPLAY_STATE_CHANNEL };
 
@@ -31,7 +35,15 @@ function isDisplayId(value: unknown): value is number | null | undefined {
 }
 
 export function registerCustomerDisplayIpc() {
-  ipcMain.handle(CHANNELS.open, async (_event, payload?: unknown) => {
+  const trustedOrigin = createTrustedOriginPolicy(resolveAppUrl(), [
+    pathToFileURL(offlineBootPath()).href,
+  ]);
+  const requireTrustedSender = (event: IpcMainInvokeEvent) => {
+    assertTrustedIpcSender(trustedOrigin, event);
+  };
+
+  ipcMain.handle(CHANNELS.open, async (event, payload?: unknown) => {
+    requireTrustedSender(event);
     const displayId =
       payload &&
       typeof payload === "object" &&
@@ -41,21 +53,32 @@ export function registerCustomerDisplayIpc() {
     return openCustomerDisplayWindow({ displayId });
   });
 
-  ipcMain.handle(CHANNELS.close, () => closeCustomerDisplayWindow());
+  ipcMain.handle(CHANNELS.close, (event) => {
+    requireTrustedSender(event);
+    return closeCustomerDisplayWindow();
+  });
 
-  ipcMain.handle(CHANNELS.getStatus, () => getCustomerDisplayStatus());
+  ipcMain.handle(CHANNELS.getStatus, (event) => {
+    requireTrustedSender(event);
+    return getCustomerDisplayStatus();
+  });
 
-  ipcMain.handle(CHANNELS.listDisplays, () => ({
-    ok: true,
-    displays: listDesktopDisplays(),
-  }));
+  ipcMain.handle(CHANNELS.listDisplays, (event) => {
+    requireTrustedSender(event);
+    return {
+      ok: true,
+      displays: listDesktopDisplays(),
+    };
+  });
 
-  ipcMain.handle(CHANNELS.publish, (_event, payload: unknown) => {
+  ipcMain.handle(CHANNELS.publish, (event, payload: unknown) => {
+    requireTrustedSender(event);
     relayCustomerDisplayState(payload);
     return { ok: true };
   });
 
-  ipcMain.handle(CHANNELS.setAutoOpen, (_event, payload?: unknown) => {
+  ipcMain.handle(CHANNELS.setAutoOpen, (event, payload?: unknown) => {
+    requireTrustedSender(event);
     const enabled = Boolean(
       payload && typeof payload === "object" && (payload as { enabled?: unknown }).enabled === true,
     );
@@ -64,6 +87,7 @@ export function registerCustomerDisplayIpc() {
   });
 
   ipcMain.handle(CHANNELS.onStatus, (event) => {
+    requireTrustedSender(event);
     const wc = event.sender;
     const unsubscribe = onCustomerDisplayStatus((status) => {
       if (wc.isDestroyed()) return;
@@ -74,6 +98,7 @@ export function registerCustomerDisplayIpc() {
   });
 
   ipcMain.handle(CHANNELS.onDisplaysChanged, (event) => {
+    requireTrustedSender(event);
     const wc = event.sender;
     const unsubscribe = onDesktopDisplaysChanged((displays) => {
       if (wc.isDestroyed()) return;

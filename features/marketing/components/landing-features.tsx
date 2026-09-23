@@ -12,7 +12,6 @@ const BLOCK_ALT: Record<(typeof landingCopy.features.blocks)[number]["id"], stri
   inventory: "Novend inventory stock table with quantities, SKUs, and low-stock alerts",
   wholesale: "Novend wholesale warehouse with branch stock and valuation",
   analytics: "Novend analytics dashboard with KPIs, charts, and best sellers",
-  relationships: "Novend customer profile with purchase history and outstanding balances",
   reports: "Novend business reports with export and print options",
 };
 

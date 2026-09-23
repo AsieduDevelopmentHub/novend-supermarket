@@ -76,8 +76,7 @@ export const BUSINESS_CAPABILITY_REGISTRY: Record<
     key: "sell_by_weight",
     version: 1,
     label: "Sell by weight",
-    description:
-      "Price and deduct stock by mass. Adds weight / fractional options on Add Product.",
+    description: "Price and deduct stock by mass. Adds weight / fractional options on Add Product.",
     minPlanSortOrder: resolvePlan("pro").sortOrder,
   },
   lot_expiry: {

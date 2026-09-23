@@ -28,15 +28,7 @@ type Props = {
  * Preset unit select with optional custom value.
  * Keeps free-text for shops that need a label outside the list.
  */
-export function UnitPresetField({
-  id,
-  label,
-  value,
-  onChange,
-  required,
-  hint,
-  dense,
-}: Props) {
+export function UnitPresetField({ id, label, value, onChange, required, hint, dense }: Props) {
   const trimmed = value.trim();
   const preset = isStockUnitPreset(trimmed) ? trimmed : null;
   const [customMode, setCustomMode] = useState(() => Boolean(trimmed) && !preset);

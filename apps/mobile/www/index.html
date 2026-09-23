@@ -99,20 +99,33 @@
     <script>
       (function () {
         var params = new URLSearchParams(window.location.search);
-        var appUrl = (
-          params.get("appUrl") ||
-          window.NOVEND_APP_URL ||
-          "https://novend-pos.vercel.app"
-        ).replace(/\/$/, "");
+        var appUrl = window.NOVEND_APP_URL;
+        var allowedHosts = window.NOVEND_ALLOWED_HOSTS || [];
+        var parsedAppUrl;
+        try {
+          parsedAppUrl = new URL(appUrl);
+          if (
+            parsedAppUrl.origin !== appUrl ||
+            allowedHosts.indexOf(parsedAppUrl.hostname) < 0 ||
+            (parsedAppUrl.protocol !== "https:" && parsedAppUrl.protocol !== "http:")
+          ) {
+            throw new Error("untrusted origin");
+          }
+        } catch (_error) {
+          appUrl = "";
+        }
         // Boot the app shell (same as Electron). Middleware sends signed-out users
         // to /login?fromBoot=1. Avoid /login as the default so authenticated opens
         // never paint the login brand chrome first.
-        var entry = params.get("entry") || window.NOVEND_APP_ENTRY || "/dashboard";
-        if (entry.charAt(0) !== "/") entry = "/" + entry;
+        var requestedEntry = params.get("entry");
+        var entry = window.NOVEND_APP_ENTRY || "/dashboard";
+        if (requestedEntry === "/login?signedOut=1") entry = requestedEntry;
         // Open the hosted shell directly. /api/boot is network-only (SW skips
         // /api/*) so it can never succeed offline. After one online open the
         // hosted service worker serves Cache Storage; Dexie restores the session.
-        var dest = appUrl + entry + (entry.indexOf("?") >= 0 ? "&" : "?") + "fromBoot=1";
+        var dest = appUrl
+          ? appUrl + entry + (entry.indexOf("?") >= 0 ? "&" : "?") + "fromBoot=1"
+          : "";
 
         var booting = document.getElementById("booting");
         var failed = document.getElementById("failed");
@@ -129,6 +142,10 @@
 
         function leaveBoot() {
           if (navigated) return;
+          if (!dest) {
+            showFailed("This Novend build does not contain a valid application origin.");
+            return;
+          }
           navigated = true;
           window.location.replace(dest);
         }

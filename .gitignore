@@ -20,3 +20,18 @@ scripts/.auth-keys.*
 tmp
 .tmp-vitalgo/
 pos.code-workspace
+
+# Local pnpm content-addressable store (never commit)
+.pnpm-store/
+
+# Root release binaries — publish via GitHub Releases only
+/*.apk
+/NovendPOS-*-android.apk
+/*.exe
+/*.dmg
+/*.AppImage
+/*.deb
+
+# Local CLI downloads
+.tools/
+

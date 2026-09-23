@@ -47,7 +47,7 @@ import type { PlatformInsightMetric } from "@/convex/platformAnalytics";
 type CacheSource = "live" | "cache";
 
 /** Skip Super Admin queries until `platform.me` confirms the session is allowed. */
-function usePlatformAdminLiveArgs(online: boolean): {} | "skip" {
+function usePlatformAdminLiveArgs(online: boolean): Record<string, never> | "skip" {
   const gate = useQuery(api.platform.me, online ? {} : "skip");
   if (!online) return "skip";
   if (gate === undefined) return "skip";
@@ -237,10 +237,7 @@ export function usePlatformHealthData() {
 export function usePlatformMonitoringData(range: PlatformMonitoringRange) {
   const online = useConnectivity();
   const liveArgs = usePlatformAdminLiveArgs(online);
-  const live = useQuery(
-    api.platformMonitoring.dashboard,
-    liveArgs === "skip" ? "skip" : { range },
-  );
+  const live = useQuery(api.platformMonitoring.dashboard, liveArgs === "skip" ? "skip" : { range });
   const typedLive = live as PlatformReportData | undefined;
   const { data, loading, source } = useLiveWithDiskCache(
     typedLive,

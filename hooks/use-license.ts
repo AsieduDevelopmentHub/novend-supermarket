@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { loadLicenseSnapshot, saveLicenseSnapshot } from "@/lib/offline/license";
+import {
+  FIRST_ACTIVATION_REQUIRED,
+  loadOfflineLicenseState,
+  saveLicenseSnapshot,
+  type OfflineLicenseState,
+} from "@/lib/offline/license";
 import type { LicenseAccess, LicenseSnapshot } from "@/convex/shared/licensing";
 import { resolvePlan, type PlanKey, type PlanLimits } from "@/convex/shared/plans";
 import { planCapabilities, type PlanCapabilities } from "@/convex/shared/capabilities";
@@ -24,6 +29,7 @@ export type LicenseState = {
   fromCache: boolean;
   /** Cached licence that is too old to be trusted for writes. */
   stale: boolean;
+  offlineState: OfflineLicenseState["kind"] | null;
   subscription: LicenseSnapshot["subscription"];
   organizationId: string | null;
   pendingClosure: boolean;
@@ -31,10 +37,10 @@ export type LicenseState = {
 };
 
 const DEFAULT_ACCESS: LicenseAccess = {
-  state: "active",
+  state: "expired",
   canRead: true,
-  canWrite: true,
-  reason: null,
+  canWrite: false,
+  reason: FIRST_ACTIVATION_REQUIRED,
   expiresAt: null,
 };
 
@@ -48,14 +54,14 @@ export function useLicense(): LicenseState {
   const { isAuthenticated } = useConvexAuth();
   const online = useConnectivity();
   const remote = useQuery(api.billing.licenseSnapshot, isAuthenticated && online ? {} : "skip");
-  const [cached, setCached] = useState<Awaited<ReturnType<typeof loadLicenseSnapshot>>>(null);
+  const [cached, setCached] = useState<OfflineLicenseState | null>(null);
   const [cacheReady, setCacheReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void loadLicenseSnapshot().then((snapshot) => {
+    void loadOfflineLicenseState().then((state) => {
       if (cancelled) return;
-      setCached(snapshot);
+      setCached(state);
       setCacheReady(true);
     });
     return () => {
@@ -81,6 +87,7 @@ export function useLicense(): LicenseState {
       cloudMode: normalizeCloudMode(remote.cloudMode),
       fromCache: false,
       stale: false,
+      offlineState: null,
       subscription: remote.subscription,
       organizationId: remote.organizationId,
       pendingClosure: remote.pendingClosure ?? false,
@@ -88,23 +95,25 @@ export function useLicense(): LicenseState {
     };
   }
 
-  if (!online && cached) {
-    const plan = resolvePlan(cached.planKey);
+  if (!online && cached?.snapshot) {
+    const plan = resolvePlan(cached.snapshot.planKey);
     return {
       isLoading: false,
       planKey: plan.key,
-      planName: cached.planName,
-      limits: cached.limits,
-      capabilities: cached.capabilities ?? planCapabilities(plan.key, cached.limits),
-      features: cached.features,
+      planName: cached.snapshot.planName,
+      limits: cached.snapshot.limits,
+      capabilities:
+        cached.snapshot.capabilities ?? planCapabilities(plan.key, cached.snapshot.limits),
+      features: cached.snapshot.features,
       access: cached.access,
-      cloudMode: normalizeCloudMode(cached.cloudMode),
+      cloudMode: normalizeCloudMode(cached.snapshot.cloudMode),
       fromCache: true,
       stale: cached.access.stale,
-      subscription: cached.subscription,
-      organizationId: cached.organizationId,
-      pendingClosure: cached.pendingClosure ?? false,
-      closureEffectiveAt: cached.closureEffectiveAt ?? null,
+      offlineState: cached.kind,
+      subscription: cached.snapshot.subscription,
+      organizationId: cached.snapshot.organizationId,
+      pendingClosure: cached.snapshot.pendingClosure ?? false,
+      closureEffectiveAt: cached.snapshot.closureEffectiveAt ?? null,
     };
   }
 
@@ -116,10 +125,11 @@ export function useLicense(): LicenseState {
     limits: fallback.limits,
     capabilities: planCapabilities(fallback.key, fallback.limits),
     features: fallback.features,
-    access: DEFAULT_ACCESS,
+    access: !online && cached ? cached.access : DEFAULT_ACCESS,
     cloudMode: DEFAULT_CLOUD_MODE,
     fromCache: false,
-    stale: false,
+    stale: cached?.kind === "stale",
+    offlineState: !online && cached ? cached.kind : null,
     subscription: null,
     organizationId: null,
     pendingClosure: false,

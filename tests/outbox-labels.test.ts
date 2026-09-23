@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { describeOutboxEvent, outboxFixPath, outboxOpLabel } from "@/lib/offline/outbox-labels";
+import {
+  describeOutboxConflict,
+  describeOutboxEvent,
+  outboxFixPath,
+  outboxOpLabel,
+} from "@/lib/offline/outbox-labels";
 import type { OutboxRow } from "@/lib/offline/types";
 
 function row(partial: Partial<OutboxRow> & Pick<OutboxRow, "type" | "payloadJson">): OutboxRow {
@@ -49,5 +54,44 @@ describe("describeOutboxEvent", () => {
         }),
       ),
     ).toBe("/products/local_abc");
+  });
+});
+
+describe("describeOutboxConflict", () => {
+  it("explains a stock-rejected sale without calling it a generic tech error", () => {
+    const view = describeOutboxConflict(
+      row({
+        type: "complete_sale",
+        status: "failed",
+        lastError: "Insufficient stock for Water 500ml",
+        payloadJson: JSON.stringify({
+          invoiceNumber: "INV-STOCK01",
+          customerName: "Kofi",
+          productName: "Water 500ml",
+          quantity: 12,
+          availableQuantity: 3,
+        }),
+      }),
+    );
+    expect(view.kind).toBe("business");
+    expect(view.permanent).toBe(true);
+    expect(view.headline).toMatch(/not enough stock/i);
+    expect(view.explanation).toMatch(/INV-STOCK01/);
+    expect(view.explanation).toMatch(/did not finish on the server/i);
+    expect(view.explanation).not.toMatch(/something went wrong/i);
+  });
+
+  it("marks connectivity failures as retryable network conflicts", () => {
+    const view = describeOutboxConflict(
+      row({
+        type: "complete_sale",
+        status: "failed",
+        lastError: "Failed to fetch",
+        payloadJson: JSON.stringify({ invoiceNumber: "INV-NET01" }),
+      }),
+    );
+    expect(view.kind).toBe("network");
+    expect(view.permanent).toBe(false);
+    expect(view.explanation).toMatch(/not a permanent rejection/i);
   });
 });

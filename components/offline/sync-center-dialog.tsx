@@ -17,7 +17,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateTime, formatRelative } from "@/lib/date";
 import { listOpenOutbox, listRecentSyncedOutbox } from "@/lib/offline/outbox";
 import { discardOutboxEvent, retryOutboxEvent } from "@/lib/offline/outbox-actions";
-import { describeOutboxEvent, outboxFixPath, outboxStatusLabel } from "@/lib/offline/outbox-labels";
+import {
+  describeOutboxEvent,
+  describeOutboxConflict,
+  outboxFixPath,
+  outboxStatusLabel,
+} from "@/lib/offline/outbox-labels";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { shouldMarkOutboxFailed } from "@/lib/offline/outbox-policy";
 import type { OutboxRow } from "@/lib/offline/types";
@@ -49,18 +54,29 @@ function EventRow({
   onFix?: (href: string) => void;
 }) {
   const copy = describeOutboxEvent(row);
+  const conflict = isDisplayedConflict(row) ? describeOutboxConflict(row) : null;
   const fixHref = outboxFixPath(row);
   return (
     <li className="border-border flex flex-col gap-2 rounded-lg border px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-medium">{copy.title}</p>
+          <p className="text-sm font-medium">{conflict?.headline ?? copy.title}</p>
           <Badge variant={statusVariant(row)}>
-            {isDisplayedConflict(row) ? "Needs a fix" : outboxStatusLabel(row.status)}
+            {conflict
+              ? conflict.kind === "network"
+                ? "Retry later"
+                : conflict.kind === "waiting"
+                  ? "Waiting"
+                  : "Needs a fix"
+              : outboxStatusLabel(row.status)}
           </Badge>
         </div>
-        <p className="text-muted-foreground mt-0.5 truncate text-xs">{copy.detail}</p>
-        {row.lastError ? <p className="text-destructive mt-1 text-xs">{row.lastError}</p> : null}
+        <p className="text-muted-foreground mt-0.5 text-xs break-words">
+          {conflict?.explanation ?? copy.detail}
+        </p>
+        {row.lastError && !conflict ? (
+          <p className="text-destructive mt-1 text-xs">{row.lastError}</p>
+        ) : null}
         <p className="text-muted-foreground mt-1 text-[11px]">
           Queued {formatRelative(row.createdAt)}
           {row.attempts > 0 ? ` · ${row.attempts} attempt${row.attempts === 1 ? "" : "s"}` : ""}
@@ -351,9 +367,9 @@ export function SyncCenterDialog() {
         ) : conflicts.length > 0 ? (
           <p className="text-muted-foreground flex items-start gap-2 border-t px-6 py-3 text-xs">
             <AlertTriangle className="text-destructive mt-0.5 size-3.5 shrink-0" aria-hidden />
-            The server rejected these. Open Fix to change the product (for example add an expiry
-            date or turn off expiry tracking), save, then Retry. Discard only if you do not want it
-            uploaded.
+            Business conflicts need a fix (stock, expiry, permissions) before Retry. Network
+            failures say “Retry later” and are not permanent rejections. Discard only if you do not
+            want the local event uploaded.
           </p>
         ) : null}
       </DialogContent>

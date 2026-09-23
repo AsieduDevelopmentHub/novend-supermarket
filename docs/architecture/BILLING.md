@@ -1,6 +1,6 @@
 # Billing, Plans & Activation
 
-Version: 1.3.4
+Version: 1.3.5
 
 Novend is sold as a subscription with a lifetime licence option. This document is
 the reference for how entitlements are defined, enforced and paid for.
@@ -184,7 +184,18 @@ activation with `billing.resetActivation` when hardware is replaced.
 The licence snapshot is cached in Dexie and re-evaluated locally with
 `evaluateCachedLicense`. A cached licence is trusted for 30 days — deliberately
 longer than the 7-day grace period, because losing connectivity is not a payment
-problem. Past the TTL the device falls back to read-only until it reconnects.
+problem. Past the TTL, `full_sync` and `backup_only` devices fall back to
+read-only until they reconnect. An activated `local_only` organization or
+lifetime licence does not require periodic cloud verification, but cached
+suspension, disablement, grace, and expiry rules still apply.
+
+Commercial local writes require one successfully cached licence. The installation
+stores a separate activation marker so deleting the snapshot cannot reset it to a
+permissive first-run state. A first-time device without a validated licence must
+connect and activate; an established device with a missing, malformed, or
+cross-organization snapshot enters licence-recovery read-only mode. Sales and
+returns run this gate before allocating a document or returning a printable
+receipt payload.
 
 # Scheduled work
 

@@ -361,8 +361,7 @@ Designed for fast cashier operations.
 - Quantity adjustment
 - Discounts
 - Tax calculation
-- Multiple payment methods
-- Split payments
+- Multiple payment methods (one method per sale)
 - Held sales
 - Resume held sales
 - Customer assignment
@@ -424,7 +423,6 @@ Businesses can manage the process of bringing stock into the organization.
 - Purchase costs
 - Stock increases
 - Purchase history
-- Outstanding supplier balances
 
 Purchases directly affect inventory.
 
@@ -443,7 +441,6 @@ Novend provides a centralized customer database.
 - Notes
 - Purchase history
 - Loyalty information
-- Outstanding balances
 - Customer-specific pricing where supported
 
 Customers can be organization-wide while transactions remain associated with the relevant branch.
@@ -460,7 +457,6 @@ Businesses can maintain complete supplier records.
 - Contact information
 - Products supplied
 - Purchase history
-- Outstanding balances
 - Supplier transactions
 - Supplier performance information
 
@@ -613,7 +609,7 @@ Permissions should be granular rather than relying only on fixed roles.
 
 # 18. Dashboard & Analytics
 
-Novend provides real-time business intelligence from available local data.
+Novend provides business intelligence from available local data. Dashboards update locally while you work and refresh after synchronization when cloud connectivity is available.
 
 ### KPI Cards
 

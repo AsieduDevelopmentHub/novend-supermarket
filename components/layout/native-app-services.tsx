@@ -17,26 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Fingerprint } from "lucide-react";
-import { safeInternalPath } from "@/lib/auth/safe-return-path";
-
-function parseDeepLink(url: string): string | null {
-  try {
-    const normalized = url.replace(/^novend:\/\//i, "https://novend.local/");
-    const parsed = new URL(normalized);
-    const host = parsed.hostname;
-    const path = parsed.pathname.replace(/^\//, "");
-    if (host === "sale" || host === "order") return path ? `/orders/${path}` : "/orders";
-    if (host === "product") return path ? `/products/${path}` : "/products";
-    if (host === "dashboard") return "/dashboard";
-    if (host === "sales") return "/sales";
-    if (parsed.pathname.startsWith("/") && parsed.pathname.length > 1) {
-      return parsed.pathname + parsed.search;
-    }
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
+import { parseMobileDeepLink } from "@/lib/auth/mobile-deep-link";
 
 type Gate = "checking" | "locked" | "open";
 
@@ -105,9 +86,8 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
     void (async () => {
       const launch = await Hardware.app.getLaunchUrl();
       if (launch.data) {
-        const href = parseDeepLink(launch.data);
-        const safe = href ? safeInternalPath(href) : null;
-        if (safe) router.replace(safe);
+        const href = parseMobileDeepLink(launch.data, window.location.origin);
+        if (href) router.replace(href);
       }
       const update = await Hardware.app.checkForUpdate();
       const appInfo = await Hardware.app.getInfo();
@@ -125,9 +105,8 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
 
     void Hardware.app
       .addUrlOpenListener((url) => {
-        const href = parseDeepLink(url);
-        const safe = href ? safeInternalPath(href) : null;
-        if (safe) router.replace(safe);
+        const href = parseMobileDeepLink(url, window.location.origin);
+        if (href) router.replace(href);
       })
       .then((handle) => {
         if (listenersDisposed) void handle.remove();

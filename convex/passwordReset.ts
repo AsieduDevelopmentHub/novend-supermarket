@@ -9,6 +9,7 @@ import {
   createPasswordResetToken,
   hashPasswordResetToken,
   passwordResetRejectReason,
+  tooManyPasswordResetRequests,
 } from "./shared/passwordResetCrypto";
 import { renderPasswordResetEmail } from "./shared/emailTemplates";
 import {
@@ -55,6 +56,14 @@ export const insertResetToken = internalMutation({
       .order("desc")
       .take(5);
     if (recent[0] && args.createdAt - recent[0].createdAt < PASSWORD_RESET_MIN_INTERVAL_MS) {
+      return { throttled: true as const };
+    }
+    if (
+      tooManyPasswordResetRequests(
+        recent.map((row) => row.createdAt),
+        args.createdAt,
+      )
+    ) {
       return { throttled: true as const };
     }
     for (const row of recent) {
@@ -133,11 +142,12 @@ export const requestPasswordReset = action({
         }),
         "password-reset",
       );
-    } catch (error) {
+    } catch {
       await ctx.runMutation(internal.passwordReset.discardUnusedResetToken, {
         tokenId: inserted.tokenId,
       });
-      throw error;
+      console.error("Password reset email delivery failed");
+      return GENERIC_REQUEST_OK;
     }
     return GENERIC_REQUEST_OK;
   },

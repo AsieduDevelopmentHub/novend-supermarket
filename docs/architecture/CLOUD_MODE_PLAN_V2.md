@@ -196,10 +196,7 @@ Conceptually:
 interface PlatformTelemetrySnapshot {
   organizationId: string;
 
-  cloudMode:
-    | "full_sync"
-    | "backup_only"
-    | "local_only";
+  cloudMode: "full_sync" | "backup_only" | "local_only";
 
   planId: string;
 
@@ -578,20 +575,14 @@ Create one centralized resolver.
 Conceptually:
 
 ```ts
-resolveOrganizationEntitlements(
-  plan,
-  organizationOverrides
-)
+resolveOrganizationEntitlements(plan, organizationOverrides);
 ```
 
 Return:
 
 ```ts
 {
-  limits,
-  capabilities,
-  allowedCloudModes,
-  cloudFeatures
+  (limits, capabilities, allowedCloudModes, cloudFeatures);
 }
 ```
 
@@ -679,7 +670,7 @@ Use a version number.
 Example:
 
 ```ts
-entitlementVersion: 14
+entitlementVersion: 14;
 ```
 
 When Super Admin changes limits:
@@ -1340,15 +1331,15 @@ The final system should resemble:
 
 Novend must be capable of operating an organization locally without continuously uploading its business activity while still allowing the Novend platform to know the minimum information necessary to:
 
-* validate licenses
-* enforce platform limits
-* understand organization activity
-* monitor supported application versions
-* manage cloud modes
-* manage plans
-* manage entitlements
-* detect backup/sync health
-* provide useful Super Admin platform analytics
+- validate licenses
+- enforce platform limits
+- understand organization activity
+- monitor supported application versions
+- manage cloud modes
+- manage plans
+- manage entitlements
+- detect backup/sync health
+- provide useful Super Admin platform analytics
 
 Achieve this with:
 

@@ -3,9 +3,11 @@ import { getMeta, getOfflineDb, META_KEYS, newClientId } from "./db";
 import { pendingOutboundTransferQuantities, transferStockKey } from "./pending-transfers";
 import { enqueueOutbox } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
-import { putProductImage } from "./image-cache";
+import { putProductImage, deleteProductImage } from "./image-cache";
 import { BARCODE_ALREADY_ASSIGNED, barcodesEqual, normalizeBarcodeInput } from "./barcode-lookup";
-import { assertLocalCapacity } from "./license-guard";
+import { assertLocalCapacity, assertLocalWriteAllowed } from "./license-guard";
+import { loadProductImagesPolicyCache } from "./product-images-policy";
+import { assertProductImageUploadsEnabled } from "@/convex/shared/productImagesPolicy";
 import { nextCatalogPrices } from "@/lib/wholesale/purchase-prices";
 import { DEFAULT_EXPIRY_ALERT_DAYS, lotStatus } from "@/lib/expiry";
 import type {
@@ -46,6 +48,7 @@ export async function persistBusinessWrite(args: {
   local: () => Promise<unknown>;
 }): Promise<"remote" | "queued"> {
   void args.remote;
+  await assertLocalWriteAllowed();
   await args.local();
   notifyReplicaChanged({ flush: args.online });
   return args.online ? "remote" : "queued";
@@ -378,6 +381,8 @@ export async function queueUpdateProfile(payload: { name?: string; phone?: strin
 }
 
 export async function queueCreateUser(payload: Omit<CreateUserPayload, "localId">) {
+  await assertLocalWriteAllowed();
+  await assertLocalCapacity("users");
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const localId = newClientId("local");
@@ -496,6 +501,7 @@ export async function queueUpsertProduct(
   payload: Omit<UpsertProductPayload, "localId"> & { localId?: string; imageBlob?: Blob },
   options?: { notify?: boolean },
 ) {
+  await assertLocalWriteAllowed();
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const localId = payload.serverId ?? payload.localId ?? newClientId("local");
@@ -527,6 +533,10 @@ export async function queueUpsertProduct(
   const expiryStatus =
     tracksExpiry && payload.expiryDate ? lotStatus(payload.expiryDate, alertDays) : "ok";
   const { imageBlob, ...rest } = payload;
+  const clearImage = payload.clearImage === true;
+  if (imageBlob && !clearImage) {
+    assertProductImageUploadsEnabled(await loadProductImagesPolicyCache());
+  }
   await db.products.put({
     id: localId,
     name: payload.name,
@@ -544,7 +554,7 @@ export async function queueUpsertProduct(
     lowStockThreshold: payload.lowStockThreshold,
     status: payload.status,
     description: payload.description ?? existing?.description ?? null,
-    imageUrl: existing?.imageUrl ?? null,
+    imageUrl: clearImage ? null : (existing?.imageUrl ?? null),
     tracksExpiry: payload.tracksExpiry,
     expiryAlertDays: payload.expiryAlertDays ?? null,
     nearestExpiry: payload.expiryDate ?? existing?.nearestExpiry ?? null,
@@ -586,7 +596,9 @@ export async function queueUpsertProduct(
       });
     }
   }
-  if (imageBlob) {
+  if (clearImage) {
+    await deleteProductImage(localId);
+  } else if (imageBlob) {
     await putProductImage({
       productId: localId,
       blob: imageBlob,
@@ -600,7 +612,8 @@ export async function queueUpsertProduct(
       ...rest,
       localId,
       stockQuantity: isCreate ? payload.stockQuantity : 0,
-      hasLocalImage: Boolean(imageBlob) || payload.hasLocalImage,
+      hasLocalImage: clearImage ? false : Boolean(imageBlob) || payload.hasLocalImage,
+      clearImage: clearImage || undefined,
     } satisfies UpsertProductPayload,
     undefined,
     { notify: options?.notify },
@@ -611,10 +624,13 @@ export async function queueUpsertProduct(
 export async function queueUpsertBranch(
   payload: Omit<UpsertBranchPayload, "localId"> & { localId?: string },
 ) {
+  await assertLocalWriteAllowed();
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const code = payload.code.trim().toUpperCase().replace(/\s+/g, "_");
   const localId = payload.serverId ?? payload.localId ?? newClientId("local");
+  const existing = await db.branches.get(localId);
+  if (!existing) await assertLocalCapacity("branches");
   const clash = (await db.branches.toArray()).find(
     (row) => row.code === code && row.id !== localId,
   );
