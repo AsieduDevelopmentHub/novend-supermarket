@@ -6,6 +6,27 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ## Unreleased
 
+## v1.0.0 — 2026-09-23
+
+First production release (`targets: all`): Windows, macOS, Linux desktop installers, Android APK, and Convex update metadata against the production Convex deployment.
+
+### Added
+
+- Organization product-image upload policy (platform + org admin) with online/offline enforcement.
+- Sales catalog display modes (list, grids, cards, products-per-row) with local + profile sync.
+- Marketing cookie consent (Accept / Reject / Customize) with persistent choice across marketing pages.
+- Production readiness hardening: idle lock, offline licence fail-closed, login rate limits, security docs/headers.
+
+### Fixed
+
+- Sales page React #185 infinite update loop from product-display preferences.
+- Cookie banner reappearing after the visitor already chose Accept or Reject.
+
+### Changed
+
+- Landing marketing: apps merged into CTA, Recommended plan badge, lighter/faster offline architecture section.
+- Dependency baseline: Next 16.3, React 19.3, Convex 1.46, and GitHub Actions runners.
+
 ## v0.3.24 — 2026-09-15
 
 Full product release (`targets: all`). Cap settings UX/permissions plus leaner catalog forms.
