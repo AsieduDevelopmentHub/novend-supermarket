@@ -24,7 +24,9 @@ import { isSyncBusinessConflict, isSyncDependencyWait } from "./sync-errors";
 import { shouldMarkOutboxFailed } from "./outbox-policy";
 import { rekeyProductImage } from "./image-cache";
 import { loadCloudPolicy } from "./cloud-policy";
+import { loadProductImagesPolicyCache } from "./product-images-policy";
 import { PLATFORM_OFFLINE_ORG_ID } from "./platform-cache";
+import { canAttachProductImage } from "@/convex/shared/productImagesPolicy";
 import type {
   AdjustStockPayload,
   CreateCategoryPayload,
@@ -652,7 +654,10 @@ export async function drainOutbox(options: {
           if (imageStorageId && isLocalId(imageStorageId)) {
             imageStorageId = undefined;
           }
-          if (payload.hasLocalImage && !imageStorageId) {
+          const imagesAllowed = canAttachProductImage(await loadProductImagesPolicyCache());
+          if (payload.clearImage) {
+            imageStorageId = undefined;
+          } else if (payload.hasLocalImage && !imageStorageId && imagesAllowed) {
             const cached = await db.productImages.get(payload.localId);
             if (cached) {
               const started = await options.mutators.generateUploadUrl();
@@ -670,6 +675,8 @@ export async function drainOutbox(options: {
                 });
               }
             }
+          } else if (payload.hasLocalImage && !imagesAllowed) {
+            imageStorageId = undefined;
           }
           const categoryId = payload.categoryId as Id<"categories">;
           const barcode = optionalText(payload.barcode);
@@ -692,6 +699,7 @@ export async function drainOutbox(options: {
               openingExpiryDate: optionalText(payload.expiryDate),
               ...(barcode ? { barcode } : {}),
               ...(description ? { description } : {}),
+              ...(payload.clearImage ? { clearImage: true } : {}),
               ...(imageStorageId ? { imageStorageId } : {}),
             });
           } else {

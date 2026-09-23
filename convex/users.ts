@@ -63,6 +63,7 @@ export const me = query({
         status: null,
         appearanceTheme: null,
         appearanceFontSize: null,
+        salesProductDisplay: null,
         imageUrl: null,
         organizationName: null,
         tourProgress,
@@ -108,6 +109,7 @@ export const me = query({
       status: profile.status,
       appearanceTheme: profile.appearanceTheme ?? null,
       appearanceFontSize: profile.appearanceFontSize ?? null,
+      salesProductDisplay: profile.salesProductDisplay ?? null,
       imageUrl,
       tourProgress,
     };
@@ -446,6 +448,48 @@ export const updateOwnAppearance = mutation({
       entityType: "profiles",
       entityId: profile._id,
       metadata: { theme: args.theme, fontSize: args.fontSize },
+    });
+  },
+});
+
+/** Persist Sales catalog layout preference (any staff with sales access). */
+export const updateOwnSalesProductDisplay = mutation({
+  args: {
+    salesProductDisplay: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { userId, profile } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    const trimmed = args.salesProductDisplay.trim();
+    if (!trimmed || trimmed.length > 256) {
+      throw new Error("Invalid sales product display preference");
+    }
+    // Light validation — full parse lives on the client; reject obvious garbage.
+    try {
+      const parsed = JSON.parse(trimmed) as { mode?: unknown };
+      if (!parsed || typeof parsed !== "object" || typeof parsed.mode !== "string") {
+        throw new Error("Invalid sales product display preference");
+      }
+      const mode = parsed.mode;
+      if (
+        mode !== "list" &&
+        mode !== "grid" &&
+        mode !== "icons" &&
+        mode !== "cards" &&
+        mode !== "dense"
+      ) {
+        throw new Error("Invalid sales product display preference");
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Invalid sales")) throw error;
+      throw new Error("Invalid sales product display preference");
+    }
+
+    await ctx.db.patch(profile._id, { salesProductDisplay: trimmed });
+    await writeAuditLog(ctx, {
+      actorId: userId,
+      action: "update_own_sales_product_display",
+      entityType: "profiles",
+      entityId: profile._id,
     });
   },
 });

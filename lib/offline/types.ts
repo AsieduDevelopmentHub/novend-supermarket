@@ -571,6 +571,8 @@ export type UpsertProductPayload = {
   expiryDate?: string;
   imageStorageId?: string;
   hasLocalImage?: boolean;
+  /** Clear existing product image on sync (allowed even when uploads are disabled). */
+  clearImage?: boolean;
   /** Opening stock branch for new products. Ignored on update. */
   branchId?: string;
 };

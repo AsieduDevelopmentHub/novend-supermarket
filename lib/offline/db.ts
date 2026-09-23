@@ -483,6 +483,7 @@ export const META_KEYS = {
   billingHistory: "billingHistory",
   posPreferences: "posPreferences",
   businessCapabilities: "businessCapabilities",
+  productImagesPolicy: "productImagesPolicy",
   lastCleanupAt: "lastCleanupAt",
   lastSyncAt: "lastSyncAt",
   lastSyncProcessed: "lastSyncProcessed",

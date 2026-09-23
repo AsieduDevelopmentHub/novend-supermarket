@@ -278,6 +278,7 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
             organizationName={org.name}
             status={org.status}
             limitOverrides={org.limitOverrides}
+            productImagesEnabled={org.productImagesEnabled}
             importExport={org.importExport}
             pendingClosure={org.pendingClosure}
             closureEffectiveAt={org.closureEffectiveAt}

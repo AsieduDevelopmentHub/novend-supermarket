@@ -3,9 +3,11 @@ import { getMeta, getOfflineDb, META_KEYS, newClientId } from "./db";
 import { pendingOutboundTransferQuantities, transferStockKey } from "./pending-transfers";
 import { enqueueOutbox } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
-import { putProductImage } from "./image-cache";
+import { putProductImage, deleteProductImage } from "./image-cache";
 import { BARCODE_ALREADY_ASSIGNED, barcodesEqual, normalizeBarcodeInput } from "./barcode-lookup";
 import { assertLocalCapacity, assertLocalWriteAllowed } from "./license-guard";
+import { loadProductImagesPolicyCache } from "./product-images-policy";
+import { assertProductImageUploadsEnabled } from "@/convex/shared/productImagesPolicy";
 import { nextCatalogPrices } from "@/lib/wholesale/purchase-prices";
 import { DEFAULT_EXPIRY_ALERT_DAYS, lotStatus } from "@/lib/expiry";
 import type {
@@ -531,6 +533,10 @@ export async function queueUpsertProduct(
   const expiryStatus =
     tracksExpiry && payload.expiryDate ? lotStatus(payload.expiryDate, alertDays) : "ok";
   const { imageBlob, ...rest } = payload;
+  const clearImage = payload.clearImage === true;
+  if (imageBlob && !clearImage) {
+    assertProductImageUploadsEnabled(await loadProductImagesPolicyCache());
+  }
   await db.products.put({
     id: localId,
     name: payload.name,
@@ -548,7 +554,7 @@ export async function queueUpsertProduct(
     lowStockThreshold: payload.lowStockThreshold,
     status: payload.status,
     description: payload.description ?? existing?.description ?? null,
-    imageUrl: existing?.imageUrl ?? null,
+    imageUrl: clearImage ? null : (existing?.imageUrl ?? null),
     tracksExpiry: payload.tracksExpiry,
     expiryAlertDays: payload.expiryAlertDays ?? null,
     nearestExpiry: payload.expiryDate ?? existing?.nearestExpiry ?? null,
@@ -590,7 +596,9 @@ export async function queueUpsertProduct(
       });
     }
   }
-  if (imageBlob) {
+  if (clearImage) {
+    await deleteProductImage(localId);
+  } else if (imageBlob) {
     await putProductImage({
       productId: localId,
       blob: imageBlob,
@@ -604,7 +612,8 @@ export async function queueUpsertProduct(
       ...rest,
       localId,
       stockQuantity: isCreate ? payload.stockQuantity : 0,
-      hasLocalImage: Boolean(imageBlob) || payload.hasLocalImage,
+      hasLocalImage: clearImage ? false : Boolean(imageBlob) || payload.hasLocalImage,
+      clearImage: clearImage || undefined,
     } satisfies UpsertProductPayload,
     undefined,
     { notify: options?.notify },

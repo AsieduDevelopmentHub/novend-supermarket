@@ -84,6 +84,7 @@ export function PlatformLicensePanel({
   organizationName,
   status,
   limitOverrides,
+  productImagesEnabled = true,
   importExport,
   pendingClosure = false,
   closureEffectiveAt = null,
@@ -93,6 +94,7 @@ export function PlatformLicensePanel({
   organizationName: string;
   status: OrganizationStatus | "inactive";
   limitOverrides: LimitOverrides;
+  productImagesEnabled?: boolean;
   importExport?: OrgImportExportSnapshot | null;
   pendingClosure?: boolean;
   closureEffectiveAt?: number | null;
@@ -107,6 +109,7 @@ export function PlatformLicensePanel({
   const setStatus = useMutation(api.platform.setOrganizationStatus);
   const setCloudMode = useMutation(api.platform.setOrganizationCloudMode);
   const setLimitOverrides = useMutation(api.platform.setOrganizationLimitOverrides);
+  const setProductImagesEnabled = useMutation(api.platform.setProductImagesEnabled);
   const extendSubscription = useMutation(api.platform.extendSubscription);
   const archiveOrganization = useMutation(api.platform.archiveOrganization);
 
@@ -119,6 +122,15 @@ export function PlatformLicensePanel({
   const [confirmArchiveName, setConfirmArchiveName] = useState("");
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [confirmLocalOnly, setConfirmLocalOnly] = useState(false);
+  /** Optimistic toggle scoped to the open org — avoids syncing props via an effect. */
+  const [imagesDraft, setImagesDraft] = useState<{
+    organizationId: Id<"organizations">;
+    enabled: boolean;
+  } | null>(null);
+  const imagesEnabled =
+    imagesDraft?.organizationId === organizationId
+      ? imagesDraft.enabled
+      : productImagesEnabled;
 
   if (!online && license === undefined) {
     return (
@@ -140,17 +152,19 @@ export function PlatformLicensePanel({
   const selectedPlan = PLAN_LIST.find((plan) => plan.key === planKey);
   const cycleAllowed = selectedPlan ? supportsCycle(selectedPlan, cycle) : false;
 
-  async function run(label: string, work: () => Promise<unknown>) {
+  async function run(label: string, work: () => Promise<unknown>): Promise<boolean> {
     if (!online) {
       toast.error("Licence and status changes require a connection");
-      return;
+      return false;
     }
     setPending(true);
     try {
       await work();
       toast.success(label);
+      return true;
     } catch (error) {
       showError(error, "Action failed");
+      return false;
     } finally {
       setPending(false);
     }
@@ -238,6 +252,37 @@ export function PlatformLicensePanel({
               )
             }
           />
+
+          <div className="border-border space-y-3 rounded-lg border p-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Product images</p>
+              <p className="text-muted-foreground text-xs">
+                When disabled, staff cannot upload or capture new product photos. Existing images
+                remain visible and can still be removed. Organization admins can also change this
+                in Settings.
+              </p>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="platform-product-images" className="text-sm font-normal">
+                Allow product image uploads
+              </Label>
+              <Switch
+                id="platform-product-images"
+                checked={imagesEnabled}
+                disabled={pending || !online}
+                onCheckedChange={(checked) => {
+                  const previous = imagesEnabled;
+                  setImagesDraft({ organizationId, enabled: checked });
+                  void run(
+                    checked ? "Product image uploads enabled" : "Product image uploads disabled",
+                    () => setProductImagesEnabled({ organizationId, enabled: checked }),
+                  ).then((ok) => {
+                    if (!ok) setImagesDraft({ organizationId, enabled: previous });
+                  });
+                }}
+              />
+            </div>
+          </div>
 
           <div className="border-border space-y-3 rounded-lg border p-4">
             <p className="text-sm font-medium">Extend subscription</p>

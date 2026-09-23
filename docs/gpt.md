@@ -2,6 +2,8 @@
 
 This may be the final major feature for now.
 
+**Implementation record:** [`GPT_FEATURE_IMAGES_AND_SALES_DISPLAY.md`](./GPT_FEATURE_IMAGES_AND_SALES_DISPLAY.md)
+
 ### 1. Product-image controls
 
 Add organization-level control over product-image uploads:

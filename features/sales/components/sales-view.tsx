@@ -10,7 +10,6 @@ import { UnsignedQuantityInput } from "@/components/ui/unsigned-quantity-input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -19,12 +18,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { LoadingState } from "@/components/feedback/loading-state";
-import { EmptyState } from "@/components/feedback/empty-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { formatCurrency, roundMoney } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
-import { Minus, Package, Plus, ScanBarcode, ShoppingCart, Trash2, UserRound, X } from "lucide-react";
+import { Minus, Plus, ScanBarcode, ShoppingCart, Trash2, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { printReceipt, loadTerminalPrinterConfig, probePrintBridge } from "@/services/printing";
@@ -34,7 +31,10 @@ import { SaleCompletedDialog } from "@/features/receipts/components/sale-complet
 import { isCapacitor } from "@novend/hardware";
 import { listActiveSellUnits, roundQuantity } from "@/convex/shared/units";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
-import { useSalesCatalog, useSalesCustomerSearch } from "@/hooks/use-offline-catalog";
+import {
+  useSalesCatalog,
+  useSalesCustomerSearch,
+} from "@/hooks/use-offline-catalog";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { usePosPreferences } from "@/hooks/use-pos-preferences";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
@@ -56,7 +56,6 @@ import { queueUpsertCustomer } from "@/lib/offline/replica-writes";
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
 import { postSaleReceiptAction, resolveReceiptPrintMode } from "@/lib/receipt-print-mode";
 import type { LocalHeldSale } from "@/lib/offline/types";
-import { ProductImage } from "@/components/media/product-image";
 import {
   isBarcodeScanningEnabled,
   playScanSuccessBeep,
@@ -69,6 +68,7 @@ import {
   type BarcodeMatchProduct,
 } from "@/features/sales/components/barcode-match-dialog";
 import { DraggableCartFab } from "@/features/sales/components/draggable-cart-fab";
+import { SalesProductCatalog, SalesProductDisplayControls } from "@/features/sales/components/sales-product-catalog";
 import {
   readCartDraft,
   writeCartDraft,
@@ -79,6 +79,7 @@ import { withTimeout } from "@/lib/async/with-timeout";
 import { loadPrintSnapshotMeta } from "@/lib/offline/ui-cache";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
 import { useCustomerDisplayPublisher } from "@/features/customer-display/hooks/use-customer-display-publisher";
+import { useSalesProductDisplay } from "@/hooks/use-sales-product-display";
 
 type DiscountMode = "amount" | "percent";
 
@@ -179,6 +180,7 @@ export function SalesView() {
   const resumeHeld = useMutation(api.sales.resumeHeld);
   const createCustomer = useMutation(api.customers.create);
   const posPrefs = usePosPreferences();
+  const { display: productDisplay, setDisplay: setProductDisplay } = useSalesProductDisplay();
 
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity - item.discount, 0),
@@ -813,7 +815,7 @@ export function SalesView() {
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <div className="min-w-0 space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:flex-wrap">
             <div className="flex max-w-lg flex-1 gap-2">
               <Input
                 data-tour="sales-search"
@@ -835,6 +837,10 @@ export function SalesView() {
                 </Button>
               ) : null}
             </div>
+            <SalesProductDisplayControls
+              display={productDisplay}
+              onDisplayChange={setProductDisplay}
+            />
             {isAdmin ? (
               <BranchFilter
                 branches={branches}
@@ -853,50 +859,12 @@ export function SalesView() {
               />
             ) : null}
           </div>
-          <h2 className="text-sm font-semibold tracking-tight">Quick Products</h2>
-          {catalogLoading ? (
-            <LoadingState label="Loading products…" />
-          ) : catalog.length === 0 ? (
-            <EmptyState icon={Package} title="No products available" />
-          ) : (
-            <div
-              data-tour="sales-catalog"
-              className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4"
-            >
-              {catalog.map((product) => (
-                <button
-                  key={product.id}
-                  type="button"
-                  onClick={() => addToCart(product)}
-                  className="border-border hover:border-primary bg-card rounded-xl border p-2 text-left shadow-sm transition sm:p-3"
-                >
-                  <div className="bg-muted relative mb-2 aspect-square overflow-hidden rounded-lg sm:mb-3 sm:aspect-[4/3]">
-                    <ProductImage
-                      productId={product.id}
-                      remoteUrl={product.imageUrl}
-                      alt={product.name}
-                      sizes="(max-width: 640px) 50vw, 240px"
-                      fallback={
-                        <Package className="text-muted-foreground absolute inset-0 m-auto h-7 w-7 sm:h-8 sm:w-8" />
-                      }
-                    />
-                  </div>
-                  <p className="line-clamp-2 text-sm leading-tight font-medium">{product.name}</p>
-                  <p className="text-primary mt-1 text-sm font-semibold">
-                    {formatCurrency(product.sellingPrice)}
-                  </p>
-                  <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-                    Stock {product.stockQuantity} {product.unit}
-                  </p>
-                  {product.isExpiring ? (
-                    <Badge variant="warning" className="mt-1 sm:mt-2">
-                      Expiring soon
-                    </Badge>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          )}
+          <SalesProductCatalog
+            products={catalog}
+            loading={catalogLoading}
+            display={productDisplay}
+            onAddToCart={addToCart}
+          />
 
           {heldRows.length > 0 ? (
             <Card>

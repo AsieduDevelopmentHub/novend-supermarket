@@ -54,6 +54,8 @@ import {
   lotSummaries,
   remainingLotQuantity,
 } from "./shared/lots";
+import { loadProductImagesPolicy } from "./settings";
+import { assertProductImageUploadsEnabled } from "./shared/productImagesPolicy";
 
 export const listProducts = query({
   args: {
@@ -199,6 +201,7 @@ export const generateUploadUrl = mutation({
       "manager",
     ]);
     if (!canManageCatalog(profile)) throw new Error("Forbidden");
+    assertProductImageUploadsEnabled(await loadProductImagesPolicy(ctx, organizationId));
     const sessionId = await beginStorageUploadSession(ctx, {
       organizationId,
       userId,
@@ -291,6 +294,7 @@ export const createProduct = mutation({
     }
 
     if (args.imageStorageId) {
+      assertProductImageUploadsEnabled(await loadProductImagesPolicy(ctx, organizationId));
       await assertStoredImage(ctx, args.imageStorageId);
       await assertOwnedStorage(ctx, args.imageStorageId, organizationId);
     }
@@ -480,6 +484,7 @@ export const updateProduct = mutation({
     if (args.clearImage) {
       imageStorageId = undefined;
     } else if (args.imageStorageId) {
+      assertProductImageUploadsEnabled(await loadProductImagesPolicy(ctx, organizationId));
       await assertStoredImage(ctx, args.imageStorageId);
       await assertOwnedStorage(ctx, args.imageStorageId, organizationId);
       imageStorageId = args.imageStorageId;

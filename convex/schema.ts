@@ -425,6 +425,8 @@ export default defineSchema({
       v.union(v.literal("light"), v.literal("dark"), v.literal("system")),
     ),
     appearanceFontSize: v.optional(v.union(v.literal("sm"), v.literal("md"), v.literal("lg"))),
+    /** JSON SalesProductDisplay — catalog layout preference synced across devices. */
+    salesProductDisplay: v.optional(v.string()),
     /** Compact denormalized copy of userTourProgress for session + snapshot bootstrap. */
     tourProgress: v.optional(v.array(tourProgressEntryValidator)),
   })

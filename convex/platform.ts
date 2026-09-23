@@ -29,6 +29,8 @@ import {
   onOrganizationStatusChanged,
   readPlatformStats,
 } from "./shared/platformStatsAggregate";
+import { loadProductImagesPolicy, writeProductImagesPolicy } from "./settings";
+import { PRODUCT_IMAGES_SETTINGS_KEY } from "./shared/productImagesPolicy";
 
 export const me = query({
   args: {},
@@ -278,6 +280,7 @@ export const getOrganization = query({
       ]);
 
     const stats = await readOrgPlatformStatsOrZero(ctx, org._id);
+    const productImagesPolicy = await loadProductImagesPolicy(ctx, org._id);
     const now = Date.now();
     const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
     const [sales30d, lastSale] = await Promise.all([
@@ -368,6 +371,7 @@ export const getOrganization = query({
       backupLimitBytes: org.backupLimitBytes ?? null,
       limitOverrides: org.limitOverrides ?? null,
       effectiveLimits: license.limits,
+      productImagesEnabled: productImagesPolicy.enabled,
       owner: {
         userId: org.ownerUserId,
         name: owner?.name ?? null,
@@ -618,6 +622,34 @@ export const setOrganizationLimitOverrides = mutation({
       },
     });
     return next;
+  },
+});
+
+/** Enable or disable product-image uploads for a tenant organization. */
+export const setProductImagesEnabled = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    enabled: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    const org = await ctx.db.get(args.organizationId);
+    if (!org) throw new Error("Organization not found");
+    const previous = await loadProductImagesPolicy(ctx, args.organizationId);
+    const policy = await writeProductImagesPolicy(ctx, args.organizationId, args.enabled);
+    await writeAuditLog(ctx, {
+      organizationId: args.organizationId,
+      actorId: userId,
+      action: "platform_set_product_images_policy",
+      entityType: "settings",
+      entityId: PRODUCT_IMAGES_SETTINGS_KEY,
+      metadata: {
+        enabled: policy.enabled,
+        previousEnabled: previous.enabled,
+        organizationId: args.organizationId,
+      },
+    });
+    return policy;
   },
 });
 
