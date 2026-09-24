@@ -175,26 +175,34 @@ export async function ensureRecurringPlan(args: {
   currency: string;
   description: string;
 }): Promise<string> {
-  if (!args.existingCode) {
-    const created = await createPlan({
-      name: args.name,
-      amount: args.amount,
-      interval: args.interval,
-      currency: args.currency,
-      description: args.description,
-    });
-    return created.plan_code;
+  if (args.existingCode) {
+    try {
+      const current = await fetchPlan(args.existingCode);
+      if (current.amount !== toSubunits(args.amount) || current.name !== args.name) {
+        await updatePlan(args.existingCode, {
+          name: args.name,
+          amount: args.amount,
+          description: args.description,
+        });
+      }
+      return args.existingCode;
+    } catch (error) {
+      const message = error instanceof Error ? error.message.toLowerCase() : "";
+      // Stale / deleted Paystack codes must not block checkout — create a fresh plan.
+      if (!message.includes("invalid") && !message.includes("not found")) {
+        throw error;
+      }
+    }
   }
 
-  const current = await fetchPlan(args.existingCode);
-  if (current.amount !== toSubunits(args.amount) || current.name !== args.name) {
-    await updatePlan(args.existingCode, {
-      name: args.name,
-      amount: args.amount,
-      description: args.description,
-    });
-  }
-  return args.existingCode;
+  const created = await createPlan({
+    name: args.name,
+    amount: args.amount,
+    interval: args.interval,
+    currency: args.currency,
+    description: args.description,
+  });
+  return created.plan_code;
 }
 
 export type PaystackSubscription = {

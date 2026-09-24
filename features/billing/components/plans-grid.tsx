@@ -159,10 +159,6 @@ export function PlansGrid({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold">Available plans</h3>
-          <p className="text-muted-foreground text-sm">
-            Upgrades take effect after payment. Downgrades wait until the period you already paid
-            for ends.
-          </p>
         </div>
         <div
           className="border-border bg-muted/40 inline-flex rounded-lg border p-1"

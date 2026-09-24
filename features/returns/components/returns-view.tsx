@@ -116,7 +116,16 @@ export function ReturnsView() {
       {returns === undefined ? (
         <LoadingState label="Loading returns…" variant="table" />
       ) : returns.length === 0 ? (
-        <EmptyState icon={Undo2} title="No returns yet" />
+        <EmptyState
+          icon={Undo2}
+          title="No returns yet"
+          description="Completed sales can be returned from the sale receipt."
+          action={
+            <Button asChild variant="outline">
+              <Link href="/sales">Go to sales</Link>
+            </Button>
+          }
+        />
       ) : (
         <>
           <div className="hidden md:block">

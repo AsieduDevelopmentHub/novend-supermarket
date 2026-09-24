@@ -569,12 +569,12 @@ export const landingCopy = {
         href: `mailto:${LANDING_CONTACT_EMAIL}`,
       },
       international: {
-        label: "WhatsApp & Calls",
+        label: "WhatsApp (UK)",
         value: "+44 7868 178108",
         href: "https://wa.me/447868178108",
       },
       local: {
-        label: "Local Support",
+        label: "Calls & WhatsApp (Ghana)",
         value: "+233 55 525 7482",
         href: "tel:+233555257482",
       },

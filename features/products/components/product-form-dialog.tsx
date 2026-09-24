@@ -702,9 +702,6 @@ function ProductFormBody({
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <Label htmlFor="tracks-expiry">Track expiry dates</Label>
-                  <p className="text-muted-foreground text-xs">
-                    Receive stock in dated lots. Sales use the soonest expiry first.
-                  </p>
                 </div>
                 <Switch
                   id="tracks-expiry"
@@ -727,8 +724,8 @@ function ProductFormBody({
                       required
                     />
                   </div>
-                  {(!productId && Number(stockQuantity) > 0) ||
-                  (productId?.startsWith("local_") && (initialProduct?.stockQuantity ?? 0) > 0) ||
+                  {!productId ||
+                  productId.startsWith("local_") ||
                   (productId &&
                     initialProduct &&
                     !initialProduct.tracksExpiry &&
@@ -745,7 +742,9 @@ function ProductFormBody({
                         className="min-h-11 w-full min-w-0"
                         value={expiryDate}
                         onChange={(e) => setExpiryDate(e.target.value)}
-                        required
+                        required={
+                          Number(stockQuantity) > 0 || (initialProduct?.stockQuantity ?? 0) > 0
+                        }
                       />
                     </div>
                   ) : productId ? (

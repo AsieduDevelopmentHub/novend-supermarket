@@ -1,7 +1,10 @@
 /**
  * Turn GitHub-style markdown release notes into plain, user-readable lines.
- * Strips headings, emphasis, links, code fences, and list markers.
+ * Strips headings, emphasis, links, code fences, list markers, and engineer-facing jargon.
  */
+const TECH_NOISE =
+  /\b(electron|capacitor|convex|next\.?js|react|typescript|pnpm|npm|yarn|gradle|android studio|xcode|github actions?|ci\/cd|dockerfile|webpack|turbopack|vercel|dexie|indexeddb|service worker|webauthn|jwks|jwt|openapi|graphql|prisma|supabase|firebase|nodejs|node\.js|rust|golang|kotlin|swiftui|cocoapods|podfile|eslint|prettier|vitest|jest|playwright|chromedriver|sourcemap|stack trace|segfault|null pointer|undefined is not|console\.log|todo\b|fixme\b|hack\b|workaround|breaking change|chore:|feat:|refactor:|deps?:|bump |merge pull request|co-authored-by)\b/i;
+
 export function sanitizeReleaseNoteLines(notes: string | undefined | null): string[] {
   if (!notes?.trim()) return [];
 
@@ -34,5 +37,12 @@ export function sanitizeReleaseNoteLines(notes: string | undefined | null): stri
   return text
     .split("\n")
     .map((line) => line.replace(/\s+/g, " ").trim())
-    .filter((line) => line.length > 0 && !/^[|*:\-]+$/.test(line));
+    .filter((line) => {
+      if (!line || /^[|*:\-]+$/.test(line)) return false;
+      if (TECH_NOISE.test(line)) return false;
+      if (/^v?\d+\.\d+(\.\d+)?\s*$/i.test(line)) return false;
+      if (/^(full changelog|see also|internal|developers? only)\b/i.test(line)) return false;
+      return true;
+    })
+    .slice(0, 12);
 }

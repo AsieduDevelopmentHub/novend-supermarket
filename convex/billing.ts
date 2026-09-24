@@ -343,6 +343,7 @@ export const checkoutContext = internalQuery({
       gatewaySubscriptionCode: subscription?.gatewaySubscriptionCode ?? null,
       gatewayEmailToken: subscription?.gatewayEmailToken ?? null,
       pendingReference: pendingCheckout?.reference ?? null,
+      pendingCreatedAt: pendingCheckout?.createdAt ?? null,
       preview,
       gatewayPlanCode:
         args.cycle === "monthly"
@@ -643,9 +644,19 @@ export const startCheckout = action({
       return { kind: "cancelled_schedule" };
     }
     if (context.pendingReference) {
-      throw new Error(
-        "Your payment is being verified. Finish that checkout or wait a few minutes and try again.",
-      );
+      const pendingAgeMs = context.pendingCreatedAt
+        ? Date.now() - context.pendingCreatedAt
+        : PENDING_CHECKOUT_WINDOW_MS;
+      // Brief lock against double-clicks; older stuck "pending" rows no longer block retries.
+      if (pendingAgeMs < 2 * 60 * 1000) {
+        throw new Error(
+          "Your payment is being verified. Finish that checkout or wait a minute and try again.",
+        );
+      }
+      await ctx.runMutation(internal.billing.markPaymentStatus, {
+        reference: context.pendingReference,
+        status: "abandoned",
+      });
     }
     if (!context.email) {
       throw new Error("Add an email address to your account before starting a payment.");
@@ -697,36 +708,37 @@ export const startCheckout = action({
     });
 
     const siteUrl = process.env.NOVEND_SITE_URL ?? process.env.SITE_URL ?? "http://localhost:3000";
-    // Recurring plan codes ignore initialize `amount`. Prorated upgrades are one-time.
-    let gatewayPlanCode: string | undefined;
-    if (
-      providerId === "paystack" &&
-      !keepPeriod &&
-      (args.cycle === "monthly" || args.cycle === "yearly")
-    ) {
-      gatewayPlanCode = context.gatewayPlanCode ?? undefined;
-      const catalogPrice = priceForCycle(plan, args.cycle);
-      if (catalogPrice === null) throw new Error("This plan has no price for that cycle.");
-      const ensuredCode = await ensureRecurringPlan({
-        existingCode: gatewayPlanCode,
-        name: `Novend ${plan.name} (${args.cycle === "yearly" ? "Yearly" : "Monthly"})`,
-        amount: catalogPrice,
-        interval: args.cycle === "yearly" ? "annually" : "monthly",
-        currency: context.currency,
-        description: plan.tagline,
-      });
-      if (ensuredCode !== gatewayPlanCode) {
-        await ctx.runMutation(internal.billing.savePlanGatewayCodes, {
-          planKey: args.planKey,
-          ...(args.cycle === "monthly"
-            ? { monthlyCode: ensuredCode }
-            : { yearlyCode: ensuredCode }),
-        });
-      }
-      gatewayPlanCode = ensuredCode;
-    }
 
     try {
+      // Recurring plan codes ignore initialize `amount`. Prorated upgrades are one-time.
+      let gatewayPlanCode: string | undefined;
+      if (
+        providerId === "paystack" &&
+        !keepPeriod &&
+        (args.cycle === "monthly" || args.cycle === "yearly")
+      ) {
+        gatewayPlanCode = context.gatewayPlanCode ?? undefined;
+        const catalogPrice = priceForCycle(plan, args.cycle);
+        if (catalogPrice === null) throw new Error("This plan has no price for that cycle.");
+        const ensuredCode = await ensureRecurringPlan({
+          existingCode: gatewayPlanCode,
+          name: `Novend ${plan.name} (${args.cycle === "yearly" ? "Yearly" : "Monthly"})`,
+          amount: catalogPrice,
+          interval: args.cycle === "yearly" ? "annually" : "monthly",
+          currency: context.currency,
+          description: plan.tagline,
+        });
+        if (ensuredCode !== gatewayPlanCode) {
+          await ctx.runMutation(internal.billing.savePlanGatewayCodes, {
+            planKey: args.planKey,
+            ...(args.cycle === "monthly"
+              ? { monthlyCode: ensuredCode }
+              : { yearlyCode: ensuredCode }),
+          });
+        }
+        gatewayPlanCode = ensuredCode;
+      }
+
       const result = await provider.createSubscription({
         email: context.email,
         planKey: args.planKey,
@@ -760,11 +772,16 @@ export const startCheckout = action({
       }
 
       return { kind: "redirect", url: result.url, reference: result.reference };
-    } catch {
+    } catch (error) {
       await ctx.runMutation(internal.billing.markPaymentStatus, {
         reference,
         status: "failed",
       });
+      const message = error instanceof Error ? error.message.trim() : "";
+      // Keep short gateway/business messages; hide stack dumps from the cashier.
+      if (message && message.length <= 160 && !/\bat\s+\S+\s+\(/.test(message)) {
+        throw new Error(message);
+      }
       throw new Error("Payment could not be completed. Please try again.");
     }
   },
@@ -782,11 +799,14 @@ export const verifyCheckout = action({
     const existing = await ctx.runQuery(internal.billing.checkoutByReference, {
       reference: args.reference,
     });
-    if (
-      !existing ||
-      existing.organizationId !== session.organizationId ||
-      existing.initiatedBy !== session.userId
-    ) {
+    if (!existing || existing.organizationId !== session.organizationId) {
+      throw new Error("This payment reference is not recognized.");
+    }
+    // Webhook may have already activated the licence before the browser returns.
+    if (existing.status === "success") {
+      return { paid: true, planKey: (existing.planKey as PlanKey | undefined) ?? null };
+    }
+    if (existing.initiatedBy && existing.initiatedBy !== session.userId) {
       throw new Error("This payment reference is not recognized.");
     }
 
@@ -794,7 +814,7 @@ export const verifyCheckout = action({
     const verification = await provider.verifyPayment(args.reference);
     if (
       verification.reference !== existing.reference ||
-      verification.amount !== existing.amount ||
+      Math.abs(verification.amount - existing.amount) > 0.01 ||
       verification.currency.toUpperCase() !== existing.currency.toUpperCase()
     ) {
       throw new Error("Payment details did not match the checkout record.");
@@ -817,7 +837,14 @@ export const verifyCheckout = action({
       gatewayPlanCode: verification.gatewayPlanCode ?? undefined,
     });
 
-    return { paid: true, planKey: applied.applied ? applied.planKey : null };
+    if (applied.applied) {
+      return { paid: true, planKey: applied.planKey };
+    }
+    // Idempotent: webhook won the race; treat as paid.
+    if ("alreadyApplied" in applied && applied.alreadyApplied) {
+      return { paid: true, planKey: (existing.planKey as PlanKey | undefined) ?? null };
+    }
+    return { paid: true, planKey: null };
   },
 });
 

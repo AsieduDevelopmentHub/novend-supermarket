@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -160,14 +160,7 @@ export function SettingsView() {
 
   return (
     <div className="min-w-0 space-y-6 overflow-x-clip">
-      <PageHeader
-        title="Settings"
-        description={
-          isMobileCap
-            ? "Browse the sections below — only options that work on this phone are shown."
-            : "Choose a section. On smaller screens, use the grouped list to browse every area."
-        }
-      />
+      <PageHeader title="Settings" />
 
       <Tabs
         value={activeTab}
@@ -425,9 +418,6 @@ function BusinessForm({
     <Card className="rounded-[20px]">
       <CardHeader className="space-y-1.5">
         <CardTitle className="text-base">Business profile</CardTitle>
-        <CardDescription>
-          Name and contact details used on receipts and throughout Novend.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <form className="grid max-w-2xl gap-5" onSubmit={onSaveBusiness}>
@@ -442,7 +432,6 @@ function BusinessForm({
                 disabled={readOnly}
                 className="min-h-11"
               />
-              <p className="text-muted-foreground text-xs">Shown on receipts and in the app.</p>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="legalName">Legal name</Label>

@@ -277,7 +277,7 @@ export const sitePages = {
     badge: "Release Notes",
     title: "What’s new in Novend",
     subtitle:
-      "Live product updates from the same release feed that powers Downloads — desktop, Android, and the web PWA.",
+      "Product improvements for desktop, Android, and the web app — written for business operators, not developers.",
     entries: [] as Array<{
       version: string;
       date: string;
@@ -296,7 +296,7 @@ export const sitePages = {
         title: "1. Who we are and how to contact us",
         paragraphs: [
           "Novend is a commercial Point of Sale and business management platform operated by Asiedu Development Hub, based in Sunyani, Bono Region, Ghana.",
-          `Privacy questions, data access requests, and complaints can be sent to ${LANDING_CONTACT_EMAIL}. You may also reach us by WhatsApp/calls at +44 7868 178108 or local support at +233 55 525 7482.`,
+          `Privacy questions, data access requests, and complaints can be sent to ${LANDING_CONTACT_EMAIL}. For WhatsApp (UK) use +44 7868 178108. For calls and WhatsApp in Ghana use +233 55 525 7482.`,
           "If you use Novend on behalf of a business, that organization is typically the controller of its operational business records (products, sales, customers). We process that data to provide the Service under our agreement with the organization.",
         ],
       },
@@ -528,7 +528,7 @@ export const sitePages = {
       {
         title: "16. Contact",
         paragraphs: [
-          `For questions about these Terms, contact ${LANDING_CONTACT_EMAIL}, WhatsApp/calls +44 7868 178108, or local support +233 55 525 7482.`,
+          `For questions about these Terms, contact ${LANDING_CONTACT_EMAIL}, WhatsApp (UK) +44 7868 178108, or calls/WhatsApp (Ghana) +233 55 525 7482.`,
           "Related policies: Privacy Policy (/privacy), Refund & Cancellation Policy (/refund), Cookie Policy (/cookies), Acceptable Use Policy (/aup), and Data Processing Addendum (/dpa).",
           "Asiedu Development Hub — Sunyani, Bono Region, Ghana.",
         ],
@@ -609,7 +609,7 @@ export const sitePages = {
       {
         title: "10. Contact",
         paragraphs: [
-          `Refund and billing questions: ${LANDING_CONTACT_EMAIL}. WhatsApp/calls +44 7868 178108 or local support +233 55 525 7482.`,
+          `Refund and billing questions: ${LANDING_CONTACT_EMAIL}. WhatsApp (UK) +44 7868 178108, or calls/WhatsApp (Ghana) +233 55 525 7482.`,
           "Asiedu Development Hub — Sunyani, Bono Region, Ghana. Governing law aligns with the Terms of Service (Ghana), subject to any non-waivable consumer rights.",
         ],
       },

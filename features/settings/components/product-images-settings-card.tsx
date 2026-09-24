@@ -2,7 +2,7 @@
 
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ImageIcon } from "lucide-react";
@@ -47,23 +47,12 @@ export function ProductImagesSettingsCard() {
           <ImageIcon className="h-4 w-4" aria-hidden />
           Product images
         </CardTitle>
-        <CardDescription>
-          Control whether staff can upload or capture new product photos. Existing images stay
-          visible; they can still be removed.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <Label htmlFor="product-images-enabled" className="text-sm font-medium">
-              Allow product image uploads
-            </Label>
-            <p className="text-muted-foreground text-xs">
-              {policy.enabled
-                ? "Upload and camera controls are available on Add / Edit Product."
-                : "Upload and camera controls are hidden. Existing photos still display."}
-            </p>
-          </div>
+          <Label htmlFor="product-images-enabled" className="text-sm font-medium">
+            Allow product image uploads
+          </Label>
           <Switch
             id="product-images-enabled"
             checked={policy.enabled}
@@ -71,11 +60,6 @@ export function ProductImagesSettingsCard() {
             onCheckedChange={(checked) => void onToggle(checked)}
           />
         </div>
-        {!online ? (
-          <p className="text-muted-foreground text-xs">
-            Showing the last synced setting. Reconnect to change it.
-          </p>
-        ) : null}
       </CardContent>
     </Card>
   );

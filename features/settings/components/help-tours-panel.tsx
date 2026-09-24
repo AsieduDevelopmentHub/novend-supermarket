@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2, CircleHelp, Play, RotateCcw } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useProductTours } from "@/features/tours/tour-provider";
@@ -16,11 +16,6 @@ export function HelpToursPanel() {
           <CircleHelp className="h-5 w-5" />
           Help &amp; product tours
         </CardTitle>
-        <CardDescription>
-          Replay any available walkthrough from this page. First-time setup walks through every page
-          your role needs automatically. Progress is stored for this account and remains available
-          when this device is offline.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {availableTours.map((tour) => {

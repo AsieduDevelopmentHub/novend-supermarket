@@ -59,11 +59,11 @@ export function ReleasesView() {
     <MarketingSitePage badge={page.badge} title={page.title} subtitle={page.subtitle}>
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-4">
         <p className="text-sm leading-relaxed text-slate-600">
-          These notes update automatically from the same desktop and Android release feeds as{" "}
+          Highlights from recent Novend updates. For installers, visit{" "}
           <Link href="/download" className="text-primary font-medium hover:underline">
             Downloads
           </Link>
-          . iPhone and iPad install Novend as a Home Screen PWA from Safari.
+          .
         </p>
         <Button asChild size="sm" className="shrink-0 font-semibold">
           <Link href="/download">Go to downloads</Link>
@@ -100,8 +100,7 @@ export function ReleasesView() {
                     {entry.tag.startsWith("v") ? entry.tag : `v${entry.version}`}
                   </span>
                   <Badge variant="secondary">{entry.surface}</Badge>
-                  <Badge variant="outline">{entry.channel}</Badge>
-                  {entry.mandatory ? <Badge variant="outline">Mandatory</Badge> : null}
+                  {entry.mandatory ? <Badge variant="outline">Required update</Badge> : null}
                   <span className="text-sm text-slate-500">
                     {formatReleasedAt(entry.releasedAt) ?? "Date pending"}
                   </span>

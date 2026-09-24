@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Headset, Mail, MapPin, Phone } from "lucide-react";
+import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { BRANDING } from "@/constants/branding";
 import { landingCopy } from "@/features/marketing/content";
 import { openCookiePreferences } from "@/lib/cookies/consent";
@@ -62,16 +62,18 @@ export function LandingFooter() {
               href={contact.email.href}
             />
             <ContactItem
-              icon={Phone}
+              icon={MessageCircle}
               label={contact.international.label}
               value={contact.international.value}
               href={contact.international.href}
             />
             <ContactItem
-              icon={Headset}
+              icon={Phone}
               label={contact.local.label}
               value={contact.local.value}
               href={contact.local.href}
+              secondaryHref="https://wa.me/233555257482"
+              secondaryLabel="WhatsApp"
             />
             <ContactItem
               icon={MapPin}
@@ -157,11 +159,15 @@ function ContactItem({
   label,
   value,
   href,
+  secondaryHref,
+  secondaryLabel,
 }: {
   icon: typeof Mail;
   label: string;
   value: string;
   href?: string;
+  secondaryHref?: string;
+  secondaryLabel?: string;
 }) {
   const body = (
     <>
@@ -173,6 +179,18 @@ function ContactItem({
         <span className="mt-0.5 block text-sm text-slate-200 transition-colors duration-150 group-hover:text-white">
           {value}
         </span>
+        {secondaryHref && secondaryLabel ? (
+          <a
+            href={secondaryHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-[#38BDF8] hover:underline"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <MessageCircle className="h-3 w-3" aria-hidden />
+            {secondaryLabel}
+          </a>
+        ) : null}
       </span>
     </>
   );

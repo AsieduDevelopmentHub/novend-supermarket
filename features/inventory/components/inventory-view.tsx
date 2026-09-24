@@ -494,7 +494,19 @@ function InventoryViewInner() {
                     ? "No expiring lots"
                     : lowOnly
                       ? "No low-stock items"
-                      : "No inventory rows"
+                      : "No inventory yet"
+                }
+                description={
+                  !expiryOnly && !lowOnly && canManageProducts
+                    ? "Add products to start tracking stock."
+                    : undefined
+                }
+                action={
+                  !expiryOnly && !lowOnly && canManageProducts ? (
+                    <Button asChild>
+                      <Link href="/products">Add product</Link>
+                    </Button>
+                  ) : undefined
                 }
               />
             </div>

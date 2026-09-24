@@ -262,7 +262,12 @@ export function WholesaleView() {
               <EmptyState
                 icon={Warehouse}
                 title="Warehouse is empty"
-                description="Record a supplier purchase to add backup stock."
+                description="Record a supplier purchase to add stock."
+                action={
+                  <Button type="button" onClick={() => setBuyOpen(true)}>
+                    Record purchase
+                  </Button>
+                }
               />
             </div>
           ) : (

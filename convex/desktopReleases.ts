@@ -278,7 +278,7 @@ const INSTALLER_KIND_META: Record<
   "linux-appimage": {
     platform: "linux",
     label: "Linux (portable)",
-    description: "Portable app that runs on most Linux systems",
+    description: "Runs on most Linux systems without a package manager",
     match: (fileName) => fileName.toLowerCase().endsWith(".appimage"),
   },
 };

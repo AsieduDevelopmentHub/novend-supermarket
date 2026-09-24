@@ -212,18 +212,11 @@ export function BusinessCapabilitiesPanel() {
     <Card className="rounded-[20px]">
       <CardHeader className="space-y-1.5">
         <CardTitle className="text-base">Selling & catalog options</CardTitle>
-        <CardDescription>
-          Choose how this business sells. Options stay off by default so Add Product stays simple —
-          turn one on here only when you need it. Plan: {planName}.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
         <section className="space-y-3">
           <div className="space-y-1">
             <Label htmlFor="industry-profile">Industry profile</Label>
-            <p className="text-muted-foreground text-xs">
-              A starting pack. Apply defaults, then refine the checklist below.
-            </p>
           </div>
           <Select
             value={effectiveProfile}

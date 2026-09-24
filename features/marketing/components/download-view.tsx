@@ -57,13 +57,13 @@ const MOBILE_PLATFORM_META = [
   {
     id: "android" as const,
     label: "Android",
-    detail: "Native app for phones and tablets.",
+    detail: "Install on phones and tablets.",
     icon: Smartphone,
   },
   {
     id: "ios" as const,
     label: "iPhone & iPad",
-    detail: "Add Novend to your Home Screen from Safari as a PWA.",
+    detail: "Open Novend in Safari, then Add to Home Screen.",
     icon: Apple,
   },
 ] as const;
@@ -102,11 +102,11 @@ export function DownloadView() {
     <MarketingSitePage
       badge="Downloads"
       title={`Download ${APP_NAME}`}
-      subtitle="Install Novend on the counter PC, download the Android app, or add it to an iPhone Home Screen as a PWA — all from one account."
+      subtitle="Get Novend for your counter PC, Android phone, or iPhone — one business account everywhere."
       maxWidthClassName="max-w-5xl"
       meta={
         offer
-          ? `Latest stable ${offer.version}${releasedLabel ? ` · Released ${releasedLabel}` : ""}`
+          ? `Latest version ${offer.version}${releasedLabel ? ` · ${releasedLabel}` : ""}`
           : undefined
       }
     >
@@ -121,7 +121,7 @@ export function DownloadView() {
                 <div>
                   <h2 className="text-xl font-semibold tracking-tight text-[#111827]">Desktop</h2>
                   <p className="text-sm text-slate-600">
-                    Windows, macOS, and Linux — offline-ready with barcode and receipt hardware.
+                    Windows, macOS, and Linux — ready for barcode scanners and receipt printers.
                   </p>
                 </div>
               </div>
@@ -173,7 +173,6 @@ export function DownloadView() {
                       <p className="text-xs leading-relaxed text-slate-600">
                         {installer.description}
                         {sizeLabel ? ` · ${sizeLabel}` : ""}
-                        {installer.arch ? ` · ${installer.arch}` : ""}
                       </p>
                     </div>
                     <Button asChild className="shrink-0" size="sm">
@@ -221,8 +220,8 @@ export function DownloadView() {
                 <h2 className="text-xl font-semibold tracking-tight text-[#111827]">Mobile</h2>
                 <p className="text-sm text-slate-600">
                   {mobileOffer
-                    ? `Android app and iOS Home Screen PWA${mobileReleasedLabel ? ` · Released ${mobileReleasedLabel}` : ""}`
-                    : "Android app downloads publish here with each release. iPhone and iPad use a Home Screen PWA today."}
+                    ? `Android and iPhone installs${mobileReleasedLabel ? ` · ${mobileReleasedLabel}` : ""}`
+                    : "Android installs appear here with each release. iPhone uses Add to Home Screen in Safari."}
                 </p>
               </div>
             </div>
@@ -260,7 +259,7 @@ export function DownloadView() {
                         {platform.label}
                       </p>
                       {iosPwa ? (
-                        <Badge variant="default">PWA</Badge>
+                        <Badge variant="default">Home Screen</Badge>
                       ) : !available ? (
                         <Badge variant="outline">Coming soon</Badge>
                       ) : null}
@@ -304,8 +303,7 @@ export function DownloadView() {
               <div>
                 <h2 className="text-xl font-semibold tracking-tight text-[#111827]">Web app</h2>
                 <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                  Use Novend in the browser with the same account, catalog, and sync — no installer
-                  required.
+                  Use Novend in the browser with the same account and catalog — no installer needed.
                 </p>
               </div>
             </div>
@@ -326,15 +324,13 @@ export function DownloadView() {
               <h2 className="text-lg font-semibold tracking-tight text-[#111827]">
                 Recent updates
               </h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Updated automatically whenever we publish a new version.
-              </p>
+              <p className="mt-1 text-sm text-slate-600">Recent product improvements.</p>
             </div>
             <Link
               href="/docs/releases"
               className="text-primary text-sm font-semibold hover:underline"
             >
-              Full release notes
+              All updates
             </Link>
           </div>
 

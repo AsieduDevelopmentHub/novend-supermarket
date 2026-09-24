@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { ProductImage } from "@/components/media/product-image";
@@ -27,6 +29,7 @@ import {
   type SalesProductDisplayMode,
 } from "@/lib/sales/product-display";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/use-permissions";
 
 type SalesProductDisplayControlsProps = {
   display: SalesProductDisplay;
@@ -115,6 +118,8 @@ export function SalesProductCatalog({
   onAddToCart,
 }: SalesProductCatalogProps) {
   const gridTemplate = productDisplayGridTemplate(display);
+  const { isAdmin, isManager } = usePermissions();
+  const canAddProducts = isAdmin || isManager;
 
   return (
     <div className="space-y-3">
@@ -123,7 +128,22 @@ export function SalesProductCatalog({
       {loading ? (
         <LoadingState label="Loading products…" />
       ) : products.length === 0 ? (
-        <EmptyState icon={Package} title="No products available" />
+        <EmptyState
+          icon={Package}
+          title="No products yet"
+          description={
+            canAddProducts
+              ? "Add products to your catalog, then sell them here."
+              : "Ask an administrator to add products to the catalog."
+          }
+          action={
+            canAddProducts ? (
+              <Button asChild>
+                <Link href="/products">Add product</Link>
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <div
           data-tour="sales-catalog"

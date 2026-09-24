@@ -35,8 +35,8 @@ export const RELEASE_GROUP_LABELS: Record<ReleaseAssetGroup, string> = {
   "windows-portable": "Windows Portable",
   macos: "macOS",
   linux: "Linux",
-  "android-apk": "Android APK",
-  "android-aab": "Android App Bundle",
+  "android-apk": "Android",
+  "android-aab": "Android (store package)",
   ios: "iOS",
 };
 
@@ -63,10 +63,10 @@ export function classifyReleaseAsset(asset: ReleaseAssetInput): {
     return { group: "macos", label: "macOS (.zip)" };
   }
   if (name.endsWith(".appimage")) {
-    return { group: "linux", label: "Linux AppImage" };
+    return { group: "linux", label: "Linux (portable)" };
   }
   if (name.endsWith(".deb") || asset.platform === "linux") {
-    return { group: "linux", label: "Linux (.deb)" };
+    return { group: "linux", label: "Linux (Ubuntu / Debian)" };
   }
   if (name.includes("portable")) {
     return { group: "windows-portable", label: RELEASE_GROUP_LABELS["windows-portable"] };

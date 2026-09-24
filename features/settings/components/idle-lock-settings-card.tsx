@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -13,7 +13,6 @@ import {
 import { Timer } from "lucide-react";
 import { toast } from "sonner";
 import {
-  DEFAULT_IDLE_LOCK_TIMEOUT_MINUTES,
   IDLE_LOCK_TIMEOUT_OPTIONS,
   parseIdleLockTimeout,
   readIdleLockTimeout,
@@ -54,10 +53,6 @@ export function IdleLockSettingsCard({ onTimeoutChange }: IdleLockSettingsCardPr
           <Timer className="h-4 w-4" aria-hidden />
           Inactivity lock
         </CardTitle>
-        <CardDescription>
-          After idle time, hide the POS until the signed-in user re-enters their password. Protects
-          shared tills when someone walks away. Does not encrypt local data.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-2">
@@ -74,9 +69,6 @@ export function IdleLockSettingsCard({ onTimeoutChange }: IdleLockSettingsCardPr
               ))}
             </SelectContent>
           </Select>
-          <p className="text-muted-foreground text-xs">
-            Default is {DEFAULT_IDLE_LOCK_TIMEOUT_MINUTES} minutes. Saved on this device only.
-          </p>
         </div>
       </CardContent>
     </Card>

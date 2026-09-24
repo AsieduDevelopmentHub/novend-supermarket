@@ -5,19 +5,12 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/primitives";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Hardware,
-  getPlatform,
-  isCapacitor,
-  type AppInfo,
-  type UpdateInfo,
-} from "@novend/hardware";
+import { Hardware, isCapacitor, type AppInfo, type UpdateInfo } from "@novend/hardware";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { usePermissions } from "@/hooks/use-permissions";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
 import { estimateBackupSize } from "@/lib/offline/backup";
 import { APP_BRAND, APP_NAME, APP_VERSION } from "@/constants/app";
-import { describeUpdateCheck } from "@/lib/native/update-check";
 import { Info } from "lucide-react";
 
 const LAST_UPDATE_KEY = "novend.mobileUpdate.last";
@@ -46,7 +39,6 @@ export function AboutNovendView() {
   const offline = useOfflineStatus();
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
-  const [updateChecking, setUpdateChecking] = useState(false);
   const [orgName, setOrgName] = useState<string | null>(null);
   const [storageLabel, setStorageLabel] = useState<string>("Calculating…");
 
@@ -59,7 +51,6 @@ export function AboutNovendView() {
       if (app.data) setInfo(app.data);
       setOrgName(profile?.organizationName ?? null);
       if (isCapacitor()) {
-        setUpdateChecking(true);
         try {
           const checked = await Hardware.app.checkForUpdate();
           const next = checked.data ?? { available: false, status: "unknown" as const };
@@ -69,8 +60,8 @@ export function AboutNovendView() {
           } else {
             setUpdate((current) => current ?? next);
           }
-        } finally {
-          setUpdateChecking(false);
+        } catch {
+          /* ignore update probe failures */
         }
       }
       try {
@@ -84,18 +75,13 @@ export function AboutNovendView() {
   }, []);
 
   const shellVersion = info?.version?.trim() || null;
-  const shellBuild = info?.build?.trim() || null;
-  const platform = getPlatform();
   const displayVersion = shellVersion || APP_VERSION;
   const versionsMatch =
     !shellVersion || shellVersion === APP_VERSION || shellVersion.replace(/^v/, "") === APP_VERSION;
 
   return (
     <div className="mx-auto max-w-lg space-y-4">
-      <PageHeader
-        title={`About ${APP_BRAND}`}
-        description="Device and build details for support."
-      />
+      <PageHeader title={`About ${APP_BRAND}`} />
 
       <Card className="rounded-[20px]">
         <CardHeader>
@@ -105,51 +91,40 @@ export function AboutNovendView() {
           </CardTitle>
           <CardDescription>
             {APP_NAME} · v{displayVersion}
-            {shellBuild ? ` · build ${shellBuild}` : null}
           </CardDescription>
         </CardHeader>
         <CardContent className="text-muted-foreground space-y-2 text-sm">
           <p>
-            App version: <span className="text-foreground font-medium">v{APP_VERSION}</span>
+            Version: <span className="text-foreground font-medium">v{APP_VERSION}</span>
           </p>
-          <p>
-            Native shell:{" "}
-            <span className="text-foreground font-medium">
-              {shellVersion ? `v${shellVersion}` : "Web / browser"}
-              {shellBuild ? ` (${shellBuild})` : ""}
-            </span>
-          </p>
-          {!versionsMatch ? (
+          {!versionsMatch && shellVersion ? (
             <p className="text-xs text-amber-700 dark:text-amber-400">
-              Shell build differs from the hosted app version — update this app when a newer release
-              is available.
+              An update is available for this device.
             </p>
           ) : null}
-          <p>Platform: {platform}</p>
-          <p>Package: {info?.id ?? "com.novend.pos"}</p>
-          {isCapacitor() ? (
+          {orgName ? (
             <p>
-              Update check:{" "}
-              <span className="text-foreground font-medium">
-                {describeUpdateCheck({
-                  checking: updateChecking,
-                  online: offline.online,
-                  update,
-                })}
-              </span>
+              Organization: <span className="text-foreground font-medium">{orgName}</span>
             </p>
           ) : null}
-          <p>Organization: {orgName || "—"}</p>
-          <p>Branch: {branchName || "—"}</p>
-          <p>Role: {role || "—"}</p>
-          <p>Offline storage: {storageLabel}</p>
+          {role ? (
+            <p>
+              Role: <span className="text-foreground font-medium capitalize">{role}</span>
+              {branchName ? ` · ${branchName}` : null}
+            </p>
+          ) : null}
+          <p>
+            Local storage: <span className="text-foreground font-medium">{storageLabel}</span>
+          </p>
           <p>
             Sync:{" "}
-            {offline.online
-              ? offline.pendingCount > 0
-                ? `${offline.pendingCount} pending`
-                : "Up to date"
-              : "Offline"}
+            <span className="text-foreground font-medium">
+              {offline.online
+                ? offline.pendingCount > 0
+                  ? `${offline.pendingCount} pending`
+                  : "Up to date"
+                : "Offline"}
+            </span>
           </p>
         </CardContent>
       </Card>
