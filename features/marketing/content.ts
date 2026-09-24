@@ -1,6 +1,8 @@
 import { APP_BRAND, APP_TAGLINE } from "@/constants/app";
 
 export const LANDING_CONTACT_EMAIL = "asiedudev.hub@gmail.com";
+/** Public-facing address shown in marketing UI; mailto still uses LANDING_CONTACT_EMAIL. */
+export const LANDING_CONTACT_EMAIL_DISPLAY = "hello@novendpos.app";
 
 /** Build a mailto URL with subject + body for sales outreach.
  * Uses encodeURIComponent (%20) — URLSearchParams uses +, which many mail clients show literally.
@@ -616,7 +618,7 @@ export const landingCopy = {
       title: "Contact",
       email: {
         label: "Email",
-        value: LANDING_CONTACT_EMAIL,
+        value: LANDING_CONTACT_EMAIL_DISPLAY,
         href: `mailto:${LANDING_CONTACT_EMAIL}`,
       },
       international: {
