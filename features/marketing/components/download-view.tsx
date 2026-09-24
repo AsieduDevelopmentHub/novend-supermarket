@@ -11,6 +11,7 @@ import { APP_NAME } from "@/constants/app";
 import { detectBrowserDesktopTarget, type BrowserDesktopTarget } from "@/lib/desktop";
 import { sanitizeReleaseNoteLines } from "@/features/marketing/lib/sanitize-release-notes";
 import { cn } from "@/lib/utils";
+import { appEntryHref } from "@/lib/hosting/hosts";
 
 let cachedBrowserTarget: BrowserDesktopTarget | null | undefined;
 
@@ -142,7 +143,7 @@ export function DownloadView() {
                 and installers will appear here automatically after the next update.
               </p>
               <Button asChild className="mt-4" size="sm">
-                <Link href="/signup">Start free trial on the web</Link>
+                <Link href={appEntryHref("/signup")}>Start free trial on the web</Link>
               </Button>
             </div>
           ) : (
@@ -284,7 +285,7 @@ export function DownloadView() {
                       </Button>
                     ) : iosPwa ? (
                       <Button asChild size="sm" className="mt-4 w-full sm:w-auto">
-                        <Link href="/login">Open in Safari</Link>
+                        <Link href={appEntryHref("/login")}>Open in Safari</Link>
                       </Button>
                     ) : null}
                   </li>
@@ -309,10 +310,10 @@ export function DownloadView() {
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <Button asChild variant="outline" size="sm">
-                <Link href="/login">Sign in</Link>
+                <Link href={appEntryHref("/login")}>Sign in</Link>
               </Button>
               <Button asChild size="sm">
-                <Link href="/signup">Start free trial</Link>
+                <Link href={appEntryHref("/signup")}>Start free trial</Link>
               </Button>
             </div>
           </div>

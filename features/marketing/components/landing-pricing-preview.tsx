@@ -12,6 +12,7 @@ import {
   type PlanDefinition,
 } from "@/convex/shared/plans";
 import { cn } from "@/lib/utils";
+import { appEntryHref } from "@/lib/hosting/hosts";
 
 type BillingCycle = "monthly" | "yearly";
 
@@ -127,7 +128,11 @@ export function LandingPricingPreview() {
                 ) : null}
                 <p className="mt-4 text-sm leading-relaxed text-slate-600">{summary}</p>
                 <Button asChild className="mt-6 w-full" variant={featured ? "default" : "outline"}>
-                  <Link href={key === "enterprise" ? copy.enterpriseHref : "/signup"}>
+                  <Link
+                    href={
+                      key === "enterprise" ? copy.enterpriseHref : appEntryHref("/signup")
+                    }
+                  >
                     {key === "enterprise" ? "Talk to sales" : "Start free trial"}
                   </Link>
                 </Button>

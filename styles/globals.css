@@ -1509,7 +1509,47 @@
   background: transparent;
 }
 
-/* CTA laptop + phone — transparent plate on navy panel */
+/* CTA laptop + phone — match dark empty-shell plate, white dent → onyx */
+.landing-cta-devices {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    #05080f 16%,
+    #05080f 52%,
+    #0a1628 78%,
+    #071426 100%
+  );
+}
+
+.landing-cta-device-plate {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 74% 84% at 70% 58%, #05080f 0%, transparent 72%);
+  pointer-events: none;
+}
+
+.landing-cta-device-dent {
+  position: absolute;
+  left: 48%;
+  bottom: 5%;
+  width: min(82%, 28rem);
+  height: clamp(72px, 24%, 150px);
+  transform: translateX(-40%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 255, 255, 0.12) 30%,
+    rgba(255, 255, 255, 0.04) 52%,
+    transparent 72%
+  );
+  filter: blur(1.5px);
+  pointer-events: none;
+  z-index: 0;
+}
+
 .landing-cta-devices-frame {
   position: relative;
   width: 100%;
@@ -1520,8 +1560,19 @@
   position: relative;
   z-index: 1;
   display: block;
-  /* Soft lift without a light-surface halo that fights the navy panel */
-  filter: drop-shadow(0 28px 40px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 28px 40px rgba(0, 0, 0, 0.5));
+}
+
+@media (max-width: 1023px) {
+  .landing-cta-devices {
+    background: linear-gradient(180deg, #05080f 0%, #05080f 48%, #0a1628 78%, #071426 100%);
+  }
+
+  .landing-cta-device-dent {
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(92%, 24rem);
+  }
 }
 
 .landing-pos-frame {
@@ -2956,6 +3007,17 @@ button.landing-feature-frame {
   margin-inline: auto;
   flex-direction: column;
   align-items: center;
+}
+
+@media (max-width: 639px) {
+  .landing-monitor {
+    max-width: 20rem;
+  }
+
+  .landing-monitor-bezel {
+    border-radius: 10px 10px 8px 8px;
+    padding: 7px 7px 0;
+  }
 }
 
 @media (min-width: 1280px) {

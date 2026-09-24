@@ -3,10 +3,12 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { landingCopy } from "@/features/marketing/content";
 import { LandingHeroProductStage } from "@/features/marketing/components/landing-hero-product-stage";
+import { appEntryHref } from "@/lib/hosting/hosts";
 
 /** Hero — asymmetric split with POS monitor visual (brief §3A.2). */
 export function LandingHero() {
   const { hero } = landingCopy;
+  const signupHref = appEntryHref("/signup");
 
   return (
     <section className="relative isolate overflow-hidden bg-[#F8FAFC] px-4 pt-[80px] pb-10 sm:px-6 sm:pt-[88px] lg:px-8 lg:pb-14">
@@ -36,7 +38,7 @@ export function LandingHero() {
                   size="lg"
                   className="h-12 w-full rounded-full px-7 text-[15px] font-semibold sm:w-auto"
                 >
-                  <Link href="/signup">{hero.primaryCta}</Link>
+                  <Link href={signupHref}>{hero.primaryCta}</Link>
                 </Button>
                 <Button
                   asChild

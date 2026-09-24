@@ -24,6 +24,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { cn } from "@/lib/utils";
 import { landingCopy } from "@/features/marketing/content";
 import { postLoginPath } from "@/lib/auth/post-login-path";
+import { appEntryHref } from "@/lib/hosting/hosts";
 
 type Props = {
   scrollRootRef: RefObject<HTMLElement | null>;
@@ -39,7 +40,8 @@ const NavHref = forwardRef<
   }
 >(function NavHref({ href, className, onClick, children }, ref) {
   const isHash = href.includes("#");
-  if (isHash) {
+  const isExternal = /^https?:\/\//i.test(href);
+  if (isHash || isExternal) {
     return (
       <a ref={ref} href={href} className={className} onClick={onClick}>
         {children}
@@ -100,7 +102,9 @@ export function LandingNav({ scrollRootRef }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { isAuthenticated } = useConvexAuth();
   const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
-  const signInHref = isAuthenticated && me != null ? postLoginPath(me) : "/login";
+  const signInHref =
+    isAuthenticated && me != null ? appEntryHref(postLoginPath(me)) : appEntryHref("/login");
+  const signupHref = appEntryHref("/signup");
   const { nav } = landingCopy;
 
   useEffect(() => {
@@ -162,7 +166,7 @@ export function LandingNav({ scrollRootRef }: Props) {
             size="sm"
             className="hidden h-9 rounded-full px-4 text-sm font-semibold sm:inline-flex"
           >
-            <Link href="/signup">{landingCopy.navTrialCta}</Link>
+            <Link href={signupHref}>{landingCopy.navTrialCta}</Link>
           </Button>
 
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
@@ -276,7 +280,7 @@ export function LandingNav({ scrollRootRef }: Props) {
                   </Link>
                 </Button>
                 <Button asChild className="w-full">
-                  <Link href="/signup" onClick={() => setMenuOpen(false)}>
+                  <Link href={signupHref} onClick={() => setMenuOpen(false)}>
                     {landingCopy.navTrialCta}
                   </Link>
                 </Button>

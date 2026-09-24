@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const DEFAULT_APP_URL = "https://novend-pos.vercel.app";
+const DEFAULT_APP_URL = "https://dashboard.novendpos.app";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = join(root, "apps", "desktop", "build");
 mkdirSync(outDir, { recursive: true });

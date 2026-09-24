@@ -21,7 +21,8 @@ fallback.
 The only production hostname currently approved to run inside the native
 WebView is:
 
-- `novend-pos.vercel.app` — Novend production deployment
+- `novend-pos.vercel.app` — legacy preview / fallback host
+- `dashboard.novendpos.app` — production POS / auth host (Capacitor + Electron)
 
 There are currently no approved preview hostnames. Vercel's
 `*.vercel.app` wildcard is intentionally forbidden. A preview must receive a

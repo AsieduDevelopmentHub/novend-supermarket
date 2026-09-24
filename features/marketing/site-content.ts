@@ -235,11 +235,11 @@ export const sitePages = {
           },
           {
             q: "Who creates staff accounts?",
-            a: "Organization administrators create employee accounts. Public signup is for business owners creating a new organization. Staff should sign in at /login with credentials provided by their admin.",
+            a: "Organization administrators create employee accounts. Public signup is for business owners creating a new organization. Staff should sign in at https://dashboard.novendpos.app/login with credentials provided by their admin.",
           },
           {
             q: "I forgot my password",
-            a: "Use the sign-in recovery options on /login if available, or contact your organization administrator. Owners can reach Novend support for account recovery assistance.",
+            a: "Use the sign-in recovery options on https://dashboard.novendpos.app/login if available, or contact your organization administrator. Owners can reach Novend support for account recovery assistance.",
           },
           {
             q: "Who do I contact for Enterprise onboarding?",

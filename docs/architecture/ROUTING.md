@@ -1,6 +1,6 @@
 # Routing
 
-Version: 1.3.7
+Version: 1.3.8
 
 ## Public vs authenticated entry
 
@@ -21,14 +21,28 @@ Version: 1.3.7
 (`/dashboard`, `/platform`, or `/onboarding`). This protects Cap/Electron cold
 starts that used to paint the marketing page as the app shell.
 
-**Web (host split):** Set `NEXT_PUBLIC_MARKETING_URL` and `NEXT_PUBLIC_APP_URL`
-(or `NOVEND_APP_URL`) to different origins. On the marketing host, `/` stays the
-landing even when signed in. On the app host, authenticated `/` still redirects.
-Leave marketing unset (or equal to the app URL) to keep single-origin behavior.
+**Web (host split):** Production uses two hosts on the same Next deploy:
+
+```text
+https://www.novendpos.app        Marketing (landing, pricing, product, docs)
+https://dashboard.novendpos.app  POS / auth (/login, /signup, /dashboard, …)
+https://novendpos.app            Edge redirect → www
+```
+
+Set `NEXT_PUBLIC_MARKETING_URL=https://www.novendpos.app` and
+`NEXT_PUBLIC_APP_URL=https://dashboard.novendpos.app` (also
+`NEXT_PUBLIC_SITE_URL` for SEO). Marketing **Sign in** / **Start free** CTAs
+use `appEntryHref()` so they open the dashboard host—not a relative `/login` on
+www. On the marketing host, authenticated `/` stays the landing. On the app
+host, authenticated `/` still 302s into the POS shell. Leave marketing unset
+(or equal to the app URL) for single-origin localhost.
+
+**Convex Auth:** `npx convex env set SITE_URL https://dashboard.novendpos.app`
+— auth cookies and post-login redirects must use the **app** origin, not www.
 
 **Native shells:** Capacitor and Electron must use the **app** origin
-(`NOVEND_APP_URL` → `app.…`), never the marketing landing. They already boot to
-`/dashboard?fromBoot=1`.
+(`NOVEND_APP_URL` → `dashboard.novendpos.app`), never the marketing landing.
+They already boot to `/dashboard?fromBoot=1`.
 
 **Downloads:** `/download` lists the latest stable desktop installers and mobile
 APK/store links from the live release registry. Settings → Downloads shows the

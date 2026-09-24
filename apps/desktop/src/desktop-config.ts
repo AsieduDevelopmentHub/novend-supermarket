@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 /** Public hosted web app Electron loads. Override with NOVEND_APP_URL at build or runtime. */
-export const DEFAULT_APP_URL = "https://novend-pos.vercel.app";
+export const DEFAULT_APP_URL = "https://dashboard.novendpos.app";
 
 export type DesktopPackagedConfig = {
   appUrl?: string;

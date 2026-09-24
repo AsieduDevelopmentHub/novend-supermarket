@@ -1,6 +1,6 @@
 import { resolveHostingOrigins } from "@/lib/hosting/hosts";
 
-const FALLBACK_ORIGIN = "https://novend-pos.vercel.app";
+const FALLBACK_ORIGIN = "https://www.novendpos.app";
 
 /**
  * Canonical public origin for sitemap, robots, Open Graph, and JSON-LD.

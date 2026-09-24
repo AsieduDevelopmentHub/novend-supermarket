@@ -14,6 +14,7 @@ import {
   type PlanKey,
 } from "@/convex/shared/plans";
 import { LandingSection } from "@/features/marketing/components/landing-section";
+import { appEntryHref } from "@/lib/hosting/hosts";
 import { cn } from "@/lib/utils";
 
 type BillingCycle = "monthly" | "yearly";
@@ -207,8 +208,12 @@ function PricingCards({ cycle }: { cycle: BillingCycle }) {
         const cta = planCta(key);
         const external = cta.href.startsWith("mailto:");
         const price = planPriceDisplay(plan, cycle);
+        const resolvedBase = external ? cta.href : appEntryHref(cta.href);
         const ctaHref =
-          external || plan.isLifetime ? cta.href : `${cta.href}?plan=${key}&cycle=${cycle}`;
+          external || plan.isLifetime
+            ? resolvedBase
+            : `${resolvedBase}${resolvedBase.includes("?") ? "&" : "?"}plan=${key}&cycle=${cycle}`;
+        const offSite = external || /^https?:\/\//i.test(ctaHref);
 
         const limitLines = [
           `${limitLabel(plan.limits.products, "count")} Products`,
@@ -300,7 +305,7 @@ function PricingCards({ cycle }: { cycle: BillingCycle }) {
                     "border-amber-400 bg-amber-500 text-white hover:bg-amber-600 hover:text-white",
                 )}
               >
-                {external ? (
+                {offSite ? (
                   <a href={ctaHref}>{cta.label}</a>
                 ) : (
                   <Link href={ctaHref}>{cta.label}</Link>

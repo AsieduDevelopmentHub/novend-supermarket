@@ -9,7 +9,18 @@ import {
 } from "../scripts/mobile-origin-policy.mjs";
 
 describe("Capacitor mobile origin policy", () => {
-  it("accepts the exact approved production origin", () => {
+  it("accepts the production dashboard and legacy Vercel origins", () => {
+    expect(
+      resolveMobileAppOrigin(
+        { NOVEND_APP_URL: "https://dashboard.novendpos.app" },
+        { production: true },
+      ),
+    ).toMatchObject({
+      origin: "https://dashboard.novendpos.app",
+      hostname: "dashboard.novendpos.app",
+      liveReload: false,
+    });
+
     expect(
       resolveMobileAppOrigin(
         { NOVEND_APP_URL: "https://novend-pos.vercel.app" },

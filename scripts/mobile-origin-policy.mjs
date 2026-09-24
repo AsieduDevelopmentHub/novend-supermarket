@@ -1,10 +1,13 @@
-const DEFAULT_MOBILE_APP_ORIGIN = "https://novend-pos.vercel.app";
+const DEFAULT_MOBILE_APP_ORIGIN = "https://dashboard.novendpos.app";
 
 /**
  * Exact Novend-controlled hosts that may run inside the Capacitor WebView.
  * Additions require ownership verification and a matching documentation update.
  */
-export const APPROVED_MOBILE_HOSTS = Object.freeze(["novend-pos.vercel.app"]);
+export const APPROVED_MOBILE_HOSTS = Object.freeze([
+  "dashboard.novendpos.app",
+  "novend-pos.vercel.app",
+]);
 
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "10.0.2.2"]);
 

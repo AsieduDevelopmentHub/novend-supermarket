@@ -3,6 +3,7 @@ import { LandingPricing } from "@/features/marketing/components/landing-pricing"
 import { LandingCta } from "@/features/marketing/components/landing-cta";
 import { LandingFaq } from "@/features/marketing/components/landing-faq";
 import { Button } from "@/components/ui/button";
+import { appEntryHref } from "@/lib/hosting/hosts";
 
 /**
  * Public marketing pricing page — visible without an account.
@@ -26,7 +27,7 @@ export function PricingPageView() {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg" className="h-12 rounded-full px-7 font-semibold">
-              <Link href="/signup">Start free for 14 days</Link>
+              <Link href={appEntryHref("/signup")}>Start free for 14 days</Link>
             </Button>
             <Button
               asChild

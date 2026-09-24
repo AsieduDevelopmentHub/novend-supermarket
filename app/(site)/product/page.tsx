@@ -24,7 +24,8 @@ export default function ProductIndexPage() {
           One system for the counter and the warehouse
         </h1>
         <p className="mt-4 text-base leading-relaxed text-[#526174] sm:text-lg">
-          Choose a module to see the operational outcome, workflow, and offline behavior.
+          Each module page covers the problem, day-to-day workflow, product screens, offline
+          behavior, and FAQ—so you can evaluate Novend before you sign up.
         </p>
       </header>
 

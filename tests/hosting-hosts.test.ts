@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  appEntryHref,
   hostnameFromOrigin,
   hostsMatch,
+  isHostSplit,
   normalizeHostname,
   resolveHostingOrigins,
   shouldRedirectAuthenticatedHome,
@@ -9,15 +11,17 @@ import {
 
 describe("hosting hosts", () => {
   it("parses hostnames from origins and bare hosts", () => {
-    expect(hostnameFromOrigin("https://app.novend.com/path")).toBe("app.novend.com");
-    expect(hostnameFromOrigin("app.novend.com")).toBe("app.novend.com");
+    expect(hostnameFromOrigin("https://dashboard.novendpos.app/path")).toBe(
+      "dashboard.novendpos.app",
+    );
+    expect(hostnameFromOrigin("dashboard.novendpos.app")).toBe("dashboard.novendpos.app");
     expect(hostnameFromOrigin("")).toBeNull();
   });
 
   it("treats www as equivalent to the apex", () => {
-    expect(normalizeHostname("www.novend.com:443")).toBe("novend.com");
-    expect(hostsMatch("www.novend.com", "novend.com")).toBe(true);
-    expect(hostsMatch("app.novend.com", "novend.com")).toBe(false);
+    expect(normalizeHostname("www.novendpos.app:443")).toBe("novendpos.app");
+    expect(hostsMatch("www.novendpos.app", "novendpos.app")).toBe(true);
+    expect(hostsMatch("dashboard.novendpos.app", "novendpos.app")).toBe(false);
   });
 
   it("keeps authenticated home redirect when hosts are unsplit", () => {
@@ -41,17 +45,17 @@ describe("hosting hosts", () => {
   it("keeps landing on the marketing host when app host differs", () => {
     expect(
       shouldRedirectAuthenticatedHome({
-        requestHost: "novend.com",
-        appOrigin: "https://app.novend.com",
-        marketingOrigin: "https://novend.com",
+        requestHost: "www.novendpos.app",
+        appOrigin: "https://dashboard.novendpos.app",
+        marketingOrigin: "https://www.novendpos.app",
       }),
     ).toBe(false);
 
     expect(
       shouldRedirectAuthenticatedHome({
-        requestHost: "www.novend.com",
-        appOrigin: "https://app.novend.com",
-        marketingOrigin: "https://novend.com",
+        requestHost: "novendpos.app",
+        appOrigin: "https://dashboard.novendpos.app",
+        marketingOrigin: "https://www.novendpos.app",
       }),
     ).toBe(false);
   });
@@ -59,9 +63,9 @@ describe("hosting hosts", () => {
   it("still redirects authenticated home on the app host", () => {
     expect(
       shouldRedirectAuthenticatedHome({
-        requestHost: "app.novend.com",
-        appOrigin: "https://app.novend.com",
-        marketingOrigin: "https://novend.com",
+        requestHost: "dashboard.novendpos.app",
+        appOrigin: "https://dashboard.novendpos.app",
+        marketingOrigin: "https://www.novendpos.app",
       }),
     ).toBe(true);
   });
@@ -69,14 +73,48 @@ describe("hosting hosts", () => {
   it("resolves origins from env with safe precedence", () => {
     expect(
       resolveHostingOrigins({
-        NEXT_PUBLIC_APP_URL: "https://app.novend.com",
+        NEXT_PUBLIC_APP_URL: "https://dashboard.novendpos.app",
         NOVEND_APP_URL: "https://legacy.example",
-        NEXT_PUBLIC_SITE_URL: "https://site.example",
-        NEXT_PUBLIC_MARKETING_URL: "https://novend.com",
+        NEXT_PUBLIC_SITE_URL: "https://www.novendpos.app",
+        NEXT_PUBLIC_MARKETING_URL: "https://www.novendpos.app",
       } as unknown as NodeJS.ProcessEnv),
     ).toEqual({
-      appOrigin: "https://app.novend.com",
-      marketingOrigin: "https://novend.com",
+      appOrigin: "https://dashboard.novendpos.app",
+      marketingOrigin: "https://www.novendpos.app",
     });
+  });
+
+  it("falls marketing origin back to SITE_URL when MARKETING_URL is unset", () => {
+    expect(
+      resolveHostingOrigins({
+        NEXT_PUBLIC_APP_URL: "https://dashboard.novendpos.app",
+        NEXT_PUBLIC_SITE_URL: "https://www.novendpos.app",
+      } as unknown as NodeJS.ProcessEnv),
+    ).toEqual({
+      appOrigin: "https://dashboard.novendpos.app",
+      marketingOrigin: "https://www.novendpos.app",
+    });
+  });
+
+  it("builds absolute app entry hrefs when hosts are split", () => {
+    const env = {
+      NEXT_PUBLIC_APP_URL: "https://dashboard.novendpos.app",
+      NEXT_PUBLIC_MARKETING_URL: "https://www.novendpos.app",
+    } as unknown as NodeJS.ProcessEnv;
+
+    expect(isHostSplit(env)).toBe(true);
+    expect(appEntryHref("/login", env)).toBe("https://dashboard.novendpos.app/login");
+    expect(appEntryHref("/signup", env)).toBe("https://dashboard.novendpos.app/signup");
+    expect(appEntryHref("/dashboard", env)).toBe("https://dashboard.novendpos.app/dashboard");
+  });
+
+  it("keeps relative auth hrefs when hosts are unsplit", () => {
+    const env = {
+      NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
+    } as unknown as NodeJS.ProcessEnv;
+
+    expect(isHostSplit(env)).toBe(false);
+    expect(appEntryHref("/login", env)).toBe("/login");
+    expect(appEntryHref("/signup", env)).toBe("/signup");
   });
 });

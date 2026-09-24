@@ -12,7 +12,7 @@ cache.
 
 Packaged Electron **must** load the production web app:
 
-**https://novend-pos.vercel.app**
+**https://dashboard.novendpos.app**
 
 `NOVEND_APP_URL` is a **build-time** override baked into
 `apps/desktop/build/update-config.json` (`appUrl`). GitHub Actions env vars are
@@ -23,7 +23,7 @@ Resolution order:
 
 1. `NOVEND_APP_URL` (dev / explicit launch)
 2. Packaged `update-config.json` `appUrl`
-3. `https://novend-pos.vercel.app`
+3. `https://dashboard.novendpos.app`
 
 ## Offline launch
 
