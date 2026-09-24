@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
+import { Mail, MessageCircle, Phone } from "lucide-react";
 import { BRANDING } from "@/constants/branding";
 import { landingCopy } from "@/features/marketing/content";
 import { openCookiePreferences } from "@/lib/cookies/consent";
@@ -45,7 +45,7 @@ export function LandingFooter() {
           <p className="text-[11px] font-semibold tracking-[0.14em] text-slate-500 uppercase">
             {contact.title}
           </p>
-          <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="mt-4 grid gap-4 sm:grid-cols-3">
             <ContactItem
               icon={Mail}
               label={contact.email.label}
@@ -65,11 +65,6 @@ export function LandingFooter() {
               href={contact.local.href}
               secondaryHref="https://wa.me/233555257482"
               secondaryLabel="WhatsApp"
-            />
-            <ContactItem
-              icon={MapPin}
-              label={contact.location.label}
-              value={contact.location.value}
             />
           </ul>
         </div>

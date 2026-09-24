@@ -7,7 +7,7 @@ import { JsonLd, buildPageMetadata, landingStructuredData } from "@/lib/seo";
 export const metadata: Metadata = buildPageMetadata({
   title: `${APP_BRAND} — Offline-first POS for modern business`,
   description:
-    "Novend is the commercial offline-first Point of Sale for Ghanaian shops, pharmacies, wholesalers, and multi-branch retailers — with desktop, Android, iOS PWA, and cloud sync.",
+    "Novend is the commercial offline-first Point of Sale for shops, pharmacies, wholesalers, and multi-branch retailers — with desktop, Android, iOS PWA, and cloud sync.",
   path: "/",
   absoluteTitle: true,
 });

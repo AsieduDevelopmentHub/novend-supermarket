@@ -268,7 +268,7 @@ export const sitePages = {
     supportCta: {
       title: "Still need help?",
       detail:
-        "Reach the Novend team by email, WhatsApp, or local Ghana support. Include your organization name, branch, and a short description of what you were doing when the issue occurred.",
+        "Reach the Novend team by email or WhatsApp. Include your organization name, branch, and a short description of what you were doing when the issue occurred.",
       email: LANDING_CONTACT_EMAIL,
       mailto: GENERAL_SALES_MAILTO,
     },
@@ -295,8 +295,8 @@ export const sitePages = {
       {
         title: "1. Who we are and how to contact us",
         paragraphs: [
-          "Novend is a commercial Point of Sale and business management platform operated by Asiedu Development Hub, based in Sunyani, Bono Region, Ghana.",
-          `Privacy questions, data access requests, and complaints can be sent to ${LANDING_CONTACT_EMAIL}. For WhatsApp (UK) use +44 7868 178108. For calls and WhatsApp in Ghana use +233 55 525 7482.`,
+          "Novend is a commercial Point of Sale and business management platform operated by Asiedu Development Hub.",
+          `Privacy questions, data access requests, and complaints can be sent to ${LANDING_CONTACT_EMAIL}. You can also reach us on WhatsApp at +44 7868 178108 or by phone/WhatsApp at +233 55 525 7482.`,
           "If you use Novend on behalf of a business, that organization is typically the controller of its operational business records (products, sales, customers). We process that data to provide the Service under our agreement with the organization.",
         ],
       },
@@ -353,7 +353,7 @@ export const sitePages = {
       {
         title: "7. International processing",
         paragraphs: [
-          "Novend may process and store information on servers and infrastructure located outside Ghana, including cloud regions used by our providers.",
+          "Novend may process and store information on servers and infrastructure in multiple regions, including cloud regions used by our providers.",
           "By using the Service you understand that your information may be transferred to and processed in countries that may have different data protection rules than your own. We take commercially reasonable steps to protect information in transit and at rest.",
         ],
       },
@@ -528,9 +528,9 @@ export const sitePages = {
       {
         title: "16. Contact",
         paragraphs: [
-          `For questions about these Terms, contact ${LANDING_CONTACT_EMAIL}, WhatsApp (UK) +44 7868 178108, or calls/WhatsApp (Ghana) +233 55 525 7482.`,
+          `For questions about these Terms, contact ${LANDING_CONTACT_EMAIL}, WhatsApp +44 7868 178108, or phone/WhatsApp +233 55 525 7482.`,
           "Related policies: Privacy Policy (/privacy), Refund & Cancellation Policy (/refund), Cookie Policy (/cookies), Acceptable Use Policy (/aup), and Data Processing Addendum (/dpa).",
-          "Asiedu Development Hub — Sunyani, Bono Region, Ghana.",
+          "Asiedu Development Hub.",
         ],
       },
     ],
@@ -609,8 +609,8 @@ export const sitePages = {
       {
         title: "10. Contact",
         paragraphs: [
-          `Refund and billing questions: ${LANDING_CONTACT_EMAIL}. WhatsApp (UK) +44 7868 178108, or calls/WhatsApp (Ghana) +233 55 525 7482.`,
-          "Asiedu Development Hub — Sunyani, Bono Region, Ghana. Governing law aligns with the Terms of Service (Ghana), subject to any non-waivable consumer rights.",
+          `Refund and billing questions: ${LANDING_CONTACT_EMAIL}. WhatsApp +44 7868 178108, or phone/WhatsApp +233 55 525 7482.`,
+          "Asiedu Development Hub. Governing law aligns with the Terms of Service, subject to any non-waivable consumer rights.",
         ],
       },
     ],
@@ -846,7 +846,7 @@ export const sitePages = {
         title: "14. Contact",
         paragraphs: [
           `Privacy and DPA contact: ${LANDING_CONTACT_EMAIL}.`,
-          "Asiedu Development Hub — Sunyani, Bono Region, Ghana.",
+          "Asiedu Development Hub.",
         ],
       },
     ],

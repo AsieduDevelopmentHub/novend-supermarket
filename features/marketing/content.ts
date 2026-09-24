@@ -620,18 +620,14 @@ export const landingCopy = {
         href: `mailto:${LANDING_CONTACT_EMAIL}`,
       },
       international: {
-        label: "WhatsApp (UK)",
+        label: "WhatsApp",
         value: "+44 7868 178108",
         href: "https://wa.me/447868178108",
       },
       local: {
-        label: "Calls & WhatsApp (Ghana)",
+        label: "Phone",
         value: "+233 55 525 7482",
         href: "tel:+233555257482",
-      },
-      location: {
-        label: "Location",
-        value: "Sunyani, Bono Region, Ghana",
       },
     },
     copyright: "Novend. All rights reserved.",
