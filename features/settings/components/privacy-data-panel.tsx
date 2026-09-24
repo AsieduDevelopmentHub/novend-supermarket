@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { ACCOUNT_CLOSURE_GRACE_DAYS } from "@/convex/shared/accountClosure";
+import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,6 +63,9 @@ const CLOSURE_REASONS = [
  * Deletion paths exist, but alternatives and recovery are surfaced first.
  */
 export function PrivacyDataPanel() {
+  const privacyHref = usePublicSiteHref("/privacy");
+  const cookiesHref = usePublicSiteHref("/cookies");
+  const dpaHref = usePublicSiteHref("/dpa");
   const online = useConnectivity();
   const router = useRouter();
   const { signOut } = useAuthActions();
@@ -246,17 +250,17 @@ export function PrivacyDataPanel() {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" asChild>
-            <Link href="/privacy" target="_blank" rel="noopener noreferrer">
+            <Link href={privacyHref} target="_blank" rel="noopener noreferrer">
               Privacy Policy
             </Link>
           </Button>
           <Button type="button" variant="outline" asChild>
-            <Link href="/cookies" target="_blank" rel="noopener noreferrer">
+            <Link href={cookiesHref} target="_blank" rel="noopener noreferrer">
               Cookie Policy
             </Link>
           </Button>
           <Button type="button" variant="outline" asChild>
-            <Link href="/dpa" target="_blank" rel="noopener noreferrer">
+            <Link href={dpaHref} target="_blank" rel="noopener noreferrer">
               Data Processing
             </Link>
           </Button>

@@ -310,7 +310,7 @@ export function DownloadView() {
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <Button asChild variant="outline" size="sm">
-                <Link href={appEntryHref("/login")}>Sign in</Link>
+                <Link href="/login">Sign in</Link>
               </Button>
               <Button asChild size="sm">
                 <Link href={appEntryHref("/signup")}>Start free trial</Link>

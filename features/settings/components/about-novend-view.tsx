@@ -12,6 +12,7 @@ import { useShowsRealtimeSyncUi } from "@/hooks/use-shows-realtime-sync-ui";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
 import { estimateBackupSize } from "@/lib/offline/backup";
 import { APP_BRAND, APP_NAME, APP_VERSION } from "@/constants/app";
+import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import { Info } from "lucide-react";
 
 const LAST_UPDATE_KEY = "novend.mobileUpdate.last";
@@ -36,6 +37,12 @@ function cacheSuccessfulUpdate(info: UpdateInfo) {
 }
 
 export function AboutNovendView() {
+  const privacyHref = usePublicSiteHref("/privacy");
+  const termsHref = usePublicSiteHref("/terms");
+  const refundHref = usePublicSiteHref("/refund");
+  const cookiesHref = usePublicSiteHref("/cookies");
+  const aupHref = usePublicSiteHref("/aup");
+  const dpaHref = usePublicSiteHref("/dpa");
   const { role, branchName } = usePermissions();
   const offline = useOfflineStatus();
   const showRealtimeSync = useShowsRealtimeSyncUi();
@@ -139,32 +146,32 @@ export function AboutNovendView() {
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/privacy" target="_blank" rel="noopener noreferrer">
+            <a href={privacyHref} target="_blank" rel="noopener noreferrer">
               Privacy Policy
             </a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/terms" target="_blank" rel="noopener noreferrer">
+            <a href={termsHref} target="_blank" rel="noopener noreferrer">
               Terms of Service
             </a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/refund" target="_blank" rel="noopener noreferrer">
+            <a href={refundHref} target="_blank" rel="noopener noreferrer">
               Refund Policy
             </a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/cookies" target="_blank" rel="noopener noreferrer">
+            <a href={cookiesHref} target="_blank" rel="noopener noreferrer">
               Cookie Policy
             </a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/aup" target="_blank" rel="noopener noreferrer">
+            <a href={aupHref} target="_blank" rel="noopener noreferrer">
               Acceptable Use
             </a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/dpa" target="_blank" rel="noopener noreferrer">
+            <a href={dpaHref} target="_blank" rel="noopener noreferrer">
               Data Processing
             </a>
           </Button>

@@ -44,11 +44,17 @@ https://novendpos.app            Edge redirect → www
 
 Set `NEXT_PUBLIC_MARKETING_URL=https://www.novendpos.app` and
 `NEXT_PUBLIC_APP_URL=https://dashboard.novendpos.app` (also
-`NEXT_PUBLIC_SITE_URL` for SEO). Marketing **Sign in** / **Start free** CTAs
-use `appEntryHref()` so they open the dashboard host—not a relative `/login` on
-www. On the marketing host, authenticated `/` stays the landing. On the app
-host, authenticated `/` still 302s into the POS shell. Leave marketing unset
-(or equal to the app URL) for single-origin localhost.
+`NEXT_PUBLIC_SITE_URL` for SEO). Marketing **Sign in** stays on the marketing
+host (`/login`). **Start free** uses `appEntryHref()` so signup opens the
+dashboard host. Home, “Back to website”, and “Back to sign in” on the app host
+use `publicSiteHref()` and return to the marketing origin. A signed-out visit
+to `/` on the app host redirects to marketing. Legal pages (`/privacy`,
+`/terms`, `/refund`, `/cookies`, `/aup`, `/dpa`) are marketing pages: links
+from signup and the POS use `publicSiteHref()`, and a visit on the app host
+redirects to the marketing origin. On the marketing host,
+authenticated `/` stays the landing. On the app host, authenticated `/` still
+302s into the POS shell. Leave marketing unset (or equal to the app URL) for
+single-origin localhost.
 
 **Convex Auth:** `npx convex env set SITE_URL https://dashboard.novendpos.app`
 — auth cookies and post-login redirects must use the **app** origin, not www.

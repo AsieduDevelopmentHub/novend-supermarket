@@ -100,12 +100,18 @@ function NavDropdown({
 export function LandingNav({ scrollRootRef }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const { isAuthenticated } = useConvexAuth();
   const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
+  // First paint matches the server: Sign in stays on this site. Open the POS only after auth resolves.
   const signInHref =
-    isAuthenticated && me != null ? appEntryHref(postLoginPath(me)) : appEntryHref("/login");
+    authReady && isAuthenticated && me != null ? postLoginPath(me) : "/login";
   const signupHref = appEntryHref("/signup");
   const { nav } = landingCopy;
+
+  useEffect(() => {
+    setAuthReady(true);
+  }, []);
 
   useEffect(() => {
     const root = scrollRootRef.current;

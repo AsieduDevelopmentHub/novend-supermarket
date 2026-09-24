@@ -11,6 +11,15 @@ function exactOrChild(pathname: string, base: string): boolean {
   return pathname === base || pathname.startsWith(`${base}/`);
 }
 
+const LEGAL_PATHS = ["/privacy", "/terms", "/refund", "/cookies", "/aup", "/dpa"] as const;
+
+/** Privacy, terms, refunds, cookies, acceptable use, and the data-processing addendum. */
+export function isLegalPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  const path = pathOnly(pathname);
+  return LEGAL_PATHS.some((base) => exactOrChild(path, base));
+}
+
 /** True for public marketing paths. Never matches authenticated `/products`. */
 export function isMarketingPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;

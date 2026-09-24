@@ -122,10 +122,34 @@ export function getAppOrigin(env: NodeJS.ProcessEnv = process.env): string | nul
   return normalizeOrigin(resolveHostingOrigins(env).appOrigin);
 }
 
+export function getMarketingOrigin(env: NodeJS.ProcessEnv = process.env): string | null {
+  return normalizeOrigin(resolveHostingOrigins(env).marketingOrigin);
+}
+
 /**
- * Auth / POS entry href for marketing CTAs (Sign in, Start free, Open app).
- * When hosts are split, returns an absolute URL on the app origin so www never
- * serves `/login` as the destination. Unsplit deploys keep relative paths.
+ * Public-site href (home, sign-in) for the host that is actually serving the page.
+ *
+ * On the marketing host, or on localhost, keep a relative path so the visitor
+ * stays on that site. On the app host, send them to the marketing origin —
+ * `dashboard…/` is not the public website.
+ */
+export function publicSiteHref(
+  path: string,
+  requestHost: string | null | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  const normalized = !path || path === "/" ? "/" : path.startsWith("/") ? path : `/${path}`;
+  if (!isHostSplit(env)) return normalized;
+  const marketing = getMarketingOrigin(env);
+  const appHost = hostnameFromOrigin(getAppOrigin(env));
+  if (!marketing || !requestHost || !hostsMatch(requestHost, appHost)) return normalized;
+  return `${marketing}${normalized}`;
+}
+
+/**
+ * App-host href for marketing CTAs that must open the POS origin (Start free,
+ * Open app). Sign-in and home stay on the marketing host via `publicSiteHref`.
+ * Unsplit deploys keep relative paths.
  */
 export function appEntryHref(path: string, env: NodeJS.ProcessEnv = process.env): string {
   const normalized = !path || path === "/" ? "/" : path.startsWith("/") ? path : `/${path}`;

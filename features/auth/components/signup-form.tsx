@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { ROUTES } from "@/config/navigation";
+import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import { PasswordStrengthMeter } from "@/features/auth/components/password-strength";
 import { PASSWORD_MIN_LENGTH, passwordMeetsPolicy } from "@/convex/shared/passwordPolicy";
 import { navigateAfterLogin } from "@/lib/auth/redirect-after-login";
@@ -42,6 +43,11 @@ export function SignupForm({ compact = false }: { compact?: boolean }) {
 }
 
 function ConfiguredSignupForm({ compact }: { compact: boolean }) {
+  const signInHref = usePublicSiteHref("/login");
+  const termsHref = usePublicSiteHref(ROUTES.terms);
+  const privacyHref = usePublicSiteHref(ROUTES.privacy);
+  const refundHref = usePublicSiteHref(ROUTES.refund);
+  const aupHref = usePublicSiteHref(ROUTES.aup);
   const { signIn } = useAuthActions();
   const requestVerification = useAction(api.emailVerification.requestEmailVerification);
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
@@ -176,7 +182,7 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
           <Label htmlFor="accept-legal" className="text-sm leading-snug font-normal">
             I agree to the{" "}
             <Link
-              href={ROUTES.terms}
+              href={termsHref}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary font-medium hover:underline"
@@ -185,7 +191,7 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
             </Link>
             ,{" "}
             <Link
-              href={ROUTES.privacy}
+              href={privacyHref}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary font-medium hover:underline"
@@ -194,7 +200,7 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
             </Link>
             ,{" "}
             <Link
-              href={ROUTES.refund}
+              href={refundHref}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary font-medium hover:underline"
@@ -203,7 +209,7 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
             </Link>
             , and{" "}
             <Link
-              href={ROUTES.aup}
+              href={aupHref}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary font-medium hover:underline"
@@ -225,7 +231,7 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
 
       <p className="text-muted-foreground mt-5 text-center text-sm">
         Already have an account?{" "}
-        <Link href="/login" className="text-primary font-medium hover:underline">
+        <Link href={signInHref} className="text-primary font-medium hover:underline">
           Sign in
         </Link>
       </p>

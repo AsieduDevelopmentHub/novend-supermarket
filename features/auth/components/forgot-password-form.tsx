@@ -11,11 +11,13 @@ import { Label } from "@/components/ui/label";
 import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { ROUTES } from "@/config/navigation";
+import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import { PASSWORD_RESET_MIN_INTERVAL_MS } from "@/convex/shared/passwordResetCrypto";
 import { showError } from "@/lib/errors";
 import Image from "next/image";
 
 export function ForgotPasswordForm() {
+  const signInHref = usePublicSiteHref(ROUTES.login);
   const requestReset = useAction(api.passwordReset.requestPasswordReset);
   const [email, setEmail] = useState("");
   const [pending, setPending] = useState(false);
@@ -91,7 +93,7 @@ export function ForgotPasswordForm() {
             {pending ? "Sending…" : resendInMs > 0 ? `Resend in ${resendSeconds}s` : "Resend email"}
           </Button>
           <Button asChild className="h-11 w-full">
-            <Link href={ROUTES.login}>Back to sign in</Link>
+            <Link href={signInHref}>Back to sign in</Link>
           </Button>
         </div>
       ) : (
@@ -132,7 +134,7 @@ export function ForgotPasswordForm() {
 
       <p className="text-muted-foreground mt-6 text-center text-sm">
         Remembered it?{" "}
-        <Link href={ROUTES.login} className="text-primary font-medium hover:underline">
+        <Link href={signInHref} className="text-primary font-medium hover:underline">
           Sign in
         </Link>
       </p>

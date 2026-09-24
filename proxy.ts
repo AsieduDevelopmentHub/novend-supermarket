@@ -3,7 +3,14 @@ import { ConvexHttpClient } from "convex/browser";
 import { type NextRequest, NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
 import { loginPathWithNext, resolvePostAuthPath } from "@/lib/auth/safe-return-path";
-import { resolveHostingOrigins, shouldRedirectAuthenticatedHome } from "@/lib/hosting/hosts";
+import {
+  hostnameFromOrigin,
+  hostsMatch,
+  normalizeOrigin,
+  resolveHostingOrigins,
+  shouldRedirectAuthenticatedHome,
+} from "@/lib/hosting/hosts";
+import { isLegalPath } from "@/lib/marketing-routes";
 import { applySecurityHeaders } from "@/lib/security/response-headers";
 
 const isLoginPage = createRouteMatcher([
@@ -76,6 +83,21 @@ const isStaticPublicRoute = createRouteMatcher([
  */
 function redirectTo(request: NextRequest, href: string) {
   return NextResponse.redirect(new URL(href, request.nextUrl.origin));
+}
+
+/** When this request is on the app host, send the same path to the marketing origin. */
+function redirectToMarketing(request: NextRequest) {
+  const { appOrigin, marketingOrigin } = resolveHostingOrigins();
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const requestHost = forwardedHost || request.nextUrl.host;
+  const onAppHost =
+    hostsMatch(requestHost, hostnameFromOrigin(appOrigin)) &&
+    !hostsMatch(hostnameFromOrigin(appOrigin), hostnameFromOrigin(marketingOrigin));
+  if (!onAppHost) return null;
+  const marketing = normalizeOrigin(marketingOrigin);
+  if (!marketing) return null;
+  const destination = new URL(`${request.nextUrl.pathname}${request.nextUrl.search}`, marketing);
+  return withStaticSecurityHeaders(NextResponse.redirect(destination));
 }
 
 function cspDirectives(scriptSrc: string) {
@@ -158,6 +180,13 @@ export default convexAuthNextjsMiddleware(
       return NextResponse.next();
     }
 
+    // Legal pages belong on the marketing host. A visit on the app host
+    // (including a new tab from signup) goes to www, not dashboard.
+    if (isLegalPath(request.nextUrl.pathname)) {
+      const marketingRedirect = redirectToMarketing(request);
+      if (marketingRedirect) return marketingRedirect;
+    }
+
     // Marketing / docs / legal / health: security headers only — skip session work.
     if (isStaticPublicRoute(request)) {
       return withStaticSecurityHeaders(NextResponse.next());
@@ -170,11 +199,23 @@ export default convexAuthNextjsMiddleware(
     // Public landing: only authenticate when we might redirect into the POS shell.
     // Otherwise use static marketing CSP (no per-request nonce).
     if (isHome) {
+      const { appOrigin, marketingOrigin } = resolveHostingOrigins();
       const authenticated = await convexAuth.isAuthenticated();
+      const fromBoot = request.nextUrl.searchParams.get("fromBoot") === "1";
+      const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+      const requestHost = forwardedHost || request.nextUrl.host;
+      const onAppHost =
+        hostsMatch(requestHost, hostnameFromOrigin(appOrigin)) &&
+        !hostsMatch(hostnameFromOrigin(appOrigin), hostnameFromOrigin(marketingOrigin));
+      if (!authenticated && onAppHost && !fromBoot) {
+        const marketing = normalizeOrigin(marketingOrigin);
+        if (marketing) {
+          return withStaticSecurityHeaders(NextResponse.redirect(new URL("/", marketing)));
+        }
+      }
       if (authenticated) {
-        const { appOrigin, marketingOrigin } = resolveHostingOrigins();
         const redirectHome = shouldRedirectAuthenticatedHome({
-          requestHost: request.nextUrl.host,
+          requestHost,
           appOrigin,
           marketingOrigin,
         });

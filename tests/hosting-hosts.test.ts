@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   appEntryHref,
   hostnameFromOrigin,
+  publicSiteHref,
   hostsMatch,
   isHostSplit,
   normalizeHostname,
@@ -118,6 +119,20 @@ describe("hosting hosts", () => {
     const hosts = await import("@/lib/hosting/hosts");
     expect(hosts.resolveHostingOrigins().appOrigin).toBe("https://dashboard.novendpos.app");
     expect(hosts.appEntryHref("/signup")).toBe("https://dashboard.novendpos.app/signup");
+  });
+
+  it("keeps sign-in and home on the marketing host", () => {
+    const env = {
+      NEXT_PUBLIC_APP_URL: "https://dashboard.novendpos.app",
+      NEXT_PUBLIC_MARKETING_URL: "https://www.novendpos.app",
+    } as unknown as NodeJS.ProcessEnv;
+
+    expect(publicSiteHref("/login", "www.novendpos.app", env)).toBe("/login");
+    expect(publicSiteHref("/", "localhost:3000", env)).toBe("/");
+    expect(publicSiteHref("/", "dashboard.novendpos.app", env)).toBe("https://www.novendpos.app/");
+    expect(publicSiteHref("/login", "dashboard.novendpos.app", env)).toBe(
+      "https://www.novendpos.app/login",
+    );
   });
 
   it("keeps relative auth hrefs when hosts are unsplit", () => {

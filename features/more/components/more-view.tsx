@@ -14,7 +14,9 @@ import { readOfflineSession } from "@/lib/offline/session";
 import { PageHeader } from "@/components/layout/primitives";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/feedback/loading-state";
+import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
+import { isLegalPath } from "@/lib/marketing-routes";
 import { ChevronRight, CreditCard, HelpCircle, Info, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,17 +29,11 @@ function PublicOrAppLink({
   className: string;
   children: React.ReactNode;
 }) {
-  const publicDoc =
-    href === "/privacy" ||
-    href === "/terms" ||
-    href === "/refund" ||
-    href === "/cookies" ||
-    href === "/aup" ||
-    href === "/dpa" ||
-    href.startsWith("/docs");
+  const resolved = usePublicSiteHref(href);
+  const publicDoc = isLegalPath(href) || href.startsWith("/docs");
   if (publicDoc) {
     return (
-      <a href={href} className={className}>
+      <a href={isLegalPath(href) ? resolved : href} className={className}>
         {children}
       </a>
     );

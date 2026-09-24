@@ -19,6 +19,7 @@ import { BRANDING } from "@/constants/branding";
 import { ROUTES } from "@/config/navigation";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
+import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import { navigateAfterLogin, resolvePostLoginPath } from "@/lib/auth/redirect-after-login";
 import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { clearOfflineSession } from "@/lib/offline/session";
@@ -68,6 +69,7 @@ export function LoginForm({ compact = false }: { compact?: boolean }) {
 }
 
 function ConfiguredLoginForm({ compact }: { compact: boolean }) {
+  const websiteHref = usePublicSiteHref("/");
   const { signIn } = useAuthActions();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const convex = useConvex();
@@ -193,7 +195,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   return (
     <div className="mx-auto w-full max-w-[360px]">
       <Link
-        href="/"
+        href={websiteHref}
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
       >
         <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
