@@ -5,7 +5,7 @@ import { enqueueOutbox } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
 import { putProductImage, deleteProductImage } from "./image-cache";
 import { BARCODE_ALREADY_ASSIGNED, barcodesEqual, normalizeBarcodeInput } from "./barcode-lookup";
-import { assertLocalCapacity, assertLocalWriteAllowed } from "./license-guard";
+import { assertFeatureEnabled, assertLocalCapacity, assertLocalWriteAllowed } from "./license-guard";
 import { loadProductImagesPolicyCache } from "./product-images-policy";
 import { assertProductImageUploadsEnabled } from "@/convex/shared/productImagesPolicy";
 import { nextCatalogPrices } from "@/lib/wholesale/purchase-prices";
@@ -83,6 +83,8 @@ export async function queueUpsertSupplier(
 export async function queueWholesalePurchase(
   payload: Omit<RecordWholesalePurchasePayload, "localId">,
 ) {
+  await assertLocalWriteAllowed();
+  await assertFeatureEnabled("inventory.wholesale");
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const localId = newClientId("local");
@@ -149,6 +151,8 @@ export async function queueWholesalePurchase(
 }
 
 export async function queueWholesaleTransfer(payload: Omit<WholesaleTransferPayload, "localId">) {
+  await assertLocalWriteAllowed();
+  await assertFeatureEnabled("inventory.wholesale");
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const localId = newClientId("local");
@@ -610,6 +614,7 @@ export async function queueUpsertBranch(
   payload: Omit<UpsertBranchPayload, "localId"> & { localId?: string },
 ) {
   await assertLocalWriteAllowed();
+  await assertFeatureEnabled("branches.multiBranch");
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const code = payload.code.trim().toUpperCase().replace(/\s+/g, "_");
@@ -638,6 +643,8 @@ export async function queueUpsertBranch(
 }
 
 export async function queueUpsertStaffCompensation(payload: UpsertStaffCompensationPayload) {
+  await assertLocalWriteAllowed();
+  await assertFeatureEnabled("staff.compensation");
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const existing = await db.staffCompensation.get(payload.profileId);
@@ -678,6 +685,8 @@ async function paidPayrollExpenseExists(
 }
 
 export async function queuePaySalary(payload: PaySalaryPayload) {
+  await assertLocalWriteAllowed();
+  await assertFeatureEnabled("staff.compensation");
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const user = await db.users.get(payload.profileId);
@@ -720,6 +729,8 @@ export async function queuePaySalary(payload: PaySalaryPayload) {
 }
 
 export async function queuePayCommission(payload: PayCommissionPayload) {
+  await assertLocalWriteAllowed();
+  await assertFeatureEnabled("staff.compensation");
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const user = await db.users.get(payload.profileId);

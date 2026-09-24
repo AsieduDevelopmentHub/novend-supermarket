@@ -67,19 +67,46 @@ export function shouldRedirectAuthenticatedHome(args: {
   return true;
 }
 
-/** Resolve app + marketing origins from env (middleware / Node / client bundle). */
+/**
+ * Direct `process.env.NEXT_PUBLIC_*` reads. Next inlines these into the client
+ * bundle. Indexing a passed `env` object does not, so server HTML and the
+ * hydrated client would disagree (absolute dashboard URL vs `/signup`).
+ */
+const inlinedAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+const inlinedMarketingUrl = process.env.NEXT_PUBLIC_MARKETING_URL;
+const inlinedSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
+function originsFromValues(
+  appUrl: string | undefined,
+  marketingUrl: string | undefined,
+  siteUrl: string | undefined,
+  serverOnlyAppUrl?: string | undefined,
+): { appOrigin: string | null; marketingOrigin: string | null } {
+  const appOrigin = appUrl?.trim() || serverOnlyAppUrl?.trim() || siteUrl?.trim() || null;
+  const marketingOrigin = marketingUrl?.trim() || siteUrl?.trim() || null;
+  return { appOrigin, marketingOrigin };
+}
+
+/**
+ * Resolve app + marketing origins from env (middleware / Node / client bundle).
+ *
+ * The default path uses only `NEXT_PUBLIC_*` so server and client render the
+ * same href. `NOVEND_APP_URL` is server-only and is honored only when a caller
+ * passes an explicit env object (tests, scripts).
+ */
 export function resolveHostingOrigins(env: NodeJS.ProcessEnv = process.env): {
   appOrigin: string | null;
   marketingOrigin: string | null;
 } {
-  const appOrigin =
-    env.NEXT_PUBLIC_APP_URL?.trim() ||
-    env.NOVEND_APP_URL?.trim() ||
-    env.NEXT_PUBLIC_SITE_URL?.trim() ||
-    null;
-  const marketingOrigin =
-    env.NEXT_PUBLIC_MARKETING_URL?.trim() || env.NEXT_PUBLIC_SITE_URL?.trim() || null;
-  return { appOrigin, marketingOrigin };
+  if (env === process.env) {
+    return originsFromValues(inlinedAppUrl, inlinedMarketingUrl, inlinedSiteUrl);
+  }
+  return originsFromValues(
+    env.NEXT_PUBLIC_APP_URL,
+    env.NEXT_PUBLIC_MARKETING_URL,
+    env.NEXT_PUBLIC_SITE_URL,
+    env.NOVEND_APP_URL,
+  );
 }
 
 /** True when marketing and app are configured as different hosts. */

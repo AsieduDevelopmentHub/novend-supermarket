@@ -26,6 +26,7 @@ import { DeviceActivationGate } from "@/features/billing/components/device-activ
 import { InstallPromptDialog } from "@/components/install-prompt-dialog";
 import { OfflineProvider } from "@/providers/offline-provider";
 import { OfflineNavigationProvider, OfflineOutlet } from "@/providers/offline-navigation";
+import { OrganizationExperienceRoot } from "@/features/experience/components/organization-experience-root";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useNativeShell } from "@/hooks/use-native-shell";
 import {
@@ -592,6 +593,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       <AppShellWithIdleLock userName={shellUser.name ?? null}>
         <OfflineProvider key={replicaKey}>
           <OfflineNavigationProvider>
+            <OrganizationExperienceRoot>
             <ProductTourProvider
               enabled={Boolean(liveReady || offlineSessionOk)}
               identityKey={
@@ -669,6 +671,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
               <InstallPromptDialog />
               <DeviceActivationGate enabled={Boolean(liveReady)} />
             </ProductTourProvider>
+            </OrganizationExperienceRoot>
           </OfflineNavigationProvider>
         </OfflineProvider>
       </AppShellWithIdleLock>

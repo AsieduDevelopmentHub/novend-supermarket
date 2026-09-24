@@ -24,7 +24,9 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import {
   GIBIBYTE,
   MAX_CUSTOM_BACKUP_GB,
+  PLAN_CATALOG,
   PLAN_LIST,
+  SELLABLE_PLAN_LIST,
   RESOURCE_LABELS,
   supportsCycle,
   type BillingCycle,
@@ -74,9 +76,25 @@ function normalizeStatus(status: OrganizationStatus | "inactive"): OrganizationS
 
 const CYCLES: { value: BillingCycle; label: string }[] = [
   { value: "monthly", label: "Monthly" },
-  { value: "yearly", label: "Yearly" },
-  { value: "lifetime", label: "Lifetime" },
+  { value: "yearly", label: "Annual" },
 ];
+
+/** Cycles offered for new assignments. Lifetime is legacy-only. */
+function assignableCycles(planKey: PlanKey): { value: BillingCycle; label: string }[] {
+  const plan = PLAN_CATALOG[planKey];
+  if (plan?.isLifetime) {
+    return [{ value: "lifetime", label: "Lifetime (legacy)" }];
+  }
+  return CYCLES.filter((option) => supportsCycle(plan, option.value));
+}
+
+/** Plans offered for new assignment — Lifetime only when the org already holds it. */
+function assignablePlans(currentPlanKey: PlanKey | null | undefined) {
+  if (currentPlanKey === "lifetime") {
+    return PLAN_LIST;
+  }
+  return SELLABLE_PLAN_LIST;
+}
 
 /** Super-admin licence controls for a single organization. */
 export function PlatformLicensePanel({
@@ -148,7 +166,9 @@ export function PlatformLicensePanel({
   if (license === null) return null;
 
   const selectedPlan = PLAN_LIST.find((plan) => plan.key === planKey);
+  const cycleOptions = assignableCycles(planKey);
   const cycleAllowed = selectedPlan ? supportsCycle(selectedPlan, cycle) : false;
+  const plansForAssignment = assignablePlans(license.planKey);
 
   async function run(label: string, work: () => Promise<unknown>): Promise<boolean> {
     if (!online) {
@@ -398,17 +418,34 @@ export function PlatformLicensePanel({
 
           <div className="border-border space-y-3 rounded-lg border p-4">
             <p className="text-sm font-medium">Assign a plan</p>
+            {license.planKey === "lifetime" ? (
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                This organization is on a legacy Lifetime licence. You can keep Lifetime selected
+                or migrate them to a sellable Monthly/Annual plan.
+              </p>
+            ) : null}
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="license-plan">Plan</Label>
-                <Select value={planKey} onValueChange={(value) => setPlanKey(value as PlanKey)}>
+                <Select
+                  value={planKey}
+                  onValueChange={(value) => {
+                    const next = value as PlanKey;
+                    setPlanKey(next);
+                    const nextCycles = assignableCycles(next);
+                    if (!nextCycles.some((option) => option.value === cycle)) {
+                      setCycle(nextCycles[0]?.value ?? "monthly");
+                    }
+                  }}
+                >
                   <SelectTrigger id="license-plan">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {PLAN_LIST.map((plan) => (
+                    {plansForAssignment.map((plan) => (
                       <SelectItem key={plan.key} value={plan.key}>
                         {plan.name}
+                        {plan.legacy ? " (legacy)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -421,7 +458,7 @@ export function PlatformLicensePanel({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CYCLES.map((option) => (
+                    {cycleOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>

@@ -74,6 +74,13 @@ describe("plan catalog", () => {
     expect(supportsCycle(enterprise, "lifetime")).toBe(false);
   });
 
+  it("keeps lifetime in the catalog but not as a sellable self-serve plan", () => {
+    const lifetime = resolvePlan("lifetime");
+    expect(lifetime.selfServe).toBe(false);
+    expect(lifetime.legacy).toBe(true);
+    expect(resolvePlan(undefined).key).toBe("basic");
+  });
+
   it("grows limits as plans get more expensive", () => {
     const basic = resolvePlan("basic");
     const pro = resolvePlan("pro");

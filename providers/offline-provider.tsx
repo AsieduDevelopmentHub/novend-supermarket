@@ -102,13 +102,16 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     const counts = await countOutboxByStatus();
     const open = await listOpenOutbox();
     const failedError =
-      open.find((row) => row.status === "failed" && row.lastError)?.lastError ?? null;
+      open.find(
+        (row) =>
+          (row.status === "failed" || row.status === "blocked_by_entitlement") && row.lastError,
+      )?.lastError ?? null;
     setStatus((prev) => ({
       ...prev,
       online: typeof navigator === "undefined" ? true : navigator.onLine,
       dexieAvailable: Boolean(db) || isOfflineDbAvailable(),
       pendingCount: counts.pending + counts.syncing,
-      failedCount: counts.failed,
+      failedCount: counts.failed + counts.blocked,
       lastError: failedError,
     }));
   }, []);

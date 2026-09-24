@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deriveAccess,
   OFFLINE_LICENSE_TTL_MS,
+  defaultLicenseEntitlements,
   type LicenseSnapshot,
 } from "@/convex/shared/licensing";
 import {
@@ -19,14 +20,17 @@ function snapshot(overrides: Partial<LicenseSnapshot> = {}): LicenseSnapshot {
     isLifetime: false,
     expiresAt: NOW + 10 * DAY,
   };
+  const planKey = "pro" as const;
+  const defaults = defaultLicenseEntitlements(planKey);
   return {
     organizationId: "org_1",
     organizationName: "Test Shop",
-    planKey: "pro",
+    planKey,
     planName: "Pro",
     organizationStatus: "active",
     cloudMode: "full_sync",
     entitlementVersion: 2,
+    configVersion: 2,
     allowedCloudModes: ["full_sync", "backup_only", "local_only"],
     cloudBackupEnabled: true,
     remoteMonitoringEnabled: true,
@@ -39,7 +43,11 @@ function snapshot(overrides: Partial<LicenseSnapshot> = {}): LicenseSnapshot {
       devices: 15,
       backupBytes: 500_000_000,
     },
-    features: [],
+    features: defaults.features,
+    planFeatures: [],
+    experience: defaults.experience,
+    billingVisibility: defaults.billingVisibility,
+    commercial: defaults.commercial,
     issuedAt: NOW - DAY,
     ...overrides,
   };
@@ -147,6 +155,29 @@ describe("offline licence state machine", () => {
     );
     expect(state.kind).toBe("perpetual");
     expect(state.access.canWrite).toBe(true);
+  });
+
+  it("upgrades a legacy features string[] cache into entitlement records", () => {
+    const legacy = {
+      ...snapshot(),
+      features: ["Sell online", "Reports"],
+    };
+    // Simulate older JSON that stored marketing bullets as `features`.
+    const raw = JSON.stringify({
+      ...legacy,
+      features: ["Sell online", "Reports"],
+      planFeatures: undefined,
+      experience: undefined,
+      billingVisibility: undefined,
+      commercial: undefined,
+      configVersion: undefined,
+    });
+    const state = resolve(raw);
+    expect(state.kind).toBe("valid");
+    expect(state.snapshot?.planFeatures).toEqual(["Sell online", "Reports"]);
+    expect(typeof state.snapshot?.features["billing.view"]).toBe("boolean");
+    expect(state.snapshot?.billingVisibility).toBe("visible");
+    expect(state.snapshot?.experience.accent).toMatch(/^#/);
   });
 
   it("treats planKey lifetime as perpetual even when subscription.isLifetime was omitted", () => {

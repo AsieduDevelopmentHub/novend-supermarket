@@ -31,6 +31,13 @@ import {
 } from "./shared/platformStatsAggregate";
 import { loadProductImagesPolicy, writeProductImagesPolicy } from "./settings";
 import { PRODUCT_IMAGES_SETTINGS_KEY } from "./shared/productImagesPolicy";
+import {
+  featureSourceLabel,
+  resolveFeatureEffectiveSource,
+  resolveOrganizationConfig,
+} from "./shared/organizationConfig";
+import { FEATURE_KEYS, FEATURE_REGISTRY } from "./shared/features";
+import { loadLiveOfferForOrganization } from "./shared/commercialOffers";
 
 export const me = query({
   args: {},
@@ -901,5 +908,109 @@ export const ownerEmail = query({
     if (!org) return null;
     const owner = await ctx.db.get(org.ownerUserId);
     return owner?.email ?? null;
+  },
+});
+
+/**
+ * Resolved organization configuration for the platform admin detail view
+ * (experience tokens, effective features, billing visibility, commercial summary).
+ */
+export const getOrganizationConfig = query({
+  args: { organizationId: v.id("organizations") },
+  handler: async (ctx, args) => {
+    await requirePlatformAdmin(ctx);
+    const org = await ctx.db.get(args.organizationId);
+    if (!org) return null;
+
+    const [preset, template, liveOffer] = await Promise.all([
+      org.experiencePresetId ? ctx.db.get(org.experiencePresetId) : null,
+      org.featureTemplateId ? ctx.db.get(org.featureTemplateId) : null,
+      loadLiveOfferForOrganization(ctx, org._id),
+    ]);
+
+    const resolved = resolveOrganizationConfig({
+      organization: org,
+      planKey: org.planKey,
+      preset,
+      template,
+      offer: liveOffer,
+    });
+
+    const plan = resolvePlan(org.planKey);
+    const featureRows = FEATURE_KEYS.map((feature) => {
+      const source = resolveFeatureEffectiveSource({
+        feature,
+        organization: org,
+        planKey: org.planKey,
+        template,
+        offer: liveOffer,
+        effective: resolved.features[feature],
+      });
+      const override = org.featureOverrides?.find((row) => row.feature === feature);
+      return {
+        feature,
+        label: FEATURE_REGISTRY[feature].label,
+        description: FEATURE_REGISTRY[feature].description,
+        category: FEATURE_REGISTRY[feature].category,
+        prerequisites: FEATURE_REGISTRY[feature].prerequisites,
+        effective: resolved.features[feature],
+        override: override?.value ?? ("inherit" as const),
+        source,
+        sourceLabel: featureSourceLabel(source, {
+          planName: plan.name,
+          templateName: template?.name,
+        }),
+      };
+    });
+
+    return {
+      resolved,
+      assignment: {
+        experiencePresetId: org.experiencePresetId ?? null,
+        experienceOverrides: org.experienceOverrides ?? null,
+        experienceVersion: org.experienceVersion ?? 0,
+        featureTemplateId: org.featureTemplateId ?? null,
+        featureOverrides: org.featureOverrides ?? [],
+        featureEntitlementVersion: org.featureEntitlementVersion ?? 0,
+        billingVisibility: org.billingVisibility ?? ("visible" as const),
+        entitlementVersion: org.entitlementVersion ?? 0,
+      },
+      preset: preset
+        ? {
+            id: preset._id,
+            key: preset.key,
+            name: preset.name,
+            status: preset.status,
+            accent: preset.accent,
+            accentForeground: preset.accentForeground,
+            sidebarBackground: preset.sidebarBackground,
+            sidebarForeground: preset.sidebarForeground,
+            sidebarAccent: preset.sidebarAccent,
+            sidebarAccentForeground: preset.sidebarAccentForeground,
+            focusRing: preset.focusRing,
+            success: preset.success,
+            warning: preset.warning,
+            danger: preset.danger,
+            radiusScale: preset.radiusScale,
+          }
+        : null,
+      template: template
+        ? {
+            id: template._id,
+            key: template.key,
+            name: template.name,
+            status: template.status,
+          }
+        : null,
+      offer: liveOffer
+        ? {
+            id: liveOffer._id,
+            name: liveOffer.name,
+            status: liveOffer.status,
+            basePlanKey: liveOffer.basePlanKey,
+          }
+        : null,
+      featureRows,
+    };
   },
 });

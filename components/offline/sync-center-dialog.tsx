@@ -30,7 +30,7 @@ import { useShowsRealtimeSyncUi } from "@/hooks/use-shows-realtime-sync-ui";
 import type { OutboxRow } from "@/lib/offline/types";
 
 function isDisplayedConflict(row: OutboxRow) {
-  if (row.status === "failed") return true;
+  if (row.status === "failed" || row.status === "blocked_by_entitlement") return true;
   return Boolean(row.lastError && shouldMarkOutboxFailed(row.attempts, row.lastError));
 }
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   appEntryHref,
   hostnameFromOrigin,
@@ -108,6 +108,18 @@ describe("hosting hosts", () => {
     expect(appEntryHref("/dashboard", env)).toBe("https://dashboard.novendpos.app/dashboard");
   });
 
+  it("default hrefs follow inlined public URLs and ignore server-only NOVEND_APP_URL", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://dashboard.novendpos.app");
+    vi.stubEnv("NEXT_PUBLIC_MARKETING_URL", "https://www.novendpos.app");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "http://localhost:3000");
+    vi.stubEnv("NOVEND_APP_URL", "https://www.novend.com");
+    vi.resetModules();
+
+    const hosts = await import("@/lib/hosting/hosts");
+    expect(hosts.resolveHostingOrigins().appOrigin).toBe("https://dashboard.novendpos.app");
+    expect(hosts.appEntryHref("/signup")).toBe("https://dashboard.novendpos.app/signup");
+  });
+
   it("keeps relative auth hrefs when hosts are unsplit", () => {
     const env = {
       NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
@@ -117,4 +129,9 @@ describe("hosting hosts", () => {
     expect(appEntryHref("/login", env)).toBe("/login");
     expect(appEntryHref("/signup", env)).toBe("/signup");
   });
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.resetModules();
 });

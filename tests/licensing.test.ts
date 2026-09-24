@@ -4,6 +4,7 @@ import {
   evaluateCachedLicense,
   buildUsageMetric,
   hasCapacity,
+  defaultLicenseEntitlements,
   GRACE_PERIOD_MS,
   OFFLINE_LICENSE_TTL_MS,
   type LicenseSnapshot,
@@ -112,21 +113,28 @@ describe("deriveAccess — subscription lifecycle", () => {
 
 describe("evaluateCachedLicense", () => {
   function snapshot(issuedAt: number): LicenseSnapshot {
+    const planKey = "pro" as const;
+    const defaults = defaultLicenseEntitlements(planKey);
     return {
       organizationId: "org1",
       organizationName: "Test Shop",
-      planKey: "pro",
+      planKey,
       planName: "Pro",
       organizationStatus: "active",
       cloudMode: "full_sync",
       entitlementVersion: 0,
+      configVersion: 0,
       allowedCloudModes: ["full_sync", "backup_only", "local_only"],
       cloudBackupEnabled: true,
       remoteMonitoringEnabled: true,
       subscription: subscription(),
       access: deriveAccess("active", subscription(), issuedAt),
       limits: { products: 5000, users: 15, branches: 5, devices: 15, backupBytes: null },
-      features: [],
+      features: defaults.features,
+      planFeatures: [],
+      experience: defaults.experience,
+      billingVisibility: defaults.billingVisibility,
+      commercial: defaults.commercial,
       issuedAt,
     };
   }

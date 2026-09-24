@@ -45,8 +45,10 @@ export function buildSettingsSections(input: {
   isManager: boolean;
   isDesktop: boolean;
   isMobileCap: boolean;
+  /** When false, Billing is omitted (platform billingVisibility / billing.view). */
+  showBilling?: boolean;
 }): SettingsSection[] {
-  const { isAdmin, isManager, isDesktop, isMobileCap } = input;
+  const { isAdmin, isManager, isDesktop, isMobileCap, showBilling = true } = input;
 
   const terminalSections: SettingsSection[] = isDesktop
     ? [
@@ -69,7 +71,9 @@ export function buildSettingsSections(input: {
     ? [
         { value: "receipt", label: "Receipt", long: "Receipt template" },
         { value: "business", label: "Business", long: "Business profile" },
-        { value: "billing", label: "Billing", long: "Billing & plan" },
+        ...(showBilling
+          ? ([{ value: "billing", label: "Billing", long: "Billing & plan" }] as SettingsSection[])
+          : []),
       ]
     : [];
 

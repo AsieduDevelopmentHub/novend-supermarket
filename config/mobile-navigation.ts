@@ -1,4 +1,4 @@
-import type { AppRole, NavItem } from "@/config/navigation";
+import type { AppRole, NavFeatureGate, NavItem } from "@/config/navigation";
 import { flatNavForRole } from "@/config/navigation";
 import type { BusinessCapabilityKey } from "@/convex/shared/businessCapabilities";
 import {
@@ -63,9 +63,10 @@ const MORE_SECTIONS: Array<{ id: string; label: string; hrefs: string[] }> = [
 export function moreSectionsForRole(
   role: AppRole,
   enabledCapabilities: readonly BusinessCapabilityKey[] = [],
+  gate: NavFeatureGate = {},
 ): MoreSection[] {
   const allowed = new Map(
-    flatNavForRole(role, enabledCapabilities).map((item) => [item.href, item]),
+    flatNavForRole(role, enabledCapabilities, gate).map((item) => [item.href, item]),
   );
   return MORE_SECTIONS.map((section) => ({
     id: section.id,

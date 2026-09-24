@@ -14,6 +14,7 @@ import {
 } from "@/config/navigation";
 import { useNavTreeState } from "@/hooks/use-nav-tree-state";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { useLicense } from "@/hooks/use-license";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -226,8 +227,9 @@ export function SidebarNavTree({
   const pathname = usePathname();
   const { activePath } = useOfflineNavigation();
   const { enabledCapabilities } = useBusinessCapabilities();
+  const { features, billingVisibility } = useLicense();
   const currentPath = activePath ?? pathname;
-  const groups = navGroupsForRole(role, enabledCapabilities);
+  const groups = navGroupsForRole(role, enabledCapabilities, { features, billingVisibility });
   const { isExpanded, toggleGroup, expandGroup } = useNavTreeState();
 
   useEffect(() => {

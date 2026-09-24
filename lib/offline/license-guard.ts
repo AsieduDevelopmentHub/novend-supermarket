@@ -1,6 +1,9 @@
 import { loadOfflineLicenseState } from "./license";
 import { getOfflineDb } from "./db";
+import { featureEnabled, type LicenseSnapshot } from "@/convex/shared/licensing";
+import { FEATURE_REGISTRY, type FeatureKey } from "@/convex/shared/features";
 import { limitReachedMessage, type LimitResource } from "@/convex/shared/plans";
+import type { OutboxOpType } from "./types";
 
 /**
  * Blocks local-first writes when the cached licence is read-only (suspended,
@@ -55,4 +58,42 @@ export async function assertLocalCapacity(
   if (used + additional > limit) {
     throw new Error(limitReachedMessage(cached.planKey, resource, limit));
   }
+}
+
+export function featureDenialMessage(feature: FeatureKey): string {
+  const def = FEATURE_REGISTRY[feature];
+  return `${def.label} isn’t enabled for this workspace.`;
+}
+
+/**
+ * Offline entitlement gate. Uses the last cached licence snapshot.
+ * Throws when the feature is disabled so local writes never create phantom work.
+ */
+export async function assertFeatureEnabled(feature: FeatureKey): Promise<void> {
+  const license = await loadOfflineLicenseState();
+  const features = license.snapshot?.features;
+  if (!featureEnabled(features, feature)) {
+    throw new Error(featureDenialMessage(feature));
+  }
+}
+
+/** Outbox op → required feature (if any). Ops without a mapping are always allowed. */
+export const OUTBOX_FEATURE_REQUIREMENTS: Partial<Record<OutboxOpType, FeatureKey>> = {
+  record_wholesale_purchase: "inventory.wholesale",
+  wholesale_transfer: "inventory.wholesale",
+  upsert_branch: "branches.multiBranch",
+  upsert_staff_compensation: "staff.compensation",
+  pay_salary: "staff.compensation",
+  pay_commission: "staff.compensation",
+};
+
+export function requiredFeatureForOutbox(type: OutboxOpType): FeatureKey | null {
+  return OUTBOX_FEATURE_REQUIREMENTS[type] ?? null;
+}
+
+export function isFeatureEnabledOnSnapshot(
+  snapshot: LicenseSnapshot | null | undefined,
+  feature: FeatureKey,
+): boolean {
+  return featureEnabled(snapshot?.features, feature);
 }

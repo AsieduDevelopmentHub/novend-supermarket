@@ -34,15 +34,30 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePlatformOrgDetailData } from "@/hooks/use-platform-offline-data";
 import { PlatformLicensePanel } from "./platform-license-panel";
 import { PlatformImportExportCard } from "./platform-import-export-card";
+import { PlatformExperiencePanel } from "./platform-experience-panel";
+import { PlatformEntitlementsPanel } from "./platform-entitlements-panel";
+import { PlatformCommercialPanel } from "./platform-commercial-panel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatClosureReason } from "@/convex/shared/accountClosure";
+
+const ORG_DETAIL_TABS = [
+  "overview",
+  "licence",
+  "experience",
+  "entitlements",
+  "commercial",
+  "team",
+  "analytics",
+] as const;
 
 export function PlatformOrgDetailView({ organizationId }: { organizationId: string }) {
   const id = organizationId as Id<"organizations">;
   const online = useConnectivity();
   const { data: org, loading } = usePlatformOrgDetailData(organizationId);
   const requestedTab = useSearchParams().get("tab");
-  const initialTab = ["overview", "licence", "team", "analytics"].includes(requestedTab ?? "")
+  const initialTab = ORG_DETAIL_TABS.includes(
+    (requestedTab ?? "") as (typeof ORG_DETAIL_TABS)[number],
+  )
     ? (requestedTab as string)
     : "overview";
   const resetPassword = useAction(api.platform.resetOrganizationAdminPassword);
@@ -168,6 +183,9 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="licence">Licence</TabsTrigger>
+          <TabsTrigger value="experience">Experience</TabsTrigger>
+          <TabsTrigger value="entitlements">Entitlements</TabsTrigger>
+          <TabsTrigger value="commercial">Commercial</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
@@ -284,6 +302,18 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
             closureEffectiveAt={org.closureEffectiveAt}
             closureReason={org.closureReason}
           />
+        </TabsContent>
+
+        <TabsContent value="experience">
+          <PlatformExperiencePanel organizationId={id} />
+        </TabsContent>
+
+        <TabsContent value="entitlements">
+          <PlatformEntitlementsPanel organizationId={id} />
+        </TabsContent>
+
+        <TabsContent value="commercial">
+          <PlatformCommercialPanel organizationId={id} currency={org.currency} />
         </TabsContent>
 
         <TabsContent value="team" className="space-y-4">

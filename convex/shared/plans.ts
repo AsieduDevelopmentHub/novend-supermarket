@@ -47,6 +47,11 @@ export type PlanDefinition = {
   featured: boolean;
   /** Self-service checkout is available for this plan. */
   selfServe: boolean;
+  /**
+   * When true, the plan is retained for historical subscriptions only and must
+   * not appear in public pricing or new self-serve sales.
+   */
+  legacy?: boolean;
   sortOrder: number;
   limits: PlanLimits;
   features: string[];
@@ -191,7 +196,9 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     variableBackup: false,
     isLifetime: true,
     featured: false,
-    selfServe: true,
+    /** Legacy — not sold; kept for historical subscriptions and offline licences. */
+    selfServe: false,
+    legacy: true,
     sortOrder: 4,
     limits: {
       products: null,
@@ -210,20 +217,37 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
   },
 };
 
-export const DEFAULT_PLAN_KEY: PlanKey = "lifetime";
+/**
+ * Fallback for unknown / legacy plan strings. Must never resolve to the most
+ * powerful entitlement set — Basic is the secure default.
+ */
+export const DEFAULT_PLAN_KEY: PlanKey = "basic";
+
+/** Plans offered for new sales and public pricing (excludes legacy Lifetime). */
+export const SELLABLE_PLAN_KEYS = ["basic", "pro", "enterprise"] as const;
+
+export type SellablePlanKey = (typeof SELLABLE_PLAN_KEYS)[number];
 
 export const PLAN_LIST: PlanDefinition[] = PLAN_KEYS.map((key) => PLAN_CATALOG[key]).sort(
   (a, b) => a.sortOrder - b.sortOrder,
 );
+
+export const SELLABLE_PLAN_LIST: PlanDefinition[] = SELLABLE_PLAN_KEYS.map(
+  (key) => PLAN_CATALOG[key],
+).sort((a, b) => a.sortOrder - b.sortOrder);
+
+export function isSellablePlanKey(value: unknown): value is SellablePlanKey {
+  return typeof value === "string" && (SELLABLE_PLAN_KEYS as readonly string[]).includes(value);
+}
 
 export function isPlanKey(value: unknown): value is PlanKey {
   return typeof value === "string" && (PLAN_KEYS as readonly string[]).includes(value);
 }
 
 /**
- * Resolves a stored plan value to a definition. Unknown or legacy values
- * (for example the pre-billing `"standard"` string) fall back to the default so
- * an organization is never left without entitlements.
+ * Resolves a stored plan value to a definition. Unknown values (for example the
+ * pre-billing `"standard"` string) fall back to Basic — never Lifetime/Enterprise.
+ * Known historical keys such as `lifetime` still resolve to their catalog entry.
  */
 export function resolvePlan(value: unknown): PlanDefinition {
   return isPlanKey(value) ? PLAN_CATALOG[value] : PLAN_CATALOG[DEFAULT_PLAN_KEY];

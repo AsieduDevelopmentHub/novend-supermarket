@@ -22,6 +22,7 @@ import { BillingHistoryTable } from "./billing-history-table";
 import type { AccessState, UsageMetric } from "@/convex/shared/licensing";
 import { PLAN_CATALOG, type PlanKey } from "@/convex/shared/plans";
 import type { ScheduledChangeSnapshot } from "@/convex/shared/planChange";
+import { useLicense } from "@/hooks/use-license";
 
 const ACCESS_BADGE: Record<
   AccessState,
@@ -91,6 +92,7 @@ function periodDetail(
 export function BillingPanel() {
   const online = useConnectivity();
   const { data: overview, loading, source } = useBillingOverviewData();
+  const { billingVisibility, commercial } = useLicense();
   const cancelSubscription = useAction(api.billing.cancelSubscription);
   const cancelScheduledChange = useAction(api.billing.cancelScheduledChange);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -271,6 +273,9 @@ export function BillingPanel() {
         online={online}
         onlinePaymentsEnabled={overview.onlinePaymentsEnabled}
         scheduledChange={scheduledChange}
+        billingVisibility={billingVisibility}
+        commercialOffer={commercial.offer ?? null}
+        canSelfServe={commercial.canSelfServe}
       />
 
       <section className="space-y-3">

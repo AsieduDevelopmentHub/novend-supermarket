@@ -10,10 +10,18 @@ import {
   saveLicenseSnapshot,
   type OfflineLicenseState,
 } from "@/lib/offline/license";
-import type { LicenseAccess, LicenseSnapshot } from "@/convex/shared/licensing";
+import {
+  defaultLicenseEntitlements,
+  type LicenseAccess,
+  type LicenseCommercialSnapshot,
+  type LicenseSnapshot,
+} from "@/convex/shared/licensing";
 import { resolvePlan, type PlanKey, type PlanLimits } from "@/convex/shared/plans";
 import { planCapabilities, type PlanCapabilities } from "@/convex/shared/capabilities";
 import { DEFAULT_CLOUD_MODE, normalizeCloudMode, type CloudMode } from "@/convex/shared/cloudMode";
+import { DEFAULT_NOVEND_EXPERIENCE, type ResolvedExperienceTokens } from "@/convex/shared/experience";
+import type { FeatureKey } from "@/convex/shared/features";
+import type { BillingVisibility } from "@/convex/shared/organizationConfig";
 
 export type LicenseState = {
   isLoading: boolean;
@@ -21,7 +29,14 @@ export type LicenseState = {
   planName: string;
   limits: PlanLimits;
   capabilities: PlanCapabilities;
-  features: string[];
+  /** Resolved feature entitlements. */
+  features: Record<FeatureKey, boolean>;
+  /** Plan marketing bullets. */
+  planFeatures: string[];
+  experience: ResolvedExperienceTokens;
+  billingVisibility: BillingVisibility;
+  commercial: LicenseCommercialSnapshot;
+  configVersion: number;
   access: LicenseAccess;
   /** Cloud usage mode for this organization. Defaults to full_sync. */
   cloudMode: CloudMode;
@@ -43,6 +58,28 @@ const DEFAULT_ACCESS: LicenseAccess = {
   reason: FIRST_ACTIVATION_REQUIRED,
   expiresAt: null,
 };
+
+function entitlementsFromSnapshot(snapshot: LicenseSnapshot | null, planKey: PlanKey) {
+  const defaults = defaultLicenseEntitlements(planKey);
+  if (!snapshot) {
+    return {
+      features: defaults.features,
+      planFeatures: resolvePlan(planKey).features,
+      experience: defaults.experience,
+      billingVisibility: defaults.billingVisibility,
+      commercial: defaults.commercial,
+      configVersion: defaults.configVersion,
+    };
+  }
+  return {
+    features: snapshot.features ?? defaults.features,
+    planFeatures: snapshot.planFeatures ?? resolvePlan(planKey).features,
+    experience: snapshot.experience ?? DEFAULT_NOVEND_EXPERIENCE,
+    billingVisibility: snapshot.billingVisibility ?? defaults.billingVisibility,
+    commercial: snapshot.commercial ?? defaults.commercial,
+    configVersion: snapshot.configVersion ?? snapshot.entitlementVersion ?? 0,
+  };
+}
 
 /**
  * The organization's licence, live when connected and cached when not.
@@ -76,13 +113,14 @@ export function useLicense(): LicenseState {
 
   if (remote) {
     const plan = resolvePlan(remote.planKey);
+    const entitlements = entitlementsFromSnapshot(remote as LicenseSnapshot, plan.key);
     return {
       isLoading: false,
       planKey: plan.key,
       planName: remote.planName,
       limits: remote.limits,
       capabilities: remote.capabilities ?? planCapabilities(plan.key, remote.limits),
-      features: remote.features,
+      ...entitlements,
       access: remote.access,
       cloudMode: normalizeCloudMode(remote.cloudMode),
       fromCache: false,
@@ -97,6 +135,7 @@ export function useLicense(): LicenseState {
 
   if (!online && cached?.snapshot) {
     const plan = resolvePlan(cached.snapshot.planKey);
+    const entitlements = entitlementsFromSnapshot(cached.snapshot, plan.key);
     return {
       isLoading: false,
       planKey: plan.key,
@@ -104,7 +143,7 @@ export function useLicense(): LicenseState {
       limits: cached.snapshot.limits,
       capabilities:
         cached.snapshot.capabilities ?? planCapabilities(plan.key, cached.snapshot.limits),
-      features: cached.snapshot.features,
+      ...entitlements,
       access: cached.access,
       cloudMode: normalizeCloudMode(cached.snapshot.cloudMode),
       fromCache: true,
@@ -118,13 +157,19 @@ export function useLicense(): LicenseState {
   }
 
   const fallback = resolvePlan(undefined);
+  const defaults = defaultLicenseEntitlements(fallback.key);
   return {
     isLoading: (online && remote === undefined) || (!online && !cacheReady),
     planKey: fallback.key,
     planName: fallback.name,
     limits: fallback.limits,
     capabilities: planCapabilities(fallback.key, fallback.limits),
-    features: fallback.features,
+    features: defaults.features,
+    planFeatures: fallback.features,
+    experience: defaults.experience,
+    billingVisibility: defaults.billingVisibility,
+    commercial: defaults.commercial,
+    configVersion: defaults.configVersion,
     access: !online && cached ? cached.access : DEFAULT_ACCESS,
     cloudMode: DEFAULT_CLOUD_MODE,
     fromCache: false,

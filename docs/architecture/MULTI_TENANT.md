@@ -1,6 +1,6 @@
 # Multi-Tenant Architecture
 
-Version: 1.0.0
+Version: 1.1.0
 
 # Decision
 
@@ -8,6 +8,22 @@ Novend is a **logical multi-tenant** platform on one Convex deployment.
 The organization is the isolation boundary.
 
 IndexedDB is not a per-tenant source of truth. Convex is.
+
+# Platform experience & entitlements
+
+Per-organization look-and-feel and feature access are platform-controlled, not
+tenant-editable:
+
+- `experiencePresets` + org `experienceOverrides` → colour tokens only
+- `featureTemplates` + org `featureOverrides` → typed `FEATURE_KEYS`
+- `commercialOffers` → private negotiated prices (session org only)
+- `organizationProvisioningPolicies` → defaults for **future** orgs only
+- `billingVisibility` → `visible` | `hidden` | `custom_offer_only`
+
+`resolveOrganizationConfig(org)` is the single resolver (safety kill → write
+access → org override → template → offer → plan → secure default). The result
+ships in `billing.licenseSnapshot`. Never branch on hard-coded
+`organizationId` in UI or mutations.
 
 # Model
 
@@ -17,6 +33,7 @@ Novend platform
 │   ├── Users / profiles
 │   ├── Branches (MAIN in MVP)
 │   ├── Catalog + branch stock
+│   ├── Experience / feature entitlements
 │   └── Sales / receipts
 └── Organization B
     └── …

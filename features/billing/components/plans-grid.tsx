@@ -20,14 +20,15 @@ import { formatCurrency } from "@/lib/currency";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import {
-  PLAN_LIST,
+  SELLABLE_PLAN_LIST,
   planChangeKind,
   planLimitLines,
   type BillingCycle,
   type PlanDefinition,
   type PlanKey,
 } from "@/convex/shared/plans";
-import type { AccessState } from "@/convex/shared/licensing";
+import type { AccessState, CommercialOfferSnapshot } from "@/convex/shared/licensing";
+import type { BillingVisibility } from "@/convex/shared/organizationConfig";
 import type { ScheduledChangeSnapshot } from "@/convex/shared/planChange";
 import { PlanChangeDialog } from "./plan-change-dialog";
 
@@ -39,6 +40,9 @@ type Props = {
   onlinePaymentsEnabled: boolean;
   scheduledChange?: ScheduledChangeSnapshot | null;
   disabled?: boolean;
+  billingVisibility?: BillingVisibility;
+  commercialOffer?: CommercialOfferSnapshot | null;
+  canSelfServe?: boolean;
 };
 
 function formatDate(value: number | null) {
@@ -69,11 +73,33 @@ function actionLabel(
   return `Downgrade to ${plan.name}`;
 }
 
+function offerAsPlanDefinition(offer: CommercialOfferSnapshot): PlanDefinition {
+  const base =
+    SELLABLE_PLAN_LIST.find((p) => p.key === offer.basePlanKey) ?? SELLABLE_PLAN_LIST[0]!;
+  return {
+    ...base,
+    key: offer.basePlanKey,
+    name: offer.name,
+    tagline: offer.customerMessage?.trim() || "Configured for your business",
+    monthlyPrice: offer.monthlyPrice ?? null,
+    yearlyPrice: offer.yearlyPrice ?? null,
+    oneTimePrice: null,
+    isLifetime: false,
+    selfServe: true,
+    featured: true,
+    features: [
+      ...(offer.customerMessage ? [offer.customerMessage] : []),
+      ...base.features.slice(0, 4),
+    ],
+  };
+}
+
 /**
  * Plan comparison and self-service checkout.
  *
  * Upgrades open a backend-authored proration preview, then Paystack.
  * Downgrades are scheduled for period end with no charge today.
+ * When billingVisibility is custom_offer_only, only the assigned offer is shown.
  */
 export function PlansGrid({
   currentPlanKey,
@@ -83,10 +109,23 @@ export function PlansGrid({
   onlinePaymentsEnabled,
   scheduledChange = null,
   disabled = false,
+  billingVisibility = "visible",
+  commercialOffer = null,
+  canSelfServe = true,
 }: Props) {
-  const [cycle, setCycle] = useState<Exclude<BillingCycle, "lifetime">>(
-    currentCycle === "yearly" ? "yearly" : "monthly",
-  );
+  const customOfferOnly = billingVisibility === "custom_offer_only" && Boolean(commercialOffer);
+  const [cycle, setCycle] = useState<Exclude<BillingCycle, "lifetime">>(() => {
+    if (customOfferOnly && commercialOffer) {
+      if (commercialOffer.allowedCycles.includes("yearly") && currentCycle === "yearly") {
+        return "yearly";
+      }
+      if (commercialOffer.allowedCycles.includes("monthly") && currentCycle === "monthly") {
+        return "monthly";
+      }
+      return commercialOffer.allowedCycles.includes("yearly") ? "yearly" : "monthly";
+    }
+    return currentCycle === "yearly" ? "yearly" : "monthly";
+  });
   const [pendingPlan, setPendingPlan] = useState<PlanKey | null>(null);
   const [offlineOpen, setOfflineOpen] = useState(false);
   const [dialogPlan, setDialogPlan] = useState<PlanDefinition | null>(null);
@@ -95,14 +134,31 @@ export function PlansGrid({
   const scheduleDowngrade = useAction(api.billing.scheduleDowngrade);
   const me = useQuery(api.users.me, online ? {} : "skip");
 
+  const plans: PlanDefinition[] =
+    customOfferOnly && commercialOffer
+      ? [offerAsPlanDefinition(commercialOffer)]
+      : SELLABLE_PLAN_LIST;
+  const cycleOptions: Array<"monthly" | "yearly"> =
+    customOfferOnly && commercialOffer ? commercialOffer.allowedCycles : ["monthly", "yearly"];
+
   const dialogCycle: BillingCycle = dialogPlan?.isLifetime ? "lifetime" : cycle;
   const preview = useQuery(
     api.billing.previewPlanChange,
-    dialogPlan && online ? { planKey: dialogPlan.key, cycle: dialogCycle } : "skip",
+    dialogPlan && online && !customOfferOnly
+      ? { planKey: dialogPlan.key, cycle: dialogCycle }
+      : "skip",
   );
 
   async function confirmChange() {
-    if (!dialogPlan || !preview) return;
+    if (!dialogPlan) return;
+    if (customOfferOnly) {
+      toast.message("Your Novend plan", {
+        description: "Contact Novend to activate or change this commercial plan.",
+      });
+      setDialogPlan(null);
+      return;
+    }
+    if (!preview) return;
     const chosenCycle: BillingCycle = dialogPlan.isLifetime ? "lifetime" : cycle;
     setPendingPlan(dialogPlan.key);
     try {
@@ -147,6 +203,7 @@ export function PlansGrid({
       setOfflineOpen(true);
       return;
     }
+    if (!canSelfServe && !customOfferOnly) return;
     const kind = planChangeKind(currentPlanKey, plan.key);
     if (kind === "same" && accessState === "active" && !plan.isLifetime && !scheduledChange) {
       return;
@@ -158,43 +215,62 @@ export function PlansGrid({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold">Available plans</h3>
+          <h3 className="text-base font-semibold">
+            {customOfferOnly ? "Your Novend plan" : "Available plans"}
+          </h3>
+          {customOfferOnly && commercialOffer?.customerMessage ? (
+            <p className="text-muted-foreground mt-1 text-sm">{commercialOffer.customerMessage}</p>
+          ) : null}
         </div>
-        <div
-          className="border-border bg-muted/40 inline-flex rounded-lg border p-1"
-          role="group"
-          aria-label="Billing cycle"
-        >
-          {(["monthly", "yearly"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={cycle === option}
-              onClick={() => setCycle(option)}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors",
-                cycle === option
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {option}
-              {option === "yearly" ? (
-                <span className="text-primary ml-1.5 text-xs font-semibold">−2 months</span>
-              ) : null}
-            </button>
-          ))}
-        </div>
+        {cycleOptions.length > 1 ? (
+          <div
+            className="border-border bg-muted/40 inline-flex rounded-lg border p-1"
+            role="group"
+            aria-label="Billing cycle"
+          >
+            {cycleOptions.map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={cycle === option}
+                onClick={() => setCycle(option)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  cycle === option
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {option === "monthly" ? "Monthly" : "Annual"}
+                {option === "yearly" && !customOfferOnly ? (
+                  <span className="text-primary ml-1.5 text-xs font-semibold">2 months free</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {PLAN_LIST.map((plan) => {
+      {currentPlanKey === "lifetime" && !customOfferOnly ? (
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          Your organization is on a legacy Lifetime licence. Lifetime is no longer sold; you can
+          keep it or move to a Monthly or Annual subscription below.
+        </p>
+      ) : null}
+
+      <div
+        className={cn(
+          "grid gap-4",
+          customOfferOnly ? "md:grid-cols-1 xl:max-w-md" : "md:grid-cols-2 xl:grid-cols-3",
+        )}
+      >
+        {plans.map((plan) => {
           const kind = planChangeKind(currentPlanKey, plan.key);
           const isCurrentPaid =
             kind === "same" && accessState === "active" && !plan.isLifetime && !scheduledChange;
           return (
             <PlanCard
-              key={plan.key}
+              key={customOfferOnly && commercialOffer ? `offer-${commercialOffer.id}` : plan.key}
               plan={plan}
               cycle={cycle}
               isCurrent={kind === "same"}
@@ -202,10 +278,19 @@ export function PlansGrid({
               scheduledDate={
                 scheduledChange?.targetPlanKey === plan.key ? scheduledChange.effectiveAt : null
               }
-              label={actionLabel(plan, currentPlanKey, accessState, scheduledChange)}
+              label={
+                customOfferOnly
+                  ? "Contact Novend"
+                  : actionLabel(plan, currentPlanKey, accessState, scheduledChange)
+              }
               pending={pendingPlan === plan.key}
-              disabled={disabled || pendingPlan !== null || isCurrentPaid}
-              onlinePaymentsEnabled={onlinePaymentsEnabled}
+              disabled={
+                disabled ||
+                pendingPlan !== null ||
+                isCurrentPaid ||
+                (!canSelfServe && !customOfferOnly)
+              }
+              onlinePaymentsEnabled={onlinePaymentsEnabled || customOfferOnly}
               onChoose={() => onChoose(plan)}
             />
           );
@@ -224,16 +309,18 @@ export function PlansGrid({
         .
       </p>
 
-      <PlanChangeDialog
-        open={Boolean(dialogPlan)}
-        preview={preview ?? null}
-        loading={Boolean(dialogPlan && preview === undefined)}
-        pending={pendingPlan !== null}
-        onOpenChange={(open) => {
-          if (!open) setDialogPlan(null);
-        }}
-        onConfirm={() => void confirmChange()}
-      />
+      {!customOfferOnly ? (
+        <PlanChangeDialog
+          open={Boolean(dialogPlan)}
+          preview={preview ?? null}
+          loading={Boolean(dialogPlan && preview === undefined)}
+          pending={pendingPlan !== null}
+          onOpenChange={(open) => {
+            if (!open) setDialogPlan(null);
+          }}
+          onConfirm={() => void confirmChange()}
+        />
+      ) : null}
 
       <Dialog open={offlineOpen} onOpenChange={setOfflineOpen}>
         <DialogContent>

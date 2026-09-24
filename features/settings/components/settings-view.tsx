@@ -80,6 +80,9 @@ import {
   type SettingsTab,
 } from "./settings-section-groups";
 import { SettingsMobileSectionNav } from "./settings-mobile-section-nav";
+import { useLicense } from "@/hooks/use-license";
+import { isBillingHidden } from "@/config/navigation";
+import { AccessDenied } from "@/components/feedback/access-denied";
 
 export function SettingsView() {
   const router = useRouter();
@@ -87,6 +90,8 @@ export function SettingsView() {
   const online = useConnectivity();
   const isDesktop = useDesktopRuntime();
   const isMobileCap = useNativeShell();
+  const { features, billingVisibility } = useLicense();
+  const billingHidden = isBillingHidden({ features, billingVisibility });
   const remoteBusiness = useQuery(api.settings.getBusiness, online && isAdmin ? {} : "skip");
   const remoteTemplate = useQuery(api.settings.getReceiptTemplate, online && isAdmin ? {} : "skip");
   const [cachedPrint, setCachedPrint] = useState<{
@@ -94,6 +99,7 @@ export function SettingsView() {
     template: ReceiptTemplateConfig;
   } | null>(null);
   const [tab, setTab] = useState<SettingsTab | null>(null);
+  const [lastLinkedTab, setLastLinkedTab] = useState<SettingsTab | null>(null);
   const requestedSection = useSearchParams().get("section");
 
   function selectSettingsTab(value: SettingsTab) {
@@ -145,8 +151,9 @@ export function SettingsView() {
         isManager,
         isDesktop,
         isMobileCap,
+        showBilling: !billingHidden,
       }),
-    [isAdmin, isManager, isDesktop, isMobileCap],
+    [isAdmin, isManager, isDesktop, isMobileCap, billingHidden],
   );
 
   const sectionGroups = useMemo(() => groupSettingsSections(sections), [sections]);
@@ -154,10 +161,13 @@ export function SettingsView() {
   // Banners and in-app links deep-link here with `?section=billing|devices|backup|…`.
   // URL section wins so Privacy → Billing does not stay stuck on the previous tab.
   const linkedTab = sections.find((section) => section.value === requestedSection)?.value ?? null;
+  const deniedBillingDeepLink =
+    billingHidden && requestedSection === "billing" && isAdmin;
 
-  useEffect(() => {
+  if (linkedTab !== lastLinkedTab) {
+    setLastLinkedTab(linkedTab);
     if (linkedTab) setTab(linkedTab);
-  }, [linkedTab]);
+  }
 
   const activeTab: SettingsTab =
     linkedTab ??
@@ -165,6 +175,18 @@ export function SettingsView() {
 
   if (permissionsLoading) {
     return <LoadingState label="Loading settings…" variant="form" />;
+  }
+
+  if (deniedBillingDeepLink) {
+    return (
+      <div className="min-w-0 space-y-6 overflow-x-clip">
+        <PageHeader title="Settings" />
+        <AccessDenied
+          title="Billing isn’t available"
+          message="Billing for this workspace is managed by Novend. Contact support if you need a plan change."
+        />
+      </div>
+    );
   }
 
   return (
@@ -237,7 +259,7 @@ export function SettingsView() {
               </>
             ) : null}
 
-            {isAdmin ? (
+            {isAdmin && !billingHidden ? (
               <TabsContent value="billing" className="mt-0">
                 <BillingPanel />
               </TabsContent>

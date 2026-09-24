@@ -1,9 +1,14 @@
 # Billing, Plans & Activation
 
-Version: 1.3.5
+Version: 1.4.0
 
-Novend is sold as a subscription with a lifetime licence option. This document is
-the reference for how entitlements are defined, enforced and paid for.
+Novend is sold as a Monthly or Annual subscription. Lifetime remains in the
+catalog only for historical licences — it is not offered for new sales.
+
+**Product default:** billing UI defaults to **Monthly**; Annual is the alternate
+toggle (labeled “Annual”, internal cycle value stays `yearly`) and shows
+“2 months free”. This overrides an earlier Annual-default draft in the
+platform entitlements brief.
 
 # Decision
 
@@ -14,6 +19,10 @@ features. The `plans` table mirrors it and stores only what the code cannot know
 the payment-gateway plan codes. A limit is therefore never editable by a support
 mistake, and the same catalog is imported by Convex, the app and the tests.
 
+`SELLABLE_PLAN_KEYS` (`basic`, `pro`, `enterprise`) drives public pricing and
+self-serve checkout. `lifetime` stays resolvable for existing orgs (`legacy: true`,
+`selfServe: false`). Unknown plan strings fall back to `DEFAULT_PLAN_KEY` (`basic`).
+
 Convex is authoritative for entitlements. The client caches the last confirmed
 licence so a terminal keeps selling offline, but it never decides access.
 
@@ -23,11 +32,13 @@ licence so a terminal keeps selling offline, but it never decides access.
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `convex/shared/capabilities.ts`          | Plan-derived capabilities (`canExportXlsx`, `canManageStaffCompensation`, `canUseCustomerDisplay`, `maxImportRows`, …) |
 | `convex/shared/plans.ts`                 | Plan catalog, prices, limits, cycle rules, limit messages                                                              |
+| `convex/shared/commercialOffers.ts`      | Private offer validity and price helpers (tenant-safe projections)                                                     |
+| `convex/commercialOffers.ts`             | Tenant `myActiveOffer` / `acceptOffer`; offer Paystack plan-code persistence                                           |
 | `convex/shared/licensing.ts`             | Pure access rules: `deriveAccess`, grace, usage levels, offline TTL                                                    |
 | `convex/shared/entitlements.ts`          | Database-backed licence resolution, usage counting, capacity checks                                                    |
 | `convex/shared/subscriptions.ts`         | Activation, trials, plan-catalog sync                                                                                  |
 | `convex/shared/billingPeriod.ts`         | Period arithmetic for monthly/yearly cycles                                                                            |
-| `convex/shared/planChange.ts`            | Upgrade proration and scheduled-downgrade preview                                                                      |
+| `convex/shared/planChange.ts`            | Upgrade proration and scheduled-downgrade preview (supports offer price overrides)                                     |
 | `convex/shared/provisionOrganization.ts` | Tenant bootstrap (trial or assigned plan)                                                                              |
 | `convex/shared/paystack.ts`              | Paystack REST client and webhook signature verification                                                                |
 | `convex/shared/billingProvider.ts`       | Gateway abstraction (`manual`, `paystack`)                                                                             |
@@ -39,22 +50,42 @@ licence so a terminal keeps selling offline, but it never decides access.
 
 # Plans
 
-| Plan               | Monthly | Yearly            | Products | Users | Branches | Devices | Cloud backup |
-| ------------------ | ------- | ----------------- | -------- | ----- | -------- | ------- | ------------ |
-| Basic              | GH₵200  | GH₵2,000          | 500      | 3     | 1        | 3       | 250 MB       |
-| Pro (Most Popular) | GH₵450  | GH₵4,500          | 5,000    | 15    | 5        | 15      | 500 MB       |
-| Enterprise         | GH₵750+ | GH₵7,500+         | ∞        | ∞     | ∞        | ∞       | Custom       |
-| Lifetime           | —       | GH₵7,990 one-time | ∞        | ∞     | ∞        | ∞       | 1 GB         |
+| Plan               | Monthly | Annual (yearly)   | Products | Users | Branches | Devices | Cloud backup | Sellable |
+| ------------------ | ------- | ----------------- | -------- | ----- | -------- | ------- | ------------ | -------- |
+| Basic              | GH₵200  | GH₵2,000          | 500      | 3     | 1        | 3       | 250 MB       | yes      |
+| Pro (Most Popular) | GH₵450  | GH₵4,500          | 5,000    | 15    | 5        | 15      | 500 MB       | yes      |
+| Enterprise         | GH₵750+ | GH₵7,500+         | ∞        | ∞     | ∞        | ∞       | Custom       | yes      |
+| Lifetime (legacy)  | —       | GH₵7,990 one-time | ∞        | ∞     | ∞        | ∞       | 1 GB         | no       |
 
-Lifetime sits above every subscription: the one-time price is higher than a year of
-Basic, Pro, or Enterprise because it includes every entitlement permanently. The
-licence does not expire; **1 year of updates and premium support** are included
-with the purchase. Recurring plans are never sold on a lifetime cycle. Enterprise
-is self-serve, same checkout as Basic and Pro — published as **GH₵750+** (a starting
-price, not a fixed rate). Yearly recurring prices are **10 × monthly** (two months free).
-Enterprise cloud backup is **quoted per organization** (whole GB, or no cap).
-The catalog never publishes a fixed Enterprise storage size. A Novend platform
-administrator sets `organizations.backupLimitBytes` from the licence panel.
+Lifetime is retained so existing customers keep access. Platform admins cannot newly
+assign Lifetime except when an organization is already on Lifetime (view / keep /
+migrate). Recurring plans are never sold on a lifetime cycle. Enterprise is
+self-serve — published as **GH₵750+**. Annual recurring prices are **10 × monthly**
+(two months free). Enterprise cloud backup is **quoted per organization**.
+
+# Private commercial offers
+
+`commercialOffers` stores negotiated Monthly/Annual prices for one organization.
+Tenant APIs derive `organizationId` from the session (`commercialOffers.myActiveOffer`) —
+never from client args. Internal notes and Paystack plan codes are never returned
+to tenants.
+
+When checkout targets the offer’s `basePlanKey` and an `allowedCycles` entry,
+`billing.startCheckout` / `previewPlanChange` use the offer amounts (via
+`targetPriceOverride`) and create/update a **dedicated** Paystack recurring plan
+stored on the offer row (`gatewayMonthlyPlanCode` / `gatewayYearlyPlanCode`).
+Those codes are never written to the public `plans` catalog.
+
+Subscription `amount` remains the charged/recurring major-unit value after
+activation. Paystack webhooks (`billingHttp`) continue to apply payments by
+reference / gateway subscription code even when Billing UI is hidden for the org.
+
+**Known gap:** mid-cycle upgrades that keep the current period still charge a
+one-time initialize amount (no plan code). Offer-specific recurring alignment after
+a prorated upgrade relies on the existing gateway subscription alignment path;
+offer codes are ensured on non-prorated recurring checkouts. Platform CRUD UI for
+creating offers is a separate phase — schema + tenant query + checkout wiring ship
+here.
 
 `null` always means unlimited. Add a plan by editing `PLAN_CATALOG` and
 `planKeyValidator`, then run the gateway sync.

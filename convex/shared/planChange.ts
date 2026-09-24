@@ -39,6 +39,12 @@ export type PlanChangeInput = {
   isLifetime: boolean;
   scheduled: ScheduledChangeSnapshot | null;
   usage: Partial<Record<LimitResource, number>>;
+  /**
+   * Private commercial-offer prices. When set, replace catalog amounts for
+   * proration and amount-due — never used for the public plan catalog.
+   */
+  targetPriceOverride?: number | null;
+  currentPriceOverride?: number | null;
 };
 
 export type PlanChangePreview = {
@@ -122,17 +128,25 @@ export function prorateUpgrade(args: {
 export function computePlanChangePreview(input: PlanChangeInput): PlanChangePreview {
   const current = PLAN_CATALOG[input.currentPlanKey];
   const target = PLAN_CATALOG[input.targetPlanKey];
-  const targetPrice = catalogPrice(input.targetPlanKey, input.targetCycle);
+  const catalogTarget = catalogPrice(input.targetPlanKey, input.targetCycle);
+  const targetPrice =
+    input.targetPriceOverride !== undefined && input.targetPriceOverride !== null
+      ? input.targetPriceOverride
+      : catalogTarget;
   if (targetPrice === null) {
     throw new Error(`The ${target.name} plan is not sold on a ${input.targetCycle} cycle.`);
   }
 
-  const currentPrice =
+  const catalogCurrent =
     input.currentCycle && !input.isLifetime
       ? catalogPrice(input.currentPlanKey, input.currentCycle)
       : input.isLifetime
         ? current.oneTimePrice
         : null;
+  const currentPrice =
+    input.currentPriceOverride !== undefined && input.currentPriceOverride !== null
+      ? input.currentPriceOverride
+      : catalogCurrent;
 
   const rank = planChangeKind(input.currentPlanKey, input.targetPlanKey);
   const usageWarning = usageExceedsLimits(input.usage, target.limits);

@@ -1,7 +1,8 @@
 /**
  * Shared HTTP security headers for the Next.js edge proxy.
  *
- * Keep CSP nonce wiring in `proxy.ts` (request + response). This module owns
+ * Keep CSP nonce wiring in `proxy.ts` (request + response). App/auth use a
+ * per-request nonce; public marketing uses a static CSP. This module owns
  * the remaining defense-in-depth headers so they can be unit-tested without
  * booting Convex auth middleware.
  */

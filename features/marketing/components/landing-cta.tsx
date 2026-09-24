@@ -6,8 +6,8 @@ import { landingCopy } from "@/features/marketing/content";
 import { appEntryHref } from "@/lib/hosting/hosts";
 
 /**
- * Final CTA — onyx conversion panel. Device art sits on a light plate that
- * masks cutout stains, then fades into the default onyx background.
+ * Final CTA — onyx conversion panel. Device art includes a dark contact
+ * shadow, so it sits on the panel with only a small cool glow behind it.
  */
 export function LandingCta() {
   const { cta, desktop } = landingCopy;
@@ -55,7 +55,6 @@ export function LandingCta() {
 
             <div className="landing-cta-devices relative flex min-h-[240px] items-end justify-center overflow-hidden sm:min-h-[300px] lg:min-h-[420px] lg:justify-end">
               <div className="landing-cta-device-plate" aria-hidden />
-              <div className="landing-cta-device-dent" aria-hidden />
               <div className="landing-cta-devices-frame relative z-[1] w-full max-w-[22rem] px-3 pb-0 sm:max-w-[28rem] sm:px-4 lg:max-w-[36rem] xl:max-w-[40rem] lg:pr-2">
                 <Image
                   src={BRANDING.landingCtaDevices}

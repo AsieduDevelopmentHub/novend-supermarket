@@ -1,6 +1,12 @@
 /** Shared types for the Phase 1 offline mirror + outbox. */
 
-export type OutboxStatus = "pending" | "syncing" | "synced" | "failed";
+export type OutboxStatus =
+  | "pending"
+  | "syncing"
+  | "synced"
+  | "failed"
+  /** Feature disabled after enqueue — keep the event for review; do not delete. */
+  | "blocked_by_entitlement";
 
 export type OutboxOpType =
   | "complete_sale"

@@ -27,15 +27,23 @@ import {
   resolveLicense,
 } from "./shared/entitlements";
 import { planCapabilities } from "./shared/capabilities";
-import { GRACE_PERIOD_MS } from "./shared/licensing";
+import {
+  entitlementsFromResolvedConfig,
+  GRACE_PERIOD_MS,
+  type AccessState,
+  type CommercialOfferSnapshot,
+} from "./shared/licensing";
 import { normalizeCloudMode } from "./shared/cloudMode";
 import { bumpEntitlementVersion, currentEntitlementVersion } from "./shared/entitlementVersion";
+import { resolveOrganizationConfig } from "./shared/organizationConfig";
 import { onOrganizationPlanChanged } from "./shared/platformStatsAggregate";
 import { hasPendingOrganizationClosure } from "./shared/accountClosure";
 import {
   DEFAULT_PLAN_KEY,
   PLAN_CATALOG,
   PLAN_LIST,
+  SELLABLE_PLAN_LIST,
+  isSellablePlanKey,
   parseCustomBackupGb,
   planChangeKind,
   priceForCycle,
@@ -44,6 +52,11 @@ import {
   type LimitResource,
   type PlanKey,
 } from "./shared/plans";
+import {
+  loadLiveOfferForOrganization,
+  offerAppliesToCheckout,
+  offerPriceForCycle,
+} from "./shared/commercialOffers";
 import {
   computePlanChangePreview,
   scheduledChangeEquals,
@@ -70,8 +83,6 @@ import {
   periodEnd,
   startTrial as startTrialForOrganization,
 } from "./shared/subscriptions";
-import type { AccessState } from "./shared/licensing";
-
 const PENDING_CHECKOUT_WINDOW_MS = 30 * 60 * 1000;
 
 function asScheduledChange(
@@ -124,6 +135,84 @@ export const licenseSnapshot = query({
     const now = Date.now();
     const pendingClosure = hasPendingOrganizationClosure(organization, now);
     const cloudEntitlements = resolveCloudEntitlements(organization);
+
+    const preset = organization.experiencePresetId
+      ? await ctx.db.get(organization.experiencePresetId)
+      : null;
+    const template = organization.featureTemplateId
+      ? await ctx.db.get(organization.featureTemplateId)
+      : null;
+    let offerDoc =
+      (await ctx.db
+        .query("commercialOffers")
+        .withIndex("by_organization_status", (q) =>
+          q.eq("organizationId", organization._id).eq("status", "active"),
+        )
+        .first()) ?? null;
+    if (!offerDoc) {
+      offerDoc =
+        (await ctx.db
+          .query("commercialOffers")
+          .withIndex("by_organization_status", (q) =>
+            q.eq("organizationId", organization._id).eq("status", "accepted"),
+          )
+          .first()) ?? null;
+    }
+
+    const config = resolveOrganizationConfig({
+      organization: {
+        _id: organization._id,
+        experienceOverrides: organization.experienceOverrides,
+        experienceVersion: organization.experienceVersion,
+        featureOverrides: organization.featureOverrides,
+        featureEntitlementVersion: organization.featureEntitlementVersion,
+        billingVisibility: organization.billingVisibility,
+        entitlementVersion: organization.entitlementVersion,
+        cloudBackupEnabled: organization.cloudBackupEnabled,
+        remoteMonitoringEnabled: organization.remoteMonitoringEnabled,
+      },
+      planKey: license.planKey,
+      preset: preset
+        ? {
+            accent: preset.accent,
+            accentForeground: preset.accentForeground,
+            sidebarBackground: preset.sidebarBackground,
+            sidebarForeground: preset.sidebarForeground,
+            sidebarAccent: preset.sidebarAccent,
+            sidebarAccentForeground: preset.sidebarAccentForeground,
+            focusRing: preset.focusRing,
+            success: preset.success,
+            warning: preset.warning,
+            danger: preset.danger,
+            radiusScale: preset.radiusScale,
+          }
+        : null,
+      template: template ? { values: template.values } : null,
+      offer: offerDoc
+        ? {
+            _id: offerDoc._id,
+            basePlanKey: offerDoc.basePlanKey,
+            featureOverrides: offerDoc.featureOverrides,
+            status: offerDoc.status,
+          }
+        : null,
+    });
+
+    const offerSnapshot: CommercialOfferSnapshot | null = offerDoc
+      ? {
+          id: offerDoc._id,
+          name: offerDoc.name,
+          basePlanKey: isSellablePlanKey(offerDoc.basePlanKey) ? offerDoc.basePlanKey : "basic",
+          currency: offerDoc.currency,
+          monthlyPrice: offerDoc.monthlyPrice ?? null,
+          yearlyPrice: offerDoc.yearlyPrice ?? null,
+          allowedCycles: offerDoc.allowedCycles,
+          customerMessage: offerDoc.customerMessage ?? null,
+        }
+      : null;
+
+    const entitlements = entitlementsFromResolvedConfig(config, offerSnapshot);
+
     return {
       organizationId: organization._id,
       organizationName: organization.name,
@@ -138,7 +227,8 @@ export const licenseSnapshot = query({
       access: license.access,
       limits: license.limits,
       capabilities: planCapabilities(license.planKey, license.limits),
-      features: license.plan.features,
+      planFeatures: license.plan.features,
+      ...entitlements,
       pendingClosure,
       closureEffectiveAt: organization.closureEffectiveAt ?? null,
       subscription: license.subscription
@@ -267,7 +357,7 @@ export const catalog = query({
     const codes = new Map(rows.map((row) => [row.key, row]));
     return {
       onlinePaymentsEnabled: isPaystackConfigured(),
-      plans: PLAN_LIST.map((plan) => ({
+      plans: SELLABLE_PLAN_LIST.map((plan) => ({
         key: plan.key,
         name: plan.name,
         tagline: plan.tagline,
@@ -302,6 +392,16 @@ export const checkoutContext = internalQuery({
     const license = await resolveLicense(ctx, session.organization);
     const usage = await countUsage(ctx, session.organizationId);
     const subscription = license.subscription;
+    const offer = await loadLiveOfferForOrganization(ctx, session.organizationId);
+    const useOffer =
+      offer !== null && offerAppliesToCheckout(offer, args.planKey, args.cycle);
+    const targetPriceOverride = useOffer && offer ? offerPriceForCycle(offer, args.cycle) : null;
+    const currentPriceOverride =
+      offer &&
+      subscription &&
+      offerAppliesToCheckout(offer, license.planKey, subscription.billingCycle)
+        ? offerPriceForCycle(offer, subscription.billingCycle)
+        : null;
     const preview = computePlanChangePreview({
       currentPlanKey: license.planKey,
       targetPlanKey: args.planKey,
@@ -314,6 +414,8 @@ export const checkoutContext = internalQuery({
       isLifetime: subscription?.isLifetime ?? false,
       scheduled: asScheduledChange(subscription?.scheduledChange),
       usage: usageFromCounts(usage),
+      targetPriceOverride,
+      currentPriceOverride,
     });
     const recent = await ctx.db
       .query("billingHistory")
@@ -331,6 +433,20 @@ export const checkoutContext = internalQuery({
       .query("plans")
       .withIndex("by_key", (q) => q.eq("key", args.planKey))
       .unique();
+    const offerGatewayCode =
+      useOffer && offer
+        ? args.cycle === "monthly"
+          ? (offer.gatewayMonthlyPlanCode ?? null)
+          : args.cycle === "yearly"
+            ? (offer.gatewayYearlyPlanCode ?? null)
+            : null
+        : null;
+    const catalogGatewayCode =
+      args.cycle === "monthly"
+        ? (planRow?.gatewayMonthlyPlanCode ?? null)
+        : args.cycle === "yearly"
+          ? (planRow?.gatewayYearlyPlanCode ?? null)
+          : null;
     return {
       organizationId: session.organizationId,
       organizationName: session.organization.name,
@@ -345,12 +461,9 @@ export const checkoutContext = internalQuery({
       pendingReference: pendingCheckout?.reference ?? null,
       pendingCreatedAt: pendingCheckout?.createdAt ?? null,
       preview,
-      gatewayPlanCode:
-        args.cycle === "monthly"
-          ? (planRow?.gatewayMonthlyPlanCode ?? null)
-          : args.cycle === "yearly"
-            ? (planRow?.gatewayYearlyPlanCode ?? null)
-            : null,
+      offerId: useOffer && offer ? offer._id : null,
+      offerRecurringAmount: useOffer && offer ? offerPriceForCycle(offer, args.cycle) : null,
+      gatewayPlanCode: useOffer ? offerGatewayCode : catalogGatewayCode,
     };
   },
 });
@@ -369,6 +482,16 @@ export const previewPlanChange = query({
     }
     const license = await resolveLicense(ctx, organization);
     const usage = await countUsage(ctx, organization._id);
+    const offer = await loadLiveOfferForOrganization(ctx, organization._id);
+    const useOffer =
+      offer !== null && offerAppliesToCheckout(offer, args.planKey, args.cycle);
+    const targetPriceOverride = useOffer && offer ? offerPriceForCycle(offer, args.cycle) : null;
+    const currentPriceOverride =
+      offer &&
+      license.subscription &&
+      offerAppliesToCheckout(offer, license.planKey, license.subscription.billingCycle)
+        ? offerPriceForCycle(offer, license.subscription.billingCycle)
+        : null;
     return computePlanChangePreview({
       currentPlanKey: license.planKey,
       targetPlanKey: args.planKey,
@@ -381,6 +504,8 @@ export const previewPlanChange = query({
       isLifetime: license.subscription?.isLifetime ?? false,
       scheduled: asScheduledChange(license.subscription?.scheduledChange),
       usage: usageFromCounts(usage),
+      targetPriceOverride,
+      currentPriceOverride,
     });
   },
 });
@@ -703,7 +828,11 @@ export const startCheckout = action({
           ? `Upgrade to ${plan.name}`
           : `${plan.name} — ${args.cycle === "lifetime" ? "one-time licence" : args.cycle}`,
       kind: eventKind,
-      metadata: JSON.stringify({ keepPeriod, intent: preview.intent }),
+      metadata: JSON.stringify({
+        keepPeriod,
+        intent: preview.intent,
+        offerId: context.offerId ?? null,
+      }),
       initiatedBy: context.userId,
     });
 
@@ -718,23 +847,39 @@ export const startCheckout = action({
         (args.cycle === "monthly" || args.cycle === "yearly")
       ) {
         gatewayPlanCode = context.gatewayPlanCode ?? undefined;
-        const catalogPrice = priceForCycle(plan, args.cycle);
-        if (catalogPrice === null) throw new Error("This plan has no price for that cycle.");
+        const recurringAmount =
+          context.offerRecurringAmount ?? priceForCycle(plan, args.cycle);
+        if (recurringAmount === null) throw new Error("This plan has no price for that cycle.");
+        const cycleLabel = args.cycle === "yearly" ? "Annual" : "Monthly";
+        const planName = context.offerId
+          ? `Novend Offer ${String(context.offerId).slice(-8)} ${plan.name} (${cycleLabel})`
+          : `Novend ${plan.name} (${cycleLabel})`;
         const ensuredCode = await ensureRecurringPlan({
           existingCode: gatewayPlanCode,
-          name: `Novend ${plan.name} (${args.cycle === "yearly" ? "Yearly" : "Monthly"})`,
-          amount: catalogPrice,
+          name: planName,
+          amount: recurringAmount,
           interval: args.cycle === "yearly" ? "annually" : "monthly",
           currency: context.currency,
-          description: plan.tagline,
+          description: context.offerId
+            ? `Private commercial offer for ${context.organizationName}`
+            : plan.tagline,
         });
         if (ensuredCode !== gatewayPlanCode) {
-          await ctx.runMutation(internal.billing.savePlanGatewayCodes, {
-            planKey: args.planKey,
-            ...(args.cycle === "monthly"
-              ? { monthlyCode: ensuredCode }
-              : { yearlyCode: ensuredCode }),
-          });
+          if (context.offerId) {
+            await ctx.runMutation(internal.commercialOffers.saveOfferGatewayCodes, {
+              offerId: context.offerId,
+              ...(args.cycle === "monthly"
+                ? { monthlyCode: ensuredCode }
+                : { yearlyCode: ensuredCode }),
+            });
+          } else {
+            await ctx.runMutation(internal.billing.savePlanGatewayCodes, {
+              planKey: args.planKey,
+              ...(args.cycle === "monthly"
+                ? { monthlyCode: ensuredCode }
+                : { yearlyCode: ensuredCode }),
+            });
+          }
         }
         gatewayPlanCode = ensuredCode;
       }
@@ -754,6 +899,7 @@ export const startCheckout = action({
           planKey: args.planKey,
           cycle: args.cycle,
           keepPeriod,
+          offerId: context.offerId ?? null,
         },
       });
 
@@ -886,7 +1032,7 @@ export const cancelSubscription = action({
   handler: async (ctx): Promise<{ endsAt: number | null }> => {
     const context = await ctx.runQuery(internal.billing.checkoutContext, {
       planKey: DEFAULT_PLAN_KEY,
-      cycle: "lifetime",
+      cycle: "monthly",
     });
     const result = await ctx.runMutation(internal.billing.cancelSubscriptionRecord, {
       organizationId: context.organizationId,
@@ -1074,7 +1220,7 @@ export const cancelScheduledChange = action({
   handler: async (ctx): Promise<{ cancelled: boolean; currentPlanName: string | null }> => {
     const context = await ctx.runQuery(internal.billing.checkoutContext, {
       planKey: DEFAULT_PLAN_KEY,
-      cycle: "lifetime",
+      cycle: "monthly",
     });
     const result = await ctx.runMutation(internal.billing.cancelScheduledChangeRecord, {
       organizationId: context.organizationId,
@@ -1571,7 +1717,7 @@ export const syncGatewayPlansInternal = internalAction({
     const synced: string[] = [];
 
     for (const plan of PLAN_LIST) {
-      if (plan.isLifetime) continue;
+      if (plan.isLifetime || plan.legacy || !plan.selfServe) continue;
       const current = byKey.get(plan.key);
       let monthlyCode = current?.monthlyCode ?? undefined;
       let yearlyCode = current?.yearlyCode ?? undefined;
@@ -1631,6 +1777,11 @@ export const assignPlan = mutation({
     if (!organization) throw new Error("Organization not found");
     const previousPlanKey = organization.planKey ?? args.planKey;
     const plan = PLAN_CATALOG[args.planKey];
+    if (plan.legacy && organization.planKey !== "lifetime") {
+      throw new Error(
+        "Lifetime is a legacy plan and cannot be newly assigned. Migrate existing Lifetime customers deliberately.",
+      );
+    }
     if (!supportsCycle(plan, args.cycle)) {
       throw new Error(`The ${plan.name} plan is not sold on a ${args.cycle} cycle.`);
     }

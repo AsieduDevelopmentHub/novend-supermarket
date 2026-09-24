@@ -2,12 +2,14 @@
  * Entitlement version bumping.
  *
  * `organizations.entitlementVersion` is a monotonic counter that increases every
- * time anything a client caches as "the licence" changes: plan, status, limit
- * overrides, cloud mode, or the backup/monitoring entitlement flags. Offline
- * clients compare their cached version against the latest heartbeat / licence
- * snapshot to know a refresh is due. Missing values are treated as 0.
+ * time anything a client caches as "the licence" / resolved organization config
+ * changes: plan, status, limit overrides, cloud mode, backup/monitoring flags,
+ * experience presets/overrides, feature templates/overrides, or commercial offers.
+ * Offline clients compare their cached version against the latest heartbeat /
+ * licence snapshot to know a refresh is due. Missing values are treated as 0.
  *
- * See docs/architecture/CLOUD_MODE_PLAN_V2.md (§38, §41).
+ * See docs/architecture/CLOUD_MODE_PLAN_V2.md (§38, §41) and
+ * docs/architecture/NOVEND_PLATFORM_CUSTOMIZATION_ENTITLEMENTS_CURSOR_BRIEF.md.
  */
 
 import type { Id } from "../_generated/dataModel";
@@ -21,6 +23,9 @@ export function currentEntitlementVersion(org: { entitlementVersion?: number }):
 /**
  * Increments the organization's entitlement version and touches `updatedAt`.
  * Returns the new version. No-op (returns 0) if the organization is missing.
+ *
+ * Call after plan, status, limits, cloud mode, experience, features, or offer
+ * changes so offline clients invalidate their cached configuration.
  */
 export async function bumpEntitlementVersion(
   ctx: MutationCtx,

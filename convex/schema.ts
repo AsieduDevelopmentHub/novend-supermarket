@@ -1,6 +1,7 @@
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { featureKeyValidator } from "./shared/features";
 
 export const roleValidator = v.union(
   v.literal("administrator"),
@@ -142,6 +143,70 @@ export const billingEventKindValidator = v.union(
   v.literal("scheduled_downgrade_applied"),
 );
 
+export const billingVisibilityValidator = v.union(
+  v.literal("visible"),
+  v.literal("hidden"),
+  v.literal("custom_offer_only"),
+);
+
+export const experienceRadiusScaleValidator = v.union(
+  v.literal("compact"),
+  v.literal("default"),
+  v.literal("soft"),
+);
+
+export const experiencePresetStatusValidator = v.union(
+  v.literal("active"),
+  v.literal("archived"),
+);
+
+export const featureTemplateStatusValidator = v.union(
+  v.literal("active"),
+  v.literal("archived"),
+);
+
+export const provisioningPolicyStatusValidator = v.union(
+  v.literal("scheduled"),
+  v.literal("active"),
+  v.literal("retired"),
+);
+
+export const commercialOfferStatusValidator = v.union(
+  v.literal("draft"),
+  v.literal("active"),
+  v.literal("accepted"),
+  v.literal("expired"),
+  v.literal("withdrawn"),
+);
+
+export const sellablePlanKeyValidator = v.union(
+  v.literal("basic"),
+  v.literal("pro"),
+  v.literal("enterprise"),
+);
+
+/** Same shape as organizations.limitOverrides — reused by commercial offers. */
+export const limitOverridesValidator = v.object({
+  products: v.optional(v.union(v.number(), v.null())),
+  users: v.optional(v.union(v.number(), v.null())),
+  branches: v.optional(v.union(v.number(), v.null())),
+  devices: v.optional(v.union(v.number(), v.null())),
+});
+
+export const experienceOverridesValidator = v.object({
+  accent: v.optional(v.string()),
+  accentForeground: v.optional(v.string()),
+  sidebarBackground: v.optional(v.string()),
+  sidebarForeground: v.optional(v.string()),
+  sidebarAccent: v.optional(v.string()),
+  sidebarAccentForeground: v.optional(v.string()),
+});
+
+export const featureOverrideEntryValidator = v.object({
+  feature: featureKeyValidator,
+  value: v.union(v.literal("inherit"), v.literal("enabled"), v.literal("disabled")),
+});
+
 export const inventoryReasonValidator = v.union(
   v.literal("sale"),
   v.literal("receive"),
@@ -185,14 +250,7 @@ export default defineSchema({
      * Super Admin overrides for metered resources, on top of the plan catalog.
      * A key present with `null` means unlimited; an absent key inherits the plan.
      */
-    limitOverrides: v.optional(
-      v.object({
-        products: v.optional(v.union(v.number(), v.null())),
-        users: v.optional(v.union(v.number(), v.null())),
-        branches: v.optional(v.union(v.number(), v.null())),
-        devices: v.optional(v.union(v.number(), v.null())),
-      }),
-    ),
+    limitOverrides: v.optional(limitOverridesValidator),
     /**
      * Per-org cloud usage mode. Missing → treated as full_sync (no migration).
      * See docs/architecture/CLOUD_MODE_PLAN_V1.md.
@@ -200,8 +258,8 @@ export default defineSchema({
     cloudMode: v.optional(cloudModeValidator),
     /**
      * Monotonic entitlement counter. Bumped whenever plan, status, limits, cloud
-     * mode, or backup/monitoring entitlements change so offline clients can tell
-     * their cached licence is stale. Missing → treated as 0.
+     * mode, backup/monitoring, experience, features, or commercial offers change
+     * so offline clients can tell their cached licence is stale. Missing → 0.
      * See docs/architecture/CLOUD_MODE_PLAN_V2.md (§38).
      */
     entitlementVersion: v.optional(v.number()),
@@ -214,6 +272,20 @@ export default defineSchema({
     cloudBackupEnabled: v.optional(v.boolean()),
     /** Platform toggle for remote monitoring. Missing → enabled. */
     remoteMonitoringEnabled: v.optional(v.boolean()),
+    /** Assigned experience preset (platform-owned). */
+    experiencePresetId: v.optional(v.id("experiencePresets")),
+    /** Negotiated color overrides on top of the assigned preset. */
+    experienceOverrides: v.optional(experienceOverridesValidator),
+    /** Monotonic experience counter; bumped when preset/overrides publish. */
+    experienceVersion: v.optional(v.number()),
+    /** Assigned feature template (platform-owned). */
+    featureTemplateId: v.optional(v.id("featureTemplates")),
+    /** Tri-state per-feature overrides (inherit / enabled / disabled). */
+    featureOverrides: v.optional(v.array(featureOverrideEntryValidator)),
+    /** Monotonic feature entitlement counter. */
+    featureEntitlementVersion: v.optional(v.number()),
+    /** Controls tenant Billing UI visibility. Missing → visible. */
+    billingVisibility: v.optional(billingVisibilityValidator),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
     /** Owner-initiated closure; org stays recoverable until `closureEffectiveAt`. */
@@ -228,6 +300,104 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_planKey", ["planKey"])
     .index("by_cloudMode", ["cloudMode"]),
+
+  /**
+   * Platform-owned visual presets (semantic color tokens).
+   * See docs/architecture/NOVEND_PLATFORM_CUSTOMIZATION_ENTITLEMENTS_CURSOR_BRIEF.md.
+   */
+  experiencePresets: defineTable({
+    key: v.string(),
+    name: v.string(),
+    status: experiencePresetStatusValidator,
+    accent: v.string(),
+    accentForeground: v.string(),
+    sidebarBackground: v.string(),
+    sidebarForeground: v.string(),
+    sidebarAccent: v.string(),
+    sidebarAccentForeground: v.string(),
+    focusRing: v.string(),
+    success: v.string(),
+    warning: v.string(),
+    danger: v.string(),
+    radiusScale: experienceRadiusScaleValidator,
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_status", ["status"]),
+
+  /**
+   * Reusable feature entitlement templates assigned to organizations.
+   */
+  featureTemplates: defineTable({
+    key: v.string(),
+    name: v.string(),
+    description: v.optional(v.string()),
+    values: v.array(
+      v.object({
+        feature: featureKeyValidator,
+        enabled: v.boolean(),
+      }),
+    ),
+    status: featureTemplateStatusValidator,
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
+
+  /**
+   * Default experience/feature/plan policy for organizations created after
+   * `effectiveFrom`. Existing orgs keep their snapshot until explicitly migrated.
+   */
+  organizationProvisioningPolicies: defineTable({
+    name: v.string(),
+    status: provisioningPolicyStatusValidator,
+    effectiveFrom: v.number(),
+    experiencePresetId: v.id("experiencePresets"),
+    featureTemplateId: v.optional(v.id("featureTemplates")),
+    publicPlanKey: v.optional(sellablePlanKeyValidator),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_status_effectiveFrom", ["status", "effectiveFrom"]),
+
+  /**
+   * Private commercial offers (custom pricing/limits) for a single organization.
+   */
+  commercialOffers: defineTable({
+    organizationId: v.id("organizations"),
+    name: v.string(),
+    status: commercialOfferStatusValidator,
+    basePlanKey: sellablePlanKeyValidator,
+    currency: v.string(),
+    monthlyPrice: v.optional(v.number()),
+    yearlyPrice: v.optional(v.number()),
+    allowedCycles: v.array(v.union(v.literal("monthly"), v.literal("yearly"))),
+    limitOverrides: v.optional(limitOverridesValidator),
+    featureOverrides: v.optional(
+      v.array(
+        v.object({
+          feature: featureKeyValidator,
+          enabled: v.boolean(),
+        }),
+      ),
+    ),
+    validFrom: v.number(),
+    validUntil: v.optional(v.number()),
+    notesInternal: v.optional(v.string()),
+    customerMessage: v.optional(v.string()),
+    /** Paystack recurring plan codes for this offer's custom amounts — never shared with the public catalog. */
+    gatewayMonthlyPlanCode: v.optional(v.string()),
+    gatewayYearlyPlanCode: v.optional(v.string()),
+    createdBy: v.id("users"),
+    approvedBy: v.optional(v.id("users")),
+    acceptedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_status", ["organizationId", "status"]),
 
   /**
    * Commercial plan catalog. Mirrors `convex/shared/plans.ts`, which stays the

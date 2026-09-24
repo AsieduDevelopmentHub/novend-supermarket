@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.27
+Version: 2.4.28
 
 ## Purpose
 
@@ -12,6 +12,25 @@ stores canonical state when a device is online.
 This is local-first operations, not a second source of truth. Negative
 inventory and immutable completed sales are still enforced when the outbox
 drains to Convex.
+
+## Platform feature entitlements (offline)
+
+`billing.licenseSnapshot` includes the resolved organization config
+(`features`, `experience`, `billingVisibility`, `commercial`, `configVersion`)
+from `resolveOrganizationConfig`. The client caches that payload in the Dexie
+licence snapshot for offline boot.
+
+- **Nav / routes** — disabled features stay hidden and route-guarded from the
+  cached snapshot (same source as the online shell).
+- **Local writes / outbox** — ops for a disabled feature are denied locally and
+  existing pending rows are quarantined as `blocked_by_entitlement` (not
+  deleted). Sync Center labels them “Blocked by plan”. When the feature is
+  re-enabled and the snapshot refreshes, those rows can drain again.
+- **Theme** — experience CSS variables are applied from the cached snapshot so
+  offline boot keeps the org’s colours before Convex reconnects.
+
+Do not scatter org-id conditionals. One resolver feeds the snapshot; offline
+and online enforcement share that contract.
 
 ## Cloud mode decision points
 

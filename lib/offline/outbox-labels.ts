@@ -33,6 +33,7 @@ export function outboxStatusLabel(status: OutboxStatus) {
   if (status === "failed") return "Conflict";
   if (status === "syncing") return "Uploading";
   if (status === "synced") return "Synced";
+  if (status === "blocked_by_entitlement") return "Blocked by plan";
   return "Waiting";
 }
 
@@ -163,6 +164,17 @@ export function describeOutboxConflict(row: OutboxRow): OutboxConflictView {
   const message = (row.lastError ?? "").trim();
   const base = describeOutboxEvent(row);
   const payload = payloadRecord(row);
+
+  if (row.status === "blocked_by_entitlement") {
+    return {
+      kind: "business",
+      headline: `${base.title} blocked by workspace settings`,
+      explanation:
+        message ||
+        `${base.detail}. This feature isn’t enabled for your workspace. The event was kept for review and was not deleted.`,
+      permanent: true,
+    };
+  }
 
   if (!message) {
     return {

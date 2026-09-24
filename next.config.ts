@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
-// Security headers (CSP, frame options, etc.) are applied in `proxy.ts`
-// so CSP can use a per-request nonce. Keep image / HMR config here only.
+// Security headers (CSP, frame options, etc.) are applied in `proxy.ts`.
+// App/auth use a per-request nonce CSP; public marketing uses a static CSP.
+// Keep image / HMR config here only.
 
 const nextConfig: NextConfig = {
   // Allow LAN devices to use HMR when opening the app via local IP.
@@ -9,8 +10,8 @@ const nextConfig: NextConfig = {
   images: {
     // Next 16 requires an explicit allowlist for <Image quality={…}>.
     qualities: [75, 90, 100],
-    // Marketing PNGs change often during design iteration — don't hold them long.
-    minimumCacheTTL: 60,
+    // Marketing assets are versioned via ?v= / hashed names — cache optimizer output longer.
+    minimumCacheTTL: 86400,
     localPatterns: [
       // Allow ?v= cache-bust on marketing assets (Next 16 requires this).
       { pathname: "/marketing/**" },

@@ -7,6 +7,8 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { usePermissions } from "@/hooks/use-permissions";
 import { moreSectionsForRole } from "@/config/mobile-navigation";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { useLicense } from "@/hooks/use-license";
+import { isBillingHidden } from "@/config/navigation";
 import type { AppRole } from "@/config/navigation";
 import { readOfflineSession } from "@/lib/offline/session";
 import { PageHeader } from "@/components/layout/primitives";
@@ -61,6 +63,8 @@ export function MoreView() {
   const { signOut } = useAuthActions();
   const { role, isLoading } = usePermissions();
   const { enabledCapabilities } = useBusinessCapabilities();
+  const { features, billingVisibility } = useLicense();
+  const billingHidden = isBillingHidden({ features, billingVisibility });
   const [signingOut, setSigningOut] = useState(false);
   const [sessionRole] = useState<AppRole | null>(() => {
     const stored = readOfflineSession()?.role;
@@ -74,8 +78,14 @@ export function MoreView() {
     return <LoadingState label="Opening More…" />;
   }
 
-  const sections = moreSectionsForRole(effectiveRole ?? "cashier", enabledCapabilities);
+  const sections = moreSectionsForRole(effectiveRole ?? "cashier", enabledCapabilities, {
+    features,
+    billingVisibility,
+  });
   const hasSystemSection = sections.some((section) => section.id === "system");
+  const systemExtras = EXTRA_SYSTEM.filter(
+    (item) => !(billingHidden && item.href.includes("section=billing")),
+  );
 
   async function handleSignOut() {
     if (signingOut) return;
@@ -145,7 +155,7 @@ export function MoreView() {
             })}
             {section.id === "system" ? (
               <>
-                {EXTRA_SYSTEM.map((item) => {
+                {systemExtras.map((item) => {
                   const Icon = item.icon;
                   return (
                     <PublicOrAppLink
@@ -184,7 +194,7 @@ export function MoreView() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 px-2 pb-3">
-            {EXTRA_SYSTEM.map((item) => {
+            {systemExtras.map((item) => {
               const Icon = item.icon;
               return (
                 <PublicOrAppLink

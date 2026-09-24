@@ -21,7 +21,7 @@ export function PricingPageView() {
             Plans for a single counter or many branches
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-pretty text-[#526174] sm:text-lg">
-            Compare Basic, Pro, Enterprise, and Lifetime. Every plan includes offline POS after
+            Compare Basic, Pro, and Enterprise. Every plan includes offline POS after
             setup, barcode support, receipts, inventory, and cloud sync. No account required to
             review limits here—sign up only when you are ready to start the trial.
           </p>
@@ -55,8 +55,9 @@ export function PricingPageView() {
             product. When you reach a limit, upgrade or free capacity to continue that action.
           </li>
           <li>
-            Lifetime is a one-time purchase path with one year of updates and premium support
-            included—see the Lifetime card for the current commercial terms.
+            Existing Lifetime licences remain valid for organizations that already purchased
+            them. Lifetime is no longer offered for new sales—contact Novend if you need to
+            migrate or discuss commercial terms.
           </li>
           <li>
             Authenticated owners manage payment methods and invoices in Settings → Billing after

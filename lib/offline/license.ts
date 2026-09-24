@@ -13,13 +13,24 @@
 import {
   ORGANIZATION_STATUSES,
   SUBSCRIPTION_STATUSES,
+  defaultLicenseEntitlements,
   evaluateCachedLicense,
+  type CommercialOfferSnapshot,
   type LicenseAccess,
+  type LicenseCommercialSnapshot,
   type LicenseSnapshot,
   type SubscriptionSnapshot,
 } from "@/convex/shared/licensing";
 import { normalizeCloudMode } from "@/convex/shared/cloudMode";
-import { isPlanKey } from "@/convex/shared/plans";
+import {
+  DEFAULT_NOVEND_EXPERIENCE,
+  type ExperienceRadiusScale,
+  type ResolvedExperienceTokens,
+  validateHexColor,
+} from "@/convex/shared/experience";
+import { FEATURE_KEYS, type FeatureKey } from "@/convex/shared/features";
+import type { BillingVisibility } from "@/convex/shared/organizationConfig";
+import { isPlanKey, isSellablePlanKey } from "@/convex/shared/plans";
 import { getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
 
 export type CachedLicense = LicenseSnapshot & {
@@ -72,6 +83,118 @@ function isSubscription(value: unknown): value is SubscriptionSnapshot | null {
   );
 }
 
+function parseHexField(value: unknown, fallback: string): string {
+  const validated = validateHexColor(value);
+  return validated.ok ? validated.value : fallback;
+}
+
+function parseExperience(value: unknown): ResolvedExperienceTokens {
+  if (!isRecord(value)) return { ...DEFAULT_NOVEND_EXPERIENCE };
+  const radius = value.radiusScale;
+  const radiusScale: ExperienceRadiusScale =
+    radius === "compact" || radius === "soft" || radius === "default" ? radius : "default";
+  return {
+    accent: parseHexField(value.accent, DEFAULT_NOVEND_EXPERIENCE.accent),
+    accentForeground: parseHexField(
+      value.accentForeground,
+      DEFAULT_NOVEND_EXPERIENCE.accentForeground,
+    ),
+    sidebarBackground: parseHexField(
+      value.sidebarBackground,
+      DEFAULT_NOVEND_EXPERIENCE.sidebarBackground,
+    ),
+    sidebarForeground: parseHexField(
+      value.sidebarForeground,
+      DEFAULT_NOVEND_EXPERIENCE.sidebarForeground,
+    ),
+    sidebarAccent: parseHexField(value.sidebarAccent, DEFAULT_NOVEND_EXPERIENCE.sidebarAccent),
+    sidebarAccentForeground: parseHexField(
+      value.sidebarAccentForeground,
+      DEFAULT_NOVEND_EXPERIENCE.sidebarAccentForeground,
+    ),
+    focusRing: parseHexField(value.focusRing, DEFAULT_NOVEND_EXPERIENCE.focusRing),
+    success: parseHexField(value.success, DEFAULT_NOVEND_EXPERIENCE.success),
+    warning: parseHexField(value.warning, DEFAULT_NOVEND_EXPERIENCE.warning),
+    danger: parseHexField(value.danger, DEFAULT_NOVEND_EXPERIENCE.danger),
+    radiusScale,
+  };
+}
+
+function parseFeatureRecord(
+  value: unknown,
+  planKey: LicenseSnapshot["planKey"],
+): Record<FeatureKey, boolean> {
+  const defaults = defaultLicenseEntitlements(planKey).features;
+  if (!isRecord(value)) return defaults;
+  const next = { ...defaults };
+  for (const key of FEATURE_KEYS) {
+    if (typeof value[key] === "boolean") {
+      next[key] = value[key];
+    }
+  }
+  return next;
+}
+
+function parseBillingVisibility(value: unknown): BillingVisibility {
+  if (value === "hidden" || value === "custom_offer_only" || value === "visible") {
+    return value;
+  }
+  return "visible";
+}
+
+function parseCommercialOffer(value: unknown): CommercialOfferSnapshot | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.id !== "string" || !value.id) return null;
+  if (typeof value.name !== "string") return null;
+  if (!isSellablePlanKey(value.basePlanKey)) return null;
+  if (typeof value.currency !== "string") return null;
+  if (!Array.isArray(value.allowedCycles)) return null;
+  const cycles = value.allowedCycles.filter(
+    (c): c is "monthly" | "yearly" => c === "monthly" || c === "yearly",
+  );
+  if (cycles.length === 0) return null;
+  return {
+    id: value.id,
+    name: value.name,
+    basePlanKey: value.basePlanKey,
+    currency: value.currency,
+    monthlyPrice:
+      value.monthlyPrice === null || value.monthlyPrice === undefined
+        ? null
+        : typeof value.monthlyPrice === "number"
+          ? value.monthlyPrice
+          : null,
+    yearlyPrice:
+      value.yearlyPrice === null || value.yearlyPrice === undefined
+        ? null
+        : typeof value.yearlyPrice === "number"
+          ? value.yearlyPrice
+          : null,
+    allowedCycles: cycles,
+    customerMessage: typeof value.customerMessage === "string" ? value.customerMessage : null,
+  };
+}
+
+function parseCommercial(
+  value: unknown,
+  planKey: LicenseSnapshot["planKey"],
+  features: Record<FeatureKey, boolean>,
+): LicenseCommercialSnapshot {
+  const defaults = defaultLicenseEntitlements(planKey).commercial;
+  if (!isRecord(value)) {
+    return { ...defaults, canSelfServe: features["billing.selfServeCheckout"] };
+  }
+  return {
+    planKey: isPlanKey(value.planKey) ? value.planKey : planKey,
+    offerId: typeof value.offerId === "string" ? value.offerId : undefined,
+    canSelfServe:
+      typeof value.canSelfServe === "boolean"
+        ? value.canSelfServe
+        : features["billing.selfServeCheckout"],
+    offer: parseCommercialOffer(value.offer),
+  };
+}
+
 function parseSnapshot(raw: string): LicenseSnapshot | null {
   try {
     const value: unknown = JSON.parse(raw);
@@ -94,12 +217,6 @@ function parseSnapshot(raw: string): LicenseSnapshot | null {
         return null;
       }
     }
-    if (
-      !Array.isArray(value.features) ||
-      !value.features.every((item) => typeof item === "string")
-    ) {
-      return null;
-    }
     if (typeof value.issuedAt !== "number" || !Number.isFinite(value.issuedAt)) return null;
 
     // Lifetime plans must stay perpetual offline even when an older cache omitted
@@ -114,17 +231,41 @@ function parseSnapshot(raw: string): LicenseSnapshot | null {
       }
     }
 
+    const defaults = defaultLicenseEntitlements(planKey);
+
+    // Backward compat: older caches stored plan marketing bullets as `features: string[]`.
+    let planFeatures: string[] = [];
+    let features: Record<FeatureKey, boolean> = defaults.features;
+    if (Array.isArray(value.features) && value.features.every((item) => typeof item === "string")) {
+      planFeatures = value.features as string[];
+    } else if (isRecord(value.features)) {
+      features = parseFeatureRecord(value.features, planKey);
+    }
+    if (Array.isArray(value.planFeatures) && value.planFeatures.every((f) => typeof f === "string")) {
+      planFeatures = value.planFeatures as string[];
+    }
+
+    const entitlementVersion =
+      typeof value.entitlementVersion === "number" ? value.entitlementVersion : 0;
+    const configVersion =
+      typeof value.configVersion === "number" ? value.configVersion : entitlementVersion;
+
     return {
       ...(value as unknown as LicenseSnapshot),
       subscription,
       cloudMode: normalizeCloudMode(value.cloudMode),
-      entitlementVersion:
-        typeof value.entitlementVersion === "number" ? value.entitlementVersion : 0,
+      entitlementVersion,
+      configVersion,
       allowedCloudModes: Array.isArray(value.allowedCloudModes)
         ? value.allowedCloudModes.map(normalizeCloudMode)
         : ["full_sync", "backup_only", "local_only"],
       cloudBackupEnabled: value.cloudBackupEnabled !== false,
       remoteMonitoringEnabled: value.remoteMonitoringEnabled !== false,
+      features,
+      planFeatures,
+      experience: parseExperience(value.experience),
+      billingVisibility: parseBillingVisibility(value.billingVisibility),
+      commercial: parseCommercial(value.commercial, planKey, features),
     };
   } catch {
     return null;

@@ -40,7 +40,8 @@ describe("response security headers", () => {
 
   it("keeps CSP nonce wiring and security-header helper in proxy.ts", () => {
     const source = readFileSync(resolve(process.cwd(), "proxy.ts"), "utf8");
-    expect(source).toContain("buildCsp(nonce)");
+    expect(source).toContain("buildNonceCsp(nonce)");
+    expect(source).toContain("buildStaticMarketingCsp");
     expect(source).toContain('requestHeaders.set("x-nonce", nonce)');
     expect(source).toContain("applySecurityHeaders(response)");
     expect(source).not.toMatch(/Cross-Origin-Embedder-Policy/);

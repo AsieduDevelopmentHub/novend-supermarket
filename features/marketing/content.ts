@@ -406,10 +406,10 @@ export const landingCopy = {
       enterprise: "For chains and distributors that need custom limits, onboarding, and support.",
     },
     lifetime: {
-      title: "Lifetime license",
+      title: "Legacy Lifetime licences",
       detail:
-        "A one-time purchase path with unlimited operational capacity and one year of updates and premium support included. Purchasing differs from subscriptions—see full pricing for terms.",
-      cta: "View lifetime details",
+        "Lifetime is no longer offered for new purchases. Organizations that already hold a Lifetime licence keep their entitlements until explicitly migrated.",
+      cta: "Contact support",
     },
     compareCta: "Compare all features",
     enterpriseHref: ENTERPRISE_SALES_MAILTO,

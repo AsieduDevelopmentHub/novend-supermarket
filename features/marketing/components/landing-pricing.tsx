@@ -10,8 +10,9 @@ import {
   formatPlanPriceLabel,
   PLAN_CATALOG,
   priceForCycle,
+  SELLABLE_PLAN_KEYS,
   type PlanDefinition,
-  type PlanKey,
+  type SellablePlanKey,
 } from "@/convex/shared/plans";
 import { LandingSection } from "@/features/marketing/components/landing-section";
 import { appEntryHref } from "@/lib/hosting/hosts";
@@ -19,7 +20,8 @@ import { cn } from "@/lib/utils";
 
 type BillingCycle = "monthly" | "yearly";
 
-const PLAN_ORDER: PlanKey[] = ["basic", "pro", "enterprise", "lifetime"];
+/** Public sales catalog — excludes legacy Lifetime. */
+const PLAN_ORDER: SellablePlanKey[] = [...SELLABLE_PLAN_KEYS];
 
 /** Yearly is priced as ~10 months — two months free vs paying monthly. */
 function yearlySavings(plan: PlanDefinition): number | null {
@@ -29,14 +31,6 @@ function yearlySavings(plan: PlanDefinition): number | null {
 }
 
 function planPriceDisplay(plan: PlanDefinition, cycle: BillingCycle) {
-  if (plan.isLifetime) {
-    return {
-      amount: `GH₵${plan.oneTimePrice?.toLocaleString()}`,
-      suffix: "one-time",
-      savings: null as number | null,
-    };
-  }
-
   const price = priceForCycle(plan, cycle);
   if (price === null) {
     return { amount: "Talk to us", suffix: "", savings: null as number | null };
@@ -57,21 +51,19 @@ function limitLabel(value: number | null, kind: "count" | "bytes"): string {
   return value.toLocaleString();
 }
 
-function planFeatureLines(key: PlanKey): string[] {
+function planFeatureLines(key: SellablePlanKey): string[] {
   const cards = landingCopy.pricing.cards;
   switch (key) {
     case "basic":
       return [...cards.basic.included];
     case "pro":
       return [...cards.pro.additional];
-    case "lifetime":
-      return [...cards.lifetime.includes];
     case "enterprise":
       return [...PLAN_CATALOG.enterprise.features.slice(0, 5)];
   }
 }
 
-function planCta(key: PlanKey): { label: string; href: string } {
+function planCta(key: SellablePlanKey): { label: string; href: string } {
   const cards = landingCopy.pricing.cards;
   switch (key) {
     case "basic":
@@ -80,20 +72,18 @@ function planCta(key: PlanKey): { label: string; href: string } {
       return { label: cards.pro.cta, href: cards.pro.href };
     case "enterprise":
       return { label: cards.enterprise.cta, href: cards.enterprise.href };
-    case "lifetime":
-      return { label: cards.lifetime.cta, href: cards.lifetime.href };
   }
 }
 
-function planDescription(key: PlanKey): string {
+function planDescription(key: SellablePlanKey): string {
   return landingCopy.pricing.cards[key].description;
 }
 
-function planBadge(key: PlanKey): string {
+function planBadge(key: SellablePlanKey): string {
   return landingCopy.pricing.cards[key].badge;
 }
 
-/** V3 pricing — 4 plans, Pro featured, Lifetime gold, trust row under cards. */
+/** V3 pricing — sellable plans only, Pro featured, Monthly default. */
 export function LandingPricing() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const copy = landingCopy.pricing;
@@ -170,7 +160,7 @@ function BillingToggle({
               cycle === option ? "bg-primary text-white" : "text-slate-600 hover:text-[#111827]",
             )}
           >
-            {option === "monthly" ? "Monthly" : "Yearly"}
+            {option === "monthly" ? "Monthly" : "Annual"}
             {option === "yearly" ? (
               <span
                 className={cn(
@@ -178,7 +168,7 @@ function BillingToggle({
                   cycle === "yearly" ? "text-white/90" : "text-primary",
                 )}
               >
-                −2 mo
+                2 months free
               </span>
             ) : null}
           </button>
@@ -187,7 +177,7 @@ function BillingToggle({
       <p className="text-xs text-slate-500">
         {cycle === "yearly"
           ? "Billed once a year — two months free versus monthly."
-          : "Switch to yearly anytime to lock in two months free."}
+          : "Switch to Annual anytime to lock in two months free."}
       </p>
     </div>
   );
@@ -197,22 +187,19 @@ function PricingCards({ cycle }: { cycle: BillingCycle }) {
   return (
     <ul
       data-reveal
-      className="landing-price-carousel mt-10 sm:mt-14 sm:grid sm:grid-cols-2 sm:gap-5 xl:grid-cols-4 xl:gap-5"
+      className="landing-price-carousel mt-10 sm:mt-14 sm:grid sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-5"
     >
       {PLAN_ORDER.map((key) => {
         const plan = PLAN_CATALOG[key];
-        const isLifetime = plan.isLifetime;
         const isFeatured = plan.featured;
-        const isGold = isLifetime;
         const featureLines = planFeatureLines(key);
         const cta = planCta(key);
         const external = cta.href.startsWith("mailto:");
         const price = planPriceDisplay(plan, cycle);
         const resolvedBase = external ? cta.href : appEntryHref(cta.href);
-        const ctaHref =
-          external || plan.isLifetime
-            ? resolvedBase
-            : `${resolvedBase}${resolvedBase.includes("?") ? "&" : "?"}plan=${key}&cycle=${cycle}`;
+        const ctaHref = external
+          ? resolvedBase
+          : `${resolvedBase}${resolvedBase.includes("?") ? "&" : "?"}plan=${key}&cycle=${cycle}`;
         const offSite = external || /^https?:\/\//i.test(ctaHref);
 
         const limitLines = [
@@ -229,28 +216,24 @@ function PricingCards({ cycle }: { cycle: BillingCycle }) {
           basic: "order-2 sm:order-none",
           pro: "order-1 sm:order-none",
           enterprise: "order-3 sm:order-none",
-          lifetime: "order-4 sm:order-none",
         }[key];
 
         return (
           <li
             key={key}
-            id={key === "lifetime" ? "lifetime" : undefined}
             className={cn(
               "landing-price-card-v2 group relative flex min-w-[82%] snap-center flex-col rounded-3xl border bg-[#F8FAFC] p-6 transition-[transform,box-shadow,border-color] duration-300 sm:min-w-0 sm:bg-white sm:p-7",
               mobileOrderClass,
               isFeatured &&
                 "landing-price-card-featured border-primary/45 bg-white shadow-[0_24px_48px_-28px_rgba(56,189,248,0.55)] sm:z-10 xl:-translate-y-2",
-              isGold && "landing-price-card-lifetime border-amber-300/70 bg-white",
-              !isFeatured && !isGold && "border-slate-200/90 shadow-sm",
+              !isFeatured && "border-slate-200/90 shadow-sm",
             )}
           >
             <span
               className={cn(
                 "mb-3 inline-flex self-start rounded-full px-3 py-1 text-[10px] font-bold tracking-[0.12em] uppercase sm:absolute sm:-top-3 sm:left-1/2 sm:mb-0 sm:-translate-x-1/2 sm:self-auto",
                 isFeatured && "bg-primary text-white",
-                isGold && "border border-amber-300 bg-amber-50 text-amber-900",
-                !isFeatured && !isGold && "border border-slate-200 bg-white text-slate-700",
+                !isFeatured && "border border-slate-200 bg-white text-slate-700",
               )}
             >
               {planBadge(key)}
@@ -283,12 +266,7 @@ function PricingCards({ cycle }: { cycle: BillingCycle }) {
             <ul className="mt-5 flex-1 space-y-2">
               {featureLines.map((feature) => (
                 <li key={feature} className="flex items-start gap-2 text-sm text-slate-800">
-                  <span
-                    className={cn(
-                      "mt-1 h-1.5 w-1.5 shrink-0 rounded-full",
-                      isGold ? "bg-amber-500" : "bg-primary",
-                    )}
-                  />
+                  <span className="bg-primary mt-1 h-1.5 w-1.5 shrink-0 rounded-full" />
                   {feature}
                 </li>
               ))}
@@ -301,8 +279,6 @@ function PricingCards({ cycle }: { cycle: BillingCycle }) {
                 className={cn(
                   "h-11 w-full font-semibold",
                   isFeatured && "landing-shadow-cta-primary",
-                  isGold &&
-                    "border-amber-400 bg-amber-500 text-white hover:bg-amber-600 hover:text-white",
                 )}
               >
                 {offSite ? (

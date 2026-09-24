@@ -14,12 +14,15 @@ import {
 } from "@/hooks/use-appearance";
 import { MarketingCookieConsentHost } from "@/features/marketing/components/marketing-cookie-consent-host";
 import { isMarketingPath } from "@/lib/marketing-routes";
+import { useNonce } from "@/providers/nonce-provider";
 import { StartupSplash } from "@/providers/startup-splash";
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
 
 function AppThemeProvider({ children, nonce }: { children: ReactNode; nonce?: string }) {
   const pathname = usePathname();
+  const contextNonce = useNonce();
+  const resolvedNonce = nonce ?? contextNonce;
   const forcedTheme = isMarketingPath(pathname) ? "light" : undefined;
 
   return (
@@ -29,7 +32,7 @@ function AppThemeProvider({ children, nonce }: { children: ReactNode; nonce?: st
       enableSystem={false}
       forcedTheme={forcedTheme}
       storageKey={THEME_STORAGE_KEY}
-      nonce={nonce}
+      nonce={resolvedNonce}
     >
       {children}
     </ThemeProvider>
@@ -56,6 +59,10 @@ function MissingConvexConfig({ children, nonce }: { children: ReactNode; nonce?:
   );
 }
 
+/**
+ * `nonce` is optional. Root leaves it unset (static marketing CSP + ThemeBootScript
+ * on app/auth). Prefer NonceProvider from app/(app) and app/(auth) for consumers.
+ */
 export function AppProviders({ children, nonce }: { children: ReactNode; nonce?: string }) {
   const client = useMemo(() => {
     if (!convexUrl) return null;

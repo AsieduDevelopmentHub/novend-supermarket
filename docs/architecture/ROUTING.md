@@ -1,6 +1,6 @@
 # Routing
 
-Version: 1.3.8
+Version: 1.3.9
 
 ## Public vs authenticated entry
 
@@ -16,6 +16,19 @@ Version: 1.3.8
 /docs, /privacy…     Public marketing site pages
 /(app)/*             Authenticated POS shell
 ```
+
+### Static marketing vs dynamic app layout
+
+- **Root** (`app/layout.tsx`) does **not** call `headers()` or read a CSP nonce, so
+  the landing page and `(site)/*` marketing tree can stay static/cache-friendly.
+  `AppProviders` stays at the root (stable Convex client across navigations).
+- **App / auth** (`app/(app)/layout.tsx`, `app/(auth)/layout.tsx`) read `x-nonce`
+  and feed `NonceProvider` + `ThemeBootScript` so nonce CSP still covers theme
+  boot on dynamic shells.
+- **`proxy.ts`** uses a **static CSP** (no per-request nonce) for public marketing
+  routes and short-circuits without `users.me` / session work, except `/` (Cap
+  authenticated home redirect) and login pages (post-auth redirect). App routes
+  keep nonce + `strict-dynamic` CSP. Backend authz is unchanged.
 
 **Web (single origin):** Authenticated visits to `/` 302 into the POS shell
 (`/dashboard`, `/platform`, or `/onboarding`). This protects Cap/Electron cold

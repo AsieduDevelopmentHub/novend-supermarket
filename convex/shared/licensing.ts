@@ -5,9 +5,17 @@
  * in the browser (including from the offline license cache) and in unit tests.
  */
 
-import type { LimitResource, PlanKey } from "./plans";
+import type { LimitResource, PlanKey, SellablePlanKey } from "./plans";
 import type { PlanCapabilities } from "./capabilities";
 import type { CloudMode } from "./cloudMode";
+import type { ResolvedExperienceTokens } from "./experience";
+import { DEFAULT_NOVEND_EXPERIENCE } from "./experience";
+import { FEATURE_KEYS, FEATURE_REGISTRY, type FeatureKey } from "./features";
+import {
+  featuresFromPlan,
+  type BillingVisibility,
+  type ResolvedOrganizationConfig,
+} from "./organizationConfig";
 
 export const ORGANIZATION_STATUSES = [
   "active",
@@ -243,6 +251,26 @@ export const TRIAL_PERIOD_DAYS = 14;
 
 export const TRIAL_PERIOD_MS = TRIAL_PERIOD_DAYS * 24 * 60 * 60 * 1000;
 
+/** Tenant-safe commercial offer fields for offline billing UI (no internal notes). */
+export type CommercialOfferSnapshot = {
+  id: string;
+  name: string;
+  basePlanKey: SellablePlanKey;
+  currency: string;
+  monthlyPrice?: number | null;
+  yearlyPrice?: number | null;
+  allowedCycles: Array<"monthly" | "yearly">;
+  customerMessage?: string | null;
+};
+
+export type LicenseCommercialSnapshot = {
+  planKey: PlanKey;
+  offerId?: string;
+  canSelfServe: boolean;
+  /** Present when a private offer is active/accepted — used by custom_offer_only UI. */
+  offer?: CommercialOfferSnapshot | null;
+};
+
 export type LicenseSnapshot = {
   organizationId: string;
   organizationName: string;
@@ -253,6 +281,11 @@ export type LicenseSnapshot = {
   cloudMode: CloudMode;
   /** Monotonic entitlement counter; older caches default to 0. */
   entitlementVersion: number;
+  /**
+   * Max of entitlement / experience / feature versions from resolveOrganizationConfig.
+   * Older caches default to entitlementVersion.
+   */
+  configVersion: number;
   /** Cloud modes this organization may select. Missing override → all modes. */
   allowedCloudModes: CloudMode[];
   /** Platform toggle for cloud backups. Missing → true. */
@@ -263,7 +296,14 @@ export type LicenseSnapshot = {
   access: LicenseAccess;
   limits: Record<LimitResource, number | null>;
   capabilities?: PlanCapabilities;
-  features: string[];
+  /** Resolved feature entitlements (FEATURE_KEYS). */
+  features: Record<FeatureKey, boolean>;
+  /** Plan marketing bullet list (legacy `features` array on older caches). */
+  planFeatures: string[];
+  /** Semantic experience tokens for theme application. */
+  experience: ResolvedExperienceTokens;
+  billingVisibility: BillingVisibility;
+  commercial: LicenseCommercialSnapshot;
   issuedAt: number;
   scheduledPlan?: PlanKey | null;
   scheduledEffectiveAt?: number | null;
@@ -271,6 +311,66 @@ export type LicenseSnapshot = {
   pendingClosure?: boolean;
   closureEffectiveAt?: number | null;
 };
+
+/** Secure defaults when an older offline cache omits entitlement fields. */
+export function defaultLicenseEntitlements(planKey: PlanKey): {
+  features: Record<FeatureKey, boolean>;
+  experience: ResolvedExperienceTokens;
+  billingVisibility: BillingVisibility;
+  commercial: LicenseCommercialSnapshot;
+  configVersion: number;
+} {
+  const features = featuresFromPlan(planKey);
+  return {
+    features,
+    experience: { ...DEFAULT_NOVEND_EXPERIENCE },
+    billingVisibility: "visible",
+    commercial: {
+      planKey,
+      canSelfServe: features["billing.selfServeCheckout"],
+      offer: null,
+    },
+    configVersion: 0,
+  };
+}
+
+export function featureEnabled(
+  features: Record<FeatureKey, boolean> | null | undefined,
+  key: FeatureKey,
+): boolean {
+  if (!features) return FEATURE_REGISTRY[key].defaultEnabled;
+  return features[key] === true;
+}
+
+/** Builds the entitlement slice of a licence from a resolved org config. */
+export function entitlementsFromResolvedConfig(
+  config: ResolvedOrganizationConfig,
+  offer?: CommercialOfferSnapshot | null,
+): Pick<
+  LicenseSnapshot,
+  "features" | "experience" | "billingVisibility" | "commercial" | "configVersion"
+> {
+  return {
+    features: config.features,
+    experience: config.experience,
+    billingVisibility: config.billingVisibility,
+    commercial: {
+      planKey: config.commercial.planKey,
+      offerId: config.commercial.offerId,
+      canSelfServe: config.commercial.canSelfServe,
+      offer: offer ?? null,
+    },
+    configVersion: config.version,
+  };
+}
+
+export function emptyFeatureRecord(enabled = false): Record<FeatureKey, boolean> {
+  const record = {} as Record<FeatureKey, boolean>;
+  for (const key of FEATURE_KEYS) {
+    record[key] = enabled;
+  }
+  return record;
+}
 
 /**
  * Re-evaluates a cached snapshot on the client. Devices that stay offline past

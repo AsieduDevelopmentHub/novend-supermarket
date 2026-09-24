@@ -4,9 +4,13 @@
  * Used by public onboarding (Pro trial) and by the platform administrator
  * (trial or an assigned plan). Entitlements always go through startTrial /
  * activateSubscription so a new business is never left unlicensed.
+ *
+ * When an active organizationProvisioningPolicy exists with
+ * `effectiveFrom <= now`, its experiencePresetId / featureTemplateId /
+ * publicPlanKey are copied onto the new organization (future orgs only).
  */
 
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { writeAuditLog } from "./audit";
 import { DEFAULT_BRANCH_CODE, DEFAULT_BRANCH_NAME } from "./defaultBranch";
@@ -42,6 +46,24 @@ export type ProvisionOrganizationArgs = {
   auditAction: string;
 };
 
+/**
+ * Latest active provisioning policy whose effectiveFrom is at or before `now`.
+ * Returns null when none apply.
+ */
+export async function resolveActiveProvisioningPolicy(
+  ctx: MutationCtx,
+  now = Date.now(),
+): Promise<Doc<"organizationProvisioningPolicies"> | null> {
+  const active = await ctx.db
+    .query("organizationProvisioningPolicies")
+    .withIndex("by_status_effectiveFrom", (q) => q.eq("status", "active"))
+    .collect();
+  const applicable = active
+    .filter((row) => row.effectiveFrom <= now)
+    .sort((a, b) => b.effectiveFrom - a.effectiveFrom);
+  return applicable[0] ?? null;
+}
+
 export async function provisionOrganization(
   ctx: MutationCtx,
   args: ProvisionOrganizationArgs,
@@ -61,6 +83,8 @@ export async function provisionOrganization(
   if (clash) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
 
   const now = Date.now();
+  const policy = await resolveActiveProvisioningPolicy(ctx, now);
+
   const organizationId = await ctx.db.insert("organizations", {
     name,
     slug,
@@ -71,6 +95,10 @@ export async function provisionOrganization(
     plan: "standard",
     cloudMode: "full_sync",
     entitlementVersion: 1,
+    experiencePresetId: policy?.experiencePresetId,
+    featureTemplateId: policy?.featureTemplateId,
+    experienceVersion: policy?.experiencePresetId ? 1 : undefined,
+    featureEntitlementVersion: policy?.featureTemplateId ? 1 : undefined,
     createdAt: now,
     updatedAt: now,
   });
@@ -130,7 +158,7 @@ export async function provisionOrganization(
 
   let planKey: PlanKey;
   if (args.license.kind === "trial") {
-    planKey = args.license.planKey ?? "pro";
+    planKey = args.license.planKey ?? policy?.publicPlanKey ?? "pro";
     await startTrial(ctx, organizationId, planKey);
   } else {
     planKey = args.license.planKey;
@@ -161,6 +189,7 @@ export async function provisionOrganization(
     metadata: {
       planKey,
       trial: args.license.kind === "trial",
+      provisioningPolicyId: policy?._id ?? null,
     },
   });
 

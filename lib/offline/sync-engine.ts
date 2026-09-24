@@ -9,6 +9,7 @@ import { getMeta, getOfflineDb, getBoundOrganizationId, META_KEYS } from "./db";
 import {
   claimOutboxRow,
   listPendingOutbox,
+  markOutboxBlockedByEntitlement,
   markOutboxFailed,
   markOutboxPending,
   markOutboxSynced,
@@ -17,6 +18,12 @@ import {
   rekeyCategoryReferences,
   replaceIdInPendingOutbox,
 } from "./outbox";
+import {
+  featureDenialMessage,
+  isFeatureEnabledOnSnapshot,
+  requiredFeatureForOutbox,
+} from "./license-guard";
+import { loadLicenseSnapshot } from "./license";
 import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
 import { markLocalReturnFailed, markLocalReturnSynced } from "./returns-repository";
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
@@ -366,9 +373,24 @@ export async function drainOutbox(options: {
 
     const pending = await listPendingOutbox(db);
     const uploadRows = sortOutboxForDrain(pending);
+    const licenseSnapshot = await loadLicenseSnapshot();
     for (const row of uploadRows) {
       const claimed = await claimOutboxRow(db, row.id);
       if (!claimed) continue;
+
+      const requiredFeature = requiredFeatureForOutbox(claimed.type);
+      if (
+        requiredFeature &&
+        !isFeatureEnabledOnSnapshot(licenseSnapshot, requiredFeature)
+      ) {
+        await markOutboxBlockedByEntitlement(
+          db,
+          claimed.id,
+          featureDenialMessage(requiredFeature),
+        );
+        failed += 1;
+        continue;
+      }
 
       try {
         if (claimed.type === "complete_sale") {

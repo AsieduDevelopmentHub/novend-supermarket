@@ -1504,50 +1504,22 @@
   background: transparent;
 }
 
-/* CTA laptop + phone — light plate hides cutout stains, then fades into onyx */
+/* CTA laptop + phone — small cool glow above the baked contact shadow */
 .landing-cta-devices {
   position: relative;
   isolation: isolate;
-  background: linear-gradient(
-    105deg,
-    transparent 0%,
-    #f7f9fc 12%,
-    #eef3f8 46%,
-    #0a1628 78%,
-    #071426 100%
-  );
+  background: transparent;
 }
 
 .landing-cta-device-plate {
   position: absolute;
-  inset: 0;
+  inset: 4% 10% 42% 18%;
   background: radial-gradient(
-    ellipse 82% 90% at 68% 55%,
-    #f8fafc 0%,
-    #eef3f8 40%,
-    transparent 72%
+    ellipse 70% 78% at 58% 42%,
+    rgba(156, 190, 220, 0.22) 0%,
+    rgba(7, 20, 38, 0) 68%
   );
   pointer-events: none;
-}
-
-.landing-cta-device-dent {
-  position: absolute;
-  left: 48%;
-  bottom: 4%;
-  width: min(86%, 30rem);
-  height: clamp(80px, 26%, 160px);
-  transform: translateX(-40%);
-  border-radius: 50%;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(255, 255, 255, 0.98) 0%,
-    rgba(255, 255, 255, 0.55) 28%,
-    rgba(255, 255, 255, 0.12) 52%,
-    transparent 74%
-  );
-  filter: blur(1px);
-  pointer-events: none;
-  z-index: 0;
 }
 
 .landing-cta-devices-frame {
@@ -1560,18 +1532,16 @@
   position: relative;
   z-index: 1;
   display: block;
-  filter: drop-shadow(0 22px 36px rgba(7, 20, 38, 0.28));
 }
 
 @media (max-width: 1023px) {
-  .landing-cta-devices {
-    background: linear-gradient(180deg, #f7f9fc 0%, #eef3f8 42%, #0a1628 82%, #071426 100%);
-  }
-
-  .landing-cta-device-dent {
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(94%, 26rem);
+  .landing-cta-device-plate {
+    inset: 6% 14% 40%;
+    background: radial-gradient(
+      ellipse 78% 76% at 50% 40%,
+      rgba(156, 190, 220, 0.2) 0%,
+      rgba(7, 20, 38, 0) 68%
+    );
   }
 }
 
@@ -1648,12 +1618,12 @@
 
 .landing-cta-glow {
   position: absolute;
-  top: -20%;
-  right: -10%;
-  width: min(70%, 28rem);
-  height: min(70%, 22rem);
+  top: -28%;
+  right: -8%;
+  width: min(38%, 14rem);
+  height: min(38%, 12rem);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.22), transparent 68%);
+  background: radial-gradient(circle, rgba(125, 168, 204, 0.16), transparent 70%);
   pointer-events: none;
 }
 

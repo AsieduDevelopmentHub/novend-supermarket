@@ -26,7 +26,7 @@ import { showError } from "@/lib/errors";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { Building2, Eye, Plus } from "lucide-react";
-import { PLAN_LIST, type PlanKey } from "@/convex/shared/plans";
+import { SELLABLE_PLAN_LIST, type PlanKey } from "@/convex/shared/plans";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePlatformOrganizationsData } from "@/hooks/use-platform-offline-data";
 
@@ -223,7 +223,7 @@ export function PlatformView() {
                   value={planKey}
                   onChange={(event) => setPlanKey(event.target.value as PlanKey)}
                 >
-                  {PLAN_LIST.map((plan) => (
+                  {SELLABLE_PLAN_LIST.map((plan) => (
                     <option key={plan.key} value={plan.key}>
                       {plan.name}
                     </option>

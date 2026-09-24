@@ -9,6 +9,7 @@ import {
   formatPlanPriceLabel,
   PLAN_CATALOG,
   priceForCycle,
+  SELLABLE_PLAN_KEYS,
   type PlanDefinition,
 } from "@/convex/shared/plans";
 import { cn } from "@/lib/utils";
@@ -16,7 +17,7 @@ import { appEntryHref } from "@/lib/hosting/hosts";
 
 type BillingCycle = "monthly" | "yearly";
 
-const PREVIEW_PLANS = ["basic", "pro", "enterprise"] as const;
+const PREVIEW_PLANS = [...SELLABLE_PLAN_KEYS] as const;
 
 function yearlySavings(plan: PlanDefinition): number | null {
   if (plan.monthlyPrice === null || plan.yearlyPrice === null) return null;
@@ -25,12 +26,6 @@ function yearlySavings(plan: PlanDefinition): number | null {
 }
 
 function planPriceDisplay(plan: PlanDefinition, cycle: BillingCycle) {
-  if (plan.isLifetime) {
-    return {
-      amount: `GH₵${plan.oneTimePrice?.toLocaleString()}`,
-      suffix: "one-time",
-    };
-  }
   const price = priceForCycle(plan, cycle);
   if (price === null) {
     return { amount: "Talk to us", suffix: "" };
@@ -41,7 +36,7 @@ function planPriceDisplay(plan: PlanDefinition, cycle: BillingCycle) {
   };
 }
 
-/** Homepage pricing preview — three plans + lifetime callout, details on /pricing. */
+/** Homepage pricing preview — sellable plans only; Lifetime is legacy and not marketed. */
 export function LandingPricingPreview() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const copy = landingCopy.pricingPreview;
@@ -65,7 +60,7 @@ export function LandingPricingPreview() {
           </p>
         </header>
 
-        <div className="mt-8 flex justify-center">
+        <div className="mt-8 flex flex-col items-center gap-2">
           <div
             className="inline-flex rounded-full border border-slate-200 bg-white p-1"
             role="group"
@@ -75,6 +70,7 @@ export function LandingPricingPreview() {
               <button
                 key={option}
                 type="button"
+                aria-pressed={cycle === option}
                 onClick={() => setCycle(option)}
                 className={cn(
                   "rounded-full px-4 py-2 text-sm font-medium transition-colors",
@@ -83,7 +79,17 @@ export function LandingPricingPreview() {
                     : "text-slate-600 hover:text-slate-900",
                 )}
               >
-                {option === "monthly" ? "Monthly" : "Yearly"}
+                {option === "monthly" ? "Monthly" : "Annual"}
+                {option === "yearly" ? (
+                  <span
+                    className={cn(
+                      "ml-1.5 text-[10px] font-bold tracking-wide uppercase",
+                      cycle === "yearly" ? "text-white/80" : "text-primary",
+                    )}
+                  >
+                    2 months free
+                  </span>
+                ) : null}
               </button>
             ))}
           </div>
@@ -141,17 +147,9 @@ export function LandingPricingPreview() {
           })}
         </ul>
 
-        <div className="mt-6 rounded-[20px] border border-amber-200/80 bg-amber-50/60 px-5 py-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:px-6">
-          <div>
-            <p className="text-sm font-semibold tracking-tight text-[#0F172A]">
-              {copy.lifetime.title}
-            </p>
-            <p className="mt-1 text-sm leading-relaxed text-slate-600">{copy.lifetime.detail}</p>
-          </div>
-          <Button asChild variant="outline" className="mt-4 shrink-0 border-amber-300/80 sm:mt-0">
-            <Link href="/pricing#lifetime">{copy.lifetime.cta}</Link>
-          </Button>
-        </div>
+        <p className="mt-6 text-center text-xs leading-relaxed text-slate-500">
+          {copy.lifetime.detail}
+        </p>
 
         <div className="mt-8 text-center">
           <Link

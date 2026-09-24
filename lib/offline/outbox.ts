@@ -114,6 +114,22 @@ export async function markOutboxFailed(db: NovendOfflineDb, id: string, error: s
   });
 }
 
+export async function markOutboxBlockedByEntitlement(
+  db: NovendOfflineDb,
+  id: string,
+  error: string,
+) {
+  const row = await db.outbox.get(id);
+  if (!row) return;
+  await db.outbox.put({
+    ...row,
+    status: "blocked_by_entitlement",
+    lastError: error,
+    updatedAt: Date.now(),
+  });
+  notifyReplicaChanged();
+}
+
 export async function markOutboxPending(db: NovendOfflineDb, id: string, error?: string) {
   const row = await db.outbox.get(id);
   if (!row) return;
@@ -125,7 +141,12 @@ export async function markOutboxPending(db: NovendOfflineDb, id: string, error?:
   });
 }
 
-const OPEN_STATUSES: OutboxRow["status"][] = ["pending", "syncing", "failed"];
+const OPEN_STATUSES: OutboxRow["status"][] = [
+  "pending",
+  "syncing",
+  "failed",
+  "blocked_by_entitlement",
+];
 
 async function findOpenUpsertProduct(
   db: NovendOfflineDb,
@@ -240,13 +261,14 @@ export async function rekeyCategoryReferences(
 
 export async function countOutboxByStatus() {
   const db = await getOfflineDb();
-  if (!db) return { pending: 0, failed: 0, syncing: 0 };
-  const [pending, failed, syncing] = await Promise.all([
+  if (!db) return { pending: 0, failed: 0, syncing: 0, blocked: 0 };
+  const [pending, failed, syncing, blocked] = await Promise.all([
     db.outbox.where("status").equals("pending").count(),
     db.outbox.where("status").equals("failed").count(),
     db.outbox.where("status").equals("syncing").count(),
+    db.outbox.where("status").equals("blocked_by_entitlement").count(),
   ]);
-  return { pending, failed, syncing };
+  return { pending, failed, syncing, blocked };
 }
 
 export async function retryFailedOutbox(db: NovendOfflineDb, id: string) {

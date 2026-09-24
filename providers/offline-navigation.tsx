@@ -20,6 +20,7 @@ import { AccessDenied } from "@/components/feedback/access-denied";
 import { isMarketingPath } from "@/lib/marketing-routes";
 import { resolveOfflineView } from "@/providers/offline-views";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { useLicense } from "@/hooks/use-license";
 
 type OfflineNavigationContextValue = {
   /** True when the shell is rendering a client-side route instead of Next RSC children. */
@@ -215,6 +216,7 @@ export function OfflineOutlet({ children }: { children: ReactNode }) {
   const { clientRouting, activePath } = useOfflineNavigation();
   const { role, isLoading } = usePermissions();
   const { enabledCapabilities } = useBusinessCapabilities();
+  const { features, billingVisibility } = useLicense();
   if (clientRouting && activePath) {
     // Super Admin console is not in tenant nav. Applying pathAllowedForRole
     // here blocked every /platform/* click (Access Denied) or, for
@@ -228,8 +230,15 @@ export function OfflineOutlet({ children }: { children: ReactNode }) {
     if (isLoading || !role) {
       return <>{children}</>;
     }
-    if (!pathAllowedForRole(activePath, role, enabledCapabilities)) {
-      return <AccessDenied />;
+    if (
+      !pathAllowedForRole(activePath, role, enabledCapabilities, { features, billingVisibility })
+    ) {
+      return (
+        <AccessDenied
+          title="This section isn’t available"
+          message="Your Novend workspace isn’t configured for this area. Continue from Dashboard or Sales."
+        />
+      );
     }
     return <>{resolveOfflineView(activePath)}</>;
   }
