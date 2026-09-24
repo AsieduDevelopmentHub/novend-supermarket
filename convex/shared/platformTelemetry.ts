@@ -104,6 +104,7 @@ export async function recordTelemetryRollups(
     runtime?: TelemetryRuntime;
     feature?: string;
     action?: string;
+    errorCode?: string;
     assetGroup?: string;
     releaseVersion?: string;
     source?: string;
@@ -120,6 +121,9 @@ export async function recordTelemetryRollups(
   }
   if (args.action) {
     await incrementRollup(ctx, day, args.metric, `action:${args.action}`, count);
+  }
+  if (args.errorCode) {
+    await incrementRollup(ctx, day, args.metric, `code:${args.errorCode}`, count);
   }
   if (args.assetGroup) {
     await incrementRollup(ctx, day, args.metric, `asset:${args.assetGroup}`, count);

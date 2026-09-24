@@ -26,6 +26,13 @@ MRR, active organizations, MAU, downloads, devices, gross revenue, staff
 accounts, and client errors. Detail queries reuse `getInsightDetail` and the
 Dexie platform insight cache.
 
+Client-error rows on `/platform/insights/client-errors` open
+`/platform/insights/client-errors/[code]` (for example `runtime:android` or
+`feature:settings`). That screen lists recent `platformEvents` for the
+dimension plus breakdowns by fingerprint, runtime, feature, and app version.
+Events remain privacy-limited: no messages, stacks, or paths. Fingerprints are
+allowlisted codes such as `window_error.TypeError`.
+
 ## Metrics
 
 - DAU, WAU, and MAU count distinct authenticated users.

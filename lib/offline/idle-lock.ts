@@ -22,8 +22,8 @@ export const IDLE_LOCK_TIMEOUT_OPTIONS: ReadonlyArray<{
   { value: 30, label: "30 minutes" },
 ];
 
-/** Default for shared tills: lock after 10 minutes of inactivity. */
-export const DEFAULT_IDLE_LOCK_TIMEOUT_MINUTES: IdleLockTimeoutMinutes = 10;
+/** Default Off — password unlock needs online Convex auth; offline tills must not trap cashiers. */
+export const DEFAULT_IDLE_LOCK_TIMEOUT_MINUTES: IdleLockTimeoutMinutes = 0;
 
 export type IdleLockPhase = "unlocked" | "locked";
 

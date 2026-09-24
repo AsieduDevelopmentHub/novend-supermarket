@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -11,7 +11,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Timer } from "lucide-react";
-import { toast } from "sonner";
 import {
   IDLE_LOCK_TIMEOUT_OPTIONS,
   parseIdleLockTimeout,
@@ -28,6 +27,7 @@ type IdleLockSettingsCardProps = {
 /**
  * Shared-till inactivity lock. Device-local preference (survives logout).
  * Matches Security panel Card density — no new chrome.
+ * Password unlock needs a connection; Cap biometrics can unlock offline when enrolled.
  */
 export function IdleLockSettingsCard({ onTimeoutChange }: IdleLockSettingsCardProps) {
   const [timeoutMinutes, setTimeoutMinutes] = useState<IdleLockTimeoutMinutes>(() =>
@@ -39,11 +39,6 @@ export function IdleLockSettingsCard({ onTimeoutChange }: IdleLockSettingsCardPr
     setTimeoutMinutes(next);
     writeIdleLockTimeout(next);
     onTimeoutChange?.(next);
-    toast.success(
-      next === 0
-        ? "Inactivity lock turned off on this device"
-        : `Lock after ${next} minutes of inactivity`,
-    );
   }
 
   return (
@@ -53,6 +48,10 @@ export function IdleLockSettingsCard({ onTimeoutChange }: IdleLockSettingsCardPr
           <Timer className="h-4 w-4" aria-hidden />
           Inactivity lock
         </CardTitle>
+        <CardDescription>
+          Password unlock needs a connection. On Android, biometrics can unlock while offline when
+          enabled.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-2">

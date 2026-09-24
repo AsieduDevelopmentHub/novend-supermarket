@@ -15,9 +15,9 @@ import {
 import { clearUserDeviceState } from "@/lib/auth/clear-user-device-state";
 
 describe("idle lock state machine", () => {
-  it("defaults to a sensible shared-till timeout", () => {
-    expect(DEFAULT_IDLE_LOCK_TIMEOUT_MINUTES).toBe(10);
-    expect(parseIdleLockTimeout("off")).toBe(10);
+  it("defaults to Off so offline tills are not password-locked", () => {
+    expect(DEFAULT_IDLE_LOCK_TIMEOUT_MINUTES).toBe(0);
+    expect(parseIdleLockTimeout("off")).toBe(0);
     expect(parseIdleLockTimeout(0)).toBe(0);
     expect(parseIdleLockTimeout(15)).toBe(15);
   });

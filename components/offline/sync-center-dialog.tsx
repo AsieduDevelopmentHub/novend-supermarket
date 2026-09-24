@@ -25,8 +25,9 @@ import {
 } from "@/lib/offline/outbox-labels";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { shouldMarkOutboxFailed } from "@/lib/offline/outbox-policy";
-import type { OutboxRow } from "@/lib/offline/types";
 import { useOfflineStatus } from "@/providers/offline-provider";
+import { useShowsRealtimeSyncUi } from "@/hooks/use-shows-realtime-sync-ui";
+import type { OutboxRow } from "@/lib/offline/types";
 
 function isDisplayedConflict(row: OutboxRow) {
   if (row.status === "failed") return true;
@@ -134,6 +135,7 @@ function EmptyState({ children }: { children: string }) {
  */
 export function SyncCenterDialog() {
   const router = useRouter();
+  const showSyncUi = useShowsRealtimeSyncUi();
   const {
     online,
     syncing,
@@ -147,6 +149,10 @@ export function SyncCenterDialog() {
     pullSnapshot,
     refreshStatus,
   } = useOfflineStatus();
+
+  useEffect(() => {
+    if (!showSyncUi && syncCenterOpen) closeSyncCenter();
+  }, [showSyncUi, syncCenterOpen, closeSyncCenter]);
 
   const [waiting, setWaiting] = useState<OutboxRow[]>([]);
   const [conflicts, setConflicts] = useState<OutboxRow[]>([]);
@@ -230,6 +236,8 @@ export function SyncCenterDialog() {
 
   const discardCopy = discardTarget ? describeOutboxEvent(discardTarget) : null;
   const needsFixCount = conflicts.length;
+
+  if (!showSyncUi) return null;
 
   return (
     <Dialog open={syncCenterOpen} onOpenChange={(open) => !open && closeSyncCenter()}>

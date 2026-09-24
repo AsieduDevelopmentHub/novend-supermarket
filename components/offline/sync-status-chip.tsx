@@ -4,6 +4,7 @@ import { CloudOff, CloudUpload, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { describeSyncStatus } from "@/lib/offline/sync-status";
+import { useShowsRealtimeSyncUi } from "@/hooks/use-shows-realtime-sync-ui";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/date";
 
@@ -16,9 +17,12 @@ function SyncGlyph({ kind }: { kind: ReturnType<typeof describeSyncStatus>["kind
 
 /** Compact header control so mobile web and Capacitor can highlight sync without the sidebar. */
 export function SyncStatusHeaderButton() {
+  const showSyncUi = useShowsRealtimeSyncUi();
   const { online, pendingCount, failedCount, syncing, lastError, openSyncCenter } =
     useOfflineStatus();
   const view = describeSyncStatus({ online, pendingCount, failedCount, syncing });
+
+  if (!showSyncUi) return null;
 
   return (
     <button
@@ -40,12 +44,16 @@ export function SyncStatusHeaderButton() {
 /**
  * Compact sync indicator for the sidebar — always visible, non-intrusive.
  * Opens Sync Center for queue details, conflicts, and a forced upload.
+ * Hidden when the tenant cloud mode does not queue realtime sync.
  */
 export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
+  const showSyncUi = useShowsRealtimeSyncUi();
   const { online, pendingCount, failedCount, syncing, lastSyncAt, lastError, openSyncCenter } =
     useOfflineStatus();
   const view = describeSyncStatus({ online, pendingCount, failedCount, syncing });
   const needsReview = pendingCount > 0 || failedCount > 0;
+
+  if (!showSyncUi) return null;
 
   const detail = !online
     ? view.detail

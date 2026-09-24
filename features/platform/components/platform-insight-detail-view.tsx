@@ -14,7 +14,8 @@ import {
 } from "recharts";
 import { PageHeader } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -145,6 +146,11 @@ export function PlatformInsightDetailView({ metric }: { metric: PlatformInsightM
       <Card>
         <CardHeader>
           <CardTitle>{data.rowsLabel}</CardTitle>
+          {metric === "client-errors" ? (
+            <CardDescription>
+              Select a row to review recent events for that dimension.
+            </CardDescription>
+          ) : null}
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
           <InsightRowsTable metric={metric} rows={data.rows} />
@@ -202,12 +208,26 @@ function InsightRowsTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={String(row.name)} className="border-border border-t">
-              <td className="px-4 py-3 font-medium">{String(row.name)}</td>
-              <td className="px-4 py-3">{formatNumber(Number(row.count))}</td>
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const name = String(row.name);
+            if (metric === "client-errors") {
+              return (
+                <ClickableTableRow
+                  key={name}
+                  href={`/platform/insights/client-errors/${encodeURIComponent(name)}`}
+                >
+                  <td className="px-4 py-3 font-medium">{name}</td>
+                  <td className="px-4 py-3">{formatNumber(Number(row.count))}</td>
+                </ClickableTableRow>
+              );
+            }
+            return (
+              <tr key={name} className="border-border border-t">
+                <td className="px-4 py-3 font-medium">{name}</td>
+                <td className="px-4 py-3">{formatNumber(Number(row.count))}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     );

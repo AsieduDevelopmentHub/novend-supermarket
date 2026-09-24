@@ -4,17 +4,20 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { describeSyncStatus } from "@/lib/offline/sync-status";
+import { useShowsRealtimeSyncUi } from "@/hooks/use-shows-realtime-sync-ui";
 import { cn } from "@/lib/utils";
 
 /**
  * Shell banner for sync work that needs user attention.
  * Background upload progress stays in Sync Center only.
+ * Hidden when the tenant cloud mode does not queue realtime sync.
  */
 export function SyncStatusBanner() {
+  const showSyncUi = useShowsRealtimeSyncUi();
   const { online, pendingCount, failedCount, syncing, openSyncCenter } = useOfflineStatus();
   const view = describeSyncStatus({ online, pendingCount, failedCount, syncing });
 
-  if (view.kind !== "conflict") {
+  if (!showSyncUi || view.kind !== "conflict") {
     return null;
   }
 

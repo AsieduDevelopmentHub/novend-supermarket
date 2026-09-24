@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Hardware, isCapacitor, type AppInfo, type UpdateInfo } from "@novend/hardware";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useShowsRealtimeSyncUi } from "@/hooks/use-shows-realtime-sync-ui";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
 import { estimateBackupSize } from "@/lib/offline/backup";
 import { APP_BRAND, APP_NAME, APP_VERSION } from "@/constants/app";
@@ -37,6 +38,7 @@ function cacheSuccessfulUpdate(info: UpdateInfo) {
 export function AboutNovendView() {
   const { role, branchName } = usePermissions();
   const offline = useOfflineStatus();
+  const showRealtimeSync = useShowsRealtimeSyncUi();
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
@@ -119,11 +121,13 @@ export function AboutNovendView() {
           <p>
             Sync:{" "}
             <span className="text-foreground font-medium">
-              {offline.online
-                ? offline.pendingCount > 0
-                  ? `${offline.pendingCount} pending`
-                  : "Up to date"
-                : "Offline"}
+              {!showRealtimeSync
+                ? "On this device"
+                : offline.online
+                  ? offline.pendingCount > 0
+                    ? `${offline.pendingCount} pending`
+                    : "Up to date"
+                  : "Offline"}
             </span>
           </p>
         </CardContent>

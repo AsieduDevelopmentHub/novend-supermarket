@@ -38,6 +38,7 @@ import { PlatformCostsView } from "@/features/platform/components/platform-costs
 import { PlatformPaymentDetailView } from "@/features/platform/components/platform-payment-detail-view";
 import { PlatformReleaseDetailView } from "@/features/platform/components/platform-release-detail-view";
 import { PlatformInsightDetailView } from "@/features/platform/components/platform-insight-detail-view";
+import { PlatformClientErrorDetailView } from "@/features/platform/components/platform-client-error-detail-view";
 import type { PlatformInsightMetric } from "@/convex/platformAnalytics";
 import { OfflineUnavailable } from "@/components/offline/offline-unavailable";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -148,9 +149,15 @@ export function resolveOfflineView(path: string): ReactNode {
     return <UsersView />;
   }
   if (path.startsWith("/platform/insights/")) {
-    const metric = path.slice("/platform/insights/".length);
-    if (metric && !metric.includes("/")) {
-      return <PlatformInsightDetailView metric={metric as PlatformInsightMetric} />;
+    const rest = path.slice("/platform/insights/".length);
+    if (rest.startsWith("client-errors/")) {
+      const code = rest.slice("client-errors/".length);
+      if (code && !code.includes("/")) {
+        return <PlatformClientErrorDetailView code={decodeURIComponent(code)} />;
+      }
+    }
+    if (rest && !rest.includes("/")) {
+      return <PlatformInsightDetailView metric={rest as PlatformInsightMetric} />;
     }
   }
   if (path.startsWith("/platform/payments/")) {
