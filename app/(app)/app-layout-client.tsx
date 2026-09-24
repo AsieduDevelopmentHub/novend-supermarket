@@ -67,11 +67,32 @@ function AppShellWithIdleLock({
   userName: string | null;
   children: ReactNode;
 }) {
+  const router = useRouter();
   const { locked, unlock } = useWorkspaceIdleLock({ enabled: true });
+
+  function handleUnlocked() {
+    unlock();
+    // After the overlay unmounts: restore focus + re-sync client shell routing so
+    // sidebar links and the current page respond without a hard reload.
+    window.setTimeout(() => {
+      const main = document.querySelector("[data-novend-scroll-root]");
+      if (main instanceof HTMLElement) {
+        if (!main.hasAttribute("tabindex")) main.setAttribute("tabindex", "-1");
+        main.focus({ preventScroll: true });
+      }
+      try {
+        router.refresh();
+      } catch {
+        /* ignore */
+      }
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }, 0);
+  }
+
   return (
     <>
       {children}
-      {locked ? <WorkspaceLockOverlay userName={userName} onUnlocked={unlock} /> : null}
+      {locked ? <WorkspaceLockOverlay userName={userName} onUnlocked={handleUnlocked} /> : null}
     </>
   );
 }

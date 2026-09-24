@@ -81,8 +81,22 @@ export function WorkspaceLockOverlay({ userName, onUnlocked }: WorkspaceLockOver
     };
   }, []);
 
+  /**
+   * Unmount after the activating gesture finishes. Removing the unlock control
+   * mid-click can leave Chromium/Electron unable to hit-test the shell until a
+   * full reload — the page looks "stuck" behind a vanished lock screen.
+   */
+  function finishUnlock() {
+    setPassword("");
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    window.setTimeout(() => onUnlocked(), 0);
+  }
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    event.stopPropagation();
     if (pending) return;
     if (!online) {
       setError(
@@ -96,12 +110,10 @@ export function WorkspaceLockOverlay({ userName, onUnlocked }: WorkspaceLockOver
     setError(null);
     try {
       await verifyPassword({ password });
-      setPassword("");
-      onUnlocked();
+      finishUnlock();
     } catch (err) {
       setError("Incorrect password");
       showError(err, "Incorrect password");
-    } finally {
       setPending(false);
     }
   }
@@ -113,13 +125,15 @@ export function WorkspaceLockOverlay({ userName, onUnlocked }: WorkspaceLockOver
     try {
       const result = await Hardware.biometrics.authenticate("Unlock Novend POS");
       if (result.ok) {
-        onUnlocked();
+        finishUnlock();
       } else if (result.message !== "Cancelled") {
         setError(result.message || "Biometrics failed");
+        setPending(false);
+      } else {
+        setPending(false);
       }
     } catch {
       setError("Biometrics failed");
-    } finally {
       setPending(false);
     }
   }
