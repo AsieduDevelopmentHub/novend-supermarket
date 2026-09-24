@@ -84,6 +84,13 @@ export function TelemetryProvider({ enabled }: { enabled: boolean }) {
 
   useEffect(() => {
     if (!enabled) return;
+    /** Allowlisted fingerprint only — never message, stack, or URLs. */
+    const sanitizeErrorCode = (kind: string, name: string | undefined) => {
+      const safeName = (name ?? "Unknown")
+        .replace(/[^a-zA-Z0-9_.-]/g, "")
+        .slice(0, 48);
+      return `${kind}.${safeName || "Unknown"}`.slice(0, 64);
+    };
     const reportError = (errorCode: string) => {
       const identity = identityRef.current;
       if (!identity) return;
@@ -96,8 +103,20 @@ export function TelemetryProvider({ enabled }: { enabled: boolean }) {
         errorCode,
       });
     };
-    const onError = () => reportError("window_error");
-    const onUnhandledRejection = () => reportError("unhandled_rejection");
+    const onError = (event: ErrorEvent) => {
+      const name = event.error instanceof Error ? event.error.name : event.error?.constructor?.name;
+      reportError(sanitizeErrorCode("window_error", typeof name === "string" ? name : "Error"));
+    };
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      const name =
+        reason instanceof Error
+          ? reason.name
+          : reason && typeof reason === "object" && "name" in reason
+            ? String((reason as { name: unknown }).name)
+            : "Rejection";
+      reportError(sanitizeErrorCode("unhandled_rejection", name));
+    };
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onUnhandledRejection);
     return () => {

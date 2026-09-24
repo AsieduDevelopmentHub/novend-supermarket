@@ -191,6 +191,7 @@ export const recordBatch = mutation({
         runtime: event.runtime,
         feature,
         action,
+        errorCode,
       });
       await recordDailyActiveUser(ctx, {
         userId,

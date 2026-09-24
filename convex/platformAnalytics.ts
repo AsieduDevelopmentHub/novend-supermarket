@@ -552,7 +552,8 @@ const INSIGHT_COPY: Record<PlatformInsightMetric, { title: string; description: 
   },
   "client-errors": {
     title: "Client Errors",
-    description: "Sanitized client-error rollups. Codes are categories, not stack traces.",
+    description:
+      "Sanitized client-error rollups (runtime, feature, and fingerprint). Open a row for recent events — codes are categories, not stack traces.",
   },
 };
 
@@ -926,6 +927,121 @@ export const getInsightDetail = query({
       trend,
       rowsLabel,
       rows,
+    };
+  },
+});
+
+/** Parses rollup dimension keys like `runtime:android` or `feature:settings`. */
+function parseClientErrorDimension(raw: string): {
+  kind: "runtime" | "feature" | "action" | "code";
+  value: string;
+} | null {
+  const trimmed = raw.trim().slice(0, 96);
+  const match = /^(runtime|feature|action|code):([a-zA-Z0-9_.-]+)$/.exec(trimmed);
+  if (!match) return null;
+  return {
+    kind: match[1] as "runtime" | "feature" | "action" | "code",
+    value: match[2],
+  };
+}
+
+/**
+ * Recent client_error events for one rollup dimension (e.g. `runtime:android`).
+ * Privacy-limited: no stacks or messages — only allowlisted fields already on platformEvents.
+ */
+export const getClientErrorCodeDetail = query({
+  args: {
+    code: v.string(),
+    range: v.optional(rangeOrAllValidator),
+  },
+  handler: async (ctx, args) => {
+    await requirePlatformAdmin(ctx);
+    const parsed = parseClientErrorDimension(args.code);
+    if (!parsed) return null;
+
+    const range = (args.range ?? "30d") as RangeKeyOrAll;
+    const now = Date.now();
+    const since = rangeSince(range, now);
+
+    const recent = await ctx.db
+      .query("platformEvents")
+      .withIndex("by_kind_occurredAt", (q) => q.eq("kind", "client_error").gte("occurredAt", since))
+      .order("desc")
+      .take(400);
+
+    const matched = recent.filter((row) => {
+      if (parsed.kind === "runtime") return row.runtime === parsed.value;
+      if (parsed.kind === "feature") return row.feature === parsed.value;
+      if (parsed.kind === "action") return row.action === parsed.value;
+      return row.errorCode === parsed.value;
+    });
+
+    const orgIds = [
+      ...new Set(
+        matched
+          .map((row) => row.organizationId)
+          .filter((id): id is NonNullable<typeof id> => id != null),
+      ),
+    ];
+    const orgNames = new Map<string, string>();
+    await Promise.all(
+      orgIds.map(async (id) => {
+        const org = await ctx.db.get(id);
+        if (org?.name) orgNames.set(String(id), org.name);
+      }),
+    );
+
+    const byErrorCode = new Map<string, number>();
+    const byRuntime = new Map<string, number>();
+    const byFeature = new Map<string, number>();
+    const byAppVersion = new Map<string, number>();
+    let total = 0;
+    for (const row of matched) {
+      total += row.count;
+      if (row.errorCode) {
+        byErrorCode.set(row.errorCode, (byErrorCode.get(row.errorCode) ?? 0) + row.count);
+      }
+      if (row.runtime) {
+        byRuntime.set(row.runtime, (byRuntime.get(row.runtime) ?? 0) + row.count);
+      }
+      if (row.feature) {
+        byFeature.set(row.feature, (byFeature.get(row.feature) ?? 0) + row.count);
+      }
+      if (row.appVersion) {
+        byAppVersion.set(row.appVersion, (byAppVersion.get(row.appVersion) ?? 0) + row.count);
+      }
+    }
+
+    const top = (map: Map<string, number>, limit = 12) =>
+      [...map.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit)
+        .map(([name, count]) => ({ name, count }));
+
+    return {
+      code: `${parsed.kind}:${parsed.value}`,
+      kind: parsed.kind,
+      value: parsed.value,
+      range,
+      total,
+      eventCount: matched.length,
+      byErrorCode: top(byErrorCode),
+      byRuntime: top(byRuntime),
+      byFeature: top(byFeature),
+      byAppVersion: top(byAppVersion),
+      events: matched.slice(0, 100).map((row) => ({
+        id: row._id,
+        organizationId: row.organizationId ? String(row.organizationId) : null,
+        organizationName: row.organizationId
+          ? (orgNames.get(String(row.organizationId)) ?? "Unknown")
+          : null,
+        feature: row.feature ?? null,
+        runtime: row.runtime ?? null,
+        appVersion: row.appVersion ?? null,
+        errorCode: row.errorCode ?? null,
+        count: row.count,
+        occurredAt: row.occurredAt,
+      })),
     };
   },
 });
