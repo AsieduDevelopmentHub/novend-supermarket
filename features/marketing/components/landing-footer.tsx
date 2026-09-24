@@ -9,52 +9,43 @@ import { landingCopy } from "@/features/marketing/content";
 import { openCookiePreferences } from "@/lib/cookies/consent";
 import { cn } from "@/lib/utils";
 
-/** Section 8 — premium Onyx footer with real Novend business information. */
+/** Four-column marketing footer: Product, Industries, Resources, Legal. */
 export function LandingFooter() {
   const year = new Date().getFullYear();
   const { footer } = landingCopy;
   const { contact } = footer;
 
   return (
-    <footer className="landing-footer bg-[#111827] text-slate-300">
-      <div className="landing-footer-grid mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-        <div className="landing-footer-brand space-y-5">
-          <Link href="/" className="inline-flex items-center gap-3">
-            <Image
-              src={BRANDING.logoHorizontalLight}
-              alt="Novend"
-              width={160}
-              height={36}
-              className="h-8 w-auto object-contain"
-            />
-          </Link>
-          <p className="text-sm font-semibold tracking-tight text-white">{footer.brandTitle}</p>
-          <p className="max-w-sm text-sm leading-relaxed text-slate-400">{footer.description}</p>
-          <ul className="flex flex-wrap gap-2">
-            {footer.badges.map((badge) => (
-              <li
-                key={badge}
-                className="rounded-full border border-white/15 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-slate-200"
-              >
-                {badge}
-              </li>
-            ))}
-          </ul>
+    <footer className="bg-[#0B1220] text-slate-300">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+        <div className="flex flex-col gap-10 lg:flex-row lg:justify-between lg:gap-12">
+          <div className="max-w-sm space-y-4">
+            <Link href="/" className="inline-flex items-center gap-3">
+              <Image
+                src={BRANDING.logoHorizontalLight}
+                alt="Novend"
+                width={140}
+                height={32}
+                className="h-7 w-auto object-contain"
+              />
+            </Link>
+            <p className="text-sm font-medium tracking-tight text-white">{footer.brandTitle}</p>
+            <p className="text-sm leading-relaxed text-slate-400">{footer.description}</p>
+          </div>
+
+          <div className="grid flex-1 grid-cols-2 gap-8 sm:grid-cols-4">
+            <FooterColumn title="Product" links={footer.product} />
+            <FooterColumn title="Industries" links={footer.industries} />
+            <FooterColumn title="Resources" links={footer.resources} />
+            <FooterColumn title="Legal" links={footer.legal} />
+          </div>
         </div>
 
-        <FooterColumn title="Product" links={footer.product} className="landing-footer-product" />
-        <FooterColumn
-          title="Resources"
-          links={footer.resources}
-          className="landing-footer-resources"
-        />
-        <FooterColumn title="Legal" links={footer.legal} className="landing-footer-legal" />
-
-        <div className="landing-footer-contact">
+        <div className="mt-12 border-t border-white/10 pt-8">
           <p className="text-[11px] font-semibold tracking-[0.14em] text-slate-500 uppercase">
             {contact.title}
           </p>
-          <ul className="mt-4 space-y-3.5">
+          <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <ContactItem
               icon={Mail}
               label={contact.email.label}
@@ -119,10 +110,10 @@ function FooterColumn({
       <p className="text-[11px] font-semibold tracking-[0.14em] text-slate-500 uppercase">
         {title}
       </p>
-      <ul className="mt-4 space-y-2.5 text-sm">
-        {links.map((item) => (
-          <li key={`${item.href}-${item.label}`}>
-            <FooterLink href={item.href}>{item.label}</FooterLink>
+      <ul className="mt-4 space-y-2.5">
+        {links.map((link) => (
+          <li key={`${title}-${link.label}`}>
+            <FooterLink href={link.href}>{link.label}</FooterLink>
           </li>
         ))}
       </ul>
@@ -132,21 +123,21 @@ function FooterColumn({
 
 function FooterLink({ href, children }: { href: string; children: ReactNode }) {
   const className =
-    "text-slate-300 transition-colors duration-150 hover:text-[#38BDF8] focus-visible:text-[#38BDF8] focus-visible:outline-none";
-
-  if (
-    href.startsWith("http") ||
-    href.startsWith("mailto:") ||
-    href.startsWith("tel:") ||
-    href.startsWith("#")
-  ) {
+    "text-sm text-slate-400 transition-colors hover:text-white focus-visible:text-white focus-visible:outline-none";
+  if (href.startsWith("mailto:") || href.startsWith("http") || href.startsWith("tel:")) {
     return (
       <a href={href} className={className}>
         {children}
       </a>
     );
   }
-
+  if (href.includes("#")) {
+    return (
+      <a href={href} className={className}>
+        {children}
+      </a>
+    );
+  }
   return (
     <Link href={href} className={className}>
       {children}
@@ -169,45 +160,32 @@ function ContactItem({
   secondaryHref?: string;
   secondaryLabel?: string;
 }) {
-  const body = (
-    <>
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/12 text-slate-300 transition-colors duration-150 group-hover:border-[#38BDF8]/40 group-hover:text-[#38BDF8]">
-        <Icon className="h-3.5 w-3.5" aria-hidden />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-[11px] font-medium tracking-wide text-slate-500">{label}</span>
-        <span className="mt-0.5 block text-sm text-slate-200 transition-colors duration-150 group-hover:text-white">
-          {value}
-        </span>
+  return (
+    <li className="flex gap-3">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">{label}</p>
+        {href ? (
+          <a
+            href={href}
+            className="mt-0.5 block text-sm text-slate-300 transition-colors hover:text-white"
+          >
+            {value}
+          </a>
+        ) : (
+          <p className="mt-0.5 text-sm text-slate-300">{value}</p>
+        )}
         {secondaryHref && secondaryLabel ? (
           <a
             href={secondaryHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-[#38BDF8] hover:underline"
-            onClick={(event) => event.stopPropagation()}
+            className={cn(
+              "mt-1 inline-block text-xs font-medium text-slate-400 transition-colors hover:text-[#38BDF8]",
+            )}
           >
-            <MessageCircle className="h-3 w-3" aria-hidden />
             {secondaryLabel}
           </a>
         ) : null}
-      </span>
-    </>
+      </div>
+    </li>
   );
-
-  if (href) {
-    return (
-      <li>
-        <a
-          href={href}
-          className="group flex cursor-pointer items-start gap-3"
-          {...(href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-        >
-          {body}
-        </a>
-      </li>
-    );
-  }
-
-  return <li className={cn("group flex items-start gap-3")}>{body}</li>;
 }

@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Cloud, Package, ShoppingCart, Store, Warehouse } from "lucide-react";
 import { BRANDING } from "@/constants/branding";
 import { landingCopy } from "@/features/marketing/content";
+import { LandingSection } from "@/features/marketing/components/landing-section";
 
 const STEP_ICONS = {
   products: Package,
@@ -28,10 +29,7 @@ export function LandingHowItWorks() {
   const { howItWorks } = landingCopy;
 
   return (
-    <section
-      id="how-it-works"
-      className="border-border scroll-mt-24 border-t bg-white px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
-    >
+    <LandingSection id="how-it-works" tone="soft" className="px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
       <div className="mx-auto max-w-6xl">
         <header data-reveal className="mx-auto max-w-[680px] text-center">
           <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
@@ -132,6 +130,6 @@ export function LandingHowItWorks() {
           </div>
         </div>
       </div>
-    </section>
+    </LandingSection>
   );
 }

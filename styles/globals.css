@@ -1505,9 +1505,8 @@
 }
 
 .landing-cta-band {
-  background:
-    radial-gradient(ellipse 60% 80% at 20% 30%, rgba(56, 189, 248, 0.16), transparent 55%),
-    radial-gradient(ellipse 50% 70% at 85% 70%, rgba(14, 165, 233, 0.1), transparent 50%), #ffffff;
+  /* legacy — CTA no longer uses a boxed band */
+  background: transparent;
 }
 
 /* CTA laptop + phone — filled mockup with transparent plate */
@@ -1563,17 +1562,263 @@
 
 /* â”€â”€ Landing V2 â€” Header + Hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
+/* Page canvas — calm off-white editorial field */
+.landing-page-canvas {
+  background: #f8fafc;
+}
+
+/* Editorial homepage hero — restrained sky wash, not blob clutter */
+.landing-editorial-hero-panel {
+  background: linear-gradient(135deg, #f4fbff 0%, #eaf7ff 48%, #f8fafc 100%);
+  border: 1px solid rgba(11, 18, 32, 0.08);
+  box-shadow: 0 30px 80px rgba(11, 18, 32, 0.08);
+}
+
+.landing-editorial-hero-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 55% 50% at 82% 42%,
+    rgba(56, 189, 248, 0.18),
+    transparent 68%
+  );
+}
+
+.landing-editorial-hero-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: radial-gradient(rgba(11, 18, 32, 0.9) 0.75px, transparent 0.75px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 42%, #000 100%);
+}
+
+.landing-cta-glow {
+  position: absolute;
+  top: -20%;
+  right: -10%;
+  width: min(70%, 28rem);
+  height: min(70%, 22rem);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.22), transparent 68%);
+  pointer-events: none;
+}
+
+/* Shared section atmosphere (legacy — LandingSection now uses tonal utility classes) */
+.landing-section {
+  position: relative;
+}
+
+.landing-section-atmosphere {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.landing-section-wash {
+  position: absolute;
+  inset: 0;
+}
+
+.landing-section-atmosphere-sky .landing-section-wash {
+  background: linear-gradient(180deg, #e8f5fb 0%, #dcf0f9 42%, #eef7fc 100%);
+}
+
+.landing-section-atmosphere-mist .landing-section-wash {
+  background: linear-gradient(180deg, #f2f8fb 0%, #e7f3f9 50%, #f6fafc 100%);
+}
+
+.landing-section-atmosphere-soft .landing-section-wash {
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbfe 45%, #eef6fb 100%);
+}
+
+.landing-section-atmosphere-pearl .landing-section-wash {
+  background: linear-gradient(180deg, #f8fbfe 0%, #ffffff 40%, #f0f7fb 100%);
+}
+
+.landing-section-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(2px);
+}
+
+.landing-section-blob-a {
+  left: -18%;
+  top: -22%;
+  width: 62%;
+  height: 74%;
+  background: radial-gradient(
+    closest-side,
+    rgba(56, 189, 248, 0.36) 0%,
+    rgba(186, 230, 253, 0.16) 48%,
+    transparent 76%
+  );
+  border-radius: 58% 42% 48% 52% / 46% 54% 46% 54%;
+}
+
+.landing-section-blob-b {
+  right: -14%;
+  top: 8%;
+  width: 50%;
+  height: 62%;
+  background: radial-gradient(closest-side, rgba(125, 211, 252, 0.3) 0%, transparent 72%);
+}
+
+.landing-section-blob-c {
+  left: 28%;
+  bottom: -28%;
+  width: 56%;
+  height: 58%;
+  background: radial-gradient(
+    closest-side,
+    rgba(13, 148, 136, 0.14) 0%,
+    rgba(56, 189, 248, 0.12) 40%,
+    transparent 72%
+  );
+}
+
+.landing-section-fade-top {
+  position: absolute;
+  inset: 0 0 auto;
+  height: min(120px, 18%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), transparent);
+}
+
+.landing-section-fade-bottom {
+  position: absolute;
+  inset: auto 0 0;
+  height: min(140px, 22%);
+  background: linear-gradient(0deg, rgba(255, 255, 255, 0.7), transparent);
+}
+
+.landing-surface-card {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 18px 40px -28px rgba(15, 23, 42, 0.35),
+    0 8px 18px -14px rgba(56, 189, 248, 0.18);
+}
+
+.landing-section-soft,
+.landing-section-mist {
+  /* legacy class hooks kept for any remaining callers */
+  background: transparent;
+}
+
 .landing-v2-nav-glass {
-  background: rgba(248, 250, 252, 0.92);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 12px 32px -18px rgba(15, 23, 42, 0.18);
 }
 
 .landing-v2-hero {
-  background: #ffffff;
-  overflow: visible;
+  background: transparent;
+  overflow: hidden;
+}
+
+.landing-v2-hero-bottom-fade {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: -1px;
+  height: clamp(80px, 14vw, 160px);
+  background: radial-gradient(
+    ellipse 70% 100% at 50% 100%,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.55) 42%,
+    transparent 72%
+  );
+  pointer-events: none;
+  z-index: 5;
+}
+
+.landing-v2-hero-atmosphere {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.landing-v2-hero-wash {
+  position: absolute;
+  inset: -10% -8% auto;
+  height: 78%;
+  width: 116%;
+  left: -8%;
+  background: linear-gradient(160deg, #e4f4fb 0%, #d4eef8 48%, #eaf6fc 100%);
+  opacity: 0.98;
+}
+
+.landing-v2-hero-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.landing-v2-hero-orb-a {
+  left: -14%;
+  top: -18%;
+  width: 58%;
+  height: 70%;
+  background: radial-gradient(
+    closest-side,
+    rgba(56, 189, 248, 0.38) 0%,
+    rgba(125, 211, 252, 0.14) 55%,
+    transparent 78%
+  );
+  border-radius: 56% 44% 50% 50% / 52% 56% 44% 48%;
+  animation: landing-v2-orb-drift 18s ease-in-out infinite;
+}
+
+.landing-v2-hero-orb-b {
+  left: 22%;
+  top: -4%;
+  width: 42%;
+  height: 58%;
+  background: radial-gradient(closest-side, rgba(186, 230, 253, 0.55) 0%, transparent 74%);
+  animation: landing-v2-orb-drift 22s ease-in-out infinite reverse;
+}
+
+.landing-v2-hero-orb-c {
+  right: -8%;
+  top: -16%;
+  width: 40%;
+  height: 52%;
+  background: radial-gradient(
+    closest-side,
+    rgba(13, 148, 136, 0.16) 0%,
+    rgba(56, 189, 248, 0.12) 40%,
+    transparent 72%
+  );
+  animation: landing-v2-orb-drift 20s ease-in-out infinite;
 }
 
 .landing-v2-hero-mesh {
-  display: none;
+  display: block;
+  position: absolute;
+  inset: 12% 4% 18%;
+  opacity: 0.045;
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.45) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.45) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse 70% 60% at 70% 40%, black 20%, transparent 75%);
+}
+
+@keyframes landing-v2-orb-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(1.5%, -1.2%, 0) scale(1.04);
+  }
 }
 
 @keyframes landing-v2-mesh-shift {
@@ -1595,18 +1840,89 @@
   overflow: visible;
 }
 
-/* Soft Candy Blue ambient behind the device — blends into white */
 .landing-v2-stage-aura {
   position: absolute;
   inset: 0% -6% 20%;
   background: radial-gradient(
-    ellipse 68% 52% at 50% 30%,
-    rgba(56, 189, 248, 0.16) 0%,
-    rgba(56, 189, 248, 0.06) 40%,
+    ellipse 72% 56% at 50% 34%,
+    rgba(56, 189, 248, 0.32) 0%,
+    rgba(56, 189, 248, 0.12) 38%,
     transparent 72%
   );
   pointer-events: none;
   z-index: 0;
+}
+
+.landing-v2-stage-rings {
+  position: absolute;
+  inset: 4% 2% 18%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.landing-v2-stage-ring {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  border-radius: 50%;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 40px rgba(56, 189, 248, 0.08);
+}
+
+.landing-v2-stage-ring-outer {
+  width: 108%;
+  aspect-ratio: 1;
+  opacity: 0.55;
+}
+
+.landing-v2-stage-ring-mid {
+  width: 82%;
+  aspect-ratio: 1;
+  border-color: rgba(56, 189, 248, 0.28);
+  opacity: 0.7;
+}
+
+.landing-v2-stage-ring-inner {
+  width: 58%;
+  aspect-ratio: 1;
+  border-color: rgba(14, 165, 233, 0.35);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, transparent 70%);
+  opacity: 0.9;
+}
+
+/* Light closing CTA — devices float on a soft pedestal, no dark box */
+.landing-cta-panel {
+  position: relative;
+}
+
+.landing-cta-device-glow {
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  width: min(92%, 28rem);
+  height: clamp(72px, 18vw, 120px);
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(56, 189, 248, 0.28) 0%,
+    rgba(56, 189, 248, 0.1) 38%,
+    transparent 70%
+  );
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.landing-cta-band {
+  background: transparent;
+}
+
+.landing-cta-band-glow,
+.landing-cta-band-orb,
+.landing-cta-band-orb-a,
+.landing-cta-band-orb-b {
+  display: none;
 }
 
 .landing-v2-commerce-grid {
@@ -1764,6 +2080,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .landing-v2-hero-mesh,
+  .landing-v2-hero-orb,
   .landing-v2-device-main,
   .landing-v2-device-shadow {
     animation: none;

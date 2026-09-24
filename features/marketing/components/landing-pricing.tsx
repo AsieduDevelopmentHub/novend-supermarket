@@ -13,6 +13,7 @@ import {
   type PlanDefinition,
   type PlanKey,
 } from "@/convex/shared/plans";
+import { LandingSection } from "@/features/marketing/components/landing-section";
 import { cn } from "@/lib/utils";
 
 type BillingCycle = "monthly" | "yearly";
@@ -97,9 +98,10 @@ export function LandingPricing() {
   const copy = landingCopy.pricing;
 
   return (
-    <section
+    <LandingSection
       id="pricing"
-      className="landing-pricing-v2 border-border scroll-mt-24 border-t bg-white px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
+      tone="soft"
+      className="landing-pricing-v2 px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
         <header data-reveal className="mx-auto max-w-[700px] text-center">
@@ -138,7 +140,7 @@ export function LandingPricing() {
           })}
         </ul>
       </div>
-    </section>
+    </LandingSection>
   );
 }
 
@@ -228,6 +230,7 @@ function PricingCards({ cycle }: { cycle: BillingCycle }) {
         return (
           <li
             key={key}
+            id={key === "lifetime" ? "lifetime" : undefined}
             className={cn(
               "landing-price-card-v2 group relative flex min-w-[82%] snap-center flex-col rounded-3xl border bg-[#F8FAFC] p-6 transition-[transform,box-shadow,border-color] duration-300 sm:min-w-0 sm:bg-white sm:p-7",
               mobileOrderClass,

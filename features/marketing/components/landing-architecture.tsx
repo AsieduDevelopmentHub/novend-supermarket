@@ -17,6 +17,7 @@ import {
   useArchitectureSyncCycle,
   type ArchitectureSyncPhase,
 } from "@/features/marketing/hooks/use-architecture-sync-cycle";
+import { LandingSection } from "@/features/marketing/components/landing-section";
 import { cn } from "@/lib/utils";
 
 const GUARANTEE_ICONS = {
@@ -43,9 +44,10 @@ export function LandingArchitecture() {
   const copy = landingCopy.architecture;
 
   return (
-    <section
+    <LandingSection
       id="architecture"
-      className="landing-arch-section border-border scroll-mt-24 border-t bg-[#F8FAFC] px-4 text-[#111827] sm:px-6 lg:px-8"
+      tone="mist"
+      className="landing-arch-section px-4 text-[#111827] sm:px-6 lg:px-8"
       aria-labelledby="architecture-heading"
     >
       <div className="mx-auto max-w-6xl">
@@ -81,7 +83,7 @@ export function LandingArchitecture() {
             return (
               <li
                 key={item.id}
-                className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-[0_12px_28px_-20px_rgba(15,23,42,0.35)]"
+                className="landing-surface-card rounded-2xl border border-white/70 bg-white/75 p-4 backdrop-blur-sm"
               >
                 <div className="bg-primary/12 text-primary flex h-9 w-9 items-center justify-center rounded-xl">
                   <Icon className="h-4 w-4" aria-hidden />
@@ -97,7 +99,7 @@ export function LandingArchitecture() {
           })}
         </ul>
       </div>
-    </section>
+    </LandingSection>
   );
 }
 
@@ -145,7 +147,7 @@ function OfflineFlowDiagram({
 
   return (
     <div
-      className="landing-offline-diagram relative overflow-hidden rounded-[1.5rem] border border-slate-200/90 bg-white px-4 py-8 sm:px-8 sm:py-10"
+      className="landing-offline-diagram landing-surface-card relative overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/80 px-4 py-8 backdrop-blur-sm sm:px-8 sm:py-10"
       aria-label="How Novend keeps your store running"
     >
       <div

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Check } from "lucide-react";
 import { FEATURE_BLOCK_SCREENS } from "@/constants/marketing-ui-screens";
 import { ExpandableScreenshot } from "@/features/marketing/components/expandable-screenshot";
+import { LandingSection } from "@/features/marketing/components/landing-section";
 import { landingCopy } from "@/features/marketing/content";
 import { cn } from "@/lib/utils";
 
@@ -20,9 +21,10 @@ export function LandingFeatures() {
   const { features } = landingCopy;
 
   return (
-    <section
+    <LandingSection
       id="features"
-      className="landing-features-showcase border-border scroll-mt-24 border-t bg-[#F8FAFC] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
+      tone="mist"
+      className="landing-features-showcase px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
         <header data-reveal className="mx-auto max-w-[680px] text-center">
@@ -87,7 +89,7 @@ export function LandingFeatures() {
           })}
         </div>
       </div>
-    </section>
+    </LandingSection>
   );
 }
 

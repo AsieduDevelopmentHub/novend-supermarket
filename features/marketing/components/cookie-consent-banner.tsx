@@ -103,31 +103,27 @@ export function CookieConsentBanner({ enabled = true }: Props) {
       aria-modal="false"
       aria-labelledby="cookie-consent-title"
       aria-describedby="cookie-consent-desc"
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-[80] flex justify-center p-3 sm:p-5"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-[80] flex justify-end p-3 sm:p-4"
     >
-      <div className="landing-shadow-card pointer-events-auto w-full max-w-xl rounded-2xl border border-slate-200/90 bg-white p-4 text-[#111827] sm:p-5">
-        <div className="flex items-start gap-3">
-          <span className="bg-primary/10 text-primary mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
-            <Cookie className="h-4 w-4" aria-hidden />
+      <div className="pointer-events-auto w-full max-w-sm rounded-xl border border-slate-200/90 bg-white/95 p-3.5 text-[#0F172A] shadow-[0_12px_40px_-24px_rgba(15,23,42,0.35)] backdrop-blur-sm sm:p-4">
+        <div className="flex items-start gap-2.5">
+          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+            <Cookie className="h-3.5 w-3.5" aria-hidden />
           </span>
-          <div className="min-w-0 flex-1 space-y-3">
+          <div className="min-w-0 flex-1 space-y-2.5">
             <div>
-              <h2
-                id="cookie-consent-title"
-                className="text-sm font-semibold tracking-tight sm:text-base"
-              >
-                Cookies on Novend
+              <h2 id="cookie-consent-title" className="text-sm font-semibold tracking-tight">
+                Cookies
               </h2>
-              <p id="cookie-consent-desc" className="mt-1 text-sm leading-relaxed text-slate-600">
-                We use strictly necessary cookies to run the site and sign-in. Optional cookies help
-                with preferences and measuring how public pages perform. See our{" "}
+              <p id="cookie-consent-desc" className="mt-1 text-xs leading-relaxed text-slate-600">
+                Necessary cookies keep the site and sign-in working. Optional cookies are for
+                preferences and analytics.{" "}
                 <Link
                   href="/cookies"
                   className="text-primary font-medium underline-offset-2 hover:underline"
                 >
-                  Cookie Policy
+                  Policy
                 </Link>
-                .
               </p>
             </div>
 
@@ -188,34 +184,38 @@ export function CookieConsentBanner({ enabled = true }: Props) {
               </div>
             ) : null}
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-              <Button
-                type="button"
-                className="landing-shadow-cta-primary min-h-10"
-                onClick={acceptAll}
-              >
-                Accept all
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Button type="button" size="sm" className="h-9" onClick={acceptAll}>
+                Accept
               </Button>
               <Button
                 type="button"
+                size="sm"
                 variant="outline"
-                className="min-h-10 border-slate-200 bg-white"
+                className="h-9 border-slate-200 bg-white"
                 onClick={rejectNonEssential}
               >
-                Reject non-essential
+                Reject
               </Button>
               {customize ? (
-                <Button type="button" variant="secondary" className="min-h-10" onClick={saveCustom}>
-                  Save choices
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="h-9"
+                  onClick={saveCustom}
+                >
+                  Save
                 </Button>
               ) : (
                 <Button
                   type="button"
+                  size="sm"
                   variant="ghost"
-                  className="min-h-10 text-slate-700"
+                  className="h-9 text-slate-700"
                   onClick={() => setCustomize(true)}
                 >
-                  Customize
+                  Options
                 </Button>
               )}
             </div>

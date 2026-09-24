@@ -69,99 +69,179 @@ export const landingCopy = {
   brand: APP_BRAND,
   tagline: APP_TAGLINE,
   hero: {
-    badge: "Commercial POS & Inventory",
-    /** Headline parts — Candy Blue accents on key phrases in the UI. */
-    headlineLead: "Run Your Business.",
-    headlineAccent: "Anywhere.",
+    eyebrow: "Offline-first POS for modern retail",
+    headlineLead: "Keep selling—even when the",
+    headlineAccent: "internet stops",
+    headlineTrail: ".",
     subhead:
-      "Sell, manage inventory, transfer stock between branches, and sync when you reconnect. Built for supermarkets, pharmacies, wholesalers, and modern retail.",
-    primaryCta: "Start Free Trial",
-    secondaryCta: "Download App",
-    secondaryHref: "/download",
-    trustChips: [
-      { id: "offline", label: "Works Offline" },
-      { id: "branches", label: "Multi-Branch" },
-      { id: "secure", label: "Secure Sync" },
+      "Novend brings checkout, inventory, branch transfers, and reporting into one dependable system built for everyday retail.",
+    primaryCta: "Start free for 14 days",
+    secondaryCta: "Explore the product",
+    secondaryHref: "/#product",
+    proofRow: ["No card required", "Works offline after setup", "Desktop and mobile"],
+  },
+  proofStrip: {
+    items: [
+      { id: "offline" as const, label: "Works offline" },
+      { id: "branches" as const, label: "Multi-branch inventory" },
+      { id: "platforms" as const, label: "Cross-platform" },
+      { id: "backup" as const, label: "Encrypted backup traffic" },
     ],
   },
+  /** @deprecated Prefer proofStrip — kept so older imports do not crash during transition. */
+  trustStrip: {
+    label: "Built for pharmacies, supermarkets, wholesalers, and multi-branch retailers",
+    labels: ["Pharmacy", "Supermarket", "Wholesale", "Fashion & specialty"],
+  },
+  editorial: [
+    {
+      id: "checkout" as const,
+      anchor: "product-pos",
+      eyebrow: "Point of sale",
+      title: "Sell without interruption",
+      detail:
+        "Keep the counter moving with barcode scanning, hold and resume, receipts, and a clear offline status—so an outage does not become a closed shop.",
+      bullets: [
+        "Fast barcode checkout with one payment method per sale",
+        "Hold and resume carts when a customer needs a moment",
+        "Core selling continues offline after setup",
+      ],
+      linkLabel: "See checkout in context",
+      linkHref: "/#offline-sync",
+    },
+    {
+      id: "inventory" as const,
+      anchor: "product-inventory",
+      eyebrow: "Inventory & branches",
+      title: "Know what is in every location",
+      detail:
+        "Track warehouse and branch stock in one system. Transfer inventory with history, spot low stock early, and keep quantities accurate across locations.",
+      bullets: [
+        "Warehouse and branch stock in one catalogue",
+        "Transfers with quantity tracking and history",
+        "Low-stock visibility before shelves go empty",
+      ],
+      linkLabel: "Browse industries",
+      linkHref: "/#industries",
+    },
+    {
+      id: "reports" as const,
+      anchor: "product-reports",
+      eyebrow: "Reports & evidence",
+      title: "Make decisions with evidence",
+      detail:
+        "Review revenue, margin, stock valuation, and exports from views that update from local work and refresh after sync on connected devices.",
+      bullets: [
+        "Revenue and margin views for the working day",
+        "Stock valuation tied to your catalogue",
+        "CSV exports on every plan; Excel and PDF on Pro and above",
+      ],
+      linkLabel: "Compare plans",
+      linkHref: "/#pricing",
+    },
+  ],
+  offlineFlow: {
+    eyebrow: "Offline & sync",
+    title: "Built for unreliable connectivity",
+    detail:
+      "After setup, the counter keeps working on the device. Pending changes upload when you reconnect—without stopping the sale in front of you.",
+    steps: [
+      {
+        id: "write",
+        title: "Sell on device",
+        detail: "Each completed sale and stock change is recorded on the counter first.",
+      },
+      {
+        id: "operate",
+        title: "Save locally",
+        detail: "Core selling and local operations continue when the network drops.",
+      },
+      {
+        id: "sync",
+        title: "Reconnect",
+        detail: "When connectivity returns, queued work is ready to upload.",
+      },
+      {
+        id: "refresh",
+        title: "Sync safely",
+        detail: "Pending changes upload in the background and connected views refresh.",
+      },
+    ],
+    statusStrip: {
+      operational: "Counter operational",
+      queue: "Sync queue ready",
+      connected: "Last connected when online",
+    },
+    qualification:
+      "Qualification: core selling and local operations continue offline after initial setup. Sign-in, billing, and some account actions still need connectivity.",
+  },
+  /** Retained for legacy showcase components not used on the homepage. */
   howItWorks: {
     badge: "How Novend Works",
-    title: "A Smarter Way to Run Your Business",
+    title: "A smarter way to run your business",
     subtitle:
       "From stocking your warehouse to selling at the counter — Novend keeps every step connected.",
     steps: [
       {
         id: "products",
         number: "01",
-        title: "Add Products & Stock",
+        title: "Add products & stock",
         detail:
           "Create your catalog, set prices, and receive supplier deliveries into your warehouse.",
       },
       {
         id: "distribute",
         number: "02",
-        title: "Distribute to Branches",
+        title: "Distribute to branches",
         detail: "Transfer inventory to store locations with full tracking and accurate quantities.",
       },
       {
         id: "sell",
         number: "03",
-        title: "Sell at the Counter",
+        title: "Sell at the counter",
         detail: "Scan barcodes, take payments, and print receipts — including offline after setup.",
       },
       {
         id: "sync",
         number: "04",
-        title: "Sync & Stay Updated",
+        title: "Sync & stay updated",
         detail: "When you reconnect, sales and stock changes sync so connected dashboards refresh.",
       },
     ],
     diagramLabels: [
-      {
-        id: "warehouse",
-        title: "Warehouse",
-        detail: "Central stock & receiving",
-      },
-      {
-        id: "branch",
-        title: "Branch",
-        detail: "Store-level inventory",
-      },
-      {
-        id: "pos",
-        title: "POS Counter",
-        detail: "Sell offline & sync later",
-      },
+      { id: "warehouse", title: "Warehouse", detail: "Central stock & receiving" },
+      { id: "branch", title: "Branch", detail: "Store-level inventory" },
+      { id: "pos", title: "POS counter", detail: "Sell offline & sync later" },
     ],
   },
   architecture: {
-    badge: "Built for the Real World",
-    title: "Offline-First. Always Reliable.",
+    badge: "Built for the real world",
+    title: "Offline-first. Always dependable.",
     subtitle:
       "After setup, core selling and local operations continue on the device when the network drops. Pending work uploads in the background when you reconnect — without interrupting the counter.",
     flow: [
       {
         id: "device",
-        title: "Work Offline",
+        title: "Work offline",
         label: "Step 01",
         detail: "Keep selling and managing stock on this device when the internet is down.",
       },
       {
         id: "local",
-        title: "Save Locally",
+        title: "Save locally",
         label: "Step 02",
         detail: "Every sale, receipt, and stock change is written on the device first.",
       },
       {
         id: "sync",
-        title: "Automatically Sync",
+        title: "Automatically sync",
         label: "Step 03",
         detail:
           "When you reconnect, pending work uploads in the background without interrupting the counter.",
       },
       {
         id: "dashboard",
-        title: "Stay Updated",
+        title: "Stay updated",
         label: "Step 04",
         detail:
           "Dashboards update from local data while you work, then refresh after sync on connected devices.",
@@ -170,30 +250,30 @@ export const landingCopy = {
     guarantees: [
       {
         id: "selling",
-        title: "Works Offline",
+        title: "Works offline",
         detail: "Core selling and local ops continue offline after setup.",
       },
       {
         id: "backup",
-        title: "Auto Sync",
+        title: "Auto sync",
         detail: "Background upload when you reconnect.",
       },
       {
         id: "ownership",
-        title: "Data Protected",
+        title: "Data protected",
         detail: "Cloud traffic and encrypted backups; local ops data uses device security.",
       },
       {
         id: "branches",
-        title: "Conflict Handling",
+        title: "Conflict handling",
         detail: "Clear resolution when devices disagree.",
       },
     ],
     metrics: [
       { label: "Checkout", value: "Instant" },
-      { label: "Selling Offline", value: "After setup" },
-      { label: "Background Sync", value: "Automatic" },
-      { label: "Branch Support", value: "Plan-based" },
+      { label: "Selling offline", value: "After setup" },
+      { label: "Background sync", value: "Automatic" },
+      { label: "Branch support", value: "Plan-based" },
     ],
     syncCycle: {
       sale: "New sale recorded",
@@ -206,14 +286,14 @@ export const landingCopy = {
     },
   },
   features: {
-    badge: "Complete Business Platform",
-    title: "Everything You Need to Run a Modern Store",
+    badge: "Complete business platform",
+    title: "Everything you need to run a modern store",
     subtitle:
       "Checkout, inventory, wholesale, analytics, and reports — the screens that matter for day-to-day retail.",
     blocks: [
       {
         id: "checkout",
-        title: "Smart Checkout Built for Speed",
+        title: "Smart checkout built for speed",
         detail:
           "Complete sales in seconds with barcode scanning, discounts, one payment method per sale, and receipt printing — including while offline after setup.",
         bullets: [
@@ -225,28 +305,28 @@ export const landingCopy = {
       },
       {
         id: "inventory",
-        title: "Inventory Without Guesswork",
+        title: "Inventory without guesswork",
         detail:
           "Track stock movement, valuation, adjustments, batches, and low-stock alerts. Bring an existing catalog in with CSV or Excel import.",
         bullets: ["CSV & Excel import", "Stock adjustments", "Low stock alerts", "SKU & barcode"],
       },
       {
         id: "wholesale",
-        title: "One Warehouse. Multiple Branches.",
+        title: "One warehouse. Multiple branches.",
         detail:
           "Separate wholesale inventory from branch stock while maintaining complete transfer history and accurate quantities.",
         bullets: ["Wholesale storage", "Branch transfers", "Transfer history", "Quantity tracking"],
       },
       {
         id: "analytics",
-        title: "See Your Business at a Glance",
+        title: "See your business at a glance",
         detail:
           "Monitor revenue, profit, inventory value, customer growth, and best sellers on dashboards that update locally as you work and refresh after sync.",
         bullets: ["Revenue insights", "Profit tracking", "Category performance", "Best sellers"],
       },
       {
         id: "reports",
-        title: "Professional Reports in One Click",
+        title: "Professional reports in one click",
         detail:
           "Generate printable sales, inventory, returns, expenses, and branch reports, then export CSV, Excel, or PDF for review and submission.",
         bullets: ["CSV exports", "Excel & PDF", "Inventory reports", "Branch reports"],
@@ -254,146 +334,105 @@ export const landingCopy = {
     ],
   },
   industries: {
-    badge: "Industries We Power",
-    title: "Built for Every Kind of Retail Business.",
+    badge: "Industries",
+    title: "Built for how your store actually works",
     subtitle:
-      "Whether you manage a neighborhood pharmacy, a supermarket, a wholesale warehouse, or a fashion boutique, Novend adapts to how you operate.",
+      "Select an industry to see the checkout context and the capabilities that matter most for that workflow.",
     items: [
       {
         id: "pharmacy",
         pill: "Pharmacy",
-        title: "Pharmacy Solutions",
+        title: "Pharmacy counters",
         detail:
-          "Dispense with confidence using batch tracking, expiry alerts, and barcode-ready checkout built for regulated inventory.",
+          "Dispense with batch tracking, expiry alerts, and barcode-ready checkout. Novend does not provide clinical, prescribing, or regulatory decision support.",
         capabilities: [
           "Medicine inventory & batches",
           "Expiry tracking & alerts",
           "Barcode dispensing",
-          "Supplier restocking",
         ],
-        cta: "How it works",
-        kpis: [
-          { label: "Near expiry", value: "12" },
-          { label: "SKUs tracked", value: "840" },
-          { label: "Today’s scripts", value: "64" },
-        ],
+        cta: "Start free trial",
       },
       {
         id: "supermarket",
         pill: "Supermarket",
-        title: "Supermarket Solutions",
+        title: "High-volume retail",
         detail:
-          "Keep high-volume counters moving with fast barcode checkout, category browsing, and instant receipts.",
-        capabilities: [
-          "Fast barcode checkout",
-          "Category browsing",
-          "Hold & resume sales",
-          "Instant receipts",
-        ],
-        cta: "How it works",
-        kpis: [
-          { label: "Avg. checkout", value: "18s" },
-          { label: "Categories", value: "36" },
-          { label: "Open carts", value: "4" },
-        ],
+          "Keep busy counters moving with fast barcode checkout, category browsing, and receipts that print when you need them.",
+        capabilities: ["Fast barcode checkout", "Category browsing", "Hold & resume sales"],
+        cta: "Start free trial",
       },
       {
         id: "wholesale",
         pill: "Wholesale",
-        title: "Wholesale Solutions",
+        title: "Warehouse to branch",
         detail:
           "Run a central warehouse, issue stock to branches, and keep supplier deliveries accurate.",
-        capabilities: [
-          "Wholesale storage",
-          "Branch transfers",
-          "Supplier deliveries",
-          "Bulk quantities",
-        ],
-        cta: "How it works",
-        kpis: [
-          { label: "Warehouse SKUs", value: "2.1k" },
-          { label: "Open transfers", value: "7" },
-          { label: "Branches", value: "5" },
-        ],
+        capabilities: ["Wholesale storage", "Branch transfers", "Supplier deliveries"],
+        cta: "Start free trial",
       },
       {
         id: "fashion",
         pill: "Fashion",
-        title: "Fashion Solutions",
-        detail:
-          "Sell by size and color with product imagery, variation stock, and boutique-ready receipts.",
-        capabilities: [
-          "Size & color variants",
-          "Product imagery",
-          "Stock by variation",
-          "Boutique-ready receipts",
-        ],
-        cta: "How it works",
-        kpis: [
-          { label: "Variants", value: "318" },
-          { label: "Low stock", value: "9" },
-          { label: "Looks sold", value: "27" },
-        ],
+        title: "Boutique retail",
+        detail: "Sell with product imagery, variation-aware stock, and boutique-ready receipts.",
+        capabilities: ["Size & color variants", "Product imagery", "Stock by variation"],
+        cta: "Start free trial",
       },
       {
         id: "electronics",
         pill: "Electronics",
-        title: "Electronics Solutions",
+        title: "High-value SKUs",
         detail:
           "Track serials and SKUs carefully, protect high-value inventory, and keep product detail close to every sale.",
-        capabilities: [
-          "Serial / SKU control",
-          "High-value inventory",
-          "Product detail records",
-          "Precise stock counts",
-        ],
-        cta: "How it works",
-        kpis: [
-          { label: "Active SKUs", value: "1.4k" },
-          { label: "High value", value: "86" },
-          { label: "Adjustments", value: "3" },
-        ],
-      },
-      {
-        id: "convenience",
-        pill: "Convenience Store",
-        title: "Convenience Solutions",
-        detail:
-          "Keep a lean catalog, scan quickly, and stay selling through outages with low-stock alerts.",
-        capabilities: [
-          "Quick barcode checkout",
-          "Lean product catalog",
-          "Low-stock alerts",
-          "Offline-ready till",
-        ],
-        cta: "How it works",
-        kpis: [
-          { label: "Catalog size", value: "220" },
-          { label: "Low stock", value: "14" },
-          { label: "Sales today", value: "91" },
-        ],
+        capabilities: ["Serial / SKU control", "High-value inventory", "Precise stock counts"],
+        cta: "Start free trial",
       },
     ],
   },
+  researchProof: {
+    eyebrow: "Built with local retailers",
+    title: "Designed from counter realities—not invented testimonials",
+    detail:
+      "Novend is shaped around pharmacies, provision shops, wholesalers, and multi-branch retailers operating with intermittent connectivity. Verified customer stories will appear here when we have permission to publish them.",
+  },
+  pricingPreview: {
+    eyebrow: "Pricing",
+    title: "Clear plans for how you grow",
+    detail:
+      "Every plan includes offline POS after setup, barcode support, receipts, inventory, and cloud sync. Compare limits and backup entitlements on the full pricing page.",
+    summaries: {
+      basic: "For single-location shops that need a dependable counter and catalogue.",
+      pro: "For pharmacies, supermarkets, and growing wholesalers that need branches and transfers.",
+      enterprise: "For chains and distributors that need custom limits, onboarding, and support.",
+    },
+    lifetime: {
+      title: "Lifetime license",
+      detail:
+        "A one-time purchase path with unlimited operational capacity and one year of updates and premium support included. Purchasing differs from subscriptions—see full pricing for terms.",
+      cta: "View lifetime details",
+    },
+    compareCta: "Compare all features",
+    enterpriseHref: ENTERPRISE_SALES_MAILTO,
+  },
   pricing: {
     badge: "Pricing",
-    title: "Simple, Transparent Pricing.",
+    title: "Simple, transparent pricing",
     subtitle:
       "Every plan includes offline POS, barcode support, receipt printing, inventory, and cloud sync. Limits and cloud backup match the published catalog — upgrade only as you grow.",
     trialNote: "14-day free trial",
     cards: {
       basic: {
         badge: "Starter",
-        description: "Perfect for provision shops, boutiques, salons, and small retail businesses.",
+        description: "For provision shops, boutiques, salons, and small retail businesses.",
         included: [
           "Offline POS",
           "Inventory",
           "Barcode",
-          "Receipt Printing",
+          "Receipt printing",
           "Reports",
           "Analytics",
         ],
-        cta: "Start Free Trial",
+        cta: "Start free trial",
         href: "/signup",
       },
       pro: {
@@ -401,42 +440,42 @@ export const landingCopy = {
         description:
           "Built for supermarkets, pharmacies, electronics stores, and growing wholesalers.",
         additional: [
-          "Wholesale Inventory",
-          "Branch Transfers",
-          "Multi-Branch Management",
-          "Advanced Analytics",
-          "Priority Support",
+          "Wholesale inventory",
+          "Branch transfers",
+          "Multi-branch management",
+          "Advanced analytics",
+          "Priority support",
         ],
-        cta: "Start Free Trial",
+        cta: "Start free trial",
         href: "/signup",
       },
       enterprise: {
         badge: "Custom",
         description:
           "Designed for distributors, retail chains, and organizations operating at enterprise scale.",
-        cta: "Contact Sales",
+        cta: "Contact sales",
         href: ENTERPRISE_SALES_MAILTO,
       },
       lifetime: {
-        badge: "One-Time License",
+        badge: "One-time license",
         description:
           "Own Novend permanently with unlimited operational capacity and 1 year of updates and premium support included.",
         includes: [
-          "Unlimited Products",
-          "Unlimited Users",
-          "Unlimited Branches",
-          "Unlimited Devices",
-          "1 GB Cloud Backup",
-          "1 Year Updates & Support",
+          "Unlimited products",
+          "Unlimited users",
+          "Unlimited branches",
+          "Unlimited devices",
+          "1 GB cloud backup",
+          "1 year updates & support",
         ],
-        cta: "Buy Lifetime",
+        cta: "Buy lifetime",
         href: "/signup",
       },
     },
     includedEveryPlan: [
       "Offline POS",
-      "Barcode Scanner",
-      "Receipt Printing",
+      "Barcode scanner",
+      "Receipt printing",
       "Inventory",
       "Customers",
       "Suppliers",
@@ -444,18 +483,18 @@ export const landingCopy = {
       "Analytics",
     ],
     trust: [
-      { title: "No Setup Fees", detail: "Start without hidden costs" },
-      { title: "Cancel Anytime", detail: "No long-term lock-in" },
-      { title: "Secure Sync", detail: "Encrypted cloud traffic & backups" },
-      { title: "Free Updates", detail: "During your plan term" },
+      { title: "No setup fees", detail: "Start without hidden costs" },
+      { title: "Cancel anytime", detail: "No long-term lock-in" },
+      { title: "Secure sync", detail: "Encrypted cloud traffic & backups" },
+      { title: "Free updates", detail: "During your plan term" },
     ],
   },
   faq: {
     badge: "FAQ",
-    title: "Frequently Asked Questions.",
+    title: "Questions retailers ask first",
     contactTitle: "Still have questions?",
-    contactDetail: "We're here to help you. Contact our support team anytime.",
-    contactCta: "Contact Support",
+    contactDetail: "Contact our support team anytime.",
+    contactCta: "Contact support",
     contactHref: GENERAL_SALES_MAILTO,
     items: [
       {
@@ -464,7 +503,7 @@ export const landingCopy = {
       },
       {
         q: "Can I upgrade my plan later?",
-        a: "Absolutely. Your products, customers, branches, and sales remain intact during upgrades.",
+        a: "Yes. Your products, customers, branches, and sales remain intact during upgrades.",
       },
       {
         q: "Can I import my existing inventory?",
@@ -482,24 +521,19 @@ export const landingCopy = {
         q: "Does Novend work on phones and tablets?",
         a: "Yes. Download the Android app from the Download page. On iPhone and iPad, open Novend in Safari and add it to your Home Screen as a PWA. Use the desktop app on the counter when you need printers and barcode hardware.",
       },
-      {
-        q: "Which businesses is Novend designed for?",
-        a: "Supermarkets, pharmacies, wholesalers, boutiques, electronics stores, convenience shops, and other retail businesses.",
-      },
     ],
   },
   cta: {
-    title: "Ready to Transform Your Business?",
-    subtitle:
-      "Start a 14-day free trial — set up your catalog, sell on the counter, and sync when you reconnect. Then install Novend where you work: desktop, Android, or Home Screen on iPhone and iPad.",
-    primary: "Start Free Trial",
-    secondary: "Download App",
-    secondaryHref: "/download",
-    chips: ["No Card Required", "Setup in Minutes", "Cancel Anytime"],
+    title: "Ready for a calmer counter?",
+    subtitle: "Set up your catalogue, make a test sale, and see how Novend handles a working day.",
+    primary: "Start free",
+    secondary: "Talk to sales",
+    secondaryHref: GENERAL_SALES_MAILTO,
+    platformsLine: "Windows • macOS • Linux • Android • iPhone/iPad PWA",
   },
   desktop: {
     id: "desktop",
-    badge: "Apps & Downloads",
+    badge: "Apps & downloads",
     title: "One account on every counter and in every pocket",
     detail:
       "Desktop for Windows, macOS, and Linux. Android for phones and tablets. On iPhone and iPad, add Novend to your Home Screen as a PWA.",
@@ -512,45 +546,62 @@ export const landingCopy = {
     href: "/download",
   },
   nav: {
-    features: { href: "/#features", label: "Features" },
+    product: {
+      label: "Product",
+      items: [
+        { href: "/#product-pos", label: "Point of Sale" },
+        { href: "/#product-inventory", label: "Inventory" },
+        { href: "/#product-inventory", label: "Branches & Transfers" },
+        { href: "/#product-reports", label: "Reports" },
+        { href: "/#offline-sync", label: "Offline & Sync" },
+      ],
+    },
     industries: {
       label: "Industries",
       items: [
         { href: "/#industry-pharmacy", label: "Pharmacy" },
         { href: "/#industry-supermarket", label: "Supermarket" },
         { href: "/#industry-wholesale", label: "Wholesale" },
-        { href: "/#industry-fashion", label: "Fashion" },
+        { href: "/#industry-fashion", label: "Fashion & Specialty Retail" },
         { href: "/#industry-electronics", label: "Electronics" },
-        { href: "/#industry-convenience", label: "Convenience" },
       ],
     },
-    pricing: { href: "/#pricing", label: "Pricing" },
+    pricing: { href: "/pricing", label: "Pricing" },
     resources: {
       label: "Resources",
       items: [
-        { href: "/docs", label: "Docs" },
-        { href: "/docs/help", label: "Help" },
-        { href: "/docs/releases", label: "Releases" },
+        { href: "/docs/help", label: "Help Center" },
+        { href: "/docs", label: "Documentation" },
+        { href: "/docs/releases", label: "Release Notes" },
+        // TODO(security-page): dedicated /security trust page
+        { href: "/docs#security", label: "Security" },
       ],
     },
     desktop: { href: "/download", label: "Download" },
   },
-  navTrialCta: "Get Started",
+  navTrialCta: "Start free",
   footer: {
     brandTitle: "Novend by Asiedu Development Hub",
     description:
-      "Commercial POS built for supermarkets, pharmacies, wholesalers, boutiques, electronics stores, and modern retail businesses.",
-    badges: ["Works Offline", "Multi-Branch", "Desktop, Web & Mobile"],
+      "Commercial POS for pharmacies, supermarkets, wholesalers, and multi-branch retailers.",
     product: [
-      { href: "/#features", label: "Features" },
-      { href: "/#industries", label: "Industries" },
-      { href: "/#pricing", label: "Pricing" },
+      { href: "/#product-pos", label: "Point of Sale" },
+      { href: "/#product-inventory", label: "Inventory" },
+      { href: "/#offline-sync", label: "Offline & Sync" },
+      { href: "/pricing", label: "Pricing" },
       { href: "/download", label: "Download" },
-      { href: "/docs/releases", label: "Release Notes" },
+    ],
+    industries: [
+      { href: "/#industry-pharmacy", label: "Pharmacy" },
+      { href: "/#industry-supermarket", label: "Supermarket" },
+      { href: "/#industry-wholesale", label: "Wholesale" },
+      { href: "/#industry-fashion", label: "Fashion & Specialty" },
+      { href: "/#industry-electronics", label: "Electronics" },
     ],
     resources: [
       { href: "/docs", label: "Documentation" },
       { href: "/docs/help", label: "Help Center" },
+      { href: "/docs/releases", label: "Release Notes" },
       { href: GENERAL_SALES_MAILTO, label: "Contact Support" },
     ],
     legal: [
@@ -562,7 +613,7 @@ export const landingCopy = {
       { href: "/dpa", label: "Data Processing" },
     ],
     contact: {
-      title: "Get in Touch",
+      title: "Contact",
       email: {
         label: "Email",
         value: LANDING_CONTACT_EMAIL,

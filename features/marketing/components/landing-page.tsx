@@ -3,24 +3,21 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useDesktopRuntime } from "@/hooks/use-desktop-runtime";
-import {
-  useLandingDepth,
-  useLandingHeroIntro,
-  useLandingReveal,
-} from "@/features/marketing/hooks/use-landing-motion";
+import { useLandingHeroIntro } from "@/features/marketing/hooks/use-landing-motion";
 import { LandingNav } from "@/features/marketing/components/landing-nav";
 import { LandingHero } from "@/features/marketing/components/landing-hero";
-import { LandingArchitecture } from "@/features/marketing/components/landing-architecture";
-import { LandingHowItWorks } from "@/features/marketing/components/landing-how-it-works";
-import { LandingFeatures } from "@/features/marketing/components/landing-features";
+import { LandingProofStrip } from "@/features/marketing/components/landing-proof-strip";
+import { LandingEditorialFeatures } from "@/features/marketing/components/landing-editorial-features";
+import { LandingOfflineFlow } from "@/features/marketing/components/landing-offline-flow";
 import { LandingIndustries } from "@/features/marketing/components/landing-industries";
-import { LandingPricing } from "@/features/marketing/components/landing-pricing";
+import { LandingResearchProof } from "@/features/marketing/components/landing-research-proof";
+import { LandingPricingPreview } from "@/features/marketing/components/landing-pricing-preview";
 import { LandingFaq } from "@/features/marketing/components/landing-faq";
 import { LandingCta } from "@/features/marketing/components/landing-cta";
 import { LandingFooter } from "@/features/marketing/components/landing-footer";
 
 /**
- * Web-only SaaS landing V3 — reference layout with Novend brand tokens.
+ * Homepage per NOVEND_WEBSITE_REDESIGN_CURSOR_BRIEF — focused narrative, fewer sections.
  * Electron detects `novendDesktop` and leaves for /dashboard.
  */
 export function LandingPage() {
@@ -30,8 +27,6 @@ export function LandingPage() {
   const pageRef = useRef<HTMLDivElement | null>(null);
 
   useLandingHeroIntro(pageRef);
-  useLandingReveal(pageRef, { scroller: scrollRef });
-  useLandingDepth(pageRef, scrollRef);
 
   useEffect(() => {
     if (isDesktop) {
@@ -50,17 +45,24 @@ export function LandingPage() {
   return (
     <div
       ref={scrollRef}
-      className="marketing-forced-light text-foreground h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[#F8FAFC]"
+      className="marketing-forced-light text-foreground landing-page-canvas h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain"
     >
+      <a
+        href="#product"
+        className="bg-primary text-primary-foreground focus:ring-ring sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:rounded-md focus:px-3 focus:py-2 focus:ring-2"
+      >
+        Skip to product story
+      </a>
       <div ref={pageRef}>
         <LandingNav scrollRootRef={scrollRef} />
         <main>
           <LandingHero />
-          <LandingArchitecture />
-          <LandingHowItWorks />
-          <LandingFeatures />
+          <LandingProofStrip />
+          <LandingEditorialFeatures />
+          <LandingOfflineFlow />
           <LandingIndustries />
-          <LandingPricing />
+          <LandingResearchProof />
+          <LandingPricingPreview />
           <LandingFaq />
           <LandingCta />
         </main>

@@ -1,72 +1,74 @@
 import Link from "next/link";
-import { Building2, ShieldCheck, WifiOff } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { landingCopy } from "@/features/marketing/content";
 import { LandingHeroProductStage } from "@/features/marketing/components/landing-hero-product-stage";
 
-const CHIP_ICONS = {
-  offline: WifiOff,
-  branches: Building2,
-  secure: ShieldCheck,
-} as const;
-
-/** V3 hero — accented headline, dual CTAs, trust chips, dashboard monitor. */
+/** Hero — asymmetric split with POS monitor visual (brief §3A.2). */
 export function LandingHero() {
   const { hero } = landingCopy;
 
   return (
-    <section className="landing-v2-hero relative isolate min-h-dvh bg-white lg:min-h-screen">
-      <div className="relative z-10 mx-auto flex min-h-dvh max-w-7xl flex-col justify-center px-4 pt-24 pb-16 sm:px-6 lg:min-h-screen lg:px-8 lg:pt-28 lg:pb-20">
-        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-10 xl:gap-14">
-          <div data-hero-visual className="order-1 flex items-center justify-center lg:order-2">
-            <LandingHeroProductStage />
-          </div>
+    <section className="relative isolate overflow-hidden bg-[#F8FAFC] px-4 pt-[80px] pb-10 sm:px-6 sm:pt-[88px] lg:px-8 lg:pb-14">
+      <div className="mx-auto max-w-[1240px]">
+        <div className="landing-editorial-hero-panel relative overflow-hidden rounded-[32px]">
+          <div className="landing-editorial-hero-wash" aria-hidden />
+          <div className="landing-editorial-hero-grid" aria-hidden />
 
-          <div data-hero-copy className="order-2 max-w-[560px] lg:order-1">
-            <p className="text-primary text-[13px] font-semibold tracking-wide">{hero.badge}</p>
+          <div className="relative z-10 grid items-center gap-10 px-6 py-12 sm:px-10 sm:py-14 lg:grid-cols-[minmax(0,0.46fr)_minmax(0,0.54fr)] lg:gap-8 lg:px-14 lg:py-16 xl:min-h-[720px]">
+            <div data-hero-copy className="max-w-[580px]">
+              <p className="border-primary/25 bg-primary/10 text-primary inline-flex rounded-full border px-3 py-1 text-[12px] font-semibold tracking-wide">
+                {hero.eyebrow}
+              </p>
 
-            <h1 className="mt-4 text-[2rem] leading-[1.08] font-semibold tracking-tight text-balance text-[#111827] sm:text-5xl lg:text-[3.5rem] lg:leading-[1.08] xl:text-[4rem]">
-              {hero.headlineLead} <span className="text-primary">{hero.headlineAccent}</span>
-            </h1>
+              <h1 className="mt-5 text-[2.5rem] leading-[1.04] font-semibold tracking-tight text-balance text-[#0B1220] sm:text-5xl lg:text-[4.25rem] lg:leading-[1.02]">
+                {hero.headlineLead} <span className="text-[#0284C7]">{hero.headlineAccent}</span>
+                {hero.headlineTrail}
+              </h1>
 
-            <p className="mt-5 text-base leading-relaxed text-pretty text-slate-600 sm:text-lg">
-              {hero.subhead}
-            </p>
+              <p className="mt-5 max-w-[580px] text-base leading-relaxed text-pretty text-[#526174] sm:text-lg">
+                {hero.subhead}
+              </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <Button
-                asChild
-                size="lg"
-                className="h-11 w-full px-6 text-[15px] font-semibold sm:w-auto"
-              >
-                <Link href="/signup">{hero.primaryCta}</Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-primary/40 h-11 w-full px-6 text-[15px] font-semibold text-[#111827] sm:w-auto"
-              >
-                <Link href={hero.secondaryHref}>{hero.secondaryCta}</Link>
-              </Button>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-12 w-full rounded-full px-7 text-[15px] font-semibold sm:w-auto"
+                >
+                  <Link href="/signup">{hero.primaryCta}</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="h-12 w-full rounded-full border-[rgba(11,18,32,0.12)] bg-white/90 px-7 text-[15px] font-semibold text-[#0B1220] sm:w-auto"
+                >
+                  <Link href={hero.secondaryHref}>{hero.secondaryCta}</Link>
+                </Button>
+              </div>
+
+              <ul className="mt-8 flex flex-wrap gap-x-5 gap-y-2.5">
+                {hero.proofRow.map((item) => (
+                  <li
+                    key={item}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-[#0B1220]"
+                  >
+                    <span className="bg-primary/15 text-primary flex h-5 w-5 items-center justify-center rounded-full">
+                      <Check className="h-3 w-3" strokeWidth={2.75} aria-hidden />
+                    </span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
             </div>
 
-            <ul className="mt-8 flex flex-wrap gap-x-5 gap-y-3">
-              {hero.trustChips.map((chip) => {
-                const Icon = CHIP_ICONS[chip.id] ?? WifiOff;
-                return (
-                  <li
-                    key={chip.id}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-slate-700"
-                  >
-                    <span className="bg-primary/12 text-primary flex h-8 w-8 items-center justify-center rounded-lg">
-                      <Icon className="h-4 w-4" aria-hidden />
-                    </span>
-                    {chip.label}
-                  </li>
-                );
-              })}
-            </ul>
+            <div
+              data-hero-visual
+              className="relative flex items-center justify-center lg:justify-end"
+            >
+              <LandingHeroProductStage />
+            </div>
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@ import Image from "next/image";
 import { BRANDING } from "@/constants/branding";
 
 /**
- * Hero stage — transparent POS shell with cast shadow and a calm float.
+ * Hero stage — POS all-in-one monitor shell with soft aura.
  */
 export function LandingHeroProductStage() {
   return (
@@ -24,6 +24,19 @@ export function LandingHeroProductStage() {
                 sizes="(max-width: 768px) 92vw, 560px"
               />
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="absolute bottom-4 left-2 z-10 sm:bottom-8 sm:left-4">
+        <div className="inline-flex items-center gap-2.5 rounded-[16px] border border-white/60 bg-white/90 px-3.5 py-2.5 shadow-[0_16px_40px_-20px_rgba(11,18,32,0.45)] backdrop-blur-sm">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          </span>
+          <div className="min-w-0 text-left">
+            <p className="text-[12px] font-semibold tracking-tight text-[#0B1220]">Offline mode</p>
+            <p className="text-[11px] text-[#526174]">Changes ready to sync after setup</p>
           </div>
         </div>
       </div>
