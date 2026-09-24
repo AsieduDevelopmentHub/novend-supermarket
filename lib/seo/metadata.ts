@@ -14,6 +14,7 @@ const DEFAULT_KEYWORDS = [
   "retail software",
   "inventory management",
   "multi-branch POS",
+  "Ghana POS",
   "pharmacy POS",
   "wholesale POS",
 ];

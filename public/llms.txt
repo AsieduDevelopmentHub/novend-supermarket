@@ -8,7 +8,7 @@
 - Name: Novend POS (Nova + Vend)
 - Tagline: Smart POS. Strong business.
 - Core strengths: offline selling after activation, multi-branch inventory, desktop + Android + iOS PWA, cloud sync when online
-- Designed for: modern retail businesses (supermarkets, pharmacies, wholesalers, boutiques, electronics, convenience)
+- Designed for: Ghanaian and modern retail businesses (supermarkets, pharmacies, wholesalers, boutiques, electronics, convenience)
 
 ## Key URLs
 
