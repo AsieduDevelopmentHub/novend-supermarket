@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { describeClientDevice, telemetryRuntimeForDevice } from "@/lib/device";
 import { TelemetryProvider } from "@/providers/telemetry-provider";
 import { PushRegistrationHost } from "@/providers/push-registration";
+import { PushRegistrationErrorBoundary } from "@/providers/push-registration-boundary";
 import { ProductTourProvider } from "@/features/tours/tour-provider";
 import { CustomerDisplayServices } from "@/features/customer-display/components/customer-display-services";
 import { WorkspaceLockOverlay } from "@/features/auth/components/workspace-lock-overlay";
@@ -584,7 +585,9 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             >
               <RestoreLastRoute />
               <CustomerDisplayServices />
-              <PushRegistrationHost />
+              <PushRegistrationErrorBoundary>
+                <PushRegistrationHost />
+              </PushRegistrationErrorBoundary>
               <TelemetryProvider enabled={Boolean(isAuthenticated && online)} />
               <div
                 className={cn(

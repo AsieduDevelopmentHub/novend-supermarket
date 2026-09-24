@@ -129,14 +129,19 @@ export const myDevices = query({
 export const listMyOutbox = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const session = await requireSessionIgnoringLicense(ctx);
-    const limit = Math.min(Math.max(args.limit ?? 20, 1), 50);
-    const rows = await ctx.db
-      .query("pushOutbox")
-      .withIndex("by_user_createdAt", (q) => q.eq("userId", session.userId))
-      .order("desc")
-      .take(limit * 3);
-    return rows.filter((row) => row.consumedAt === undefined).slice(0, limit);
+    try {
+      const session = await requireSessionIgnoringLicense(ctx);
+      const limit = Math.min(Math.max(args.limit ?? 20, 1), 50);
+      const rows = await ctx.db
+        .query("pushOutbox")
+        .withIndex("by_user_createdAt", (q) => q.eq("userId", session.userId))
+        .order("desc")
+        .take(limit * 3);
+      return rows.filter((row) => row.consumedAt === undefined).slice(0, limit);
+    } catch {
+      // Never fail the shell for push outbox — auth/table races on cold login.
+      return [];
+    }
   },
 });
 
