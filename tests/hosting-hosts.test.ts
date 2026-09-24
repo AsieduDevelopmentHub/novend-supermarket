@@ -121,18 +121,20 @@ describe("hosting hosts", () => {
     expect(hosts.appEntryHref("/signup")).toBe("https://dashboard.novendpos.app/signup");
   });
 
-  it("keeps sign-in and home on the marketing host", () => {
+  it("keeps home and legal on the marketing host; auth uses appEntryHref", () => {
     const env = {
       NEXT_PUBLIC_APP_URL: "https://dashboard.novendpos.app",
       NEXT_PUBLIC_MARKETING_URL: "https://www.novendpos.app",
     } as unknown as NodeJS.ProcessEnv;
 
-    expect(publicSiteHref("/login", "www.novendpos.app", env)).toBe("/login");
+    expect(publicSiteHref("/", "www.novendpos.app", env)).toBe("/");
     expect(publicSiteHref("/", "localhost:3000", env)).toBe("/");
     expect(publicSiteHref("/", "dashboard.novendpos.app", env)).toBe("https://www.novendpos.app/");
-    expect(publicSiteHref("/login", "dashboard.novendpos.app", env)).toBe(
-      "https://www.novendpos.app/login",
+    expect(publicSiteHref("/privacy", "dashboard.novendpos.app", env)).toBe(
+      "https://www.novendpos.app/privacy",
     );
+    expect(appEntryHref("/login", env)).toBe("https://dashboard.novendpos.app/login");
+    expect(appEntryHref("/signup", env)).toBe("https://dashboard.novendpos.app/signup");
   });
 
   it("keeps relative auth hrefs when hosts are unsplit", () => {

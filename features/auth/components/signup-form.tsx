@@ -43,7 +43,7 @@ export function SignupForm({ compact = false }: { compact?: boolean }) {
 }
 
 function ConfiguredSignupForm({ compact }: { compact: boolean }) {
-  const signInHref = usePublicSiteHref("/login");
+  const signInHref = ROUTES.login;
   const termsHref = usePublicSiteHref(ROUTES.terms);
   const privacyHref = usePublicSiteHref(ROUTES.privacy);
   const refundHref = usePublicSiteHref(ROUTES.refund);

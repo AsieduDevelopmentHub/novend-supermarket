@@ -103,9 +103,11 @@ export function LandingNav({ scrollRootRef }: Props) {
   const [authReady, setAuthReady] = useState(false);
   const { isAuthenticated } = useConvexAuth();
   const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
-  // First paint matches the server: Sign in stays on this site. Open the POS only after auth resolves.
+  // Auth (login/signup) lives on the app host when hosts are split — same as Start free.
   const signInHref =
-    authReady && isAuthenticated && me != null ? postLoginPath(me) : "/login";
+    authReady && isAuthenticated && me != null
+      ? appEntryHref(postLoginPath(me))
+      : appEntryHref("/login");
   const signupHref = appEntryHref("/signup");
   const { nav } = landingCopy;
 

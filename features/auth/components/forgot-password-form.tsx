@@ -11,13 +11,12 @@ import { Label } from "@/components/ui/label";
 import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { ROUTES } from "@/config/navigation";
-import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import { PASSWORD_RESET_MIN_INTERVAL_MS } from "@/convex/shared/passwordResetCrypto";
 import { showError } from "@/lib/errors";
 import Image from "next/image";
 
 export function ForgotPasswordForm() {
-  const signInHref = usePublicSiteHref(ROUTES.login);
+  const signInHref = ROUTES.login;
   const requestReset = useAction(api.passwordReset.requestPasswordReset);
   const [email, setEmail] = useState("");
   const [pending, setPending] = useState(false);

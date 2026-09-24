@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { ROUTES } from "@/config/navigation";
-import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import { PASSWORD_MIN_LENGTH, passwordMeetsPolicy } from "@/convex/shared/passwordPolicy";
 import { PasswordStrengthMeter } from "@/features/auth/components/password-strength";
 import { showError } from "@/lib/errors";
@@ -26,7 +25,7 @@ export function ResetPasswordForm() {
 }
 
 function ResetPasswordFormInner() {
-  const signInHref = usePublicSiteHref(ROUTES.login);
+  const signInHref = ROUTES.login;
   const completeReset = useAction(api.passwordReset.completePasswordReset);
   const token = useSearchParams().get("token")?.trim() ?? "";
   const [password, setPassword] = useState("");

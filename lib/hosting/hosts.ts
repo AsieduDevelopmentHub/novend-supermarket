@@ -127,11 +127,12 @@ export function getMarketingOrigin(env: NodeJS.ProcessEnv = process.env): string
 }
 
 /**
- * Public-site href (home, sign-in) for the host that is actually serving the page.
+ * Public-site href (home, legal) for the host that is actually serving the page.
  *
  * On the marketing host, or on localhost, keep a relative path so the visitor
  * stays on that site. On the app host, send them to the marketing origin —
- * `dashboard…/` is not the public website.
+ * `dashboard…/` is not the public website. Auth paths (`/login`, `/signup`)
+ * belong on the app host — use `appEntryHref` for those, not this helper.
  */
 export function publicSiteHref(
   path: string,
@@ -147,9 +148,8 @@ export function publicSiteHref(
 }
 
 /**
- * App-host href for marketing CTAs that must open the POS origin (Start free,
- * Open app). Sign-in and home stay on the marketing host via `publicSiteHref`.
- * Unsplit deploys keep relative paths.
+ * App-host href for marketing CTAs that open POS / auth (Sign in, Start free,
+ * Open app). Unsplit deploys keep relative paths.
  */
 export function appEntryHref(path: string, env: NodeJS.ProcessEnv = process.env): string {
   const normalized = !path || path === "/" ? "/" : path.startsWith("/") ? path : `/${path}`;

@@ -100,6 +100,21 @@ function redirectToMarketing(request: NextRequest) {
   return withStaticSecurityHeaders(NextResponse.redirect(destination));
 }
 
+/** When this request is on the marketing host, send auth paths to the app origin. */
+function redirectAuthToApp(request: NextRequest) {
+  const { appOrigin, marketingOrigin } = resolveHostingOrigins();
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const requestHost = forwardedHost || request.nextUrl.host;
+  const onMarketingHost =
+    hostsMatch(requestHost, hostnameFromOrigin(marketingOrigin)) &&
+    !hostsMatch(hostnameFromOrigin(appOrigin), hostnameFromOrigin(marketingOrigin));
+  if (!onMarketingHost) return null;
+  const app = normalizeOrigin(appOrigin);
+  if (!app) return null;
+  const destination = new URL(`${request.nextUrl.pathname}${request.nextUrl.search}`, app);
+  return withStaticSecurityHeaders(NextResponse.redirect(destination));
+}
+
 function cspDirectives(scriptSrc: string) {
   return [
     "default-src 'self'",
@@ -185,6 +200,12 @@ export default convexAuthNextjsMiddleware(
     if (isLegalPath(request.nextUrl.pathname)) {
       const marketingRedirect = redirectToMarketing(request);
       if (marketingRedirect) return marketingRedirect;
+    }
+
+    // Auth pages belong on the app host. A visit on www goes to dashboard.
+    if (isLoginPage(request)) {
+      const appRedirect = redirectAuthToApp(request);
+      if (appRedirect) return appRedirect;
     }
 
     // Marketing / docs / legal / health: security headers only — skip session work.
