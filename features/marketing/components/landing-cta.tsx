@@ -6,8 +6,8 @@ import { landingCopy } from "@/features/marketing/content";
 import { appEntryHref } from "@/lib/hosting/hosts";
 
 /**
- * Final CTA — onyx conversion panel. Empty device shells sit on a matched dark
- * plate with a soft white dent, then fade into the default onyx background.
+ * Final CTA — onyx conversion panel. Device art sits on a light plate that
+ * masks cutout stains, then fades into the default onyx background.
  */
 export function LandingCta() {
   const { cta, desktop } = landingCopy;
