@@ -127,6 +127,10 @@ export type NovendDesktopBridge = {
     listener: (payload: { ok: boolean; displays: DesktopDisplayInfo[] }) => void,
   ) => () => void;
   reloadAuthShell: (entry?: string) => Promise<{ ok: boolean; message?: string }>;
+  showNotification: (payload: {
+    title: string;
+    body: string;
+  }) => Promise<{ ok: boolean; message?: string }>;
 };
 
 const bridge: NovendDesktopBridge = {
@@ -188,6 +192,7 @@ const bridge: NovendDesktopBridge = {
     };
   },
   reloadAuthShell: (entry) => ipcRenderer.invoke("desktop:shell:reloadAuth", { entry }),
+  showNotification: (payload) => ipcRenderer.invoke("desktop:notifications:show", payload),
 };
 
 contextBridge.exposeInMainWorld("novendDesktop", bridge);

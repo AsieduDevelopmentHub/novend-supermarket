@@ -135,28 +135,42 @@ export function AboutNovendView() {
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/privacy">Privacy Policy</a>
+            <a href="/privacy" target="_blank" rel="noopener noreferrer">
+              Privacy Policy
+            </a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/terms">Terms of Service</a>
+            <a href="/terms" target="_blank" rel="noopener noreferrer">
+              Terms of Service
+            </a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/refund">Refund Policy</a>
+            <a href="/refund" target="_blank" rel="noopener noreferrer">
+              Refund Policy
+            </a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/cookies">Cookie Policy</a>
+            <a href="/cookies" target="_blank" rel="noopener noreferrer">
+              Cookie Policy
+            </a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/aup">Acceptable Use</a>
+            <a href="/aup" target="_blank" rel="noopener noreferrer">
+              Acceptable Use
+            </a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/dpa">Data Processing</a>
+            <a href="/dpa" target="_blank" rel="noopener noreferrer">
+              Data Processing
+            </a>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
             <Link href="/settings?section=help">Help &amp; tours</Link>
           </Button>
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/docs/help">Help & support</a>
+            <a href="/docs/help" target="_blank" rel="noopener noreferrer">
+              Help & support
+            </a>
           </Button>
           <Button
             type="button"

@@ -22,7 +22,6 @@ import {
 } from "@/hooks/use-appearance";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useTheme } from "next-themes";
-import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 
 export function AppearancePanel() {
@@ -39,12 +38,10 @@ export function AppearancePanel() {
     setTheme(nextTheme);
     applyFontSize(nextFont);
     if (!online) {
-      toast.success("Appearance saved on this device");
       return;
     }
     try {
       await updateOwnAppearance({ theme: nextTheme, fontSize: nextFont });
-      toast.success("Appearance saved");
     } catch (error) {
       showError(error, "Could not save appearance");
     }

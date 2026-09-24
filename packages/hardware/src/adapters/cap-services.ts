@@ -7,7 +7,6 @@ import type {
   AppServicesAdapter,
   BiometricsAdapter,
   NotificationPermissionState,
-  NotificationTopic,
   NotificationsAdapter,
   SecureStorageAdapter,
   UpdateInfo,
@@ -20,23 +19,22 @@ import {
 } from "./novend-native-security";
 import { readNativeAppInfo } from "./novend-native-app";
 import { readLocalPref, removeLocalPref, writeLocalPref } from "./local-prefs";
+import {
+  clearStoredPushEndpoint,
+  readStoredPushEndpoint,
+  readTopicPrefsFromStorage,
+  writeStoredPushEndpoint,
+  writeTopicPrefsToStorage,
+} from "./notification-prefs";
 import { friendlyHardwareMessage } from "../permissions";
 import { NATIVE_AVAILABILITY_TIMEOUT_MS, NATIVE_CALL_TIMEOUT_MS, withTimeout } from "../timeout";
 import { compareAppVersions, normalizeAppVersion } from "../version";
 import { shouldSkipMobileUpdateCheck } from "../update-origin";
 
-const TOPIC_KEY = "novend.notifications.topics";
 const BIOMETRIC_ENABLED_KEY = "novend.biometric.enabled";
 const BIOMETRIC_REQUIRE_LAUNCH_KEY = "novend.biometric.requireOnLaunch";
 const BIOMETRIC_UNLOCK_TOKEN_KEY = "novend.biometric.unlockToken";
 const NOTIFICATION_CHANNEL_ID = "novend_alerts";
-
-const DEFAULT_TOPICS: Record<NotificationTopic, boolean> = {
-  stock_alerts: true,
-  daily_summary: false,
-  branch_transfers: true,
-  subscription_alerts: true,
-};
 
 const NATIVE_SECURITY_UPDATE_MESSAGE =
   "This Novend build cannot use device security. Install the latest app.";
@@ -115,17 +113,6 @@ async function ensureNotificationChannel(): Promise<void> {
   }
 }
 
-function readTopicPrefsFromStorage(): Record<NotificationTopic, boolean> {
-  if (typeof localStorage === "undefined") return { ...DEFAULT_TOPICS };
-  try {
-    const raw = localStorage.getItem(TOPIC_KEY);
-    if (!raw) return { ...DEFAULT_TOPICS };
-    return { ...DEFAULT_TOPICS, ...(JSON.parse(raw) as Record<NotificationTopic, boolean>) };
-  } catch {
-    return { ...DEFAULT_TOPICS };
-  }
-}
-
 export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
   return {
     async checkPermissions(): Promise<
@@ -185,13 +172,77 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
       return { ok: true, data: readTopicPrefsFromStorage() };
     },
     async setTopicPrefs(prefs) {
-      const next = { ...readTopicPrefsFromStorage(), ...prefs };
-      try {
-        localStorage.setItem(TOPIC_KEY, JSON.stringify(next));
-      } catch {
-        /* quota / private mode — prefs are best-effort */
-      }
+      writeTopicPrefsToStorage(prefs);
       return { ok: true };
+    },
+    async registerRemote() {
+      try {
+        const { PushNotifications } = await import("@capacitor/push-notifications");
+        let tokenValue: string | null = null;
+        const permission = await PushNotifications.checkPermissions();
+        if (permission.receive !== "granted") {
+          const requested = await PushNotifications.requestPermissions();
+          if (requested.receive !== "granted") {
+            return {
+              ok: false,
+              message: "Allow notifications in system settings to enable push alerts.",
+            };
+          }
+        }
+
+        await PushNotifications.removeAllListeners().catch(() => undefined);
+
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error("Push token registration timed out."));
+          }, 15000);
+          void PushNotifications.addListener("registration", (token) => {
+            clearTimeout(timeout);
+            tokenValue = token.value;
+            resolve();
+          });
+          void PushNotifications.addListener("registrationError", (error) => {
+            clearTimeout(timeout);
+            reject(new Error(error.error || "Push registration failed."));
+          });
+          void PushNotifications.register().catch((error) => {
+            clearTimeout(timeout);
+            reject(error instanceof Error ? error : new Error(String(error)));
+          });
+        });
+
+        if (!tokenValue) {
+          return { ok: false, message: "No push token was returned." };
+        }
+        writeStoredPushEndpoint(tokenValue);
+        return {
+          ok: true,
+          data: {
+            platform: "capacitor" as const,
+            endpoint: tokenValue,
+            userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+          },
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : "Push notifications are not available in this build.",
+        };
+      }
+    },
+    async unregisterRemote() {
+      const endpoint = readStoredPushEndpoint() ?? undefined;
+      clearStoredPushEndpoint();
+      try {
+        const { PushNotifications } = await import("@capacitor/push-notifications");
+        await PushNotifications.removeAllListeners();
+      } catch {
+        /* plugin may be absent in older APKs */
+      }
+      return { ok: true, data: endpoint ? { endpoint } : undefined };
     },
   };
 }

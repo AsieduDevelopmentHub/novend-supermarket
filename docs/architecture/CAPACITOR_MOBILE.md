@@ -107,7 +107,7 @@ Web and Electron keep the existing sidebar unchanged.
   settings, Share, and Save PDF. Share opens the Android share sheet via
   `window.NovendNative.finishShare`.
 - Biometrics + unlock token (Settings → Security)
-- Local notification topic prefs (push delivery can plug in later)
+- Remote push (Web Push / FCM / Electron foreground) + local notification channel
 - Soft OTA check via `NEXT_PUBLIC_MOBILE_UPDATE_JSON` (Later / Update now)
 - Deep links: `novend://sale/{id}`, `novend://order/{id}`,
   `novend://product/{id}`, `novend://dashboard`, and `novend://sales`.

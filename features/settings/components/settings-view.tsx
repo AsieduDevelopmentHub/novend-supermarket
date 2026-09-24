@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PageHeader } from "@/components/layout/primitives";
@@ -82,6 +82,7 @@ import {
 import { SettingsMobileSectionNav } from "./settings-mobile-section-nav";
 
 export function SettingsView() {
+  const router = useRouter();
   const { isAdmin, isManager, isLoading: permissionsLoading } = usePermissions();
   const online = useConnectivity();
   const isDesktop = useDesktopRuntime();
@@ -97,6 +98,7 @@ export function SettingsView() {
 
   function selectSettingsTab(value: SettingsTab) {
     setTab(value);
+    router.replace(`/settings?section=${value}`, { scroll: false });
   }
 
   useEffect(() => {
@@ -149,10 +151,17 @@ export function SettingsView() {
 
   const sectionGroups = useMemo(() => groupSettingsSections(sections), [sections]);
 
-  // Banners and limit prompts deep-link here with `?section=billing|devices`.
+  // Banners and in-app links deep-link here with `?section=billing|devices|backup|…`.
+  // URL section wins so Privacy → Billing does not stay stuck on the previous tab.
   const linkedTab = sections.find((section) => section.value === requestedSection)?.value ?? null;
+
+  useEffect(() => {
+    if (linkedTab) setTab(linkedTab);
+  }, [linkedTab]);
+
   const activeTab: SettingsTab =
-    tab && sections.some((s) => s.value === tab) ? tab : (linkedTab ?? "profile");
+    linkedTab ??
+    (tab && sections.some((s) => s.value === tab) ? tab : "profile");
 
   if (permissionsLoading) {
     return <LoadingState label="Loading settings…" variant="form" />;

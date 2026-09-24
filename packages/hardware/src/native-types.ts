@@ -47,7 +47,20 @@ export type BiometricAvailability = {
 };
 
 export type NotificationTopic =
-  "stock_alerts" | "daily_summary" | "branch_transfers" | "subscription_alerts";
+  | "stock_alerts"
+  | "daily_summary"
+  | "branch_transfers"
+  | "subscription_alerts";
+
+export type PushPlatform = "web" | "capacitor" | "electron";
+
+export type PushRegistration = {
+  platform: PushPlatform;
+  endpoint: string;
+  p256dh?: string;
+  auth?: string;
+  userAgent?: string;
+};
 
 export type AppInfo = {
   name: string;
@@ -100,6 +113,11 @@ export type NotificationsAdapter = {
   scheduleLocal: (args: { title: string; body: string; id?: number }) => Promise<HardwareResult>;
   getTopicPrefs: () => Promise<HardwareResult<Record<NotificationTopic, boolean>>>;
   setTopicPrefs: (prefs: Partial<Record<NotificationTopic, boolean>>) => Promise<HardwareResult>;
+  /** Obtain a platform push endpoint (Web Push / FCM / Electron device key). */
+  registerRemote: (args?: {
+    vapidPublicKey?: string;
+  }) => Promise<HardwareResult<PushRegistration>>;
+  unregisterRemote: () => Promise<HardwareResult<{ endpoint?: string }>>;
 };
 
 export type AppUrlOpenHandle = {

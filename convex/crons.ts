@@ -35,4 +35,11 @@ crons.daily(
   {},
 );
 
+crons.daily(
+  "push alert digests",
+  { hourUTC: 7, minuteUTC: 0 },
+  internal.pushDispatch.runDailyAlertDigests,
+  {},
+);
+
 export default crons;

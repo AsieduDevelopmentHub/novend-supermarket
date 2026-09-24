@@ -1,25 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useMutation } from "convex/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import {
   Hardware,
   hasNovendNativeSecurity,
+  isCapacitor,
+  isElectron,
   permissionDeniedMessage,
   permissionNeedMessage,
   type NotificationPermissionState,
   type NotificationTopic,
 } from "@novend/hardware";
+import { api } from "@/convex/_generated/api";
 import { Bell, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useConnectivity } from "@/hooks/use-connectivity";
 
 const TOPICS: Array<{ id: NotificationTopic; label: string; description: string }> = [
   {
     id: "stock_alerts",
     label: "Stock alerts",
-    description: "Low stock and expiry reminders on this device",
+    description: "Low stock and expiry reminders",
   },
   {
     id: "daily_summary",
@@ -45,18 +50,33 @@ const EMPTY_PREFS: Record<NotificationTopic, boolean> = {
   subscription_alerts: false,
 };
 
+function notificationsDescription(): string {
+  if (isCapacitor()) {
+    return "Choose which alerts to receive on this device.";
+  }
+  if (isElectron()) {
+    return "Alerts appear while the desktop app is open.";
+  }
+  return "Browser push alerts for stock, transfers, and billing.";
+}
+
 /**
- * Local notification prefs. Permission state comes from NovendNative
- * (NotificationManagerCompat). Enable opens Android notification settings —
- * never an in-app prompt and never a Capacitor plugin call.
+ * Cross-platform notification prefs + remote push registration.
+ * Permission UX: Cap opens system settings; web/Electron use Notification.requestPermission.
  */
 export function NotificationsSettingsCard() {
+  const online = useConnectivity();
+  const registerDevice = useMutation(api.pushNotifications.registerDevice);
+  const updateTopicPrefs = useMutation(api.pushNotifications.updateTopicPrefs);
+  const unregisterDevice = useMutation(api.pushNotifications.unregisterDevice);
+
   const [state, setState] = useState<NotificationPermissionState>("not-requested");
   const [prefs, setPrefs] = useState<Record<NotificationTopic, boolean>>(EMPTY_PREFS);
   const [permissionKnown, setPermissionKnown] = useState(false);
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pushReady, setPushReady] = useState(false);
 
   const refreshPermission = useCallback(async () => {
     setChecking(true);
@@ -85,7 +105,7 @@ export function NotificationsSettingsCard() {
       } catch {
         /* prefs are best-effort */
       }
-      if (!cancelled && hasNovendNativeSecurity()) await refreshPermission();
+      if (!cancelled) await refreshPermission();
     })();
     const onVisible = () => {
       if (document.visibilityState === "visible" && hasNovendNativeSecurity()) {
@@ -99,6 +119,25 @@ export function NotificationsSettingsCard() {
     };
   }, [refreshPermission]);
 
+  async function syncRemoteRegistration(nextPrefs: Record<NotificationTopic, boolean>) {
+    if (!online) return;
+    const remote = await Hardware.notifications.registerRemote({
+      vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    });
+    if (!remote.ok || !remote.data) {
+      throw new Error(remote.message || "Could not register for push alerts.");
+    }
+    await registerDevice({
+      platform: remote.data.platform,
+      endpoint: remote.data.endpoint,
+      p256dh: remote.data.p256dh,
+      auth: remote.data.auth,
+      topics: nextPrefs,
+      userAgent: remote.data.userAgent,
+    });
+    setPushReady(true);
+  }
+
   async function enableNotifications() {
     setBusy(true);
     try {
@@ -108,11 +147,21 @@ export function NotificationsSettingsCard() {
       setPermissionKnown(true);
       setErrorMessage(result.ok ? null : result.message || null);
       if (!result.ok) {
-        toast.error(result.message || "Could not open device settings.");
+        toast.error(result.message || "Could not enable notifications.");
         return false;
       }
-      toast.success("Opened device settings. Enable Notifications for Novend, then return.");
-      return true;
+      if (next === "granted") {
+        try {
+          const topics = (await Hardware.notifications.getTopicPrefs()).data ?? prefs;
+          await syncRemoteRegistration(topics);
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "Could not register for push.");
+          return false;
+        }
+      } else if (isCapacitor()) {
+        /* Settings opened — user returns after enabling. */
+      }
+      return next === "granted";
     } finally {
       setBusy(false);
     }
@@ -121,7 +170,7 @@ export function NotificationsSettingsCard() {
   async function openSettings() {
     const result = await Hardware.app.openAppSettings();
     if (!result.ok) {
-      toast.message(result.message || "Open Android Settings → Apps → Novend → Permissions.");
+      toast.error(result.message || "Open system settings to allow notifications.");
     }
   }
 
@@ -129,26 +178,53 @@ export function NotificationsSettingsCard() {
     if (busy) return;
     setBusy(true);
     try {
-      if (!permissionKnown) {
-        await refreshPermission();
-      }
+      if (!permissionKnown) await refreshPermission();
       if (state !== "granted" && enabled) {
         const current = permissionKnown ? state : "not-requested";
         if (current === "permanently-denied") {
-          toast.message(permissionDeniedMessage("notifications"));
-          await openSettings();
+          toast.error(permissionDeniedMessage("notifications"));
+          if (isCapacitor()) await openSettings();
           return;
         }
         if (current === "unavailable") {
-          toast.message("Notifications are unavailable on this device.");
+          toast.error("Notifications are unavailable on this device.");
           return;
         }
         const ok = await enableNotifications();
         if (!ok) return;
       }
+
       await Hardware.notifications.setTopicPrefs({ [id]: enabled });
-      const topics = await Hardware.notifications.getTopicPrefs();
-      if (topics.data) setPrefs(topics.data);
+      const topics = (await Hardware.notifications.getTopicPrefs()).data ?? {
+        ...prefs,
+        [id]: enabled,
+      };
+      setPrefs(topics);
+
+      if (online && state === "granted") {
+        try {
+          await updateTopicPrefs({ topics });
+          if (!pushReady) await syncRemoteRegistration(topics);
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "Could not save notification prefs.");
+        }
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disablePush() {
+    setBusy(true);
+    try {
+      const remote = await Hardware.notifications.unregisterRemote();
+      if (remote.data?.endpoint && online) {
+        await unregisterDevice({ endpoint: remote.data.endpoint });
+      }
+      setPushReady(false);
+      setState("not-requested");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not disable notifications.");
     } finally {
       setBusy(false);
     }
@@ -167,10 +243,7 @@ export function NotificationsSettingsCard() {
           <Bell className="h-4 w-4" />
           Notifications
         </CardTitle>
-        <CardDescription>
-          Choose which local alerts you want. Check, then open Android settings to allow
-          notifications for Novend.
-        </CardDescription>
+        <CardDescription>{notificationsDescription()}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {!permissionKnown && !checking ? (
@@ -258,13 +331,17 @@ export function NotificationsSettingsCard() {
 
         {permissionKnown && state === "unavailable" ? (
           <p className="text-muted-foreground text-sm">
-            Notifications are unavailable on this device right now. You can still use Novend
-            normally.
+            Notifications are unavailable on this device right now.
           </p>
         ) : null}
 
         {granted ? (
-          <p className="text-muted-foreground text-xs">Notifications are allowed on this device.</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-muted-foreground text-xs">Notifications are allowed on this device.</p>
+            <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => void disablePush()}>
+              Turn off
+            </Button>
+          </div>
         ) : null}
 
         {TOPICS.map((topic) => (

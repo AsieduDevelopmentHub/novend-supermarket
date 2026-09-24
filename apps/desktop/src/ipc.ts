@@ -1,4 +1,4 @@
-import { ipcMain, type IpcMainInvokeEvent } from "electron";
+import { Notification, ipcMain, type IpcMainInvokeEvent } from "electron";
 import { pathToFileURL } from "node:url";
 import {
   discoverDevices,
@@ -33,6 +33,7 @@ const CHANNELS = {
   updatesCheck: "desktop:updates:check",
   updatesInstall: "desktop:updates:install",
   reloadAuthShell: "desktop:shell:reloadAuth",
+  showNotification: "desktop:notifications:show",
 } as const;
 
 function isPrintJobRequest(value: unknown): value is PrintJobRequest {
@@ -129,6 +130,26 @@ export function registerDesktopIpc() {
     }
     closeCustomerDisplayWithMainWindow();
     return reloadMainWindowShell(appUrl, entry);
+  });
+
+  ipcMain.handle(CHANNELS.showNotification, (event, payload: unknown) => {
+    requireTrustedSender(event);
+    if (!payload || typeof payload !== "object") {
+      return { ok: false, message: "Invalid notification payload." };
+    }
+    const title = String((payload as { title?: unknown }).title ?? "").trim();
+    const body = String((payload as { body?: unknown }).body ?? "").trim();
+    if (!title) return { ok: false, message: "Notification title is required." };
+    try {
+      const notification = new Notification({ title, body });
+      notification.show();
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : "Could not show notification.",
+      };
+    }
   });
 }
 

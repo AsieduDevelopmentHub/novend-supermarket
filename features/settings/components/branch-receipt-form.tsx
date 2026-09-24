@@ -83,7 +83,6 @@ export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
         12_000,
         "Save timed out — check your connection and try again",
       );
-      toast.success("Branch receipt details saved");
     } catch (error) {
       showError(error, "Save failed");
     } finally {

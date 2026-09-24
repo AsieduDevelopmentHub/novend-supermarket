@@ -134,7 +134,6 @@ export function BusinessCapabilitiesPanel() {
       setProfile(next.industryProfile);
       setSelected(next.enabledCapabilities);
       await saveBusinessCapabilitiesCache(next);
-      toast.success("Industry pack applied — Add Product fields updated");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not apply industry pack");
     } finally {
@@ -153,7 +152,6 @@ export function BusinessCapabilitiesPanel() {
       setProfile(next.industryProfile);
       setSelected(next.enabledCapabilities);
       await saveBusinessCapabilitiesCache(next);
-      toast.success("Selling options saved");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save capabilities");
     } finally {

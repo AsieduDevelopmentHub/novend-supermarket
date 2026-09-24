@@ -133,7 +133,6 @@ export function ScannerPanel() {
     setPending(true);
     try {
       saveTerminalScannerConfig(config);
-      toast.success("Barcode scanner settings saved on this terminal");
     } catch (error) {
       showError(error, "Could not save scanner settings");
     } finally {

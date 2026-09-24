@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v15";
+const CACHE_NAME = "novend-pos-v16";
 /**
  * Public documents + icons only. Do not precache `/` or `/dashboard`:
  * cache.add follows the auth 302 and stores POS HTML under the marketing URL
@@ -338,4 +338,58 @@ self.addEventListener("fetch", (event) => {
   }
 
   // All other GETs (JSON, fonts, etc.) go to the network. Never reject.
+});
+
+self.addEventListener("push", (event) => {
+  let title = "Novend";
+  let body = "You have a new alert.";
+  let href = "/dashboard";
+  try {
+    const raw = event.data ? event.data.text() : "";
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        if (typeof parsed.title === "string" && parsed.title.trim()) title = parsed.title;
+        if (typeof parsed.body === "string" && parsed.body.trim()) body = parsed.body;
+        if (parsed.data && typeof parsed.data.href === "string" && parsed.data.href.startsWith("/")) {
+          href = parsed.data.href;
+        }
+      }
+    }
+  } catch {
+    /* keep defaults */
+  }
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { href },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const href =
+    event.notification.data && typeof event.notification.data.href === "string"
+      ? event.notification.data.href
+      : "/dashboard";
+  const targetUrl = new URL(href, self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ("focus" in client) {
+          void client.focus();
+          if ("navigate" in client) {
+            void client.navigate(targetUrl);
+          }
+          return;
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    }),
+  );
 });

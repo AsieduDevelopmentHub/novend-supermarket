@@ -27,6 +27,7 @@
     "@capacitor/ios": "^7.4.3",
     "@capacitor/local-notifications": "^7.0.7",
     "@capacitor/preferences": "^7.0.4",
+    "@capacitor/push-notifications": "^7.0.7",
     "@capacitor/share": "^7.0.4"
   },
   "devDependencies": {

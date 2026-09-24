@@ -113,6 +113,8 @@ compensation. Do not scatter `if (role === "administrator")` in screens — use
 - Never commit `.env` or keys
 - Client may only receive intentional `NEXT_PUBLIC_*` values
 - Store secrets in Convex env / host secret stores
+- Web Push / FCM: see `docs/architecture/PUSH_NOTIFICATIONS.md` (`VAPID_*`,
+  `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `FCM_SERVICE_ACCOUNT_JSON`)
 
 # Portable backups
 

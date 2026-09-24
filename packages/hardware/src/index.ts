@@ -44,6 +44,8 @@ export type {
   BiometricAvailability,
   NotificationTopic,
   NotificationPermissionState,
+  PushPlatform,
+  PushRegistration,
   AppInfo,
   UpdateInfo,
 } from "./native-types";

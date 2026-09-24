@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 import {
   assertBranchAccess,
   isAdmin,
@@ -311,6 +312,15 @@ export const transferStock = mutation({
       kind: "transfer_stock",
       result: transferId,
     });
+
+    await ctx.scheduler.runAfter(0, internal.pushDispatch.dispatchPush, {
+      organizationId,
+      topic: "branch_transfers",
+      title: "Stock transfer complete",
+      body: `${product.name}: ${args.quantity} moved from ${from.name} to ${to.name}.`,
+      data: { href: "/inventory", transferId: String(transferId) },
+    });
+
     return transferId;
   },
 });

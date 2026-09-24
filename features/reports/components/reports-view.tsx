@@ -146,7 +146,6 @@ export function ReportsView() {
     }
     setRangeError(null);
     setApplied({ start, end });
-    toast.success("Report generated");
   }
 
   function metricHref(metric: string) {

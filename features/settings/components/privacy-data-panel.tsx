@@ -246,13 +246,19 @@ export function PrivacyDataPanel() {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" asChild>
-            <Link href="/privacy">Privacy Policy</Link>
+            <Link href="/privacy" target="_blank" rel="noopener noreferrer">
+              Privacy Policy
+            </Link>
           </Button>
           <Button type="button" variant="outline" asChild>
-            <Link href="/cookies">Cookie Policy</Link>
+            <Link href="/cookies" target="_blank" rel="noopener noreferrer">
+              Cookie Policy
+            </Link>
           </Button>
           <Button type="button" variant="outline" asChild>
-            <Link href="/dpa">Data Processing</Link>
+            <Link href="/dpa" target="_blank" rel="noopener noreferrer">
+              Data Processing
+            </Link>
           </Button>
         </CardContent>
       </Card>

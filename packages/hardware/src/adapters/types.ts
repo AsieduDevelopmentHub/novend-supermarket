@@ -56,6 +56,10 @@ export type ElectronHardwareBridge = {
     paperWidthMm?: 58 | 80;
     copies?: number;
   }) => Promise<{ ok: boolean; message?: string }>;
+  showNotification?: (payload: {
+    title: string;
+    body: string;
+  }) => Promise<{ ok: boolean; message?: string }>;
 };
 
 export type AdapterFactory = () => HardwareAdapters;

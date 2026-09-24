@@ -1183,4 +1183,51 @@ export default defineSchema({
     .index("by_version", ["version"])
     .index("by_tag", ["tag"])
     .index("by_channel_releasedAt", ["channel", "releasedAt"]),
+
+  /**
+   * Remote push endpoints (Web Push / FCM / Electron foreground).
+   * Topic prefs live on the device row so dispatch can filter without a second read.
+   */
+  pushDevices: defineTable({
+    organizationId: v.id("organizations"),
+    userId: v.id("users"),
+    platform: v.union(v.literal("web"), v.literal("capacitor"), v.literal("electron")),
+    /** Web Push endpoint URL, or FCM/APNs device token, or electron device key. */
+    endpoint: v.string(),
+    /** Web Push subscription keys (p256dh / auth). */
+    p256dh: v.optional(v.string()),
+    auth: v.optional(v.string()),
+    topics: v.object({
+      stock_alerts: v.boolean(),
+      daily_summary: v.boolean(),
+      branch_transfers: v.boolean(),
+      subscription_alerts: v.boolean(),
+    }),
+    userAgent: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_organization", ["organizationId"])
+    .index("by_user_endpoint", ["userId", "endpoint"])
+    .index("by_endpoint", ["endpoint"]),
+
+  /** Short-lived Electron foreground notifications (consumed by the desktop shell). */
+  pushOutbox: defineTable({
+    organizationId: v.id("organizations"),
+    userId: v.id("users"),
+    topic: v.union(
+      v.literal("stock_alerts"),
+      v.literal("daily_summary"),
+      v.literal("branch_transfers"),
+      v.literal("subscription_alerts"),
+    ),
+    title: v.string(),
+    body: v.string(),
+    dataJson: v.optional(v.string()),
+    createdAt: v.number(),
+    consumedAt: v.optional(v.number()),
+  })
+    .index("by_user_createdAt", ["userId", "createdAt"])
+    .index("by_user_unconsumed", ["userId", "consumedAt"]),
 });

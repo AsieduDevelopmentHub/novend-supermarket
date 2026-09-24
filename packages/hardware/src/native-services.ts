@@ -1,4 +1,4 @@
-import { isCapacitor } from "./platform";
+import { isCapacitor, isElectron, getElectronBridge } from "./platform";
 import type { HardwareResult } from "./types";
 import type {
   AppBackButtonHandle,
@@ -9,6 +9,11 @@ import type {
   UpdateInfo,
 } from "./native-types";
 import { NATIVE_CALL_TIMEOUT_MS, NATIVE_SETTINGS_PROBE_MS, withTimeoutFallback } from "./timeout";
+import {
+  DEFAULT_NOTIFICATION_TOPICS,
+  readTopicPrefsFromStorage,
+  writeTopicPrefsToStorage,
+} from "./adapters/notification-prefs";
 
 function unsupported<T = void>(feature = "This feature"): HardwareResult<T> {
   return { ok: false, message: `${feature} is only available in the Novend mobile app` };
@@ -21,6 +26,40 @@ async function capServices() {
 
 async function bluetoothFacade() {
   return import("./adapters/bluetooth-printer-facade");
+}
+
+async function notificationsAdapter() {
+  if (isCapacitor()) {
+    const mod = await capServices();
+    return mod.createCapacitorNotificationsAdapter();
+  }
+  if (isElectron()) {
+    const { createElectronNotificationsAdapter } = await import("./adapters/web-notifications");
+    type NotifyBridge = {
+      showNotification?: (payload: {
+        title: string;
+        body: string;
+      }) => Promise<{ ok: boolean; message?: string }>;
+    };
+    return createElectronNotificationsAdapter(async (title, body) => {
+      const bridge = getElectronBridge<NotifyBridge>();
+      if (bridge?.showNotification) {
+        const result = await bridge.showNotification({ title, body });
+        return { ok: result.ok, message: result.message };
+      }
+      try {
+        new Notification(title, { body });
+        return { ok: true };
+      } catch (error) {
+        return {
+          ok: false,
+          message: error instanceof Error ? error.message : "Could not show notification.",
+        };
+      }
+    });
+  }
+  const { createWebNotificationsAdapter } = await import("./adapters/web-notifications");
+  return createWebNotificationsAdapter();
 }
 
 export const biometrics = {
@@ -103,17 +142,10 @@ export const secureStorage = {
 
 export const notifications = {
   checkPermissions: async () => {
-    if (!isCapacitor()) {
-      return {
-        ok: false as const,
-        message: "Notifications is only available in the Novend mobile app",
-        data: { granted: false, state: "unavailable" as const },
-      };
-    }
     return withTimeoutFallback(
       async () => {
-        const mod = await capServices();
-        return mod.createCapacitorNotificationsAdapter().checkPermissions();
+        const adapter = await notificationsAdapter();
+        return adapter.checkPermissions();
       },
       NATIVE_SETTINGS_PROBE_MS + NATIVE_CALL_TIMEOUT_MS,
       {
@@ -124,52 +156,39 @@ export const notifications = {
     );
   },
   requestPermissions: async () => {
-    if (!isCapacitor()) {
-      return {
-        ok: false as const,
-        message: "Notifications is only available in the Novend mobile app",
-        data: { granted: false, state: "unavailable" as const },
-      };
-    }
-    const mod = await capServices();
-    return mod.createCapacitorNotificationsAdapter().requestPermissions();
+    const adapter = await notificationsAdapter();
+    return adapter.requestPermissions();
   },
   scheduleLocal: async (args: { title: string; body: string; id?: number }) => {
-    if (!isCapacitor()) return unsupported("Notifications");
-    const mod = await capServices();
-    return mod.createCapacitorNotificationsAdapter().scheduleLocal(args);
+    const adapter = await notificationsAdapter();
+    return adapter.scheduleLocal(args);
   },
   getTopicPrefs: async () => {
-    if (!isCapacitor()) {
-      return {
-        ok: true as const,
-        data: {
-          stock_alerts: false,
-          daily_summary: false,
-          branch_transfers: false,
-          subscription_alerts: false,
-        } as Record<NotificationTopic, boolean>,
-      };
+    if (isCapacitor()) {
+      const mod = await capServices();
+      return withTimeoutFallback(
+        () => mod.createCapacitorNotificationsAdapter().getTopicPrefs(),
+        NATIVE_CALL_TIMEOUT_MS + 500,
+        { ok: true as const, data: { ...DEFAULT_NOTIFICATION_TOPICS } },
+      );
     }
-    const mod = await capServices();
-    return withTimeoutFallback(
-      () => mod.createCapacitorNotificationsAdapter().getTopicPrefs(),
-      NATIVE_CALL_TIMEOUT_MS + 500,
-      {
-        ok: true as const,
-        data: {
-          stock_alerts: false,
-          daily_summary: false,
-          branch_transfers: false,
-          subscription_alerts: false,
-        } as Record<NotificationTopic, boolean>,
-      },
-    );
+    return { ok: true as const, data: readTopicPrefsFromStorage() };
   },
   setTopicPrefs: async (prefs: Partial<Record<NotificationTopic, boolean>>) => {
-    if (!isCapacitor()) return unsupported("Notifications");
-    const mod = await capServices();
-    return mod.createCapacitorNotificationsAdapter().setTopicPrefs(prefs);
+    if (isCapacitor()) {
+      const mod = await capServices();
+      return mod.createCapacitorNotificationsAdapter().setTopicPrefs(prefs);
+    }
+    writeTopicPrefsToStorage(prefs);
+    return { ok: true as const };
+  },
+  registerRemote: async (args?: { vapidPublicKey?: string }) => {
+    const adapter = await notificationsAdapter();
+    return adapter.registerRemote(args);
+  },
+  unregisterRemote: async () => {
+    const adapter = await notificationsAdapter();
+    return adapter.unregisterRemote();
   },
 };
 
