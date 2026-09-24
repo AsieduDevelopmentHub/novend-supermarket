@@ -190,7 +190,7 @@ export const PRODUCT_PAGES: Record<ProductPageSlug, ProductPageContent> = {
       {
         question: "Can inventory go negative?",
         answer:
-          "No. Convex enforces non-negative stock. Sales and adjustments that would oversell are rejected with a clear error.",
+          "No. Novend never allows stock to go below zero. Sales and adjustments that would oversell are rejected with a clear error.",
       },
       {
         question: "Do product changes rewrite old receipts?",

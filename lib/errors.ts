@@ -145,7 +145,7 @@ export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): strin
     return "Please sign in again to continue.";
   }
   if (lower.includes("platform administrator")) {
-    return "This account is not a Novend platform administrator on this Convex deployment. Confirm platformAdmins for your user on the same deployment as NEXT_PUBLIC_CONVEX_URL.";
+    return "This account is not a Novend platform administrator for this environment. Ask a Novend operator to grant platform access.";
   }
   if (
     lower.includes("forbidden") ||

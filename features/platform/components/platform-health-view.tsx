@@ -48,7 +48,7 @@ export function PlatformHealthView() {
         <Card className="border-l-primary border-l-[3px]">
           <CardContent className="flex items-start justify-between gap-3 p-5">
             <div>
-              <p className="text-muted-foreground text-sm">Convex</p>
+              <p className="text-muted-foreground text-sm">Cloud API</p>
               <p className="mt-2 text-2xl font-semibold capitalize">{health.convexStatus}</p>
               <p className="text-muted-foreground mt-1 text-xs">
                 Checked {formatDateTime(health.checkedAt)}

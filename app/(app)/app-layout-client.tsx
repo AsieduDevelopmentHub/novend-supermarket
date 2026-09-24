@@ -480,7 +480,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-4 text-center">
         <ErrorState
           title="Platform access required"
-          message="This account is not a Novend platform administrator. Bootstrap must write a platformAdmins row on the same Convex deployment as NEXT_PUBLIC_CONVEX_URL. Organization owners use the POS, not /platform."
+          message="This account is not a Novend platform administrator. Organization owners use the POS, not /platform. Ask a Novend operator to grant platform access if you need the console."
         />
         <Button type="button" variant="outline" onClick={() => router.replace("/dashboard")}>
           Go to dashboard

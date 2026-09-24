@@ -26,8 +26,8 @@ import { usePlatformOperatingCostsData } from "@/hooks/use-platform-offline-data
 
 const COST_CATEGORIES = [
   { value: "hosting", label: "Hosting" },
-  { value: "convex", label: "Convex" },
-  { value: "vercel", label: "Vercel" },
+  { value: "convex", label: "Backend cloud" },
+  { value: "vercel", label: "App hosting" },
   { value: "domains", label: "Domains" },
   { value: "sms", label: "SMS" },
   { value: "email", label: "Email" },
@@ -165,7 +165,7 @@ export function PlatformCostsView() {
               <EmptyState
                 icon={Receipt}
                 title="No operating costs yet"
-                description="Record hosting, Convex, Vercel, domains, SMS, email, and other platform spend."
+                description="Record hosting, backend cloud, app hosting, domains, SMS, email, and other platform spend."
               />
             </div>
           ) : (

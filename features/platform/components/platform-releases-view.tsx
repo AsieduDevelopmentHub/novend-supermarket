@@ -31,7 +31,7 @@ export function PlatformReleasesView() {
     <div className="space-y-6">
       <PageHeader
         title="Downloads"
-        description="Every published desktop and mobile release, read directly from Convex. Release metadata is cached offline; downloading packages still needs a connection."
+        description="Every published desktop and mobile release. Release metadata is cached offline; downloading packages still needs a connection."
       />
 
       {!online ? (

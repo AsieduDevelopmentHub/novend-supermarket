@@ -335,7 +335,7 @@ export const sitePages = {
         paragraphs: [
           "Novend is designed so operational data can be stored on your device first, allowing sales to continue without internet connectivity after setup and activation.",
           "When connectivity is available, committed changes synchronize to Novend cloud services so you can access dashboards, backups, multi-device workflows, and organization-wide reports. Dashboards update from local data while you work and refresh after synchronization, depending on your connectivity and plan mode.",
-          "Cloud connections use encrypted transport. Portable backups you export can be encrypted with a password you control. The active local operational database (IndexedDB) on a till or phone is not field-encrypted — it relies on device lock screens, browser or WebView profile isolation, and physical custody of the hardware.",
+          "Cloud connections use encrypted transport. Portable backups you export can be encrypted with a password you control. The active local operational store on a till or phone is not field-encrypted — it relies on device lock screens, browser or app profile isolation, and physical custody of the hardware.",
           "Treat POS devices as sensitive business equipment: enable Settings → Security → Inactivity lock on shared tills, use OS lock screens, control physical access, sign out when handing a device to another person, and deactivate lost devices through your administrator where possible.",
           "You remain responsible for the accuracy of business records you enter and for deciding which staff may access which branches and capabilities inside your organization.",
         ],
@@ -369,7 +369,7 @@ export const sitePages = {
         title: "9. Security",
         paragraphs: [
           "We use administrative, technical, and organizational measures designed to protect information, including authentication, access control, transport encryption for network traffic to our services, and least-privilege practices for staff tools.",
-          "Encryption in transit protects data between your client and Novend cloud services. Encrypted portable backups protect exported archives with a password. Local operational storage on the device is protected by device and browser security controls rather than application-level field encryption of every IndexedDB record.",
+          "Encryption in transit protects data between your client and Novend cloud services. Encrypted portable backups protect exported archives with a password. Local operational storage on the device is protected by device and browser security controls rather than application-level field encryption of every on-device record.",
           "No method of transmission or storage is perfectly secure. You should use strong passwords, enable inactivity locking on shared tills, limit admin access, keep clients updated from official download channels (including the Android app), and report suspected unauthorized access promptly.",
         ],
       },
@@ -627,7 +627,7 @@ export const sitePages = {
         title: "1. What we mean by cookies",
         paragraphs: [
           "Cookies are small text files stored on your device. Similar technologies include local storage, session storage, and pixels used for security, preferences, or measurement.",
-          "The signed-in Novend application also uses local device storage (including IndexedDB) to support offline POS operation. That operational storage is described in the Privacy Policy and is not limited to marketing cookies.",
+          "The signed-in Novend application also uses local device storage to support offline POS operation. That operational storage is described in the Privacy Policy and is not limited to marketing cookies.",
         ],
       },
       {
