@@ -16,7 +16,13 @@ import {
   planKeyValidator,
   paymentGatewayValidator,
 } from "./schema";
-import { requireSessionIgnoringLicense, requirePlatformAdmin } from "./shared/permissions";
+import {
+  getPlatformAdmin,
+  getProfileByUserId,
+  requireAuth,
+  requirePlatformAdmin,
+  requireSessionIgnoringLicense,
+} from "./shared/permissions";
 import { writeAuditLog } from "./shared/audit";
 import {
   buildUsageMetrics,
@@ -28,12 +34,14 @@ import {
 } from "./shared/entitlements";
 import { planCapabilities } from "./shared/capabilities";
 import {
+  defaultLicenseEntitlements,
   entitlementsFromResolvedConfig,
   GRACE_PERIOD_MS,
   type AccessState,
   type CommercialOfferSnapshot,
+  type LicenseSnapshot,
 } from "./shared/licensing";
-import { normalizeCloudMode } from "./shared/cloudMode";
+import { CLOUD_MODES, DEFAULT_CLOUD_MODE, normalizeCloudMode } from "./shared/cloudMode";
 import { bumpEntitlementVersion, currentEntitlementVersion } from "./shared/entitlementVersion";
 import { resolveOrganizationConfig } from "./shared/organizationConfig";
 import { onOrganizationPlanChanged } from "./shared/platformStatsAggregate";
@@ -47,6 +55,7 @@ import {
   parseCustomBackupGb,
   planChangeKind,
   priceForCycle,
+  resolvePlan,
   supportsCycle,
   type BillingCycle,
   type LimitResource,
@@ -124,12 +133,61 @@ export const ensurePlanCatalog = internalMutation({
 // ---------------------------------------------------------------------------
 
 /**
+ * Synthetic licence for Novend Super Admins who have no tenant profile.
+ * Keeps OfflineProvider / useLicense from throwing Forbidden on /platform.
+ */
+function platformAdminLicenseSnapshot(): LicenseSnapshot {
+  const plan = resolvePlan(DEFAULT_PLAN_KEY);
+  const entitlements = defaultLicenseEntitlements(plan.key);
+  return {
+    organizationId: "",
+    organizationName: "Novend Platform",
+    organizationStatus: "active",
+    cloudMode: DEFAULT_CLOUD_MODE,
+    entitlementVersion: 0,
+    allowedCloudModes: [...CLOUD_MODES],
+    cloudBackupEnabled: true,
+    remoteMonitoringEnabled: true,
+    planKey: plan.key,
+    planName: plan.name,
+    access: {
+      state: "active",
+      canRead: true,
+      canWrite: true,
+      reason: null,
+      expiresAt: null,
+    },
+    limits: plan.limits,
+    capabilities: planCapabilities(plan.key, plan.limits),
+    planFeatures: plan.features,
+    ...entitlements,
+    pendingClosure: false,
+    closureEffectiveAt: null,
+    subscription: null,
+    scheduledPlan: null,
+    scheduledEffectiveAt: null,
+    issuedAt: Date.now(),
+  };
+}
+
+/**
  * Compact licence payload used by banners and the offline cache. Available to
  * every signed-in user because the whole app reacts to it.
  */
 export const licenseSnapshot = query({
   args: {},
   handler: async (ctx) => {
+    const { userId } = await requireAuth(ctx);
+    const profile = await getProfileByUserId(ctx, userId);
+    if (!profile || profile.status !== "active") {
+      // Platform-only Super Admins have no tenant org — same pattern as
+      // settings.getBusinessCapabilities.
+      if (await getPlatformAdmin(ctx, userId)) {
+        return platformAdminLicenseSnapshot();
+      }
+      throw new Error("Forbidden");
+    }
+
     const { organization } = await requireSessionIgnoringLicense(ctx);
     const license = await resolveLicense(ctx, organization);
     const now = Date.now();
