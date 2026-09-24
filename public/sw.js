@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v16";
+const CACHE_NAME = "novend-pos-v17";
 /**
  * Public documents + icons only. Do not precache `/` or `/dashboard`:
  * cache.add follows the auth 302 and stores POS HTML under the marketing URL
@@ -8,6 +8,7 @@ const CACHE_NAME = "novend-pos-v16";
 const PRECACHE = [
   "/login",
   "/download",
+  "/pricing",
   "/privacy",
   "/terms",
   "/docs",
@@ -182,6 +183,10 @@ function isMarketingPathname(pathname) {
   return (
     pathname === "/" ||
     pathname === "/download" ||
+    pathname === "/pricing" ||
+    pathname.startsWith("/pricing/") ||
+    pathname.startsWith("/product") ||
+    pathname.startsWith("/industries") ||
     pathname === "/privacy" ||
     pathname === "/terms" ||
     pathname === "/unauthorized" ||

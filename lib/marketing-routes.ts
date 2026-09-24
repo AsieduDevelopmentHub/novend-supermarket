@@ -4,6 +4,9 @@ export function isMarketingPath(pathname: string | null | undefined): boolean {
   if (pathname === "/") return true;
   return (
     pathname.startsWith("/download") ||
+    pathname.startsWith("/pricing") ||
+    pathname.startsWith("/product") ||
+    pathname.startsWith("/industries") ||
     pathname.startsWith("/docs") ||
     pathname.startsWith("/privacy") ||
     pathname.startsWith("/terms") ||

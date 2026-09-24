@@ -1509,11 +1509,10 @@
   background: transparent;
 }
 
-/* CTA laptop + phone — filled mockup with transparent plate */
+/* CTA laptop + phone — transparent plate on navy panel */
 .landing-cta-devices-frame {
   position: relative;
   width: 100%;
-  max-width: 32rem;
   background: transparent;
 }
 
@@ -1521,7 +1520,8 @@
   position: relative;
   z-index: 1;
   display: block;
-  filter: drop-shadow(0 16px 26px rgba(15, 23, 42, 0.12));
+  /* Soft lift without a light-surface halo that fights the navy panel */
+  filter: drop-shadow(0 28px 40px rgba(0, 0, 0, 0.45));
 }
 
 .landing-pos-frame {
@@ -2952,18 +2952,26 @@ button.landing-feature-frame {
 .landing-monitor {
   display: flex;
   width: 100%;
+  max-width: 42rem;
+  margin-inline: auto;
   flex-direction: column;
   align-items: center;
+}
+
+@media (min-width: 1280px) {
+  .landing-monitor {
+    max-width: 48rem;
+  }
 }
 
 .landing-monitor-bezel {
   width: 100%;
   border-radius: 14px 14px 10px 10px;
   background: #1e293b;
-  padding: 8px 8px 0;
+  padding: 10px 10px 0;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.08) inset,
-    0 18px 40px -18px rgba(15, 23, 42, 0.45);
+    0 24px 50px -18px rgba(15, 23, 42, 0.55);
 }
 
 .landing-monitor-chin {

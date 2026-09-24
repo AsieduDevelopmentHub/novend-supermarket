@@ -79,7 +79,12 @@ function isMarketingOrPublicHref(href: string): boolean {
     href.startsWith("/dpa/") ||
     href.startsWith("/docs") ||
     href === "/download" ||
-    href.startsWith("/download?")
+    href.startsWith("/download?") ||
+    href === "/pricing" ||
+    href.startsWith("/pricing?") ||
+    href.startsWith("/pricing#") ||
+    href.startsWith("/product") ||
+    href.startsWith("/industries")
   );
 }
 

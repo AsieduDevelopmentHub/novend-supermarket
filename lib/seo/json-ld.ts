@@ -33,7 +33,7 @@ export function softwareApplicationJsonLd(): JsonLd {
       "Offline-first Point of Sale for retail, pharmacy, wholesale, and multi-branch businesses. Desktop, Android, and iOS PWA with cloud sync.",
     offers: {
       "@type": "Offer",
-      url: absoluteUrl("/#pricing"),
+      url: absoluteUrl("/pricing"),
       priceCurrency: "GHS",
       availability: "https://schema.org/InStock",
     },

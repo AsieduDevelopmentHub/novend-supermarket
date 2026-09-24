@@ -6,7 +6,7 @@ import { landingCopy } from "@/features/marketing/content";
 
 /**
  * Final CTA — dark conversion panel with laptop + mobile device art.
- * Devices restored per product request (overrides brief “avoid mockups” note).
+ * Device PNG uses a transparent plate so it sits on the navy panel without a nested black card.
  */
 export function LandingCta() {
   const { cta, desktop } = landingCopy;
@@ -21,7 +21,7 @@ export function LandingCta() {
         <div className="landing-cta-panel relative overflow-hidden rounded-[28px] bg-[#071426] text-white sm:rounded-[32px]">
           <div className="landing-cta-glow" aria-hidden />
 
-          <div className="relative z-[1] grid items-end lg:grid-cols-2">
+          <div className="relative z-[1] grid items-end lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
             <div className="px-6 py-12 sm:px-10 sm:py-14 lg:px-12 lg:py-16">
               <h2 className="text-3xl font-semibold tracking-tight text-balance text-white sm:text-4xl">
                 {cta.title}
@@ -51,16 +51,16 @@ export function LandingCta() {
               <p className="mt-8 text-sm text-slate-400">{cta.platformsLine}</p>
             </div>
 
-            <div className="landing-cta-devices relative flex min-h-[260px] items-end justify-center px-4 pt-2 pb-0 sm:px-8 lg:min-h-[380px]">
-              <div className="landing-cta-device-glow" aria-hidden />
-              <div className="landing-cta-devices-frame relative z-[1]">
+            <div className="landing-cta-devices relative flex min-h-[280px] items-end justify-center px-2 pt-4 sm:px-4 lg:min-h-[420px] lg:justify-end lg:pr-2">
+              <div className="landing-cta-devices-frame relative z-[1] w-full max-w-none lg:max-w-[36rem] xl:max-w-[40rem]">
                 <Image
                   src={BRANDING.landingCtaDevices}
                   alt="Novend on laptop and mobile"
                   width={1536}
                   height={1024}
-                  className="landing-cta-devices-img h-auto w-full max-w-lg object-contain"
-                  sizes="(max-width: 1024px) 90vw, 480px"
+                  className="landing-cta-devices-img h-auto w-full object-contain object-bottom"
+                  sizes="(max-width: 1024px) 92vw, 640px"
+                  priority={false}
                 />
               </div>
             </div>

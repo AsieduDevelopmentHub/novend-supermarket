@@ -77,7 +77,7 @@ export const landingCopy = {
       "Novend brings checkout, inventory, branch transfers, and reporting into one dependable system built for everyday retail.",
     primaryCta: "Start free for 14 days",
     secondaryCta: "Explore the product",
-    secondaryHref: "/#product",
+    secondaryHref: "/product",
     proofRow: ["No card required", "Works offline after setup", "Desktop and mobile"],
   },
   proofStrip: {
@@ -106,8 +106,8 @@ export const landingCopy = {
         "Hold and resume carts when a customer needs a moment",
         "Core selling continues offline after setup",
       ],
-      linkLabel: "See checkout in context",
-      linkHref: "/#offline-sync",
+      linkLabel: "See checkout details",
+      linkHref: "/product/pos",
     },
     {
       id: "inventory" as const,
@@ -121,8 +121,8 @@ export const landingCopy = {
         "Transfers with quantity tracking and history",
         "Low-stock visibility before shelves go empty",
       ],
-      linkLabel: "Browse industries",
-      linkHref: "/#industries",
+      linkLabel: "See inventory details",
+      linkHref: "/product/inventory",
     },
     {
       id: "reports" as const,
@@ -136,8 +136,8 @@ export const landingCopy = {
         "Stock valuation tied to your catalogue",
         "CSV exports on every plan; Excel and PDF on Pro and above",
       ],
-      linkLabel: "Compare plans",
-      linkHref: "/#pricing",
+      linkLabel: "See reports details",
+      linkHref: "/product/reports",
     },
   ],
   offlineFlow: {
@@ -549,11 +549,11 @@ export const landingCopy = {
     product: {
       label: "Product",
       items: [
-        { href: "/#product-pos", label: "Point of Sale" },
-        { href: "/#product-inventory", label: "Inventory" },
-        { href: "/#product-inventory", label: "Branches & Transfers" },
-        { href: "/#product-reports", label: "Reports" },
-        { href: "/#offline-sync", label: "Offline & Sync" },
+        { href: "/product/pos", label: "Point of Sale" },
+        { href: "/product/inventory", label: "Inventory" },
+        { href: "/product/branches", label: "Branches & Transfers" },
+        { href: "/product/reports", label: "Reports" },
+        { href: "/product/offline-sync", label: "Offline & Sync" },
       ],
     },
     industries: {
@@ -585,9 +585,9 @@ export const landingCopy = {
     description:
       "Commercial POS for pharmacies, supermarkets, wholesalers, and multi-branch retailers.",
     product: [
-      { href: "/#product-pos", label: "Point of Sale" },
-      { href: "/#product-inventory", label: "Inventory" },
-      { href: "/#offline-sync", label: "Offline & Sync" },
+      { href: "/product/pos", label: "Point of Sale" },
+      { href: "/product/inventory", label: "Inventory" },
+      { href: "/product/offline-sync", label: "Offline & Sync" },
       { href: "/pricing", label: "Pricing" },
       { href: "/download", label: "Download" },
     ],

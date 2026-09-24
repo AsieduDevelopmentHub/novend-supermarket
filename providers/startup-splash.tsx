@@ -50,6 +50,9 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
     pathname === "/login" || pathname === "/signup" || pathname.startsWith("/onboarding");
   const isPublicSitePage =
     pathname === "/download" ||
+    pathname === "/pricing" ||
+    pathname.startsWith("/product") ||
+    pathname.startsWith("/industries") ||
     pathname.startsWith("/docs") ||
     pathname === "/privacy" ||
     pathname === "/terms" ||

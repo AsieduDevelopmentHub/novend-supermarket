@@ -69,7 +69,7 @@ export function LandingIndustries() {
       className="px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-28"
     >
       <div className="mx-auto max-w-[1240px]">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] lg:gap-12">
+        <div className="grid gap-10 lg:grid-cols-1 xl:grid-cols-[minmax(0,0.34fr)_minmax(0,0.66fr)] xl:gap-12">
           <div>
             <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
               {industries.badge}
@@ -82,7 +82,7 @@ export function LandingIndustries() {
             </p>
 
             <div
-              className="mt-8 flex gap-2 overflow-x-auto pb-2 lg:mt-10 lg:flex-col lg:overflow-visible lg:pb-0"
+              className="mt-8 flex gap-2 overflow-x-auto pb-2 xl:mt-10 xl:flex-col xl:overflow-visible xl:pb-0"
               role="tablist"
               aria-label="Select an industry"
             >
@@ -115,10 +115,10 @@ export function LandingIndustries() {
                       }
                     }}
                     className={cn(
-                      "shrink-0 rounded-full px-4 py-2.5 text-left text-sm font-semibold transition-colors lg:w-full lg:rounded-xl lg:border-b lg:border-transparent lg:px-4",
+                      "shrink-0 rounded-full px-4 py-2.5 text-left text-sm font-semibold transition-colors xl:w-full xl:rounded-xl xl:border-b xl:border-transparent xl:px-4",
                       selected
-                        ? "bg-[#0B1220] text-white lg:border-transparent"
-                        : "border border-slate-200 bg-white text-[#0B1220] hover:border-slate-300 lg:border-0 lg:border-b lg:border-[rgba(11,18,32,0.08)] lg:bg-transparent lg:text-[#526174]",
+                        ? "bg-[#0B1220] text-white xl:border-transparent"
+                        : "border border-slate-200 bg-white text-[#0B1220] hover:border-slate-300 xl:border-0 xl:border-b xl:border-[rgba(11,18,32,0.08)] xl:bg-transparent xl:text-[#526174]",
                     )}
                   >
                     {item.pill}
@@ -134,8 +134,8 @@ export function LandingIndustries() {
             aria-labelledby={`industry-tab-${active.id}`}
             className="overflow-hidden rounded-[20px] border border-[rgba(11,18,32,0.10)] bg-white shadow-[0_24px_60px_-40px_rgba(11,18,32,0.35)]"
           >
-            <div className="grid gap-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-              <div className="flex flex-col justify-center p-6 sm:p-8">
+            <div className="grid gap-0 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+              <div className="flex flex-col justify-center p-6 sm:p-8 lg:p-10">
                 <h3 className="text-2xl font-semibold tracking-tight text-[#0B1220]">
                   {active.title}
                 </h3>
@@ -157,8 +157,8 @@ export function LandingIndustries() {
                 </Link>
               </div>
 
-              <div className="flex items-center justify-center bg-[#EFF8FF] p-5 sm:p-7 lg:p-8">
-                <div key={active.id} className="landing-monitor">
+              <div className="flex min-h-[280px] items-center justify-center bg-[#EFF8FF] p-6 sm:min-h-[360px] sm:p-8 lg:min-h-[440px] lg:p-10">
+                <div key={active.id} className="landing-monitor w-full">
                   <div className="landing-monitor-bezel">
                     <ExpandableScreenshot
                       src={screen}
