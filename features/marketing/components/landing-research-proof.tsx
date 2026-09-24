@@ -10,7 +10,7 @@ export function LandingResearchProof() {
 
   return (
     <LandingSection id="proof" tone="pearl" className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-      <div className="mx-auto max-w-3xl text-center">
+      <div data-reveal className="mx-auto max-w-3xl text-center">
         <p className="text-[13px] font-semibold tracking-[0.14em] text-amber-700 uppercase">
           {researchProof.eyebrow}
         </p>

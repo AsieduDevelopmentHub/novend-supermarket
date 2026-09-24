@@ -15,7 +15,10 @@ export function LandingProofStrip() {
   return (
     <section aria-label="Platform strengths" className="bg-white">
       <div className="mx-auto max-w-[1240px] px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
-        <ul className="grid grid-cols-2 overflow-hidden rounded-[20px] border border-[rgba(11,18,32,0.10)] lg:grid-cols-4">
+        <ul
+          data-reveal-stagger
+          className="grid grid-cols-2 overflow-hidden rounded-[20px] border border-[rgba(11,18,32,0.10)] lg:grid-cols-4"
+        >
           {proofStrip.items.map((item, index) => {
             const Icon = ICONS[item.id];
             return (

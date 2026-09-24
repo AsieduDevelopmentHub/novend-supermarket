@@ -48,7 +48,7 @@ export function LandingPricingPreview() {
       className="px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-28"
     >
       <div className="mx-auto max-w-6xl">
-        <header className="mx-auto max-w-2xl text-center">
+        <header data-reveal className="mx-auto max-w-2xl text-center">
           <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
             {copy.eyebrow}
           </p>
@@ -60,7 +60,7 @@ export function LandingPricingPreview() {
           </p>
         </header>
 
-        <div className="mt-8 flex flex-col items-center gap-2">
+        <div data-reveal className="mt-8 flex flex-col items-center gap-2">
           <div
             className="inline-flex rounded-full border border-slate-200 bg-white p-1"
             role="group"
@@ -95,7 +95,7 @@ export function LandingPricingPreview() {
           </div>
         </div>
 
-        <ul className="mt-10 grid gap-4 md:grid-cols-3 md:gap-5">
+        <ul data-reveal-stagger className="mt-10 grid gap-4 md:grid-cols-3 md:gap-5">
           {PREVIEW_PLANS.map((key) => {
             const plan = PLAN_CATALOG[key];
             const price = planPriceDisplay(plan, cycle);

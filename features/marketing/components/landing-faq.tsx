@@ -18,7 +18,7 @@ export function LandingFaq() {
   return (
     <LandingSection id="faq" tone="pearl" className="px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
       <div className="mx-auto max-w-6xl">
-        <header className="mx-auto max-w-2xl text-center">
+        <header data-reveal className="mx-auto max-w-2xl text-center">
           <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
             {faq.badge}
           </p>
@@ -27,7 +27,10 @@ export function LandingFaq() {
           </h2>
         </header>
 
-        <div className="mt-12 grid gap-6 lg:mt-14 lg:grid-cols-[1.35fr_0.9fr] lg:items-start lg:gap-8">
+        <div
+          data-reveal
+          className="mt-12 grid gap-6 lg:mt-14 lg:grid-cols-[1.35fr_0.9fr] lg:items-start lg:gap-8"
+        >
           <Accordion type="single" collapsible className="flex flex-col gap-3">
             {faq.items.map((item, index) => (
               <AccordionItem

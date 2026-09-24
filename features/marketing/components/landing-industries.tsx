@@ -70,7 +70,7 @@ export function LandingIndustries() {
       className="overflow-x-clip px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-28"
     >
       <div className="mx-auto w-full min-w-0 max-w-[1240px]">
-        <header className="max-w-2xl">
+        <header data-reveal className="max-w-2xl">
           <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
             {industries.badge}
           </p>
@@ -83,6 +83,7 @@ export function LandingIndustries() {
         </header>
 
         <div
+          data-reveal
           className="landing-industry-pills mt-8 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mt-10 [&::-webkit-scrollbar]:hidden"
           role="tablist"
           aria-label="Select an industry"
@@ -129,6 +130,7 @@ export function LandingIndustries() {
         </div>
 
         <div
+          data-reveal
           id={`industry-panel-${active.id}`}
           role="tabpanel"
           aria-labelledby={`industry-tab-${active.id}`}

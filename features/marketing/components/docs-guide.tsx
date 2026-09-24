@@ -40,7 +40,7 @@ export function DocsGuide() {
       subtitle={page.subtitle}
       maxWidthClassName="max-w-5xl"
     >
-      <ul className="grid gap-4 sm:grid-cols-3">
+      <ul data-reveal-stagger className="grid gap-4 sm:grid-cols-3">
         {QUICK_LINKS.map((item) => {
           const Icon = item.icon;
           return (
@@ -86,6 +86,7 @@ export function DocsGuide() {
             <article
               key={section.id}
               id={section.id}
+              data-reveal
               className="landing-shadow-card scroll-mt-28 overflow-hidden rounded-3xl border border-slate-200/80 bg-white"
             >
               <div className="grid lg:grid-cols-2">

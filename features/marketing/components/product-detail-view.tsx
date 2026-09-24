@@ -13,7 +13,10 @@ export function ProductDetailView({ page }: { page: ProductPageContent }) {
   return (
     <div className="bg-[#F8FAFC]">
       <section className="border-b border-[rgba(11,18,32,0.08)] bg-gradient-to-b from-[#EFF8FF] to-[#F8FAFC]">
-        <div className="mx-auto grid max-w-[1240px] gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-2 lg:items-center lg:gap-14 lg:px-8 lg:py-20">
+        <div
+          data-reveal
+          className="mx-auto grid max-w-[1240px] gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-2 lg:items-center lg:gap-14 lg:px-8 lg:py-20"
+        >
           <div className="min-w-0">
             <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
               {page.eyebrow}
@@ -58,7 +61,10 @@ export function ProductDetailView({ page }: { page: ProductPageContent }) {
       </section>
 
       <section className="border-b border-[rgba(11,18,32,0.06)] bg-white">
-        <div className="mx-auto grid max-w-[1240px] gap-8 px-4 py-12 sm:px-6 sm:py-14 lg:grid-cols-2 lg:gap-14 lg:px-8">
+        <div
+          data-reveal
+          className="mx-auto grid max-w-[1240px] gap-8 px-4 py-12 sm:px-6 sm:py-14 lg:grid-cols-2 lg:gap-14 lg:px-8"
+        >
           <div>
             <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
               The problem
@@ -78,7 +84,7 @@ export function ProductDetailView({ page }: { page: ProductPageContent }) {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1240px] px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
+      <section data-reveal className="mx-auto max-w-[1240px] px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
         <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
           Workflow
         </p>
@@ -86,7 +92,7 @@ export function ProductDetailView({ page }: { page: ProductPageContent }) {
           How teams use this module day to day
         </h2>
 
-        <ol className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <ol data-reveal-stagger className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {page.workflow.map((step, index) => (
             <li
               key={step.title}
@@ -116,17 +122,19 @@ export function ProductDetailView({ page }: { page: ProductPageContent }) {
           {page.deepDives.map((band, index) => (
             <div
               key={band.title}
+              data-reveal-pair
               className={cn(
                 "grid min-w-0 items-center gap-8 lg:grid-cols-2 lg:gap-14",
                 index % 2 === 1 && "lg:[&>*:first-child]:order-2",
               )}
             >
-              <div className="min-w-0">
+              <div className="min-w-0" data-reveal>
                 <h3 className="text-xl font-semibold tracking-tight text-[#0B1220] sm:text-2xl">
                   {band.title}
                 </h3>
                 <p className="mt-3 text-base leading-relaxed text-[#526174]">{band.detail}</p>
               </div>
+              <div data-reveal>
               <ExpandableScreenshot
                 src={band.image}
                 alt={band.imageAlt}
@@ -141,13 +149,17 @@ export function ProductDetailView({ page }: { page: ProductPageContent }) {
                   sizes="(max-width: 1024px) 92vw, 560px"
                 />
               </ExpandableScreenshot>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
       <section className="bg-white">
-        <div className="mx-auto grid max-w-[1240px] gap-10 px-4 py-14 sm:px-6 sm:py-16 lg:grid-cols-2 lg:px-8">
+        <div
+          data-reveal
+          className="mx-auto grid max-w-[1240px] gap-10 px-4 py-14 sm:px-6 sm:py-16 lg:grid-cols-2 lg:px-8"
+        >
           <div>
             <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
               Capabilities
@@ -185,7 +197,7 @@ export function ProductDetailView({ page }: { page: ProductPageContent }) {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1240px] px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
+      <section data-reveal className="mx-auto max-w-[1240px] px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
         <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">FAQ</p>
         <h2 className="mt-3 text-2xl font-semibold tracking-tight text-[#0B1220] sm:text-3xl">
           Common questions

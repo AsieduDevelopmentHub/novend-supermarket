@@ -13,7 +13,10 @@ export function PricingPageView() {
   return (
     <div className="bg-[#F8FAFC]">
       <section className="border-b border-[rgba(11,18,32,0.08)] bg-gradient-to-b from-[#EFF8FF] to-[#F8FAFC]">
-        <div className="mx-auto max-w-[820px] px-4 py-14 text-center sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+        <div
+          data-reveal
+          className="mx-auto max-w-[820px] px-4 py-14 text-center sm:px-6 sm:py-16 lg:px-8 lg:py-20"
+        >
           <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
             Pricing
           </p>
@@ -43,7 +46,7 @@ export function PricingPageView() {
 
       <LandingPricing />
 
-      <section className="mx-auto max-w-[820px] px-4 py-12 sm:px-6 lg:px-8">
+      <section data-reveal className="mx-auto max-w-[820px] px-4 py-12 sm:px-6 lg:px-8">
         <h2 className="text-xl font-semibold tracking-tight text-[#0B1220]">Billing notes</h2>
         <ul className="mt-4 space-y-3 text-sm leading-relaxed text-[#526174]">
           <li>

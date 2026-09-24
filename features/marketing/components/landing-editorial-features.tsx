@@ -38,8 +38,13 @@ export function LandingEditorialFeatures() {
             tone={tone}
             className="px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-28"
           >
-            <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-14 xl:gap-16">
-              <div className={cn(imageLeft ? "lg:order-2" : "lg:order-1")}>
+            <div
+              className={cn(
+                "mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-14 xl:gap-16",
+              )}
+              data-reveal-pair
+            >
+              <div className={cn(imageLeft ? "lg:order-2" : "lg:order-1")} data-reveal={imageLeft ? "right" : "left"}>
                 <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
                   {block.eyebrow}
                 </p>
@@ -72,7 +77,10 @@ export function LandingEditorialFeatures() {
                 </Link>
               </div>
 
-              <div className={cn(imageLeft ? "lg:order-1" : "lg:order-2")}>
+              <div
+                className={cn(imageLeft ? "lg:order-1" : "lg:order-2")}
+                data-reveal={imageLeft ? "left" : "right"}
+              >
                 <ExpandableScreenshot
                   src={src}
                   alt={alt}

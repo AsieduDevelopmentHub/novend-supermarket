@@ -45,7 +45,10 @@ export function MarketingSitePage({
         </Link>
       ) : null}
 
-      <header className={`${embedded ? "mt-2" : "mt-8"} border-b border-slate-200/80 pb-8`}>
+      <header
+        data-reveal
+        className={`${embedded ? "mt-2" : "mt-8"} border-b border-slate-200/80 pb-8`}
+      >
         <p className="text-primary text-[13px] font-semibold tracking-wide">{badge}</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-balance text-[#111827] sm:text-4xl">
           {title}
@@ -58,7 +61,9 @@ export function MarketingSitePage({
         {meta ? <p className="mt-3 text-sm text-slate-500">{meta}</p> : null}
       </header>
 
-      <div className="py-10 sm:py-12">{children}</div>
+      <div data-reveal className="py-10 sm:py-12">
+        {children}
+      </div>
     </div>
   );
 }

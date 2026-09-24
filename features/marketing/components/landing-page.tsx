@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useDesktopRuntime } from "@/hooks/use-desktop-runtime";
-import { useLandingHeroIntro } from "@/features/marketing/hooks/use-landing-motion";
+import { useLandingHeroIntro, useLandingReveal } from "@/features/marketing/hooks/use-landing-motion";
 import { LandingNav } from "@/features/marketing/components/landing-nav";
 import { LandingHero } from "@/features/marketing/components/landing-hero";
 import { LandingProofStrip } from "@/features/marketing/components/landing-proof-strip";
@@ -27,6 +27,7 @@ export function LandingPage() {
   const pageRef = useRef<HTMLDivElement | null>(null);
 
   useLandingHeroIntro(pageRef);
+  useLandingReveal(pageRef, { scroller: scrollRef });
 
   useEffect(() => {
     if (isDesktop) {

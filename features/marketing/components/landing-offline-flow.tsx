@@ -12,7 +12,7 @@ export function LandingOfflineFlow() {
     >
       <div className="mx-auto max-w-[1240px]">
         <div className="overflow-hidden rounded-none bg-[#071426] px-5 py-16 text-white sm:rounded-[32px] sm:px-10 sm:py-20 lg:px-14 lg:py-24">
-          <header className="mx-auto max-w-2xl text-center">
+          <header data-reveal className="mx-auto max-w-2xl text-center">
             <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
               {offlineFlow.eyebrow}
             </p>
@@ -24,7 +24,10 @@ export function LandingOfflineFlow() {
             </p>
           </header>
 
-          <ol className="relative mt-12 grid gap-4 sm:mt-14 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
+          <ol
+            data-reveal-stagger
+            className="relative mt-12 grid gap-4 sm:mt-14 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5"
+          >
             <div
               className="pointer-events-none absolute top-[2.75rem] right-[8%] left-[8%] hidden h-px bg-gradient-to-r from-transparent via-[#38BDF8]/50 to-transparent lg:block"
               aria-hidden
@@ -48,7 +51,10 @@ export function LandingOfflineFlow() {
             ))}
           </ol>
 
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 rounded-[16px] border border-white/10 bg-[#0A1628]/80 px-4 py-3 text-sm text-slate-300">
+          <div
+            data-reveal
+            className="mt-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 rounded-[16px] border border-white/10 bg-[#0A1628]/80 px-4 py-3 text-sm text-slate-300"
+          >
             <span className="inline-flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
               {offlineFlow.statusStrip.operational}
@@ -59,7 +65,10 @@ export function LandingOfflineFlow() {
             <span>{offlineFlow.statusStrip.connected}</span>
           </div>
 
-          <p className="mx-auto mt-8 max-w-2xl text-center text-sm leading-relaxed text-slate-500">
+          <p
+            data-reveal
+            className="mx-auto mt-8 max-w-2xl text-center text-sm leading-relaxed text-slate-500"
+          >
             {offlineFlow.qualification}
           </p>
         </div>

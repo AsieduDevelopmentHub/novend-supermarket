@@ -20,7 +20,10 @@ export function LandingCta() {
       </div>
 
       <div className="mx-auto max-w-[1240px]">
-        <div className="landing-cta-panel relative overflow-hidden rounded-[28px] bg-[#071426] text-white sm:rounded-[32px]">
+        <div
+          data-reveal
+          className="landing-cta-panel relative overflow-hidden rounded-[28px] bg-[#071426] text-white sm:rounded-[32px]"
+        >
           <div className="landing-cta-glow" aria-hidden />
 
           <div className="relative z-[1] grid items-stretch lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">

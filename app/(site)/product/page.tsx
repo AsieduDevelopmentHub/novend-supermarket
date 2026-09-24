@@ -16,7 +16,7 @@ export default function ProductIndexPage() {
 
   return (
     <div className="mx-auto max-w-[1240px] px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-      <header className="mx-auto max-w-2xl text-center">
+      <header data-reveal className="mx-auto max-w-2xl text-center">
         <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
           Product
         </p>
@@ -29,7 +29,7 @@ export default function ProductIndexPage() {
         </p>
       </header>
 
-      <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <ul data-reveal-stagger className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {pages.map((page) => (
           <li key={page.slug}>
             <Link
