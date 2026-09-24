@@ -149,6 +149,26 @@ describe("offline licence state machine", () => {
     expect(state.access.canWrite).toBe(true);
   });
 
+  it("treats planKey lifetime as perpetual even when subscription.isLifetime was omitted", () => {
+    const state = resolve(
+      JSON.stringify(
+        snapshot({
+          planKey: "lifetime",
+          planName: "Lifetime",
+          subscription: {
+            status: "active",
+            isLifetime: false,
+            expiresAt: null,
+          },
+          issuedAt: NOW - OFFLINE_LICENSE_TTL_MS - 365 * DAY,
+        }),
+      ),
+    );
+    expect(state.kind).toBe("perpetual");
+    expect(state.access.canWrite).toBe(true);
+    expect(state.snapshot?.subscription?.isLifetime).toBe(true);
+  });
+
   it("still enforces suspension for perpetual offline modes", () => {
     const state = resolve(
       JSON.stringify(

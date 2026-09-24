@@ -7,6 +7,8 @@ const KEEP_EXACT = new Set([
   "novend.posPreferences",
   /** Shared-till idle timeout — device preference, not user session data. */
   "novend.idleLock.timeoutMinutes",
+  /** Remembered staff shells for offline resume on shared tills. */
+  "novend.offlineSessions",
   "princellen.terminal.printer",
   "novend-theme",
   "novend-font-size",
@@ -15,6 +17,8 @@ const KEEP_EXACT = new Set([
 function shouldKeepKey(key: string): boolean {
   if (KEEP_EXACT.has(key)) return true;
   if (key.startsWith("novend.device.")) return true;
+  /** Org-scoped lifetime/licence mirror shared by every cashier replica. */
+  if (key.startsWith("novend.license.org.")) return true;
   return false;
 }
 

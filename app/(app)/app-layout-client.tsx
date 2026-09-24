@@ -246,6 +246,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       markOfflineSession({
         userId: next.userId,
         name: next.name,
+        email: next.email ?? undefined,
         role: next.role,
         branchId: next.branchId,
         branchName: next.branchName,

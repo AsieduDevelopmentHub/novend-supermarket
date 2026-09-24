@@ -207,6 +207,15 @@ offline or when Convex is slow — you only need the network again for the
 first login on a new device, after an explicit Sign out, or when the offline
 session expires.
 
+**Shared tills / multiple staff.** Every account that signs in on the device is
+remembered in `novend.offlineSessions`. Login shows an account picker when more
+than one shell is cached (or after Sign out). **Online never auto-resumes** a
+cached shell (Electron reconnect included) — password sign-in or an explicit
+picker tap always wins, and the live Convex `me` profile rebinds Dexie so the
+previous offline cashier cannot stay active. Lifetime (and local-only) licence
+snapshots are mirrored per organization on the device so a second cashier does
+not hit “activation required” offline just because their Dexie replica is new.
+
 Name, phone, catalog, inventory, wholesale, suppliers, customers, expenses,
 sales, returns, reports, analytics, **admin/manager branch switching**, and
 **per-batch expiry edits** all continue on the device. Branch pickers read the

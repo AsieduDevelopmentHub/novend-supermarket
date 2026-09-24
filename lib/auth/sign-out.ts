@@ -4,7 +4,7 @@ import { markExplicitLogout } from "@/lib/auth/logout-flag";
 import { clearUserDeviceState } from "@/lib/auth/clear-user-device-state";
 import { navigateToLoginAfterSignOut } from "@/lib/auth/native-auth-navigation";
 import { clearPlatformOfflineSession } from "@/lib/offline/platform-cache";
-import { deleteBoundOfflineReplica } from "@/lib/offline/db";
+import { unbindOfflineOrganization } from "@/lib/offline/db";
 import { clearOfflineSession } from "@/lib/offline/session";
 import { clearCartDraft } from "@/lib/sales/cart-draft";
 import { clearCustomerDisplaySnapshot } from "@/lib/sales/customer-display";
@@ -17,9 +17,11 @@ type SignOutOptions = {
 };
 
 /**
- * End the session and land on a clean login screen.
- * Await Dexie replica delete *before* navigation so the next user cannot
- * inherit the previous replica, last route, or splash-cover loop.
+ * End the live Convex session and land on a clean login screen.
+ *
+ * Per-user Dexie replicas and the offline session registry stay on device so
+ * other staff (and this user) can resume offline on poor-network tills.
+ * Privacy wipe / factory reset is the path that deletes replicas.
  *
  * Always hard-navigate so the signed-out query string stays on `/login`.
  * Capacitor stays on the hosted origin (SW serves cached `/login` offline).
@@ -30,12 +32,8 @@ export async function signOutAndRedirect({
   clearPresence,
 }: SignOutOptions): Promise<void> {
   markExplicitLogout();
-  try {
-    await deleteBoundOfflineReplica();
-  } catch {
-    /* IndexedDB unavailable */
-  }
   clearOfflineSession();
+  unbindOfflineOrganization();
   clearPlatformOfflineSession();
   clearLastRoute();
   clearCartDraft();

@@ -12,27 +12,44 @@ import {
 describe("redirect-after-login", () => {
   it("resolvePostLoginPath uses live me when available", async () => {
     const convex = {
-      query: vi.fn().mockResolvedValue({ isPlatformAdmin: true }),
+      query: vi.fn().mockResolvedValue({ userId: "u1", isPlatformAdmin: true }),
     };
     await expect(resolvePostLoginPath(convex as never)).resolves.toBe("/platform");
   });
 
   it("resolvePostLoginPath ignores a previous route", async () => {
     const convex = {
-      query: vi.fn().mockResolvedValue({ isPlatformAdmin: false, needsOnboarding: false }),
+      query: vi
+        .fn()
+        .mockResolvedValue({ userId: "u1", isPlatformAdmin: false, needsOnboarding: false }),
     };
     await expect(resolvePostLoginPath(convex as never, "/products")).resolves.toBe("/dashboard");
   });
 
-  it("resolvePostLoginPath falls back to dashboard on failure", async () => {
+  it("resolvePostLoginPath fails closed when live me cannot load", async () => {
     vi.useFakeTimers();
     const convex = {
       query: vi.fn().mockRejectedValue(new Error("offline")),
     };
     const pending = resolvePostLoginPath(convex as never);
+    const expectation = expect(pending).rejects.toThrow(/profile|offline/i);
     await vi.runAllTimersAsync();
-    await expect(pending).resolves.toBe("/dashboard");
+    await expectation;
     vi.useRealTimers();
+  });
+
+  it("resolvePostLoginPath rejects when live email does not match the form", async () => {
+    const convex = {
+      query: vi.fn().mockResolvedValue({
+        userId: "u1",
+        email: "other@shop.com",
+        isPlatformAdmin: false,
+        needsOnboarding: false,
+      }),
+    };
+    await expect(
+      resolvePostLoginPath(convex as never, null, { expectedEmail: "ben@shop.com" }),
+    ).rejects.toThrow(/account mismatch/i);
   });
 
   it("skip splash flag is one-shot", () => {
@@ -103,7 +120,7 @@ describe("redirect-after-login", () => {
   });
 
   it("app shell paints a cached session before Convex me settles", () => {
-    const source = readFileSync(resolve(process.cwd(), "app/(app)/layout.tsx"), "utf8");
+    const source = readFileSync(resolve(process.cwd(), "app/(app)/app-layout-client.tsx"), "utf8");
     expect(source).toContain("allowCachedShell && resolvedCache && !liveReady");
     expect(source).toContain("resolvedCache?.organizationId && resolvedCache.userId");
   });

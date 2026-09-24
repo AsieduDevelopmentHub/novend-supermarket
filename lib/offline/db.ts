@@ -161,19 +161,22 @@ export function unbindOfflineOrganization() {
 }
 
 /**
- * Delete this organization's Dexie replicas (meta, sales, receipts, product
- * image cache, outbox) so the next login cannot inherit another user's data.
- * Does not delete another organization's IndexedDB databases.
+ * Delete only the *current user's* Dexie replica so another cashier's offline
+ * shell on this shared till is preserved. Org-wide wipe belongs on privacy reset.
  */
 export async function deleteBoundOfflineReplica(): Promise<void> {
   const org = readStoredOrganizationId() ?? null;
+  const userId = readStoredUserId() ?? null;
   const names = new Set<string>();
-  if (dbInstance && shouldDeleteOfflineReplicaOnLogout(dbInstance.name, org)) {
-    names.add(dbInstance.name);
+  const currentName = userId && org ? replicaDbName(org, userId) : dbInstance?.name;
+  if (currentName && shouldDeleteOfflineReplicaOnLogout(currentName, org)) {
+    names.add(currentName);
   }
-  if (org) {
-    names.add(replicaDbName(org, readStoredUserId()));
-    names.add(replicaDbName(org));
+  if (dbInstance && shouldDeleteOfflineReplicaOnLogout(dbInstance.name, org)) {
+    // Prefer the bound user replica; never expand to every `org-*` cashier DB.
+    if (!userId || dbInstance.name === replicaDbName(org ?? undefined, userId)) {
+      names.add(dbInstance.name);
+    }
   }
 
   if (dbInstance) {
@@ -183,19 +186,6 @@ export async function deleteBoundOfflineReplica(): Promise<void> {
   boundOrganizationId = null;
   boundUserId = null;
   dbFailed = false;
-
-  if (typeof indexedDB !== "undefined" && typeof indexedDB.databases === "function") {
-    try {
-      const listed = await indexedDB.databases();
-      for (const info of listed) {
-        const name = info.name;
-        if (!name || !shouldDeleteOfflineReplicaOnLogout(name, org)) continue;
-        names.add(name);
-      }
-    } catch {
-      /* Safari / private mode */
-    }
-  }
 
   for (const name of names) {
     try {
@@ -214,6 +204,7 @@ export async function deleteBoundOfflineReplica(): Promise<void> {
     }
   }
 }
+
 
 export function createOfflineDb(organizationId?: string, userId?: string): NovendOfflineDb {
   const db = new Dexie(replicaDbName(organizationId, userId)) as NovendOfflineDb;

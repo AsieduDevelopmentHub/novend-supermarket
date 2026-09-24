@@ -5,6 +5,10 @@
  * connectivity must keep selling. The last confirmed licence is stored in the
  * offline database and re-evaluated locally; see `OFFLINE_LICENSE_TTL_MS` in
  * `convex/shared/licensing.ts` for how long a cached licence stays trusted.
+ *
+ * Lifetime / local-only orgs also mirror the snapshot to an org-scoped
+ * localStorage key so every staff replica on this device can sell offline —
+ * not only the last user who pulled billing.
  */
 import {
   ORGANIZATION_STATUSES,
@@ -33,6 +37,8 @@ export const FIRST_ACTIVATION_REQUIRED =
   "Connect to the internet and activate this installation before recording sales or other activity.";
 export const LICENSE_RECOVERY_REQUIRED =
   "Licence recovery is required. This installation is read-only because its saved licence is missing or damaged. Reconnect to restore access.";
+
+const ORG_LICENSE_PREFIX = "novend.license.org.";
 
 const BLOCKED_ACCESS = (reason: string): CachedLicense["access"] => ({
   state: "expired",
@@ -96,8 +102,21 @@ function parseSnapshot(raw: string): LicenseSnapshot | null {
     }
     if (typeof value.issuedAt !== "number" || !Number.isFinite(value.issuedAt)) return null;
 
+    // Lifetime plans must stay perpetual offline even when an older cache omitted
+    // `subscription.isLifetime` or left subscription null after a billing quirk.
+    const planKey = value.planKey;
+    let subscription = value.subscription as SubscriptionSnapshot | null;
+    if (planKey === "lifetime") {
+      if (!subscription) {
+        subscription = { status: "active", isLifetime: true, expiresAt: null, graceUntil: null };
+      } else if (!subscription.isLifetime) {
+        subscription = { ...subscription, isLifetime: true };
+      }
+    }
+
     return {
       ...(value as unknown as LicenseSnapshot),
+      subscription,
       cloudMode: normalizeCloudMode(value.cloudMode),
       entitlementVersion:
         typeof value.entitlementVersion === "number" ? value.entitlementVersion : 0,
@@ -109,6 +128,47 @@ function parseSnapshot(raw: string): LicenseSnapshot | null {
     };
   } catch {
     return null;
+  }
+}
+
+function orgLicenseStorageKey(organizationId: string) {
+  return `${ORG_LICENSE_PREFIX}${organizationId}`;
+}
+
+/** Shared across staff replicas on this device so lifetime stays sellable offline. */
+export function readOrgLicenseCache(organizationId: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(orgLicenseStorageKey(organizationId));
+  } catch {
+    return null;
+  }
+}
+
+export function writeOrgLicenseCache(organizationId: string, raw: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(orgLicenseStorageKey(organizationId), raw);
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+export function clearOrgLicenseCache(organizationId?: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (organizationId) {
+      window.localStorage.removeItem(orgLicenseStorageKey(organizationId));
+      return;
+    }
+    const keys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(ORG_LICENSE_PREFIX)) keys.push(key);
+    }
+    for (const key of keys) window.localStorage.removeItem(key);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -158,10 +218,12 @@ export function resolveOfflineLicenseState(input: {
 }
 
 export async function saveLicenseSnapshot(snapshot: LicenseSnapshot): Promise<void> {
+  const raw = JSON.stringify(snapshot);
+  writeOrgLicenseCache(snapshot.organizationId, raw);
   const db = await getOfflineDb();
   if (!db) return;
   await db.transaction("rw", db.meta, async () => {
-    await setMeta(db, META_KEYS.licenseSnapshot, JSON.stringify(snapshot));
+    await setMeta(db, META_KEYS.licenseSnapshot, raw);
     await setMeta(db, META_KEYS.licenseActivated, "1");
   });
 }
@@ -169,6 +231,25 @@ export async function saveLicenseSnapshot(snapshot: LicenseSnapshot): Promise<vo
 export async function loadOfflineLicenseState(now = Date.now()): Promise<OfflineLicenseState> {
   const db = await getOfflineDb();
   if (!db) {
+    // Dexie unavailable — still honour a device-level org licence (lifetime tills).
+    if (typeof window !== "undefined") {
+      try {
+        for (let i = 0; i < window.localStorage.length; i += 1) {
+          const key = window.localStorage.key(i);
+          if (!key?.startsWith(ORG_LICENSE_PREFIX)) continue;
+          const raw = window.localStorage.getItem(key);
+          if (!raw) continue;
+          const state = resolveOfflineLicenseState({
+            raw,
+            activatedBefore: true,
+            now,
+          });
+          if (state.snapshot) return state;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
     return {
       kind: "recovery_required",
       snapshot: null,
@@ -180,14 +261,32 @@ export async function loadOfflineLicenseState(now = Date.now()): Promise<Offline
     getMeta(db, META_KEYS.licenseActivated),
     getMeta(db, META_KEYS.profileOrganizationId),
   ]);
+
+  let effectiveRaw = raw;
+  const orgId = organizationId || undefined;
+  if ((!effectiveRaw || !effectiveRaw.trim()) && orgId) {
+    const shared = readOrgLicenseCache(orgId);
+    if (shared) {
+      effectiveRaw = shared;
+      // Seed this staff replica so subsequent offline opens do not look "unactivated".
+      await db.transaction("rw", db.meta, async () => {
+        await setMeta(db, META_KEYS.licenseSnapshot, shared);
+        await setMeta(db, META_KEYS.licenseActivated, "1");
+      });
+    }
+  }
+
   const state = resolveOfflineLicenseState({
-    raw,
-    activatedBefore: activated === "1",
+    raw: effectiveRaw,
+    activatedBefore: activated === "1" || Boolean(effectiveRaw?.trim()),
     establishedOrganizationId: organizationId,
     now,
   });
-  if (state.snapshot && activated !== "1") {
-    await setMeta(db, META_KEYS.licenseActivated, "1");
+  if (state.snapshot) {
+    writeOrgLicenseCache(state.snapshot.organizationId, JSON.stringify(state.snapshot));
+    if (activated !== "1") {
+      await setMeta(db, META_KEYS.licenseActivated, "1");
+    }
   }
   return state;
 }

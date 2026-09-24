@@ -50,6 +50,7 @@ async function bindReplicaFromMe(
   me: {
     userId?: string | null;
     name?: string | null;
+    email?: string | null;
     role?: string | null;
     branchId?: string | null;
     branch?: string | null;
@@ -64,6 +65,7 @@ async function bindReplicaFromMe(
   markOfflineSession({
     userId: String(me.userId),
     name: me.name ?? "User",
+    email: me.email ?? undefined,
     role: me.role,
     branchId: String(me.branchId),
     branchName: me.branch ?? "Branch",
@@ -78,7 +80,7 @@ async function bindReplicaFromMe(
       branchId: String(me.branchId),
       branchName: me.branch ?? "Branch",
       imageUrl: null,
-      email: null,
+      email: me.email ?? null,
       phone: null,
       organizationName: null,
       organizationId: String(me.organizationId),
@@ -90,22 +92,53 @@ async function bindReplicaFromMe(
  * Resolve the post-login route from the live session.
  * Retries briefly while the Convex client picks up the auth token after signIn.
  * Honors a safe `next` return path when provided.
+ *
+ * Always rebinds Dexie + the offline-session hint from live `me` so a previous
+ * offline cashier cannot stay active after a different email signs in.
  */
 export async function resolvePostLoginPath(
   convex: ConvexReactClient,
   next?: string | null,
+  options?: { expectedEmail?: string | null },
 ): Promise<string> {
+  const expectedEmail = options?.expectedEmail?.trim().toLowerCase() || null;
+  let lastError: unknown;
+
   for (let attempt = 0; attempt < RESOLVE_RETRIES; attempt++) {
     try {
       const me = await convex.query(api.users.me, {});
+      if (!me?.userId) {
+        throw new Error(
+          "Could not load your profile after sign-in. Check your connection and try again.",
+        );
+      }
+      if (expectedEmail && me.email) {
+        const liveEmail = String(me.email).trim().toLowerCase();
+        if (liveEmail && liveEmail !== expectedEmail) {
+          throw new Error(
+            "Account mismatch: the signed-in profile is not the email you entered. Sign out and try again.",
+          );
+        }
+      }
       await bindReplicaFromMe(me);
       return resolvePostAuthPath(me, next);
-    } catch {
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : "";
+      if (
+        message.toLowerCase().includes("account mismatch") ||
+        message.toLowerCase().includes("could not load your profile")
+      ) {
+        throw error;
+      }
       if (attempt === RESOLVE_RETRIES - 1) break;
     }
     await wait(RESOLVE_RETRY_MS * (attempt + 1));
   }
-  return resolvePostAuthPath(null, next);
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Could not load your profile after sign-in. Check your connection and try again.");
 }
 
 /**
