@@ -1088,11 +1088,26 @@
 
 /* â€”â€” SaaS marketing landing (product DNA shared with login / app) â€”â€” */
 
-/* Reveal markers are presentational only — content must stay visible without JS. */
+/* Reveal markers stay visible without JS. Motion applies offsets only in GSAP. */
 [data-reveal],
+[data-reveal-pair],
+[data-reveal-stagger],
 [data-depth-panel],
 [data-depth-card] {
   opacity: 1;
+  will-change: auto;
+}
+
+.landing-page-canvas,
+.marketing-forced-light {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page-canvas,
+  .marketing-forced-light {
+    scroll-behavior: auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

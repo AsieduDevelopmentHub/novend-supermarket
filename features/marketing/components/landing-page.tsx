@@ -46,7 +46,7 @@ export function LandingPage() {
   return (
     <div
       ref={scrollRef}
-      className="marketing-forced-light text-foreground landing-page-canvas h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain"
+      className="marketing-forced-light text-foreground landing-page-canvas h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain scroll-smooth"
     >
       <a
         href="#product"

@@ -128,13 +128,16 @@ export function ProductDetailView({ page }: { page: ProductPageContent }) {
                 index % 2 === 1 && "lg:[&>*:first-child]:order-2",
               )}
             >
-              <div className="min-w-0" data-reveal>
+              <div
+                className="min-w-0"
+                data-reveal={index % 2 === 0 ? "left" : "right"}
+              >
                 <h3 className="text-xl font-semibold tracking-tight text-[#0B1220] sm:text-2xl">
                   {band.title}
                 </h3>
                 <p className="mt-3 text-base leading-relaxed text-[#526174]">{band.detail}</p>
               </div>
-              <div data-reveal>
+              <div data-reveal={index % 2 === 0 ? "right" : "left"}>
               <ExpandableScreenshot
                 src={band.image}
                 alt={band.imageAlt}

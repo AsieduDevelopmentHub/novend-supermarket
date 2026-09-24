@@ -25,7 +25,7 @@ export function MarketingSiteShell({ children }: { children: ReactNode }) {
   return (
     <div
       ref={scrollRef}
-      className={`${embedded === false ? "marketing-forced-light bg-[#F8FAFC]" : "bg-background"} text-foreground h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain`}
+      className={`${embedded === false ? "marketing-forced-light bg-[#F8FAFC]" : "bg-background"} text-foreground h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain scroll-smooth`}
     >
       {embedded === false ? <LandingNav scrollRootRef={scrollRef} /> : null}
       <main
