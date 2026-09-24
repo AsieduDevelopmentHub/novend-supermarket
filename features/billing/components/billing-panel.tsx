@@ -276,6 +276,7 @@ export function BillingPanel() {
         billingVisibility={billingVisibility}
         commercialOffer={commercial.offer ?? null}
         canSelfServe={commercial.canSelfServe}
+        organizationName={overview.organizationName}
       />
 
       <section className="space-y-3">

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useAction, useQuery } from "convex/react";
-import { Check, Loader2, Sparkles, WifiOff } from "lucide-react";
+import { useAction, useMutation, useQuery } from "convex/react";
+import { Check, Loader2, Mail, Sparkles, WifiOff } from "lucide-react";
+import { Hardware } from "@novend/hardware";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { VerifyEmailDialog } from "@/features/auth/components/verify-email-dialog";
+import { buildSalesMailto } from "@/features/marketing/content";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
 import { showError } from "@/lib/errors";
@@ -43,6 +46,7 @@ type Props = {
   billingVisibility?: BillingVisibility;
   commercialOffer?: CommercialOfferSnapshot | null;
   canSelfServe?: boolean;
+  organizationName?: string | null;
 };
 
 function formatDate(value: number | null) {
@@ -73,6 +77,15 @@ function actionLabel(
   return `Downgrade to ${plan.name}`;
 }
 
+function offerPriceForCycle(
+  offer: CommercialOfferSnapshot,
+  cycle: Exclude<BillingCycle, "lifetime">,
+): number | null {
+  if (!offer.allowedCycles.includes(cycle)) return null;
+  const amount = cycle === "yearly" ? offer.yearlyPrice : offer.monthlyPrice;
+  return typeof amount === "number" ? amount : null;
+}
+
 function offerAsPlanDefinition(offer: CommercialOfferSnapshot): PlanDefinition {
   const base =
     SELLABLE_PLAN_LIST.find((p) => p.key === offer.basePlanKey) ?? SELLABLE_PLAN_LIST[0]!;
@@ -94,12 +107,46 @@ function offerAsPlanDefinition(offer: CommercialOfferSnapshot): PlanDefinition {
   };
 }
 
+function offerContactMailto(
+  offer: CommercialOfferSnapshot,
+  organizationName?: string | null,
+): string {
+  return buildSalesMailto({
+    subject: `Commercial offer: ${offer.name}`,
+    body: [
+      "Hello Novend,",
+      "",
+      `I am writing about our commercial offer "${offer.name}".`,
+      organizationName ? `Organization: ${organizationName}` : null,
+      `Base plan: ${offer.basePlanKey}`,
+      "",
+      "Please contact me to proceed with payment or activation.",
+      "",
+      "Thank you,",
+      "Full name:",
+      "Phone / WhatsApp:",
+      "Email:",
+    ]
+      .filter((line): line is string => line !== null)
+      .join("\n"),
+  });
+}
+
+async function openMailto(href: string) {
+  try {
+    await Hardware.app.openExternalUrl(href);
+  } catch {
+    window.location.assign(href);
+  }
+}
+
 /**
  * Plan comparison and self-service checkout.
  *
  * Upgrades open a backend-authored proration preview, then Paystack.
  * Downgrades are scheduled for period end with no charge today.
  * When billingVisibility is custom_offer_only, only the assigned offer is shown.
+ * Pay starts Paystack checkout at the offer price; Contact opens a sales mailto.
  */
 export function PlansGrid({
   currentPlanKey,
@@ -112,6 +159,7 @@ export function PlansGrid({
   billingVisibility = "visible",
   commercialOffer = null,
   canSelfServe = true,
+  organizationName = null,
 }: Props) {
   const customOfferOnly = billingVisibility === "custom_offer_only" && Boolean(commercialOffer);
   const [cycle, setCycle] = useState<Exclude<BillingCycle, "lifetime">>(() => {
@@ -132,6 +180,7 @@ export function PlansGrid({
   const [verifyOpen, setVerifyOpen] = useState(false);
   const startCheckout = useAction(api.billing.startCheckout);
   const scheduleDowngrade = useAction(api.billing.scheduleDowngrade);
+  const acceptOffer = useMutation(api.commercialOffers.acceptOffer);
   const me = useQuery(api.users.me, online ? {} : "skip");
 
   const plans: PlanDefinition[] =
@@ -141,27 +190,29 @@ export function PlansGrid({
   const cycleOptions: Array<"monthly" | "yearly"> =
     customOfferOnly && commercialOffer ? commercialOffer.allowedCycles : ["monthly", "yearly"];
 
+  const offerCyclePrice =
+    customOfferOnly && commercialOffer ? offerPriceForCycle(commercialOffer, cycle) : null;
+  const offerCanPay = customOfferOnly && offerCyclePrice !== null && offerCyclePrice > 0;
+
   const dialogCycle: BillingCycle = dialogPlan?.isLifetime ? "lifetime" : cycle;
   const preview = useQuery(
     api.billing.previewPlanChange,
-    dialogPlan && online && !customOfferOnly
-      ? { planKey: dialogPlan.key, cycle: dialogCycle }
-      : "skip",
+    dialogPlan && online ? { planKey: dialogPlan.key, cycle: dialogCycle } : "skip",
   );
 
   async function confirmChange() {
     if (!dialogPlan) return;
-    if (customOfferOnly) {
-      toast.message("Your Novend plan", {
-        description: "Contact Novend to activate or change this commercial plan.",
-      });
-      setDialogPlan(null);
-      return;
-    }
     if (!preview) return;
     const chosenCycle: BillingCycle = dialogPlan.isLifetime ? "lifetime" : cycle;
     setPendingPlan(dialogPlan.key);
     try {
+      if (customOfferOnly && commercialOffer) {
+        try {
+          await acceptOffer({ offerId: commercialOffer.id as Id<"commercialOffers"> });
+        } catch {
+          // Already accepted — checkout may still proceed.
+        }
+      }
       if (preview.intent === "downgrade") {
         const result = await scheduleDowngrade({
           planKey: dialogPlan.key,
@@ -198,17 +249,46 @@ export function PlansGrid({
     }
   }
 
+  function onContactOffer() {
+    if (!commercialOffer) return;
+    void openMailto(offerContactMailto(commercialOffer, organizationName));
+  }
+
   function onChoose(plan: PlanDefinition) {
     if (!online) {
       setOfflineOpen(true);
       return;
     }
-    if (!canSelfServe && !customOfferOnly) return;
+    if (customOfferOnly && commercialOffer) {
+      if (!offerCanPay) {
+        onContactOffer();
+        return;
+      }
+      const kind = planChangeKind(currentPlanKey, plan.key);
+      if (kind === "same" && accessState === "active" && !scheduledChange) {
+        onContactOffer();
+        return;
+      }
+      setDialogPlan(plan);
+      return;
+    }
+    if (!canSelfServe) return;
     const kind = planChangeKind(currentPlanKey, plan.key);
     if (kind === "same" && accessState === "active" && !plan.isLifetime && !scheduledChange) {
       return;
     }
     setDialogPlan(plan);
+  }
+
+  function customOfferLabel(plan: PlanDefinition): string {
+    if (!offerCanPay) return "Contact Novend";
+    const kind = planChangeKind(currentPlanKey, plan.key);
+    if (kind === "same" && accessState === "active" && !scheduledChange) {
+      return "Contact Novend";
+    }
+    if (accessState === "grace" || accessState === "expired") return "Renew now";
+    if (accessState === "trial") return "Pay now";
+    return "Pay now";
   }
 
   return (
@@ -268,6 +348,12 @@ export function PlansGrid({
           const kind = planChangeKind(currentPlanKey, plan.key);
           const isCurrentPaid =
             kind === "same" && accessState === "active" && !plan.isLifetime && !scheduledChange;
+          const catalogDisabled =
+            disabled ||
+            pendingPlan !== null ||
+            isCurrentPaid ||
+            (!canSelfServe && !customOfferOnly);
+          const offerDisabled = disabled || pendingPlan !== null;
           return (
             <PlanCard
               key={customOfferOnly && commercialOffer ? `offer-${commercialOffer.id}` : plan.key}
@@ -280,18 +366,18 @@ export function PlansGrid({
               }
               label={
                 customOfferOnly
-                  ? "Contact Novend"
+                  ? customOfferLabel(plan)
                   : actionLabel(plan, currentPlanKey, accessState, scheduledChange)
               }
               pending={pendingPlan === plan.key}
-              disabled={
-                disabled ||
-                pendingPlan !== null ||
-                isCurrentPaid ||
-                (!canSelfServe && !customOfferOnly)
-              }
+              disabled={customOfferOnly ? offerDisabled : catalogDisabled}
               onlinePaymentsEnabled={onlinePaymentsEnabled || customOfferOnly}
               onChoose={() => onChoose(plan)}
+              secondaryAction={
+                customOfferOnly && commercialOffer && offerCanPay
+                  ? { label: "Contact Novend", onClick: onContactOffer }
+                  : null
+              }
             />
           );
         })}
@@ -309,18 +395,16 @@ export function PlansGrid({
         .
       </p>
 
-      {!customOfferOnly ? (
-        <PlanChangeDialog
-          open={Boolean(dialogPlan)}
-          preview={preview ?? null}
-          loading={Boolean(dialogPlan && preview === undefined)}
-          pending={pendingPlan !== null}
-          onOpenChange={(open) => {
-            if (!open) setDialogPlan(null);
-          }}
-          onConfirm={() => void confirmChange()}
-        />
-      ) : null}
+      <PlanChangeDialog
+        open={Boolean(dialogPlan)}
+        preview={preview ?? null}
+        loading={Boolean(dialogPlan && preview === undefined)}
+        pending={pendingPlan !== null}
+        onOpenChange={(open) => {
+          if (!open) setDialogPlan(null);
+        }}
+        onConfirm={() => void confirmChange()}
+      />
 
       <Dialog open={offlineOpen} onOpenChange={setOfflineOpen}>
         <DialogContent>
@@ -379,6 +463,7 @@ function PlanCard({
   disabled,
   onlinePaymentsEnabled,
   onChoose,
+  secondaryAction = null,
 }: {
   plan: PlanDefinition;
   cycle: Exclude<BillingCycle, "lifetime">;
@@ -390,6 +475,7 @@ function PlanCard({
   disabled: boolean;
   onlinePaymentsEnabled: boolean;
   onChoose: () => void;
+  secondaryAction?: { label: string; onClick: () => void } | null;
 }) {
   const { amount, suffix } = planPrice(plan, cycle);
 
@@ -443,21 +529,35 @@ function PlanCard({
           ))}
         </ul>
 
-        <Button
-          className="h-auto min-h-11 w-full px-3 whitespace-normal"
-          variant={isCurrent || !plan.featured ? "outline" : "default"}
-          disabled={disabled || !onlinePaymentsEnabled}
-          onClick={onChoose}
-        >
-          {pending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" aria-hidden />
-              Working…
-            </>
-          ) : (
-            label
-          )}
-        </Button>
+        <div className="space-y-2">
+          <Button
+            className="h-auto min-h-11 w-full px-3 whitespace-normal"
+            variant={isCurrent || !plan.featured ? "outline" : "default"}
+            disabled={disabled || !onlinePaymentsEnabled}
+            onClick={onChoose}
+          >
+            {pending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                Working…
+              </>
+            ) : (
+              label
+            )}
+          </Button>
+          {secondaryAction ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-muted-foreground h-auto min-h-10 w-full px-3"
+              disabled={disabled}
+              onClick={secondaryAction.onClick}
+            >
+              <Mail className="mr-2 h-4 w-4 shrink-0" aria-hidden />
+              {secondaryAction.label}
+            </Button>
+          ) : null}
+        </div>
 
         {!onlinePaymentsEnabled && plan.selfServe && !disabled ? (
           <p className="text-muted-foreground text-xs">
