@@ -17,6 +17,7 @@ import { useForceClientShell } from "@/hooks/use-force-client-shell";
 import { usePermissions } from "@/hooks/use-permissions";
 import { isPlatformAppPath, pathAllowedForRole } from "@/config/navigation";
 import { AccessDenied } from "@/components/feedback/access-denied";
+import { isMarketingPath } from "@/lib/marketing-routes";
 import { resolveOfflineView } from "@/providers/offline-views";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 
@@ -64,28 +65,7 @@ function isInternalAppHref(href: string | null): href is string {
 }
 
 function isMarketingOrPublicHref(href: string): boolean {
-  return (
-    href === "/privacy" ||
-    href.startsWith("/privacy/") ||
-    href === "/terms" ||
-    href.startsWith("/terms/") ||
-    href === "/refund" ||
-    href.startsWith("/refund/") ||
-    href === "/cookies" ||
-    href.startsWith("/cookies/") ||
-    href === "/aup" ||
-    href.startsWith("/aup/") ||
-    href === "/dpa" ||
-    href.startsWith("/dpa/") ||
-    href.startsWith("/docs") ||
-    href === "/download" ||
-    href.startsWith("/download?") ||
-    href === "/pricing" ||
-    href.startsWith("/pricing?") ||
-    href.startsWith("/pricing#") ||
-    href.startsWith("/product") ||
-    href.startsWith("/industries")
-  );
+  return isMarketingPath(href);
 }
 
 function isAuthOrApiHref(href: string): boolean {

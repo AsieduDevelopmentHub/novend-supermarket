@@ -22,6 +22,13 @@ const isPublicRoute = createRouteMatcher([
   "/api/auth(.*)",
   "/docs(.*)",
   "/download",
+  // Marketing product/pricing (do not use `/product(.*)` — that also matches `/products`).
+  "/pricing",
+  "/pricing/(.*)",
+  "/product",
+  "/product/(.*)",
+  "/industries",
+  "/industries/(.*)",
   "/privacy",
   "/terms",
   "/refund",

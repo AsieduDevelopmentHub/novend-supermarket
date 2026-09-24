@@ -6,6 +6,7 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 import { AppSplash } from "@/features/auth/components/app-splash";
 import { consumeSkipStartupSplash } from "@/lib/auth/redirect-after-login";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { isMarketingPath } from "@/lib/marketing-routes";
 import { hasOfflineSession } from "@/lib/offline/session";
 
 /** Brand beat — keep short so POS never feels blocked on first paint. */
@@ -45,23 +46,9 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
   const [visible, setVisible] = useState(true);
   const [offlineReady, setOfflineReady] = useState(false);
   const [forcedReady, setForcedReady] = useState(false);
-  const isMarketingLanding = pathname === "/";
   const isAuthRoute =
     pathname === "/login" || pathname === "/signup" || pathname.startsWith("/onboarding");
-  const isPublicSitePage =
-    pathname === "/download" ||
-    pathname === "/pricing" ||
-    pathname.startsWith("/product") ||
-    pathname.startsWith("/industries") ||
-    pathname.startsWith("/docs") ||
-    pathname === "/privacy" ||
-    pathname === "/terms" ||
-    pathname === "/refund" ||
-    pathname === "/cookies" ||
-    pathname === "/aup" ||
-    pathname === "/dpa" ||
-    pathname === "/unauthorized";
-  const skipSplash = skipFromLogin || isMarketingLanding || isAuthRoute || isPublicSitePage;
+  const skipSplash = skipFromLogin || isAuthRoute || isMarketingPath(pathname);
 
   useEffect(() => {
     if (isAuthRoute) return;

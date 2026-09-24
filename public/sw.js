@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v17";
+const CACHE_NAME = "novend-pos-v18";
 /**
  * Public documents + icons only. Do not precache `/` or `/dashboard`:
  * cache.add follows the auth 302 and stores POS HTML under the marketing URL
@@ -9,6 +9,7 @@ const PRECACHE = [
   "/login",
   "/download",
   "/pricing",
+  "/product",
   "/privacy",
   "/terms",
   "/docs",
@@ -179,18 +180,19 @@ function cachePut(request, response) {
  */
 const APP_SHELL_FALLBACKS = ["/dashboard", "/sales", "/platform"];
 
+/** Segment-bounded — never treat authenticated `/products` as marketing `/product`. */
 function isMarketingPathname(pathname) {
+  const exactOrChild = (base) => pathname === base || pathname.startsWith(`${base}/`);
   return (
     pathname === "/" ||
-    pathname === "/download" ||
-    pathname === "/pricing" ||
-    pathname.startsWith("/pricing/") ||
-    pathname.startsWith("/product") ||
-    pathname.startsWith("/industries") ||
+    exactOrChild("/download") ||
+    exactOrChild("/pricing") ||
+    exactOrChild("/product") ||
+    exactOrChild("/industries") ||
     pathname === "/privacy" ||
     pathname === "/terms" ||
     pathname === "/unauthorized" ||
-    pathname.startsWith("/docs")
+    exactOrChild("/docs")
   );
 }
 

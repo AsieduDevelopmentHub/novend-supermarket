@@ -202,19 +202,22 @@ payment network:
 
 After the first successful online sign-in, this device keeps an **offline
 session** (local shell profile + Dexie replica) for up to **30 days**. Closing
-the Cap app does **not** sign you out. Cold start resumes from cache when
-offline or when Convex is slow — you only need the network again for the
-first login on a new device, after an explicit Sign out, or when the offline
-session expires.
+the Cap app does **not** sign you out. Cold start can resume an already-open
+shell from cache when offline or when Convex is slow — you still need email and
+password on `/login` after Sign out (or when no live auth cookie exists). The
+network is required for the first login on a new device, after an explicit Sign
+out, or when the offline session expires.
 
 **Shared tills / multiple staff.** Every account that signs in on the device is
-remembered in `novend.offlineSessions`. Login shows an account picker when more
-than one shell is cached (or after Sign out). **Online never auto-resumes** a
-cached shell (Electron reconnect included) — password sign-in or an explicit
-picker tap always wins, and the live Convex `me` profile rebinds Dexie so the
-previous offline cashier cannot stay active. Lifetime (and local-only) licence
-snapshots are mirrored per organization on the device so a second cashier does
-not hit “activation required” offline just because their Dexie replica is new.
+remembered in `novend.offlineSessions` so Dexie replicas and licence snapshots
+stay available per user. **Login never offers a passwordless account picker** —
+shared devices must always use email + password so one staff member cannot open
+another’s workspace with a single tap. Online never auto-resumes a cached shell
+(Electron reconnect included). After password sign-in, the live Convex `me`
+profile rebinds Dexie so the previous offline cashier cannot stay active.
+Lifetime (and local-only) licence snapshots are mirrored per organization on the
+device so a second cashier does not hit “activation required” offline just
+because their Dexie replica is new.
 
 Name, phone, catalog, inventory, wholesale, suppliers, customers, expenses,
 sales, returns, reports, analytics, **admin/manager branch switching**, and

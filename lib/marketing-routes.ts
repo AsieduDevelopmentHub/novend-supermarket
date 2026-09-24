@@ -1,18 +1,34 @@
-/** Public marketing surfaces that always render in light mode. */
+/**
+ * Public marketing surfaces (site chrome, light theme, SW shell policy).
+ * Segment-bounded so `/product` never matches the authenticated `/products` catalog.
+ */
+function pathOnly(hrefOrPath: string): string {
+  const path = hrefOrPath.split(/[?#]/, 1)[0] ?? hrefOrPath;
+  return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+}
+
+function exactOrChild(pathname: string, base: string): boolean {
+  return pathname === base || pathname.startsWith(`${base}/`);
+}
+
+/** True for public marketing paths. Never matches authenticated `/products`. */
 export function isMarketingPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
-  if (pathname === "/") return true;
+  const path = pathOnly(pathname);
+  if (path === "/") return true;
+
   return (
-    pathname.startsWith("/download") ||
-    pathname.startsWith("/pricing") ||
-    pathname.startsWith("/product") ||
-    pathname.startsWith("/industries") ||
-    pathname.startsWith("/docs") ||
-    pathname.startsWith("/privacy") ||
-    pathname.startsWith("/terms") ||
-    pathname.startsWith("/refund") ||
-    pathname.startsWith("/cookies") ||
-    pathname.startsWith("/aup") ||
-    pathname.startsWith("/dpa")
+    exactOrChild(path, "/download") ||
+    exactOrChild(path, "/pricing") ||
+    exactOrChild(path, "/product") ||
+    exactOrChild(path, "/industries") ||
+    exactOrChild(path, "/docs") ||
+    exactOrChild(path, "/privacy") ||
+    exactOrChild(path, "/terms") ||
+    exactOrChild(path, "/refund") ||
+    exactOrChild(path, "/cookies") ||
+    exactOrChild(path, "/aup") ||
+    exactOrChild(path, "/dpa") ||
+    path === "/unauthorized"
   );
 }

@@ -56,11 +56,16 @@ describe("service worker navigation safety", () => {
   });
 
   it("does not precache gated app routes that 302 to login", () => {
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v17"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v18"');
     expect(sw).toContain("/branding/logo_horizontal.png");
     expect(sw).toContain("/docs/releases");
+    expect(sw).toContain('"/pricing"');
+    expect(sw).toContain('"/product"');
+    expect(sw).toContain('exactOrChild("/product")');
     expect(sw).not.toMatch(/PRECACHE = \[[^\]]*\/dashboard/);
     expect(sw).not.toMatch(/PRECACHE = \[[^\]]*\"\/\"/);
+    // Must not use startsWith("/product") — that also matches /products.
+    expect(sw).not.toMatch(/pathname\.startsWith\("\/product"\)/);
   });
 });
 

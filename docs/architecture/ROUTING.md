@@ -1,6 +1,6 @@
 # Routing
 
-Version: 1.3.6
+Version: 1.3.7
 
 ## Public vs authenticated entry
 
@@ -11,6 +11,8 @@ Version: 1.3.6
 /forgot-password     Password reset request (generic success; no email enumeration)
 /reset-password      Complete reset with a single-use token
 /download            Public app downloads (live release feed)
+/pricing             Public plan comparison (no account)
+/product, /product/* Public product marketing pages (not `/products` catalog)
 /docs, /privacy…     Public marketing site pages
 /(app)/*             Authenticated POS shell
 ```
@@ -46,6 +48,9 @@ present. See `docs/architecture/DESKTOP_PLATFORM.md`.
 ```text
 app/page.tsx                 # Public marketing landing
 app/(site)/download
+app/(site)/pricing
+app/(site)/product
+app/(site)/product/[slug]
 app/(site)/docs
 app/(site)/docs/help
 app/(site)/docs/releases
@@ -82,8 +87,9 @@ Navigation: `config/navigation.ts` (permission-aware). Marketing copy:
 
 - Unauthenticated on protected routes → `/login`
 - Unauthenticated may access `/`, `/login`, `/signup`, `/forgot-password`,
-  `/reset-password`, `/download`, `/docs(.*)`, `/privacy`, `/terms`, `/refund`,
-  `/cookies`, `/aup`, and `/dpa`
+  `/reset-password`, `/download`, `/pricing`, `/product`, `/product/*`,
+  `/docs(.*)`, `/privacy`, `/terms`, `/refund`, `/cookies`, `/aup`, and `/dpa`
+  (`/products` remains authenticated catalog)
 - Authenticated on `/` (app host / unsplit) → `/platform`, `/onboarding`, or
   `/dashboard`
 - Authenticated on `/` (dedicated marketing host) → landing stays

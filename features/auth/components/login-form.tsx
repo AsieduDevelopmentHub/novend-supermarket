@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { SERVER_UNREACHABLE_MESSAGE, showError } from "@/lib/errors";
 import Image from "next/image";
-import { ArrowLeft, Mail, Users } from "lucide-react";
+import { ArrowLeft, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -21,15 +21,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
 import { navigateAfterLogin, resolvePostLoginPath } from "@/lib/auth/redirect-after-login";
 import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag";
-import { useConnectivity } from "@/hooks/use-connectivity";
-import {
-  activateOfflineSession,
-  clearOfflineSession,
-  hasOfflineSession,
-  listOfflineSessions,
-  type OfflineSessionHint,
-} from "@/lib/offline/session";
-import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
+import { clearOfflineSession } from "@/lib/offline/session";
 
 const REMEMBER_KEY = "novend.login.rememberEmail";
 const LOGIN_DEVICE_KEY = "novend.login.deviceKey";
@@ -78,7 +70,6 @@ export function LoginForm({ compact = false }: { compact?: boolean }) {
 function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const { signIn } = useAuthActions();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const online = useConnectivity();
   const convex = useConvex();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -91,7 +82,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const [rememberMe, setRememberMe] = useState(false);
   const [pending, setPending] = useState(false);
   const [openingWorkspace, setOpeningWorkspace] = useState(false);
-  const [cachedAccounts, setCachedAccounts] = useState<OfflineSessionHint[]>([]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -104,7 +94,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       } catch {
         /* ignore storage errors */
       }
-      setCachedAccounts(listOfflineSessions());
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -113,46 +102,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     if (!fromBoot || path.includes("fromBoot=")) return path;
     return `${path}${path.includes("?") ? "&" : "?"}fromBoot=1`;
   }
-
-  function resumeCachedAccount(userId: string) {
-    if (redirectingRef.current || pending) return;
-    const activated = activateOfflineSession(userId);
-    if (!activated) {
-      setCachedAccounts(listOfflineSessions());
-      toast.error("That offline account is no longer available on this device.");
-      return;
-    }
-    consumeExplicitLogout();
-    redirectingRef.current = true;
-    setOpeningWorkspace(true);
-    navigateAfterLogin(
-      withBootMarker(
-        resolvePostAuthPath({
-          isPlatformAdmin: false,
-          needsOnboarding: false,
-          needsProfile: false,
-        }),
-      ),
-      router,
-    );
-  }
-
-  // Cached session resume is offline-only. When the network is back (Electron
-  // reconnect, Cap online, browser), never auto-open the previous offline shell —
-  // that stole password logins into the wrong account. Show the picker instead.
-  useEffect(() => {
-    if (redirectingRef.current || pending || isAuthenticated) return;
-    if (signedOut) return;
-    if (!hasOfflineSession()) return;
-
-    const accounts = listOfflineSessions();
-    setCachedAccounts(accounts);
-    if (online) return;
-    if (accounts.length !== 1) return;
-
-    resumeCachedAccount(accounts[0].userId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- resume once per gate change
-  }, [online, isAuthenticated, pending, router, signedOut]);
 
   // Already signed in without submitting credentials (live Convex cookie).
   // Keep fromBoot so cold start can restore the last in-app route after shell mount.
@@ -172,7 +121,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         } catch {
           redirectingRef.current = false;
           setOpeningWorkspace(false);
-          setCachedAccounts(listOfflineSessions());
           toast.error("Could not open your account. Sign in again.");
         }
       })();
@@ -221,7 +169,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     } catch (error) {
       redirectingRef.current = false;
       setOpeningWorkspace(false);
-      setCachedAccounts(listOfflineSessions());
       const raw = error instanceof Error ? error.message : "";
       const lower = raw.toLowerCase();
       if (lower.includes("auth provider discovery")) {
@@ -254,54 +201,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       </Link>
 
       <FormHeader compact={compact} />
-
-      {cachedAccounts.length > 0 ? (
-        <div className="mb-6 space-y-3">
-          <div className="flex items-center gap-2">
-            <Users className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden />
-            <p className="text-foreground text-sm font-medium">
-              {online ? "Continue on this device" : "Continue offline"}
-            </p>
-          </div>
-          <ul className="space-y-2">
-            {cachedAccounts.map((account) => (
-              <li key={account.userId}>
-                <button
-                  type="button"
-                  onClick={() => resumeCachedAccount(account.userId)}
-                  className="border-border bg-muted/40 hover:bg-muted/70 focus-visible:ring-ring flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="text-foreground block truncate text-sm font-medium">
-                      {account.name}
-                    </span>
-                    <span className="text-muted-foreground block truncate text-xs capitalize">
-                      {account.role}
-                      {account.email ? ` · ${account.email}` : ""}
-                      {account.branchName ? ` · ${account.branchName}` : ""}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="text-muted-foreground text-xs leading-relaxed">
-            {online
-              ? "Or sign in with email below to open another account."
-              : "No internet needed for accounts already used on this device."}
-          </p>
-          <div className="border-border relative py-1">
-            <div className="absolute inset-0 flex items-center" aria-hidden>
-              <div className="border-border w-full border-t" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-background text-muted-foreground px-2 text-xs">
-                Sign in with password
-              </span>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       <form className="space-y-4" onSubmit={onSubmit} noValidate>
         <div className="space-y-2">
