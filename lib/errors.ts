@@ -126,7 +126,13 @@ export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): strin
     lower.includes("incorrect password") ||
     lower.includes("wrong password")
   ) {
+    if (lower.includes("invalidaccountid")) {
+      return "No account found for that email.";
+    }
     return "Incorrect email or password.";
+  }
+  if (/already exists/i.test(lower) && (lower.includes("account") || lower.includes("email"))) {
+    return "An account with this email already exists. Use a different email, or reset the password for the existing user.";
   }
   if (
     lower.includes("unauthenticated") ||
@@ -171,6 +177,12 @@ export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): strin
   if (/^[A-Z][A-Za-z0-9_]+$/.test(message) && message.length <= 48) {
     if (/TOO_MANY|RATE_LIMIT|THROTTL|LOCKED/i.test(message)) {
       return "Too many attempts. Please wait a moment and try again.";
+    }
+    if (/INVALIDACCOUNTID/i.test(message)) {
+      return "No account found for that email.";
+    }
+    if (/INVALIDSECRET/i.test(message)) {
+      return "Incorrect email or password.";
     }
     return fallback;
   }

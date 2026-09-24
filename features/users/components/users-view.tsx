@@ -39,11 +39,12 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import {
-  persistBusinessWrite,
-  queuedSaveMessage,
-  queueCreateUser,
-} from "@/lib/offline/replica-writes";
+  PASSWORD_POLICY_MESSAGE,
+  passwordMeetsPolicy,
+} from "@/convex/shared/passwordPolicy";
+import { PasswordStrengthMeter } from "@/features/auth/components/password-strength";
 import { formatPresence } from "@/lib/date";
+import { notifyReplicaChanged } from "@/lib/offline/replica-events";
 import { deactivateAccountBlockReason } from "@/convex/shared/accountStatus";
 import type { AppRole } from "@/config/navigation";
 import { StaffMonthRoster } from "./staff-month-roster";
@@ -164,34 +165,31 @@ export function UsersView() {
 
   async function onCreate(event: FormEvent) {
     event.preventDefault();
+    if (!online) {
+      toast.error("Connect to the internet to create user accounts.");
+      return;
+    }
     if (!formBranchId) {
       toast.error("Select a branch");
       return;
     }
+    if (!passwordMeetsPolicy(password)) {
+      toast.error(PASSWORD_POLICY_MESSAGE);
+      return;
+    }
     setPending(true);
     try {
-      const kind = await persistBusinessWrite({
-        online,
-        remote: () =>
-          createUserAccount({
-            email,
-            password,
-            name,
-            role: isManager ? "cashier" : role,
-            branchId: formBranchId as Id<"branches">,
-            phone: phone || undefined,
-          }),
-        local: () =>
-          queueCreateUser({
-            email,
-            password,
-            name,
-            role: isManager ? "cashier" : role,
-            branchId: formBranchId,
-            phone: phone || undefined,
-          }),
+      // Online-only: never queue plaintext passwords into the Dexie outbox.
+      await createUserAccount({
+        email,
+        password,
+        name,
+        role: isManager ? "cashier" : role,
+        branchId: formBranchId as Id<"branches">,
+        phone: phone || undefined,
       });
-      toast.success(queuedSaveMessage(kind, "User created. Share the login credentials securely."));
+      notifyReplicaChanged({ pull: true });
+      toast.success("User created. Share the login credentials securely.");
       setCreating(false);
       setPassword("");
     } catch (error) {
@@ -511,8 +509,10 @@ export function UsersView() {
                 minLength={12}
                 autoComplete="new-password"
               />
+              <PasswordStrengthMeter password={password} compact />
               <p className="text-muted-foreground text-xs">
                 Share this password securely. The employee signs in on /login — no self-signup.
+                Creating accounts requires an internet connection.
               </p>
             </div>
             <div className="space-y-2">

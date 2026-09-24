@@ -637,6 +637,19 @@ export const staffCapacity = query({
   },
 });
 
+/** Password login row for an email, if any (providerAccountId is the email). */
+export const findPasswordAccountByEmail = internalQuery({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("authAccounts")
+      .withIndex("providerAndAccountId", (q) =>
+        q.eq("provider", "password").eq("providerAccountId", args.email),
+      )
+      .unique();
+  },
+});
+
 export const insertProfileForUser = internalMutation({
   args: {
     userId: v.id("users"),
@@ -650,7 +663,16 @@ export const insertProfileForUser = internalMutation({
   },
   handler: async (ctx, args) => {
     const existing = await getProfileByUserId(ctx, args.userId);
-    if (existing) return existing._id;
+    if (existing) {
+      if (existing.organizationId === args.organizationId) {
+        throw new Error(
+          "An account with this email already exists in your organization. Open Users to manage it, or use a different email.",
+        );
+      }
+      throw new Error(
+        "This email is already registered to another business. Use a different email.",
+      );
+    }
 
     const branch = await ctx.db.get(args.branchId);
     if (!branch) throw new Error("Invalid branch");
@@ -692,6 +714,8 @@ export const insertProfileForUser = internalMutation({
  * Create a password account + profile.
  * Only administrators (any role/branch) or managers (cashiers in own branch).
  * Initial administrator must be provisioned via `bootstrapAdministrator`.
+ *
+ * Must run online — login passwords are never queued in the offline outbox.
  */
 export const createUserAccount = action({
   args: {
@@ -751,11 +775,71 @@ export const createUserAccount = action({
       throw new Error("Invalid branch");
     }
 
-    const created = await createAccount(ctx, {
-      provider: "password",
-      account: { id: email, secret: password },
-      profile: { email, name },
+    const existingAccount = await ctx.runQuery(internal.users.findPasswordAccountByEmail, {
+      email,
     });
+    if (existingAccount) {
+      // Complete an orphan login (auth row without a staff profile), or refuse a
+      // real duplicate. Never create a second password account for the same email.
+      try {
+        const retrieved = await retrieveAccount(ctx, {
+          provider: "password",
+          account: { id: email, secret: password },
+        });
+        if (!retrieved.user?._id) {
+          throw new Error(
+            "An account with this email already exists. Use a different email, or reset the password for the existing user.",
+          );
+        }
+        await ctx.runMutation(internal.users.insertProfileForUser, {
+          userId: retrieved.user._id,
+          name,
+          role,
+          branchId: assignedBranchId,
+          phone: args.phone,
+          actorId,
+          organizationId,
+        });
+        return { userId: retrieved.user._id };
+      } catch (error) {
+        const raw = error instanceof Error ? error.message : String(error ?? "");
+        if (
+          /already exists/i.test(raw) ||
+          /another business/i.test(raw) ||
+          /your organization/i.test(raw)
+        ) {
+          throw error instanceof Error
+            ? error
+            : new Error(
+                "An account with this email already exists. Use a different email, or reset the password for the existing user.",
+              );
+        }
+        throw new Error(
+          "An account with this email already exists. Use a different email, or reset the password for the existing user.",
+        );
+      }
+    }
+
+    let created: Awaited<ReturnType<typeof createAccount>>;
+    try {
+      created = await createAccount(ctx, {
+        provider: "password",
+        account: { id: email, secret: password },
+        profile: { email, name },
+      });
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : String(error ?? "");
+      if (/already exists/i.test(raw)) {
+        throw new Error(
+          "An account with this email already exists. Use a different email, or reset the password for the existing user.",
+        );
+      }
+      throw error;
+    }
+
+    if (!created.user?._id) {
+      throw new Error("Could not create the login account. Try a different email.");
+    }
 
     await ctx.runMutation(internal.users.insertProfileForUser, {
       userId: created.user._id,

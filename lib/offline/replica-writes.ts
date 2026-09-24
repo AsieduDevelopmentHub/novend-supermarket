@@ -380,31 +380,16 @@ export async function queueUpdateProfile(payload: { name?: string; phone?: strin
   await enqueueOutbox(db, "update_profile", payload);
 }
 
-export async function queueCreateUser(payload: Omit<CreateUserPayload, "localId">) {
+/**
+ * Staff logins require Convex Auth. Passwords must never sit in the Dexie outbox
+ * (see docs/architecture/OFFLINE_SYNC.md — "Creating a new login").
+ * Call `users.createUserAccount` while online instead.
+ */
+export async function queueCreateUser(_payload: Omit<CreateUserPayload, "localId">) {
   await assertLocalWriteAllowed();
-  await assertLocalCapacity("users");
-  const db = await getOfflineDb();
-  if (!db) throw new Error("Local storage is not available on this device.");
-  const localId = newClientId("local");
-  const branch = await db.branches.get(payload.branchId);
-  await db.users.put({
-    id: localId,
-    userId: localId,
-    name: payload.name,
-    role: payload.role,
-    branch: branch?.name ?? "Branch",
-    branchId: payload.branchId,
-    phone: payload.phone ?? null,
-    status: "active",
-    email: payload.email,
-    imageUrl: null,
-    presence: "offline",
-    lastSeenAt: null,
-    lastLoginAt: null,
-    lastDevice: null,
-  });
-  await enqueueOutbox(db, "create_user", { ...payload, localId } satisfies CreateUserPayload);
-  return localId;
+  throw new Error(
+    "Connect to the internet to create user accounts. Login passwords cannot be saved for offline sync.",
+  );
 }
 
 export async function queueCreateCategory(name: string, options?: { notify?: boolean }) {

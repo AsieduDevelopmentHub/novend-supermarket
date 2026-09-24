@@ -32,4 +32,11 @@ describe("auth errors", () => {
   it("maps invalid credentials distinctly from rate limits", () => {
     expect(toUserMessage(new Error("InvalidSecret"))).toMatch(/Incorrect email or password/i);
   });
+
+  it("maps missing accounts and duplicate emails clearly", () => {
+    expect(toUserMessage(new Error("InvalidAccountId"))).toMatch(/No account found/i);
+    expect(toUserMessage(new Error("Account user@example.com already exists"))).toMatch(
+      /already exists/i,
+    );
+  });
 });

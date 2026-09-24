@@ -595,15 +595,31 @@ export async function drainOutbox(options: {
           processed += 1;
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "create_user") {
+          // Legacy outbox rows only — new creates are online-only and never enqueue.
           const payload = JSON.parse(claimed.payloadJson) as CreateUserPayload;
-          await options.mutators.createUserAccount({
-            email: payload.email,
-            password: payload.password,
-            name: payload.name,
-            role: payload.role,
-            branchId: payload.branchId as Id<"branches">,
-            phone: payload.phone,
-          });
+          try {
+            await options.mutators.createUserAccount({
+              email: payload.email,
+              password: payload.password,
+              name: payload.name,
+              role: payload.role,
+              branchId: payload.branchId as Id<"branches">,
+              phone: payload.phone,
+            });
+          } catch (error) {
+            const raw = error instanceof Error ? error.message : "Sync failed";
+            const message = toUserMessage(error, "Could not create user account");
+            if (
+              /already exists/i.test(raw) ||
+              /different email/i.test(message) ||
+              (/password/i.test(raw) && /must be/i.test(raw))
+            ) {
+              await markOutboxFailed(db, claimed.id, message);
+              failed += 1;
+              continue;
+            }
+            throw error;
+          }
           await db.users.delete(payload.localId);
           await markOutboxSynced(db, claimed.id);
           await pullOfflineSnapshot(options.convex, { force: true });
