@@ -3,32 +3,11 @@ import { headers } from "next/headers";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import { AppProviders } from "@/providers/app-providers";
 import { PwaRegister } from "@/components/pwa-register";
+import { buildRootMetadata } from "@/lib/seo/metadata";
 
 import "@/styles/globals.css";
-import { APP_NAME, APP_WEB_INSTALL_NAME } from "@/constants/app";
 
-export const metadata: Metadata = {
-  title: {
-    default: APP_NAME,
-    template: `%s · ${APP_NAME}`,
-  },
-  description: "Commercial offline-first Point of Sale for independent businesses",
-  applicationName: APP_WEB_INSTALL_NAME,
-  manifest: "/manifest.webmanifest",
-  icons: {
-    icon: [
-      { url: "/favicon.png", type: "image/png" },
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
-  },
-  appleWebApp: {
-    capable: true,
-    title: APP_WEB_INSTALL_NAME,
-    statusBarStyle: "default",
-  },
-};
+export const metadata: Metadata = buildRootMetadata();
 
 export const viewport: Viewport = {
   themeColor: [

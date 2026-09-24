@@ -1,6 +1,15 @@
+import type { Metadata } from "next";
 import { SignupForm } from "@/features/auth/components/signup-form";
 import { LoginBrandPanel } from "@/features/auth/components/login-brand-panel";
 import { LoginAtmosphere } from "@/features/auth/components/login-atmosphere";
+import { APP_NAME } from "@/constants/app";
+import { buildPageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "Start free trial",
+  description: `Create a ${APP_NAME} account — 14-day free trial for shops, pharmacies, wholesalers, and multi-branch retailers.`,
+  path: "/signup",
+});
 
 /**
  * Signup — same split card as login: brand rail on the left, form on the right.

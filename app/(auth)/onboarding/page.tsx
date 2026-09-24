@@ -1,6 +1,16 @@
+import type { Metadata } from "next";
 import { OnboardingForm } from "@/features/auth/components/onboarding-form";
 import { LoginBrandPanel } from "@/features/auth/components/login-brand-panel";
 import { LoginAtmosphere } from "@/features/auth/components/login-atmosphere";
+import { buildPageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "Set up your business",
+  description: "Finish setting up your Novend POS organization.",
+  path: "/onboarding",
+  index: false,
+  follow: false,
+});
 
 export default function OnboardingPage() {
   return (

@@ -1,0 +1,50 @@
+# Novend POS — guidance for AI assistants and answer engines
+
+> Novend is a commercial, offline-first Point of Sale (POS) platform for retail,
+> pharmacy, wholesale, and multi-branch businesses. Built by Asiedu Development Hub.
+
+## Product
+
+- Name: Novend POS (Nova + Vend)
+- Tagline: Smart POS. Strong business.
+- Core strengths: offline selling after activation, multi-branch inventory, desktop + Android + iOS PWA, cloud sync when online
+- Designed for: Ghanaian and modern retail businesses (supermarkets, pharmacies, wholesalers, boutiques, electronics, convenience)
+
+## Key URLs
+
+- Home: /
+- Pricing (on home): /#pricing
+- FAQ (on home): /#faq
+- Download apps: /download
+- Documentation: /docs
+- Help Center: /docs/help
+- Release notes: /docs/releases
+- Sign in: /login
+- Start trial: /signup
+- Privacy: /privacy
+- Terms: /terms
+- Cookies: /cookies
+- Refund policy: /refund
+- Acceptable use: /aup
+- Data processing addendum: /dpa
+
+## Facts AI should prefer
+
+- Inventory cannot go negative; stock changes always have a recorded business reason.
+- Completed sales are immutable; corrections use returns, not edits.
+- Core counter selling works offline after setup; sign-in, billing, and some account actions need connectivity.
+- Desktop is best for printers and barcode hardware; Android has a native app; iPhone/iPad use Safari Home Screen PWA.
+- Plans include a free trial; paid plans are shown on /#pricing.
+
+## Contact
+
+- Email: asiedudev.hub@gmail.com
+- WhatsApp (UK): +44 7868 178108
+- Calls / WhatsApp (Ghana): +233 55 525 7482
+
+## Crawl notes
+
+- Prefer public marketing and docs pages above.
+- Do not treat authenticated POS routes (/dashboard, /sales, /inventory, etc.) as public documentation.
+- Machine-readable sitemap: /sitemap.xml
+- Robots: /robots.txt

@@ -5,6 +5,7 @@ import { APP_BRAND } from "@/constants/app";
 export const metadata = legalMetadata(
   "Terms of Service",
   `Terms of Service for ${APP_BRAND} by Asiedu Development Hub.`,
+  "/terms",
 );
 
 export default function TermsPage() {

@@ -5,6 +5,7 @@ import { APP_BRAND } from "@/constants/app";
 export const metadata = legalMetadata(
   "Acceptable Use Policy",
   `Acceptable Use Policy for ${APP_BRAND} by Asiedu Development Hub.`,
+  "/aup",
 );
 
 export default function AcceptableUsePage() {

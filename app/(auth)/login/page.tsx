@@ -1,7 +1,16 @@
+import type { Metadata } from "next";
 import { LoginForm } from "@/features/auth/components/login-form";
 import { LoginBrandPanel } from "@/features/auth/components/login-brand-panel";
 import { LoginAtmosphere } from "@/features/auth/components/login-atmosphere";
 import { LoginSessionGate } from "@/features/auth/components/login-session-gate";
+import { APP_NAME } from "@/constants/app";
+import { buildPageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "Sign in",
+  description: `Sign in to ${APP_NAME} to sell offline, manage inventory, and sync when you reconnect.`,
+  path: "/login",
+});
 
 /**
  * Login — mobile hero + overlapping sheet, desktop split card.

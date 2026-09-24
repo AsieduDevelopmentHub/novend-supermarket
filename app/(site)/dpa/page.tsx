@@ -5,6 +5,7 @@ import { APP_BRAND } from "@/constants/app";
 export const metadata = legalMetadata(
   "Data Processing Addendum",
   `Data Processing Addendum for ${APP_BRAND} by Asiedu Development Hub.`,
+  "/dpa",
 );
 
 export default function DataProcessingAddendumPage() {

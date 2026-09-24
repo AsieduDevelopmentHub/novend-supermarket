@@ -5,6 +5,7 @@ import { APP_BRAND } from "@/constants/app";
 export const metadata = legalMetadata(
   "Cookie Policy",
   `Cookie Policy for ${APP_BRAND} by Asiedu Development Hub.`,
+  "/cookies",
 );
 
 export default function CookiePolicyPage() {

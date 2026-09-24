@@ -1,6 +1,16 @@
+import type { Metadata } from "next";
 import { ResetPasswordForm } from "@/features/auth/components/reset-password-form";
 import { LoginBrandPanel } from "@/features/auth/components/login-brand-panel";
 import { LoginAtmosphere } from "@/features/auth/components/login-atmosphere";
+import { buildPageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "Reset password",
+  description: "Choose a new Novend POS password.",
+  path: "/reset-password",
+  index: false,
+  follow: false,
+});
 
 export default function ResetPasswordPage() {
   return (

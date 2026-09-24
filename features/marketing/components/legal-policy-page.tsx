@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { MarketingSitePage } from "@/features/marketing/components/marketing-site-page";
+import { buildPageMetadata } from "@/lib/seo";
 
 type LegalSection = {
   title: string;
@@ -20,8 +21,8 @@ type LegalPolicyPageProps = {
   metadataDescription: string;
 };
 
-export function legalMetadata(title: string, description: string): Metadata {
-  return { title, description };
+export function legalMetadata(title: string, description: string, path: string): Metadata {
+  return buildPageMetadata({ title, description, path });
 }
 
 export function LegalPolicyPage({ content }: Pick<LegalPolicyPageProps, "content">) {
@@ -54,3 +55,4 @@ export function LegalPolicyPage({ content }: Pick<LegalPolicyPageProps, "content
     </MarketingSitePage>
   );
 }
+

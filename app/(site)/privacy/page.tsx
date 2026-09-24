@@ -5,6 +5,7 @@ import { APP_BRAND } from "@/constants/app";
 export const metadata = legalMetadata(
   "Privacy Policy",
   `Privacy Policy for ${APP_BRAND} by Asiedu Development Hub.`,
+  "/privacy",
 );
 
 export default function PrivacyPage() {
