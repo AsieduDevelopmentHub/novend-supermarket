@@ -17,13 +17,13 @@ import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 
 type LocalBackupCardProps = {
-  password: string;
   canProtect: boolean;
   canUnlock: boolean;
+  resolveSecret: (preferTyped?: boolean) => Promise<string | null>;
 };
 
 /** Device-local encrypted backup — save a file or restore one. */
-export function LocalBackupCard({ password, canProtect, canUnlock }: LocalBackupCardProps) {
+export function LocalBackupCard({ canProtect, canUnlock, resolveSecret }: LocalBackupCardProps) {
   const nativeShell = useNativeShell();
   const inputRef = useRef<HTMLInputElement>(null);
   const [exporting, setExporting] = useState(false);
@@ -54,7 +54,9 @@ export function LocalBackupCard({ password, canProtect, canUnlock }: LocalBackup
     if (!canProtect) return;
     setExporting(true);
     try {
-      await downloadOfflineBackup(password);
+      const secret = await resolveSecret();
+      if (!secret) throw new Error("Seal or enter the organization recovery key first");
+      await downloadOfflineBackup(secret);
       const last = await getLastBackupAt();
       setLastBackupLabel(
         last
@@ -73,7 +75,9 @@ export function LocalBackupCard({ password, canProtect, canUnlock }: LocalBackup
     if (!canUnlock) return;
     setImporting(true);
     try {
-      const payload = await readBackupFile(file, password);
+      const secret = await resolveSecret(true);
+      if (!secret) throw new Error("Enter the recovery key that encrypted this file");
+      const payload = await readBackupFile(file, secret);
       await importOfflineBackup(payload);
       toast.success("Backup restored — reload to refresh all views");
     } catch (error) {
@@ -126,8 +130,7 @@ export function LocalBackupCard({ password, canProtect, canUnlock }: LocalBackup
         </div>
         {!canProtect ? (
           <p className="text-muted-foreground text-xs">
-            Set and confirm a strong backup password above before saving. Restore only needs the
-            password that encrypted the file.
+            Seal a recovery key above before saving. Restore needs the key that encrypted the file.
           </p>
         ) : null}
       </CardContent>

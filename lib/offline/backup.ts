@@ -2,6 +2,7 @@ import { brandedDocumentName } from "@/lib/export-filenames";
 import { getOfflineDb } from "./db";
 import { Hardware, isCapacitor } from "@novend/hardware";
 import { assertBackupPassword, assertBackupUnlockPassword } from "./backup-password";
+import { normalizeRecoveryKeyInput } from "./recovery-key";
 
 const TABLE_NAMES = [
   "meta",
@@ -42,6 +43,8 @@ export type OfflineBackupPayload = {
   organizationId?: string;
   userId?: string;
   tables: Record<string, unknown[]>;
+  /** Present on compact snapshot packages (`snapshot_only`). */
+  snapshotVersion?: number;
 };
 
 /**
@@ -105,9 +108,10 @@ export async function encryptOfflineBackup(
   payload: OfflineBackupPayload,
   passphrase: string,
 ): Promise<EncryptedBackupEnvelope> {
+  const secret = normalizeRecoveryKeyInput(passphrase) || passphrase;
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveBackupKey(passphrase, salt, "create");
+  const key = await deriveBackupKey(secret, salt, "create");
   const ciphertext = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     key,
@@ -132,9 +136,10 @@ async function decryptOfflineBackup(
   passphrase: string,
 ): Promise<OfflineBackupPayload> {
   try {
+    const secret = normalizeRecoveryKeyInput(passphrase) || passphrase;
     const salt = base64ToBytes(envelope.kdf.salt);
     const iv = base64ToBytes(envelope.cipher.iv);
-    const key = await deriveBackupKey(passphrase, salt, "unlock");
+    const key = await deriveBackupKey(secret, salt, "unlock");
     const plaintext = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv },
       key,
@@ -142,8 +147,8 @@ async function decryptOfflineBackup(
     );
     return JSON.parse(new TextDecoder().decode(plaintext)) as OfflineBackupPayload;
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith("Enter the backup")) throw error;
-    throw new Error("Backup password is incorrect or the file is damaged");
+    if (error instanceof Error && error.message.startsWith("Enter the")) throw error;
+    throw new Error("Recovery key is incorrect or the file is damaged");
   }
 }
 
@@ -303,7 +308,7 @@ export async function parseBackupPayload(
   ) {
     return await decryptOfflineBackup(parsed as EncryptedBackupEnvelope, passphrase);
   }
-  throw new Error("This backup is not password-protected. Novend only restores encrypted backups.");
+  throw new Error("This backup is not encrypted. Novend only restores recovery-key protected files.");
 }
 
 export async function readBackupFile(

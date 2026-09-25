@@ -24,6 +24,7 @@ const ZERO_COUNTERS: Counters = {
   activeOrganizationCount: 0,
   fullSyncCount: 0,
   backupOnlyCount: 0,
+  snapshotOnlyCount: 0,
   localOnlyCount: 0,
   basicPlanCount: 0,
   proPlanCount: 0,
@@ -56,6 +57,8 @@ function cloudModeField(mode: CloudMode): CounterField {
   switch (mode) {
     case "backup_only":
       return "backupOnlyCount";
+    case "snapshot_only":
+      return "snapshotOnlyCount";
     case "local_only":
       return "localOnlyCount";
     case "full_sync":
@@ -104,7 +107,8 @@ export async function incrementPlatformStats(
   const patch: Partial<Counters> & { updatedAt: number } = { updatedAt: Date.now() };
   for (const [field, delta] of Object.entries(deltas) as [CounterField, number][]) {
     if (!delta) continue;
-    patch[field] = Math.max(0, row[field] + delta);
+    const current = typeof row[field] === "number" ? (row[field] as number) : 0;
+    patch[field] = Math.max(0, current + delta);
   }
   await ctx.db.patch(row._id, patch);
 }

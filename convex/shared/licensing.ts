@@ -293,6 +293,11 @@ export type LicenseSnapshot = {
   cloudBackupEnabled: boolean;
   /** Platform toggle for remote monitoring. Missing → true. */
   remoteMonitoringEnabled: boolean;
+  /**
+   * Hours between automatic `backup_only` uploads. Missing on older caches → 24.
+   * Ignored by full sync and local only.
+   */
+  backupIntervalHours?: number;
   subscription: SubscriptionSnapshot | null;
   access: LicenseAccess;
   limits: Record<LimitResource, number | null>;

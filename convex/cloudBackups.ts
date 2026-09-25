@@ -76,7 +76,7 @@ export const recordBackup = mutation({
   args: {
     storageId: v.id("_storage"),
     fileName: v.string(),
-    kind: v.optional(v.union(v.literal("manual"), v.literal("automatic"))),
+    kind: v.optional(v.union(v.literal("manual"), v.literal("automatic"), v.literal("snapshot"))),
   },
   handler: async (ctx, args) => {
     const { organization, organizationId, userId } = await requireRoleIgnoringLicense(ctx, [

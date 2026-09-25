@@ -18,6 +18,7 @@ import {
   importOfflineBackup,
   parseBackupPayload,
 } from "@/lib/offline/backup";
+import { exportCompactSnapshot } from "@/lib/offline/compact-snapshot";
 import { showError } from "@/lib/errors";
 import { uploadAndClaimStorage } from "@/lib/uploads/convex-storage";
 import { toast } from "sonner";
@@ -35,16 +36,16 @@ function formatDateTime(value: number) {
 }
 
 type CloudBackupCardProps = {
-  password: string;
   canProtect: boolean;
   canUnlock: boolean;
+  resolveSecret: (preferTyped?: boolean) => Promise<string | null>;
 };
 
 /**
- * Organization cloud backups against the plan storage quota.
- * Uploads and restores always go through the same backup password as This device.
+ * Organization cloud backups / snapshots against the plan storage quota.
+ * Encrypts with the organization recovery key.
  */
-export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackupCardProps) {
+export function CloudBackupCard({ canProtect, canUnlock, resolveSecret }: CloudBackupCardProps) {
   const online = useConnectivity();
   const { cloudMode } = useLicense();
   const convex = useConvex();
@@ -58,12 +59,17 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
   const [confirmDelete, setConfirmDelete] = useState<Id<"cloudBackups"> | null>(null);
   const [confirmRestore, setConfirmRestore] = useState<Id<"cloudBackups"> | null>(null);
 
+  const snapshotMode = cloudMode === "snapshot_only";
+  const scheduledMode = cloudMode === "backup_only" || snapshotMode;
+
   async function onBackupNow() {
     if (!canProtect) return;
     setUploading(true);
     try {
-      const payload = await exportOfflineBackup();
-      const encrypted = await encryptOfflineBackup(payload, password);
+      const secret = await resolveSecret();
+      if (!secret) throw new Error("Seal or enter the organization recovery key first");
+      const payload = snapshotMode ? await exportCompactSnapshot() : await exportOfflineBackup();
+      const encrypted = await encryptOfflineBackup(payload, secret);
       const blob = new Blob([JSON.stringify(encrypted)], { type: "application/octet-stream" });
       const storageId = await uploadAndClaimStorage({
         begin: () => generateUploadUrl({}),
@@ -71,11 +77,18 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
         body: blob,
         contentType: "application/octet-stream",
       });
-      const fileName = `novend-backup-${new Date().toISOString().slice(0, 10)}.novend-backup`;
-      await recordBackup({ storageId, fileName, kind: "manual" });
-      toast.success("Backup saved to the cloud");
+      const stamp = new Date().toISOString().slice(0, 10);
+      const fileName = snapshotMode
+        ? `novend-snapshot-${stamp}.novend-backup`
+        : `novend-backup-${stamp}.novend-backup`;
+      await recordBackup({
+        storageId,
+        fileName,
+        kind: snapshotMode ? "snapshot" : "manual",
+      });
+      toast.success(snapshotMode ? "Snapshot saved to the cloud" : "Backup saved to the cloud");
     } catch (error) {
-      showError(error, "Could not back up to the cloud");
+      showError(error, "Could not upload to the cloud");
     } finally {
       setUploading(false);
     }
@@ -98,9 +111,9 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
   async function onDownload(backupId: Id<"cloudBackups">, fileName: string) {
     try {
       await downloadCloudFile(backupId, fileName);
-      toast.success("Backup downloaded");
+      toast.success("Downloaded");
     } catch (error) {
-      showError(error, "Could not download backup");
+      showError(error, "Could not download");
     }
   }
 
@@ -108,15 +121,17 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
     if (!canUnlock) return;
     setRestoringId(backupId);
     try {
+      const secret = await resolveSecret(true);
+      if (!secret) throw new Error("Enter the recovery key that encrypted this package");
       const url = await convex.query(api.cloudBackups.backupDownloadUrl, { backupId });
       if (!url) throw new Error("That backup file is no longer available");
       const response = await fetch(url);
       if (!response.ok) throw new Error("Could not download that backup");
-      const payload = await parseBackupPayload(await response.text(), password);
+      const payload = await parseBackupPayload(await response.text(), secret);
       await importOfflineBackup(payload);
-      toast.success("Cloud backup restored — reload to refresh all views");
+      toast.success("Cloud package restored — reload to refresh all views");
     } catch (error) {
-      showError(error, "Could not restore cloud backup");
+      showError(error, "Could not restore cloud package");
     } finally {
       setRestoringId(null);
       setConfirmRestore(null);
@@ -126,9 +141,9 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
   async function onDelete(backupId: Id<"cloudBackups">) {
     try {
       await deleteBackup({ backupId });
-      toast.success("Backup deleted");
+      toast.success("Deleted");
     } catch (error) {
-      showError(error, "Could not delete backup");
+      showError(error, "Could not delete");
     } finally {
       setConfirmDelete(null);
     }
@@ -143,7 +158,7 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
             Cloud
           </CardTitle>
           <CardDescription>
-            Connect to the internet to upload, download, or restore organization cloud backups.
+            Connect to the internet to upload, download, or restore organization cloud packages.
             This-device backups still work offline.
           </CardDescription>
         </CardHeader>
@@ -174,14 +189,15 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
           Cloud
         </CardTitle>
         <CardDescription>
-          Encrypted copies on your plan&apos;s storage. Same backup password as this device.
+          Encrypted copies on your plan&apos;s storage, protected by the organization recovery key.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {cloudMode === "backup_only" ? (
-          <p className="text-muted-foreground text-xs">
-            Scheduled cloud backups are on for this organization. Keep a backup password entered
-            here to let automatic daily backups run.
+        {scheduledMode ? (
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            {snapshotMode
+              ? "Snapshot only is on: this till stays local and uploads a compact business package on the platform schedule when a recovery key is sealed."
+              : "Backup only is on: this till stays local and uploads a full encrypted dump on the platform schedule when a recovery key is sealed."}
           </p>
         ) : null}
         <div className="space-y-2">
@@ -194,7 +210,7 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
               </span>
             </span>
             <span className="text-muted-foreground text-xs">
-              Last cloud backup: {usage.lastBackupAt ? formatDateTime(usage.lastBackupAt) : "never"}
+              Last cloud upload: {usage.lastBackupAt ? formatDateTime(usage.lastBackupAt) : "never"}
             </span>
           </div>
           {usage.limitBytes === null ? null : (
@@ -206,7 +222,7 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
           <Alert>
             <AlertTitle>Cloud storage is full</AlertTitle>
             <AlertDescription>
-              Cloud uploads are paused. Delete an older backup or upgrade your plan — this-device
+              Cloud uploads are paused. Delete an older package or upgrade your plan — this-device
               backups and the POS keep working.
             </AlertDescription>
           </Alert>
@@ -218,7 +234,11 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
           onClick={() => void onBackupNow()}
         >
           <CloudUpload className="mr-2 h-4 w-4" aria-hidden />
-          {uploading ? "Backing up…" : "Back up to cloud"}
+          {uploading
+            ? "Uploading…"
+            : snapshotMode
+              ? "Upload snapshot now"
+              : "Back up to cloud"}
         </Button>
 
         {usage.backups.length > 0 ? (
@@ -232,6 +252,11 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
                   <p className="truncate text-sm font-medium">{backup.fileName}</p>
                   <p className="text-muted-foreground text-xs">
                     {formatDateTime(backup.createdAt)} · {formatBytes(backup.sizeBytes)}
+                    {backup.kind === "snapshot"
+                      ? " · snapshot"
+                      : backup.kind === "automatic"
+                        ? " · automatic"
+                        : ""}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
@@ -275,7 +300,7 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
         onOpenChange={(open) => {
           if (!open) setConfirmDelete(null);
         }}
-        title="Delete this cloud backup?"
+        title="Delete this cloud package?"
         description="The stored copy is removed permanently and its space is freed."
         confirmLabel="Delete"
         onConfirm={() => {
@@ -287,7 +312,7 @@ export function CloudBackupCard({ password, canProtect, canUnlock }: CloudBackup
         onOpenChange={(open) => {
           if (!open) setConfirmRestore(null);
         }}
-        title="Restore this cloud backup?"
+        title="Restore this cloud package?"
         description="This replaces all offline data on this device with the cloud copy. Unsynced changes may be lost."
         confirmLabel={restoringId ? "Restoring…" : "Restore"}
         confirmVariant="default"

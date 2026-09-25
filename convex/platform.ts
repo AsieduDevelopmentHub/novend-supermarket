@@ -17,7 +17,12 @@ import { assertPasswordPolicy } from "./shared/passwordPolicy";
 import { notifyPasswordChanged } from "./shared/transactionalEmail";
 import { sanitizeOptionalText, TEXT_LIMITS } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
-import { planKeyValidator, billingCycleValidator, cloudModeValidator } from "./schema";
+import {
+  planKeyValidator,
+  billingCycleValidator,
+  backupIntervalHoursValidator,
+  cloudModeValidator,
+} from "./schema";
 import { effectivePlanLimits, resolvePlan } from "./shared/plans";
 import { planCapabilities } from "./shared/capabilities";
 import { countExportFormats, loadOrganizationImportExport } from "./shared/importExportSnapshot";
@@ -31,7 +36,7 @@ import { provisionOrganization } from "./shared/provisionOrganization";
 import { GRACE_PERIOD_MS } from "./shared/licensing";
 import { archiveOrganizationRecord } from "./shared/accountClosure";
 import { readOrgPlatformStatsOrZero } from "./shared/organizationStats";
-import { normalizeCloudMode } from "./shared/cloudMode";
+import { normalizeBackupIntervalHours, normalizeCloudMode } from "./shared/cloudMode";
 import { bumpEntitlementVersion } from "./shared/entitlementVersion";
 import {
   onOrganizationCloudModeChanged,
@@ -178,17 +183,19 @@ export const overview = query({
       ? {
           fullSync: globalStats.fullSyncCount,
           backupOnly: globalStats.backupOnlyCount,
+          snapshotOnly: globalStats.snapshotOnlyCount ?? 0,
           localOnly: globalStats.localOnlyCount,
         }
       : organizations.reduce(
           (acc, org) => {
             const mode = normalizeCloudMode(org.cloudMode);
             if (mode === "backup_only") acc.backupOnly += 1;
+            else if (mode === "snapshot_only") acc.snapshotOnly += 1;
             else if (mode === "local_only") acc.localOnly += 1;
             else acc.fullSync += 1;
             return acc;
           },
-          { fullSync: 0, backupOnly: 0, localOnly: 0 },
+          { fullSync: 0, backupOnly: 0, snapshotOnly: 0, localOnly: 0 },
         );
 
     return {
@@ -604,6 +611,41 @@ export const setOrganizationCloudMode = mutation({
       entityType: "organizations",
       entityId: args.organizationId,
       metadata: { cloudMode: args.cloudMode, previousMode },
+    });
+    return args.organizationId;
+  },
+});
+
+/**
+ * PEAS — how often a backup-only device uploads an encrypted cloud backup.
+ * Does not change full sync (continuous) or local only (no business upload).
+ * Bumps the entitlement version so offline tills pick up the new cadence.
+ */
+export const setOrganizationBackupInterval = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    backupIntervalHours: backupIntervalHoursValidator,
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    const org = await ctx.db.get(args.organizationId);
+    if (!org) throw new Error("Organization not found");
+    const next = normalizeBackupIntervalHours(args.backupIntervalHours);
+    const previous = normalizeBackupIntervalHours(org.backupIntervalHours);
+    if (previous === next && org.backupIntervalHours === next) return args.organizationId;
+
+    await ctx.db.patch(args.organizationId, {
+      backupIntervalHours: next,
+      updatedAt: Date.now(),
+    });
+    await bumpEntitlementVersion(ctx, args.organizationId);
+    await writeAuditLog(ctx, {
+      organizationId: args.organizationId,
+      actorId: userId,
+      action: "platform_set_backup_interval",
+      entityType: "organizations",
+      entityId: args.organizationId,
+      metadata: { backupIntervalHours: next, previousHours: previous },
     });
     return args.organizationId;
   },

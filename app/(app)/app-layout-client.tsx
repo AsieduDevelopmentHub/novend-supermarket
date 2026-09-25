@@ -25,6 +25,7 @@ import { EmailVerificationBanner } from "@/features/auth/components/email-verifi
 import { CloudReconnectBanner } from "@/features/auth/components/cloud-reconnect-banner";
 import { DeviceActivationGate } from "@/features/billing/components/device-activation-gate";
 import { InstallPromptDialog } from "@/components/install-prompt-dialog";
+import { CloudPackageRestoreGate } from "@/features/settings/components/cloud-package-restore-gate";
 import { OfflineProvider } from "@/providers/offline-provider";
 import { OfflineNavigationProvider, OfflineOutlet } from "@/providers/offline-navigation";
 import { OrganizationExperienceRoot } from "@/features/experience/components/organization-experience-root";
@@ -192,14 +193,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     }, 1600);
 
     return () => window.clearTimeout(hardNav);
-  }, [
-    isAuthenticated,
-    isLoading,
-    online,
-    onlineAuthBudgetElapsed,
-    router,
-    sessionHint,
-  ]);
+  }, [isAuthenticated, isLoading, online, onlineAuthBudgetElapsed, router, sessionHint]);
 
   useEffect(() => {
     if (online || (!isLoading && isAuthenticated)) {
@@ -607,84 +601,87 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         <OfflineProvider key={replicaKey}>
           <OfflineNavigationProvider>
             <OrganizationExperienceRoot>
-            <ProductTourProvider
-              enabled={Boolean(liveReady || offlineSessionOk)}
-              identityKey={
-                user?.userId
-                  ? String(user.userId)
-                  : resolvedCache?.userId
-                    ? String(resolvedCache.userId)
-                    : null
-              }
-              role={shellUser.role}
-              isPlatformAdmin={Boolean("isPlatformAdmin" in shellUser && shellUser.isPlatformAdmin)}
-              initialProgress={user?.tourProgress}
-            >
-              <RestoreLastRoute />
-              <CustomerDisplayServices />
-              <PushRegistrationErrorBoundary>
-                <PushRegistrationHost />
-              </PushRegistrationErrorBoundary>
-              <TelemetryProvider enabled={Boolean(isAuthenticated && online)} />
-              <div
-                className={cn(
-                  "bg-background flex h-dvh max-h-dvh overflow-hidden overscroll-none",
-                  nativeShell && "native-shell",
+              <ProductTourProvider
+                enabled={Boolean(liveReady || offlineSessionOk)}
+                identityKey={
+                  user?.userId
+                    ? String(user.userId)
+                    : resolvedCache?.userId
+                      ? String(resolvedCache.userId)
+                      : null
+                }
+                role={shellUser.role}
+                isPlatformAdmin={Boolean(
+                  "isPlatformAdmin" in shellUser && shellUser.isPlatformAdmin,
                 )}
+                initialProgress={user?.tourProgress}
               >
-                {nativeShell ? null : <AppSidebar user={shellUser} />}
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                  {nativeShell ? <div className="native-status-bar" aria-hidden /> : null}
-                  {nativeShell ? null : (
-                    <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 lg:hidden">
-                      <MobileSidebar user={shellUser} />
-                      <Image
-                        src={BRANDING.brandmark}
-                        alt=""
-                        width={32}
-                        height={32}
-                        unoptimized
-                        className="h-8 w-8 shrink-0 object-contain"
-                      />
-                      <p className="min-w-0 flex-1 truncate text-base font-semibold">
-                        {shellUser.organizationName?.trim() || APP_BRAND}
-                      </p>
-                      <SyncStatusHeaderButton />
-                    </header>
+                <RestoreLastRoute />
+                <CloudPackageRestoreGate />
+                <CustomerDisplayServices />
+                <PushRegistrationErrorBoundary>
+                  <PushRegistrationHost />
+                </PushRegistrationErrorBoundary>
+                <TelemetryProvider enabled={Boolean(isAuthenticated && online)} />
+                <div
+                  className={cn(
+                    "bg-background flex h-dvh max-h-dvh overflow-hidden overscroll-none",
+                    nativeShell && "native-shell",
                   )}
-                  <LicenseBanner />
-                  <EmailVerificationBanner />
-                  <CloudReconnectBanner />
-                  <SyncStatusBanner />
-                  {nativeShell ? (
-                    <div className="native-page-header-row shrink-0">
-                      <div
-                        id="native-page-header-host"
-                        className="native-page-header-host min-w-0 flex-1"
-                      />
-                      <SyncStatusHeaderButton />
-                    </div>
-                  ) : null}
-                  <main
-                    data-novend-scroll-root
-                    data-tour="page-content"
-                    className={cn(
-                      "min-h-0 min-w-0 flex-1 overscroll-y-contain",
-                      nativeShell
-                        ? "max-w-full overflow-x-clip overflow-y-auto px-[var(--mobile-page-pad)] pt-3 pb-5"
-                        : "overflow-x-hidden overflow-y-auto px-4 py-6 lg:px-8",
-                      nativeShell && "pb-[var(--novend-tabbar-offset)]",
+                >
+                  {nativeShell ? null : <AppSidebar user={shellUser} />}
+                  <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                    {nativeShell ? <div className="native-status-bar" aria-hidden /> : null}
+                    {nativeShell ? null : (
+                      <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 lg:hidden">
+                        <MobileSidebar user={shellUser} />
+                        <Image
+                          src={BRANDING.brandmark}
+                          alt=""
+                          width={32}
+                          height={32}
+                          unoptimized
+                          className="h-8 w-8 shrink-0 object-contain"
+                        />
+                        <p className="min-w-0 flex-1 truncate text-base font-semibold">
+                          {shellUser.organizationName?.trim() || APP_BRAND}
+                        </p>
+                        <SyncStatusHeaderButton />
+                      </header>
                     )}
-                  >
-                    <OfflineOutlet>{children}</OfflineOutlet>
-                  </main>
+                    <LicenseBanner />
+                    <EmailVerificationBanner />
+                    <CloudReconnectBanner />
+                    <SyncStatusBanner />
+                    {nativeShell ? (
+                      <div className="native-page-header-row shrink-0">
+                        <div
+                          id="native-page-header-host"
+                          className="native-page-header-host min-w-0 flex-1"
+                        />
+                        <SyncStatusHeaderButton />
+                      </div>
+                    ) : null}
+                    <main
+                      data-novend-scroll-root
+                      data-tour="page-content"
+                      className={cn(
+                        "min-h-0 min-w-0 flex-1 overscroll-y-contain",
+                        nativeShell
+                          ? "max-w-full overflow-x-clip overflow-y-auto px-[var(--mobile-page-pad)] pt-3 pb-5"
+                          : "overflow-x-hidden overflow-y-auto px-4 py-6 lg:px-8",
+                        nativeShell && "pb-[var(--novend-tabbar-offset)]",
+                      )}
+                    >
+                      <OfflineOutlet>{children}</OfflineOutlet>
+                    </main>
+                  </div>
+                  {nativeShell ? <MobileBottomNav /> : null}
                 </div>
-                {nativeShell ? <MobileBottomNav /> : null}
-              </div>
-              <SyncCenterDialog />
-              <InstallPromptDialog />
-              <DeviceActivationGate enabled={Boolean(liveReady)} />
-            </ProductTourProvider>
+                <SyncCenterDialog />
+                <InstallPromptDialog />
+                <DeviceActivationGate enabled={Boolean(liveReady)} />
+              </ProductTourProvider>
             </OrganizationExperienceRoot>
           </OfflineNavigationProvider>
         </OfflineProvider>

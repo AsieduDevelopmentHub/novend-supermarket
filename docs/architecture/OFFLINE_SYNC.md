@@ -54,13 +54,24 @@ enforced at these points:
   (defaults: enabled) are ANDed into the policy: `resolveCloudPolicy(mode, {
 cloudBackupEnabled, remoteMonitoringEnabled })`. A Super Admin can switch either
   off regardless of mode. `loadCloudPolicy()` passes both from the cached snapshot.
-- **Scheduled backup (`backup_only`).** `lib/offline/scheduled-backup.ts`
-  `maybeRunScheduledCloudBackup` runs a daily encrypted cloud backup
-  (export → encrypt → upload → `cloudBackups.recordBackup({ kind: "automatic" })`)
-  when the policy queues backups but not realtime sync. It never flushes the
-  outbox and silently skips when no backup password is available this session
-  (the password is held in memory only via `backup-password.ts`, never persisted).
-  Wired in `OfflineProvider`.
+- **Scheduled upload (`backup_only` / `snapshot_only`).** `lib/offline/scheduled-backup.ts`
+  `maybeRunScheduledCloudBackup` encrypts with the **sealed organization recovery
+  key** (`lib/offline/recovery-key.ts`) — not a login password and not a Settings
+  session field. `backup_only` uploads a full Dexie dump (`kind: "automatic"`);
+  `snapshot_only` uploads a compact business package (`kind: "snapshot"`, built by
+  `lib/offline/compact-snapshot.ts`). Cadence is `organizations.backupIntervalHours`
+  (12h–30d; missing → 24h) via `platform.setOrganizationBackupInterval`. The hourly
+  client timer only reads local state; Convex is contacted when the interval has
+  elapsed. Skips when no recovery key is sealed on the device. `local_only` does
+  not upload. Wired in `OfflineProvider`.
+- **Recovery key.** Set once in Settings → Backups. Sealed on-device (Capacitor
+  Secure Storage when available, otherwise browser localStorage scoped by org).
+  Never stored in Convex. Rotate creates a new key for future uploads; older
+  packages still need the previous key.
+- **Fresh-device restore.** `CloudPackageRestoreGate` prompts an admin after login
+  when mode is `backup_only` or `snapshot_only` and Dexie has no products/sales:
+  enter recovery key → download latest `cloudBackups` row → decrypt → import →
+  seal key on this device → reload. Last successful upload wins; no live merge.
 
 ## Cloud mode super admin control
 
@@ -69,6 +80,10 @@ cloudBackupEnabled, remoteMonitoringEnabled })`. A Super Admin can switch either
   version, updates the `platformStats` cloud-mode counters, and audits the change.
   The PEAS licence panel exposes the Select (with a confirm dialog before
   `local_only`) next to Account status.
+- **`platform.setOrganizationBackupInterval`** sets `backupIntervalHours` for
+  automatic `backup_only` and `snapshot_only` uploads, bumps the entitlement
+  version, and audits the change. The same licence panel exposes the interval. It
+  does not slow `full_sync` and does not create uploads for `local_only`.
 
 ## Entitlement version
 
@@ -93,10 +108,10 @@ by the cloud policy — `local_only` means business sync off, heartbeat on.
 
 ## Local backup recovery
 
-Restore-from-cloud is implemented in `CloudBackupCard` (`onRestore`): download the
-stored file via `cloudBackups.backupDownloadUrl` → `parseBackupPayload(text,
-password)` → `importOfflineBackup(payload)`. It uses the same backup password as
-cloud upload and this-device backups.
+Restore-from-cloud is implemented in `CloudBackupCard` (`onRestore`) and
+`CloudPackageRestoreGate`: download via `cloudBackups.backupDownloadUrl` →
+`parseBackupPayload(text, recoveryKey)` → `importOfflineBackup(payload)`. The
+organization recovery key encrypts both this-device and cloud packages.
 
 ## Data flow
 

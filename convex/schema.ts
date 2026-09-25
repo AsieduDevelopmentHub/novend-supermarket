@@ -63,7 +63,18 @@ export const organizationStatusValidator = v.union(
 export const cloudModeValidator = v.union(
   v.literal("full_sync"),
   v.literal("backup_only"),
+  v.literal("snapshot_only"),
   v.literal("local_only"),
+);
+
+/** Hours between automatic `backup_only` cloud uploads. Missing → 24. */
+export const backupIntervalHoursValidator = v.union(
+  v.literal(12),
+  v.literal(24),
+  v.literal(48),
+  v.literal(168),
+  v.literal(336),
+  v.literal(720),
 );
 
 export const subscriptionStatusValidator = v.union(
@@ -155,15 +166,9 @@ export const experienceRadiusScaleValidator = v.union(
   v.literal("soft"),
 );
 
-export const experiencePresetStatusValidator = v.union(
-  v.literal("active"),
-  v.literal("archived"),
-);
+export const experiencePresetStatusValidator = v.union(v.literal("active"), v.literal("archived"));
 
-export const featureTemplateStatusValidator = v.union(
-  v.literal("active"),
-  v.literal("archived"),
-);
+export const featureTemplateStatusValidator = v.union(v.literal("active"), v.literal("archived"));
 
 export const provisioningPolicyStatusValidator = v.union(
   v.literal("scheduled"),
@@ -257,8 +262,14 @@ export default defineSchema({
      */
     cloudMode: v.optional(cloudModeValidator),
     /**
+     * Hours between automatic encrypted uploads while the org is `backup_only`
+     * or `snapshot_only`. Missing → 24. Does not apply to `full_sync` (continuous)
+     * or `local_only` (none).
+     */
+    backupIntervalHours: v.optional(backupIntervalHoursValidator),
+    /**
      * Monotonic entitlement counter. Bumped whenever plan, status, limits, cloud
-     * mode, backup/monitoring, experience, features, or commercial offers change
+     * mode, backup interval, backup/monitoring, experience, features, or commercial offers change
      * so offline clients can tell their cached licence is stale. Missing → 0.
      * See docs/architecture/CLOUD_MODE_PLAN_V2.md (§38).
      */
@@ -539,7 +550,7 @@ export default defineSchema({
     storageId: v.id("_storage"),
     fileName: v.string(),
     sizeBytes: v.number(),
-    kind: v.union(v.literal("manual"), v.literal("automatic")),
+    kind: v.union(v.literal("manual"), v.literal("automatic"), v.literal("snapshot")),
     createdBy: v.id("users"),
     createdAt: v.number(),
   })
@@ -1171,6 +1182,8 @@ export default defineSchema({
     activeOrganizationCount: v.number(),
     fullSyncCount: v.number(),
     backupOnlyCount: v.number(),
+    /** Missing on older singleton rows → treated as 0 until rebuild. */
+    snapshotOnlyCount: v.optional(v.number()),
     localOnlyCount: v.number(),
     basicPlanCount: v.number(),
     proPlanCount: v.number(),

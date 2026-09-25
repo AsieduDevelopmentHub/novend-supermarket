@@ -31,7 +31,7 @@ function snapshot(overrides: Partial<LicenseSnapshot> = {}): LicenseSnapshot {
     cloudMode: "full_sync",
     entitlementVersion: 2,
     configVersion: 2,
-    allowedCloudModes: ["full_sync", "backup_only", "local_only"],
+    allowedCloudModes: ["full_sync", "backup_only", "snapshot_only", "local_only"],
     cloudBackupEnabled: true,
     remoteMonitoringEnabled: true,
     subscription,

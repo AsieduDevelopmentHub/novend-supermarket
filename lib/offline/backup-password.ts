@@ -1,4 +1,12 @@
-/** Rules for encrypting backups. Unlocking older files only requires a non-empty password. */
+/**
+ * Rules for encrypting backups.
+ *
+ * New uploads prefer the organization recovery key (see recovery-key.ts). Legacy
+ * strong passwords remain valid so older files and transitional UI still work.
+ * Unlocking only requires a non-empty secret.
+ */
+
+import { isValidRecoveryKey, normalizeRecoveryKeyInput } from "./recovery-key";
 
 export const BACKUP_PASSWORD_MIN_LENGTH = 12;
 
@@ -10,6 +18,7 @@ export const BACKUP_PASSWORD_REQUIREMENTS = [
 ] as const;
 
 export function backupPasswordIssues(password: string): string[] {
+  if (isValidRecoveryKey(password)) return [];
   const issues: string[] = [];
   if (password.length < BACKUP_PASSWORD_MIN_LENGTH) {
     issues.push(BACKUP_PASSWORD_REQUIREMENTS[0].label);
@@ -26,36 +35,19 @@ export function isStrongBackupPassword(password: string): boolean {
 
 /** Required before creating (local save or cloud upload) a backup. */
 export function assertBackupPassword(password: string): void {
+  const normalized = normalizeRecoveryKeyInput(password);
+  if (isValidRecoveryKey(normalized)) return;
   const issues = backupPasswordIssues(password);
   if (issues.length > 0) {
     throw new Error(
-      `Backup password must be at least ${BACKUP_PASSWORD_MIN_LENGTH} characters and include uppercase, lowercase, and a number`,
+      `Use the organization recovery key, or a password of at least ${BACKUP_PASSWORD_MIN_LENGTH} characters with uppercase, lowercase, and a number`,
     );
   }
 }
 
 /** Required before decrypting. Does not raise complexity so older backups still open. */
 export function assertBackupUnlockPassword(password: string): void {
-  if (!password.trim()) {
-    throw new Error("Enter the backup password to restore");
+  if (!normalizeRecoveryKeyInput(password)) {
+    throw new Error("Enter the recovery key (or backup password) to restore");
   }
-}
-
-/**
- * In-memory backup password for the current session only.
- *
- * Deliberately never persisted to disk — the encrypted backups' only protection
- * is this password, so it must not be written to IndexedDB, localStorage, or
- * Preferences. Held in a module variable so automatic `backup_only` cloud
- * backups can encrypt while the admin keeps a valid password entered in
- * Settings. It is cleared when the Settings panel unmounts (or on reload).
- */
-let sessionBackupPassword: string | null = null;
-
-export function setSessionBackupPassword(password: string | null): void {
-  sessionBackupPassword = password && password.trim() ? password : null;
-}
-
-export function getSessionBackupPassword(): string | null {
-  return sessionBackupPassword;
 }

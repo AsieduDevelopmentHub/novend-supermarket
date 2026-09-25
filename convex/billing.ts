@@ -41,7 +41,13 @@ import {
   type CommercialOfferSnapshot,
   type LicenseSnapshot,
 } from "./shared/licensing";
-import { CLOUD_MODES, DEFAULT_CLOUD_MODE, normalizeCloudMode } from "./shared/cloudMode";
+import {
+  CLOUD_MODES,
+  DEFAULT_BACKUP_INTERVAL_HOURS,
+  DEFAULT_CLOUD_MODE,
+  normalizeBackupIntervalHours,
+  normalizeCloudMode,
+} from "./shared/cloudMode";
 import { bumpEntitlementVersion, currentEntitlementVersion } from "./shared/entitlementVersion";
 import { resolveOrganizationConfig } from "./shared/organizationConfig";
 import { onOrganizationPlanChanged } from "./shared/platformStatsAggregate";
@@ -148,6 +154,7 @@ function platformAdminLicenseSnapshot(): LicenseSnapshot {
     allowedCloudModes: [...CLOUD_MODES],
     cloudBackupEnabled: true,
     remoteMonitoringEnabled: true,
+    backupIntervalHours: DEFAULT_BACKUP_INTERVAL_HOURS,
     planKey: plan.key,
     planName: plan.name,
     access: {
@@ -281,6 +288,7 @@ export const licenseSnapshot = query({
       allowedCloudModes: resolveAllowedCloudModes(organization, license.plan),
       cloudBackupEnabled: cloudEntitlements.cloudBackupEnabled,
       remoteMonitoringEnabled: cloudEntitlements.remoteMonitoringEnabled,
+      backupIntervalHours: normalizeBackupIntervalHours(organization.backupIntervalHours),
       planKey: license.planKey,
       planName: license.plan.name,
       access: license.access,
@@ -452,8 +460,7 @@ export const checkoutContext = internalQuery({
     const usage = await countUsage(ctx, session.organizationId);
     const subscription = license.subscription;
     const offer = await loadLiveOfferForOrganization(ctx, session.organizationId);
-    const useOffer =
-      offer !== null && offerAppliesToCheckout(offer, args.planKey, args.cycle);
+    const useOffer = offer !== null && offerAppliesToCheckout(offer, args.planKey, args.cycle);
     const targetPriceOverride = useOffer && offer ? offerPriceForCycle(offer, args.cycle) : null;
     const currentPriceOverride =
       offer &&
@@ -542,8 +549,7 @@ export const previewPlanChange = query({
     const license = await resolveLicense(ctx, organization);
     const usage = await countUsage(ctx, organization._id);
     const offer = await loadLiveOfferForOrganization(ctx, organization._id);
-    const useOffer =
-      offer !== null && offerAppliesToCheckout(offer, args.planKey, args.cycle);
+    const useOffer = offer !== null && offerAppliesToCheckout(offer, args.planKey, args.cycle);
     const targetPriceOverride = useOffer && offer ? offerPriceForCycle(offer, args.cycle) : null;
     const currentPriceOverride =
       offer &&
@@ -906,8 +912,7 @@ export const startCheckout = action({
         (args.cycle === "monthly" || args.cycle === "yearly")
       ) {
         gatewayPlanCode = context.gatewayPlanCode ?? undefined;
-        const recurringAmount =
-          context.offerRecurringAmount ?? priceForCycle(plan, args.cycle);
+        const recurringAmount = context.offerRecurringAmount ?? priceForCycle(plan, args.cycle);
         if (recurringAmount === null) throw new Error("This plan has no price for that cycle.");
         const cycleLabel = args.cycle === "yearly" ? "Annual" : "Monthly";
         const planName = context.offerId
@@ -2157,6 +2162,7 @@ export const organizationLicense = query({
       allowedCloudModes: resolveAllowedCloudModes(organization, license.plan),
       cloudBackupEnabled: cloudEntitlements.cloudBackupEnabled,
       remoteMonitoringEnabled: cloudEntitlements.remoteMonitoringEnabled,
+      backupIntervalHours: normalizeBackupIntervalHours(organization.backupIntervalHours),
       access: license.access,
       status: organization.status,
       trialEndsAt: organization.trialEndsAt ?? null,

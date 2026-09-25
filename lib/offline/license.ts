@@ -21,7 +21,7 @@ import {
   type LicenseSnapshot,
   type SubscriptionSnapshot,
 } from "@/convex/shared/licensing";
-import { normalizeCloudMode } from "@/convex/shared/cloudMode";
+import { CLOUD_MODES, normalizeBackupIntervalHours, normalizeCloudMode } from "@/convex/shared/cloudMode";
 import {
   DEFAULT_NOVEND_EXPERIENCE,
   type ExperienceRadiusScale,
@@ -248,7 +248,10 @@ function parseSnapshot(raw: string): LicenseSnapshot | null {
     } else if (isRecord(value.features)) {
       features = parseFeatureRecord(value.features, planKey);
     }
-    if (Array.isArray(value.planFeatures) && value.planFeatures.every((f) => typeof f === "string")) {
+    if (
+      Array.isArray(value.planFeatures) &&
+      value.planFeatures.every((f) => typeof f === "string")
+    ) {
       planFeatures = value.planFeatures as string[];
     }
 
@@ -265,9 +268,10 @@ function parseSnapshot(raw: string): LicenseSnapshot | null {
       configVersion,
       allowedCloudModes: Array.isArray(value.allowedCloudModes)
         ? value.allowedCloudModes.map(normalizeCloudMode)
-        : ["full_sync", "backup_only", "local_only"],
+        : [...CLOUD_MODES],
       cloudBackupEnabled: value.cloudBackupEnabled !== false,
       remoteMonitoringEnabled: value.remoteMonitoringEnabled !== false,
+      backupIntervalHours: normalizeBackupIntervalHours(value.backupIntervalHours),
       features,
       planFeatures,
       experience: parseExperience(value.experience),

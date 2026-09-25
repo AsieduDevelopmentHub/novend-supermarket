@@ -52,13 +52,40 @@ import { PlatformImportExportCard } from "./platform-import-export-card";
 import { formatClosureReason } from "@/convex/shared/accountClosure";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
-import type { CloudMode } from "@/convex/shared/cloudMode";
+import {
+  BACKUP_INTERVAL_HOURS,
+  normalizeBackupIntervalHours,
+  type BackupIntervalHours,
+  type CloudMode,
+} from "@/convex/shared/cloudMode";
 
 const CLOUD_MODE_OPTIONS: { value: CloudMode; label: string; hint: string }[] = [
   { value: "full_sync", label: "Full sync", hint: "Realtime cloud sync and backups" },
-  { value: "backup_only", label: "Backup only", hint: "Scheduled cloud backups, no realtime sync" },
-  { value: "local_only", label: "Local only", hint: "Device-only — stops cloud sync" },
+  { value: "backup_only", label: "Backup only", hint: "Scheduled full dumps, no realtime sync" },
+  {
+    value: "snapshot_only",
+    label: "Snapshot only",
+    hint: "Scheduled compact packages, restore on a fresh device",
+  },
+  { value: "local_only", label: "Local only", hint: "Device-only — stops cloud sync and backups" },
 ];
+
+const BACKUP_INTERVAL_OPTIONS: { value: BackupIntervalHours; label: string }[] =
+  BACKUP_INTERVAL_HOURS.map((hours) => ({
+    value: hours,
+    label:
+      hours === 12
+        ? "Every 12 hours"
+        : hours === 24
+          ? "Every day"
+          : hours === 48
+            ? "Every 2 days"
+            : hours === 168
+              ? "Every 7 days"
+              : hours === 336
+                ? "Every 14 days"
+                : "Every 30 days",
+  }));
 
 type LimitOverrides = {
   products?: number | null;
@@ -135,6 +162,7 @@ export function PlatformLicensePanel({
   const setBackupLimit = useMutation(api.billing.setBackupLimit);
   const setStatus = useMutation(api.platform.setOrganizationStatus);
   const setCloudMode = useMutation(api.platform.setOrganizationCloudMode);
+  const setBackupInterval = useMutation(api.platform.setOrganizationBackupInterval);
   const setLimitOverrides = useMutation(api.platform.setOrganizationLimitOverrides);
   const setProductImagesEnabled = useMutation(api.platform.setProductImagesEnabled);
   const extendSubscription = useMutation(api.platform.extendSubscription);
@@ -428,18 +456,55 @@ export function PlatformLicensePanel({
             </p>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="license-backup-interval">Automatic cloud upload interval</Label>
+            <Select
+              value={String(normalizeBackupIntervalHours(license.backupIntervalHours))}
+              disabled={
+                pending ||
+                !online ||
+                (license.cloudMode !== "backup_only" && license.cloudMode !== "snapshot_only")
+              }
+              onValueChange={(value) => {
+                const hours = normalizeBackupIntervalHours(Number(value));
+                if (hours === normalizeBackupIntervalHours(license.backupIntervalHours)) return;
+                void run("Backup interval updated", () =>
+                  setBackupInterval({ organizationId, backupIntervalHours: hours }),
+                );
+              }}
+            >
+              <SelectTrigger id="license-backup-interval">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {BACKUP_INTERVAL_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={String(option.value)}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              {license.cloudMode === "backup_only" || license.cloudMode === "snapshot_only"
+                ? "The till stays local and uploads one encrypted package on this schedule. A longer interval uses less Convex storage and fewer function calls."
+                : license.cloudMode === "local_only"
+                  ? "Local only never uploads a cloud package. Switch to Backup only or Snapshot only to use this schedule."
+                  : "Full sync still sends each sale to Convex as it happens. This schedule applies after you switch to Backup only or Snapshot only."}
+            </p>
+          </div>
+
           <div className="border-border space-y-3 rounded-lg border p-4">
             <p className="text-sm font-medium">Assign a plan</p>
             <p className="text-muted-foreground text-xs leading-relaxed">
-              Negotiated list prices belong on the <strong>Commercial</strong> tab. Use this
-              section to apply a plan or change the live recurring amount. When a subscription
-              already exists you must choose <em>Update amount only</em> (MRR, no new gross) or{" "}
+              Negotiated list prices belong on the <strong>Commercial</strong> tab. Use this section
+              to apply a plan or change the live recurring amount. When a subscription already
+              exists you must choose <em>Update amount only</em> (MRR, no new gross) or{" "}
               <em>Apply and record a payment</em> (gross revenue increases).
             </p>
             {license.planKey === "lifetime" ? (
               <p className="text-muted-foreground text-xs leading-relaxed">
-                This organization is on a legacy Lifetime licence. You can keep Lifetime selected
-                or migrate them to a sellable Monthly/Annual plan.
+                This organization is on a legacy Lifetime licence. You can keep Lifetime selected or
+                migrate them to a sellable Monthly/Annual plan.
               </p>
             ) : null}
             <div className="grid gap-3 sm:grid-cols-2">
@@ -497,9 +562,9 @@ export function PlatformLicensePanel({
                 placeholder="Blank = commercial offer or catalog price"
               />
               <p className="text-muted-foreground text-xs leading-relaxed">
-                For discounts, premiums, enterprise quotes, or later price increases. Empty uses
-                the live commercial offer or catalog. If a subscription already exists, you must
-                confirm whether to update the recurring amount only or also record a payment.
+                For discounts, premiums, enterprise quotes, or later price increases. Empty uses the
+                live commercial offer or catalog. If a subscription already exists, you must confirm
+                whether to update the recurring amount only or also record a payment.
               </p>
             </div>
             <div className="space-y-2">
@@ -536,7 +601,9 @@ export function PlatformLicensePanel({
                     Boolean(license.subscription) && !license.subscription?.isLifetime;
                   if (needsConfirm) {
                     if (amount === undefined) {
-                      toast.error("Enter the charge amount first, then confirm how it should apply");
+                      toast.error(
+                        "Enter the charge amount first, then confirm how it should apply",
+                      );
                       return;
                     }
                     setPendingAssignAmount(amount);

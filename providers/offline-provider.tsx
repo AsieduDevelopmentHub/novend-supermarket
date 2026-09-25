@@ -468,9 +468,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     };
   }, [online, recordHeartbeat]);
 
-  // Automatic cloud backups for backup_only organizations. Self-throttled to
-  // once per 24h and only runs when a backup password is available this session;
-  // it never flushes the business outbox. (Phase D)
+  // Automatic cloud uploads for backup_only / snapshot_only. The hourly timer only
+  // checks local state; Convex is contacted when the platform interval has elapsed
+  // and a recovery key is sealed on this device. It never flushes the outbox.
   useEffect(() => {
     if (!online) return;
     if (isPlatformReplicaBound()) return;

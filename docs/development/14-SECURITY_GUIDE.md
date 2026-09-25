@@ -120,9 +120,11 @@ compensation. Do not scatter `if (role === "administrator")` in screens — use
 
 Encrypted `.novend-backup` files include PBKDF2 + AES-GCM parameters (hash,
 iterations, salt, IV) in the envelope. Those values are **public** and required
-to decrypt; they are not a key leak. The backup password is the secret. Files
-are written as compact JSON so the envelope is a restore artifact, not a
-readable showcase.
+to decrypt; they are not a key leak. The **organization recovery key** (or a
+legacy strong backup password) is the secret. Login passwords must never be used
+to encrypt backups. The recovery key is sealed on-device for scheduled uploads and
+is never stored in Convex. Files are written as compact JSON so the envelope is a
+restore artifact, not a readable showcase.
 
 # Local-device threat model
 
@@ -136,7 +138,7 @@ Distinguish these protections carefully:
 | Layer                              | What is protected                                                                                                                                                                                                      | What it is not                                    |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
 | Encryption in transit              | TLS between the client and Convex / hosted app origin                                                                                                                                                                  | Not a substitute for device custody               |
-| Encrypted portable / cloud backups | `.novend-backup` archives (password + AES-GCM)                                                                                                                                                                         | Does not encrypt the live Dexie database          |
+| Encrypted portable / cloud backups | `.novend-backup` archives (org recovery key + AES-GCM)                                                                                                                                                                 | Does not encrypt the live Dexie database          |
 | Local operational store            | Relies on OS lock screen, browser profile isolation, app sandbox, and physical control of the till                                                                                                                     | Not field-level encryption of every IndexedDB row |
 | Explicit logout                    | Deletes the bound org/user Dexie replica (including product image blobs), offline session hints, cart drafts, customer-display snapshot, and other sensitive session keys — without deleting another tenant’s database | Does not wipe the entire device                   |
 | Inactivity lock                    | Configurable UI lock (default 10 minutes; Off / 5 / 10 / 15 / 30) requiring Convex Auth password reauthentication (optional native biometrics when already enabled)                                                    | Obscures the UI; does not encrypt Dexie at rest   |

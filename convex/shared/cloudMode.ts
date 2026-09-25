@@ -7,14 +7,37 @@
  * See docs/architecture/CLOUD_MODE_PLAN_V1.md and CLOUD_MODE_PLAN_V2.md.
  */
 
-export const CLOUD_MODES = ["full_sync", "backup_only", "local_only"] as const;
+export const CLOUD_MODES = ["full_sync", "backup_only", "snapshot_only", "local_only"] as const;
 export type CloudMode = (typeof CLOUD_MODES)[number];
 export const DEFAULT_CLOUD_MODE: CloudMode = "full_sync";
+
+/**
+ * How often a backup_only / snapshot_only device may upload an automatic package.
+ * Missing / unknown values stay at 24 hours so existing orgs keep today's cadence.
+ * Longer values are the Super Admin lever for cutting Convex storage and calls.
+ */
+export const BACKUP_INTERVAL_HOURS = [12, 24, 48, 168, 336, 720] as const;
+export type BackupIntervalHours = (typeof BACKUP_INTERVAL_HOURS)[number];
+export const DEFAULT_BACKUP_INTERVAL_HOURS: BackupIntervalHours = 24;
+
+export function normalizeBackupIntervalHours(value: unknown): BackupIntervalHours {
+  if (typeof value === "number" && (BACKUP_INTERVAL_HOURS as readonly number[]).includes(value)) {
+    return value as BackupIntervalHours;
+  }
+  return DEFAULT_BACKUP_INTERVAL_HOURS;
+}
+
+export function backupIntervalMs(hours: unknown): number {
+  return normalizeBackupIntervalHours(hours) * 60 * 60 * 1000;
+}
 
 export type CloudPolicy = {
   mode: CloudMode;
   shouldQueueRealtimeSync(): boolean;
+  /** Full Dexie dump upload (backup_only / entitled full_sync). */
   shouldQueueBackup(): boolean;
+  /** Compact business snapshot upload (snapshot_only). */
+  shouldQueueSnapshot(): boolean;
   shouldRunBackgroundSync(): boolean;
   shouldUseRealtimeSubscriptions(): boolean;
   shouldAllowRemoteMonitoring(): boolean;
@@ -22,7 +45,12 @@ export type CloudPolicy = {
 };
 
 export function normalizeCloudMode(value: unknown): CloudMode {
-  if (value === "full_sync" || value === "backup_only" || value === "local_only") {
+  if (
+    value === "full_sync" ||
+    value === "backup_only" ||
+    value === "snapshot_only" ||
+    value === "local_only"
+  ) {
     return value;
   }
   return DEFAULT_CLOUD_MODE;
@@ -46,21 +74,27 @@ export function resolveCloudPolicy(
   const normalized = normalizeCloudMode(mode);
   const backupEntitled = entitlements?.cloudBackupEnabled !== false;
   const monitoringEntitled = entitlements?.remoteMonitoringEnabled !== false;
-  // Matrix from CLOUD_MODE_PLAN_V1:
-  // full_sync: all yes
-  // backup_only: no realtime flush/subs/remote device sync; backup yes; remote
-  //   monitoring limited → false for allow flags that imply sync; background
-  //   business sync no
-  // local_only: only local; no backup scheduled; no remote
   switch (normalized) {
     case "backup_only":
       return {
         mode: normalized,
         shouldQueueRealtimeSync: () => false,
         shouldQueueBackup: () => backupEntitled,
+        shouldQueueSnapshot: () => false,
         shouldRunBackgroundSync: () => false,
         shouldUseRealtimeSubscriptions: () => false,
-        shouldAllowRemoteMonitoring: () => false, // limited → deny for foundation
+        shouldAllowRemoteMonitoring: () => false,
+        shouldAllowRemoteDeviceSync: () => false,
+      };
+    case "snapshot_only":
+      return {
+        mode: normalized,
+        shouldQueueRealtimeSync: () => false,
+        shouldQueueBackup: () => false,
+        shouldQueueSnapshot: () => backupEntitled,
+        shouldRunBackgroundSync: () => false,
+        shouldUseRealtimeSubscriptions: () => false,
+        shouldAllowRemoteMonitoring: () => false,
         shouldAllowRemoteDeviceSync: () => false,
       };
     case "local_only":
@@ -68,6 +102,7 @@ export function resolveCloudPolicy(
         mode: normalized,
         shouldQueueRealtimeSync: () => false,
         shouldQueueBackup: () => false,
+        shouldQueueSnapshot: () => false,
         shouldRunBackgroundSync: () => false,
         shouldUseRealtimeSubscriptions: () => false,
         shouldAllowRemoteMonitoring: () => false,
@@ -79,6 +114,7 @@ export function resolveCloudPolicy(
         mode: "full_sync",
         shouldQueueRealtimeSync: () => true,
         shouldQueueBackup: () => backupEntitled,
+        shouldQueueSnapshot: () => false,
         shouldRunBackgroundSync: () => true,
         shouldUseRealtimeSubscriptions: () => true,
         shouldAllowRemoteMonitoring: () => monitoringEntitled,

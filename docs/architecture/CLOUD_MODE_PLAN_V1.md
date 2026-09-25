@@ -6,11 +6,14 @@
 
 Implement a production-ready **per-organization cloud mode architecture** for Novend so organizations can operate under different levels of cloud usage without breaking the existing offline-first behavior.
 
-The three supported modes are:
+The four supported modes are:
 
 ```ts
-type CloudMode = "full_sync" | "backup_only" | "local_only";
+type CloudMode = "full_sync" | "backup_only" | "snapshot_only" | "local_only";
 ```
+
+Runtime source of truth: `convex/shared/cloudMode.ts`. `snapshot_only` is a
+scheduled compact package mode (see `docs/architecture/OFFLINE_SYNC.md`).
 
 The purpose is to reduce recurring Convex usage for selected organizations, especially lifetime-license customers, while preserving Novend's local-first functionality.
 

@@ -124,7 +124,7 @@ describe("evaluateCachedLicense", () => {
       cloudMode: "full_sync",
       entitlementVersion: 0,
       configVersion: 0,
-      allowedCloudModes: ["full_sync", "backup_only", "local_only"],
+      allowedCloudModes: ["full_sync", "backup_only", "snapshot_only", "local_only"],
       cloudBackupEnabled: true,
       remoteMonitoringEnabled: true,
       subscription: subscription(),

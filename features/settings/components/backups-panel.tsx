@@ -1,54 +1,71 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePermissions } from "@/hooks/use-permissions";
-import { setSessionBackupPassword } from "@/lib/offline/backup-password";
-import { BackupPasswordFields, canProtectBackup, canUnlockBackup } from "./backup-password-fields";
+import { useLicense } from "@/hooks/use-license";
+import { resolveBackupSecret } from "@/lib/offline/recovery-key";
+import {
+  RecoveryKeyPanel,
+  canProtectWithRecovery,
+  canUnlockWithRecovery,
+} from "./recovery-key-panel";
 import { LocalBackupCard } from "./local-backup-panel";
 import { CloudBackupCard } from "./cloud-backup-panel";
 
-/** One Settings place for device and cloud backups, gated by the same password. */
+/** One Settings place for recovery key, device backups, and cloud packages. */
 export function BackupsPanel() {
   const { isAdmin } = usePermissions();
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const canProtect = canProtectBackup(password, confirm);
-  const canUnlock = canUnlockBackup(password);
+  const { organizationId } = useLicense();
+  const [unlockKey, setUnlockKey] = useState("");
+  const [sealed, setSealed] = useState(false);
+  const onSealedChange = useCallback((value: boolean) => setSealed(value), []);
 
-  // Expose a valid password to the automatic backup_only runner for this session
-  // only. Never persisted; cleared when the panel unmounts.
-  useEffect(() => {
-    setSessionBackupPassword(canProtect ? password : null);
-    return () => setSessionBackupPassword(null);
-  }, [canProtect, password]);
+  const canProtect = canProtectWithRecovery(sealed, unlockKey);
+  const canUnlock = canUnlockWithRecovery(unlockKey, sealed);
+
+  async function resolveSecret(preferTyped = false): Promise<string | null> {
+    return resolveBackupSecret({
+      organizationId,
+      typedKey: unlockKey,
+      preferTyped,
+    });
+  }
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Password</CardTitle>
-          <CardDescription>
-            Every backup is encrypted with this password before it leaves the device. Saving a new
-            copy requires a strong password and a match. Restoring needs the password that was used
-            when that copy was created. The file lists algorithm, salt, and IV so it can be opened
-            later — those are not secrets. Only this password protects the data.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <BackupPasswordFields
-            password={password}
-            confirm={confirm}
-            onPasswordChange={setPassword}
-            onConfirmChange={setConfirm}
-          />
-        </CardContent>
-      </Card>
+      <RecoveryKeyPanel
+        organizationId={organizationId}
+        unlockKey={unlockKey}
+        onUnlockKeyChange={setUnlockKey}
+        onSealedChange={onSealedChange}
+      />
 
-      <LocalBackupCard password={password} canProtect={canProtect} canUnlock={canUnlock} />
+      <LocalBackupCard
+        canProtect={canProtect}
+        canUnlock={canUnlock}
+        resolveSecret={resolveSecret}
+      />
 
       {isAdmin ? (
-        <CloudBackupCard password={password} canProtect={canProtect} canUnlock={canUnlock} />
+        <CloudBackupCard
+          canProtect={canProtect}
+          canUnlock={canUnlock}
+          resolveSecret={resolveSecret}
+        />
+      ) : null}
+
+      {!sealed && !canProtect ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Waiting for a recovery key</CardTitle>
+            <CardDescription>
+              Create and seal a recovery key above (or paste an existing one) before saving encrypted
+              copies.
+            </CardDescription>
+          </CardHeader>
+          <CardContent />
+        </Card>
       ) : null}
     </div>
   );

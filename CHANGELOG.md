@@ -8,6 +8,7 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Added
 
+- Cloud mode **`snapshot_only`**: compact business packages on a Super Admin–set interval, plus organization **recovery keys** (device-sealed, never in Convex) for encrypt/restore and a post-login restore gate on empty devices.
 - Commercial offers support a **lifetime (one-time)** cycle: negotiated buyout price counts toward gross / net profit and never toward MRR or ARR.
 
 ### Fixed
@@ -30,6 +31,7 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Changed
 
+- Automatic cloud packages use the organization recovery key (not a session backup password); `backup_only` / `snapshot_only` cadence is `backupIntervalHours` (12h–30d) from PEAS.
 - Platform overview no longer fans out live `revenueAnalytics` + `systemHealth` on `/platform`; those routes load their own queries. Overview carries active-device and backup storage KPIs; subscription/health lists use `organizationPlatformStats` and `devices.by_isActive` instead of full profiles/devices scans.
 - Organizations can be flagged `isTestOrganization` (PEAS) and are excluded from platform MRR, ARR, and gross revenue.
 - Platform repair mutation `repairs.zeroZeroCostStock` clears on-hand units for products with `costPrice === 0` only (used for Global Medicine import cleanup).
