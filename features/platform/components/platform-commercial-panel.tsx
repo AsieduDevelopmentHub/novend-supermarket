@@ -47,8 +47,10 @@ type OfferFormState = {
   basePlanKey: SellablePlanKey;
   monthlyPrice: string;
   yearlyPrice: string;
+  lifetimePrice: string;
   allowMonthly: boolean;
   allowYearly: boolean;
+  allowLifetime: boolean;
   products: string;
   users: string;
   branches: string;
@@ -62,8 +64,10 @@ const EMPTY_FORM: OfferFormState = {
   basePlanKey: "pro",
   monthlyPrice: "",
   yearlyPrice: "",
+  lifetimePrice: "",
   allowMonthly: true,
   allowYearly: true,
+  allowLifetime: false,
   products: "",
   users: "",
   branches: "",
@@ -71,6 +75,30 @@ const EMPTY_FORM: OfferFormState = {
   customerMessage: "",
   notesInternal: "",
 };
+
+type OfferBillingCycle = "monthly" | "yearly" | "lifetime";
+
+function pickApplyCycle(
+  allowedCycles: OfferBillingCycle[],
+  preferred?: string | null,
+): OfferBillingCycle | null {
+  if (preferred === "lifetime" && allowedCycles.includes("lifetime")) return "lifetime";
+  if (preferred === "yearly" && allowedCycles.includes("yearly")) return "yearly";
+  if (preferred === "monthly" && allowedCycles.includes("monthly")) return "monthly";
+  if (allowedCycles.includes("lifetime")) return "lifetime";
+  if (allowedCycles.includes("yearly")) return "yearly";
+  if (allowedCycles.includes("monthly")) return "monthly";
+  return allowedCycles[0] ?? null;
+}
+
+function priceForApplyCycle(
+  cycle: OfferBillingCycle,
+  prices: { monthly?: number; yearly?: number; lifetime?: number },
+): number | undefined {
+  if (cycle === "lifetime") return prices.lifetime;
+  if (cycle === "yearly") return prices.yearly;
+  return prices.monthly;
+}
 
 function parseOptionalLimit(raw: string): number | null | undefined {
   const trimmed = raw.trim();
@@ -140,7 +168,7 @@ export function PlatformCommercialPanel({
   const [confirmWithdraw, setConfirmWithdraw] = useState<Id<"commercialOffers"> | null>(null);
   const [applyPricingOpen, setApplyPricingOpen] = useState(false);
   const [pendingApplyAmount, setPendingApplyAmount] = useState<number | null>(null);
-  const [pendingApplyCycle, setPendingApplyCycle] = useState<"monthly" | "yearly">("monthly");
+  const [pendingApplyCycle, setPendingApplyCycle] = useState<OfferBillingCycle>("monthly");
   const [pendingApplyPlanKey, setPendingApplyPlanKey] = useState<SellablePlanKey>("pro");
 
   if (!online && offers === undefined) {
@@ -171,8 +199,10 @@ export function PlatformCommercialPanel({
       basePlanKey: offer.basePlanKey,
       monthlyPrice: offer.monthlyPrice !== undefined ? String(offer.monthlyPrice) : "",
       yearlyPrice: offer.yearlyPrice !== undefined ? String(offer.yearlyPrice) : "",
+      lifetimePrice: offer.lifetimePrice !== undefined ? String(offer.lifetimePrice) : "",
       allowMonthly: offer.allowedCycles.includes("monthly"),
       allowYearly: offer.allowedCycles.includes("yearly"),
+      allowLifetime: offer.allowedCycles.includes("lifetime"),
       products:
         offer.limitOverrides?.products === null
           ? "unlimited"
@@ -208,9 +238,10 @@ export function PlatformCommercialPanel({
       toast.error("Commercial offers require a connection");
       return;
     }
-    const allowedCycles: Array<"monthly" | "yearly"> = [];
+    const allowedCycles: OfferBillingCycle[] = [];
     if (form.allowMonthly) allowedCycles.push("monthly");
     if (form.allowYearly) allowedCycles.push("yearly");
+    if (form.allowLifetime) allowedCycles.push("lifetime");
     if (allowedCycles.length === 0) {
       toast.error("Select at least one billing cycle");
       return;
@@ -220,11 +251,15 @@ export function PlatformCommercialPanel({
     try {
       const monthlyPrice = form.allowMonthly ? Number(form.monthlyPrice) : undefined;
       const yearlyPrice = form.allowYearly ? Number(form.yearlyPrice) : undefined;
+      const lifetimePrice = form.allowLifetime ? Number(form.lifetimePrice) : undefined;
       if (form.allowMonthly && !Number.isFinite(monthlyPrice)) {
         throw new Error("Enter a valid monthly price");
       }
       if (form.allowYearly && !Number.isFinite(yearlyPrice)) {
         throw new Error("Enter a valid yearly price");
+      }
+      if (form.allowLifetime && !Number.isFinite(lifetimePrice)) {
+        throw new Error("Enter a valid lifetime (one-time) price");
       }
       const limitOverrides = buildLimitOverrides(form);
 
@@ -237,6 +272,7 @@ export function PlatformCommercialPanel({
           basePlanKey: form.basePlanKey,
           monthlyPrice,
           yearlyPrice,
+          lifetimePrice,
           allowedCycles,
           limitOverrides: limitOverrides ?? null,
           customerMessage: form.customerMessage.trim() || null,
@@ -252,6 +288,7 @@ export function PlatformCommercialPanel({
           currency,
           monthlyPrice,
           yearlyPrice,
+          lifetimePrice,
           allowedCycles,
           limitOverrides,
           customerMessage: form.customerMessage.trim() || undefined,
@@ -265,17 +302,18 @@ export function PlatformCommercialPanel({
       const canApply =
         savedLiveOffer &&
         sub &&
-        !sub.isLifetime &&
         (sub.status === "active" || sub.status === "past_due" || sub.status === "trialing");
       if (canApply && sub) {
-        const cycle =
-          sub.billingCycle === "yearly" && allowedCycles.includes("yearly")
-            ? "yearly"
-            : allowedCycles.includes("monthly")
-              ? "monthly"
-              : allowedCycles[0]!;
-        const amount = cycle === "yearly" ? yearlyPrice : monthlyPrice;
-        if (typeof amount === "number" && Number.isFinite(amount)) {
+        const cycle = pickApplyCycle(allowedCycles, sub.billingCycle);
+        const amount =
+          cycle === null
+            ? undefined
+            : priceForApplyCycle(cycle, {
+                monthly: monthlyPrice,
+                yearly: yearlyPrice,
+                lifetime: lifetimePrice,
+              });
+        if (cycle && typeof amount === "number" && Number.isFinite(amount)) {
           setPendingApplyAmount(amount);
           setPendingApplyCycle(cycle);
           setPendingApplyPlanKey(form.basePlanKey);
@@ -300,17 +338,21 @@ export function PlatformCommercialPanel({
       if (
         offer &&
         sub &&
-        !sub.isLifetime &&
         (sub.status === "active" || sub.status === "past_due" || sub.status === "trialing")
       ) {
-        const cycle =
-          sub.billingCycle === "yearly" && offer.allowedCycles.includes("yearly")
-            ? "yearly"
-            : offer.allowedCycles.includes("monthly")
-              ? "monthly"
-              : offer.allowedCycles[0]!;
-        const amount = cycle === "yearly" ? offer.yearlyPrice : offer.monthlyPrice;
-        if (typeof amount === "number") {
+        const cycle = pickApplyCycle(
+          offer.allowedCycles as OfferBillingCycle[],
+          sub.billingCycle,
+        );
+        const amount =
+          cycle === null
+            ? undefined
+            : priceForApplyCycle(cycle, {
+                monthly: offer.monthlyPrice,
+                yearly: offer.yearlyPrice,
+                lifetime: offer.lifetimePrice,
+              });
+        if (cycle && typeof amount === "number") {
           setPendingApplyAmount(amount);
           setPendingApplyCycle(cycle);
           setPendingApplyPlanKey(offer.basePlanKey);
@@ -344,9 +386,9 @@ export function PlatformCommercialPanel({
           <div>
             <CardTitle>Commercial offer</CardTitle>
             <CardDescription>
-              Negotiated monthly/annual charges and limits. Saving an offer does not change MRR,
-              ARR, or gross by itself — after save you will confirm whether to update the live
-              licence amount only or also record a payment.
+              Negotiated monthly, annual, or one-time lifetime charges and limits. Lifetime is
+              one-time revenue (gross / net) and does not add MRR or ARR. Saving an offer does not
+              change KPIs by itself — after save you confirm amount-only vs recording a payment.
             </CardDescription>
           </div>
           <Button type="button" size="sm" disabled={!online} onClick={openCreate}>
@@ -373,16 +415,22 @@ export function PlatformCommercialPanel({
                       <Badge variant="outline">{offer.basePlanKey}</Badge>
                     </div>
                     <p className="text-muted-foreground">
-                      {offer.allowedCycles.includes("monthly") && offer.monthlyPrice !== undefined
-                        ? `Monthly ${formatCurrency(offer.monthlyPrice)}`
-                        : null}
-                      {offer.allowedCycles.includes("monthly") &&
-                      offer.allowedCycles.includes("yearly")
-                        ? " · "
-                        : null}
-                      {offer.allowedCycles.includes("yearly") && offer.yearlyPrice !== undefined
-                        ? `Annual ${formatCurrency(offer.yearlyPrice)}`
-                        : null}
+                      {[
+                        offer.allowedCycles.includes("monthly") &&
+                        offer.monthlyPrice !== undefined
+                          ? `Monthly ${formatCurrency(offer.monthlyPrice)}`
+                          : null,
+                        offer.allowedCycles.includes("yearly") &&
+                        offer.yearlyPrice !== undefined
+                          ? `Annual ${formatCurrency(offer.yearlyPrice)}`
+                          : null,
+                        offer.allowedCycles.includes("lifetime") &&
+                        offer.lifetimePrice !== undefined
+                          ? `Lifetime ${formatCurrency(offer.lifetimePrice)}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                     {offer.customerMessage ? (
                       <p className="text-sm">{offer.customerMessage}</p>
@@ -491,6 +539,15 @@ export function PlatformCommercialPanel({
                 />
                 Annual
               </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={form.allowLifetime}
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({ ...prev, allowLifetime: checked === true }))
+                  }
+                />
+                Lifetime (one-time)
+              </label>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
@@ -520,6 +577,23 @@ export function PlatformCommercialPanel({
                     setForm((prev) => ({ ...prev, yearlyPrice: event.target.value }))
                   }
                 />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="offer-lifetime">Lifetime one-time ({currency})</Label>
+                <Input
+                  id="offer-lifetime"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  disabled={!form.allowLifetime}
+                  value={form.lifetimePrice}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, lifetimePrice: event.target.value }))
+                  }
+                />
+                <p className="text-muted-foreground text-xs">
+                  Counts toward gross / net profit only — never MRR or ARR.
+                </p>
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -598,17 +672,25 @@ export function PlatformCommercialPanel({
             <DialogDescription asChild>
               <div className="space-y-2 text-sm">
                 <p>
-                  Offer prices are saved. Recognized MRR uses the licence amount
-                  {license?.subscription
-                    ? ` (currently ${formatCurrency(license.subscription.amount)})`
-                    : ""}
-                  .
+                  Offer prices are saved.
+                  {pendingApplyCycle === "lifetime"
+                    ? " Lifetime is a one-time buyout — it does not add MRR or ARR."
+                    : ` Recognized MRR uses the licence amount${
+                        license?.subscription
+                          ? ` (currently ${formatCurrency(license.subscription.amount)})`
+                          : ""
+                      }.`}
                 </p>
                 <p>
                   New amount:{" "}
-                  {pendingApplyAmount !== null ? formatCurrency(pendingApplyAmount) : "—"} /{" "}
-                  {pendingApplyCycle}. Choose whether this should only update recurring MRR or
-                  also record a payment (gross / net profit).
+                  {pendingApplyAmount !== null ? formatCurrency(pendingApplyAmount) : "—"}
+                  {pendingApplyCycle === "lifetime"
+                    ? " (lifetime one-time)"
+                    : ` / ${pendingApplyCycle}`}
+                  .{" "}
+                  {pendingApplyCycle === "lifetime"
+                    ? "Recording a payment adds the amount to gross revenue (and net after costs)."
+                    : "Choose whether this should only update recurring MRR or also record a payment (gross / net profit)."}
                 </p>
               </div>
             </DialogDescription>
@@ -620,6 +702,7 @@ export function PlatformCommercialPanel({
               onClick={() => {
                 if (pendingApplyAmount === null) return;
                 const samePlanAndCycle =
+                  pendingApplyCycle !== "lifetime" &&
                   license?.subscription?.planKey === pendingApplyPlanKey &&
                   license.subscription.billingCycle === pendingApplyCycle;
                 setPending(true);
@@ -637,7 +720,11 @@ export function PlatformCommercialPanel({
                     });
                 void work
                   .then(() => {
-                    toast.success("Licence amount updated (no new payment)");
+                    toast.success(
+                      pendingApplyCycle === "lifetime"
+                        ? "Lifetime licence updated (no new payment)"
+                        : "Licence amount updated (no new payment)",
+                    );
                     setApplyPricingOpen(false);
                     setPendingApplyAmount(null);
                   })
@@ -645,7 +732,9 @@ export function PlatformCommercialPanel({
                   .finally(() => setPending(false));
               }}
             >
-              Update amount only (no new payment)
+              {pendingApplyCycle === "lifetime"
+                ? "Apply lifetime without recording payment"
+                : "Update amount only (no new payment)"}
             </Button>
             <Button
               type="button"
@@ -662,7 +751,11 @@ export function PlatformCommercialPanel({
                   recordPayment: true,
                 })
                   .then(() => {
-                    toast.success("Payment recorded and licence updated");
+                    toast.success(
+                      pendingApplyCycle === "lifetime"
+                        ? "Lifetime payment recorded (gross); MRR unchanged"
+                        : "Payment recorded and licence updated",
+                    );
                     setApplyPricingOpen(false);
                     setPendingApplyAmount(null);
                   })
@@ -670,7 +763,9 @@ export function PlatformCommercialPanel({
                   .finally(() => setPending(false));
               }}
             >
-              Apply and record a payment
+              {pendingApplyCycle === "lifetime"
+                ? "Apply and record one-time payment (gross)"
+                : "Apply and record a payment"}
             </Button>
             <Button
               type="button"

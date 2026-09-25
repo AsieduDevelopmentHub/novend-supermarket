@@ -378,7 +378,11 @@ export default defineSchema({
     currency: v.string(),
     monthlyPrice: v.optional(v.number()),
     yearlyPrice: v.optional(v.number()),
-    allowedCycles: v.array(v.union(v.literal("monthly"), v.literal("yearly"))),
+    /** One-time commercial buyout — counts toward gross, never MRR/ARR. */
+    lifetimePrice: v.optional(v.number()),
+    allowedCycles: v.array(
+      v.union(v.literal("monthly"), v.literal("yearly"), v.literal("lifetime")),
+    ),
     limitOverrides: v.optional(limitOverridesValidator),
     featureOverrides: v.optional(
       v.array(

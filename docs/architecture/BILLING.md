@@ -65,16 +65,24 @@ self-serve — published as **GH₵750+**. Annual recurring prices are **10 × m
 
 # Private commercial offers
 
-`commercialOffers` stores negotiated Monthly/Annual prices for one organization.
+`commercialOffers` stores negotiated Monthly, Annual, and optional **Lifetime
+(one-time)** prices for one organization. Lifetime buyouts keep the offer’s
+`basePlanKey` entitlements permanently (`subscriptions.isLifetime` / cycle
+`lifetime`). The one-time charge is recorded on `billingHistory` when PEAS
+applies with “record a payment” — it contributes to **gross revenue** (and net
+after operating costs) and **never** to MRR/ARR.
+
 Tenant APIs derive `organizationId` from the session (`commercialOffers.myActiveOffer`) —
 never from client args. Internal notes and Paystack plan codes are never returned
 to tenants.
 
-When checkout targets the offer’s `basePlanKey` and an `allowedCycles` entry,
-`billing.startCheckout` / `previewPlanChange` use the offer amounts (via
-`targetPriceOverride`) and create/update a **dedicated** Paystack recurring plan
-stored on the offer row (`gatewayMonthlyPlanCode` / `gatewayYearlyPlanCode`).
-Those codes are never written to the public `plans` catalog.
+When checkout targets the offer’s `basePlanKey` and a recurring `allowedCycles`
+entry (`monthly` / `yearly`), `billing.startCheckout` / `previewPlanChange` use
+the offer amounts (via `targetPriceOverride`) and create/update a **dedicated**
+Paystack recurring plan stored on the offer row (`gatewayMonthlyPlanCode` /
+`gatewayYearlyPlanCode`). Those codes are never written to the public `plans`
+catalog. Lifetime commercial is PEAS-applied (manual assign + optional payment
+row), not self-serve Paystack recurring.
 
 Subscription `amount` remains the charged/recurring major-unit value after
 activation. Paystack webhooks (`billingHttp`) continue to apply payments by

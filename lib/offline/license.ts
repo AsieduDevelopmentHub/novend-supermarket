@@ -150,7 +150,8 @@ function parseCommercialOffer(value: unknown): CommercialOfferSnapshot | null {
   if (typeof value.currency !== "string") return null;
   if (!Array.isArray(value.allowedCycles)) return null;
   const cycles = value.allowedCycles.filter(
-    (c): c is "monthly" | "yearly" => c === "monthly" || c === "yearly",
+    (c): c is "monthly" | "yearly" | "lifetime" =>
+      c === "monthly" || c === "yearly" || c === "lifetime",
   );
   if (cycles.length === 0) return null;
   return {
@@ -169,6 +170,12 @@ function parseCommercialOffer(value: unknown): CommercialOfferSnapshot | null {
         ? null
         : typeof value.yearlyPrice === "number"
           ? value.yearlyPrice
+          : null,
+    lifetimePrice:
+      value.lifetimePrice === null || value.lifetimePrice === undefined
+        ? null
+        : typeof value.lifetimePrice === "number"
+          ? value.lifetimePrice
           : null,
     allowedCycles: cycles,
     customerMessage: typeof value.customerMessage === "string" ? value.customerMessage : null,

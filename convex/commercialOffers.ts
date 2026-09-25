@@ -26,7 +26,11 @@ import {
   type TenantCommercialOffer,
 } from "./shared/commercialOffers";
 
-const billingCycleOfferValidator = v.union(v.literal("monthly"), v.literal("yearly"));
+const billingCycleOfferValidator = v.union(
+  v.literal("monthly"),
+  v.literal("yearly"),
+  v.literal("lifetime"),
+);
 
 function normalizeOfferFeatureOverrides(
   values: Array<{ feature: string; enabled: boolean }> | undefined,
@@ -50,7 +54,8 @@ function normalizeOfferFeatureOverrides(
 function normalizePrices(args: {
   monthlyPrice?: number;
   yearlyPrice?: number;
-  allowedCycles: Array<"monthly" | "yearly">;
+  lifetimePrice?: number;
+  allowedCycles: Array<"monthly" | "yearly" | "lifetime">;
 }) {
   if (args.allowedCycles.length === 0) {
     throw new Error("At least one billing cycle must be allowed.");
@@ -62,6 +67,7 @@ function normalizePrices(args: {
 
   let monthlyPrice = args.monthlyPrice;
   let yearlyPrice = args.yearlyPrice;
+  let lifetimePrice = args.lifetimePrice;
 
   if (monthlyPrice !== undefined) {
     assertPositiveMoney(monthlyPrice, "monthly price");
@@ -71,6 +77,10 @@ function normalizePrices(args: {
     assertPositiveMoney(yearlyPrice, "yearly price");
     yearlyPrice = roundMoney(yearlyPrice);
   }
+  if (lifetimePrice !== undefined) {
+    assertPositiveMoney(lifetimePrice, "lifetime price");
+    lifetimePrice = roundMoney(lifetimePrice);
+  }
 
   if (unique.includes("monthly") && monthlyPrice === undefined) {
     throw new Error("Monthly price is required when monthly cycle is allowed.");
@@ -78,8 +88,11 @@ function normalizePrices(args: {
   if (unique.includes("yearly") && yearlyPrice === undefined) {
     throw new Error("Yearly price is required when yearly cycle is allowed.");
   }
+  if (unique.includes("lifetime") && lifetimePrice === undefined) {
+    throw new Error("Lifetime price is required when lifetime cycle is allowed.");
+  }
 
-  return { allowedCycles: unique, monthlyPrice, yearlyPrice };
+  return { allowedCycles: unique, monthlyPrice, yearlyPrice, lifetimePrice };
 }
 
 // ─── Platform administrator ─────────────────────────────────────────────────
@@ -115,6 +128,7 @@ export const createDraft = mutation({
     currency: v.optional(v.string()),
     monthlyPrice: v.optional(v.number()),
     yearlyPrice: v.optional(v.number()),
+    lifetimePrice: v.optional(v.number()),
     allowedCycles: v.array(billingCycleOfferValidator),
     limitOverrides: v.optional(limitOverridesValidator),
     featureOverrides: v.optional(
@@ -140,6 +154,7 @@ export const createDraft = mutation({
     const prices = normalizePrices({
       monthlyPrice: args.monthlyPrice,
       yearlyPrice: args.yearlyPrice,
+      lifetimePrice: args.lifetimePrice,
       allowedCycles: args.allowedCycles,
     });
     const featureOverrides = normalizeOfferFeatureOverrides(args.featureOverrides);
@@ -167,6 +182,7 @@ export const createDraft = mutation({
       currency,
       monthlyPrice: prices.monthlyPrice,
       yearlyPrice: prices.yearlyPrice,
+      lifetimePrice: prices.lifetimePrice,
       allowedCycles: prices.allowedCycles,
       limitOverrides: args.limitOverrides,
       featureOverrides,
@@ -203,6 +219,7 @@ export const update = mutation({
     basePlanKey: v.optional(sellablePlanKeyValidator),
     monthlyPrice: v.optional(v.number()),
     yearlyPrice: v.optional(v.number()),
+    lifetimePrice: v.optional(v.number()),
     allowedCycles: v.optional(v.array(billingCycleOfferValidator)),
     limitOverrides: v.optional(v.union(v.null(), limitOverridesValidator)),
     featureOverrides: v.optional(
@@ -236,6 +253,8 @@ export const update = mutation({
       monthlyPrice:
         args.monthlyPrice !== undefined ? args.monthlyPrice : offer.monthlyPrice,
       yearlyPrice: args.yearlyPrice !== undefined ? args.yearlyPrice : offer.yearlyPrice,
+      lifetimePrice:
+        args.lifetimePrice !== undefined ? args.lifetimePrice : offer.lifetimePrice,
       allowedCycles,
     });
 
@@ -254,6 +273,7 @@ export const update = mutation({
       updatedAt: Date.now(),
       monthlyPrice: prices.monthlyPrice,
       yearlyPrice: prices.yearlyPrice,
+      lifetimePrice: prices.lifetimePrice,
       allowedCycles: prices.allowedCycles,
       validFrom,
       validUntil,
@@ -326,6 +346,7 @@ export const activate = mutation({
     normalizePrices({
       monthlyPrice: offer.monthlyPrice,
       yearlyPrice: offer.yearlyPrice,
+      lifetimePrice: offer.lifetimePrice,
       allowedCycles: offer.allowedCycles,
     });
 

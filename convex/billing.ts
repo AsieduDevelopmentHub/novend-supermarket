@@ -264,6 +264,7 @@ export const licenseSnapshot = query({
           currency: offerDoc.currency,
           monthlyPrice: offerDoc.monthlyPrice ?? null,
           yearlyPrice: offerDoc.yearlyPrice ?? null,
+          lifetimePrice: offerDoc.lifetimePrice ?? null,
           allowedCycles: offerDoc.allowedCycles,
           customerMessage: offerDoc.customerMessage ?? null,
         }
@@ -1847,11 +1848,16 @@ export const assignPlan = mutation({
         "Lifetime is a legacy plan and cannot be newly assigned. Migrate existing Lifetime customers deliberately.",
       );
     }
-    if (!supportsCycle(plan, args.cycle)) {
+
+    const offer = await loadLiveOfferForOrganization(ctx, args.organizationId);
+    const commercialLifetime =
+      args.cycle === "lifetime" &&
+      offer !== null &&
+      offerAppliesToCheckout(offer, args.planKey, "lifetime");
+    if (!supportsCycle(plan, args.cycle) && !commercialLifetime) {
       throw new Error(`The ${plan.name} plan is not sold on a ${args.cycle} cycle.`);
     }
 
-    const offer = await loadLiveOfferForOrganization(ctx, args.organizationId);
     const offerAmount =
       offer && offerAppliesToCheckout(offer, args.planKey, args.cycle)
         ? offerPriceForCycle(offer, args.cycle)

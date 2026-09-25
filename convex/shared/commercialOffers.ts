@@ -17,7 +17,8 @@ export type TenantCommercialOffer = {
   currency: string;
   monthlyPrice: number | null;
   yearlyPrice: number | null;
-  allowedCycles: Array<"monthly" | "yearly">;
+  lifetimePrice: number | null;
+  allowedCycles: Array<"monthly" | "yearly" | "lifetime">;
   customerMessage: string | null;
   validFrom: number;
   validUntil: number | null;
@@ -36,15 +37,25 @@ export function isCommercialOfferLive(
 }
 
 export function offerPriceForCycle(
-  offer: Pick<CommercialOfferDoc, "monthlyPrice" | "yearlyPrice" | "allowedCycles">,
+  offer: Pick<
+    CommercialOfferDoc,
+    "monthlyPrice" | "yearlyPrice" | "lifetimePrice" | "allowedCycles"
+  >,
   cycle: BillingCycle,
 ): number | null {
-  if (cycle !== "monthly" && cycle !== "yearly") return null;
-  if (!offer.allowedCycles.includes(cycle)) return null;
   if (cycle === "monthly") {
+    if (!offer.allowedCycles.includes("monthly")) return null;
     return offer.monthlyPrice !== undefined ? offer.monthlyPrice : null;
   }
-  return offer.yearlyPrice !== undefined ? offer.yearlyPrice : null;
+  if (cycle === "yearly") {
+    if (!offer.allowedCycles.includes("yearly")) return null;
+    return offer.yearlyPrice !== undefined ? offer.yearlyPrice : null;
+  }
+  if (cycle === "lifetime") {
+    if (!offer.allowedCycles.includes("lifetime")) return null;
+    return offer.lifetimePrice !== undefined ? offer.lifetimePrice : null;
+  }
+  return null;
 }
 
 /** Whether checkout for this catalog plan + cycle should use the private offer. */
@@ -54,6 +65,7 @@ export function offerAppliesToCheckout(
     | "basePlanKey"
     | "monthlyPrice"
     | "yearlyPrice"
+    | "lifetimePrice"
     | "allowedCycles"
     | "status"
     | "validFrom"
@@ -78,6 +90,7 @@ export function toTenantCommercialOffer(offer: CommercialOfferDoc): TenantCommer
     currency: offer.currency,
     monthlyPrice: offer.monthlyPrice ?? null,
     yearlyPrice: offer.yearlyPrice ?? null,
+    lifetimePrice: offer.lifetimePrice ?? null,
     allowedCycles: [...offer.allowedCycles],
     customerMessage: offer.customerMessage ?? null,
     validFrom: offer.validFrom,

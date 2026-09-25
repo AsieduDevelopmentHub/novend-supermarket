@@ -56,6 +56,19 @@ describe("commercial offer pricing helpers", () => {
     expect(offerPriceForCycle(offer, "lifetime")).toBeNull();
   });
 
+  it("returns lifetime one-time price when allowed", () => {
+    const offer = sampleOffer({
+      monthlyPrice: undefined,
+      yearlyPrice: undefined,
+      lifetimePrice: 2000,
+      allowedCycles: ["lifetime"],
+    });
+    expect(offerPriceForCycle(offer, "lifetime")).toBe(2000);
+    expect(offerPriceForCycle(offer, "monthly")).toBeNull();
+    expect(offerAppliesToCheckout(offer, "pro", "lifetime")).toBe(true);
+    expect(offerAppliesToCheckout(offer, "pro", "yearly")).toBe(false);
+  });
+
   it("applies an offer only when base plan and cycle match", () => {
     const offer = sampleOffer();
     expect(offerAppliesToCheckout(offer, "pro", "monthly")).toBe(true);
@@ -63,14 +76,18 @@ describe("commercial offer pricing helpers", () => {
     expect(offerAppliesToCheckout(offer, "pro", "lifetime")).toBe(false);
   });
 
-  it("strips internal notes and gateway codes from the tenant projection", () => {
+  it("includes lifetimePrice in the tenant projection", () => {
     const offer = sampleOffer({
+      lifetimePrice: 4500,
+      allowedCycles: ["monthly", "lifetime"],
       notesInternal: "secret margin note",
       gatewayMonthlyPlanCode: "PLN_secret",
       customerMessage: "Your negotiated Pro rate",
     });
     const tenant = toTenantCommercialOffer(offer);
     expect(tenant.customerMessage).toBe("Your negotiated Pro rate");
+    expect(tenant.lifetimePrice).toBe(4500);
+    expect(tenant.allowedCycles).toContain("lifetime");
     expect(tenant).not.toHaveProperty("notesInternal");
     expect(tenant).not.toHaveProperty("gatewayMonthlyPlanCode");
     expect(tenant.monthlyPrice).toBe(300);

@@ -259,7 +259,8 @@ export type CommercialOfferSnapshot = {
   currency: string;
   monthlyPrice?: number | null;
   yearlyPrice?: number | null;
-  allowedCycles: Array<"monthly" | "yearly">;
+  lifetimePrice?: number | null;
+  allowedCycles: Array<"monthly" | "yearly" | "lifetime">;
   customerMessage?: string | null;
 };
 

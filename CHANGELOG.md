@@ -6,6 +6,10 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ## Unreleased
 
+### Added
+
+- Commercial offers support a **lifetime (one-time)** cycle: negotiated buyout price counts toward gross / net profit and never toward MRR or ARR.
+
 ### Fixed
 
 - Platform MRR no longer invents enterprise catalog list price when subscription amount is 0 or a commercial offer has yearlyPrice 0; assignPlan ignores zero offer amounts.
