@@ -21,6 +21,7 @@ import {
 import type { MirroredCategory, MirroredCustomer, MirroredProduct } from "./types";
 import { presenceFromLastSeenAt, sortUsersByPresence } from "@/lib/presence";
 import { ownedSaleIdsForCashier } from "@/lib/dashboard/cashier-scope";
+import { DEFAULT_EXPIRY_ALERT_DAYS, summarizeLots } from "@/convex/shared/lots";
 
 export type MirroredProductRow = MirroredProduct & {
   isLowStock: boolean;
@@ -45,6 +46,7 @@ async function mapMirroredProductRows(
     ? await branchStockMapForBranch(db, branchFilter)
     : await branchStockMapOrgWide(db);
   const pendingTransfers = await pendingTransferDisplayAdjustments(db);
+  const lots = await db.lots.toArray();
 
   return Promise.all(
     products.map(async (product) => {
@@ -58,12 +60,33 @@ async function mapMirroredProductRows(
         resolved.sellableQuantity,
         pending,
       );
+      const productLots = lots.filter(
+        (lot) =>
+          lot.productId === product.id &&
+          lot.quantity > 0 &&
+          (branchFilter == null || lot.branchId === branchFilter),
+      );
+      const lotSummary =
+        product.tracksExpiry && productLots.length > 0
+          ? summarizeLots(
+              productLots,
+              product.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS,
+            )
+          : null;
       return {
         ...product,
         stockQuantity: displayed.stockQuantity,
         sellableQuantity: displayed.sellableQuantity,
-        isExpiring: resolved.isExpiring ?? false,
-        isExpired: resolved.isExpired ?? false,
+        expiredQuantity: lotSummary?.expiredQuantity ?? product.expiredQuantity ?? 0,
+        expiringQuantity: lotSummary?.expiringQuantity ?? product.expiringQuantity ?? 0,
+        isExpiring:
+          lotSummary != null
+            ? lotSummary.expiringQuantity > 0
+            : (resolved.isExpiring ?? false),
+        isExpired:
+          lotSummary != null
+            ? lotSummary.expiredQuantity > 0
+            : (resolved.isExpired ?? false),
         isLowStock: displayed.sellableQuantity <= product.lowStockThreshold,
       };
     }),

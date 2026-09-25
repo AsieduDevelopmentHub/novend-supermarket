@@ -26,3 +26,16 @@ export function lotStatus(
   if (days <= alertDays) return "expiring";
   return "ok";
 }
+
+/** Units that belong on an expiry alert (expired + FEFO alert-window), not full on-hand. */
+export function expiryAlertQuantity(row: {
+  isExpired?: boolean;
+  isExpiring?: boolean;
+  expiredQuantity?: number;
+  expiringQuantity?: number;
+}): number {
+  return (
+    (row.isExpired ? (row.expiredQuantity ?? 0) : 0) +
+    (row.isExpiring ? (row.expiringQuantity ?? 0) : 0)
+  );
+}

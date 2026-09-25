@@ -207,6 +207,7 @@ type InventoryRow = {
   tracksExpiry?: boolean;
   sellableQuantity?: number;
   expiredQuantity?: number;
+  expiringQuantity?: number;
   nearestExpiry?: string | null;
   isExpired?: boolean;
   isExpiring?: boolean;
@@ -260,6 +261,8 @@ export function useInventoryList(options: {
             imageUrl: r.imageUrl,
             tracksExpiry: r.tracksExpiry,
             sellableQuantity: r.sellableQuantity ?? r.stockQuantity,
+            expiredQuantity: r.expiredQuantity ?? 0,
+            expiringQuantity: r.expiringQuantity ?? 0,
             nearestExpiry: r.nearestExpiry,
             isExpired: r.isExpired,
             isExpiring: r.isExpiring,

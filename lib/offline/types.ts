@@ -59,6 +59,8 @@ export type MirroredProduct = {
   tracksExpiry?: boolean;
   expiryAlertDays?: number | null;
   nearestExpiry?: string | null;
+  expiredQuantity?: number;
+  expiringQuantity?: number;
   isExpired?: boolean;
   isExpiring?: boolean;
   updatedAt: number;
@@ -71,6 +73,8 @@ export type MirroredBranchStock = {
   productId: string;
   quantity: number;
   sellableQuantity: number;
+  expiredQuantity?: number;
+  expiringQuantity?: number;
   isExpiring?: boolean;
   updatedAt: number;
 };
