@@ -220,23 +220,27 @@ payment network:
 - Desktop auto-update download
 
 After the first successful online sign-in, this device keeps an **offline
-session** (local shell profile + Dexie replica) for up to **30 days**. Closing
-the Cap app does **not** sign you out. Cold start can resume an already-open
-shell from cache when offline or when Convex is slow.
+session** (local shell profile + Dexie replica) for up to **30 days**, plus a
+**device-local password digest** (PBKDF2) for that email. Closing the Cap app
+does **not** sign you out. Cold start can resume an already-open shell from
+cache when offline or when Convex is slow.
 
 **Shared tills / multiple staff.** Every account that signs in on the device is
-remembered in `novend.offlineSessions` so Dexie replicas and licence snapshots
-stay available per user. **Online login stays password-only** (no passwordless
-account cards) so a shared till cannot open another staffer’s workspace with
-one tap while connected. **When offline**, `/login` shows **Continue offline**
-for remembered accounts (and email match / connectivity-fallback resume) so
-remote tills can reopen after Sign out without a signal. The first login on a
-new device, or after the 30-day offline session expires, still requires the
-network. Online never auto-resumes a cached shell (Electron reconnect included).
-After password sign-in, the live Convex `me` profile rebinds Dexie so the
-previous offline cashier cannot stay active. Lifetime (and local-only) licence
-snapshots are mirrored per organization on the device so a second cashier does
-not hit “activation required” offline just because their Dexie replica is new.
+remembered in `novend.offlineSessions`. **Login always uses the same email +
+password form** — online against Convex Auth, offline against the device digest
+then the remembered shell. There is no passwordless account picker. Wrong
+offline passwords are rejected. The first login on a new device (or after the
+digest/session expires) still requires the network so the digest can be stored.
+Online never auto-resumes a cached shell (Electron reconnect included). After
+password sign-in, the live Convex `me` profile rebinds Dexie so the previous
+offline cashier cannot stay active. Lifetime (and local-only) licence snapshots
+are mirrored per organization on the device so a second cashier does not hit
+“activation required” offline just because their Dexie replica is new.
+
+Sign-out while offline navigates to `/login` immediately and does not wait on
+Convex `signOut` (that call can hang and trap Cap/Electron on the brand splash).
+Offline cold start without a local shell opens `/login` for email/password —
+never a dead-end “Can't start while offline” card.
 
 Name, phone, catalog, inventory, wholesale, suppliers, customers, expenses,
 sales, returns, reports, analytics, **admin/manager branch switching**, and

@@ -72,38 +72,6 @@ function isNetworkFailure(errorCode: number): boolean {
   );
 }
 
-function recoveryHtml(appUrl: string): string {
-  const target = `${appUrl.replace(/\/$/, "")}${OFFLINE_ENTRY_PATH}`;
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Novend POS</title>
-  <style>
-    body { margin:0; min-height:100vh; display:grid; place-items:center; background:#111827; color:#e2e8f0;
-      font-family:"Segoe UI",system-ui,sans-serif; text-align:center; padding:2rem; }
-    h1 { font-size:1.25rem; margin:0 0 .75rem; }
-    p { color:#94a3b8; max-width:28rem; line-height:1.5; margin:0 auto 1.25rem; }
-    button { appearance:none; border:0; border-radius:.5rem; background:#38bdf8; color:#111827;
-      font:inherit; font-weight:600; padding:.65rem 1.1rem; cursor:pointer; }
-  </style>
-</head>
-<body>
-  <div>
-    <h1>Can’t reach the app shell</h1>
-    <p>Connect once online so this terminal can cache Novend POS. After that, offline launch uses the local cache.</p>
-    <button type="button" id="retry">Retry</button>
-  </div>
-  <script>
-    document.getElementById("retry").onclick = function () {
-      window.location.replace(${JSON.stringify(target)});
-    };
-  </script>
-</body>
-</html>`;
-}
-
 /**
  * Electron loadURL(https) fails offline even when the service worker already
  * cached the document (electron#35112). Load a local boot page, then
@@ -113,19 +81,24 @@ async function loadAppShell(
   win: BrowserWindow,
   appUrl: string,
   entry = OFFLINE_ENTRY_PATH,
+  options?: { stay?: boolean },
 ): Promise<void> {
   const boot = offlineBootPath();
   if (fs.existsSync(boot)) {
-    await win.loadFile(boot, {
-      query: {
-        appUrl,
-        entry,
-      },
-    });
+    const query: Record<string, string> = {
+      appUrl,
+      entry,
+    };
+    if (options?.stay) query.stay = "1";
+    await win.loadFile(boot, { query });
     return;
   }
   if (!net.isOnline()) {
-    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(recoveryHtml(appUrl))}`);
+    await win.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(
+        `<!doctype html><title>Novend</title><p style="font-family:system-ui;padding:2rem">Connect once online to cache Novend POS, then use email and password offline.</p>`,
+      )}`,
+    );
     return;
   }
   await win.loadURL(`${appUrl.replace(/\/$/, "")}${entry}`);
@@ -151,7 +124,8 @@ export async function reloadMainWindowShell(
 export function createMainWindow(appUrl: string): BrowserWindow {
   const icon = windowIcon();
   const trustedOrigin = createTrustedOriginPolicy(appUrl, [pathToFileURL(offlineBootPath()).href]);
-  let showingRecovery = false;
+  let recovering = false;
+  let offlineFailRetries = 0;
 
   const win = new BrowserWindow({
     width: 1440,
@@ -189,20 +163,30 @@ export function createMainWindow(appUrl: string): BrowserWindow {
     }
   });
 
+  win.webContents.on("did-finish-load", () => {
+    const url = win.webContents.getURL();
+    if (url.startsWith("http:") || url.startsWith("https:")) {
+      offlineFailRetries = 0;
+    }
+  });
+
   win.webContents.on(
     "did-fail-load",
     (_event, errorCode, _errorDescription, validatedURL, isMainFrame) => {
-      if (!isMainFrame || showingRecovery) return;
+      if (!isMainFrame || recovering) return;
       if (errorCode === -3) return;
       if (!isNetworkFailure(errorCode)) return;
       if (validatedURL.startsWith("file:") || validatedURL.startsWith("data:")) return;
       if (!isTrustedRendererUrl(trustedOrigin, validatedURL)) return;
-      showingRecovery = true;
-      void win
-        .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(recoveryHtml(appUrl))}`)
-        .finally(() => {
-          showingRecovery = false;
-        });
+
+      // Trampoline to cached /login (email+password offline). After two failures,
+      // stay on the local boot page so Retry does not loop on a dead network.
+      recovering = true;
+      offlineFailRetries += 1;
+      const stay = offlineFailRetries > 2;
+      void loadAppShell(win, appUrl, "/login?fromBoot=1", { stay }).finally(() => {
+        recovering = false;
+      });
     },
   );
 

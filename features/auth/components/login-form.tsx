@@ -12,7 +12,7 @@ import {
   showError,
 } from "@/lib/errors";
 import Image from "next/image";
-import { ArrowLeft, Mail, Users } from "lucide-react";
+import { ArrowLeft, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -27,13 +27,16 @@ import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import { navigateAfterLogin, resolvePostLoginPath } from "@/lib/auth/redirect-after-login";
 import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { api } from "@/convex/_generated/api";
 import {
   activateOfflineSession,
   clearOfflineSession,
-  hasOfflineSession,
   listOfflineSessions,
-  type OfflineSessionHint,
 } from "@/lib/offline/session";
+import {
+  storeLocalAuthVerifier,
+  verifyLocalAuth,
+} from "@/lib/offline/local-auth";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 
 const REMEMBER_KEY = "novend.login.rememberEmail";
@@ -56,14 +59,6 @@ function getLoginDeviceKey(): string {
     volatileLoginDeviceKey = crypto.randomUUID();
     return volatileLoginDeviceKey;
   }
-}
-
-function matchCachedAccountsByEmail(email: string): OfflineSessionHint[] {
-  const normalized = email.trim().toLowerCase();
-  if (!normalized) return [];
-  return listOfflineSessions().filter(
-    (account) => account.email?.trim().toLowerCase() === normalized,
-  );
 }
 
 export function LoginForm({ compact = false }: { compact?: boolean }) {
@@ -105,7 +100,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const [rememberMe, setRememberMe] = useState(false);
   const [pending, setPending] = useState(false);
   const [openingWorkspace, setOpeningWorkspace] = useState(false);
-  const [cachedAccounts, setCachedAccounts] = useState<OfflineSessionHint[]>([]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -118,7 +112,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       } catch {
         /* ignore storage errors */
       }
-      setCachedAccounts(listOfflineSessions());
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -128,13 +121,14 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     return `${path}${path.includes("?") ? "&" : "?"}fromBoot=1`;
   }
 
-  function resumeCachedAccount(userId: string) {
-    if (redirectingRef.current || pending) return;
+  function openOfflineWorkspace(userId: string) {
+    if (redirectingRef.current) return false;
     const activated = activateOfflineSession(userId);
     if (!activated) {
-      setCachedAccounts(listOfflineSessions());
-      toast.error("That offline account is no longer available on this device.");
-      return;
+      toast.error(
+        "No cached workspace for that account on this device. Connect once while online, then try again.",
+      );
+      return false;
     }
     consumeExplicitLogout();
     redirectingRef.current = true;
@@ -149,22 +143,24 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       ),
       router,
     );
+    return true;
   }
 
-  // Offline-only auto-resume when exactly one cached account exists.
-  // After Sign out, require an explicit tap (shared-till safety).
-  useEffect(() => {
-    if (redirectingRef.current || pending || isAuthenticated) return;
-    if (signedOut) return;
-    if (online) return;
-    if (!hasOfflineSession()) return;
-
-    const accounts = listOfflineSessions();
-    setCachedAccounts(accounts);
-    if (accounts.length !== 1) return;
-    resumeCachedAccount(accounts[0]!.userId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- resume once per gate change
-  }, [online, isAuthenticated, pending, router, signedOut]);
+  async function resumeWithLocalPassword(normalizedEmail: string, rawPassword: string) {
+    const verified = await verifyLocalAuth(normalizedEmail, rawPassword);
+    if (!verified) {
+      const remembered = listOfflineSessions().some(
+        (row) => row.email?.trim().toLowerCase() === normalizedEmail,
+      );
+      toast.error(
+        remembered
+          ? "Incorrect email or password."
+          : "This account isn’t set up for offline sign-in on this device yet. Connect once while online, then you can sign in without a signal.",
+      );
+      return false;
+    }
+    return openOfflineWorkspace(verified.userId);
+  }
 
   // Already signed in without submitting credentials (live Convex cookie).
   // Keep fromBoot so cold start can restore the last in-app route after shell mount.
@@ -177,14 +173,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       setOpeningWorkspace(true);
       void (async () => {
         try {
-          // Live auth always wins over any previously active offline shell.
           clearOfflineSession();
           const path = await resolvePostLoginPath(convex);
           navigateAfterLogin(withBootMarker(path), router);
         } catch {
           redirectingRef.current = false;
           setOpeningWorkspace(false);
-          setCachedAccounts(listOfflineSessions());
           toast.error("Could not open your account. Sign in again.");
         }
       })();
@@ -199,6 +193,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 
     setPending(true);
     const normalizedEmail = email.trim().toLowerCase();
+    const rawPassword = password;
     try {
       try {
         if (rememberMe) {
@@ -210,69 +205,57 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         /* ignore storage errors */
       }
 
-      // Poor-network tills: never call Convex password auth while offline.
+      // Offline: verify email + password against the device digest, then open
+      // the remembered shell. No account picker — same form as online.
       if (!online) {
-        const matches = matchCachedAccountsByEmail(normalizedEmail);
-        if (matches.length === 1) {
-          resumeCachedAccount(matches[0]!.userId);
-          setPending(false);
-          return;
-        }
-        const accounts = listOfflineSessions();
-        setCachedAccounts(accounts);
-        if (accounts.length > 0) {
-          toast.message("Select your account above to continue offline.");
-        } else {
-          toast.error(
-            "This device has no cached account yet. Connect once while online, then remote tills can reopen without a signal.",
-          );
-        }
+        const ok = await resumeWithLocalPassword(normalizedEmail, rawPassword);
         setPending(false);
+        if (!ok) return;
         return;
       }
 
-      // Detach the previous offline shell before Convex auth so we cannot paint
-      // the last offline cashier while this email's session is still settling.
       clearOfflineSession();
 
       const formData = new FormData();
       formData.set("email", normalizedEmail);
-      formData.set("password", password);
+      formData.set("password", rawPassword);
       formData.set("flow", "signIn");
       formData.set("deviceKey", getLoginDeviceKey());
       await signIn("password", formData);
       consumeExplicitLogout();
-      toast.success("Welcome");
 
-      // Fresh password sign-in: bind the live `me` profile (this email), not a cache.
       redirectingRef.current = true;
       setOpeningWorkspace(true);
       const path = await resolvePostLoginPath(convex, undefined, {
         expectedEmail: normalizedEmail,
       });
+      try {
+        const me = await convex.query(api.users.me, {});
+        if (me?.userId) {
+          await storeLocalAuthVerifier(normalizedEmail, rawPassword, String(me.userId));
+        }
+      } catch {
+        /* online shell still opens; offline password resume needs one more online login */
+      }
+      toast.success("Welcome");
       navigateAfterLogin(path, router);
     } catch (error) {
       redirectingRef.current = false;
       setOpeningWorkspace(false);
-      setCachedAccounts(listOfflineSessions());
 
-      // Cap/Electron often report online while Convex is unreachable — fall back
-      // to the matching cached shell instead of a hard "You're offline" dead end.
+      // Cap/Electron often report online while Convex is unreachable.
       if (isConnectivityError(error)) {
-        const matches = matchCachedAccountsByEmail(normalizedEmail);
-        if (matches.length === 1) {
-          toast.message("Couldn't reach Novend — opening your cached workspace.");
-          resumeCachedAccount(matches[0]!.userId);
-          setPending(false);
+        const ok = await resumeWithLocalPassword(normalizedEmail, rawPassword);
+        setPending(false);
+        if (ok) {
+          toast.message("Couldn't reach Novend — opened your cached workspace.");
           return;
         }
-        if (listOfflineSessions().length > 0) {
-          toast.message(
-            "Couldn't reach Novend. Select a cached account above, or retry when the signal returns.",
-          );
-          setPending(false);
-          return;
-        }
+        showError(
+          error,
+          "Couldn't reach Novend. Check the signal, or use an account that has signed in on this device before.",
+        );
+        return;
       }
 
       const raw = error instanceof Error ? error.message : "";
@@ -296,10 +279,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     );
   }
 
-  // Online stays password-only (shared-till safety). Offline shows the cached
-  // account list so remote tills can reopen after Sign out without a signal.
-  const showOfflineAccounts = !online && cachedAccounts.length > 0;
-
   return (
     <div className="mx-auto w-full max-w-[360px]">
       <Link
@@ -312,55 +291,10 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 
       <FormHeader compact={compact} />
 
-      {showOfflineAccounts ? (
-        <div className="mb-6 space-y-3">
-          <div className="flex items-center gap-2">
-            <Users className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden />
-            <p className="text-foreground text-sm font-medium">Continue offline</p>
-          </div>
-          <ul className="space-y-2">
-            {cachedAccounts.map((account) => (
-              <li key={account.userId}>
-                <button
-                  type="button"
-                  onClick={() => resumeCachedAccount(account.userId)}
-                  className="border-border bg-muted/40 hover:bg-muted/70 focus-visible:ring-ring flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="text-foreground block truncate text-sm font-medium">
-                      {account.name}
-                    </span>
-                    <span className="text-muted-foreground block truncate text-xs capitalize">
-                      {account.role}
-                      {account.email ? ` · ${account.email}` : ""}
-                      {account.branchName ? ` · ${account.branchName}` : ""}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="text-muted-foreground text-xs leading-relaxed">
-            No internet needed for accounts already used on this device. Tap your name to open the
-            cached workspace.
-          </p>
-          <div className="border-border relative py-1">
-            <div className="absolute inset-0 flex items-center" aria-hidden>
-              <div className="border-border w-full border-t" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-background text-muted-foreground px-2 text-xs">
-                Or retry with password when online
-              </span>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {!online && cachedAccounts.length === 0 ? (
+      {!online ? (
         <p className="border-border bg-muted/40 text-muted-foreground mb-6 rounded-lg border px-3 py-2.5 text-sm leading-relaxed">
-          You&apos;re offline and this device has no cached staff account yet. Connect once while
-          online so remote tills can reopen without a signal.
+          You&apos;re offline. Sign in with the same email and password used on this device while
+          online — Novend opens your cached workspace without a signal.
         </p>
       ) : null}
 
@@ -395,7 +329,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
             <Label htmlFor="password">Password</Label>
             <Link
               href={ROUTES.forgotPassword}
-              className="text-primary text-sm font-medium hover:underline"
+              className={cn(
+                "text-primary text-sm font-medium hover:underline",
+                !online && "pointer-events-none opacity-50",
+              )}
+              tabIndex={!online ? -1 : undefined}
+              aria-disabled={!online}
             >
               Forgot password?
             </Link>
@@ -407,8 +346,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="bg-muted/50 h-11"
-            required={online}
-            disabled={!online && cachedAccounts.length > 0}
+            required
           />
         </div>
 
@@ -427,7 +365,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
           disabled={pending}
           aria-busy={pending}
         >
-          {pending ? "Signing in…" : online ? "Sign in" : "Continue offline"}
+          {pending ? "Signing in…" : "Sign in"}
         </Button>
       </form>
 

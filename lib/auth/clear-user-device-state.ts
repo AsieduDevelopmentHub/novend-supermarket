@@ -19,6 +19,8 @@ function shouldKeepKey(key: string): boolean {
   if (key.startsWith("novend.device.")) return true;
   /** Org-scoped lifetime/licence mirror shared by every cashier replica. */
   if (key.startsWith("novend.license.org.")) return true;
+  /** Device-local password digests for offline email+password resume. */
+  if (key.startsWith("novend.localAuth.")) return true;
   return false;
 }
 

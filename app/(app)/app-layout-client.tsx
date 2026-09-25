@@ -458,16 +458,20 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return <AppSplash label="Redirecting to login…" />;
   }
 
-  if ((!online || cachedShellWhileOnlineHung) && !resolvedCache && !resolvedPlatformSession) {
-    return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <ErrorState
-          title="Can't start while offline"
-          message="Sign in while online once so this device can keep working offline after a refresh."
-          onRetry={() => window.location.reload()}
-        />
-      </div>
-    );
+  // No local shell while offline → send cashiers to email/password login
+  // (device digest unlock), never a dead-end "Can't start while offline" card.
+  if (
+    cacheReady &&
+    (!online || cachedShellWhileOnlineHung) &&
+    !resolvedCache &&
+    !resolvedPlatformSession
+  ) {
+    if (typeof window !== "undefined" && !pathname.startsWith("/login")) {
+      const next = new URL("/login", window.location.origin);
+      next.searchParams.set("fromBoot", "1");
+      window.location.replace(`${next.pathname}${next.search}`);
+    }
+    return <AppSplash label="Opening sign-in…" />;
   }
 
   const isPlatformRoute = pathname.startsWith("/platform");
