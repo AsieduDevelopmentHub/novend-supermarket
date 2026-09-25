@@ -43,6 +43,7 @@ import {
   onOrganizationStatusChanged,
   readPlatformStats,
 } from "./shared/platformStatsAggregate";
+import { countOrganizationsByCommercialStatus } from "./shared/platformOrganizations";
 import { loadProductImagesPolicy, writeProductImagesPolicy } from "./settings";
 import { PRODUCT_IMAGES_SETTINGS_KEY } from "./shared/productImagesPolicy";
 import {
@@ -198,20 +199,23 @@ export const overview = query({
           { fullSync: 0, backupOnly: 0, snapshotOnly: 0, localOnly: 0 },
         );
 
+    // Live scan — never trust incremental platformStats for tenant mix (drifts after
+    // deletes / repairs). Commercial KPIs exclude test organizations.
+    const orgMix = countOrganizationsByCommercialStatus(organizations);
+    const commercialOrgs = organizations.filter((org) => org.isTestOrganization !== true);
+
     return {
-      organizationCount: globalStats?.organizationCount ?? organizations.length,
-      activeOrganizations:
-        globalStats?.activeOrganizationCount ??
-        organizations.filter((org) => org.status === "active").length,
-      trialOrganizations: organizations.filter((org) => org.status === "trial").length,
-      suspendedOrganizations: organizations.filter((org) => org.status === "suspended").length,
-      expiredOrganizations: organizations.filter((org) => org.status === "expired").length,
-      inactiveOrganizations: organizations.filter(
-        (org) => org.status === "inactive" || org.status === "disabled",
+      organizationCount: orgMix.total,
+      commercialOrganizationCount: orgMix.commercialCount,
+      testOrganizationCount: orgMix.testCount,
+      activeOrganizations: orgMix.active,
+      trialOrganizations: orgMix.trial,
+      suspendedOrganizations: orgMix.suspended,
+      expiredOrganizations: orgMix.expired,
+      inactiveOrganizations: orgMix.inactive,
+      lifetimeOrganizations: commercialOrgs.filter(
+        (org) => resolvePlan(org.planKey).key === "lifetime",
       ).length,
-      lifetimeOrganizations:
-        globalStats?.lifetimePlanCount ??
-        organizations.filter((org) => resolvePlan(org.planKey).key === "lifetime").length,
       cloudModeCounts,
       userCount,
       branchCount,

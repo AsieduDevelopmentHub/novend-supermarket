@@ -173,9 +173,15 @@ export const revenueAnalytics = query({
       operatingCosts,
       netProfit: grossRevenue - operatingCosts,
       lifetimeLicenses,
-      activeOrganizations: organizations.filter((o) => o.status === "active").length,
-      trialOrganizations: organizations.filter((o) => o.status === "trial").length,
-      expiredOrganizations: organizations.filter((o) => o.status === "expired").length,
+      activeOrganizations: organizations.filter(
+        (o) => o.isTestOrganization !== true && o.status === "active",
+      ).length,
+      trialOrganizations: organizations.filter(
+        (o) => o.isTestOrganization !== true && o.status === "trial",
+      ).length,
+      expiredOrganizations: organizations.filter(
+        (o) => o.isTestOrganization !== true && o.status === "expired",
+      ).length,
       renewalRate,
       churnRate,
       planDistribution: Object.entries(planDistribution).map(([key, count]) => ({
@@ -517,19 +523,22 @@ const INSIGHT_COPY: Record<PlatformInsightMetric, { title: string; description: 
   },
   "active-organizations": {
     title: "Active Organizations",
-    description: "Tenants with a paid, in-good-standing subscription.",
+    description:
+      "Commercial tenants with status active (test organizations are excluded).",
   },
   "trial-organizations": {
     title: "Trial Organizations",
-    description: "Tenants currently inside their trial window.",
+    description: "Commercial tenants currently in trial (test organizations are excluded).",
   },
   "expired-subscriptions": {
     title: "Expired Subscriptions",
-    description: "Subscriptions past their expiry that have not renewed or been extended.",
+    description:
+      "Commercial subscriptions past expiry that have not renewed (test organizations excluded).",
   },
   "lifetime-licenses": {
     title: "Lifetime Licenses",
-    description: "Organizations that purchased a permanent Lifetime licence.",
+    description:
+      "Commercial organizations with a permanent Lifetime licence (test organizations excluded).",
   },
   "active-devices": {
     title: "Active Devices",
@@ -673,7 +682,7 @@ export const getInsightDetail = query({
         break;
       }
       case "active-organizations": {
-        const matches = organizations.filter((o) => o.status === "active");
+        const matches = commercialOrganizations.filter((o) => o.status === "active");
         value = matches.length;
         trend = monthlySeries(matches.map((o) => o.createdAt));
         rows = matches
@@ -683,7 +692,7 @@ export const getInsightDetail = query({
         break;
       }
       case "trial-organizations": {
-        const matches = organizations.filter((o) => o.status === "trial");
+        const matches = commercialOrganizations.filter((o) => o.status === "trial");
         value = matches.length;
         trend = monthlySeries(matches.map((o) => o.createdAt));
         rows = matches
@@ -693,7 +702,9 @@ export const getInsightDetail = query({
         break;
       }
       case "expired-subscriptions": {
-        const expired = [...latestSubByOrg.values()].filter((s) => s.status === "expired");
+        const expired = [...latestSubByOrg.values()].filter(
+          (s) => s.status === "expired" && commercialOrgIds.has(String(s.organizationId)),
+        );
         value = expired.length;
         trend = monthlySeries(expired.map((s) => s.expiresAt ?? s.updatedAt));
         rows = expired
@@ -707,7 +718,7 @@ export const getInsightDetail = query({
         break;
       }
       case "lifetime-licenses": {
-        const matches = organizations.filter((o) => {
+        const matches = commercialOrganizations.filter((o) => {
           const sub = subFor(o);
           return Boolean(sub?.isLifetime) || o.planKey === "lifetime";
         });

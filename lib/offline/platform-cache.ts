@@ -19,6 +19,8 @@ export type PlatformOfflineSession = {
 
 export type PlatformOverviewCache = {
   organizationCount: number;
+  commercialOrganizationCount?: number;
+  testOrganizationCount?: number;
   activeOrganizations: number;
   trialOrganizations: number;
   suspendedOrganizations: number;

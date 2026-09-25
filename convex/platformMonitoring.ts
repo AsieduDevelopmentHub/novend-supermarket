@@ -254,9 +254,13 @@ export const dashboard = query({
       generatedAt: now,
       trackingStartedAt: trackedSince,
       kpis: {
-        organizations: organizations.length,
-        activeOrganizations: organizations.filter((row) => row.status === "active").length,
-        trialOrganizations: organizations.filter((row) => row.status === "trial").length,
+        organizations: organizations.filter((row) => row.isTestOrganization !== true).length,
+        activeOrganizations: organizations.filter(
+          (row) => row.isTestOrganization !== true && row.status === "active",
+        ).length,
+        trialOrganizations: organizations.filter(
+          (row) => row.isTestOrganization !== true && row.status === "trial",
+        ).length,
         staffAccounts,
         dau: countUnique(dauRows, (row) => String(row.userId)),
         wau: countUnique(wauRows, (row) => String(row.userId)),
