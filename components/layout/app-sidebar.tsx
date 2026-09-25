@@ -97,13 +97,19 @@ function NavTooltip({
 
 function SidebarBrand({
   businessName,
+  branchName,
   collapsed,
   onToggle,
 }: {
   businessName: string;
+  /** Assigned till branch — shown under the business name for staff orientation. */
+  branchName?: string | null;
   collapsed?: boolean;
   onToggle?: () => void;
 }) {
+  const branchLabel = branchName?.trim();
+  const subtitle = branchLabel || `${APP_BRAND} POS`;
+
   return (
     <div className={cn("flex items-center gap-2 py-4", collapsed ? "flex-col px-2" : "px-3")}>
       <div className="relative h-11 w-11 shrink-0">
@@ -118,13 +124,18 @@ function SidebarBrand({
         />
       </div>
       {collapsed ? (
-        <span className="sr-only">{businessName}</span>
+        <span className="sr-only">
+          {businessName}
+          {branchLabel ? `, ${branchLabel}` : ""}
+        </span>
       ) : (
         <div className="min-w-0 flex-1">
           <p className="text-sidebar-foreground truncate text-base leading-tight font-semibold tracking-tight">
             {businessName}
           </p>
-          <p className="text-sidebar-muted truncate text-xs">{APP_BRAND} POS</p>
+          <p className="text-sidebar-muted truncate text-xs" title={subtitle}>
+            {subtitle}
+          </p>
         </div>
       )}
       {onToggle ? (
@@ -241,9 +252,18 @@ function SidebarBody({
   onToggle?: () => void;
 }) {
   const businessName = user.organizationName?.trim() || APP_BRAND;
+  const branchName =
+    user.isPlatformAdmin || !user.branch?.trim() || user.branch === "Unassigned"
+      ? null
+      : user.branch.trim();
   return (
     <div className="bg-sidebar text-sidebar-foreground flex h-full flex-col">
-      <SidebarBrand businessName={businessName} collapsed={collapsed} onToggle={onToggle} />
+      <SidebarBrand
+        businessName={businessName}
+        branchName={branchName}
+        collapsed={collapsed}
+        onToggle={onToggle}
+      />
       <div className={cn("h-px bg-white/10", collapsed ? "mx-2" : "mx-4")} />
       <div className="min-h-0 flex-1 overflow-y-auto py-4">
         <SidebarNavTree role={user.role} onNavigate={onNavigate} collapsed={collapsed} />

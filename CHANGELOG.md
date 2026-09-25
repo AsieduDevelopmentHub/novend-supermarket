@@ -15,7 +15,6 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 - Capacitor no longer runs sealed-key cloud packaging on shell mount (3-minute delay, in-flight lock, attempt cooldown) — stops WebView freezes on `backup_only` / `snapshot_only`.
 - Sales catalog stays Dexie-local for package cloud modes so carts cannot sell remote-only products that fail at checkout.
-
 - Platform MRR no longer invents enterprise catalog list price when subscription amount is 0 or a commercial offer has yearlyPrice 0; assignPlan ignores zero offer amounts.
 
 - Platform financial KPIs now exclude test organizations and use recognized subscription amounts (not catalog fallbacks); stale pending Paystack checkouts and duplicate/manual test success charges were cleaned so MRR/ARR/gross match real commercial payments.
@@ -34,6 +33,7 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Changed
 
+- Cashier (and other tenant) sidebar shows the assigned **branch name** under the business name.
 - Automatic cloud packages use the organization recovery key (not a session backup password); `backup_only` / `snapshot_only` cadence is `backupIntervalHours` (12h–30d) from PEAS.
 - Platform overview no longer fans out live `revenueAnalytics` + `systemHealth` on `/platform`; those routes load their own queries. Overview carries active-device and backup storage KPIs; subscription/health lists use `organizationPlatformStats` and `devices.by_isActive` instead of full profiles/devices scans.
 - Organizations can be flagged `isTestOrganization` (PEAS) and are excluded from platform MRR, ARR, and gross revenue.
