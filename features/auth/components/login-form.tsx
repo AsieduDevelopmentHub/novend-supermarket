@@ -300,13 +300,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 
       <FormHeader compact={compact} />
 
-      {!online ? (
-        <p className="border-border bg-muted/40 text-muted-foreground mb-6 rounded-lg border px-3 py-2.5 text-sm leading-relaxed">
-          You&apos;re offline. Sign in with the same email and password used on this device while
-          online — Novend opens your cached workspace without a signal.
-        </p>
-      ) : null}
-
       <form className="space-y-4" onSubmit={onSubmit} noValidate>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
