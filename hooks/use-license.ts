@@ -19,7 +19,10 @@ import {
 import { resolvePlan, type PlanKey, type PlanLimits } from "@/convex/shared/plans";
 import { planCapabilities, type PlanCapabilities } from "@/convex/shared/capabilities";
 import { DEFAULT_CLOUD_MODE, normalizeCloudMode, type CloudMode } from "@/convex/shared/cloudMode";
-import { DEFAULT_NOVEND_EXPERIENCE, type ResolvedExperienceTokens } from "@/convex/shared/experience";
+import {
+  DEFAULT_NOVEND_EXPERIENCE,
+  type ResolvedExperienceTokens,
+} from "@/convex/shared/experience";
 import type { FeatureKey } from "@/convex/shared/features";
 import type { BillingVisibility } from "@/convex/shared/organizationConfig";
 
@@ -71,8 +74,11 @@ function entitlementsFromSnapshot(snapshot: LicenseSnapshot | null, planKey: Pla
       configVersion: defaults.configVersion,
     };
   }
+  // Merge so newly added FeatureKeys (e.g. products.editStock) are present even
+  // when a cached/live snapshot was issued before that key existed.
+  const features = { ...defaults.features, ...(snapshot.features ?? {}) };
   return {
-    features: snapshot.features ?? defaults.features,
+    features,
     planFeatures: snapshot.planFeatures ?? resolvePlan(planKey).features,
     experience: snapshot.experience ?? DEFAULT_NOVEND_EXPERIENCE,
     billingVisibility: snapshot.billingVisibility ?? defaults.billingVisibility,

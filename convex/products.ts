@@ -414,6 +414,8 @@ export const updateProduct = mutation({
     openingExpiryDate: v.optional(v.string()),
     /** Absolute branch stock — only when products.editStock entitlement is on. */
     stockQuantity: v.optional(v.number()),
+    /** Branch to set stock on (defaults to the actor’s working branch). */
+    stockBranchId: v.optional(v.id("branches")),
   },
   handler: async (ctx, args) => {
     const { userId, profile, organizationId, organization } = await requireRole(ctx, [
@@ -495,7 +497,7 @@ export const updateProduct = mutation({
         throw new Error("Invalid stock quantity");
       }
       const target = Math.floor(args.stockQuantity);
-      const { branchId } = await requireBranchId(ctx);
+      const { branchId } = await requireBranchId(ctx, args.stockBranchId ?? null);
       assertBranchAccess(profile, branchId);
       const current = await getBranchQuantity(ctx, branchId, args.id);
       const delta = target - current;
@@ -509,6 +511,9 @@ export const updateProduct = mutation({
           performedBy: userId,
         });
       }
+      // Keep denormalized catalog qty in sync for readers that still use the product row.
+      const nextOnHand = await getBranchQuantity(ctx, branchId, args.id);
+      await ctx.db.patch(args.id, { stockQuantity: nextOnHand });
     }
 
     let imageStorageId = product.imageStorageId;

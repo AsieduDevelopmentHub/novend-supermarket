@@ -284,6 +284,7 @@ export type QueuedMutators = {
     expiryAlertDays?: number;
     openingExpiryDate?: string;
     stockQuantity?: number;
+    stockBranchId?: Id<"branches">;
   }) => Promise<unknown>;
   createBranch: (args: {
     name: string;
@@ -380,15 +381,8 @@ export async function drainOutbox(options: {
       if (!claimed) continue;
 
       const requiredFeature = requiredFeatureForOutbox(claimed.type);
-      if (
-        requiredFeature &&
-        !isFeatureEnabledOnSnapshot(licenseSnapshot, requiredFeature)
-      ) {
-        await markOutboxBlockedByEntitlement(
-          db,
-          claimed.id,
-          featureDenialMessage(requiredFeature),
-        );
+      if (requiredFeature && !isFeatureEnabledOnSnapshot(licenseSnapshot, requiredFeature)) {
+        await markOutboxBlockedByEntitlement(db, claimed.id, featureDenialMessage(requiredFeature));
         failed += 1;
         continue;
       }
@@ -737,7 +731,12 @@ export async function drainOutbox(options: {
               expiryAlertDays: payload.expiryAlertDays,
               openingExpiryDate: optionalText(payload.expiryDate),
               ...(payload.applyStockQuantity
-                ? { stockQuantity: Math.max(0, Math.floor(payload.stockQuantity)) }
+                ? {
+                    stockQuantity: Math.max(0, Math.floor(payload.stockQuantity)),
+                    ...(payload.branchId && !isLocalId(payload.branchId)
+                      ? { stockBranchId: payload.branchId as Id<"branches"> }
+                      : {}),
+                  }
                 : {}),
               ...(barcode ? { barcode } : {}),
               ...(description ? { description } : {}),

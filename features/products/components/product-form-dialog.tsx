@@ -43,6 +43,7 @@ import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import { useProductImagesPolicy } from "@/hooks/use-product-images-policy";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
+import { featureEnabled } from "@/convex/shared/licensing";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCategoriesList, useMirroredProduct } from "@/hooks/use-offline-lists";
 import {
@@ -256,7 +257,7 @@ function ProductFormBody({
   );
   const canEditStock =
     Boolean(productId) &&
-    features["products.editStock"] === true &&
+    featureEnabled(features, "products.editStock") &&
     tracksExpiry !== true &&
     initialProduct?.tracksExpiry !== true;
   const [expiryAlertDays, setExpiryAlertDays] = useState(
@@ -407,7 +408,14 @@ function ProductFormBody({
                 tracksExpiry: resolvedTracksExpiry,
                 expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
                 openingExpiryDate: resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
-                ...(canEditStock ? { stockQuantity: Number(stockQuantity) } : {}),
+                ...(canEditStock
+                  ? {
+                      stockQuantity: Math.max(0, Math.floor(Number(stockQuantity) || 0)),
+                      ...(profileBranchId
+                        ? { stockBranchId: profileBranchId as Id<"branches"> }
+                        : {}),
+                    }
+                  : {}),
               })
             : createProduct({
                 name,
@@ -625,11 +633,17 @@ function ProductFormBody({
                   />
                   {canEditStock ? (
                     <p className="text-muted-foreground text-xs">
-                      Changing stock records an inventory adjustment for your branch.
+                      You can set stock here (including from 0). Saves as an inventory adjustment
+                      for your branch.
                     </p>
                   ) : productId && tracksExpiry ? (
                     <p className="text-muted-foreground text-xs">
                       Dated products: adjust stock from Inventory or Expiry lots.
+                    </p>
+                  ) : productId ? (
+                    <p className="text-muted-foreground text-xs">
+                      Stock is changed from Inventory by default. Novend can unlock editing here via
+                      Entitlements → Edit product stock.
                     </p>
                   ) : null}
                 </div>
