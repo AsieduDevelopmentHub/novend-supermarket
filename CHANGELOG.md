@@ -8,6 +8,7 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Fixed
 
+- Platform financial KPIs now exclude test organizations and use recognized subscription amounts (not catalog fallbacks); stale pending Paystack checkouts and duplicate/manual test success charges were cleaned so MRR/ARR/gross match real commercial payments.
 - Login atmosphere orbs/charts and input focus ring follow the org accent (no leftover Candy Blue when the business colour is set).
 - Remove the offline login explainer banner (email + password is enough).
 - Hide “Back to website” on Capacitor and Electron login (web dashboard keeps the marketing link).
@@ -23,6 +24,7 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Changed
 
+- Organizations can be flagged `isTestOrganization` (PEAS) and are excluded from platform MRR, ARR, and gross revenue.
 - Platform repair mutation `repairs.zeroZeroCostStock` clears on-hand units for products with `costPrice === 0` only (used for Global Medicine import cleanup).
 
 ## v1.0.0 — 2026-09-23

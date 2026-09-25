@@ -62,6 +62,12 @@ export const revenueAnalytics = query({
 
     const liveOffersByOrg = indexLiveOffersByOrganization(commercialOffers, now);
 
+    const commercialOrgIds = new Set(
+      organizations
+        .filter((org) => org.isTestOrganization !== true)
+        .map((org) => String(org._id)),
+    );
+
     const latestSubByOrg = new Map<string, (typeof subscriptions)[number]>();
     for (const sub of subscriptions) {
       const key = String(sub.organizationId);
@@ -81,6 +87,7 @@ export const revenueAnalytics = query({
     };
 
     for (const org of organizations) {
+      if (org.isTestOrganization === true) continue;
       const planKey = (org.planKey ?? "basic") as PlanKey;
       planDistribution[planKey] = (planDistribution[planKey] ?? 0) + 1;
       const sub = org.subscriptionId
@@ -93,12 +100,17 @@ export const revenueAnalytics = query({
     }
 
     const successfulPayments = billing.filter(
-      (row) => row.status === "success" && (row.paidAt ?? row.createdAt) >= since,
+      (row) =>
+        row.status === "success" &&
+        commercialOrgIds.has(String(row.organizationId)) &&
+        (row.paidAt ?? row.createdAt) >= since,
     );
     const grossRevenue = successfulPayments.reduce((sum, row) => sum + row.amount, 0);
 
     const revenueByMonthMap = new Map<string, number>();
-    for (const row of billing.filter((b) => b.status === "success")) {
+    for (const row of billing.filter(
+      (b) => b.status === "success" && commercialOrgIds.has(String(b.organizationId)),
+    )) {
       const ts = row.paidAt ?? row.createdAt;
       if (ts < since) continue;
       const key = monthKey(ts);
@@ -566,6 +578,11 @@ export const getInsightDetail = query({
 
     const liveOffersByOrg = indexLiveOffersByOrganization(commercialOffers, now);
 
+    const commercialOrganizations = organizations.filter(
+      (org) => org.isTestOrganization !== true,
+    );
+    const commercialOrgIds = new Set(commercialOrganizations.map((org) => String(org._id)));
+
     const latestSubByOrg = new Map<string, (typeof subscriptions)[number]>();
     for (const sub of subscriptions) {
       const key = String(sub.organizationId);
@@ -615,7 +632,7 @@ export const getInsightDetail = query({
       case "arr": {
         let mrr = 0;
         const byPlan = new Map<string, number>();
-        for (const org of organizations) {
+        for (const org of commercialOrganizations) {
           const sub = subFor(org);
           if (!sub) continue;
           const contribution = subscriptionMrr(
@@ -629,7 +646,10 @@ export const getInsightDetail = query({
         }
         value = args.metric === "arr" ? mrr * 12 : mrr;
         const successfulPayments = billing.filter(
-          (row) => row.status === "success" && (row.paidAt ?? row.createdAt) >= since,
+          (row) =>
+            row.status === "success" &&
+            commercialOrgIds.has(String(row.organizationId)) &&
+            (row.paidAt ?? row.createdAt) >= since,
         );
         trend = monthlySeries(
           successfulPayments.map((row) => row.paidAt ?? row.createdAt),
@@ -823,7 +843,10 @@ export const getInsightDetail = query({
       }
       case "gross-revenue": {
         const successfulPayments = billing.filter(
-          (row) => row.status === "success" && (row.paidAt ?? row.createdAt) >= since,
+          (row) =>
+            row.status === "success" &&
+            commercialOrgIds.has(String(row.organizationId)) &&
+            (row.paidAt ?? row.createdAt) >= since,
         );
         value = successfulPayments.reduce((sum, row) => sum + row.amount, 0);
         trend = monthlySeries(

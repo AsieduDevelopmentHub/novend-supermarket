@@ -104,9 +104,18 @@ export const dashboard = query({
 
     const liveOffersByOrg = indexLiveOffersByOrganization(commercialOffers, now);
 
+    const commercialOrgIds = new Set(
+      organizations
+        .filter((org) => org.isTestOrganization !== true)
+        .map((org) => String(org._id)),
+    );
+
     const staffAccounts = orgStats.reduce((sum, row) => sum + row.userCount, 0);
     const successfulPayments = billing.filter(
-      (row) => row.status === "success" && (row.paidAt ?? row.createdAt) >= since,
+      (row) =>
+        row.status === "success" &&
+        commercialOrgIds.has(String(row.organizationId)) &&
+        (row.paidAt ?? row.createdAt) >= since,
     );
     const periodCosts = costs.filter((row) => row.occurredAt >= since);
     const currentRollups = rollups.filter((row) => row.day >= sinceDay);
@@ -131,8 +140,10 @@ export const dashboard = query({
         latestSubByOrg.set(key, subscription);
       }
     }
+
     let mrr = 0;
     for (const org of organizations) {
+      if (org.isTestOrganization === true) continue;
       const sub = org.subscriptionId
         ? subscriptions.find((row) => row._id === org.subscriptionId)
         : latestSubByOrg.get(String(org._id));
@@ -349,6 +360,7 @@ export const dashboard = query({
           name: organization.name,
           slug: organization.slug,
           status: organization.status,
+          isTestOrganization: organization.isTestOrganization === true,
           planKey: organization.planKey ?? "basic",
           createdAt: organization.createdAt,
         })),

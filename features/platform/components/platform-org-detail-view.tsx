@@ -149,6 +149,7 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
 
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={org.status === "active" ? "success" : "secondary"}>{org.status}</Badge>
+        {org.isTestOrganization ? <Badge variant="outline">Test organization</Badge> : null}
         {org.pendingClosure && org.closureEffectiveAt ? (
           <Badge variant="destructive">Closure {formatDateTime(org.closureEffectiveAt)}</Badge>
         ) : null}

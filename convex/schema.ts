@@ -286,6 +286,11 @@ export default defineSchema({
     featureEntitlementVersion: v.optional(v.number()),
     /** Controls tenant Billing UI visibility. Missing → visible. */
     billingVisibility: v.optional(billingVisibilityValidator),
+    /**
+     * Platform-only flag: internal / QA tenants excluded from MRR, ARR, and
+     * gross revenue. Missing → false (counts in commercial metrics).
+     */
+    isTestOrganization: v.optional(v.boolean()),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
     /** Owner-initiated closure; org stays recoverable until `closureEffectiveAt`. */

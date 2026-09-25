@@ -216,6 +216,7 @@ export const overview = query({
           name: org.name,
           slug: org.slug,
           status: org.status,
+          isTestOrganization: org.isTestOrganization === true,
           plan: resolvePlan(org.planKey).name,
           createdAt: org.createdAt,
         })),
@@ -256,6 +257,7 @@ export const listOrganizations = query({
           name: org.name,
           slug: org.slug,
           status: org.status,
+          isTestOrganization: org.isTestOrganization === true,
           planKey: plan.key,
           plan: plan.name,
           currency: org.currency,
@@ -421,6 +423,7 @@ export const getOrganization = query({
       name: org.name,
       slug: org.slug,
       status: org.status,
+      isTestOrganization: org.isTestOrganization === true,
       pendingClosure: hasPendingOrganizationClosure(org, now),
       closureRequestedAt: org.closureRequestedAt ?? null,
       closureEffectiveAt: org.closureEffectiveAt ?? null,
@@ -518,6 +521,34 @@ export const setOrganizationStatus = mutation({
       entityType: "organizations",
       entityId: args.organizationId,
       metadata: { status: args.status },
+    });
+    return args.organizationId;
+  },
+});
+
+/**
+ * PEAS — mark an organization as a test/QA tenant so it is excluded from
+ * platform MRR, ARR, and gross revenue.
+ */
+export const setOrganizationTestFlag = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    isTestOrganization: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    const org = await ctx.db.get(args.organizationId);
+    if (!org) throw new Error("Organization not found");
+    await ctx.db.patch(args.organizationId, {
+      isTestOrganization: args.isTestOrganization,
+      updatedAt: Date.now(),
+    });
+    await writeAuditLog(ctx, {
+      actorId: userId,
+      action: "platform_set_org_test_flag",
+      entityType: "organizations",
+      entityId: args.organizationId,
+      metadata: { isTestOrganization: args.isTestOrganization },
     });
     return args.organizationId;
   },

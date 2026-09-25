@@ -36,6 +36,7 @@ import type * as passwordReset from "../passwordReset.js";
 import type * as payroll from "../payroll.js";
 import type * as platform from "../platform.js";
 import type * as platformAnalytics from "../platformAnalytics.js";
+import type * as platformFinanceRepair from "../platformFinanceRepair.js";
 import type * as platformMonitoring from "../platformMonitoring.js";
 import type * as platformStats from "../platformStats.js";
 import type * as products from "../products.js";
@@ -146,6 +147,7 @@ declare const fullApi: ApiFromModules<{
   payroll: typeof payroll;
   platform: typeof platform;
   platformAnalytics: typeof platformAnalytics;
+  platformFinanceRepair: typeof platformFinanceRepair;
   platformMonitoring: typeof platformMonitoring;
   platformStats: typeof platformStats;
   products: typeof products;

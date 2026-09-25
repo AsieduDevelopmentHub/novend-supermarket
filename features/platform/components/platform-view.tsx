@@ -128,9 +128,14 @@ export function PlatformView() {
                       <p className="text-muted-foreground text-xs">{org.slug}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant={org.status === "active" ? "success" : "secondary"}>
-                        {org.status}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant={org.status === "active" ? "success" : "secondary"}>
+                          {org.status}
+                        </Badge>
+                        {org.isTestOrganization ? (
+                          <Badge variant="outline">Test</Badge>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-4 py-3">{org.plan}</td>
                     <td className="px-4 py-3">{org.userCount}</td>
