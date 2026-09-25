@@ -38,7 +38,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCategoriesList, useInventoryList, useBranchesList } from "@/hooks/use-offline-lists";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
-import { formatExpiryDate } from "@/lib/expiry";
+import { expiryAlertQuantity, formatExpiryDate } from "@/lib/expiry";
 import { signedStockDelta } from "@/lib/quantity";
 import {
   alignDirectionToReason,
@@ -545,12 +545,36 @@ function InventoryViewInner() {
                         <td className="px-4 py-3">{row.categoryName}</td>
                         <td className="px-4 py-3">
                           <div>
-                            {row.stockQuantity} {row.unit}
-                            {row.tracksExpiry && row.sellableQuantity !== row.stockQuantity ? (
-                              <p className="text-muted-foreground text-xs">
-                                {row.sellableQuantity} sellable
-                              </p>
-                            ) : null}
+                            {expiryOnly ? (
+                              <>
+                                {expiryAlertQuantity(row)} {row.unit}
+                                <p className="text-muted-foreground text-xs">
+                                  {[
+                                    row.isExpired && row.expiredQuantity
+                                      ? `${row.expiredQuantity} expired`
+                                      : null,
+                                    row.isExpiring && row.expiringQuantity
+                                      ? `${row.expiringQuantity} expiring`
+                                      : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ") || "Alert window"}
+                                  {row.sellableQuantity != null &&
+                                  row.sellableQuantity !== expiryAlertQuantity(row)
+                                    ? ` · ${row.sellableQuantity} sellable`
+                                    : ""}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                {row.stockQuantity} {row.unit}
+                                {row.tracksExpiry && row.sellableQuantity !== row.stockQuantity ? (
+                                  <p className="text-muted-foreground text-xs">
+                                    {row.sellableQuantity} sellable
+                                  </p>
+                                ) : null}
+                              </>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -631,9 +655,14 @@ function InventoryViewInner() {
                     </div>
                     <p className="text-muted-foreground text-xs">{row.categoryName}</p>
                     <p className="text-sm">
-                      {row.stockQuantity} {row.unit}
+                      {expiryOnly ? expiryAlertQuantity(row) : row.stockQuantity} {row.unit}
                       {row.tracksExpiry && row.nearestExpiry
                         ? ` · ${formatExpiryDate(row.nearestExpiry)}`
+                        : ""}
+                      {expiryOnly &&
+                      row.sellableQuantity != null &&
+                      row.sellableQuantity !== expiryAlertQuantity(row)
+                        ? ` · ${row.sellableQuantity} sellable`
                         : ""}
                     </p>
                     <div className="grid grid-cols-2 gap-2">

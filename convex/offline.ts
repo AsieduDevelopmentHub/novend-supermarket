@@ -3,7 +3,11 @@ import { Id } from "./_generated/dataModel";
 import { requireBranchId, canViewCostPrice, isAdmin } from "./shared/permissions";
 import { loadPrintSnapshot, loadBusinessConfiguration, loadProductImagesPolicy } from "./settings";
 import { stockMapForBranch } from "./shared/branchStock";
-import { deriveExpiryListFields, lotSummaries } from "./shared/lots";
+import {
+  deriveExpiryListFields,
+  lotSummaries,
+  productExpiryAlertDays,
+} from "./shared/lots";
 import { presenceFromLastSeenAt } from "./shared/presence";
 import { loadTourProgressForUser } from "./shared/tourProgress";
 
@@ -33,7 +37,6 @@ export const getSnapshot = query({
       activeProducts,
       activeCustomers,
       stockByProduct,
-      summaries,
       branches,
       profiles,
     ] = await Promise.all([
@@ -54,7 +57,6 @@ export const getSnapshot = query({
         )
         .collect(),
       stockMapForBranch(ctx, branchId),
-      lotSummaries(ctx, branchId),
       ctx.db
         .query("branches")
         .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
@@ -64,6 +66,11 @@ export const getSnapshot = query({
         .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
         .collect(),
     ]);
+
+    const alertDaysByProduct = new Map(
+      activeProducts.map((p) => [String(p._id), productExpiryAlertDays(p)]),
+    );
+    const summaries = await lotSummaries(ctx, branchId, undefined, alertDaysByProduct);
 
     const categoryMap = new Map(categories.map((c) => [c._id, c.name]));
     const showCost = canViewCostPrice(profile);
@@ -78,6 +85,8 @@ export const getSnapshot = query({
       productId: string;
       quantity: number;
       sellableQuantity: number;
+      expiredQuantity?: number;
+      expiringQuantity?: number;
       isExpiring?: boolean;
       updatedAt: number;
     }> = [];
@@ -85,7 +94,7 @@ export const getSnapshot = query({
     for (const stockBranchId of stockBranchIds) {
       const [branchStockMap, branchLotSummaries] = await Promise.all([
         stockMapForBranch(ctx, stockBranchId),
-        lotSummaries(ctx, stockBranchId),
+        lotSummaries(ctx, stockBranchId, undefined, alertDaysByProduct),
       ]);
       for (const product of activeProducts) {
         const quantity = branchStockMap.get(product._id) ?? 0;
@@ -100,6 +109,8 @@ export const getSnapshot = query({
           productId: product._id as string,
           quantity,
           sellableQuantity: expiry.sellableQuantity,
+          expiredQuantity: expiry.expiredQuantity,
+          expiringQuantity: expiry.expiringQuantity,
           isExpiring: expiry.isExpiring,
           updatedAt: now,
         });
@@ -122,6 +133,8 @@ export const getSnapshot = query({
           costPrice: showCost ? product.costPrice : 0,
           stockQuantity,
           sellableQuantity: expiry.sellableQuantity,
+          expiredQuantity: expiry.expiredQuantity,
+          expiringQuantity: expiry.expiringQuantity,
           unit: product.unit,
           sellUnits: product.sellUnits ?? null,
           pricingMode: product.pricingMode ?? null,

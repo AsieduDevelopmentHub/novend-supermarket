@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { summarizeLots } from "@/convex/shared/lots";
+import { expiryAlertQuantity } from "@/lib/expiry";
 
 describe("summarizeLots expiringQuantity", () => {
   const today = "2026-09-25";
@@ -18,6 +19,14 @@ describe("summarizeLots expiringQuantity", () => {
     expect(summary.sellableQuantity).toBe(100);
     expect(summary.expiringQuantity).toBe(10);
     expect(summary.nearestSellableExpiry).toBe("2026-10-01");
+    expect(
+      expiryAlertQuantity({
+        isExpired: true,
+        isExpiring: true,
+        expiredQuantity: summary.expiredQuantity,
+        expiringQuantity: summary.expiringQuantity,
+      }),
+    ).toBe(15);
   });
 
   it("respects a shorter admin alert window", () => {

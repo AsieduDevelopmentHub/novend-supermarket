@@ -104,6 +104,7 @@ export const list = query({
             tracksExpiry: expiry.tracksExpiry,
             sellableQuantity: expiry.sellableQuantity,
             expiredQuantity: expiry.expiredQuantity,
+            expiringQuantity: expiry.expiringQuantity,
             nearestExpiry: expiry.nearestExpiry,
             nearestSellableExpiry: expiry.nearestSellableExpiry,
             isExpired: expiry.isExpired,
