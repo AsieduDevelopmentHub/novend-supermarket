@@ -13,6 +13,9 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Fixed
 
+- Capacitor no longer runs sealed-key cloud packaging on shell mount (3-minute delay, in-flight lock, attempt cooldown) — stops WebView freezes on `backup_only` / `snapshot_only`.
+- Sales catalog stays Dexie-local for package cloud modes so carts cannot sell remote-only products that fail at checkout.
+
 - Platform MRR no longer invents enterprise catalog list price when subscription amount is 0 or a commercial offer has yearlyPrice 0; assignPlan ignores zero offer amounts.
 
 - Platform financial KPIs now exclude test organizations and use recognized subscription amounts (not catalog fallbacks); stale pending Paystack checkouts and duplicate/manual test success charges were cleaned so MRR/ARR/gross match real commercial payments.

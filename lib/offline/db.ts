@@ -502,6 +502,8 @@ export const META_KEYS = {
   telemetryHeartbeat: "telemetryHeartbeat",
   /** Last automatic backup_only / snapshot_only cloud upload timestamp (ms). */
   scheduledCloudBackupAt: "scheduledCloudBackupAt",
+  /** Last start of a scheduled upload attempt (success or fail) — cooldown / anti-storm. */
+  scheduledCloudBackupAttemptAt: "scheduledCloudBackupAttemptAt",
   /** "1" when an org recovery key is sealed on this device. */
   recoveryKeySealed: "recoveryKeySealed",
 } as const;

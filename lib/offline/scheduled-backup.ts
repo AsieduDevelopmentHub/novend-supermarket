@@ -5,6 +5,9 @@
  * backup_only → full Dexie dump; snapshot_only → compact business package.
  * No-op unless online, policy allows the matching upload, a recovery key is
  * sealed, and the platform interval has elapsed.
+ *
+ * Export + PBKDF2 run on the JS thread and can freeze Capacitor WebViews — callers
+ * must delay the first attempt after shell load, and this module serializes runs.
  */
 
 import type { Id } from "@/convex/_generated/dataModel";
@@ -35,6 +38,11 @@ export type ScheduledBackupDeps = {
   }) => Promise<unknown>;
 };
 
+/** Minimum gap after a failed/in-progress attempt before retrying (avoids remount storms). */
+export const SCHEDULED_BACKUP_RETRY_COOLDOWN_MS = 60 * 60 * 1000;
+
+let inFlight: Promise<boolean> | null = null;
+
 /** True when the last automatic upload is older than the configured interval. */
 export function isScheduledBackupDue(
   lastAtMs: number,
@@ -47,6 +55,14 @@ export function isScheduledBackupDue(
 
 /** Runs a scheduled cloud upload when the org is backup_only or snapshot_only. */
 export async function maybeRunScheduledCloudBackup(deps: ScheduledBackupDeps): Promise<boolean> {
+  if (inFlight) return inFlight;
+  inFlight = runScheduledCloudBackup(deps).finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function runScheduledCloudBackup(deps: ScheduledBackupDeps): Promise<boolean> {
   try {
     if (typeof navigator !== "undefined" && !navigator.onLine) return false;
 
@@ -63,9 +79,25 @@ export async function maybeRunScheduledCloudBackup(deps: ScheduledBackupDeps): P
     if (!password) return false;
 
     const db = await getOfflineDb();
-    const lastRaw = db ? await getMeta(db, META_KEYS.scheduledCloudBackupAt) : null;
+    if (!db) return false;
+
+    const now = Date.now();
+    const lastRaw = await getMeta(db, META_KEYS.scheduledCloudBackupAt);
     const last = lastRaw ? Number(lastRaw) : 0;
-    if (!isScheduledBackupDue(last, Date.now(), license.backupIntervalHours)) return false;
+    if (!isScheduledBackupDue(last, now, license.backupIntervalHours)) return false;
+
+    const attemptRaw = await getMeta(db, META_KEYS.scheduledCloudBackupAttemptAt);
+    const attemptAt = attemptRaw ? Number(attemptRaw) : 0;
+    if (
+      Number.isFinite(attemptAt) &&
+      attemptAt > 0 &&
+      now - attemptAt < SCHEDULED_BACKUP_RETRY_COOLDOWN_MS
+    ) {
+      return false;
+    }
+
+    // Stamp before heavy work so remounts / online flickers do not re-enter export+PBKDF2.
+    await setMeta(db, META_KEYS.scheduledCloudBackupAttemptAt, String(now));
 
     const payload = wantSnapshot ? await exportCompactSnapshot() : await exportOfflineBackup();
     const encrypted = await encryptOfflineBackup(payload, password);
@@ -86,7 +118,9 @@ export async function maybeRunScheduledCloudBackup(deps: ScheduledBackupDeps): P
       kind: wantSnapshot ? "snapshot" : "automatic",
     });
 
-    if (db) await setMeta(db, META_KEYS.scheduledCloudBackupAt, String(Date.now()));
+    const doneAt = Date.now();
+    await setMeta(db, META_KEYS.scheduledCloudBackupAt, String(doneAt));
+    await setMeta(db, META_KEYS.scheduledCloudBackupAttemptAt, String(doneAt));
     return true;
   } catch {
     return false;

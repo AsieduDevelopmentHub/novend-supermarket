@@ -468,9 +468,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     };
   }, [online, recordHeartbeat]);
 
-  // Automatic cloud uploads for backup_only / snapshot_only. The hourly timer only
-  // checks local state; Convex is contacted when the platform interval has elapsed
-  // and a recovery key is sealed on this device. It never flushes the outbox.
+  // Automatic cloud uploads for backup_only / snapshot_only. Delayed after shell
+  // load so Cap WebViews are not frozen by export+PBKDF2 during first paint.
+  // Hourly timer only checks local state; Convex is contacted when due.
   useEffect(() => {
     if (!online) return;
     if (isPlatformReplicaBound()) return;
@@ -480,9 +480,14 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         claimBackup: (args) => claimBackupUpload(args),
         recordBackup: (args) => recordBackup(args),
       });
-    run();
+    // ~3 minutes after mount — POS must be usable before background packaging.
+    const initialDelayMs = 3 * 60 * 1000;
+    const initialId = window.setTimeout(run, initialDelayMs);
     const id = window.setInterval(run, 60 * 60 * 1000);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearTimeout(initialId);
+      window.clearInterval(id);
+    };
   }, [online, generateBackupUploadUrl, claimBackupUpload, recordBackup]);
 
   const value = useMemo<OfflineContextValue>(

@@ -1,5 +1,5 @@
 import { brandedDocumentName } from "@/lib/export-filenames";
-import { getOfflineDb } from "./db";
+import { getOfflineDb, META_KEYS, setMeta } from "./db";
 import { Hardware, isCapacitor } from "@novend/hardware";
 import { assertBackupPassword, assertBackupUnlockPassword } from "./backup-password";
 import { normalizeRecoveryKeyInput } from "./recovery-key";
@@ -288,6 +288,8 @@ export async function importOfflineBackup(payload: OfflineBackupPayload) {
       }
     }
   });
+  // Mark mirror warm so list gates prefer Dexie after restore (package modes).
+  await setMeta(db, META_KEYS.lastSnapshotAt, String(Date.now()));
 }
 
 export async function parseBackupPayload(

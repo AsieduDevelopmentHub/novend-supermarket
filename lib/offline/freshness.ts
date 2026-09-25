@@ -3,6 +3,7 @@
  * List UIs and snapshot pulls use these TTLs to avoid redundant Convex traffic.
  */
 import { getMeta, getOfflineDb, META_KEYS } from "./db";
+import { loadCloudPolicy } from "./cloud-policy";
 
 /** How long a Dexie snapshot is considered warm enough to skip live list subscriptions. */
 export const MIRROR_LIST_TTL_MS = 5 * 60 * 1000;
@@ -51,4 +52,17 @@ export async function mirrorHasCatalog(): Promise<boolean> {
 export async function canServeListsFromMirror(): Promise<boolean> {
   const [hasCatalog, fresh] = await Promise.all([mirrorHasCatalog(), isMirrorFresh()]);
   return hasCatalog && fresh;
+}
+
+/**
+ * Whether Sales may open a live Convex catalog subscription.
+ * Package modes (`backup_only` / `snapshot_only`) never mirror products into Dexie
+ * via realtime sync — remote rows let staff build a cart that then fails at
+ * `completeSaleLocally` with "Product unavailable".
+ */
+export async function shouldUseRemoteSalesCatalog(online: boolean): Promise<boolean> {
+  if (!online) return false;
+  const policy = await loadCloudPolicy();
+  if (!policy.shouldUseRealtimeSubscriptions()) return false;
+  return !(await canServeListsFromMirror());
 }

@@ -6,7 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { listLocalCatalogProducts, searchLocalCustomers } from "@/lib/offline/snapshot";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
-import { canServeListsFromMirror } from "@/lib/offline/freshness";
+import { shouldUseRemoteSalesCatalog } from "@/lib/offline/freshness";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { useConnectivity } from "@/hooks/use-connectivity";
 
@@ -63,7 +63,8 @@ function mapRemoteProducts(
 
 /**
  * Branch-scoped product catalog for Sales.
- * Warm Dexie mirror skips the live Convex subscription (same gate as Products list).
+ * Warm Dexie mirror skips the live Convex subscription. Package cloud modes
+ * always stay local so checkout never sells remote-only product ids.
  */
 export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null) {
   const online = useConnectivity();
@@ -75,9 +76,9 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const ok = !online ? true : await canServeListsFromMirror();
+      const useRemote = await shouldUseRemoteSalesCatalog(online);
       if (cancelled) return;
-      setServeLocal(ok);
+      setServeLocal(!useRemote);
       setGateReady(true);
     })();
     return () => {
@@ -165,8 +166,8 @@ export function useSalesCustomerSearch(query: string) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const ok = !online ? true : await canServeListsFromMirror();
-      if (!cancelled) setServeLocal(ok);
+      const useRemote = await shouldUseRemoteSalesCatalog(online);
+      if (!cancelled) setServeLocal(!useRemote);
     })();
     return () => {
       cancelled = true;
