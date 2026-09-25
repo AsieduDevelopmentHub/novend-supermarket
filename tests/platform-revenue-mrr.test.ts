@@ -77,10 +77,20 @@ describe("subscriptionMrr recognized revenue", () => {
     ).toBe(200);
   });
 
-  it("prefers live commercial offer price over subscription amount and catalog", () => {
+  it("prefers subscription amount over live commercial offer for recognized MRR", () => {
     expect(
       subscriptionMrr(
         sub({ amount: 450, planKey: "pro" }),
+        offer({ monthlyPrice: 300 }),
+        NOW,
+      ),
+    ).toBe(450);
+  });
+
+  it("uses live commercial offer when subscription amount is unset", () => {
+    expect(
+      subscriptionMrr(
+        sub({ amount: 0, planKey: "pro" }),
         offer({ monthlyPrice: 300 }),
         NOW,
       ),
@@ -88,7 +98,7 @@ describe("subscriptionMrr recognized revenue", () => {
 
     expect(
       subscriptionMrr(
-        sub({ billingCycle: "yearly", amount: 4500, planKey: "pro" }),
+        sub({ billingCycle: "yearly", amount: 0, planKey: "pro" }),
         offer({ yearlyPrice: 2400 }),
         NOW,
       ),

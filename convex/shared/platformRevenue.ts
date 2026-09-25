@@ -38,7 +38,8 @@ function normalizeToMonthly(amount: number, cycle: "monthly" | "yearly"): number
 
 /**
  * Monthly recurring GH₵ for one subscription.
- * Price order: live commercial offer → subscription.amount → catalog.
+ * Price order: subscription.amount (recognized) → live commercial offer → catalog.
+ * Offer prices alone do not change MRR until applied onto the subscription.
  */
 export function subscriptionMrr(
   sub: MrrSubscriptionInput,
@@ -51,15 +52,15 @@ export function subscriptionMrr(
   const cycle = asRecurringCycle(sub.billingCycle);
   if (!cycle) return 0;
 
+  if (sub.amount > 0) {
+    return normalizeToMonthly(sub.amount, cycle);
+  }
+
   if (offer && isCommercialOfferLive(offer, now)) {
     const offerAmount = offerPriceForCycle(offer, cycle);
     if (offerAmount !== null && offerAmount > 0) {
       return normalizeToMonthly(offerAmount, cycle);
     }
-  }
-
-  if (sub.amount > 0) {
-    return normalizeToMonthly(sub.amount, cycle);
   }
 
   const plan = resolvePlan(sub.planKey);

@@ -531,12 +531,14 @@ export function PlatformLicensePanel({
                       return;
                     }
                   }
-                  const hasActiveSubscription =
-                    Boolean(license.subscription) &&
-                    !license.subscription?.isLifetime &&
-                    (license.subscription?.status === "active" ||
-                      license.subscription?.status === "past_due");
-                  if (hasActiveSubscription) {
+                  // Any existing non-lifetime subscription must confirm amount-only vs payment.
+                  const needsConfirm =
+                    Boolean(license.subscription) && !license.subscription?.isLifetime;
+                  if (needsConfirm) {
+                    if (amount === undefined) {
+                      toast.error("Enter the charge amount first, then confirm how it should apply");
+                      return;
+                    }
                     setPendingAssignAmount(amount);
                     setAssignChoiceOpen(true);
                     return;
@@ -548,12 +550,32 @@ export function PlatformLicensePanel({
                       cycle,
                       note: note.trim() || undefined,
                       amount,
+                      recordPayment: true,
                     }),
                   );
                 }}
               >
                 Assign plan
               </Button>
+              {license.subscription && !license.subscription.isLifetime ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={pending || !online}
+                  onClick={() => {
+                    const trimmed = chargeAmount.trim();
+                    const amount = Number(trimmed);
+                    if (!trimmed || !Number.isFinite(amount) || amount < 0) {
+                      toast.error("Enter the new charge amount above first");
+                      return;
+                    }
+                    setPendingAssignAmount(amount);
+                    setAssignChoiceOpen(true);
+                  }}
+                >
+                  Update charge amount…
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="outline"

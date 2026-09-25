@@ -22,6 +22,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -124,6 +125,12 @@ export function PlatformCommercialPanel({
   const updateOffer = useMutation(api.commercialOffers.update);
   const activateOffer = useMutation(api.commercialOffers.activate);
   const withdrawOffer = useMutation(api.commercialOffers.withdraw);
+  const setSubscriptionAmount = useMutation(api.billing.setSubscriptionAmount);
+  const assignPlan = useMutation(api.billing.assignPlan);
+  const license = useQuery(
+    api.billing.organizationLicense,
+    online ? { organizationId } : "skip",
+  );
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<Id<"commercialOffers"> | null>(null);
@@ -131,6 +138,10 @@ export function PlatformCommercialPanel({
   const [pending, setPending] = useState(false);
   const [confirmActivate, setConfirmActivate] = useState<Id<"commercialOffers"> | null>(null);
   const [confirmWithdraw, setConfirmWithdraw] = useState<Id<"commercialOffers"> | null>(null);
+  const [applyPricingOpen, setApplyPricingOpen] = useState(false);
+  const [pendingApplyAmount, setPendingApplyAmount] = useState<number | null>(null);
+  const [pendingApplyCycle, setPendingApplyCycle] = useState<"monthly" | "yearly">("monthly");
+  const [pendingApplyPlanKey, setPendingApplyPlanKey] = useState<SellablePlanKey>("pro");
 
   if (!online && offers === undefined) {
     return (
@@ -217,7 +228,9 @@ export function PlatformCommercialPanel({
       }
       const limitOverrides = buildLimitOverrides(form);
 
+      let savedLiveOffer = false;
       if (editingId) {
+        const existing = offers?.find((row) => row._id === editingId);
         await updateOffer({
           offerId: editingId,
           name: form.name.trim(),
@@ -229,6 +242,7 @@ export function PlatformCommercialPanel({
           customerMessage: form.customerMessage.trim() || null,
           notesInternal: form.notesInternal.trim() || null,
         });
+        savedLiveOffer = existing?.status === "active" || existing?.status === "accepted";
         toast.success("Offer updated");
       } else {
         await createDraft({
@@ -246,6 +260,28 @@ export function PlatformCommercialPanel({
         toast.success("Draft offer created");
       }
       setDialogOpen(false);
+
+      const sub = license?.subscription;
+      const canApply =
+        savedLiveOffer &&
+        sub &&
+        !sub.isLifetime &&
+        (sub.status === "active" || sub.status === "past_due" || sub.status === "trialing");
+      if (canApply && sub) {
+        const cycle =
+          sub.billingCycle === "yearly" && allowedCycles.includes("yearly")
+            ? "yearly"
+            : allowedCycles.includes("monthly")
+              ? "monthly"
+              : allowedCycles[0]!;
+        const amount = cycle === "yearly" ? yearlyPrice : monthlyPrice;
+        if (typeof amount === "number" && Number.isFinite(amount)) {
+          setPendingApplyAmount(amount);
+          setPendingApplyCycle(cycle);
+          setPendingApplyPlanKey(form.basePlanKey);
+          setApplyPricingOpen(true);
+        }
+      }
     } catch (error) {
       showError(error, "Save failed");
     } finally {
@@ -259,6 +295,28 @@ export function PlatformCommercialPanel({
       await activateOffer({ offerId });
       toast.success("Offer activated");
       setConfirmActivate(null);
+      const offer = offers?.find((row) => row._id === offerId);
+      const sub = license?.subscription;
+      if (
+        offer &&
+        sub &&
+        !sub.isLifetime &&
+        (sub.status === "active" || sub.status === "past_due" || sub.status === "trialing")
+      ) {
+        const cycle =
+          sub.billingCycle === "yearly" && offer.allowedCycles.includes("yearly")
+            ? "yearly"
+            : offer.allowedCycles.includes("monthly")
+              ? "monthly"
+              : offer.allowedCycles[0]!;
+        const amount = cycle === "yearly" ? offer.yearlyPrice : offer.monthlyPrice;
+        if (typeof amount === "number") {
+          setPendingApplyAmount(amount);
+          setPendingApplyCycle(cycle);
+          setPendingApplyPlanKey(offer.basePlanKey);
+          setApplyPricingOpen(true);
+        }
+      }
     } catch (error) {
       showError(error, "Activate failed");
     } finally {
@@ -286,9 +344,9 @@ export function PlatformCommercialPanel({
           <div>
             <CardTitle>Commercial offer</CardTitle>
             <CardDescription>
-              Negotiated monthly/annual prices and limits for this organization. Offer limits
-              apply to the live licence. After changing charges, use Licence → Assign plan to
-              apply the new amount — you will confirm amount-only vs recording a payment.
+              Negotiated monthly/annual charges and limits. Saving an offer does not change MRR,
+              ARR, or gross by itself — after save you will confirm whether to update the live
+              licence amount only or also record a payment.
             </CardDescription>
           </div>
           <Button type="button" size="sm" disabled={!online} onClick={openCreate}>
@@ -520,6 +578,111 @@ export function PlatformCommercialPanel({
               onClick={() => void onSaveForm()}
             >
               {editingId ? "Save changes" : "Create draft"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={applyPricingOpen}
+        onOpenChange={(open) => {
+          setApplyPricingOpen(open);
+          if (!open) {
+            setPendingApplyAmount(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Apply offer price to the live licence?</DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  Offer prices are saved. Recognized MRR uses the licence amount
+                  {license?.subscription
+                    ? ` (currently ${formatCurrency(license.subscription.amount)})`
+                    : ""}
+                  .
+                </p>
+                <p>
+                  New amount:{" "}
+                  {pendingApplyAmount !== null ? formatCurrency(pendingApplyAmount) : "—"} /{" "}
+                  {pendingApplyCycle}. Choose whether this should only update recurring MRR or
+                  also record a payment (gross / net profit).
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button
+              type="button"
+              disabled={pending || pendingApplyAmount === null}
+              onClick={() => {
+                if (pendingApplyAmount === null) return;
+                const samePlanAndCycle =
+                  license?.subscription?.planKey === pendingApplyPlanKey &&
+                  license.subscription.billingCycle === pendingApplyCycle;
+                setPending(true);
+                const work = samePlanAndCycle
+                  ? setSubscriptionAmount({
+                      organizationId,
+                      amount: pendingApplyAmount,
+                    })
+                  : assignPlan({
+                      organizationId,
+                      planKey: pendingApplyPlanKey,
+                      cycle: pendingApplyCycle,
+                      amount: pendingApplyAmount,
+                      recordPayment: false,
+                    });
+                void work
+                  .then(() => {
+                    toast.success("Licence amount updated (no new payment)");
+                    setApplyPricingOpen(false);
+                    setPendingApplyAmount(null);
+                  })
+                  .catch((error) => showError(error, "Update failed"))
+                  .finally(() => setPending(false));
+              }}
+            >
+              Update amount only (no new payment)
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending || pendingApplyAmount === null}
+              onClick={() => {
+                if (pendingApplyAmount === null) return;
+                setPending(true);
+                void assignPlan({
+                  organizationId,
+                  planKey: pendingApplyPlanKey,
+                  cycle: pendingApplyCycle,
+                  amount: pendingApplyAmount,
+                  recordPayment: true,
+                })
+                  .then(() => {
+                    toast.success("Payment recorded and licence updated");
+                    setApplyPricingOpen(false);
+                    setPendingApplyAmount(null);
+                  })
+                  .catch((error) => showError(error, "Assign failed"))
+                  .finally(() => setPending(false));
+              }}
+            >
+              Apply and record a payment
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={pending}
+              onClick={() => {
+                setApplyPricingOpen(false);
+                setPendingApplyAmount(null);
+                toast.message("Offer saved without changing MRR or gross");
+              }}
+            >
+              Leave licence unchanged
             </Button>
           </DialogFooter>
         </DialogContent>

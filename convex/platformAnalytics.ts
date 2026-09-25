@@ -490,7 +490,7 @@ const INSIGHT_COPY: Record<PlatformInsightMetric, { title: string; description: 
   mrr: {
     title: "Monthly Recurring Revenue",
     description:
-      "Recognized recurring value of active and past-due subscriptions (custom offer price when set), normalized to a month. Trials are excluded until first payment.",
+      "Recognized recurring value from each paying subscription's stored amount (active and past-due), normalized to a month. Trials and unpaid offer list prices are excluded until the licence amount is set.",
   },
   arr: {
     title: "Annual Recurring Revenue",
