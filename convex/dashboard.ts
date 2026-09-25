@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import {
   requireProfile,
   canViewCostPrice,
@@ -71,22 +72,82 @@ export const summary = query({
       .collect();
     const activeProducts = products.filter((p) => p.status === "active");
 
-    const stockBranchId = branchFilter ?? profile.branchId ?? null;
-    const stockByProduct = stockBranchId ? await stockMapForBranch(ctx, stockBranchId) : null;
-    const summaries = stockBranchId
-      ? await lotSummaries(ctx, stockBranchId, organizationId)
-      : await lotSummaries(ctx, null, organizationId);
+    const branches = await ctx.db
+      .query("branches")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
+    const branchNameById = new Map(branches.map((b) => [b._id, b.name]));
 
-    const stockRows = activeProducts.map((p) => {
-      const stockQuantity = stockByProduct ? (stockByProduct.get(p._id) ?? 0) : p.stockQuantity;
-      const expiry = deriveExpiryListFields(p, stockQuantity, summaries.get(p._id));
-      return { product: p, stockQuantity, expiry };
-    });
+    // Stock / expiry alerts always span every branch the caller can see (org-wide
+    // for admins even when sales KPIs are filtered). Managers stay on their branch.
+    const alertBranchIds =
+      admin
+        ? branches.filter((b) => b.status === "active").map((b) => b._id)
+        : profile.branchId
+          ? [profile.branchId]
+          : [];
 
-    const lowStock = stockRows.filter(({ expiry }) => expiry.isLowStock);
-    const expiryAlerts = stockRows.filter(
-      ({ expiry }) => expiry.tracksExpiry && (expiry.isExpired || expiry.isExpiring),
-    );
+    const lowStock: Array<{
+      id: string;
+      productId: Id<"products">;
+      name: string;
+      stockQuantity: number;
+      unit: string;
+      lowStockThreshold: number;
+      costPrice?: number;
+      branchId: Id<"branches"> | null;
+      branchName: string | null;
+    }> = [];
+    const expiryAlerts: Array<{
+      id: string;
+      productId: Id<"products">;
+      name: string;
+      sellableQuantity: number;
+      expiredQuantity: number;
+      nearestExpiry: string | null;
+      isExpired: boolean;
+      isExpiring: boolean;
+      unit: string;
+      branchId: Id<"branches"> | null;
+      branchName: string | null;
+    }> = [];
+
+    for (const branchId of alertBranchIds) {
+      const stockByProduct = await stockMapForBranch(ctx, branchId);
+      const summaries = await lotSummaries(ctx, branchId, organizationId);
+      for (const p of activeProducts) {
+        const stockQuantity = stockByProduct.get(p._id) ?? 0;
+        const expiry = deriveExpiryListFields(p, stockQuantity, summaries.get(p._id));
+        if (expiry.isLowStock) {
+          lowStock.push({
+            id: `${p._id}:${branchId}`,
+            productId: p._id,
+            name: p.name,
+            stockQuantity: expiry.sellableQuantity,
+            unit: p.unit,
+            lowStockThreshold: p.lowStockThreshold,
+            costPrice: canViewCostPrice(profile) ? p.costPrice : undefined,
+            branchId,
+            branchName: branchNameById.get(branchId) ?? null,
+          });
+        }
+        if (expiry.tracksExpiry && (expiry.isExpired || expiry.isExpiring)) {
+          expiryAlerts.push({
+            id: `${p._id}:${branchId}`,
+            productId: p._id,
+            name: p.name,
+            sellableQuantity: expiry.sellableQuantity,
+            expiredQuantity: expiry.expiredQuantity,
+            nearestExpiry: expiry.nearestExpiry,
+            isExpired: expiry.isExpired,
+            isExpiring: expiry.isExpiring,
+            unit: p.unit,
+            branchId,
+            branchName: branchNameById.get(branchId) ?? null,
+          });
+        }
+      }
+    }
 
     const categories = await ctx.db
       .query("categories")
@@ -196,24 +257,8 @@ export const summary = query({
         expiringCount: expiryAlerts.length,
         customersEstimate: admin || manager ? customerCount : undefined,
       },
-      lowStock: lowStock.slice(0, 8).map(({ product: p, expiry }) => ({
-        id: p._id,
-        name: p.name,
-        stockQuantity: expiry.sellableQuantity,
-        unit: p.unit,
-        lowStockThreshold: p.lowStockThreshold,
-        costPrice: canViewCostPrice(profile) ? p.costPrice : undefined,
-      })),
-      expiryAlerts: expiryAlerts.slice(0, 8).map(({ product: p, expiry }) => ({
-        id: p._id,
-        name: p.name,
-        sellableQuantity: expiry.sellableQuantity,
-        expiredQuantity: expiry.expiredQuantity,
-        nearestExpiry: expiry.nearestExpiry,
-        isExpired: expiry.isExpired,
-        isExpiring: expiry.isExpiring,
-        unit: p.unit,
-      })),
+      lowStock: lowStock.slice(0, 12),
+      expiryAlerts: expiryAlerts.slice(0, 12),
       topProducts,
       recentSales,
       salesTrend,

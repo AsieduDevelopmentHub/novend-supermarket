@@ -25,4 +25,9 @@ describe("outbox retry policy", () => {
   it("never fails dependency waits", () => {
     expect(shouldMarkOutboxFailed(99, "Waiting for the category to finish syncing.")).toBe(false);
   });
+
+  it("never fails auth-required / Sync failed placeholders", () => {
+    expect(shouldMarkOutboxFailed(99, "Not authenticated")).toBe(false);
+    expect(shouldMarkOutboxFailed(99, "Sync failed")).toBe(false);
+  });
 });

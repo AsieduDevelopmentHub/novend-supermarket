@@ -3282,7 +3282,12 @@ button.landing-feature-frame {
   --stone-lift: 0.12rem;
   --stone-rise: 0.62rem;
   overflow: visible;
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, #111827 42%, #0b1220 100%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--sidebar) 88%, white) 0%,
+    var(--sidebar) 42%,
+    color-mix(in oklab, var(--sidebar) 92%, black) 100%
+  );
   border-radius: 1.5rem 1.5rem 0 0;
   box-shadow:
     0 -10px 36px rgba(15, 23, 42, 0.32),
@@ -3434,15 +3439,15 @@ button.landing-feature-frame {
   transform: scale(0.72);
   background: radial-gradient(
     circle at 35% 28%,
-    #e0f2fe 0%,
-    #7dd3fc 38%,
-    #38bdf8 72%,
-    #0ea5e9 100%
+    color-mix(in oklab, var(--primary) 22%, white) 0%,
+    color-mix(in oklab, var(--primary) 55%, white) 38%,
+    var(--primary) 72%,
+    color-mix(in oklab, var(--primary) 82%, black) 100%
   );
   box-shadow:
-    0 0 0 1px rgba(125, 211, 252, 0.35),
-    0 4px 14px rgba(14, 165, 233, 0.45),
-    0 0 22px rgba(56, 189, 248, 0.55);
+    0 0 0 1px color-mix(in oklab, var(--primary) 35%, transparent),
+    0 4px 14px color-mix(in oklab, var(--primary) 45%, transparent),
+    0 0 22px color-mix(in oklab, var(--primary) 55%, transparent);
   transition:
     opacity 220ms ease,
     transform 320ms cubic-bezier(0.32, 0.72, 0, 1),
@@ -3453,9 +3458,9 @@ button.landing-feature-frame {
   opacity: 1;
   transform: scale(1);
   box-shadow:
-    0 0 0 1px rgba(186, 230, 253, 0.55),
-    0 6px 18px rgba(14, 165, 233, 0.52),
-    0 0 28px rgba(56, 189, 248, 0.68),
+    0 0 0 1px color-mix(in oklab, var(--primary) 55%, transparent),
+    0 6px 18px color-mix(in oklab, var(--primary) 52%, transparent),
+    0 0 28px color-mix(in oklab, var(--primary) 68%, transparent),
     0 2px 6px rgba(15, 23, 42, 0.28);
 }
 
@@ -3495,15 +3500,19 @@ button.landing-feature-frame {
   }
 }
 
-/* Floating cart FAB — candy blue so it doesn’t blend into the shell */
+/* Floating cart FAB — follows org --primary (experience tokens) */
 .novend-cart-fab {
   background: radial-gradient(
     circle at 35% 28%,
-    #e0f2fe 0%,
-    #7dd3fc 38%,
-    #38bdf8 72%,
-    #0ea5e9 100%
+    color-mix(in oklab, var(--primary) 22%, white) 0%,
+    color-mix(in oklab, var(--primary) 55%, white) 38%,
+    var(--primary) 72%,
+    color-mix(in oklab, var(--primary) 82%, black) 100%
   );
+  box-shadow:
+    0 8px 28px color-mix(in oklab, var(--primary) 55%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--primary) 45%, transparent);
+  color: var(--primary-foreground);
   transition:
     transform 160ms ease,
     box-shadow 160ms ease;
@@ -3511,6 +3520,6 @@ button.landing-feature-frame {
 
 .novend-cart-fab:hover {
   box-shadow:
-    0 10px 32px rgba(14, 165, 233, 0.65),
-    0 0 0 1px rgba(186, 230, 253, 0.55);
+    0 10px 32px color-mix(in oklab, var(--primary) 65%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--primary) 55%, transparent);
 }

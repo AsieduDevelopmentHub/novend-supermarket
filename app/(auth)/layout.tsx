@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { ThemeBootScript } from "@/components/theme-boot-script";
 import { PublicSiteHostProvider } from "@/features/auth/components/public-site-host";
+import { LoginExperienceBoot } from "@/features/experience/components/login-experience-boot";
 import { NonceProvider } from "@/providers/nonce-provider";
 
 /**
@@ -17,6 +18,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
     <NonceProvider nonce={nonce}>
       <PublicSiteHostProvider host={requestHost}>
         {nonce ? <ThemeBootScript nonce={nonce} /> : null}
+        <LoginExperienceBoot />
         {children}
       </PublicSiteHostProvider>
     </NonceProvider>

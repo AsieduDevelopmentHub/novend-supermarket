@@ -1,6 +1,7 @@
 "use client";
 
 import { CloudOff, CloudUpload, CheckCircle2, AlertCircle } from "lucide-react";
+import { useConvexAuth } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { describeSyncStatus } from "@/lib/offline/sync-status";
@@ -9,7 +10,9 @@ import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/date";
 
 function SyncGlyph({ kind }: { kind: ReturnType<typeof describeSyncStatus>["kind"] }) {
-  if (kind === "offline") return <CloudOff className="size-3.5 shrink-0" aria-hidden />;
+  if (kind === "offline" || kind === "disconnected") {
+    return <CloudOff className="size-3.5 shrink-0" aria-hidden />;
+  }
   if (kind === "conflict") return <AlertCircle className="size-3.5 shrink-0" aria-hidden />;
   if (kind === "queued") return <CloudUpload className="size-3.5 shrink-0" aria-hidden />;
   return <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />;
@@ -18,9 +21,16 @@ function SyncGlyph({ kind }: { kind: ReturnType<typeof describeSyncStatus>["kind
 /** Compact header control so mobile web and Capacitor can highlight sync without the sidebar. */
 export function SyncStatusHeaderButton() {
   const showSyncUi = useShowsRealtimeSyncUi();
+  const { isAuthenticated } = useConvexAuth();
   const { online, pendingCount, failedCount, syncing, lastError, openSyncCenter } =
     useOfflineStatus();
-  const view = describeSyncStatus({ online, pendingCount, failedCount, syncing });
+  const view = describeSyncStatus({
+    online,
+    pendingCount,
+    failedCount,
+    syncing,
+    cloudConnected: isAuthenticated,
+  });
 
   if (!showSyncUi) return null;
 
@@ -30,7 +40,7 @@ export function SyncStatusHeaderButton() {
       data-tour="sync-status"
       className={cn(
         "text-muted-foreground hover:bg-muted flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-        !online && "text-foreground",
+        (!online || !isAuthenticated) && "text-foreground",
         view.kind === "conflict" && "text-destructive",
       )}
       aria-label={`${view.label}${lastError ? `. ${lastError}` : ""}. Open sync center.`}
@@ -48,22 +58,30 @@ export function SyncStatusHeaderButton() {
  */
 export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
   const showSyncUi = useShowsRealtimeSyncUi();
+  const { isAuthenticated } = useConvexAuth();
   const { online, pendingCount, failedCount, syncing, lastSyncAt, lastError, openSyncCenter } =
     useOfflineStatus();
-  const view = describeSyncStatus({ online, pendingCount, failedCount, syncing });
-  const needsReview = pendingCount > 0 || failedCount > 0;
+  const view = describeSyncStatus({
+    online,
+    pendingCount,
+    failedCount,
+    syncing,
+    cloudConnected: isAuthenticated,
+  });
+  const needsReview = isAuthenticated && online && (pendingCount > 0 || failedCount > 0);
 
   if (!showSyncUi) return null;
 
-  const detail = !online
-    ? view.detail
-    : failedCount > 0
-      ? lastError || view.detail
-      : pendingCount > 0
-        ? view.detail
-        : lastSyncAt
-          ? `Last sync ${formatDateTime(lastSyncAt)}`
-          : view.detail;
+  const detail =
+    !online || !isAuthenticated
+      ? view.detail
+      : failedCount > 0
+        ? lastError || view.detail
+        : pendingCount > 0
+          ? view.detail
+          : lastSyncAt
+            ? `Last sync ${formatDateTime(lastSyncAt)}`
+            : view.detail;
 
   return (
     <div
@@ -78,7 +96,7 @@ export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
         className={cn(
           "flex w-full items-center gap-2 rounded-md text-left text-xs hover:bg-white/5",
           collapsed ? "justify-center px-1 py-1" : "px-1 py-0.5",
-          !online && "text-sidebar-accent-foreground/80",
+          (!online || !isAuthenticated) && "text-sidebar-accent-foreground/80",
           view.kind === "conflict" && "text-destructive",
         )}
         aria-label={`${view.label}. ${detail}. Open sync center.`}
@@ -96,7 +114,7 @@ export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
           </span>
         )}
       </button>
-      {!collapsed && online && needsReview ? (
+      {!collapsed && needsReview ? (
         <Button
           type="button"
           size="sm"

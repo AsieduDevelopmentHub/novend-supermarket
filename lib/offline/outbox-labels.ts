@@ -1,7 +1,11 @@
 import type { OutboxOpType, OutboxRow, OutboxStatus } from "./types";
 import { isConnectivityError } from "@/lib/errors";
 import { isDefinitiveBusinessConflict } from "./outbox-policy";
-import { isSyncBusinessConflict, isSyncDependencyWait } from "./sync-errors";
+import {
+  isAuthRequiredError,
+  isSyncBusinessConflict,
+  isSyncDependencyWait,
+} from "./sync-errors";
 
 const OP_LABELS: Record<OutboxOpType, string> = {
   complete_sale: "Sale",
@@ -190,6 +194,15 @@ export function describeOutboxConflict(row: OutboxRow): OutboxConflictView {
       kind: "waiting",
       headline: "Waiting on another upload",
       explanation: `${base.title}: ${message}`,
+      permanent: false,
+    };
+  }
+
+  if (isAuthRequiredError(message)) {
+    return {
+      kind: "waiting",
+      headline: "Sign in online to upload",
+      explanation: `${base.title} (${base.detail}) is saved on this device. Sign in with email and password while online, then tap Sync now.`,
       permanent: false,
     };
   }

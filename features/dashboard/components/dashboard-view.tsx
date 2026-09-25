@@ -248,6 +248,70 @@ function TopSellingMetricToggle({
   );
 }
 
+function StockAlertList({
+  rows,
+  emptyTitle,
+  emptyDescription,
+  kind,
+}: {
+  rows: Array<{
+    id: string;
+    productId: string;
+    name: string;
+    stockQuantity: number;
+    unit: string;
+    branchId: string | null;
+    branchName: string | null;
+    badge?: string;
+    detail?: string;
+  }>;
+  emptyTitle: string;
+  emptyDescription: string;
+  kind: "low" | "expiry";
+}) {
+  if (rows.length === 0) {
+    return <EmptyState title={emptyTitle} description={emptyDescription} />;
+  }
+
+  return (
+    <ul className="space-y-2">
+      {rows.map((row) => (
+        <li key={row.id}>
+          <Link
+            href={`/products/${row.productId}`}
+            className="border-border hover:border-primary flex min-w-0 items-center justify-between gap-3 rounded-lg border px-3 py-2.5"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{row.name}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                {row.branchName ? (
+                  <Badge variant="secondary" className="text-[10px]">
+                    {row.branchName}
+                  </Badge>
+                ) : null}
+                {row.badge ? (
+                  <Badge
+                    variant={kind === "expiry" ? "destructive" : "warning"}
+                    className="text-[10px]"
+                  >
+                    {row.badge}
+                  </Badge>
+                ) : null}
+                {row.detail ? (
+                  <span className="text-muted-foreground text-xs">{row.detail}</span>
+                ) : null}
+              </div>
+            </div>
+            <p className="text-muted-foreground shrink-0 text-sm tabular-nums">
+              {formatNumber(row.stockQuantity)} {row.unit}
+            </p>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function TopSellingList({
   products,
   metric,
@@ -347,10 +411,11 @@ export function DashboardView() {
   }
 
   const showOps = data.role === "administrator" || data.role === "manager";
+  // Stock / expiry KPIs are org-wide with branch tags — never pin inventory to
+  // the cashier's home branch when the dashboard is showing all branches.
   const inventoryAlertHref = (kind: "low" | "expiry") => {
     const params = new URLSearchParams({ filter: kind });
-    const branch = branchFilter !== "all" ? branchFilter : myBranchId;
-    if (branch) params.set("branch", String(branch));
+    if (branchFilter !== "all") params.set("branch", String(branchFilter));
     return `/inventory?${params.toString()}`;
   };
 
@@ -520,17 +585,9 @@ export function DashboardView() {
           <Card className="min-w-0 overflow-hidden">
             <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle>Recent Sales</CardTitle>
-              <div className="flex flex-wrap items-center gap-2">
-                {data.lowStock.length > 0 ? (
-                  <Badge variant="warning">{data.lowStock.length} low stock</Badge>
-                ) : null}
-                {(data.kpis.expiringCount ?? 0) > 0 ? (
-                  <Badge variant="destructive">{data.kpis.expiringCount} expiring</Badge>
-                ) : null}
-                <Button asChild size="sm" variant="ghost">
-                  <Link href="/orders">All orders</Link>
-                </Button>
-              </div>
+              <Button asChild size="sm" variant="ghost">
+                <Link href="/orders">All orders</Link>
+              </Button>
             </CardHeader>
             <CardContent className="overflow-x-auto">
               <RecentSalesTable sales={data.recentSales} />
@@ -541,23 +598,75 @@ export function DashboardView() {
         <Card className="min-w-0 overflow-hidden">
           <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Recent Sales</CardTitle>
-            <div className="flex flex-wrap items-center gap-2">
-              {data.lowStock.length > 0 ? (
-                <Badge variant="warning">{data.lowStock.length} low stock</Badge>
-              ) : null}
-              {(data.kpis.expiringCount ?? 0) > 0 ? (
-                <Badge variant="destructive">{data.kpis.expiringCount} expiring</Badge>
-              ) : null}
-              <Button asChild size="sm" variant="ghost">
-                <Link href="/orders">All orders</Link>
-              </Button>
-            </div>
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/orders">All orders</Link>
+            </Button>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <RecentSalesTable sales={data.recentSales} />
           </CardContent>
         </Card>
       )}
+
+      {showOps ? (
+        <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+          <Card className="min-w-0 overflow-hidden">
+            <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle>Low stock</CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                {data.lowStock.length > 0 ? (
+                  <Badge variant="warning">{data.kpis.lowStockCount} across branches</Badge>
+                ) : null}
+                <Button asChild size="sm" variant="ghost">
+                  <Link href={inventoryAlertHref("low")}>Inventory</Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <StockAlertList
+                rows={data.lowStock}
+                emptyTitle="No low stock"
+                emptyDescription="Branch stock is above thresholds."
+                kind="low"
+              />
+            </CardContent>
+          </Card>
+          <Card className="min-w-0 overflow-hidden">
+            <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle>Expiring / expired</CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                {(data.kpis.expiringCount ?? 0) > 0 ? (
+                  <Badge variant="destructive">
+                    {data.kpis.expiringCount} across branches
+                  </Badge>
+                ) : null}
+                <Button asChild size="sm" variant="ghost">
+                  <Link href={inventoryAlertHref("expiry")}>Inventory</Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <StockAlertList
+                rows={(data.expiryAlerts ?? []).map((row) => ({
+                  id: row.id,
+                  productId: row.productId,
+                  name: row.name,
+                  stockQuantity: row.isExpired ? row.expiredQuantity : row.sellableQuantity,
+                  unit: row.unit,
+                  lowStockThreshold: 0,
+                  branchId: row.branchId,
+                  branchName: row.branchName,
+                  badge: row.isExpired ? "Expired" : "Expiring",
+                  detail: row.nearestExpiry ?? undefined,
+                }))}
+                emptyTitle="No expiry alerts"
+                emptyDescription="No expired or soon-to-expire lots across branches."
+                kind="expiry"
+              />
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
     </div>
   );
 }

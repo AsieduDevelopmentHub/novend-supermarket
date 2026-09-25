@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useAction, useConvex, useMutation } from "convex/react";
+import { useAction, useConvex, useConvexAuth, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { getOfflineDb, getBoundOrganizationId, isOfflineDbAvailable } from "@/lib/offline/db";
@@ -60,6 +60,7 @@ const emptyStatus: OfflineStatus = {
 
 export function OfflineProvider({ children }: { children: ReactNode }) {
   const online = useConnectivity();
+  const { isAuthenticated } = useConvexAuth();
   const convex = useConvex();
   const completeSale = useMutation(api.sales.completeSale);
   const processReturn = useMutation(api.returns.processReturn);
@@ -119,6 +120,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const pullSnapshot = useCallback(
     async (options?: { force?: boolean }) => {
       if (!navigator.onLine) return;
+      // Offline shell has no Convex JWT — pulls would only burn auth errors.
+      if (!isAuthenticated) return;
       // Super Admin platform replica has no tenant org — offline.getSnapshot
       // would throw Forbidden and can surface as the app error boundary.
       if (isPlatformReplicaBound()) return;
@@ -153,12 +156,25 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       }
       await refreshStatus();
     },
-    [convex, refreshStatus],
+    [convex, isAuthenticated, refreshStatus],
   );
 
   const flushOutbox = useCallback(
     async (options?: { force?: boolean; showProgress?: boolean }) => {
       if (!navigator.onLine) return;
+      // Offline login unlocks the till without a Convex JWT — do not attempt
+      // uploads until the user signs in online (otherwise restocks pile into
+      // "Needs a fix" after empty auth failures).
+      if (!isAuthenticated) {
+        setStatus((prev) => ({
+          ...prev,
+          lastError: options?.force
+            ? "Sign in online to upload queued changes from this device."
+            : prev.lastError,
+          syncing: false,
+        }));
+        return;
+      }
       if (isPlatformReplicaBound()) return;
       // Outbox flush only runs when the tenant's cloud mode queues realtime
       // sync. Sync Center force still routes here, so the policy always applies.
@@ -342,6 +358,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       paySalary,
       payCommission,
       convex,
+      isAuthenticated,
       refreshStatus,
     ],
   );

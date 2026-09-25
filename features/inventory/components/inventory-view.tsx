@@ -140,9 +140,10 @@ function InventoryViewInner() {
     const fromUrl = branchParam as Id<"branches">;
     if (branchOverride !== fromUrl) setBranchOverride(fromUrl);
     if (!alertScopeApplied) setAlertScopeApplied(true);
-  } else if (!alertScopeApplied && isAdmin && myBranchId && landedWithStockAlert) {
+  } else if (!alertScopeApplied && landedWithStockAlert) {
+    // Dashboard stock/expiry links intentionally open org-wide (all branches).
     setAlertScopeApplied(true);
-    setBranchOverride(myBranchId);
+    setBranchOverride("all");
   }
 
   function replaceInventoryQuery(next: { filter?: string | null; branch?: string | null }) {

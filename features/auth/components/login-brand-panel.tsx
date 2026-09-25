@@ -26,8 +26,8 @@ export function LoginBrandPanel({ variant = "desktop", className }: Props) {
         aria-hidden
         style={{
           background: isMobile
-            ? "radial-gradient(ellipse 90% 70% at 50% 100%, rgba(56,189,248,0.28), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 10%, rgba(14,165,233,0.16), transparent 50%)"
-            : "radial-gradient(ellipse 80% 60% at 20% 90%, rgba(56,189,248,0.22), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 10%, rgba(14,165,233,0.14), transparent 50%)",
+            ? "radial-gradient(ellipse 90% 70% at 50% 100%, color-mix(in oklab, var(--primary) 28%, transparent), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 10%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 50%)"
+            : "radial-gradient(ellipse 80% 60% at 20% 90%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 10%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 50%)",
         }}
       />
       <div className="login-grid pointer-events-none absolute inset-0 opacity-40" aria-hidden />
@@ -83,8 +83,8 @@ function CommerceChart({ className }: { className?: string }) {
     <svg viewBox="0 0 320 140" className={cn("login-chart w-full", className)} aria-hidden>
       <defs>
         <linearGradient id="novendChartFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
+          <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
         </linearGradient>
       </defs>
       <path
@@ -96,18 +96,18 @@ function CommerceChart({ className }: { className?: string }) {
         className="login-chart-line"
         d="M8 118 L48 102 L92 108 L132 78 L172 86 L214 48 L258 56 L312 22"
         fill="none"
-        stroke="#38bdf8"
+        stroke="var(--primary)"
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle className="login-chart-dot" cx="214" cy="48" r="4" fill="#38bdf8" />
+      <circle className="login-chart-dot" cx="214" cy="48" r="4" fill="var(--primary)" />
       <circle
         className="login-chart-dot login-chart-dot-delay"
         cx="312"
         cy="22"
         r="4.5"
-        fill="#7dd3fc"
+        fill="color-mix(in oklab, var(--primary) 55%, white)"
       />
     </svg>
   );

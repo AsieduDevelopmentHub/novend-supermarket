@@ -57,6 +57,9 @@ function EventRow({
   const copy = describeOutboxEvent(row);
   const conflict = isDisplayedConflict(row) ? describeOutboxConflict(row) : null;
   const fixHref = outboxFixPath(row);
+  // Auth / network waits are not discard-first — connect or retry instead.
+  const showDiscard =
+    Boolean(onDiscard) && (!conflict || conflict.kind === "business" || conflict.permanent);
   return (
     <li className="border-border flex flex-col gap-2 rounded-lg border px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
@@ -83,7 +86,7 @@ function EventRow({
           {row.attempts > 0 ? ` · ${row.attempts} attempt${row.attempts === 1 ? "" : "s"}` : ""}
         </p>
       </div>
-      {onRetry || onDiscard || (fixHref && onFix) ? (
+      {onRetry || showDiscard || (fixHref && onFix) ? (
         <div className="flex shrink-0 flex-wrap gap-2">
           {fixHref && onFix ? (
             <Button
@@ -108,7 +111,7 @@ function EventRow({
               Retry
             </Button>
           ) : null}
-          {onDiscard ? (
+          {showDiscard && onDiscard ? (
             <Button
               type="button"
               size="sm"

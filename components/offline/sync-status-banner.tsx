@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
+import { useConvexAuth } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { describeSyncStatus } from "@/lib/offline/sync-status";
@@ -10,14 +11,22 @@ import { cn } from "@/lib/utils";
 /**
  * Shell banner for sync work that needs user attention.
  * Background upload progress stays in Sync Center only.
- * Hidden when the tenant cloud mode does not queue realtime sync.
+ * Hidden when offline, when the till has no Convex JWT, or when the tenant
+ * cloud mode does not queue realtime sync.
  */
 export function SyncStatusBanner() {
   const showSyncUi = useShowsRealtimeSyncUi();
+  const { isAuthenticated } = useConvexAuth();
   const { online, pendingCount, failedCount, syncing, openSyncCenter } = useOfflineStatus();
-  const view = describeSyncStatus({ online, pendingCount, failedCount, syncing });
+  const view = describeSyncStatus({
+    online,
+    pendingCount,
+    failedCount,
+    syncing,
+    cloudConnected: isAuthenticated,
+  });
 
-  if (!showSyncUi || view.kind !== "conflict") {
+  if (!showSyncUi || !online || !isAuthenticated || view.kind !== "conflict") {
     return null;
   }
 

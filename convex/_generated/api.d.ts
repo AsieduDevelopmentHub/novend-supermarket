@@ -44,6 +44,7 @@ import type * as provisioningPolicies from "../provisioningPolicies.js";
 import type * as pushAlerts from "../pushAlerts.js";
 import type * as pushDispatch from "../pushDispatch.js";
 import type * as pushNotifications from "../pushNotifications.js";
+import type * as repairs from "../repairs.js";
 import type * as reports from "../reports.js";
 import type * as returns from "../returns.js";
 import type * as sales from "../sales.js";
@@ -153,6 +154,7 @@ declare const fullApi: ApiFromModules<{
   pushAlerts: typeof pushAlerts;
   pushDispatch: typeof pushDispatch;
   pushNotifications: typeof pushNotifications;
+  repairs: typeof repairs;
   reports: typeof reports;
   returns: typeof returns;
   sales: typeof sales;

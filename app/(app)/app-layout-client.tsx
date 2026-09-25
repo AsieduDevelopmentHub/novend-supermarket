@@ -22,6 +22,7 @@ import { SyncStatusHeaderButton } from "@/components/offline/sync-status-chip";
 import { SyncCenterDialog } from "@/components/offline/sync-center-dialog";
 import { LicenseBanner } from "@/features/billing/components/license-banner";
 import { EmailVerificationBanner } from "@/features/auth/components/email-verification-banner";
+import { CloudReconnectBanner } from "@/features/auth/components/cloud-reconnect-banner";
 import { DeviceActivationGate } from "@/features/billing/components/device-activation-gate";
 import { InstallPromptDialog } from "@/components/install-prompt-dialog";
 import { OfflineProvider } from "@/providers/offline-provider";
@@ -168,13 +169,13 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Only force login while online and there is no local offline session.
-  // Cap/emulator often look "online" while Convex stays isLoading forever —
-  // never kick a cached cashier out, but never freeze the brand splash either.
+  // Never kick a cashier who already has a local offline shell just because
+  // the radio came back — offline login has no Convex JWT until they sign in
+  // online again. Forcing /login here dropped remote tills mid-shift.
   useEffect(() => {
     if (!online || isAuthenticated) return;
     if (hasExplicitLogout()) return;
-    if (hasOfflineSession()) return;
+    if (hasOfflineSession() || readOfflineSession() || sessionHint) return;
     if (isLoading && !onlineAuthBudgetElapsed) return;
 
     router.replace("/login");
@@ -182,6 +183,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
     const hardNav = window.setTimeout(() => {
       if (window.location.pathname.startsWith("/login")) return;
+      if (hasOfflineSession() || readOfflineSession()) return;
       const next = new URL("/login", window.location.origin);
       if (new URLSearchParams(window.location.search).get("fromBoot") === "1") {
         next.searchParams.set("fromBoot", "1");
@@ -190,7 +192,14 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     }, 1600);
 
     return () => window.clearTimeout(hardNav);
-  }, [isAuthenticated, isLoading, online, onlineAuthBudgetElapsed, router]);
+  }, [
+    isAuthenticated,
+    isLoading,
+    online,
+    onlineAuthBudgetElapsed,
+    router,
+    sessionHint,
+  ]);
 
   useEffect(() => {
     if (online || (!isLoading && isAuthenticated)) {
@@ -645,6 +654,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                   )}
                   <LicenseBanner />
                   <EmailVerificationBanner />
+                  <CloudReconnectBanner />
                   <SyncStatusBanner />
                   {nativeShell ? (
                     <div className="native-page-header-row shrink-0">

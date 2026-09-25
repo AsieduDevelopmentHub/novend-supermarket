@@ -8,9 +8,19 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Fixed
 
+- Dashboard low-stock and expiry KPIs/lists always span every branch (with branch tags), instead of falling back to the home branch; inventory alert links open org-wide.
+- Quiet sync chrome while offline or on an offline shell (no JWT): calm “saved on this device” / “Cloud disconnected” copy; conflict banner only when online and authenticated.
+- In-place **Connect to cloud** when the network returns during an offline session — password once, stay on the current POS route, then flush the outbox (no forced `/login`).
+- Keep offline-authenticated tills in the POS when the network returns (do not force `/login` without a Convex JWT).
+- Org experience colours now drive Cap bottom-nav orbs, cart FAB, and login chrome (from cached licence).
+- Do not burn restock/outbox uploads into “Needs a fix” while the till has no Convex JWT (offline shell); Sync Center asks to sign in online instead. Generic “Sync failed” stays retryable.
 - Offline login: same email + password form verifies a device-local digest and opens the cached workspace (no account cards). Offline sign-out navigates immediately (no hung splash). Empty offline shell redirects to `/login` instead of “Can't start while offline”; Electron retries via trampoline to cached login.
 - Cap/Electron offline cold start after SW bumps: migrate warmed `/dashboard` shells and `/_next/static` assets into the new cache bucket on activate (`novend-pos-v19`), co-cache Next chunks with shell HTML, re-warm shells on `controllerchange`, and align Electron `offline-boot.html` + Cap `allowNavigation` with `dashboard.novendpos.app`.
 - Organization experience colors offline: use the cached licence snapshot whenever live `licenseSnapshot` is missing (do not require `!navigator.onLine`), and keep React cache in sync when the live snapshot arrives so Cap/Electron false-online no longer paints default Novend teal.
+
+### Changed
+
+- Platform repair mutation `repairs.zeroZeroCostStock` clears on-hand units for products with `costPrice === 0` only (used for Global Medicine import cleanup).
 
 ## v1.0.0 — 2026-09-23
 

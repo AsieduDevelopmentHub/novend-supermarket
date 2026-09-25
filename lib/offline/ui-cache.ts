@@ -8,6 +8,33 @@ import {
   filterCashierDashboardSales,
 } from "@/lib/dashboard/cashier-scope";
 import { availableStockQuantity, isBelowLowStockThreshold } from "@/lib/stock-status";
+import { DEFAULT_EXPIRY_ALERT_DAYS, lotStatus } from "@/lib/expiry";
+
+export type DashboardAlertRow = {
+  id: string;
+  productId: string;
+  name: string;
+  stockQuantity: number;
+  unit: string;
+  lowStockThreshold: number;
+  costPrice?: number;
+  branchId: string | null;
+  branchName: string | null;
+};
+
+export type DashboardExpiryAlertRow = {
+  id: string;
+  productId: string;
+  name: string;
+  sellableQuantity: number;
+  expiredQuantity: number;
+  nearestExpiry: string | null;
+  isExpired: boolean;
+  isExpiring: boolean;
+  unit: string;
+  branchId: string | null;
+  branchName: string | null;
+};
 
 export type DashboardSummaryCache = {
   role: AppRole | string;
@@ -21,14 +48,8 @@ export type DashboardSummaryCache = {
     customersEstimate?: number;
     refunds?: number;
   };
-  lowStock: Array<{
-    id: string;
-    name: string;
-    stockQuantity: number;
-    unit: string;
-    lowStockThreshold: number;
-    costPrice?: number;
-  }>;
+  lowStock: DashboardAlertRow[];
+  expiryAlerts?: DashboardExpiryAlertRow[];
   topProducts: Array<{ id: string; name: string; total: number; quantity: number }>;
   recentSales: Array<{
     id: string;
@@ -117,6 +138,9 @@ export async function buildLocalDashboardSummary(
     mirroredOrders,
     orderItems,
     mirroredReturns,
+    branchStock,
+    lots,
+    branches,
   ] = await Promise.all([
     db.products.toArray(),
     db.customers.toArray(),
@@ -126,55 +150,137 @@ export async function buildLocalDashboardSummary(
     db.orders.toArray(),
     db.orderItems.toArray(),
     db.returns.toArray(),
+    db.branchStock.toArray(),
+    db.lots.toArray(),
+    db.branches.toArray(),
   ]);
 
   const activeProducts = products.filter((p) => p.status === "active");
-  const branchStock = branchId ? await db.branchStock.toArray() : [];
-  const lowStock = activeProducts
-    .filter((p) => {
-      if (branchId) {
-        const row = branchStock.find(
-          (item) => item.productId === p.id && item.branchId === branchId,
-        );
-        const available = row
-          ? availableStockQuantity({
-              tracksExpiry: p.tracksExpiry,
-              stockQuantity: row.quantity,
-              sellableQuantity: row.sellableQuantity,
-            })
-          : availableStockQuantity(p);
-        return isBelowLowStockThreshold(available, p.lowStockThreshold);
-      }
-      return isBelowLowStockThreshold(availableStockQuantity(p), p.lowStockThreshold);
-    })
-    .map((p) => {
-      if (!branchId) {
-        return {
-          id: p.id,
-          name: p.name,
-          stockQuantity: availableStockQuantity(p),
-          unit: p.unit,
-          lowStockThreshold: p.lowStockThreshold,
-          costPrice: showOps ? p.costPrice : undefined,
-        };
-      }
-      const row = branchStock.find((item) => item.productId === p.id && item.branchId === branchId);
-      return {
+  const branchNameById = new Map(branches.map((b) => [b.id, b.name]));
+  const productById = new Map(activeProducts.map((p) => [p.id, p]));
+
+  // Stock / expiry alerts are always org-wide for admin/manager (every branch
+  // with a tag). Sales KPIs below still honour `branchId`. Cashiers only see
+  // their branch when the replica is branch-scoped.
+  const lowStock: DashboardAlertRow[] = [];
+  for (const p of activeProducts) {
+    const rows = branchStock.filter((item) => item.productId === p.id);
+    if (rows.length === 0) {
+      const available = availableStockQuantity(p);
+      if (!isBelowLowStockThreshold(available, p.lowStockThreshold)) continue;
+      lowStock.push({
         id: p.id,
+        productId: p.id,
         name: p.name,
-        stockQuantity: row
-          ? availableStockQuantity({
-              tracksExpiry: p.tracksExpiry,
-              stockQuantity: row.quantity,
-              sellableQuantity: row.sellableQuantity,
-            })
-          : availableStockQuantity(p),
+        stockQuantity: available,
         unit: p.unit,
         lowStockThreshold: p.lowStockThreshold,
         costPrice: showOps ? p.costPrice : undefined,
-      };
+        branchId: null,
+        branchName: null,
+      });
+      continue;
+    }
+    for (const row of rows) {
+      const available = availableStockQuantity({
+        tracksExpiry: p.tracksExpiry,
+        stockQuantity: row.quantity,
+        sellableQuantity: row.sellableQuantity,
+      });
+      if (!isBelowLowStockThreshold(available, p.lowStockThreshold)) continue;
+      lowStock.push({
+        id: `${p.id}:${row.branchId}`,
+        productId: p.id,
+        name: p.name,
+        stockQuantity: available,
+        unit: p.unit,
+        lowStockThreshold: p.lowStockThreshold,
+        costPrice: showOps ? p.costPrice : undefined,
+        branchId: row.branchId,
+        branchName: branchNameById.get(row.branchId) ?? null,
+      });
+    }
+  }
+
+  type ExpiryAgg = {
+    productId: string;
+    branchId: string;
+    sellable: number;
+    expired: number;
+    nearest: string | null;
+    isExpired: boolean;
+    isExpiring: boolean;
+  };
+  const expiryByKey = new Map<string, ExpiryAgg>();
+  for (const lot of lots) {
+    if (lot.quantity <= 0) continue;
+    const product = productById.get(lot.productId);
+    if (!product?.tracksExpiry) continue;
+    const alertDays = product.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS;
+    const status = lotStatus(lot.expiryDate, alertDays);
+    if (status === "ok") continue;
+    const key = `${lot.productId}:${lot.branchId}`;
+    const current = expiryByKey.get(key) ?? {
+      productId: lot.productId,
+      branchId: lot.branchId,
+      sellable: 0,
+      expired: 0,
+      nearest: null as string | null,
+      isExpired: false,
+      isExpiring: false,
+    };
+    if (status === "expired") {
+      current.expired += lot.quantity;
+      current.isExpired = true;
+    } else {
+      current.sellable += lot.quantity;
+      current.isExpiring = true;
+      if (!current.nearest || lot.expiryDate < current.nearest) {
+        current.nearest = lot.expiryDate;
+      }
+    }
+    expiryByKey.set(key, current);
+  }
+
+  // Products flagged on the product row without mirrored lots still count once.
+  for (const p of activeProducts) {
+    if (!p.tracksExpiry || (!p.isExpired && !p.isExpiring)) continue;
+    const hasLotAlert = [...expiryByKey.values()].some((row) => row.productId === p.id);
+    if (hasLotAlert) continue;
+    expiryByKey.set(`${p.id}:product`, {
+      productId: p.id,
+      branchId: "",
+      sellable: availableStockQuantity(p),
+      expired: 0,
+      nearest: p.nearestExpiry ?? null,
+      isExpired: Boolean(p.isExpired),
+      isExpiring: Boolean(p.isExpiring),
     });
-  const expiringCount = activeProducts.filter((p) => p.isExpired || p.isExpiring).length;
+  }
+
+  const expiryAlerts: DashboardExpiryAlertRow[] = [...expiryByKey.values()]
+    .map((row) => {
+      const product = productById.get(row.productId);
+      if (!product) return null;
+      return {
+        id: row.branchId ? `${row.productId}:${row.branchId}` : row.productId,
+        productId: row.productId,
+        name: product.name,
+        sellableQuantity: row.sellable,
+        expiredQuantity: row.expired,
+        nearestExpiry: row.nearest,
+        isExpired: row.isExpired,
+        isExpiring: row.isExpiring,
+        unit: product.unit,
+        branchId: row.branchId || null,
+        branchName: row.branchId
+          ? (branchNameById.get(row.branchId) ?? null)
+          : null,
+      };
+    })
+    .filter((row): row is DashboardExpiryAlertRow => row !== null);
+
+  const expiringCount = expiryAlerts.length;
 
   const sessionUserId = await getMeta(db, META_KEYS.profileUserId);
 
@@ -299,7 +405,8 @@ export async function buildLocalDashboardSummary(
         ? customers.filter((c) => c.status === "active").length
         : undefined,
     },
-    lowStock: lowStock.slice(0, 8),
+    lowStock: lowStock.slice(0, 12),
+    expiryAlerts: expiryAlerts.slice(0, 12),
     topProducts,
     recentSales: [...combinedSales]
       .sort((a, b) => b.completedAt - a.completedAt)
@@ -340,6 +447,7 @@ function emptyDashboard(role: AppRole, now: number): DashboardSummaryCache {
       customersEstimate: role === "administrator" || role === "manager" ? 0 : undefined,
     },
     lowStock: [],
+    expiryAlerts: [],
     topProducts: [],
     recentSales: [],
     salesTrend: trendMap,

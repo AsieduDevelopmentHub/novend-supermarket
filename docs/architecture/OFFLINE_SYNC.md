@@ -1,6 +1,6 @@
 # Offline Sync
 
-Version: 2.4.28
+Version: 2.4.29
 
 ## Purpose
 
@@ -128,8 +128,10 @@ Convex (when online)
    `updateProduct`. Catalog CSV/Excel exports read the local list and work offline.
 4. `OfflineProvider` drains the outbox in the background. Forms return as soon as
    Dexie succeeds — loading spinners never wait on Convex. **Background drains are
-   silent** — the shell never shows a global “Syncing…” spinner. The sidebar chip
-   shows queued / synced / needs-attention only; explicit upload progress appears
+   silent** — the shell never shows a global “Syncing…” spinner. While offline (or
+   while the till has no Convex JWT), the sidebar chip stays calm (“Offline · N
+   saved on this device” / “Cloud disconnected”). Conflict / needs-attention chrome
+   appears only when online **and** authenticated. Explicit upload progress appears
    in **Sync Center** when the user taps Sync now. After a successful
    Convex write, the matching `local_*` Dexie row is deleted. Snapshot merge and
    list reads also drop a pending local row when Convex already has the same
@@ -224,6 +226,13 @@ session** (local shell profile + Dexie replica) for up to **30 days**, plus a
 **device-local password digest** (PBKDF2) for that email. Closing the Cap app
 does **not** sign you out. Cold start can resume an already-open shell from
 cache when offline or when Convex is slow.
+
+The offline shell is **local custody only** — it does not mint a Convex Auth
+JWT. Cloud mutations (outbox drain) require a JWT. Sync chrome stays calm while
+offline or while the radio is up but the till still has no JWT (“Cloud
+disconnected”). When the network returns, a non-blocking **Connect to cloud**
+banner asks for the password in place (same email as the offline session); after
+`signIn`, the outbox flushes without sending the cashier to `/login`.
 
 **Shared tills / multiple staff.** Every account that signs in on the device is
 remembered in `novend.offlineSessions`. **Login always uses the same email +

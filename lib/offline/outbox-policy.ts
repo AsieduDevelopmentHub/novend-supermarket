@@ -1,4 +1,8 @@
-import { isSyncBusinessConflict, isSyncDependencyWait } from "./sync-errors";
+import {
+  isAuthRequiredError,
+  isSyncBusinessConflict,
+  isSyncDependencyWait,
+} from "./sync-errors";
 
 /** Outbox upload attempts before surfacing "requires attention" in the UI. */
 export const MAX_OUTBOX_UPLOAD_ATTEMPTS = 8;
@@ -26,10 +30,11 @@ export function isDefinitiveBusinessConflict(message: string) {
 
 /**
  * Whether an outbox row should move to `failed` after this upload attempt.
- * Transient/network errors keep retrying until the attempt budget is exhausted.
+ * Transient/network/auth errors keep retrying until the attempt budget is exhausted.
  */
 export function shouldMarkOutboxFailed(attempts: number, message: string) {
   if (isSyncDependencyWait(message)) return false;
+  if (isAuthRequiredError(message)) return false;
   if (isDefinitiveBusinessConflict(message)) return true;
   if (isSyncBusinessConflict(message) && attempts >= 3) return true;
   return attempts >= MAX_OUTBOX_UPLOAD_ATTEMPTS;
