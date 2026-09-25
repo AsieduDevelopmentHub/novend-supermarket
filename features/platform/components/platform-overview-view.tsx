@@ -97,7 +97,11 @@ export function PlatformOverviewView() {
         <Kpi
           title="Active organizations"
           value={String(overview.activeOrganizations)}
-          hint={`${overview.organizationCount} total`}
+          hint={
+            overview.testOrganizationCount
+              ? `${overview.commercialOrganizationCount ?? overview.organizationCount} commercial · ${overview.testOrganizationCount} test`
+              : `${overview.organizationCount} total`
+          }
           icon={Building2}
           href="/platform/insights/active-organizations"
         />
