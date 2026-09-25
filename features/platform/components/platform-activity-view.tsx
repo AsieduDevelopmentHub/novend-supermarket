@@ -33,7 +33,7 @@ export function PlatformActivityView() {
         description="Security-sensitive admin actions and privacy-limited operational telemetry."
         actions={
           <Button asChild variant="outline" size="sm">
-            <Link href="/platform">Back to monitoring</Link>
+            <Link href="/platform/analytics">Back to monitoring</Link>
           </Button>
         }
       />

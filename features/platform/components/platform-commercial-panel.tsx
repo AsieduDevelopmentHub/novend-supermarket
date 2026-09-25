@@ -286,8 +286,9 @@ export function PlatformCommercialPanel({
           <div>
             <CardTitle>Commercial offer</CardTitle>
             <CardDescription>
-              Private monthly/annual pricing for this organization. Internal notes stay
-              platform-only.
+              Negotiated monthly/annual prices and limits for this organization. Offer limits
+              apply to the live licence (unlimited or capped). Prices drive checkout, plan
+              assignment, MRR, and gross revenue when charged.
             </CardDescription>
           </div>
           <Button type="button" size="sm" disabled={!online} onClick={openCreate}>
@@ -435,7 +436,7 @@ export function PlatformCommercialPanel({
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="offer-monthly">Monthly price ({currency})</Label>
+                  <Label htmlFor="offer-monthly">Monthly charge ({currency})</Label>
                 <Input
                   id="offer-monthly"
                   type="number"
@@ -449,7 +450,7 @@ export function PlatformCommercialPanel({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="offer-yearly">Annual price ({currency})</Label>
+                  <Label htmlFor="offer-yearly">Annual charge ({currency})</Label>
                 <Input
                   id="offer-yearly"
                   type="number"
@@ -480,7 +481,7 @@ export function PlatformCommercialPanel({
                     onChange={(event) =>
                       setForm((prev) => ({ ...prev, [key]: event.target.value }))
                     }
-                    placeholder="Inherit plan / unlimited"
+                    placeholder="Number or unlimited"
                   />
                 </div>
               ))}

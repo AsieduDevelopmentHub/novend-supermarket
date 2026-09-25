@@ -1828,6 +1828,8 @@ export const assignPlan = mutation({
     planKey: planKeyValidator,
     cycle: billingCycleValidator,
     note: v.optional(v.string()),
+    /** Override charge amount (discount / premium / enterprise quote). Defaults to live offer then catalog. */
+    amount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { userId } = await requirePlatformAdmin(ctx);
@@ -1843,7 +1845,20 @@ export const assignPlan = mutation({
     if (!supportsCycle(plan, args.cycle)) {
       throw new Error(`The ${plan.name} plan is not sold on a ${args.cycle} cycle.`);
     }
-    const amount = priceForCycle(plan, args.cycle) ?? 0;
+
+    const offer = await loadLiveOfferForOrganization(ctx, args.organizationId);
+    const offerAmount =
+      offer && offerAppliesToCheckout(offer, args.planKey, args.cycle)
+        ? offerPriceForCycle(offer, args.cycle)
+        : null;
+    const catalogAmount = priceForCycle(plan, args.cycle);
+    const amount =
+      args.amount !== undefined && args.amount >= 0
+        ? args.amount
+        : (offerAmount ?? catalogAmount ?? 0);
+    if (!(amount >= 0)) {
+      throw new Error("Enter a valid charge amount for this assignment.");
+    }
     const now = Date.now();
 
     const subscriptionId = await activateSubscription(ctx, {

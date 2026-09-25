@@ -75,7 +75,7 @@ export function PlatformExportsView() {
         description="Presentation-ready summaries and submission-ready analytics workbooks."
         actions={
           <Button asChild size="sm" variant="outline">
-            <Link href="/platform">Back to monitoring</Link>
+            <Link href="/platform/analytics">Back to monitoring</Link>
           </Button>
         }
       />

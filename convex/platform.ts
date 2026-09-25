@@ -38,6 +38,7 @@ import {
 } from "./shared/organizationConfig";
 import { FEATURE_KEYS, FEATURE_REGISTRY } from "./shared/features";
 import { loadLiveOfferForOrganization } from "./shared/commercialOffers";
+import { indexLiveOffersByOrganization } from "./shared/platformRevenue";
 
 export const me = query({
   args: {},
@@ -62,18 +63,21 @@ export const overview = query({
     const now = Date.now();
     const dayAgo = now - 24 * 60 * 60 * 1000;
 
-    const [organizations, orgStats, recentSales, exportEvents, globalStats] = await Promise.all([
-      ctx.db.query("organizations").collect(),
-      ctx.db.query("organizationPlatformStats").collect(),
-      ctx.db
-        .query("sales")
-        .withIndex("by_completedAt", (q) => q.gte("completedAt", dayAgo))
-        .collect(),
-      // Export volume is small vs sales/products; kept for format breakdown only.
-      ctx.db.query("exportEvents").collect(),
-      readPlatformStats(ctx),
-    ]);
+    const [organizations, orgStats, recentSales, exportEvents, globalStats, commercialOffers] =
+      await Promise.all([
+        ctx.db.query("organizations").collect(),
+        ctx.db.query("organizationPlatformStats").collect(),
+        ctx.db
+          .query("sales")
+          .withIndex("by_completedAt", (q) => q.gte("completedAt", dayAgo))
+          .collect(),
+        // Export volume is small vs sales/products; kept for format breakdown only.
+        ctx.db.query("exportEvents").collect(),
+        readPlatformStats(ctx),
+        ctx.db.query("commercialOffers").collect(),
+      ]);
 
+    const liveOffersByOrg = indexLiveOffersByOrganization(commercialOffers, now);
     const statsByOrg = new Map(orgStats.map((row) => [String(row.organizationId), row]));
     let userCount = 0;
     let branchCount = 0;
@@ -103,7 +107,13 @@ export const overview = query({
 
     for (const org of organizations) {
       const plan = resolvePlan(org.planKey);
-      const limits = effectivePlanLimits(plan, org.backupLimitBytes, org.limitOverrides);
+      const offer = liveOffersByOrg.get(String(org._id));
+      const limits = effectivePlanLimits(
+        plan,
+        org.backupLimitBytes,
+        org.limitOverrides,
+        offer?.limitOverrides,
+      );
       const caps = planCapabilities(plan.key, limits);
       if (!caps.canExportXlsx) csvOnlyOrganizations += 1;
       if (limits.products === null) continue;
@@ -118,7 +128,9 @@ export const overview = query({
         productLimit: limits.products,
         maxImportRows: caps.maxImportRows,
         percent,
-        productLimitOverridden: org.limitOverrides?.products !== undefined,
+        productLimitOverridden:
+          org.limitOverrides?.products !== undefined ||
+          offer?.limitOverrides?.products !== undefined,
       });
     }
     orgsNearImportCap.sort((a, b) => b.percent - a.percent);
@@ -189,14 +201,24 @@ export const listOrganizations = query({
       const q = args.search.trim().toLowerCase();
       orgs = orgs.filter((org) => org.name.toLowerCase().includes(q) || org.slug.includes(q));
     }
-    const orgStats = await ctx.db.query("organizationPlatformStats").collect();
+    const [orgStats, commercialOffers] = await Promise.all([
+      ctx.db.query("organizationPlatformStats").collect(),
+      ctx.db.query("commercialOffers").collect(),
+    ]);
     const statsByOrg = new Map(orgStats.map((row) => [String(row.organizationId), row]));
+    const liveOffersByOrg = indexLiveOffersByOrganization(commercialOffers);
     return orgs
       .sort((a, b) => b.createdAt - a.createdAt)
       .map((org) => {
         const stats = statsByOrg.get(String(org._id));
         const plan = resolvePlan(org.planKey);
-        const limits = effectivePlanLimits(plan, org.backupLimitBytes, org.limitOverrides);
+        const offer = liveOffersByOrg.get(String(org._id));
+        const limits = effectivePlanLimits(
+          plan,
+          org.backupLimitBytes,
+          org.limitOverrides,
+          offer?.limitOverrides,
+        );
         const caps = planCapabilities(plan.key, limits);
         return {
           id: org._id,
@@ -218,7 +240,9 @@ export const listOrganizations = query({
           importJobCount: stats?.importJobCount ?? 0,
           failedImportCount: stats?.failedImportCount ?? 0,
           exportEventCount: stats?.exportEventCount ?? 0,
-          productLimitOverridden: org.limitOverrides?.products !== undefined,
+          productLimitOverridden:
+            org.limitOverrides?.products !== undefined ||
+            offer?.limitOverrides?.products !== undefined,
         };
       });
   },
@@ -349,13 +373,16 @@ export const getOrganization = query({
     const activeDevices = devices.filter((d) => d.isActive);
     const lastSyncAt = devices.reduce((latest, d) => Math.max(latest, d.lastSeenAt ?? 0), 0);
     const license = await resolveLicense(ctx, org);
+    const liveOffer = await loadLiveOfferForOrganization(ctx, org._id);
     const productCount = stats.productCount;
     const importExport = await loadOrganizationImportExport(ctx, {
       organizationId: org._id,
       planKey: license.planKey,
       limits: license.limits,
       productsUsed: productCount,
-      productLimitOverridden: org.limitOverrides?.products !== undefined,
+      productLimitOverridden:
+        org.limitOverrides?.products !== undefined ||
+        liveOffer?.limitOverrides?.products !== undefined,
     });
 
     return {

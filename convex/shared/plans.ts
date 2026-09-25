@@ -267,20 +267,7 @@ export type LimitOverrides = {
   devices?: number | null;
 };
 
-/**
- * Catalog limits with the per-organization Enterprise backup quota (when set)
- * and any explicit Super Admin overrides applied. Overrides always win — they
- * are a deliberate platform-admin action, audited at the call site — while an
- * absent key keeps inheriting the plan's catalog limit.
- */
-export function effectivePlanLimits(
-  plan: PlanDefinition,
-  organizationBackupLimitBytes?: number | null,
-  overrides?: LimitOverrides | null,
-): PlanLimits {
-  const base: PlanLimits = plan.variableBackup
-    ? { ...plan.limits, backupBytes: organizationBackupLimitBytes ?? null }
-    : plan.limits;
+function applyLimitOverrides(base: PlanLimits, overrides?: LimitOverrides | null): PlanLimits {
   if (!overrides) return base;
   return {
     products: overrides.products !== undefined ? overrides.products : base.products,
@@ -289,6 +276,23 @@ export function effectivePlanLimits(
     devices: overrides.devices !== undefined ? overrides.devices : base.devices,
     backupBytes: base.backupBytes,
   };
+}
+
+/**
+ * Catalog limits with Enterprise backup quota and layered overrides.
+ * Precedence: plan → commercial offer → organization (org always wins).
+ * Absent keys inherit the previous layer.
+ */
+export function effectivePlanLimits(
+  plan: PlanDefinition,
+  organizationBackupLimitBytes?: number | null,
+  organizationOverrides?: LimitOverrides | null,
+  offerOverrides?: LimitOverrides | null,
+): PlanLimits {
+  const base: PlanLimits = plan.variableBackup
+    ? { ...plan.limits, backupBytes: organizationBackupLimitBytes ?? null }
+    : plan.limits;
+  return applyLimitOverrides(applyLimitOverrides(base, offerOverrides), organizationOverrides);
 }
 
 /** Converts a Super Admin gigabyte entry to stored bytes. `null` means no cap. */

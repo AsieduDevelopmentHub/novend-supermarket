@@ -245,7 +245,7 @@ export function PlatformEntitlementsPanel({
           {grouped.length === 0 ? (
             <p className="text-muted-foreground text-sm">No features match this search.</p>
           ) : (
-            <Accordion type="multiple" defaultValue={grouped.map((group) => group.category)}>
+            <Accordion type="multiple" defaultValue={[]}>
               {grouped.map((group) => (
                 <AccordionItem key={group.category} value={group.category}>
                   <AccordionTrigger>{group.label}</AccordionTrigger>

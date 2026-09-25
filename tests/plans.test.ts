@@ -162,4 +162,24 @@ describe("plan catalog", () => {
     expect(() => parseCustomBackupGb(0)).toThrow(/whole number of GB/);
     expect(() => parseCustomBackupGb(1.5)).toThrow(/whole number of GB/);
   });
+
+  it("merges commercial offer limits under organization overrides", () => {
+    const pro = resolvePlan("pro");
+    const withOffer = effectivePlanLimits(pro, null, null, {
+      products: null,
+      users: 40,
+    });
+    expect(withOffer.products).toBeNull();
+    expect(withOffer.users).toBe(40);
+    expect(withOffer.branches).toBe(pro.limits.branches);
+
+    const withOrgWin = effectivePlanLimits(
+      pro,
+      null,
+      { users: 10, products: 1000 },
+      { products: null, users: 40 },
+    );
+    expect(withOrgWin.products).toBe(1000);
+    expect(withOrgWin.users).toBe(10);
+  });
 });

@@ -7,6 +7,8 @@
 
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { limitOverridesValidator, sellablePlanKeyValidator } from "./schema";
 import { featureKeyValidator, isFeatureKey, type FeatureKey } from "./shared/features";
 import { requirePlatformAdmin, requireSessionIgnoringLicense } from "./shared/permissions";
@@ -22,11 +24,44 @@ import { bumpEntitlementVersion } from "./shared/entitlementVersion";
 import {
   isCommercialOfferLive,
   loadLiveOfferForOrganization,
+  offerPriceForCycle,
   toTenantCommercialOffer,
   type TenantCommercialOffer,
 } from "./shared/commercialOffers";
 
 const billingCycleOfferValidator = v.union(v.literal("monthly"), v.literal("yearly"));
+
+/** Keep subscription.amount aligned with a live offer for recognized MRR / gross. */
+async function syncSubscriptionAmountFromOffer(
+  ctx: MutationCtx,
+  offer: {
+    organizationId: Id<"organizations">;
+    basePlanKey: string;
+    monthlyPrice?: number;
+    yearlyPrice?: number;
+    allowedCycles: Array<"monthly" | "yearly">;
+  },
+  now = Date.now(),
+) {
+  const org = await ctx.db.get(offer.organizationId);
+  if (!org?.subscriptionId) return;
+  const subscription = await ctx.db.get(org.subscriptionId);
+  if (
+    !subscription ||
+    subscription.isLifetime ||
+    (subscription.status !== "active" && subscription.status !== "past_due") ||
+    subscription.planKey !== offer.basePlanKey ||
+    (subscription.billingCycle !== "monthly" && subscription.billingCycle !== "yearly")
+  ) {
+    return;
+  }
+  const negotiated = offerPriceForCycle(offer, subscription.billingCycle);
+  if (negotiated === null || negotiated < 0) return;
+  await ctx.db.patch(subscription._id, {
+    amount: negotiated,
+    updatedAt: now,
+  });
+}
 
 function normalizeOfferFeatureOverrides(
   values: Array<{ feature: string; enabled: boolean }> | undefined,
@@ -293,8 +328,10 @@ export const update = mutation({
 
     await ctx.db.patch(args.offerId, patch);
 
-    if (offer.status === "active") {
+    if (offer.status === "active" || offer.status === "accepted") {
       await bumpEntitlementVersion(ctx, offer.organizationId);
+      const updated = { ...offer, ...patch } as typeof offer;
+      await syncSubscriptionAmountFromOffer(ctx, updated);
     }
 
     await writeAuditLog(ctx, {
@@ -356,6 +393,7 @@ export const activate = mutation({
       updatedAt: now,
     });
     await bumpEntitlementVersion(ctx, offer.organizationId);
+    await syncSubscriptionAmountFromOffer(ctx, offer, now);
 
     await writeAuditLog(ctx, {
       actorId: userId,
@@ -368,6 +406,7 @@ export const activate = mutation({
         basePlanKey: offer.basePlanKey,
         monthlyPrice: offer.monthlyPrice ?? null,
         yearlyPrice: offer.yearlyPrice ?? null,
+        limitOverrides: offer.limitOverrides ?? null,
       },
     });
 

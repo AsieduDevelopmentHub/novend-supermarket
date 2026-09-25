@@ -112,7 +112,7 @@ export async function activateSubscription(
     cancelAtPeriodEnd: false,
     cancelledAt: undefined,
     scheduledChange: undefined,
-    amount: keepPeriod ? catalogAmount : args.amount,
+    amount: args.amount > 0 ? args.amount : catalogAmount,
     currency: args.currency,
     paymentGateway: args.gateway,
     gatewayCustomerCode: args.gatewayCustomerCode ?? existing?.gatewayCustomerCode,

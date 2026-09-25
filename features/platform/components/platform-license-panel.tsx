@@ -133,6 +133,7 @@ export function PlatformLicensePanel({
 
   const [planKey, setPlanKey] = useState<PlanKey>("pro");
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  const [chargeAmount, setChargeAmount] = useState("");
   const [note, setNote] = useState("");
   const [extendDays, setExtendDays] = useState("30");
   const [pending, setPending] = useState(false);
@@ -468,6 +469,23 @@ export function PlatformLicensePanel({
               </div>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="license-amount">Charge amount (optional)</Label>
+              <Input
+                id="license-amount"
+                type="number"
+                min={0}
+                step="0.01"
+                value={chargeAmount}
+                onChange={(event) => setChargeAmount(event.target.value)}
+                placeholder="Blank = commercial offer or catalog price"
+              />
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                For discounts, premiums, or enterprise quotes. Empty uses the live commercial
+                offer for this plan/cycle when set, otherwise the catalog price. Written to the
+                subscription and billing history (MRR / gross revenue).
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="license-note">Note for the billing record</Label>
               <Input
                 id="license-note"
@@ -486,11 +504,26 @@ export function PlatformLicensePanel({
               <Button
                 type="button"
                 disabled={pending || !online || !cycleAllowed}
-                onClick={() =>
+                onClick={() => {
+                  const trimmed = chargeAmount.trim();
+                  let amount: number | undefined;
+                  if (trimmed) {
+                    amount = Number(trimmed);
+                    if (!Number.isFinite(amount) || amount < 0) {
+                      toast.error("Enter a valid charge amount");
+                      return;
+                    }
+                  }
                   void run("Plan assigned", () =>
-                    assignPlan({ organizationId, planKey, cycle, note: note.trim() || undefined }),
-                  )
-                }
+                    assignPlan({
+                      organizationId,
+                      planKey,
+                      cycle,
+                      note: note.trim() || undefined,
+                      amount,
+                    }),
+                  );
+                }}
               >
                 Assign plan
               </Button>

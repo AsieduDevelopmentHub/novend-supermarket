@@ -11,7 +11,7 @@ export function PlatformHelpView() {
         description="Replay the Super Admin monitoring walkthrough."
         actions={
           <Button asChild size="sm" variant="outline">
-            <Link href="/platform">Back to monitoring</Link>
+            <Link href="/platform/analytics">Back to monitoring</Link>
           </Button>
         }
       />

@@ -18,6 +18,7 @@ import {
   type PlanLimits,
 } from "./plans";
 import { CLOUD_MODES, type CloudEntitlements, type CloudMode } from "./cloudMode";
+import { loadLiveOfferForOrganization } from "./commercialOffers";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -96,11 +97,17 @@ export async function resolveLicense(
     toSnapshot(subscription),
     now,
   );
+  const liveOffer = await loadLiveOfferForOrganization(ctx, organization._id, now);
   return {
     organization,
     plan,
     planKey: plan.key,
-    limits: effectivePlanLimits(plan, organization.backupLimitBytes, organization.limitOverrides),
+    limits: effectivePlanLimits(
+      plan,
+      organization.backupLimitBytes,
+      organization.limitOverrides,
+      liveOffer?.limitOverrides,
+    ),
     subscription,
     access,
   };
@@ -213,10 +220,12 @@ export async function assertWithinLimit(
   const organization = await ctx.db.get(organizationId);
   if (!organization) throw new Error("Organization not found");
   const plan = resolvePlan(planKey);
+  const liveOffer = await loadLiveOfferForOrganization(ctx, organizationId);
   const limit = effectivePlanLimits(
     plan,
     organization.backupLimitBytes,
     organization.limitOverrides,
+    liveOffer?.limitOverrides,
   )[resource];
   if (limit === null) return;
   const used = await countResource(ctx, organizationId, resource);
