@@ -265,7 +265,7 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
                 type="button"
                 size="sm"
                 variant="secondary"
-                className="bg-background/90 hover:bg-background shadow-sm backdrop-blur-sm"
+                className="border-0 bg-black/75 text-white shadow-md hover:bg-black/90 hover:text-white"
                 onClick={() => void switchCamera()}
                 disabled={starting}
                 aria-label="Switch camera"
