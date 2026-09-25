@@ -1830,6 +1830,11 @@ export const assignPlan = mutation({
     note: v.optional(v.string()),
     /** Override charge amount (discount / premium / enterprise quote). Defaults to live offer then catalog. */
     amount: v.optional(v.number()),
+    /**
+     * When false, updates the subscription (plan/cycle/amount) without inserting a
+     * successful billingHistory row — use when correcting a stuck catalog amount.
+     */
+    recordPayment: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { userId } = await requirePlatformAdmin(ctx);
@@ -1860,6 +1865,7 @@ export const assignPlan = mutation({
       throw new Error("Enter a valid charge amount for this assignment.");
     }
     const now = Date.now();
+    const shouldRecordPayment = args.recordPayment !== false;
 
     const subscriptionId = await activateSubscription(ctx, {
       organizationId: args.organizationId,
@@ -1871,27 +1877,95 @@ export const assignPlan = mutation({
       actorId: userId,
     });
 
-    await ctx.db.insert("billingHistory", {
-      organizationId: args.organizationId,
-      subscriptionId,
-      planKey: args.planKey,
-      billingCycle: args.cycle,
-      amount,
-      currency: organization.currency || "GHS",
-      gateway: "manual",
-      reference: buildReference("MANUAL"),
-      status: "success",
-      description: args.note?.trim() || `${plan.name} assigned by Novend`,
-      paidAt: now,
-      initiatedBy: userId,
-      createdAt: now,
-      updatedAt: now,
-    });
+    if (shouldRecordPayment) {
+      await ctx.db.insert("billingHistory", {
+        organizationId: args.organizationId,
+        subscriptionId,
+        planKey: args.planKey,
+        billingCycle: args.cycle,
+        amount,
+        currency: organization.currency || "GHS",
+        gateway: "manual",
+        reference: buildReference("MANUAL"),
+        status: "success",
+        description: args.note?.trim() || `${plan.name} assigned by Novend`,
+        paidAt: now,
+        initiatedBy: userId,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else {
+      await writeAuditLog(ctx, {
+        organizationId: args.organizationId,
+        actorId: userId,
+        action: "platform_assign_plan_without_payment",
+        entityType: "subscriptions",
+        entityId: subscriptionId,
+        metadata: {
+          planKey: args.planKey,
+          cycle: args.cycle,
+          amount,
+          note: args.note?.trim() || null,
+        },
+      });
+    }
 
     await bumpEntitlementVersion(ctx, args.organizationId);
     await onOrganizationPlanChanged(ctx, { from: previousPlanKey, to: args.planKey });
 
     return subscriptionId;
+  },
+});
+
+/**
+ * Corrects the recurring amount on an existing subscription without recording
+ * another successful payment (so gross revenue is not inflated).
+ */
+export const setSubscriptionAmount = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    amount: v.number(),
+    note: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    if (!(args.amount >= 0) || !Number.isFinite(args.amount)) {
+      throw new Error("Enter a valid recurring amount.");
+    }
+    const organization = await ctx.db.get(args.organizationId);
+    if (!organization) throw new Error("Organization not found");
+    const license = await resolveLicense(ctx, organization);
+    const subscription = license.subscription;
+    if (!subscription) {
+      throw new Error("No subscription to update. Assign a plan first.");
+    }
+    if (subscription.isLifetime) {
+      throw new Error("Lifetime licences do not have a recurring amount.");
+    }
+    if (subscription.status !== "active" && subscription.status !== "past_due") {
+      throw new Error("Only active or past-due subscriptions can have their amount corrected.");
+    }
+
+    const previousAmount = subscription.amount;
+    const now = Date.now();
+    await ctx.db.patch(subscription._id, {
+      amount: args.amount,
+      updatedAt: now,
+    });
+    await bumpEntitlementVersion(ctx, args.organizationId);
+    await writeAuditLog(ctx, {
+      organizationId: args.organizationId,
+      actorId: userId,
+      action: "platform_set_subscription_amount",
+      entityType: "subscriptions",
+      entityId: subscription._id,
+      metadata: {
+        previousAmount,
+        amount: args.amount,
+        note: args.note?.trim() || null,
+      },
+    });
+    return subscription._id;
   },
 });
 
@@ -2079,6 +2153,7 @@ export const organizationLicense = query({
       subscription: license.subscription
         ? {
             status: license.subscription.status,
+            planKey: license.subscription.planKey,
             billingCycle: license.subscription.billingCycle,
             isLifetime: license.subscription.isLifetime,
             startsAt: license.subscription.startsAt,

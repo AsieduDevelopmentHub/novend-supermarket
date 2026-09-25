@@ -19,6 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { LoadingState } from "@/components/feedback/loading-state";
 import {
@@ -121,6 +129,7 @@ export function PlatformLicensePanel({
   const online = useConnectivity();
   const license = useQuery(api.billing.organizationLicense, online ? { organizationId } : "skip");
   const assignPlan = useMutation(api.billing.assignPlan);
+  const setSubscriptionAmount = useMutation(api.billing.setSubscriptionAmount);
   const startTrial = useMutation(api.billing.startTrial);
   const resetActivation = useMutation(api.billing.resetActivation);
   const setBackupLimit = useMutation(api.billing.setBackupLimit);
@@ -137,6 +146,8 @@ export function PlatformLicensePanel({
   const [note, setNote] = useState("");
   const [extendDays, setExtendDays] = useState("30");
   const [pending, setPending] = useState(false);
+  const [assignChoiceOpen, setAssignChoiceOpen] = useState(false);
+  const [pendingAssignAmount, setPendingAssignAmount] = useState<number | undefined>(undefined);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmArchiveName, setConfirmArchiveName] = useState("");
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -481,8 +492,9 @@ export function PlatformLicensePanel({
               />
               <p className="text-muted-foreground text-xs leading-relaxed">
                 For discounts, premiums, or enterprise quotes. Empty uses the live commercial
-                offer for this plan/cycle when set, otherwise the catalog price. Written to the
-                subscription and billing history (MRR / gross revenue).
+                offer for this plan/cycle when set, otherwise the catalog price. If a subscription
+                already exists, you will choose whether to replace the recurring amount only or
+                also record a new payment toward gross revenue.
               </p>
             </div>
             <div className="space-y-2">
@@ -513,6 +525,16 @@ export function PlatformLicensePanel({
                       toast.error("Enter a valid charge amount");
                       return;
                     }
+                  }
+                  const hasActiveSubscription =
+                    Boolean(license.subscription) &&
+                    !license.subscription?.isLifetime &&
+                    (license.subscription?.status === "active" ||
+                      license.subscription?.status === "past_due");
+                  if (hasActiveSubscription) {
+                    setPendingAssignAmount(amount);
+                    setAssignChoiceOpen(true);
+                    return;
                   }
                   void run("Plan assigned", () =>
                     assignPlan({
@@ -610,6 +632,126 @@ export function PlatformLicensePanel({
           </Button>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={assignChoiceOpen}
+        onOpenChange={(open) => {
+          setAssignChoiceOpen(open);
+          if (!open) setPendingAssignAmount(undefined);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>How should this amount apply?</DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  This organization already has a subscription
+                  {license.subscription
+                    ? ` at ${formatCurrency(license.subscription.amount)} (${license.subscription.billingCycle})`
+                    : ""}
+                  .
+                </p>
+                <p>
+                  <strong>Replace amount only</strong> updates MRR / the licence amount without
+                  adding another payment to gross revenue — use this to fix a stuck catalog
+                  price.
+                </p>
+                <p>
+                  <strong>Assign and record payment</strong> applies the plan and adds a
+                  successful billing record (gross revenue increases).
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button
+              type="button"
+              variant="default"
+              disabled={pending}
+              onClick={() => {
+                const samePlanAndCycle =
+                  license.subscription?.planKey === planKey &&
+                  license.subscription?.billingCycle === cycle;
+                if (samePlanAndCycle) {
+                  if (pendingAssignAmount === undefined) {
+                    toast.error("Enter the corrected charge amount to replace");
+                    return;
+                  }
+                  void run("Recurring amount updated", () =>
+                    setSubscriptionAmount({
+                      organizationId,
+                      amount: pendingAssignAmount,
+                      note: note.trim() || undefined,
+                    }),
+                  ).then((ok) => {
+                    if (ok) {
+                      setAssignChoiceOpen(false);
+                      setPendingAssignAmount(undefined);
+                      setChargeAmount("");
+                    }
+                  });
+                  return;
+                }
+                void run("Plan updated without new payment", () =>
+                  assignPlan({
+                    organizationId,
+                    planKey,
+                    cycle,
+                    note: note.trim() || undefined,
+                    amount: pendingAssignAmount,
+                    recordPayment: false,
+                  }),
+                ).then((ok) => {
+                  if (ok) {
+                    setAssignChoiceOpen(false);
+                    setPendingAssignAmount(undefined);
+                    setChargeAmount("");
+                  }
+                });
+              }}
+            >
+              Replace amount only
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() => {
+                void run("Plan assigned", () =>
+                  assignPlan({
+                    organizationId,
+                    planKey,
+                    cycle,
+                    note: note.trim() || undefined,
+                    amount: pendingAssignAmount,
+                    recordPayment: true,
+                  }),
+                ).then((ok) => {
+                  if (ok) {
+                    setAssignChoiceOpen(false);
+                    setPendingAssignAmount(undefined);
+                    setChargeAmount("");
+                  }
+                });
+              }}
+            >
+              Assign and record payment
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={pending}
+              onClick={() => {
+                setAssignChoiceOpen(false);
+                setPendingAssignAmount(undefined);
+              }}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={confirmLocalOnly}
