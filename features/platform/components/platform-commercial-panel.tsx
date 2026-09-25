@@ -287,8 +287,8 @@ export function PlatformCommercialPanel({
             <CardTitle>Commercial offer</CardTitle>
             <CardDescription>
               Negotiated monthly/annual prices and limits for this organization. Offer limits
-              apply to the live licence (unlimited or capped). Prices drive checkout, plan
-              assignment, MRR, and gross revenue when charged.
+              apply to the live licence. After changing charges, use Licence → Assign plan to
+              apply the new amount — you will confirm amount-only vs recording a payment.
             </CardDescription>
           </div>
           <Button type="button" size="sm" disabled={!online} onClick={openCreate}>

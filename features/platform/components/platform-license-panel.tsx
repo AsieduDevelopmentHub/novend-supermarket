@@ -491,10 +491,9 @@ export function PlatformLicensePanel({
                 placeholder="Blank = commercial offer or catalog price"
               />
               <p className="text-muted-foreground text-xs leading-relaxed">
-                For discounts, premiums, or enterprise quotes. Empty uses the live commercial
-                offer for this plan/cycle when set, otherwise the catalog price. If a subscription
-                already exists, you will choose whether to replace the recurring amount only or
-                also record a new payment toward gross revenue.
+                For discounts, premiums, enterprise quotes, or later price increases. Empty uses
+                the live commercial offer or catalog. If a subscription already exists, you must
+                confirm whether to update the recurring amount only or also record a payment.
               </p>
             </div>
             <div className="space-y-2">
@@ -642,24 +641,32 @@ export function PlatformLicensePanel({
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>How should this amount apply?</DialogTitle>
+            <DialogTitle>
+              {license.subscription &&
+              pendingAssignAmount !== undefined &&
+              pendingAssignAmount > license.subscription.amount
+                ? "Increase recurring amount?"
+                : license.subscription &&
+                    pendingAssignAmount !== undefined &&
+                    pendingAssignAmount < license.subscription.amount
+                  ? "Decrease recurring amount?"
+                  : "How should this amount apply?"}
+            </DialogTitle>
             <DialogDescription asChild>
               <div className="space-y-2 text-sm">
                 <p>
-                  This organization already has a subscription
+                  Current subscription
                   {license.subscription
-                    ? ` at ${formatCurrency(license.subscription.amount)} (${license.subscription.billingCycle})`
+                    ? `: ${formatCurrency(license.subscription.amount)} / ${license.subscription.billingCycle}`
                     : ""}
-                  .
+                  {pendingAssignAmount !== undefined
+                    ? `. New amount: ${formatCurrency(pendingAssignAmount)}.`
+                    : ". New amount will use the commercial offer or catalog price."}
                 </p>
                 <p>
-                  <strong>Replace amount only</strong> updates MRR / the licence amount without
-                  adding another payment to gross revenue — use this to fix a stuck catalog
-                  price.
-                </p>
-                <p>
-                  <strong>Assign and record payment</strong> applies the plan and adds a
-                  successful billing record (gross revenue increases).
+                  Not every change should record a payment. Price increases for the next renewal,
+                  discounts, and catalog corrections usually only update the recurring amount.
+                  Record a payment only when money was actually collected for this change.
                 </p>
               </div>
             </DialogDescription>
@@ -675,7 +682,7 @@ export function PlatformLicensePanel({
                   license.subscription?.billingCycle === cycle;
                 if (samePlanAndCycle) {
                   if (pendingAssignAmount === undefined) {
-                    toast.error("Enter the corrected charge amount to replace");
+                    toast.error("Enter the new charge amount first");
                     return;
                   }
                   void run("Recurring amount updated", () =>
@@ -711,7 +718,7 @@ export function PlatformLicensePanel({
                 });
               }}
             >
-              Replace amount only
+              Update amount only (no new payment)
             </Button>
             <Button
               type="button"
@@ -736,7 +743,7 @@ export function PlatformLicensePanel({
                 });
               }}
             >
-              Assign and record payment
+              Apply and record a payment
             </Button>
             <Button
               type="button"
