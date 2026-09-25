@@ -23,7 +23,9 @@ export function applyExperienceTokens(
   const root = options?.target ?? document.documentElement;
   root.style.setProperty("--primary", tokens.accent);
   root.style.setProperty("--primary-foreground", tokens.accentForeground);
-  root.style.setProperty("--ring", tokens.focusRing);
+  // Focus chrome follows brand accent (org overrides historically left focusRing on Candy Blue).
+  root.style.setProperty("--ring", tokens.accent);
+  root.style.setProperty("--chart-1", tokens.accent);
   root.style.setProperty("--sidebar", tokens.sidebarBackground);
   root.style.setProperty("--sidebar-foreground", tokens.sidebarForeground);
   root.style.setProperty("--sidebar-accent", tokens.sidebarAccent);
@@ -54,6 +56,7 @@ export function clearExperienceTokenOverrides(options?: { target?: HTMLElement }
     "--primary",
     "--primary-foreground",
     "--ring",
+    "--chart-1",
     "--sidebar",
     "--sidebar-foreground",
     "--sidebar-accent",

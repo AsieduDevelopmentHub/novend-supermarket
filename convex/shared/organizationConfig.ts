@@ -138,9 +138,14 @@ export function resolveExperienceTokens(
 
   if (!overrides) return base;
 
+  const accent = applyHexOverride(base.accent, overrides.accent);
+  // Org overrides only expose accent today — keep focus chrome in sync with the
+  // brand accent so login rings/atmosphere never stay on default Candy Blue.
+  const focusRing = overrides.accent !== undefined ? accent : base.focusRing;
+
   return {
     ...base,
-    accent: applyHexOverride(base.accent, overrides.accent),
+    accent,
     accentForeground: applyHexOverride(base.accentForeground, overrides.accentForeground),
     sidebarBackground: applyHexOverride(base.sidebarBackground, overrides.sidebarBackground),
     sidebarForeground: applyHexOverride(base.sidebarForeground, overrides.sidebarForeground),
@@ -149,6 +154,7 @@ export function resolveExperienceTokens(
       base.sidebarAccentForeground,
       overrides.sidebarAccentForeground,
     ),
+    focusRing,
   };
 }
 

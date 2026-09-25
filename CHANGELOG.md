@@ -8,6 +8,7 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Fixed
 
+- Login atmosphere orbs/charts and input focus ring follow the org accent (no leftover Candy Blue when the business colour is set).
 - Remove the offline login explainer banner (email + password is enough).
 - Hide “Back to website” on Capacitor and Electron login (web dashboard keeps the marketing link).
 - Dashboard low-stock and expiry KPIs/lists always span every branch (with branch tags), instead of falling back to the home branch; inventory alert links open org-wide.
