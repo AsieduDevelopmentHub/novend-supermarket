@@ -53,9 +53,6 @@ export const list = query({
       .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
       .collect();
     const categoryMap = new Map(categories.map((c) => [c._id, c.name]));
-    const stockByProduct = branchFilter
-      ? await stockMapForBranch(ctx, branchFilter)
-      : await stockMapOrgWide(ctx, organizationId);
     const productsForAlerts = (
       await ctx.db
         .query("products")
@@ -65,7 +62,41 @@ export const list = query({
     const alertDaysByProduct = new Map(
       productsForAlerts.map((p) => [String(p._id), productExpiryAlertDays(p)]),
     );
-    const summaries = await lotSummaries(ctx, branchFilter, organizationId, alertDaysByProduct);
+
+    const orgBranches = !branchFilter
+      ? (
+          await ctx.db
+            .query("branches")
+            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+            .collect()
+        ).filter((b) => b.status === "active")
+      : [];
+
+    // Org-wide: evaluate each branch (dashboard semantics). A product can be low
+    // at one branch while the org sum is still healthy.
+    const perBranch: Array<{
+      branchId: Id<"branches">;
+      branchName: string;
+      stockByProduct: Map<Id<"products">, number>;
+      summaries: Awaited<ReturnType<typeof lotSummaries>>;
+    }> = [];
+    if (!branchFilter) {
+      for (const branch of orgBranches) {
+        perBranch.push({
+          branchId: branch._id,
+          branchName: branch.name,
+          stockByProduct: await stockMapForBranch(ctx, branch._id),
+          summaries: await lotSummaries(ctx, branch._id, organizationId, alertDaysByProduct),
+        });
+      }
+    }
+
+    const stockByProduct = branchFilter
+      ? await stockMapForBranch(ctx, branchFilter)
+      : await stockMapOrgWide(ctx, organizationId);
+    const summaries = branchFilter
+      ? await lotSummaries(ctx, branchFilter, organizationId, alertDaysByProduct)
+      : await lotSummaries(ctx, null, organizationId, alertDaysByProduct);
 
     let products = productsForAlerts;
 
@@ -87,6 +118,58 @@ export const list = query({
             : null;
           const stockQuantity = stockByProduct.get(product._id) ?? 0;
           const expiry = deriveExpiryListFields(product, stockQuantity, summaries.get(product._id));
+
+          const alertBranches = !branchFilter
+            ? perBranch
+                .map((branch) => {
+                  const branchQty = branch.stockByProduct.get(product._id) ?? 0;
+                  const branchExpiry = deriveExpiryListFields(
+                    product,
+                    branchQty,
+                    branch.summaries.get(product._id),
+                  );
+                  if (
+                    !branchExpiry.isLowStock &&
+                    !branchExpiry.isExpired &&
+                    !branchExpiry.isExpiring
+                  ) {
+                    return null;
+                  }
+                  return {
+                    branchId: branch.branchId,
+                    branchName: branch.branchName,
+                    stockQuantity: branchQty,
+                    sellableQuantity: branchExpiry.sellableQuantity,
+                    expiredQuantity: branchExpiry.expiredQuantity,
+                    expiringQuantity: branchExpiry.expiringQuantity,
+                    nearestExpiry: branchExpiry.nearestExpiry,
+                    nearestSellableExpiry: branchExpiry.nearestSellableExpiry,
+                    isLowStock: branchExpiry.isLowStock,
+                    isExpired: branchExpiry.isExpired,
+                    isExpiring: branchExpiry.isExpiring,
+                  };
+                })
+                .filter((row): row is NonNullable<typeof row> => row !== null)
+            : [];
+
+          const isLowStock = branchFilter
+            ? expiry.isLowStock
+            : alertBranches.some((row) => row.isLowStock);
+          const isExpired = branchFilter
+            ? expiry.isExpired
+            : alertBranches.some((row) => row.isExpired) || expiry.isExpired;
+          const isExpiring = branchFilter
+            ? expiry.isExpiring
+            : alertBranches.some((row) => row.isExpiring) || expiry.isExpiring;
+
+          const statusLabel = isExpired
+            ? ("Expired" as const)
+            : isExpiring
+              ? ("Expiring" as const)
+              : isLowStock
+                ? ("Low Stock" as const)
+                : expiry.statusLabel;
+
           return {
             id: product._id,
             name: product.name,
@@ -97,8 +180,8 @@ export const list = query({
             stockQuantity,
             unit: product.unit,
             lowStockThreshold: product.lowStockThreshold,
-            statusLabel: expiry.statusLabel,
-            isLowStock: expiry.isLowStock,
+            statusLabel,
+            isLowStock,
             imageUrl,
             branchId: branchFilter,
             tracksExpiry: expiry.tracksExpiry,
@@ -107,8 +190,9 @@ export const list = query({
             expiringQuantity: expiry.expiringQuantity,
             nearestExpiry: expiry.nearestExpiry,
             nearestSellableExpiry: expiry.nearestSellableExpiry,
-            isExpired: expiry.isExpired,
-            isExpiring: expiry.isExpiring,
+            isExpired,
+            isExpiring,
+            alertBranches,
           };
         }),
     );

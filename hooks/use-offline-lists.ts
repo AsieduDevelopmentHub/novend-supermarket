@@ -193,7 +193,20 @@ export function useProductsList(options: {
   };
 }
 
-type InventoryRow = {
+type InventoryAlertBranch = {
+  branchId: Id<"branches">;
+  branchName: string;
+  stockQuantity: number;
+  sellableQuantity: number;
+  expiredQuantity: number;
+  expiringQuantity: number;
+  nearestExpiry?: string | null;
+  isLowStock: boolean;
+  isExpired: boolean;
+  isExpiring: boolean;
+};
+
+export type InventoryRow = {
   id: Id<"products">;
   name: string;
   sku: string;
@@ -211,7 +224,88 @@ type InventoryRow = {
   nearestExpiry?: string | null;
   isExpired?: boolean;
   isExpiring?: boolean;
+  branchId?: Id<"branches"> | null;
+  branchName?: string | null;
+  alertBranches?: InventoryAlertBranch[];
+  /** Stable list key when org-wide alerts expand to product×branch rows. */
+  rowKey?: string;
 };
+
+function normalizeInventoryRow(r: {
+  id: string;
+  name: string;
+  sku: string;
+  categoryName: string;
+  stockQuantity: number;
+  unit: string;
+  lowStockThreshold: number;
+  isLowStock: boolean;
+  statusLabel?: string;
+  imageUrl: string | null;
+  tracksExpiry?: boolean;
+  sellableQuantity?: number;
+  expiredQuantity?: number;
+  expiringQuantity?: number;
+  nearestExpiry?: string | null;
+  isExpired?: boolean;
+  isExpiring?: boolean;
+  branchId?: string | null;
+  branchName?: string | null;
+  alertBranches?: Array<{
+    branchId: string;
+    branchName: string;
+    stockQuantity: number;
+    sellableQuantity: number;
+    expiredQuantity: number;
+    expiringQuantity: number;
+    nearestExpiry?: string | null;
+    isLowStock: boolean;
+    isExpired: boolean;
+    isExpiring: boolean;
+  }>;
+}): InventoryRow {
+  return {
+    id: r.id as Id<"products">,
+    name: r.name,
+    sku: r.sku,
+    categoryName: r.categoryName,
+    stockQuantity: r.stockQuantity,
+    unit: r.unit,
+    lowStockThreshold: r.lowStockThreshold,
+    isLowStock: r.isLowStock,
+    statusLabel:
+      r.statusLabel ??
+      (r.isExpired
+        ? "Expired"
+        : r.isExpiring
+          ? "Expiring"
+          : r.isLowStock
+            ? "Low stock"
+            : "In stock"),
+    imageUrl: r.imageUrl,
+    tracksExpiry: r.tracksExpiry,
+    sellableQuantity: r.sellableQuantity ?? r.stockQuantity,
+    expiredQuantity: r.expiredQuantity ?? 0,
+    expiringQuantity: r.expiringQuantity ?? 0,
+    nearestExpiry: r.nearestExpiry,
+    isExpired: r.isExpired,
+    isExpiring: r.isExpiring,
+    branchId: (r.branchId as Id<"branches"> | null | undefined) ?? null,
+    branchName: r.branchName ?? null,
+    alertBranches: r.alertBranches?.map((branch) => ({
+      branchId: branch.branchId as Id<"branches">,
+      branchName: branch.branchName,
+      stockQuantity: branch.stockQuantity,
+      sellableQuantity: branch.sellableQuantity,
+      expiredQuantity: branch.expiredQuantity,
+      expiringQuantity: branch.expiringQuantity,
+      nearestExpiry: branch.nearestExpiry,
+      isLowStock: branch.isLowStock,
+      isExpired: branch.isExpired,
+      isExpiring: branch.isExpiring,
+    })),
+  };
+}
 
 /** Local-first inventory list. */
 export function useInventoryList(options: {
@@ -241,33 +335,7 @@ export function useInventoryList(options: {
         branchId: options.branchId ?? null,
       }).then((rows) => {
         if (cancelled || rows == null || !Array.isArray(rows)) return;
-        setLocal(
-          rows.map((r) => ({
-            id: r.id as Id<"products">,
-            name: r.name,
-            sku: r.sku,
-            categoryName: r.categoryName,
-            stockQuantity: r.stockQuantity,
-            unit: r.unit,
-            lowStockThreshold: r.lowStockThreshold,
-            isLowStock: r.isLowStock,
-            statusLabel: r.isExpired
-              ? "Expired"
-              : r.isExpiring
-                ? "Expiring"
-                : r.isLowStock
-                  ? "Low stock"
-                  : "In stock",
-            imageUrl: r.imageUrl,
-            tracksExpiry: r.tracksExpiry,
-            sellableQuantity: r.sellableQuantity ?? r.stockQuantity,
-            expiredQuantity: r.expiredQuantity ?? 0,
-            expiringQuantity: r.expiringQuantity ?? 0,
-            nearestExpiry: r.nearestExpiry,
-            isExpired: r.isExpired,
-            isExpiring: r.isExpiring,
-          })),
-        );
+        setLocal(rows.map((r) => normalizeInventoryRow(r)));
       });
     };
     load();
@@ -279,7 +347,11 @@ export function useInventoryList(options: {
   }, [options.search, options.categoryId, options.branchId, remote, lastSyncAt]);
 
   if (online && !serveLocal && remote !== undefined) {
-    return { rows: remote, loading: false, source: "remote" as const };
+    return {
+      rows: remote.map((r) => normalizeInventoryRow(r)),
+      loading: false,
+      source: "remote" as const,
+    };
   }
   if (local != null) {
     return { rows: local, loading: false, source: "local" as const };

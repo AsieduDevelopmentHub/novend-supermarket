@@ -14,6 +14,7 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Fixed
 
+- Inventory **Low stock** with All branches matches the dashboard: flag/list per branch that is low, not the org-wide stock sum (which hid items that were only low at one branch).
 - Inventory **Expiring / expired** filter shows FEFO alert-window units (`expiringQuantity` + expired), not full on-hand stock.
 - Dashboard expiry alerts show units in the FEFO alert window (`expiringQuantity`), not total sellable stock.
 - Capacitor no longer runs sealed-key cloud packaging on shell mount (3-minute delay, in-flight lock, attempt cooldown) — stops WebView freezes on `backup_only` / `snapshot_only`.
