@@ -1,5 +1,5 @@
-import { PlatformMonitoringView } from "@/features/platform/components/platform-monitoring-view";
+import { PlatformHealthView } from "@/features/platform/components/platform-health-view";
 
 export default function PlatformHealthPage() {
-  return <PlatformMonitoringView />;
+  return <PlatformHealthView />;
 }

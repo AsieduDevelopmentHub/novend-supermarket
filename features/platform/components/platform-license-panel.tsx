@@ -430,6 +430,12 @@ export function PlatformLicensePanel({
 
           <div className="border-border space-y-3 rounded-lg border p-4">
             <p className="text-sm font-medium">Assign a plan</p>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              Negotiated list prices belong on the <strong>Commercial</strong> tab. Use this
+              section to apply a plan or change the live recurring amount. When a subscription
+              already exists you must choose <em>Update amount only</em> (MRR, no new gross) or{" "}
+              <em>Apply and record a payment</em> (gross revenue increases).
+            </p>
             {license.planKey === "lifetime" ? (
               <p className="text-muted-foreground text-xs leading-relaxed">
                 This organization is on a legacy Lifetime licence. You can keep Lifetime selected

@@ -1,5 +1,5 @@
-import { PlatformMonitoringView } from "@/features/platform/components/platform-monitoring-view";
+import { PlatformSubscriptionsView } from "@/features/platform/components/platform-subscriptions-view";
 
 export default function PlatformSubscriptionsPage() {
-  return <PlatformMonitoringView />;
+  return <PlatformSubscriptionsView />;
 }
