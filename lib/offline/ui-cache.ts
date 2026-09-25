@@ -247,11 +247,13 @@ export async function buildLocalDashboardSummary(
     if (!p.tracksExpiry || (!p.isExpired && !p.isExpiring)) continue;
     const hasLotAlert = [...expiryByKey.values()].some((row) => row.productId === p.id);
     if (hasLotAlert) continue;
+    // Without lot rows we cannot know the FEFO batch size — show 0 for
+    // expiring qty rather than the full product sellable total.
     expiryByKey.set(`${p.id}:product`, {
       productId: p.id,
       branchId: "",
-      sellable: availableStockQuantity(p),
-      expired: 0,
+      sellable: 0,
+      expired: p.isExpired ? availableStockQuantity(p) : 0,
       nearest: p.nearestExpiry ?? null,
       isExpired: Boolean(p.isExpired),
       isExpiring: Boolean(p.isExpiring),
@@ -273,9 +275,7 @@ export async function buildLocalDashboardSummary(
         isExpiring: row.isExpiring,
         unit: product.unit,
         branchId: row.branchId || null,
-        branchName: row.branchId
-          ? (branchNameById.get(row.branchId) ?? null)
-          : null,
+        branchName: row.branchId ? (branchNameById.get(row.branchId) ?? null) : null,
       };
     })
     .filter((row): row is DashboardExpiryAlertRow => row !== null);

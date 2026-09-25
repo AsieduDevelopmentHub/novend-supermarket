@@ -56,14 +56,18 @@ export const list = query({
     const stockByProduct = branchFilter
       ? await stockMapForBranch(ctx, branchFilter)
       : await stockMapOrgWide(ctx, organizationId);
-    const summaries = await lotSummaries(ctx, branchFilter, organizationId);
-
-    let products = (
+    const productsForAlerts = (
       await ctx.db
         .query("products")
         .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
         .collect()
     ).filter((p) => p.status === "active" || p.status === "inactive");
+    const alertDaysByProduct = new Map(
+      productsForAlerts.map((p) => [String(p._id), productExpiryAlertDays(p)]),
+    );
+    const summaries = await lotSummaries(ctx, branchFilter, organizationId, alertDaysByProduct);
+
+    let products = productsForAlerts;
 
     if (args.categoryId) {
       products = products.filter((p) => p.categoryId === args.categoryId);

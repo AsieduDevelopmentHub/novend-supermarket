@@ -8,11 +8,13 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Added
 
+- Platform repair `repairs.clearTradingHistory` wipes sales/returns/held carts/receipts/expenses for one org without touching catalog or stock.
 - Cloud mode **`snapshot_only`**: compact business packages on a Super Admin–set interval, plus organization **recovery keys** (device-sealed, never in Convex) for encrypt/restore and a post-login restore gate on empty devices.
 - Commercial offers support a **lifetime (one-time)** cycle: negotiated buyout price counts toward gross / net profit and never toward MRR or ARR.
 
 ### Fixed
 
+- Dashboard expiry alerts show units in the FEFO alert window (`expiringQuantity`), not total sellable stock.
 - Capacitor no longer runs sealed-key cloud packaging on shell mount (3-minute delay, in-flight lock, attempt cooldown) — stops WebView freezes on `backup_only` / `snapshot_only`.
 - Sales catalog stays Dexie-local for package cloud modes so carts cannot sell remote-only products that fail at checkout.
 - Recovery keys seal via localStorage on Cap (Cap SecureStorage hangs the WebView bridge — same as biometric unlock tokens).

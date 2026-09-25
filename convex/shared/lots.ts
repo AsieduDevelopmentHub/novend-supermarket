@@ -30,8 +30,16 @@ export type LotAllocation = {
 };
 
 export type LotSummary = {
+  /** Non-expired on-hand (all future-dated lots). Used for sellable stock. */
   sellableQuantity: number;
+  /** Already past expiry. */
   expiredQuantity: number;
+  /**
+   * Units in lots inside the product's alert window (FEFO batch that triggers
+   * "expiring soon"). Distinct from sellableQuantity, which includes lots that
+   * are still fine.
+   */
+  expiringQuantity: number;
   nearestExpiry: string | null;
   nearestSellableExpiry: string | null;
 };
@@ -99,6 +107,8 @@ export type ExpiryListFields = {
   expiryAlertDays: number | null;
   sellableQuantity: number;
   expiredQuantity: number;
+  /** Units inside the alert window (for expiry alerts). */
+  expiringQuantity: number;
   nearestExpiry: string | null;
   nearestSellableExpiry: string | null;
   isExpired: boolean;
@@ -116,6 +126,7 @@ export function deriveExpiryListFields(
   const expiryAlertDays = tracksExpiry ? productExpiryAlertDays(product) : null;
   const sellableQuantity = tracksExpiry ? (summary?.sellableQuantity ?? 0) : onHand;
   const expiredQuantity = tracksExpiry ? (summary?.expiredQuantity ?? 0) : 0;
+  const expiringQuantity = tracksExpiry ? (summary?.expiringQuantity ?? 0) : 0;
   const nearestExpiry = tracksExpiry ? (summary?.nearestExpiry ?? null) : null;
   const nearestSellableExpiry = tracksExpiry ? (summary?.nearestSellableExpiry ?? null) : null;
   const isExpired = expiredQuantity > 0;
@@ -136,6 +147,7 @@ export function deriveExpiryListFields(
     expiryAlertDays,
     sellableQuantity,
     expiredQuantity,
+    expiringQuantity,
     nearestExpiry,
     nearestSellableExpiry,
     isExpired,
@@ -149,12 +161,31 @@ function emptySummary(): LotSummary {
   return {
     sellableQuantity: 0,
     expiredQuantity: 0,
+    expiringQuantity: 0,
     nearestExpiry: null,
     nearestSellableExpiry: null,
   };
 }
 
-function addLotToSummary(summary: LotSummary, lot: Doc<"inventoryLots">, today: string) {
+/** Pure helper for tests and callers that already have lot rows in memory. */
+export function summarizeLots(
+  lots: Array<{ quantity: number; expiryDate: string }>,
+  alertDays: number,
+  today = todayDateString(),
+): LotSummary {
+  const summary = emptySummary();
+  for (const lot of lots) {
+    addLotToSummary(summary, lot as Doc<"inventoryLots">, today, alertDays);
+  }
+  return summary;
+}
+
+function addLotToSummary(
+  summary: LotSummary,
+  lot: Pick<Doc<"inventoryLots">, "quantity" | "expiryDate">,
+  today: string,
+  alertDays?: number,
+) {
   if (lot.quantity <= 0) return;
   if (lot.expiryDate < today) {
     summary.expiredQuantity += lot.quantity;
@@ -170,6 +201,9 @@ function addLotToSummary(summary: LotSummary, lot: Doc<"inventoryLots">, today: 
   ) {
     summary.nearestSellableExpiry = lot.expiryDate;
   }
+  if (typeof alertDays === "number" && lotStatus(lot.expiryDate, alertDays, today) === "expiring") {
+    summary.expiringQuantity += lot.quantity;
+  }
 }
 
 export async function listLotsForProductBranch(
@@ -183,10 +217,15 @@ export async function listLotsForProductBranch(
     .collect();
 }
 
+/**
+ * Aggregate lot quantities per product. Pass `alertDaysByProduct` (product id →
+ * alert days) so `expiringQuantity` reflects each product's FEFO alert window.
+ */
 export async function lotSummaries(
   ctx: Ctx,
   branchId?: Id<"branches"> | null,
   organizationId?: Id<"organizations">,
+  alertDaysByProduct?: Map<string, number>,
 ): Promise<Map<Id<"products">, LotSummary>> {
   const today = todayDateString();
   const rows = branchId
@@ -204,7 +243,8 @@ export async function lotSummaries(
   const map = new Map<Id<"products">, LotSummary>();
   for (const lot of rows) {
     const current = map.get(lot.productId) ?? emptySummary();
-    addLotToSummary(current, lot, today);
+    const alertDays = alertDaysByProduct?.get(String(lot.productId));
+    addLotToSummary(current, lot, today, alertDays);
     map.set(lot.productId, current);
   }
   return map;

@@ -9,7 +9,7 @@ import {
   isManager,
 } from "./shared/permissions";
 import { stockMapForBranch } from "./shared/branchStock";
-import { deriveExpiryListFields, lotSummaries } from "./shared/lots";
+import { deriveExpiryListFields, lotSummaries, productExpiryAlertDays } from "./shared/lots";
 import { completedReturnsInRange, loadItemsForReturns } from "./shared/returns";
 import { collectSaleItemsForSales, collectSalesInCompletedAtRange } from "./shared/salesRange";
 
@@ -80,12 +80,11 @@ export const summary = query({
 
     // Stock / expiry alerts always span every branch the caller can see (org-wide
     // for admins even when sales KPIs are filtered). Managers stay on their branch.
-    const alertBranchIds =
-      admin
-        ? branches.filter((b) => b.status === "active").map((b) => b._id)
-        : profile.branchId
-          ? [profile.branchId]
-          : [];
+    const alertBranchIds = admin
+      ? branches.filter((b) => b.status === "active").map((b) => b._id)
+      : profile.branchId
+        ? [profile.branchId]
+        : [];
 
     const lowStock: Array<{
       id: string;
@@ -114,7 +113,10 @@ export const summary = query({
 
     for (const branchId of alertBranchIds) {
       const stockByProduct = await stockMapForBranch(ctx, branchId);
-      const summaries = await lotSummaries(ctx, branchId, organizationId);
+      const alertDaysByProduct = new Map(
+        activeProducts.map((p) => [String(p._id), productExpiryAlertDays(p)]),
+      );
+      const summaries = await lotSummaries(ctx, branchId, organizationId, alertDaysByProduct);
       for (const p of activeProducts) {
         const stockQuantity = stockByProduct.get(p._id) ?? 0;
         const expiry = deriveExpiryListFields(p, stockQuantity, summaries.get(p._id));
@@ -136,9 +138,13 @@ export const summary = query({
             id: `${p._id}:${branchId}`,
             productId: p._id,
             name: p.name,
-            sellableQuantity: expiry.sellableQuantity,
+            // Alert quantity = FEFO batch in the alert window (or expired units),
+            // never the product's total sellable stock.
+            sellableQuantity: expiry.expiringQuantity,
             expiredQuantity: expiry.expiredQuantity,
-            nearestExpiry: expiry.nearestExpiry,
+            nearestExpiry: expiry.isExpiring
+              ? (expiry.nearestSellableExpiry ?? expiry.nearestExpiry)
+              : expiry.nearestExpiry,
             isExpired: expiry.isExpired,
             isExpiring: expiry.isExpiring,
             unit: p.unit,

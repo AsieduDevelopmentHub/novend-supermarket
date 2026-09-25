@@ -123,8 +123,10 @@ iterations, salt, IV) in the envelope. Those values are **public** and required
 to decrypt; they are not a key leak. The **organization recovery key** (or a
 legacy strong backup password) is the secret. Login passwords must never be used
 to encrypt backups. The recovery key is sealed on-device for scheduled uploads and
-is never stored in Convex. Files are written as compact JSON so the envelope is a
-restore artifact, not a readable showcase.
+is never stored in Convex. On Capacitor, sealing uses org-scoped **localStorage**
+(not Cap Secure Storage — that plugin can hang the WebView bridge). Files are
+written as compact JSON so the envelope is a restore artifact, not a readable
+showcase.
 
 # Local-device threat model
 

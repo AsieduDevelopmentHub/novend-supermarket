@@ -636,9 +636,7 @@ export function DashboardView() {
               <CardTitle>Expiring / expired</CardTitle>
               <div className="flex flex-wrap items-center gap-2">
                 {(data.kpis.expiringCount ?? 0) > 0 ? (
-                  <Badge variant="destructive">
-                    {data.kpis.expiringCount} across branches
-                  </Badge>
+                  <Badge variant="destructive">{data.kpis.expiringCount} across branches</Badge>
                 ) : null}
                 <Button asChild size="sm" variant="ghost">
                   <Link href={inventoryAlertHref("expiry")}>Inventory</Link>
@@ -651,12 +649,19 @@ export function DashboardView() {
                   id: row.id,
                   productId: row.productId,
                   name: row.name,
-                  stockQuantity: row.isExpired ? row.expiredQuantity : row.sellableQuantity,
+                  stockQuantity:
+                    (row.isExpired ? row.expiredQuantity : 0) +
+                    (row.isExpiring ? row.sellableQuantity : 0),
                   unit: row.unit,
                   lowStockThreshold: 0,
                   branchId: row.branchId,
                   branchName: row.branchName,
-                  badge: row.isExpired ? "Expired" : "Expiring",
+                  badge:
+                    row.isExpired && row.isExpiring
+                      ? "Expired + expiring"
+                      : row.isExpired
+                        ? "Expired"
+                        : "Expiring",
                   detail: row.nearestExpiry ?? undefined,
                 }))}
                 emptyTitle="No expiry alerts"
