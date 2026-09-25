@@ -9,14 +9,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   cameraErrorMessage,
   canUseLiveCamera,
@@ -29,7 +21,7 @@ import {
   type CameraScannerSession,
 } from "@/services/hardware";
 import { Hardware, isCapacitor, permissionNeedMessage } from "@novend/hardware";
-import { Loader2, ScanBarcode } from "lucide-react";
+import { Loader2, ScanBarcode, SwitchCamera } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -246,10 +238,16 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
     };
   }, [open, session]);
 
-  async function switchCamera(nextDeviceId: string) {
-    if (!nextDeviceId || nextDeviceId === selectedDeviceId) return;
-    setSelectedDeviceId(nextDeviceId);
-    await startWebScanner(nextDeviceId);
+  async function switchCamera() {
+    if (devices.length < 2 || starting) return;
+    const currentIndex = Math.max(
+      0,
+      devices.findIndex((device) => device.deviceId === selectedDeviceId),
+    );
+    const next = devices[(currentIndex + 1) % devices.length];
+    if (!next?.deviceId || next.deviceId === selectedDeviceId) return;
+    setSelectedDeviceId(next.deviceId);
+    await startWebScanner(next.deviceId);
   }
 
   return (
@@ -259,26 +257,24 @@ export function ScanBarcodeCameraDialog({ open, onOpenChange, onDetect }: Props)
           <DialogTitle>Scan barcode</DialogTitle>
         </DialogHeader>
 
-        {devices.length > 1 && ready ? (
-          <div className="space-y-2">
-            <Label htmlFor="camera-select">Camera</Label>
-            <Select value={selectedDeviceId} onValueChange={(value) => void switchCamera(value)}>
-              <SelectTrigger id="camera-select">
-                <SelectValue placeholder="Select camera" />
-              </SelectTrigger>
-              <SelectContent>
-                {devices.map((device) => (
-                  <SelectItem key={device.deviceId || device.label} value={device.deviceId}>
-                    {device.label || "Camera"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : null}
-
         <div className="bg-muted relative aspect-video overflow-hidden rounded-lg">
           <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
+          {devices.length > 1 && ready ? (
+            <div className="absolute top-3 right-3 z-10">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="bg-background/90 hover:bg-background shadow-sm backdrop-blur-sm"
+                onClick={() => void switchCamera()}
+                disabled={starting}
+                aria-label="Switch camera"
+              >
+                <SwitchCamera className="h-4 w-4" />
+                Switch camera
+              </Button>
+            </div>
+          ) : null}
           {error || !canUseLiveCamera() ? (
             <div className="bg-muted absolute inset-0 grid place-items-center gap-3 p-4 text-center">
               <p className="text-muted-foreground text-sm">

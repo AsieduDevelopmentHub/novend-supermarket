@@ -14,6 +14,8 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Fixed
 
+- Barcode scan camera picker is a **Switch camera** control (no technical `camera 0, facing back` dropdown).
+- Marketing offline panel keeps rounded corners on mobile (`rounded-[24px]`), not square edge-to-edge.
 - Platform overview Active / Trial / Expired / Lifetime KPIs use a live org scan and exclude test organizations (no more stale `platformStats` active counts).
 - Inventory **Low stock** with All branches matches the dashboard: flag/list per branch that is low, not the org-wide stock sum (which hid items that were only low at one branch).
 - Inventory **Expiring / expired** filter shows FEFO alert-window units (`expiringQuantity` + expired), not full on-hand stock.
