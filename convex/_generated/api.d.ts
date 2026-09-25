@@ -87,6 +87,7 @@ import type * as shared_permissions from "../shared/permissions.js";
 import type * as shared_planChange from "../shared/planChange.js";
 import type * as shared_plans from "../shared/plans.js";
 import type * as shared_platformRevenue from "../shared/platformRevenue.js";
+import type * as shared_platformRoles from "../shared/platformRoles.js";
 import type * as shared_platformStatsAggregate from "../shared/platformStatsAggregate.js";
 import type * as shared_platformTelemetry from "../shared/platformTelemetry.js";
 import type * as shared_presence from "../shared/presence.js";
@@ -195,6 +196,7 @@ declare const fullApi: ApiFromModules<{
   "shared/planChange": typeof shared_planChange;
   "shared/plans": typeof shared_plans;
   "shared/platformRevenue": typeof shared_platformRevenue;
+  "shared/platformRoles": typeof shared_platformRoles;
   "shared/platformStatsAggregate": typeof shared_platformStatsAggregate;
   "shared/platformTelemetry": typeof shared_platformTelemetry;
   "shared/presence": typeof shared_presence;

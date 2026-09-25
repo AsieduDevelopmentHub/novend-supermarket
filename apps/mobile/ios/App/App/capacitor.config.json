@@ -5,7 +5,10 @@
   "server": {
     "androidScheme": "https",
     "hostname": "localhost",
-    "allowNavigation": ["novend-pos.vercel.app"],
+    "allowNavigation": [
+      "dashboard.novendpos.app",
+      "novend-pos.vercel.app"
+    ],
     "errorPath": "error.html"
   },
   "android": {

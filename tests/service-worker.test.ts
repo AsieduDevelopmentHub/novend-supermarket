@@ -56,7 +56,7 @@ describe("service worker navigation safety", () => {
   });
 
   it("does not precache gated app routes that 302 to login", () => {
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v18"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v19"');
     expect(sw).toContain("/branding/logo_horizontal.png");
     expect(sw).toContain("/docs/releases");
     expect(sw).toContain('"/pricing"');
@@ -66,6 +66,21 @@ describe("service worker navigation safety", () => {
     expect(sw).not.toMatch(/PRECACHE = \[[^\]]*\"\/\"/);
     // Must not use startsWith("/product") — that also matches /products.
     expect(sw).not.toMatch(/pathname\.startsWith\("\/product"\)/);
+  });
+
+  it("migrates warmed shells and Next static assets on CACHE_NAME bump", () => {
+    expect(sw).toContain("function migrateShellCaches");
+    expect(sw).toContain("function shouldMigrateCacheEntry");
+    expect(sw).toContain("MIGRATE_SHELL_PATHS");
+    expect(sw).toContain('"/dashboard"');
+    expect(sw).toContain('url.pathname.startsWith("/_next/static/")');
+    expect(sw).toContain("await migrateShellCaches(stale)");
+  });
+
+  it("co-caches /_next/static assets when storing shell HTML", () => {
+    expect(sw).toContain("function warmDocumentStaticAssets");
+    expect(sw).toContain("function extractNextStaticUrls");
+    expect(sw).toContain("await warmDocumentStaticAssets(html)");
   });
 });
 
@@ -77,5 +92,12 @@ describe("boot health probe", () => {
     expect(electronBoot).not.toContain("/api/health?boot=");
     expect(boot).toContain("fromBoot=1");
     expect(electronBoot).toContain("fromBoot=1");
+  });
+
+  it("Electron offline-boot defaults to the production POS host", () => {
+    expect(electronBoot).toContain("https://dashboard.novendpos.app");
+    expect(electronBoot).not.toContain(
+      'params.get("appUrl") || "https://novend-pos.vercel.app"',
+    );
   });
 });

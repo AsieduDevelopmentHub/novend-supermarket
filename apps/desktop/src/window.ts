@@ -10,7 +10,7 @@ import {
 
 const APP_DISPLAY_NAME = "Novend POS";
 export const PERSIST_PARTITION = "persist:novend";
-/** Cached shell route — must stay in public/sw.js PRECACHE. Last route is restored client-side via ?fromBoot=1. */
+/** Cached shell route — warmed after login (not PRECACHE; auth 302). Last route restores via ?fromBoot=1. */
 export const OFFLINE_ENTRY_PATH = "/dashboard";
 export const CUSTOMER_DISPLAY_ENTRY = "/customer-display";
 

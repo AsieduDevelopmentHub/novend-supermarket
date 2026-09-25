@@ -7,6 +7,7 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import {
   FIRST_ACTIVATION_REQUIRED,
   loadOfflineLicenseState,
+  resolveOfflineLicenseState,
   saveLicenseSnapshot,
   type OfflineLicenseState,
 } from "@/lib/offline/license";
@@ -87,6 +88,31 @@ function entitlementsFromSnapshot(snapshot: LicenseSnapshot | null, planKey: Pla
   };
 }
 
+function stateFromCachedSnapshot(cached: OfflineLicenseState & { snapshot: LicenseSnapshot }): Omit<
+  LicenseState,
+  "isLoading"
+> {
+  const plan = resolvePlan(cached.snapshot.planKey);
+  const entitlements = entitlementsFromSnapshot(cached.snapshot, plan.key);
+  return {
+    planKey: plan.key,
+    planName: cached.snapshot.planName,
+    limits: cached.snapshot.limits,
+    capabilities:
+      cached.snapshot.capabilities ?? planCapabilities(plan.key, cached.snapshot.limits),
+    ...entitlements,
+    access: cached.access,
+    cloudMode: normalizeCloudMode(cached.snapshot.cloudMode),
+    fromCache: true,
+    stale: cached.access.stale,
+    offlineState: cached.kind,
+    subscription: cached.snapshot.subscription,
+    organizationId: cached.snapshot.organizationId,
+    pendingClosure: cached.snapshot.pendingClosure ?? false,
+    closureEffectiveAt: cached.snapshot.closureEffectiveAt ?? null,
+  };
+}
+
 /**
  * The organization's licence, live when connected and cached when not.
  *
@@ -114,7 +140,18 @@ export function useLicense(): LicenseState {
 
   useEffect(() => {
     if (!remote) return;
-    void saveLicenseSnapshot(remote as LicenseSnapshot);
+    const snapshot = remote as LicenseSnapshot;
+    void saveLicenseSnapshot(snapshot);
+    // Keep React cache in sync so experience tokens survive Cap/Electron
+    // "online" false positives and mid-session disconnects without a remount.
+    setCached(
+      resolveOfflineLicenseState({
+        raw: JSON.stringify(snapshot),
+        activatedBefore: true,
+        establishedOrganizationId: snapshot.organizationId,
+      }),
+    );
+    setCacheReady(true);
   }, [remote]);
 
   if (remote) {
@@ -139,33 +176,23 @@ export function useLicense(): LicenseState {
     };
   }
 
-  if (!online && cached?.snapshot) {
-    const plan = resolvePlan(cached.snapshot.planKey);
-    const entitlements = entitlementsFromSnapshot(cached.snapshot, plan.key);
+  // Prefer the Dexie/localStorage snapshot whenever live remote is missing.
+  // Do not gate on !online — Cap/Electron often keep navigator.onLine true
+  // while Convex never resolves, which used to leave DEFAULT_NOVEND_EXPERIENCE
+  // painted (org colors "missing" offline).
+  if (cached?.snapshot) {
     return {
       isLoading: false,
-      planKey: plan.key,
-      planName: cached.snapshot.planName,
-      limits: cached.snapshot.limits,
-      capabilities:
-        cached.snapshot.capabilities ?? planCapabilities(plan.key, cached.snapshot.limits),
-      ...entitlements,
-      access: cached.access,
-      cloudMode: normalizeCloudMode(cached.snapshot.cloudMode),
-      fromCache: true,
-      stale: cached.access.stale,
-      offlineState: cached.kind,
-      subscription: cached.snapshot.subscription,
-      organizationId: cached.snapshot.organizationId,
-      pendingClosure: cached.snapshot.pendingClosure ?? false,
-      closureEffectiveAt: cached.snapshot.closureEffectiveAt ?? null,
+      ...stateFromCachedSnapshot(
+        cached as OfflineLicenseState & { snapshot: LicenseSnapshot },
+      ),
     };
   }
 
   const fallback = resolvePlan(undefined);
   const defaults = defaultLicenseEntitlements(fallback.key);
   return {
-    isLoading: (online && remote === undefined) || (!online && !cacheReady),
+    isLoading: !cacheReady || (online && isAuthenticated && remote === undefined),
     planKey: fallback.key,
     planName: fallback.name,
     limits: fallback.limits,
@@ -176,11 +203,11 @@ export function useLicense(): LicenseState {
     billingVisibility: defaults.billingVisibility,
     commercial: defaults.commercial,
     configVersion: defaults.configVersion,
-    access: !online && cached ? cached.access : DEFAULT_ACCESS,
+    access: cached ? cached.access : DEFAULT_ACCESS,
     cloudMode: DEFAULT_CLOUD_MODE,
     fromCache: false,
-    stale: cached?.kind === "stale",
-    offlineState: !online && cached ? cached.kind : null,
+    stale: false,
+    offlineState: cached ? cached.kind : null,
     subscription: null,
     organizationId: null,
     pendingClosure: false,

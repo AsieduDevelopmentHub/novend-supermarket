@@ -1,9 +1,11 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v18";
+const CACHE_NAME = "novend-pos-v19";
 /**
  * Public documents + icons only. Do not precache `/` or `/dashboard`:
  * cache.add follows the auth 302 and stores POS HTML under the marketing URL
  * (splash stuck on https://novend-pos.vercel.app/). Gated routes 302 to login.
+ * Authenticated shells are warmed after login (PwaRegister) and migrated on
+ * CACHE_NAME bumps so Cap/Electron cold boot keeps working offline.
  */
 const PRECACHE = [
   "/login",
@@ -27,6 +29,67 @@ const PRECACHE = [
   "/branding/login_hero.png",
 ];
 
+/** Paths that must survive a CACHE_NAME bump for Cap/Electron offline cold boot. */
+const MIGRATE_SHELL_PATHS = [
+  "/dashboard",
+  "/sales",
+  "/platform",
+  "/orders",
+  "/returns",
+  "/inventory",
+  "/wholesale",
+  "/customers",
+  "/products",
+  "/reports",
+  "/analytics",
+  "/settings",
+  "/more",
+  "/about",
+  "/users",
+  "/branches",
+  "/suppliers",
+  "/customer-display",
+  "/login",
+  "/signup",
+];
+
+function shouldMigrateCacheEntry(url) {
+  if (MIGRATE_SHELL_PATHS.includes(url.pathname)) return true;
+  return (
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/icons/") ||
+    url.pathname.startsWith("/branding/")
+  );
+}
+
+async function migrateShellCaches(oldCacheNames) {
+  const next = await caches.open(CACHE_NAME);
+  for (const name of oldCacheNames) {
+    const previous = await caches.open(name);
+    const requests = await previous.keys();
+    for (const request of requests) {
+      let parsed;
+      try {
+        parsed = new URL(request.url);
+      } catch {
+        continue;
+      }
+      if (parsed.origin !== self.location.origin) continue;
+      if (!shouldMigrateCacheEntry(parsed)) continue;
+      const already = await next.match(request);
+      if (already) continue;
+      const response = await previous.match(request);
+      if (response) {
+        try {
+          await next.put(request, response);
+        } catch {
+          /* ignore quota / opaque failures */
+        }
+      }
+    }
+  }
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -46,12 +109,18 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
-      )
-      .then(() => self.clients.claim()),
+    (async () => {
+      const keys = await caches.keys();
+      const stale = keys.filter((key) => key !== CACHE_NAME);
+      // Copy warmed shells + Next static assets before deleting old buckets.
+      // Without this, every CACHE_NAME bump wiped /dashboard and Cap/Electron
+      // airplane-mode cold start failed until the next online warm.
+      if (stale.length > 0) {
+        await migrateShellCaches(stale);
+      }
+      await Promise.all(stale.map((key) => caches.delete(key)));
+      await self.clients.claim();
+    })(),
   );
 });
 
@@ -148,6 +217,39 @@ function isLoginDocumentUrl(urlString) {
   }
 }
 
+function extractNextStaticUrls(html) {
+  const found = new Set();
+  const pattern = /(?:src|href)=["'](\/_next\/static\/[^"']+)["']/g;
+  let match;
+  while ((match = pattern.exec(html)) !== null) {
+    found.add(match[1]);
+  }
+  return [...found];
+}
+
+async function warmDocumentStaticAssets(html) {
+  const urls = extractNextStaticUrls(html);
+  if (urls.length === 0) return;
+  const cache = await caches.open(CACHE_NAME);
+  await Promise.all(
+    urls.map(async (pathname) => {
+      try {
+        const existing = await cache.match(pathname);
+        if (existing) return;
+        const response = await fetch(pathname, {
+          credentials: "same-origin",
+          cache: "no-cache",
+        });
+        if (response.ok) {
+          await cache.put(pathname, response);
+        }
+      } catch {
+        /* ignore — shell HTML may still load from older matching chunks */
+      }
+    }),
+  );
+}
+
 function cachePut(request, response) {
   if (!response || !response.ok || response.type === "opaque") return;
   // Never store a followed login 302 under /dashboard (ERR_FAILED on Cap).
@@ -166,7 +268,21 @@ function cachePut(request, response) {
     }
   }
   const copy = unwrapRedirect(response.clone());
-  void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+  const contentType = response.headers.get("content-type") || "";
+  const isHtml = contentType.includes("text/html");
+  void caches.open(CACHE_NAME).then(async (cache) => {
+    await cache.put(request, copy);
+    // Keep HTML and its hashed /_next/static chunks in the same cache generation
+    // so a mid-deploy offline reopen does not paint a blank shell.
+    if (isHtml) {
+      try {
+        const html = await response.clone().text();
+        await warmDocumentStaticAssets(html);
+      } catch {
+        /* ignore */
+      }
+    }
+  });
 }
 
 /**

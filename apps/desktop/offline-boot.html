@@ -101,7 +101,7 @@
     <script>
       (function () {
         var params = new URLSearchParams(window.location.search);
-        var appUrl = (params.get("appUrl") || "https://novend-pos.vercel.app").replace(/\/$/, "");
+        var appUrl = (params.get("appUrl") || "https://dashboard.novendpos.app").replace(/\/$/, "");
         var entry = params.get("entry") || "/dashboard";
         if (entry.charAt(0) !== "/") entry = "/" + entry;
         // fromBoot=1 lets the hosted app restore novend.lastRoute after load.

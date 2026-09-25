@@ -14,10 +14,11 @@ export function useOrganizationExperience() {
   const { experience, configVersion, isLoading, fromCache } = useLicense();
 
   useEffect(() => {
+    if (isLoading && !fromCache) return;
     applyExperienceTokens(experience ?? DEFAULT_NOVEND_EXPERIENCE, {
       version: configVersion,
     });
-  }, [experience, configVersion]);
+  }, [experience, configVersion, isLoading, fromCache]);
 
   return {
     experience: experience ?? DEFAULT_NOVEND_EXPERIENCE,

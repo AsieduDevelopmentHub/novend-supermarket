@@ -50,6 +50,13 @@ async function unregisterServiceWorkers() {
   }
 }
 
+function warmShellRoutes() {
+  if (!navigator.onLine || isAuthPath(window.location.pathname)) return;
+  void Promise.all(
+    SHELL_ROUTES.map((path) => fetch(path, { credentials: "same-origin" }).catch(() => undefined)),
+  );
+}
+
 /**
  * Register the service worker so Capacitor and the web PWA can open from
  * Cache Storage after one online visit. Development stays off unless
@@ -67,24 +74,27 @@ export function PwaRegister() {
       return;
     }
 
+    const onControllerChange = () => {
+      // New SW claimed after a CACHE_NAME bump — re-warm shells into the new bucket.
+      warmShellRoutes();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+
     void navigator.serviceWorker
       .register("/sw.js")
       .then(async (registration) => {
         await registration.update().catch(() => undefined);
         await navigator.serviceWorker.ready;
-        if (!navigator.onLine || isAuthPath(window.location.pathname)) {
-          return registration;
-        }
-        void Promise.all(
-          SHELL_ROUTES.map((path) =>
-            fetch(path, { credentials: "same-origin" }).catch(() => undefined),
-          ),
-        );
+        warmShellRoutes();
         return registration;
       })
       .catch((error) => {
         console.info("[pwa] service worker registration skipped", error);
       });
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+    };
   }, []);
 
   return null;

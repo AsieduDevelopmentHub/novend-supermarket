@@ -67,7 +67,7 @@ offline-first login path.
 ## Layers
 
 ```text
-Next.js UI (renderer at novend-pos.vercel.app)
+Next.js UI (renderer at dashboard.novendpos.app)
         ↓
 window.novendDesktop (preload)
         ↓

@@ -14,13 +14,16 @@ type Props = {
  * (useLayoutEffect) using the live or offline-cached licence snapshot.
  */
 export function OrganizationExperienceRoot({ children }: Props) {
-  const { experience, configVersion } = useLicense();
+  const { experience, configVersion, isLoading, fromCache, organizationId } = useLicense();
 
   useLayoutEffect(() => {
+    // Avoid painting DEFAULT_NOVEND_EXPERIENCE over a custom org theme while the
+    // offline licence is still loading from Dexie.
+    if (isLoading && !fromCache && !organizationId) return;
     applyExperienceTokens(experience ?? DEFAULT_NOVEND_EXPERIENCE, {
       version: configVersion,
     });
-  }, [experience, configVersion]);
+  }, [experience, configVersion, isLoading, fromCache, organizationId]);
 
   return <>{children}</>;
 }
