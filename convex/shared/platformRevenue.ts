@@ -39,7 +39,10 @@ function normalizeToMonthly(amount: number, cycle: "monthly" | "yearly"): number
 /**
  * Monthly recurring GH₵ for one subscription.
  * Price order: subscription.amount (recognized) → live commercial offer → catalog.
- * Offer prices alone do not change MRR until applied onto the subscription.
+ *
+ * Catalog list price is only a fallback for fixed self-serve plans with no live
+ * commercial offer. Negotiated/enterprise (`priceFrom`) orgs with amount 0 must
+ * not invent MRR from the public starting price (that produced phantom ₵625).
  */
 export function subscriptionMrr(
   sub: MrrSubscriptionInput,
@@ -56,14 +59,20 @@ export function subscriptionMrr(
     return normalizeToMonthly(sub.amount, cycle);
   }
 
-  if (offer && isCommercialOfferLive(offer, now)) {
-    const offerAmount = offerPriceForCycle(offer, cycle);
+  const liveOffer = offer && isCommercialOfferLive(offer, now) ? offer : null;
+  if (liveOffer) {
+    const offerAmount = offerPriceForCycle(liveOffer, cycle);
     if (offerAmount !== null && offerAmount > 0) {
       return normalizeToMonthly(offerAmount, cycle);
     }
+    // Negotiated tenant: unset offer/sub amount is not recognized revenue.
+    return 0;
   }
 
   const plan = resolvePlan(sub.planKey);
+  // Enterprise (and other quote-from plans) never contribute catalog list MRR.
+  if (plan.priceFrom) return 0;
+
   if (cycle === "yearly" && plan.yearlyPrice) {
     return plan.yearlyPrice / 12;
   }

@@ -1857,10 +1857,14 @@ export const assignPlan = mutation({
         ? offerPriceForCycle(offer, args.cycle)
         : null;
     const catalogAmount = priceForCycle(plan, args.cycle);
+    // Offer amount 0 is not a valid negotiated price — fall through to catalog
+    // (or require an explicit args.amount from PEAS).
     const amount =
       args.amount !== undefined && args.amount >= 0
         ? args.amount
-        : (offerAmount ?? catalogAmount ?? 0);
+        : offerAmount !== null && offerAmount > 0
+          ? offerAmount
+          : (catalogAmount ?? 0);
     if (!(amount >= 0)) {
       throw new Error("Enter a valid charge amount for this assignment.");
     }

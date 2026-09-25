@@ -8,6 +8,8 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Fixed
 
+- Platform MRR no longer invents enterprise catalog list price when subscription amount is 0 or a commercial offer has yearlyPrice 0; assignPlan ignores zero offer amounts.
+
 - Platform financial KPIs now exclude test organizations and use recognized subscription amounts (not catalog fallbacks); stale pending Paystack checkouts and duplicate/manual test success charges were cleaned so MRR/ARR/gross match real commercial payments.
 - Login atmosphere orbs/charts and input focus ring follow the org accent (no leftover Candy Blue when the business colour is set).
 - Remove the offline login explainer banner (email + password is enough).

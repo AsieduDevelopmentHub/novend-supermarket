@@ -59,6 +59,26 @@ describe("subscriptionMrr recognized revenue", () => {
     );
   });
 
+  it("does not invent enterprise catalog MRR when amount is unset", () => {
+    expect(
+      subscriptionMrr(
+        sub({ amount: 0, planKey: "enterprise", billingCycle: "yearly" }),
+        null,
+        NOW,
+      ),
+    ).toBe(0);
+  });
+
+  it("does not fall back to catalog when a live commercial offer has no positive price", () => {
+    expect(
+      subscriptionMrr(
+        sub({ amount: 0, planKey: "enterprise", billingCycle: "yearly" }),
+        offer({ yearlyPrice: 0, monthlyPrice: undefined, basePlanKey: "enterprise" }),
+        NOW,
+      ),
+    ).toBe(0);
+  });
+
   it("normalizes yearly catalog and subscription amounts to monthly", () => {
     expect(
       subscriptionMrr(
