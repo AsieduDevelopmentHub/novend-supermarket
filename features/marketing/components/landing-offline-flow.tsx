@@ -11,7 +11,7 @@ export function LandingOfflineFlow() {
       className="scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24"
     >
       <div className="mx-auto max-w-[1240px]">
-        <div className="overflow-hidden rounded-none bg-[#071426] px-5 py-16 text-white sm:rounded-[32px] sm:px-10 sm:py-20 lg:px-14 lg:py-24">
+        <div className="overflow-hidden rounded-[24px] bg-[#071426] px-5 py-16 text-white sm:rounded-[32px] sm:px-10 sm:py-20 lg:px-14 lg:py-24">
           <header data-reveal className="mx-auto max-w-2xl text-center">
             <p className="text-primary text-[13px] font-semibold tracking-[0.14em] uppercase">
               {offlineFlow.eyebrow}
