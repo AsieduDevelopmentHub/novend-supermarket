@@ -8,6 +8,7 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Fixed
 
+- Hide “Back to website” on Capacitor and Electron login (web dashboard keeps the marketing link).
 - Dashboard low-stock and expiry KPIs/lists always span every branch (with branch tags), instead of falling back to the home branch; inventory alert links open org-wide.
 - Quiet sync chrome while offline or on an offline shell (no JWT): calm “saved on this device” / “Cloud disconnected” copy; conflict banner only when online and authenticated.
 - In-place **Connect to cloud** when the network returns during an offline session — password once, stay on the current POS route, then flush the outbox (no forced `/login`).

@@ -13,6 +13,7 @@ import {
 } from "@/lib/errors";
 import Image from "next/image";
 import { ArrowLeft, Mail } from "lucide-react";
+import { isCapacitor, isElectron } from "@novend/hardware";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -94,6 +95,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const fromBoot = searchParams.get("fromBoot") === "1";
   const signedOut = searchParams.get("signedOut") === "1" || hasExplicitLogout();
   const redirectingRef = useRef(false);
+  /** Cap / Electron are the product shell — no escape hatch to the marketing site. */
+  const [hideWebsiteLink, setHideWebsiteLink] = useState(false);
+
+  useEffect(() => {
+    setHideWebsiteLink(isCapacitor() || isElectron());
+  }, []);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -281,13 +288,15 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 
   return (
     <div className="mx-auto w-full max-w-[360px]">
-      <Link
-        href={websiteHref}
-        className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-        Back to website
-      </Link>
+      {!hideWebsiteLink ? (
+        <Link
+          href={websiteHref}
+          className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+          Back to website
+        </Link>
+      ) : null}
 
       <FormHeader compact={compact} />
 
