@@ -62,7 +62,7 @@ export function PlatformRevenueView() {
     <div className="space-y-6">
       <PageHeader
         title="Revenue"
-        description="Subscription MRR, collected payments, and profit after platform operating costs."
+        description="Recognized subscription MRR (active and past-due only; custom offers when set), collected payments, and profit after platform operating costs."
         actions={
           <div className="flex flex-wrap gap-1">
             {RANGES.map((item) => (

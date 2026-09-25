@@ -6,6 +6,7 @@ import { requirePlatformAdmin } from "./shared/permissions";
 import { enrichAuditLogRow } from "./shared/auditEnrichment";
 import { resolvePlan, type PlanKey } from "./shared/plans";
 import { utcDay } from "./shared/platformTelemetry";
+import { indexLiveOffersByOrganization, subscriptionMrr } from "./shared/platformRevenue";
 
 const rangeValidator = v.union(
   v.literal("7d"),
@@ -26,28 +27,6 @@ const RANGE_DAYS: Record<Exclude<MonitoringRange, "all">, number> = {
 
 function sinceForRange(range: MonitoringRange, now: number) {
   return range === "all" ? 0 : now - RANGE_DAYS[range] * 24 * 60 * 60 * 1000;
-}
-
-function subscriptionMrr(subscription: {
-  status: string;
-  isLifetime: boolean;
-  billingCycle: string;
-  amount: number;
-  planKey: PlanKey;
-}) {
-  if (
-    subscription.isLifetime ||
-    !["active", "trialing", "past_due"].includes(subscription.status)
-  ) {
-    return 0;
-  }
-  const amount =
-    subscription.amount > 0
-      ? subscription.amount
-      : subscription.billingCycle === "yearly"
-        ? (resolvePlan(subscription.planKey).yearlyPrice ?? 0)
-        : (resolvePlan(subscription.planKey).monthlyPrice ?? 0);
-  return subscription.billingCycle === "yearly" ? amount / 12 : amount;
 }
 
 function countUnique<T>(rows: T[], key: (row: T) => string) {
@@ -87,6 +66,7 @@ export const dashboard = query({
       activeUsers,
       rollups,
       baselines,
+      commercialOffers,
     ] = await Promise.all([
       ctx.db.query("organizations").collect(),
       ctx.db.query("organizationPlatformStats").collect(),
@@ -119,7 +99,10 @@ export const dashboard = query({
         .withIndex("by_day_metric_dimension", (q) => q.gte("day", rollupSinceDay))
         .collect(),
       ctx.db.query("releaseDownloadBaselines").collect(),
+      ctx.db.query("commercialOffers").collect(),
     ]);
+
+    const liveOffersByOrg = indexLiveOffersByOrganization(commercialOffers, now);
 
     const staffAccounts = orgStats.reduce((sum, row) => sum + row.userCount, 0);
     const successfulPayments = billing.filter(
@@ -138,7 +121,24 @@ export const dashboard = query({
       .filter((row) => row.metric === "release_download" && row.dimension === "all")
       .reduce((sum, row) => sum + row.value, 0);
     const baselineDownloads = baselines.reduce((sum, row) => sum + row.downloadCount, 0);
-    const mrr = subscriptions.reduce((sum, subscription) => sum + subscriptionMrr(subscription), 0);
+
+    // One contribution per organization (latest subscription), matching revenue analytics.
+    const latestSubByOrg = new Map<string, (typeof subscriptions)[number]>();
+    for (const subscription of subscriptions) {
+      const key = String(subscription.organizationId);
+      const existing = latestSubByOrg.get(key);
+      if (!existing || subscription.updatedAt > existing.updatedAt) {
+        latestSubByOrg.set(key, subscription);
+      }
+    }
+    let mrr = 0;
+    for (const org of organizations) {
+      const sub = org.subscriptionId
+        ? subscriptions.find((row) => row._id === org.subscriptionId)
+        : latestSubByOrg.get(String(org._id));
+      if (!sub) continue;
+      mrr += subscriptionMrr(sub, liveOffersByOrg.get(String(org._id)) ?? null, now);
+    }
 
     const activeRowsSince = (timestamp: number) =>
       activeUsers.filter((row) => row.lastSeenAt >= timestamp);

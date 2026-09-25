@@ -1,11 +1,12 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requirePlatformAdmin } from "./shared/permissions";
-import { PLAN_CATALOG, resolvePlan, type PlanKey } from "./shared/plans";
+import { resolvePlan, type PlanKey } from "./shared/plans";
 import { platformCostCategoryValidator } from "./schema";
 import { sanitizeText } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
 import { utcDay } from "./shared/platformTelemetry";
+import { indexLiveOffersByOrganization, subscriptionMrr } from "./shared/platformRevenue";
 
 const RANGE_MS = {
   today: 24 * 60 * 60 * 1000,
@@ -39,28 +40,6 @@ function monthLabel(key: string) {
   return new Date(y, m - 1, 1).toLocaleString("en-GH", { month: "short", year: "numeric" });
 }
 
-/** Normalize a paid subscription into monthly recurring GH₵. Lifetime is excluded from MRR. */
-function subscriptionMrr(sub: {
-  status: string;
-  isLifetime: boolean;
-  billingCycle: string;
-  amount: number;
-  planKey: PlanKey;
-}): number {
-  if (sub.isLifetime) return 0;
-  if (sub.status !== "active" && sub.status !== "trialing" && sub.status !== "past_due") {
-    return 0;
-  }
-  if (sub.amount > 0) {
-    if (sub.billingCycle === "yearly") return sub.amount / 12;
-    if (sub.billingCycle === "monthly") return sub.amount;
-  }
-  const plan = PLAN_CATALOG[sub.planKey];
-  if (sub.billingCycle === "yearly" && plan.yearlyPrice) return plan.yearlyPrice / 12;
-  if (plan.monthlyPrice) return plan.monthlyPrice;
-  return 0;
-}
-
 export const revenueAnalytics = query({
   args: {
     range: v.optional(rangeOrAllValidator),
@@ -71,13 +50,17 @@ export const revenueAnalytics = query({
     const now = Date.now();
     const since = rangeSince(range, now);
 
-    const [organizations, subscriptions, billing, costs, backups] = await Promise.all([
-      ctx.db.query("organizations").collect(),
-      ctx.db.query("subscriptions").collect(),
-      ctx.db.query("billingHistory").collect(),
-      ctx.db.query("platformOperatingCosts").collect(),
-      ctx.db.query("cloudBackups").collect(),
-    ]);
+    const [organizations, subscriptions, billing, costs, backups, commercialOffers] =
+      await Promise.all([
+        ctx.db.query("organizations").collect(),
+        ctx.db.query("subscriptions").collect(),
+        ctx.db.query("billingHistory").collect(),
+        ctx.db.query("platformOperatingCosts").collect(),
+        ctx.db.query("cloudBackups").collect(),
+        ctx.db.query("commercialOffers").collect(),
+      ]);
+
+    const liveOffersByOrg = indexLiveOffersByOrganization(commercialOffers, now);
 
     const latestSubByOrg = new Map<string, (typeof subscriptions)[number]>();
     for (const sub of subscriptions) {
@@ -104,7 +87,9 @@ export const revenueAnalytics = query({
         ? subscriptions.find((s) => s._id === org.subscriptionId)
         : latestSubByOrg.get(String(org._id));
       if (sub?.isLifetime || planKey === "lifetime") lifetimeLicenses += 1;
-      if (sub) mrr += subscriptionMrr(sub);
+      if (sub) {
+        mrr += subscriptionMrr(sub, liveOffersByOrg.get(String(org._id)) ?? null, now);
+      }
     }
 
     const successfulPayments = billing.filter(
@@ -504,11 +489,13 @@ export type PlatformInsightMetric =
 const INSIGHT_COPY: Record<PlatformInsightMetric, { title: string; description: string }> = {
   mrr: {
     title: "Monthly Recurring Revenue",
-    description: "Recurring value of every active or trialing subscription, normalized to a month.",
+    description:
+      "Recognized recurring value of active and past-due subscriptions (custom offer price when set), normalized to a month. Trials are excluded until first payment.",
   },
   arr: {
     title: "Annual Recurring Revenue",
-    description: "MRR annualized (× 12) — the run-rate if today's subscriptions hold for a year.",
+    description:
+      "MRR annualized (× 12) — the run-rate if today's paying subscriptions hold for a year.",
   },
   "active-organizations": {
     title: "Active Organizations",
@@ -567,13 +554,17 @@ export const getInsightDetail = query({
     const since = rangeSince(range, now);
     const copy = INSIGHT_COPY[args.metric];
 
-    const [organizations, subscriptions, devices, backups, billing] = await Promise.all([
-      ctx.db.query("organizations").collect(),
-      ctx.db.query("subscriptions").collect(),
-      ctx.db.query("devices").collect(),
-      ctx.db.query("cloudBackups").collect(),
-      ctx.db.query("billingHistory").collect(),
-    ]);
+    const [organizations, subscriptions, devices, backups, billing, commercialOffers] =
+      await Promise.all([
+        ctx.db.query("organizations").collect(),
+        ctx.db.query("subscriptions").collect(),
+        ctx.db.query("devices").collect(),
+        ctx.db.query("cloudBackups").collect(),
+        ctx.db.query("billingHistory").collect(),
+        ctx.db.query("commercialOffers").collect(),
+      ]);
+
+    const liveOffersByOrg = indexLiveOffersByOrganization(commercialOffers, now);
 
     const latestSubByOrg = new Map<string, (typeof subscriptions)[number]>();
     for (const sub of subscriptions) {
@@ -627,7 +618,11 @@ export const getInsightDetail = query({
         for (const org of organizations) {
           const sub = subFor(org);
           if (!sub) continue;
-          const contribution = subscriptionMrr(sub);
+          const contribution = subscriptionMrr(
+            sub,
+            liveOffersByOrg.get(String(org._id)) ?? null,
+            now,
+          );
           mrr += contribution;
           const planName = resolvePlan(org.planKey).name;
           byPlan.set(planName, (byPlan.get(planName) ?? 0) + contribution);

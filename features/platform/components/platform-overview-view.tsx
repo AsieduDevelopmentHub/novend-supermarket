@@ -123,7 +123,7 @@ export function PlatformOverviewView() {
         <Kpi
           title="MRR"
           value={revenue ? formatCurrency(revenue.mrr) : "—"}
-          hint="Monthly recurring"
+          hint="Paying orgs only"
           icon={TrendingUp}
           href="/platform/insights/mrr"
         />
