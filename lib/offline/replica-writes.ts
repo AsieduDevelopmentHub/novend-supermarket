@@ -515,9 +515,22 @@ export async function queueUpsertProduct(
   // Enforce the plan product limit locally before queueing an offline create;
   // Convex re-checks on sync. Updates never hit the create limit.
   if (isCreate) await assertLocalCapacity("products");
-  const stockQuantity = isCreate ? payload.stockQuantity : (existing.stockQuantity ?? 0);
-  const openingQty = Math.max(0, Math.floor(stockQuantity));
   const tracksExpiry = payload.tracksExpiry === true;
+  const applyStockOnUpdate =
+    !isCreate && payload.applyStockQuantity === true && existing !== undefined;
+  if (applyStockOnUpdate) {
+    await assertFeatureEnabled("products.editStock");
+    if (tracksExpiry || existing.tracksExpiry === true) {
+      throw new Error("Use Inventory or Expiry lots to change stock on dated products");
+    }
+  }
+  const nextStock = Math.max(0, Math.floor(payload.stockQuantity));
+  const stockQuantity = isCreate
+    ? nextStock
+    : applyStockOnUpdate
+      ? nextStock
+      : (existing?.stockQuantity ?? 0);
+  const openingQty = Math.max(0, Math.floor(isCreate ? stockQuantity : 0));
   const alertDays = payload.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS;
   const expiryStatus =
     tracksExpiry && payload.expiryDate ? lotStatus(payload.expiryDate, alertDays) : "ok";
@@ -536,7 +549,11 @@ export async function queueUpsertProduct(
     sellingPrice: payload.sellingPrice,
     costPrice: payload.costPrice,
     stockQuantity,
-    sellableQuantity: isCreate ? stockQuantity : (existing.sellableQuantity ?? stockQuantity),
+    sellableQuantity: isCreate
+      ? stockQuantity
+      : applyStockOnUpdate
+        ? stockQuantity
+        : (existing.sellableQuantity ?? stockQuantity),
     unit: payload.unit,
     sellUnits: payload.sellUnits ?? existing?.sellUnits ?? null,
     pricingMode: payload.pricingMode ?? existing?.pricingMode ?? null,
@@ -584,6 +601,22 @@ export async function queueUpsertProduct(
         updatedAt: Date.now(),
       });
     }
+  } else if (applyStockOnUpdate) {
+    const branchId = payload.branchId ?? (await getMeta(db, META_KEYS.profileBranchId));
+    if (!branchId) {
+      throw new Error("Select a branch before editing stock");
+    }
+    const rowId = branchStockId(branchId, localId);
+    const existingRow = await db.branchStock.get(rowId);
+    await db.branchStock.put({
+      id: rowId,
+      branchId,
+      productId: localId,
+      quantity: stockQuantity,
+      sellableQuantity: stockQuantity,
+      isExpiring: existingRow?.isExpiring,
+      updatedAt: Date.now(),
+    });
   }
   if (clearImage) {
     await deleteProductImage(localId);
@@ -600,7 +633,8 @@ export async function queueUpsertProduct(
     {
       ...rest,
       localId,
-      stockQuantity: isCreate ? payload.stockQuantity : 0,
+      stockQuantity: isCreate ? payload.stockQuantity : stockQuantity,
+      applyStockQuantity: applyStockOnUpdate || undefined,
       hasLocalImage: clearImage ? false : Boolean(imageBlob) || payload.hasLocalImage,
       clearImage: clearImage || undefined,
     } satisfies UpsertProductPayload,

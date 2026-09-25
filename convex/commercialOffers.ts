@@ -88,7 +88,7 @@ function normalizePrices(args: {
 export const listForOrganization = query({
   args: { organizationId: v.id("organizations") },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "entitlements.write");
     const org = await ctx.db.get(args.organizationId);
     if (!org) return [];
     const rows = await ctx.db
@@ -102,7 +102,7 @@ export const listForOrganization = query({
 export const get = query({
   args: { offerId: v.id("commercialOffers") },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "entitlements.write");
     return await ctx.db.get(args.offerId);
   },
 });
@@ -131,7 +131,7 @@ export const createDraft = mutation({
     customerMessage: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const org = await ctx.db.get(args.organizationId);
     if (!org) throw new Error("Organization not found.");
 
@@ -222,7 +222,7 @@ export const update = mutation({
     customerMessage: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const offer = await ctx.db.get(args.offerId);
     if (!offer) throw new Error("Commercial offer not found.");
     if (offer.status === "accepted" || offer.status === "withdrawn" || offer.status === "expired") {
@@ -316,7 +316,7 @@ export const update = mutation({
 export const activate = mutation({
   args: { offerId: v.id("commercialOffers") },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const offer = await ctx.db.get(args.offerId);
     if (!offer) throw new Error("Commercial offer not found.");
     if (offer.status !== "draft" && offer.status !== "withdrawn") {
@@ -383,7 +383,7 @@ export const activate = mutation({
 export const withdraw = mutation({
   args: { offerId: v.id("commercialOffers") },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const offer = await ctx.db.get(args.offerId);
     if (!offer) throw new Error("Commercial offer not found.");
     if (offer.status === "withdrawn" || offer.status === "expired") {

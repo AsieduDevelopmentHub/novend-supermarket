@@ -135,7 +135,7 @@ export const purgeChannel = internalMutation({
 export const listRecent = query({
   args: { channel: v.optional(channelValidator), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "releases.read");
     const channel = args.channel ?? "stable";
     const limit = Math.min(Math.max(args.limit ?? 20, 1), 50);
     const rows = await ctx.db
@@ -157,7 +157,7 @@ export const listRecent = query({
 export const getForPlatform = query({
   args: { version: v.string() },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "releases.read");
     const version = args.version.trim().replace(/^v/, "");
     const row =
       (await ctx.db

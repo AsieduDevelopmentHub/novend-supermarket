@@ -76,7 +76,7 @@ export const list = query({
     status: v.optional(featureTemplateStatusValidator),
   },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "entitlements.write");
     const rows = await ctx.db.query("featureTemplates").collect();
     const filtered = args.status ? rows.filter((row) => row.status === args.status) : rows;
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
@@ -86,7 +86,7 @@ export const list = query({
 export const get = query({
   args: { templateId: v.id("featureTemplates") },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "entitlements.write");
     return await ctx.db.get(args.templateId);
   },
 });
@@ -104,7 +104,7 @@ export const create = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const key = sanitizeTemplateKey(args.key);
     const name = sanitizeText(args.name, "Template name", TEXT_LIMITS.name);
     const description = sanitizeOptionalText(
@@ -158,7 +158,7 @@ export const update = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const template = await ctx.db.get(args.templateId);
     if (!template) throw new Error("Feature template not found.");
     if (template.status === "archived") {
@@ -202,7 +202,7 @@ export const update = mutation({
 export const archive = mutation({
   args: { templateId: v.id("featureTemplates") },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const template = await ctx.db.get(args.templateId);
     if (!template) throw new Error("Feature template not found.");
     if (template.status === "archived") return args.templateId;
@@ -230,7 +230,7 @@ export const assignToOrganization = mutation({
     featureTemplateId: v.union(v.id("featureTemplates"), v.null()),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const org = await ctx.db.get(args.organizationId);
     if (!org) throw new Error("Organization not found.");
 
@@ -272,7 +272,7 @@ export const setOrganizationFeatureOverrides = mutation({
     featureOverrides: v.array(featureOverrideEntryValidator),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const org = await ctx.db.get(args.organizationId);
     if (!org) throw new Error("Organization not found.");
 
@@ -308,7 +308,7 @@ export const setOrganizationBillingVisibility = mutation({
     billingVisibility: billingVisibilityValidator,
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const org = await ctx.db.get(args.organizationId);
     if (!org) throw new Error("Organization not found.");
 

@@ -387,7 +387,7 @@ export const seedDownloadBaselines = action({
 export const requirePlatformAdminForAction = internalQuery({
   args: {},
   handler: async (ctx) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "analytics.read");
     return true;
   },
 });
@@ -418,7 +418,7 @@ export const activity = query({
     kind: v.optional(telemetryEventKindValidator),
   },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "analytics.read");
     const limit = Math.min(Math.max(Math.trunc(args.limit ?? 50), 1), 100);
     const page = args.kind
       ? await ctx.db
@@ -458,7 +458,7 @@ export const recordAdminExport = mutation({
     range: v.string(),
   },
   handler: async (ctx, args) => {
-    const admin = await requirePlatformAdmin(ctx);
+    const admin = await requirePlatformAdmin(ctx, "analytics.read");
     const occurredAt = Date.now();
     await ctx.db.insert("platformEvents", {
       actorId: admin.userId,

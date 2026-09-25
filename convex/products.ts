@@ -6,10 +6,11 @@ import {
   assertOrgDoc,
   canManageCatalog,
   canViewCostPrice,
+  requireBranchId,
   requireRole,
   resolveBranchFilter,
 } from "./shared/permissions";
-import { assertOrganizationCapacity } from "./shared/entitlements";
+import { assertOrganizationCapacity, assertOrganizationFeature } from "./shared/entitlements";
 import { assertOwnedStorage, beginStorageUploadSession } from "./shared/storageSessions";
 import {
   assertPositiveMoney,
@@ -42,8 +43,14 @@ async function assertUniqueBarcode(
 }
 import { writeAuditLog } from "./shared/audit";
 import { bumpOrgProductCount, productCountsTowardUsage } from "./shared/organizationStats";
-import { ensureBranchStockRow, stockMapForBranch, stockMapOrgWide } from "./shared/branchStock";
 import {
+  ensureBranchStockRow,
+  getBranchQuantity,
+  stockMapForBranch,
+  stockMapOrgWide,
+} from "./shared/branchStock";
+import {
+  applyInventoryMovement,
   convertOnHandToOpeningLots,
   DEFAULT_EXPIRY_ALERT_DAYS,
   deriveExpiryListFields,
@@ -405,9 +412,11 @@ export const updateProduct = mutation({
     tracksExpiry: v.optional(v.boolean()),
     expiryAlertDays: v.optional(v.number()),
     openingExpiryDate: v.optional(v.string()),
+    /** Absolute branch stock — only when products.editStock entitlement is on. */
+    stockQuantity: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, [
+    const { userId, profile, organizationId, organization } = await requireRole(ctx, [
       "administrator",
       "manager",
     ]);
@@ -474,6 +483,31 @@ export const updateProduct = mutation({
         throw new Error(
           "Write off or sell remaining dated stock before turning off expiry tracking",
         );
+      }
+    }
+
+    if (args.stockQuantity !== undefined) {
+      await assertOrganizationFeature(ctx, organization, "products.editStock");
+      if (tracksExpiry || product.tracksExpiry === true) {
+        throw new Error("Use Inventory or Expiry lots to change stock on dated products");
+      }
+      if (!Number.isFinite(args.stockQuantity) || args.stockQuantity < 0) {
+        throw new Error("Invalid stock quantity");
+      }
+      const target = Math.floor(args.stockQuantity);
+      const { branchId } = await requireBranchId(ctx);
+      assertBranchAccess(profile, branchId);
+      const current = await getBranchQuantity(ctx, branchId, args.id);
+      const delta = target - current;
+      if (delta !== 0) {
+        await applyInventoryMovement(ctx, {
+          product,
+          branchId,
+          quantityChange: delta,
+          reason: "adjustment",
+          note: "Set from product edit",
+          performedBy: userId,
+        });
       }
     }
 

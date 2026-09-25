@@ -74,6 +74,11 @@ One Convex Auth user belongs to exactly one organization
 Platform super-admin (`platformAdmins`) sits outside organization RBAC.
 Sign-in opens `/platform`, not tenant Dashboard. Tenant queries such as
 `branches:list` are not called for a platform-only session.
+
+Platform staff roles (`owner`, `operator`, `support`, `analyst`) scope console
+access. Owners manage other platform staff under `/platform/staff`. Legacy
+membership rows without a role are treated as owners.
+
 Billing, plans and activation are documented in [`BILLING.md`](./BILLING.md).
 
 # IDOR test

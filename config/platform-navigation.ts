@@ -6,8 +6,11 @@ import {
   LayoutDashboard,
   Package,
   Receipt,
+  Users,
   type LucideIcon,
 } from "lucide-react";
+import type { PlatformPermission } from "@/convex/shared/platformRoles";
+import { permissionForPlatformPath } from "@/convex/shared/platformRoles";
 
 export type PlatformNavGroupId = "overview" | "analytics" | "tenants";
 
@@ -30,6 +33,8 @@ export type PlatformNavItem = {
   icon: LucideIcon;
   /** Match pathname exactly (used for `/platform` overview). */
   exact?: boolean;
+  /** Minimum permission to show this item. */
+  permission: PlatformPermission;
 };
 
 export type PlatformNavGroup = {
@@ -48,6 +53,7 @@ export const PLATFORM_NAV_GROUPS: PlatformNavGroup[] = [
         href: "/platform",
         icon: LayoutDashboard,
         exact: true,
+        permission: "overview.read",
       },
     ],
   },
@@ -59,16 +65,19 @@ export const PLATFORM_NAV_GROUPS: PlatformNavGroup[] = [
         title: "Monitoring",
         href: "/platform/analytics",
         icon: BarChart3,
+        permission: "analytics.read",
       },
       {
         title: "Activity",
         href: "/platform/activity",
         icon: Activity,
+        permission: "analytics.read",
       },
       {
         title: "Exports",
         href: "/platform/exports",
         icon: FileDown,
+        permission: "analytics.read",
       },
     ],
   },
@@ -80,20 +89,39 @@ export const PLATFORM_NAV_GROUPS: PlatformNavGroup[] = [
         title: "Organizations",
         href: "/platform/organizations",
         icon: Building2,
+        permission: "orgs.read",
       },
       {
         title: "Releases",
         href: "/platform/releases",
         icon: Package,
+        permission: "releases.read",
       },
       {
         title: "Operating costs",
         href: "/platform/costs",
         icon: Receipt,
+        permission: "costs.read",
+      },
+      {
+        title: "Platform staff",
+        href: "/platform/staff",
+        icon: Users,
+        permission: "staff.manage",
       },
     ],
   },
 ];
+
+export function platformNavGroupsForPermissions(
+  permissions: readonly string[] | null | undefined,
+): PlatformNavGroup[] {
+  const allowed = new Set(permissions ?? []);
+  return PLATFORM_NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => allowed.has(item.permission)),
+  })).filter((group) => group.items.length > 0);
+}
 
 export function platformNavItemActive(pathname: string, item: PlatformNavItem): boolean {
   if (item.exact) return pathname === item.href;
@@ -102,6 +130,7 @@ export function platformNavItemActive(pathname: string, item: PlatformNavItem): 
 
 export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | null {
   if (path.startsWith("/platform/payments/")) return "analytics";
+  if (path.startsWith("/platform/staff")) return "tenants";
   if (path.startsWith("/platform/releases") || path.startsWith("/platform/costs")) {
     return "tenants";
   }
@@ -127,6 +156,7 @@ export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | 
     "activity",
     "exports",
     "help",
+    "staff",
   ]);
   const orgMatch = path.match(/^\/platform\/([^/]+)\/?$/);
   if (orgMatch && !reserved.has(orgMatch[1])) {
@@ -147,3 +177,5 @@ export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | 
 
   return best?.id ?? null;
 }
+
+export { permissionForPlatformPath };

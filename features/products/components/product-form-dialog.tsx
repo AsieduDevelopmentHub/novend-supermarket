@@ -42,6 +42,7 @@ import { ProductImage } from "@/components/media/product-image";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import { useProductImagesPolicy } from "@/hooks/use-product-images-policy";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useLicense } from "@/hooks/use-license";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useCategoriesList, useMirroredProduct } from "@/hooks/use-offline-lists";
 import {
@@ -209,6 +210,7 @@ function ProductFormBody({
   const createCategory = useMutation(api.categories.create);
   const online = useConnectivity();
   const { branchId: profileBranchId } = usePermissions();
+  const { features } = useLicense();
   const { hasCapability } = useBusinessCapabilities();
   const productImagesPolicy = useProductImagesPolicy();
   const imagesUploadEnabled = productImagesPolicy.enabled;
@@ -252,6 +254,11 @@ function ProductFormBody({
   const [tracksExpiry, setTracksExpiry] = useState(
     showExpiry ? initialProduct?.tracksExpiry === true : false,
   );
+  const canEditStock =
+    Boolean(productId) &&
+    features["products.editStock"] === true &&
+    tracksExpiry !== true &&
+    initialProduct?.tracksExpiry !== true;
   const [expiryAlertDays, setExpiryAlertDays] = useState(
     String(initialProduct?.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS),
   );
@@ -400,6 +407,7 @@ function ProductFormBody({
                 tracksExpiry: resolvedTracksExpiry,
                 expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
                 openingExpiryDate: resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
+                ...(canEditStock ? { stockQuantity: Number(stockQuantity) } : {}),
               })
             : createProduct({
                 name,
@@ -446,6 +454,7 @@ function ProductFormBody({
             costPrice: Number(costPrice),
             sellingPrice: Number(sellingPrice),
             stockQuantity: warehouseIntake ? 0 : Number(stockQuantity),
+            applyStockQuantity: Boolean(productId && canEditStock),
             unit: resolvedUnit,
             sellUnits,
             pricingMode: resolvedPricingMode,
@@ -611,9 +620,18 @@ function ProductFormBody({
                     id="stock"
                     value={stockQuantity}
                     onValueChange={setStockQuantity}
-                    disabled={!!productId}
-                    required={!productId}
+                    disabled={Boolean(productId) && !canEditStock}
+                    required={!productId || canEditStock}
                   />
+                  {canEditStock ? (
+                    <p className="text-muted-foreground text-xs">
+                      Changing stock records an inventory adjustment for your branch.
+                    </p>
+                  ) : productId && tracksExpiry ? (
+                    <p className="text-muted-foreground text-xs">
+                      Dated products: adjust stock from Inventory or Expiry lots.
+                    </p>
+                  ) : null}
                 </div>
               )}
               <div className="min-w-0 space-y-2">

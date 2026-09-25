@@ -28,6 +28,7 @@ describe("platform nav accordion", () => {
         href: "/platform",
         icon: (() => null) as never,
         exact: true,
+        permission: "overview.read",
       }),
     ).toBe(true);
     expect(
@@ -36,6 +37,7 @@ describe("platform nav accordion", () => {
         href: "/platform",
         icon: (() => null) as never,
         exact: true,
+        permission: "overview.read",
       }),
     ).toBe(false);
   });
@@ -48,5 +50,6 @@ describe("platform nav accordion", () => {
     expect(findPlatformNavGroupForPath("/platform/releases")).toBe("tenants");
     expect(findPlatformNavGroupForPath("/platform/costs")).toBe("tenants");
     expect(findPlatformNavGroupForPath("/platform/activity")).toBe("analytics");
+    expect(findPlatformNavGroupForPath("/platform/staff")).toBe("tenants");
   });
 });

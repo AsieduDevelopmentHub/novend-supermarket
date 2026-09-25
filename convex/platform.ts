@@ -4,6 +4,15 @@ import { action, internalMutation, mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { getPlatformAdmin, requirePlatformAdmin } from "./shared/permissions";
+import {
+  isPlatformRole,
+  permissionsForRole,
+  PLATFORM_ROLE_DESCRIPTIONS,
+  PLATFORM_ROLE_LABELS,
+  PLATFORM_ROLES,
+  resolvePlatformRole,
+  type PlatformRole,
+} from "./shared/platformRoles";
 import { assertPasswordPolicy } from "./shared/passwordPolicy";
 import { notifyPasswordChanged } from "./shared/transactionalEmail";
 import { sanitizeOptionalText, TEXT_LIMITS } from "./shared/validation";
@@ -44,14 +53,36 @@ export const me = query({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) return { isPlatformAdmin: false as const, name: null, email: null };
+    if (!userId) {
+      return {
+        isPlatformAdmin: false as const,
+        userId: null,
+        name: null,
+        email: null,
+        role: null,
+        permissions: [] as import("./shared/platformRoles").PlatformPermission[],
+      };
+    }
     const admin = await getPlatformAdmin(ctx, userId);
-    if (!admin) return { isPlatformAdmin: false as const, name: null, email: null };
+    if (!admin || admin.status === "disabled") {
+      return {
+        isPlatformAdmin: false as const,
+        userId: null,
+        name: null,
+        email: null,
+        role: null,
+        permissions: [] as import("./shared/platformRoles").PlatformPermission[],
+      };
+    }
     const user = await ctx.db.get(userId);
+    const role = resolvePlatformRole(admin);
     return {
       isPlatformAdmin: true as const,
+      userId,
       name: user?.name ?? user?.email ?? "Platform admin",
       email: user?.email ?? null,
+      role,
+      permissions: [...permissionsForRole(role)],
     };
   },
 });
@@ -59,7 +90,7 @@ export const me = query({
 export const overview = query({
   args: {},
   handler: async (ctx) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "overview.read");
     const now = Date.now();
     const dayAgo = now - 24 * 60 * 60 * 1000;
 
@@ -195,7 +226,7 @@ export const overview = query({
 export const listOrganizations = query({
   args: { search: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "orgs.read");
     let orgs = await ctx.db.query("organizations").collect();
     if (args.search?.trim()) {
       const q = args.search.trim().toLowerCase();
@@ -251,7 +282,7 @@ export const listOrganizations = query({
 export const getOrganization = query({
   args: { organizationId: v.id("organizations") },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "orgs.read");
     const org = await ctx.db.get(args.organizationId);
     if (!org) return null;
 
@@ -809,8 +840,165 @@ export const recordAdmin = internalMutation({
     if (existing) throw new Error("A platform administrator already exists");
     return await ctx.db.insert("platformAdmins", {
       userId: args.userId,
+      role: "owner",
+      status: "active",
       createdAt: Date.now(),
     });
+  },
+});
+
+const platformRoleValidator = v.union(
+  v.literal("owner"),
+  v.literal("operator"),
+  v.literal("support"),
+  v.literal("analyst"),
+);
+
+export const listStaff = query({
+  args: {},
+  handler: async (ctx) => {
+    await requirePlatformAdmin(ctx, "staff.manage");
+    const rows = await ctx.db.query("platformAdmins").collect();
+    const items = await Promise.all(
+      rows.map(async (row) => {
+        const user = await ctx.db.get(row.userId);
+        const role = resolvePlatformRole(row);
+        return {
+          id: row._id,
+          userId: row.userId,
+          name: user?.name ?? user?.email ?? "Unknown",
+          email: user?.email ?? null,
+          role,
+          roleLabel: PLATFORM_ROLE_LABELS[role],
+          status: row.status === "disabled" ? ("disabled" as const) : ("active" as const),
+          createdAt: row.createdAt,
+          permissions: [...permissionsForRole(role)],
+        };
+      }),
+    );
+    return {
+      items: items.sort((a, b) => a.name.localeCompare(b.name)),
+      roles: PLATFORM_ROLES.map((role) => ({
+        value: role,
+        label: PLATFORM_ROLE_LABELS[role],
+        description: PLATFORM_ROLE_DESCRIPTIONS[role],
+      })),
+    };
+  },
+});
+
+export const createStaffAccount = action({
+  args: {
+    name: v.string(),
+    email: v.string(),
+    password: v.string(),
+    role: platformRoleValidator,
+  },
+  handler: async (ctx, args): Promise<{ userId: Id<"users"> }> => {
+    const gate = await ctx.runQuery(api.platform.me, {});
+    if (!gate.isPlatformAdmin || !gate.userId || !gate.permissions.includes("staff.manage")) {
+      throw new Error("Forbidden");
+    }
+    if (args.role === "owner" && gate.role !== "owner") {
+      throw new Error("Only an owner can create another owner");
+    }
+    const email = args.email.trim().toLowerCase();
+    const name = args.name.trim();
+    if (!email || !name) throw new Error("Name and email are required");
+    assertPasswordPolicy(args.password);
+
+    const created = await createAccount(ctx, {
+      provider: "password",
+      account: { id: email, secret: args.password },
+      profile: { email, name },
+    });
+
+    await ctx.runMutation(internal.platform.insertStaffAdmin, {
+      userId: created.user._id,
+      role: args.role,
+      createdBy: gate.userId,
+    });
+    return { userId: created.user._id };
+  },
+});
+
+/** Insert platform staff after the auth account exists. */
+export const insertStaffAdmin = internalMutation({
+  args: {
+    userId: v.id("users"),
+    role: platformRoleValidator,
+    createdBy: v.optional(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    const existing = await getPlatformAdmin(ctx, args.userId);
+    if (existing) throw new Error("This user is already a platform administrator");
+    const id = await ctx.db.insert("platformAdmins", {
+      userId: args.userId,
+      role: args.role,
+      status: "active",
+      createdBy: args.createdBy,
+      createdAt: Date.now(),
+    });
+    if (args.createdBy) {
+      await writeAuditLog(ctx, {
+        actorId: args.createdBy,
+        action: "platform_staff_created",
+        entityType: "platformAdmins",
+        entityId: id,
+        metadata: { userId: args.userId, role: args.role },
+      });
+    }
+    return id;
+  },
+});
+
+export const updateStaff = mutation({
+  args: {
+    adminId: v.id("platformAdmins"),
+    role: v.optional(platformRoleValidator),
+    status: v.optional(v.union(v.literal("active"), v.literal("disabled"))),
+  },
+  handler: async (ctx, args) => {
+    const { userId: actorId, role: actorRole } = await requirePlatformAdmin(ctx, "staff.manage");
+    const row = await ctx.db.get(args.adminId);
+    if (!row) throw new Error("Staff member not found");
+    const currentRole = resolvePlatformRole(row);
+
+    if (row.userId === actorId && args.status === "disabled") {
+      throw new Error("You cannot disable your own platform access");
+    }
+    if (args.role === "owner" && actorRole !== "owner") {
+      throw new Error("Only an owner can assign the owner role");
+    }
+    if (currentRole === "owner" && (args.role !== undefined || args.status === "disabled")) {
+      const owners = (await ctx.db.query("platformAdmins").collect()).filter(
+        (r) => resolvePlatformRole(r) === "owner" && r.status !== "disabled",
+      );
+      if (
+        owners.length <= 1 &&
+        (args.status === "disabled" || (args.role !== undefined && args.role !== "owner"))
+      ) {
+        throw new Error("Keep at least one active platform owner");
+      }
+    }
+
+    const patch: { role?: PlatformRole; status?: "active" | "disabled" } = {};
+    if (args.role !== undefined) {
+      if (!isPlatformRole(args.role)) throw new Error("Invalid role");
+      patch.role = args.role;
+    }
+    if (args.status !== undefined) patch.status = args.status;
+    if (Object.keys(patch).length === 0) return args.adminId;
+
+    await ctx.db.patch(args.adminId, patch);
+    await writeAuditLog(ctx, {
+      actorId,
+      action: "platform_staff_updated",
+      entityType: "platformAdmins",
+      entityId: args.adminId,
+      metadata: patch,
+    });
+    return args.adminId;
   },
 });
 
@@ -832,7 +1020,9 @@ export const createOrganization = action({
     args,
   ): Promise<{ organizationId: Id<"organizations">; branchId: Id<"branches"> }> => {
     const gate = await ctx.runQuery(api.platform.me, {});
-    if (!gate.isPlatformAdmin) throw new Error("Forbidden");
+    if (!gate.isPlatformAdmin || !gate.permissions.includes("orgs.write")) {
+      throw new Error("Forbidden");
+    }
 
     const result = await ctx.runMutation(api.platform.insertOrganization, {
       name: args.name,
@@ -945,7 +1135,7 @@ export const ownerEmail = query({
 export const getOrganizationConfig = query({
   args: { organizationId: v.id("organizations") },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "orgs.read");
     const org = await ctx.db.get(args.organizationId);
     if (!org) return null;
 

@@ -41,7 +41,7 @@ function percentageChange(current: number, previous: number): number | null {
 export const dashboard = query({
   args: { range: v.optional(rangeValidator) },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "analytics.read");
     const range = (args.range ?? "30d") as MonitoringRange;
     const now = Date.now();
     const since = sinceForRange(range, now);
@@ -364,7 +364,7 @@ export const activity = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "analytics.read");
     if (args.source === "audit") {
       const result = await ctx.db
         .query("auditLogs")

@@ -56,6 +56,8 @@ describe("licence entitlement helpers", () => {
     const features = featuresFromPlan("pro");
     expect(featureEnabled(features, "reports.pdf")).toBe(features["reports.pdf"]);
     expect(featureEnabled(undefined, "billing.view")).toBe(true);
+    expect(featureEnabled(features, "products.editStock")).toBe(false);
+    expect(featureEnabled(undefined, "products.editStock")).toBe(false);
   });
 
   it("maps wholesale outbox ops to inventory.wholesale", () => {

@@ -102,7 +102,7 @@ export const list = query({
     status: v.optional(experiencePresetStatusValidator),
   },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "entitlements.write");
     const rows = args.status
       ? await ctx.db
           .query("experiencePresets")
@@ -116,7 +116,7 @@ export const list = query({
 export const get = query({
   args: { presetId: v.id("experiencePresets") },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "entitlements.write");
     return await ctx.db.get(args.presetId);
   },
 });
@@ -124,7 +124,7 @@ export const get = query({
 export const seedNovendDefault = mutation({
   args: {},
   handler: async (ctx) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     return await ensureNovendDefaultPreset(ctx, userId);
   },
 });
@@ -136,7 +136,7 @@ export const create = mutation({
     ...experienceTokenArgs,
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     await ensureNovendDefaultPreset(ctx, userId);
 
     const key = sanitizePresetKey(args.key);
@@ -201,7 +201,7 @@ export const update = mutation({
     radiusScale: v.optional(experienceRadiusScaleValidator),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const preset = await ctx.db.get(args.presetId);
     if (!preset) throw new Error("Experience preset not found.");
     if (preset.status === "archived") {
@@ -254,7 +254,7 @@ export const update = mutation({
 export const archive = mutation({
   args: { presetId: v.id("experiencePresets") },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const preset = await ctx.db.get(args.presetId);
     if (!preset) throw new Error("Experience preset not found.");
     if (preset.key === NOVEND_DEFAULT_KEY) {
@@ -286,7 +286,7 @@ export const assignToOrganization = mutation({
     experienceOverrides: v.optional(v.union(v.null(), experienceOverridesValidator)),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const org = await ctx.db.get(args.organizationId);
     if (!org) throw new Error("Organization not found.");
 

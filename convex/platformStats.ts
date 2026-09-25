@@ -32,7 +32,7 @@ export const backfillOrganizationStats = mutation({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "analytics.read");
     const page = await ctx.db.query("organizations").paginate(args.paginationOpts);
     for (const org of page.page) {
       await recomputeOrgPlatformStats(ctx, org._id);
@@ -48,7 +48,7 @@ export const backfillOrganizationStats = mutation({
 export const recomputeOne = mutation({
   args: { organizationId: v.id("organizations") },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "analytics.read");
     return await recomputeOrgPlatformStats(ctx, args.organizationId);
   },
 });
@@ -63,7 +63,7 @@ export const recomputeOne = mutation({
 export const getGlobal = query({
   args: {},
   handler: async (ctx) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "analytics.read");
     return await readPlatformStats(ctx);
   },
 });
@@ -71,7 +71,7 @@ export const getGlobal = query({
 export const rebuild = mutation({
   args: {},
   handler: async (ctx) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "analytics.read");
     const stats = await rebuildPlatformStats(ctx);
     await writeAuditLog(ctx, {
       actorId: userId,

@@ -49,7 +49,7 @@ async function assertNoOverlappingSchedule(
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "entitlements.write");
     const rows = await ctx.db.query("organizationProvisioningPolicies").collect();
     return rows.sort((a, b) => b.effectiveFrom - a.effectiveFrom);
   },
@@ -58,7 +58,7 @@ export const list = query({
 export const get = query({
   args: { policyId: v.id("organizationProvisioningPolicies") },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "entitlements.write");
     return await ctx.db.get(args.policyId);
   },
 });
@@ -73,7 +73,7 @@ export const create = mutation({
     publicPlanKey: v.optional(sellablePlanKeyValidator),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const name = sanitizeText(args.name, "Policy name", TEXT_LIMITS.name);
     const status = args.status ?? "scheduled";
     if (status === "retired") {
@@ -147,7 +147,7 @@ export const update = mutation({
     publicPlanKey: v.optional(v.union(sellablePlanKeyValidator, v.null())),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const policy = await ctx.db.get(args.policyId);
     if (!policy) throw new Error("Provisioning policy not found.");
 
@@ -220,7 +220,7 @@ export const bulkApplyToOrganizations = mutation({
     organizationIds: v.array(v.id("organizations")),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
     const policy = await ctx.db.get(args.policyId);
     if (!policy) throw new Error("Provisioning policy not found.");
 

@@ -1735,7 +1735,7 @@ export const savePlanGatewayCodes = internalMutation({
 export const assertPlatformAdmin = internalQuery({
   args: {},
   handler: async (ctx) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "billing.write");
     return true;
   },
 });
@@ -1837,7 +1837,7 @@ export const assignPlan = mutation({
     recordPayment: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "billing.write");
     const organization = await ctx.db.get(args.organizationId);
     if (!organization) throw new Error("Organization not found");
     const previousPlanKey = organization.planKey ?? args.planKey;
@@ -1928,7 +1928,7 @@ export const setSubscriptionAmount = mutation({
     note: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "billing.write");
     if (!(args.amount >= 0) || !Number.isFinite(args.amount)) {
       throw new Error("Enter a valid recurring amount.");
     }
@@ -1982,7 +1982,7 @@ export const recordManualInvoice = mutation({
     description: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "billing.write");
     if (!(args.amount > 0)) throw new Error("Amount must be greater than zero");
     const organization = await ctx.db.get(args.organizationId);
     if (!organization) throw new Error("Organization not found");
@@ -2017,7 +2017,7 @@ export const recordManualInvoice = mutation({
 export const markManualInvoicePaid = mutation({
   args: { billingHistoryId: v.id("billingHistory") },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "billing.write");
     const row = await ctx.db.get(args.billingHistoryId);
     if (!row) throw new Error("Invoice not found");
     if (row.gateway !== "manual") throw new Error("Only manual invoices can be reconciled here.");
@@ -2047,7 +2047,7 @@ export const setBackupLimit = mutation({
     backupLimitGb: v.union(v.number(), v.null()),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "billing.write");
     const organization = await ctx.db.get(args.organizationId);
     if (!organization) throw new Error("Organization not found");
     const license = await resolveLicense(ctx, organization);
@@ -2079,7 +2079,7 @@ export const setBackupLimit = mutation({
 export const resetActivation = mutation({
   args: { organizationId: v.id("organizations") },
   handler: async (ctx, args) => {
-    const { userId } = await requirePlatformAdmin(ctx);
+    const { userId } = await requirePlatformAdmin(ctx, "billing.write");
     const devices = await ctx.db
       .query("devices")
       .withIndex("by_organization_active", (q) =>
@@ -2110,7 +2110,7 @@ export const resetActivation = mutation({
 export const startTrial = mutation({
   args: { organizationId: v.id("organizations"), planKey: v.optional(planKeyValidator) },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "billing.write");
     return await startTrialForOrganization(ctx, args.organizationId, args.planKey ?? "pro");
   },
 });
@@ -2119,7 +2119,7 @@ export const startTrial = mutation({
 export const organizationLicense = query({
   args: { organizationId: v.id("organizations") },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "billing.write");
     const organization = await ctx.db.get(args.organizationId);
     if (!organization) return null;
     const license = await resolveLicense(ctx, organization);

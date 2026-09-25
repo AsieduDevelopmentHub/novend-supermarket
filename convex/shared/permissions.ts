@@ -4,6 +4,14 @@ import { Doc, Id, TableNames } from "../_generated/dataModel";
 import { findDefaultBranch } from "./defaultBranch";
 import { deriveAccess, type LicenseAccess, type OrganizationStatus } from "./licensing";
 import { getActiveSubscription } from "./entitlements";
+import {
+  isPlatformAdminActive,
+  permissionsForRole,
+  platformAdminHasPermission,
+  resolvePlatformRole,
+  type PlatformPermission,
+  type PlatformRole,
+} from "./platformRoles";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -24,14 +32,54 @@ export async function getPlatformAdmin(ctx: Ctx, userId: Id<"users">) {
     .unique();
 }
 
-export async function requirePlatformAdmin(ctx: Ctx) {
+/**
+ * Active platform membership. Optional `permission` scopes access.
+ * When omitted, requires `orgs.write` so read-only roles cannot hit unscoped mutations.
+ */
+export async function requirePlatformAdmin(
+  ctx: Ctx,
+  permission: PlatformPermission = "orgs.write",
+) {
   const { userId, user } = await requireAuth(ctx);
   const admin = await getPlatformAdmin(ctx, userId);
-  if (!admin) {
+  if (!admin || !isPlatformAdminActive(admin)) {
     throw new Error("Platform administrator access required.");
   }
-  return { userId, user };
+  if (!platformAdminHasPermission(admin, permission)) {
+    throw new Error("You do not have permission for this platform action.");
+  }
+  const role = resolvePlatformRole(admin);
+  return {
+    userId,
+    user,
+    admin,
+    role,
+    permissions: permissionsForRole(role),
+  };
 }
+
+export async function requirePlatformPermission(ctx: Ctx, permission: PlatformPermission) {
+  return await requirePlatformAdmin(ctx, permission);
+}
+
+/** Session helper — any active platform admin (including read-only roles). */
+export async function requireAnyPlatformAdmin(ctx: Ctx) {
+  const { userId, user } = await requireAuth(ctx);
+  const admin = await getPlatformAdmin(ctx, userId);
+  if (!admin || !isPlatformAdminActive(admin)) {
+    throw new Error("Platform administrator access required.");
+  }
+  const role = resolvePlatformRole(admin);
+  return {
+    userId,
+    user,
+    admin,
+    role,
+    permissions: permissionsForRole(role),
+  };
+}
+
+export type { PlatformPermission, PlatformRole };
 
 export async function requireAuth(ctx: Ctx) {
   const userId = await getAuthUserId(ctx);

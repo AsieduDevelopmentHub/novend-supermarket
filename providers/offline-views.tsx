@@ -39,6 +39,7 @@ import { PlatformCostsView } from "@/features/platform/components/platform-costs
 import { PlatformRevenueView } from "@/features/platform/components/platform-revenue-view";
 import { PlatformSubscriptionsView } from "@/features/platform/components/platform-subscriptions-view";
 import { PlatformHealthView } from "@/features/platform/components/platform-health-view";
+import { PlatformStaffView } from "@/features/platform/components/platform-staff-view";
 import { PlatformPaymentDetailView } from "@/features/platform/components/platform-payment-detail-view";
 import { PlatformReleaseDetailView } from "@/features/platform/components/platform-release-detail-view";
 import { PlatformInsightDetailView } from "@/features/platform/components/platform-insight-detail-view";
@@ -77,6 +78,7 @@ const SHELL_VIEWS: Record<string, () => ReactNode> = {
   "/platform/costs": () => <PlatformCostsView />,
   "/platform/subscriptions": () => <PlatformSubscriptionsView />,
   "/platform/health": () => <PlatformHealthView />,
+  "/platform/staff": () => <PlatformStaffView />,
 };
 
 /** Resolve a client-side feature view for offline shell navigation. */

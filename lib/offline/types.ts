@@ -559,6 +559,8 @@ export type UpsertProductPayload = {
   costPrice: number;
   sellingPrice: number;
   stockQuantity: number;
+  /** When true on update, apply stockQuantity as an absolute branch set (products.editStock). */
+  applyStockQuantity?: boolean;
   unit: string;
   sellUnits?: Array<{
     key: string;

@@ -166,6 +166,7 @@ export function featuresFromPlan(planKey: unknown): Record<FeatureKey, boolean> 
     "billing.view": FEATURE_REGISTRY["billing.view"].defaultEnabled,
     "billing.selfServeCheckout": plan.selfServe,
     "products.images": FEATURE_REGISTRY["products.images"].defaultEnabled,
+    "products.editStock": FEATURE_REGISTRY["products.editStock"].defaultEnabled,
     "inventory.wholesale": advanced,
     "branches.multiBranch": multiBranch,
     "reports.advanced": caps.canAdvancedAnalytics,

@@ -83,6 +83,19 @@ describe("resolveOrganizationConfig", () => {
     expect(config.features["inventory.wholesale"]).toBe(true);
   });
 
+  it("keeps products.editStock off by default and allow an org ops override", () => {
+    expect(featuresFromPlan("basic")["products.editStock"]).toBe(false);
+    expect(featuresFromPlan("enterprise")["products.editStock"]).toBe(false);
+    const enabled = resolveOrganizationConfig({
+      organization: {
+        _id: ORG_ID,
+        featureOverrides: [{ feature: "products.editStock", value: "enabled" }],
+      },
+      planKey: "basic",
+    });
+    expect(enabled.features["products.editStock"]).toBe(true);
+  });
+
   it("hides billing features when billingVisibility is hidden", () => {
     const config = resolveOrganizationConfig({
       organization: {

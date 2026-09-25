@@ -3,6 +3,7 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import {
   buildUsageMetric,
   deriveAccess,
+  featureEnabled,
   type LicenseAccess,
   type OrganizationStatus,
   type SubscriptionSnapshot,
@@ -19,6 +20,8 @@ import {
 } from "./plans";
 import { CLOUD_MODES, type CloudEntitlements, type CloudMode } from "./cloudMode";
 import { loadLiveOfferForOrganization } from "./commercialOffers";
+import { FEATURE_REGISTRY, type FeatureKey } from "./features";
+import { resolveOrganizationConfig } from "./organizationConfig";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -243,4 +246,44 @@ export async function assertOrganizationCapacity(
 ): Promise<void> {
   const license = await resolveLicense(ctx, organization);
   await assertWithinLimit(ctx, organization._id, license.planKey, resource, additional);
+}
+
+/**
+ * Resolves plan → offer → template → org overrides and throws when the feature
+ * is not enabled. Used for ops-gated entitlements (e.g. products.editStock).
+ */
+export async function assertOrganizationFeature(
+  ctx: Ctx,
+  organization: Doc<"organizations">,
+  feature: FeatureKey,
+): Promise<void> {
+  const license = await resolveLicense(ctx, organization);
+  const template = organization.featureTemplateId
+    ? await ctx.db.get(organization.featureTemplateId)
+    : null;
+  const offer = await loadLiveOfferForOrganization(ctx, organization._id);
+  const config = resolveOrganizationConfig({
+    organization: {
+      _id: organization._id,
+      featureOverrides: organization.featureOverrides,
+      featureEntitlementVersion: organization.featureEntitlementVersion,
+      billingVisibility: organization.billingVisibility,
+      entitlementVersion: organization.entitlementVersion,
+      cloudBackupEnabled: organization.cloudBackupEnabled,
+      remoteMonitoringEnabled: organization.remoteMonitoringEnabled,
+    },
+    planKey: license.planKey,
+    template: template ? { values: template.values } : null,
+    offer: offer
+      ? {
+          _id: offer._id,
+          basePlanKey: offer.basePlanKey,
+          featureOverrides: offer.featureOverrides,
+          status: offer.status,
+        }
+      : null,
+  });
+  if (!featureEnabled(config.features, feature)) {
+    throw new Error(`${FEATURE_REGISTRY[feature].label} isn’t enabled for this workspace.`);
+  }
 }

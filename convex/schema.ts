@@ -540,6 +540,17 @@ export default defineSchema({
   platformAdmins: defineTable({
     userId: v.id("users"),
     createdAt: v.number(),
+    /** owner | operator | support | analyst — missing on legacy rows means owner. */
+    role: v.optional(
+      v.union(
+        v.literal("owner"),
+        v.literal("operator"),
+        v.literal("support"),
+        v.literal("analyst"),
+      ),
+    ),
+    status: v.optional(v.union(v.literal("active"), v.literal("disabled"))),
+    createdBy: v.optional(v.id("users")),
   }).index("by_userId", ["userId"]),
 
   /** Novend platform operating costs (hosting, Convex, etc.) — not tenant expenses. */

@@ -357,6 +357,7 @@ export const platformAdminRecipientEmails = internalQuery({
     const admins = await ctx.db.query("platformAdmins").collect();
     const emails = new Set<string>();
     for (const admin of admins) {
+      if (admin.status === "disabled") continue;
       const user = await ctx.db.get(admin.userId);
       if (user?.email) emails.add(user.email.trim().toLowerCase());
     }

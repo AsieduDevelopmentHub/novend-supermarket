@@ -2,16 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { useQuery } from "convex/react";
 import { ChevronRight } from "lucide-react";
+import { api } from "@/convex/_generated/api";
 import {
-  PLATFORM_NAV_GROUPS,
   findPlatformNavGroupForPath,
+  platformNavGroupsForPermissions,
   platformNavItemActive,
   type PlatformNavGroup,
   type PlatformNavItem,
 } from "@/config/platform-navigation";
 import { usePlatformNavTreeState } from "@/hooks/use-platform-nav-tree-state";
+import { useConnectivity } from "@/hooks/use-connectivity";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
 import { cn } from "@/lib/utils";
 
@@ -171,9 +174,15 @@ export function PlatformNavTree({
   className?: string;
 }) {
   const pathname = usePathname();
+  const online = useConnectivity();
+  const session = useQuery(api.platform.me, online ? {} : "skip");
   const { activePath } = useOfflineNavigation();
   const currentPath = activePath ?? pathname;
   const { isExpanded, toggleGroup, expandGroup } = usePlatformNavTreeState();
+  const groups = useMemo(
+    () => platformNavGroupsForPermissions(session?.permissions),
+    [session?.permissions],
+  );
 
   useEffect(() => {
     const activeGroup = findPlatformNavGroupForPath(currentPath);
@@ -182,7 +191,7 @@ export function PlatformNavTree({
 
   return (
     <nav className={cn("flex flex-col gap-3 px-3", className)}>
-      {PLATFORM_NAV_GROUPS.map((group) => (
+      {groups.map((group) => (
         <PlatformNavGroupSection
           key={group.id}
           group={group}

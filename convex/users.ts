@@ -18,6 +18,7 @@ import {
   assertOrgDoc,
   assertStaffProfileAccess,
 } from "./shared/permissions";
+import { isPlatformAdminActive } from "./shared/platformRoles";
 import { roleValidator, telemetryRuntimeValidator } from "./schema";
 import { writeAuditLog } from "./shared/audit";
 import { bumpOrgUserCount } from "./shared/organizationStats";
@@ -45,6 +46,7 @@ export const me = query({
 
     const profile = await getProfileByUserId(ctx, userId);
     const platformAdmin = await getPlatformAdmin(ctx, userId);
+    const isPlatformAdmin = isPlatformAdminActive(platformAdmin);
     const verification = await loadEmailVerification(ctx, userId);
     if (!profile) {
       const tourProgress = await loadTourProgressForUser(ctx, userId, null);
@@ -52,9 +54,9 @@ export const me = query({
         userId,
         email: user.email ?? null,
         emailVerified: verification.emailVerified,
-        needsProfile: !platformAdmin,
-        needsOnboarding: !platformAdmin,
-        isPlatformAdmin: Boolean(platformAdmin),
+        needsProfile: !isPlatformAdmin,
+        needsOnboarding: !isPlatformAdmin,
+        isPlatformAdmin,
         name: user.name ?? user.email?.split("@")[0] ?? "User",
         role: null,
         branch: null,
@@ -100,7 +102,7 @@ export const me = query({
       needsOnboarding: false as const,
       organizationId: profile.organizationId,
       organizationName,
-      isPlatformAdmin: Boolean(platformAdmin),
+      isPlatformAdmin: isPlatformAdminActive(platformAdmin),
       name: profile.name,
       role: profile.role,
       branch: branchDoc?.name ?? profile.branch ?? null,

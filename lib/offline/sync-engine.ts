@@ -283,6 +283,7 @@ export type QueuedMutators = {
     tracksExpiry?: boolean;
     expiryAlertDays?: number;
     openingExpiryDate?: string;
+    stockQuantity?: number;
   }) => Promise<unknown>;
   createBranch: (args: {
     name: string;
@@ -735,6 +736,9 @@ export async function drainOutbox(options: {
               tracksExpiry: payload.tracksExpiry,
               expiryAlertDays: payload.expiryAlertDays,
               openingExpiryDate: optionalText(payload.expiryDate),
+              ...(payload.applyStockQuantity
+                ? { stockQuantity: Math.max(0, Math.floor(payload.stockQuantity)) }
+                : {}),
               ...(barcode ? { barcode } : {}),
               ...(description ? { description } : {}),
               ...(payload.clearImage ? { clearImage: true } : {}),

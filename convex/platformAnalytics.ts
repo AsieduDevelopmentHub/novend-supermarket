@@ -45,7 +45,7 @@ export const revenueAnalytics = query({
     range: v.optional(rangeOrAllValidator),
   },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "analytics.read");
     const range = (args.range ?? "30d") as RangeKeyOrAll;
     const now = Date.now();
     const since = rangeSince(range, now);
@@ -202,7 +202,7 @@ export const revenueAnalytics = query({
 export const listSubscriptions = query({
   args: {},
   handler: async (ctx) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "analytics.read");
     const [organizations, subscriptions, devices, backups, profiles, billing] = await Promise.all([
       ctx.db.query("organizations").collect(),
       ctx.db.query("subscriptions").collect(),
@@ -289,7 +289,7 @@ export const listSubscriptions = query({
 export const listOperatingCosts = query({
   args: {},
   handler: async (ctx) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "costs.read");
     const rows = await ctx.db.query("platformOperatingCosts").collect();
     return rows
       .sort((a, b) => b.occurredAt - a.occurredAt)
@@ -314,7 +314,7 @@ export const createOperatingCost = mutation({
     currency: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const admin = await requirePlatformAdmin(ctx);
+    const admin = await requirePlatformAdmin(ctx, "costs.write");
     if (!(args.amount > 0)) throw new Error("Amount must be greater than zero");
     const id = await ctx.db.insert("platformOperatingCosts", {
       amount: args.amount,
@@ -341,7 +341,7 @@ export const createOperatingCost = mutation({
 export const removeOperatingCost = mutation({
   args: { costId: v.id("platformOperatingCosts") },
   handler: async (ctx, args) => {
-    const admin = await requirePlatformAdmin(ctx);
+    const admin = await requirePlatformAdmin(ctx, "costs.write");
     const row = await ctx.db.get(args.costId);
     if (!row) throw new Error("Cost entry not found");
     await ctx.db.delete(args.costId);
@@ -358,7 +358,7 @@ export const removeOperatingCost = mutation({
 export const systemHealth = query({
   args: {},
   handler: async (ctx) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "analytics.read");
     const [
       organizations,
       subscriptions,
@@ -548,7 +548,7 @@ const INSIGHT_COPY: Record<PlatformInsightMetric, { title: string; description: 
 export const getInsightDetail = query({
   args: { metric: insightMetricValidator, range: v.optional(rangeOrAllValidator) },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "analytics.read");
     const range = (args.range ?? "12m") as RangeKeyOrAll;
     const now = Date.now();
     const since = rangeSince(range, now);
@@ -950,7 +950,7 @@ export const getClientErrorCodeDetail = query({
     range: v.optional(rangeOrAllValidator),
   },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "analytics.read");
     const parsed = parseClientErrorDimension(args.code);
     if (!parsed) return null;
 
@@ -1044,7 +1044,7 @@ export const getClientErrorCodeDetail = query({
 export const getPayment = query({
   args: { paymentId: v.id("billingHistory") },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "analytics.read");
     const payment = await ctx.db.get(args.paymentId);
     if (!payment) return null;
     const org = await ctx.db.get(payment.organizationId);
@@ -1184,7 +1184,7 @@ function buildReleaseBundle(
 export const getReleaseBundle = query({
   args: { version: v.string() },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "releases.read");
     const raw = args.version.trim();
     const bare = raw.replace(/^v/, "");
     const candidates = Array.from(new Set([raw, bare, `v${bare}`]));
@@ -1219,7 +1219,7 @@ export const listReleaseBundles = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx);
+    await requirePlatformAdmin(ctx, "releases.read");
     const channel = args.channel ?? "stable";
     const limit = Math.min(Math.max(args.limit ?? 20, 1), 50);
 
