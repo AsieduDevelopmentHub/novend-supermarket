@@ -30,7 +30,7 @@ export function shellProfileFromSessionHint(hint: OfflineSessionHint): ShellProf
     branchId: hint.branchId,
     branchName: hint.branchName || "Branch",
     imageUrl: null,
-    email: null,
+    email: hint.email ?? null,
     phone: null,
     organizationName: null,
     organizationId: hint.organizationId ?? null,

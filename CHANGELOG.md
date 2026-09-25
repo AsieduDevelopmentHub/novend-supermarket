@@ -8,6 +8,7 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Fixed
 
+- Offline login after Sign out: restore **Continue offline** account cards on `/login` (online stays password-only), resume by email when offline, and fall back to a matching cached shell when password auth fails with a connectivity error — for remote tills on poor networks.
 - Cap/Electron offline cold start after SW bumps: migrate warmed `/dashboard` shells and `/_next/static` assets into the new cache bucket on activate (`novend-pos-v19`), co-cache Next chunks with shell HTML, re-warm shells on `controllerchange`, and align Electron `offline-boot.html` + Cap `allowNavigation` with `dashboard.novendpos.app`.
 - Organization experience colors offline: use the cached licence snapshot whenever live `licenseSnapshot` is missing (do not require `!navigator.onLine`), and keep React cache in sync when the live snapshot arrives so Cap/Electron false-online no longer paints default Novend teal.
 
