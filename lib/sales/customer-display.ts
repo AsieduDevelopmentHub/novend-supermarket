@@ -22,6 +22,9 @@ export type CustomerDisplayBranding = {
   tradeName: string;
   branchName?: string | null;
   thankYouLine?: string | null;
+  /** Org experience accent (#rrggbb) for Electron / secondary windows. */
+  accent?: string | null;
+  accentForeground?: string | null;
 };
 
 export type CustomerDisplaySnapshot = {
@@ -138,6 +141,10 @@ function isLine(value: unknown): value is CustomerDisplayLine {
   );
 }
 
+function isHexColor(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9A-Fa-f]{6}$/.test(value);
+}
+
 export function parseCustomerDisplaySnapshot(raw: string | null): CustomerDisplaySnapshot | null {
   if (!raw) return null;
   try {
@@ -175,6 +182,10 @@ export function parseCustomerDisplaySnapshot(raw: string | null): CustomerDispla
         tradeName: parsed.branding.tradeName,
         branchName: parsed.branding.branchName ?? null,
         thankYouLine: parsed.branding.thankYouLine ?? null,
+        accent: isHexColor(parsed.branding.accent) ? parsed.branding.accent : null,
+        accentForeground: isHexColor(parsed.branding.accentForeground)
+          ? parsed.branding.accentForeground
+          : null,
       },
       updatedAt: Number.isFinite(parsed.updatedAt) ? parsed.updatedAt : Date.now(),
     };

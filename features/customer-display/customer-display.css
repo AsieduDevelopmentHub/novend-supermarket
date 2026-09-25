@@ -23,10 +23,10 @@
   position: absolute;
   inset: -25%;
   background:
-    radial-gradient(ellipse 50% 45% at 15% 20%, rgba(56, 189, 248, 0.11), transparent 72%),
-    radial-gradient(ellipse 45% 42% at 85% 15%, rgba(14, 165, 233, 0.08), transparent 70%),
-    radial-gradient(ellipse 48% 44% at 75% 85%, rgba(56, 189, 248, 0.09), transparent 72%),
-    radial-gradient(ellipse 42% 40% at 10% 88%, rgba(125, 211, 252, 0.07), transparent 68%);
+    radial-gradient(ellipse 50% 45% at 15% 20%, color-mix(in srgb, var(--primary) 11%, transparent), transparent 72%),
+    radial-gradient(ellipse 45% 42% at 85% 15%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 70%),
+    radial-gradient(ellipse 48% 44% at 75% 85%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 72%),
+    radial-gradient(ellipse 42% 40% at 10% 88%, color-mix(in srgb, var(--primary) 7%, transparent), transparent 68%);
   filter: blur(56px);
   animation: customer-display-mesh-drift 36s ease-in-out infinite alternate;
   will-change: transform;
@@ -36,10 +36,10 @@
   inset: -30%;
   opacity: 0.55;
   background:
-    radial-gradient(ellipse 46% 42% at 50% 8%, rgba(56, 189, 248, 0.08), transparent 70%),
-    radial-gradient(ellipse 50% 46% at 95% 55%, rgba(14, 165, 233, 0.06), transparent 74%),
-    radial-gradient(ellipse 44% 42% at 25% 72%, rgba(125, 211, 252, 0.06), transparent 68%),
-    radial-gradient(ellipse 40% 38% at 60% 50%, rgba(56, 189, 248, 0.05), transparent 66%);
+    radial-gradient(ellipse 46% 42% at 50% 8%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 70%),
+    radial-gradient(ellipse 50% 46% at 95% 55%, color-mix(in srgb, var(--primary) 6%, transparent), transparent 74%),
+    radial-gradient(ellipse 44% 42% at 25% 72%, color-mix(in srgb, var(--primary) 6%, transparent), transparent 68%),
+    radial-gradient(ellipse 40% 38% at 60% 50%, color-mix(in srgb, var(--primary) 5%, transparent), transparent 66%);
   animation:
     customer-display-mesh-drift-alt 48s ease-in-out infinite alternate,
     customer-display-mesh-pulse 14s ease-in-out infinite;
@@ -47,19 +47,19 @@
 
 .dark .customer-display-mesh-blobs {
   background:
-    radial-gradient(ellipse 50% 45% at 15% 20%, rgba(56, 189, 248, 0.08), transparent 72%),
-    radial-gradient(ellipse 45% 42% at 85% 15%, rgba(14, 165, 233, 0.06), transparent 70%),
-    radial-gradient(ellipse 48% 44% at 75% 85%, rgba(56, 189, 248, 0.07), transparent 72%),
-    radial-gradient(ellipse 42% 40% at 10% 88%, rgba(125, 211, 252, 0.05), transparent 68%);
+    radial-gradient(ellipse 50% 45% at 15% 20%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 72%),
+    radial-gradient(ellipse 45% 42% at 85% 15%, color-mix(in srgb, var(--primary) 6%, transparent), transparent 70%),
+    radial-gradient(ellipse 48% 44% at 75% 85%, color-mix(in srgb, var(--primary) 7%, transparent), transparent 72%),
+    radial-gradient(ellipse 42% 40% at 10% 88%, color-mix(in srgb, var(--primary) 5%, transparent), transparent 68%);
 }
 
 .dark .customer-display-mesh-blobs--alt {
   opacity: 0.45;
   background:
-    radial-gradient(ellipse 46% 42% at 50% 8%, rgba(56, 189, 248, 0.06), transparent 70%),
-    radial-gradient(ellipse 50% 46% at 95% 55%, rgba(14, 165, 233, 0.05), transparent 74%),
-    radial-gradient(ellipse 44% 42% at 25% 72%, rgba(125, 211, 252, 0.04), transparent 68%),
-    radial-gradient(ellipse 40% 38% at 60% 50%, rgba(56, 189, 248, 0.04), transparent 66%);
+    radial-gradient(ellipse 46% 42% at 50% 8%, color-mix(in srgb, var(--primary) 6%, transparent), transparent 70%),
+    radial-gradient(ellipse 50% 46% at 95% 55%, color-mix(in srgb, var(--primary) 5%, transparent), transparent 74%),
+    radial-gradient(ellipse 44% 42% at 25% 72%, color-mix(in srgb, var(--primary) 4%, transparent), transparent 68%),
+    radial-gradient(ellipse 40% 38% at 60% 50%, color-mix(in srgb, var(--primary) 4%, transparent), transparent 66%);
 }
 
 .customer-display-mesh-grid {
@@ -93,8 +93,8 @@
       -60deg,
       transparent,
       transparent 21px,
-      rgba(56, 189, 248, 0.04) 21px,
-      rgba(56, 189, 248, 0.04) 22px
+      color-mix(in srgb, var(--primary) 4%, transparent) 21px,
+      color-mix(in srgb, var(--primary) 4%, transparent) 22px
     );
   opacity: 0.5;
   animation: customer-display-mesh-grid-reverse 30s linear infinite;
@@ -120,8 +120,8 @@
       -60deg,
       transparent,
       transparent 21px,
-      rgba(56, 189, 248, 0.03) 21px,
-      rgba(56, 189, 248, 0.03) 22px
+      color-mix(in srgb, var(--primary) 3%, transparent) 21px,
+      color-mix(in srgb, var(--primary) 3%, transparent) 22px
     );
   opacity: 0.4;
 }
@@ -313,7 +313,7 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(56, 189, 248, 0.14) 50%,
+    color-mix(in srgb, var(--primary) 14%, transparent) 50%,
     transparent 100%
   );
   background-size: 200% 100%;

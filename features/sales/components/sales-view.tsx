@@ -119,7 +119,7 @@ function formatHoldRef(id: string) {
 
 export function SalesView() {
   const { isAdmin, branchId: myBranchId, branchName } = usePermissions();
-  const { access, capabilities } = useLicense();
+  const { access, capabilities, experience } = useLicense();
   const { hasCapability } = useBusinessCapabilities();
   const multiUnitOn = hasCapability("multi_unit_pricing");
   const weightOn = hasCapability("sell_by_weight");
@@ -211,8 +211,10 @@ export function SalesView() {
       tradeName: displayBranding.tradeName,
       branchName,
       thankYouLine: displayBranding.thankYouLine,
+      accent: experience?.accent ?? null,
+      accentForeground: experience?.accentForeground ?? null,
     }),
-    [displayBranding, branchName],
+    [displayBranding, branchName, experience?.accent, experience?.accentForeground],
   );
 
   const { publishComplete } = useCustomerDisplayPublisher({

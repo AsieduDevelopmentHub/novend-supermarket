@@ -8,6 +8,8 @@ import {
 } from "@/lib/sales/customer-display";
 import { loadPrintSnapshotMeta } from "@/lib/offline/ui-cache";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
+import { loadLicenseSnapshot } from "@/lib/offline/license";
+import { DEFAULT_NOVEND_EXPERIENCE } from "@/convex/shared/experience";
 
 /** Push org branding to the bundled customer display before the cashier opens Sales. */
 export function useCustomerDisplayBrandingSeed(enabled: boolean) {
@@ -23,9 +25,10 @@ export function useCustomerDisplayBrandingSeed(enabled: boolean) {
         return;
       }
 
-      const [printSnapshot, shell] = await Promise.all([
+      const [printSnapshot, shell, license] = await Promise.all([
         loadPrintSnapshotMeta(),
         loadShellProfile(),
+        loadLicenseSnapshot(),
       ]);
 
       const branding = {
@@ -36,6 +39,9 @@ export function useCustomerDisplayBrandingSeed(enabled: boolean) {
           "Novend POS",
         branchName: shell?.branchName ?? null,
         thankYouLine: printSnapshot?.template.thankYouLine ?? null,
+        accent: license?.experience?.accent ?? DEFAULT_NOVEND_EXPERIENCE.accent,
+        accentForeground:
+          license?.experience?.accentForeground ?? DEFAULT_NOVEND_EXPERIENCE.accentForeground,
       };
 
       publishCustomerDisplaySnapshot(idleCustomerDisplaySnapshot(branding));

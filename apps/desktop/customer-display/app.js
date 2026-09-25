@@ -105,6 +105,18 @@
     }
   }
 
+  function applyBrandColors(branding) {
+    var root = document.documentElement;
+    var accent = branding && branding.accent;
+    var accentFg = branding && branding.accentForeground;
+    if (typeof accent === "string" && /^#[0-9A-Fa-f]{6}$/.test(accent)) {
+      root.style.setProperty("--primary", accent);
+    }
+    if (typeof accentFg === "string" && /^#[0-9A-Fa-f]{6}$/.test(accentFg)) {
+      root.style.setProperty("--primary-foreground", accentFg);
+    }
+  }
+
   function renderIdle() {
     var branding = state.branding || {};
     var promo =
@@ -338,10 +350,12 @@
     var parsed = parseSnapshot(next);
     if (!parsed) return;
     state = parsed;
+    applyBrandColors(parsed.branding || {});
     render();
   }
 
   applyTheme();
+  applyBrandColors(state.branding || {});
   render();
 
   var bridge = window.novendDesktop;

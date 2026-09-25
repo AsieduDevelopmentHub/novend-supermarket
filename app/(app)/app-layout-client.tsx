@@ -585,10 +585,12 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       <NativeAppServices>
         <OfflineProvider key={replicaKey}>
           <OfflineNavigationProvider>
-            <TelemetryProvider enabled={Boolean(isAuthenticated && online)} />
-            <div className="bg-background h-dvh overflow-hidden">
-              <OfflineOutlet>{children}</OfflineOutlet>
-            </div>
+            <OrganizationExperienceRoot>
+              <TelemetryProvider enabled={Boolean(isAuthenticated && online)} />
+              <div className="bg-background h-dvh overflow-hidden">
+                <OfflineOutlet>{children}</OfflineOutlet>
+              </div>
+            </OrganizationExperienceRoot>
           </OfflineNavigationProvider>
         </OfflineProvider>
       </NativeAppServices>

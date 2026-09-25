@@ -90,4 +90,15 @@ describe("customer display snapshot", () => {
     expect(idle.items).toEqual([]);
     expect(idle.branding.thankYouLine).toBe("Thank you!");
   });
+
+  it("round-trips org accent colors for Electron customer display", () => {
+    const idle = idleCustomerDisplaySnapshot({
+      tradeName: "East Legon Pharmacy",
+      accent: "#ea580c",
+      accentForeground: "#ffffff",
+    });
+    const restored = parseCustomerDisplaySnapshot(JSON.stringify(idle));
+    expect(restored?.branding.accent).toBe("#ea580c");
+    expect(restored?.branding.accentForeground).toBe("#ffffff");
+  });
 });
