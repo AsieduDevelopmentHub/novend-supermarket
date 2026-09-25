@@ -64,10 +64,11 @@ cloudBackupEnabled, remoteMonitoringEnabled })`. A Super Admin can switch either
   client timer only reads local state; Convex is contacted when the interval has
   elapsed. Skips when no recovery key is sealed on the device. `local_only` does
   not upload. Wired in `OfflineProvider`.
-- **Recovery key.** Set once in Settings → Backups. Sealed on-device (Capacitor
-  Secure Storage when available, otherwise browser localStorage scoped by org).
-  Never stored in Convex. Rotate creates a new key for future uploads; older
-  packages still need the previous key.
+- **Recovery key.** Set once in Settings → Backups. Sealed on-device in
+  **localStorage** (org-scoped). Cap does not use SecureStorage here — that
+  plugin often hangs the WebView bridge (same pattern as biometric unlock
+  tokens). Never stored in Convex. Rotate creates a new key for future uploads;
+  older packages still need the previous key.
 - **Fresh-device restore.** `CloudPackageRestoreGate` prompts an admin after login
   when mode is `backup_only` or `snapshot_only` and Dexie has no products/sales:
   enter recovery key → download latest `cloudBackups` row → decrypt → import →

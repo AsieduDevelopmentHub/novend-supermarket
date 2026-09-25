@@ -82,9 +82,17 @@ export function RecoveryKeyPanel({
   }
 
   function startCreate() {
-    const key = generateRecoveryKey();
-    setDraftKey(key);
-    setConfirmSaved(false);
+    // Defer so Cap can paint the button press before crypto + UI swap.
+    setPending(true);
+    window.setTimeout(() => {
+      try {
+        const key = generateRecoveryKey();
+        setDraftKey(key);
+        setConfirmSaved(false);
+      } finally {
+        setPending(false);
+      }
+    }, 0);
   }
 
   async function copyDraft() {
@@ -186,7 +194,7 @@ export function RecoveryKeyPanel({
               No recovery key on this device yet. Create one before scheduled cloud uploads can run.
             </p>
             <Button type="button" disabled={!organizationId || pending} onClick={startCreate}>
-              Create recovery key
+              {pending ? "Creating…" : "Create recovery key"}
             </Button>
           </div>
         )}

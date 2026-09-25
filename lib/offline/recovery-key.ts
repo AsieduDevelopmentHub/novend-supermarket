@@ -4,9 +4,11 @@
  *
  * Distinct from login passwords: one org-wide secret for encrypting backups and
  * compact snapshots. See docs/architecture/OFFLINE_SYNC.md.
+ *
+ * Cap: use localStorage only. `@aparajita/capacitor-secure-storage` often hangs
+ * the WebView bridge (same reason biometric unlock tokens avoid SecureStorage).
  */
 
-import { isCapacitor, secureStorage } from "@novend/hardware";
 import { getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
 
 const RECOVERY_KEY_STORAGE_PREFIX = "novend.recoveryKey.";
@@ -68,43 +70,24 @@ export function assertRecoveryKey(value: string): void {
 
 async function writeSealedValue(organizationId: string, key: string): Promise<void> {
   const storage = storageKey(organizationId);
-  if (isCapacitor()) {
-    const result = await secureStorage.set(storage, key);
-    if (!result.ok) {
-      // Fall through to browser storage when the native vault is unavailable.
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem(storage, key);
-      }
-    }
-  } else if (typeof localStorage !== "undefined") {
-    localStorage.setItem(storage, key);
+  if (typeof localStorage === "undefined") {
+    throw new Error("This device cannot store a recovery key");
   }
+  localStorage.setItem(storage, key);
   const db = await getOfflineDb();
   if (db) await setMeta(db, META_KEYS.recoveryKeySealed, "1");
 }
 
 async function readSealedValue(organizationId: string): Promise<string | null> {
-  const storage = storageKey(organizationId);
-  if (isCapacitor()) {
-    const result = await secureStorage.get(storage);
-    if (result.ok && typeof result.data === "string" && result.data.trim()) {
-      return normalizeRecoveryKeyInput(result.data);
-    }
-  }
-  if (typeof localStorage !== "undefined") {
-    const raw = localStorage.getItem(storage);
-    if (raw?.trim()) return normalizeRecoveryKeyInput(raw);
-  }
+  if (typeof localStorage === "undefined") return null;
+  const raw = localStorage.getItem(storageKey(organizationId));
+  if (raw?.trim()) return normalizeRecoveryKeyInput(raw);
   return null;
 }
 
 async function removeSealedValue(organizationId: string): Promise<void> {
-  const storage = storageKey(organizationId);
-  if (isCapacitor()) {
-    await secureStorage.remove(storage);
-  }
   if (typeof localStorage !== "undefined") {
-    localStorage.removeItem(storage);
+    localStorage.removeItem(storageKey(organizationId));
   }
   const db = await getOfflineDb();
   if (db) await setMeta(db, META_KEYS.recoveryKeySealed, "");
