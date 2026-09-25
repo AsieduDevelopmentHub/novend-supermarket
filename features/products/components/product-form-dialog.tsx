@@ -724,12 +724,13 @@ function ProductFormBody({
                       required
                     />
                   </div>
+                  {/*
+                    Show a date when creating, or when turning expiry on for the first time.
+                    Only point to Expiry lots once the product already tracked lots.
+                  */}
                   {!productId ||
                   productId.startsWith("local_") ||
-                  (productId &&
-                    initialProduct &&
-                    !initialProduct.tracksExpiry &&
-                    initialProduct.stockQuantity > 0) ? (
+                  initialProduct?.tracksExpiry !== true ? (
                     <div className="min-w-0 space-y-2">
                       <Label htmlFor="opening-expiry">
                         {productId && !productId.startsWith("local_")
@@ -746,12 +747,17 @@ function ProductFormBody({
                           Number(stockQuantity) > 0 || (initialProduct?.stockQuantity ?? 0) > 0
                         }
                       />
+                      {productId && !productId.startsWith("local_") ? (
+                        <p className="text-muted-foreground text-xs">
+                          Required when converting existing on-hand stock into dated lots.
+                        </p>
+                      ) : null}
                     </div>
-                  ) : productId ? (
+                  ) : (
                     <p className="text-muted-foreground text-xs sm:col-span-2">
                       Edit each batch&apos;s expiry on the product page under Expiry lots.
                     </p>
-                  ) : null}
+                  )}
                 </div>
               ) : null}
             </section>
