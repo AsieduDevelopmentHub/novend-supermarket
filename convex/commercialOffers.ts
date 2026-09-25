@@ -328,7 +328,8 @@ export const update = mutation({
 
     await ctx.db.patch(args.offerId, patch);
 
-    if (offer.status === "active" || offer.status === "accepted") {
+    // After the editability gate above, only draft | active remain; accepted cannot be edited.
+    if (offer.status === "active") {
       await bumpEntitlementVersion(ctx, offer.organizationId);
       const updated = { ...offer, ...patch } as typeof offer;
       await syncSubscriptionAmountFromOffer(ctx, updated);
