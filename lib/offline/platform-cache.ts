@@ -53,6 +53,7 @@ export type PlatformOverviewCache = {
     name: string;
     slug: string;
     status: string;
+    isTestOrganization?: boolean;
     plan: string;
     createdAt: number;
   }>;
@@ -64,6 +65,7 @@ export type PlatformOrganizationListItem = {
   name: string;
   slug: string;
   status: string;
+  isTestOrganization?: boolean;
   planKey: string;
   plan: string;
   currency: string;
