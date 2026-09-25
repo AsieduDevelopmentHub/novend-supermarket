@@ -30,6 +30,7 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Changed
 
+- Platform overview no longer fans out live `revenueAnalytics` + `systemHealth` on `/platform`; those routes load their own queries. Overview carries active-device and backup storage KPIs; subscription/health lists use `organizationPlatformStats` and `devices.by_isActive` instead of full profiles/devices scans.
 - Organizations can be flagged `isTestOrganization` (PEAS) and are excluded from platform MRR, ARR, and gross revenue.
 - Platform repair mutation `repairs.zeroZeroCostStock` clears on-hand units for products with `costPrice === 0` only (used for Global Medicine import cleanup).
 

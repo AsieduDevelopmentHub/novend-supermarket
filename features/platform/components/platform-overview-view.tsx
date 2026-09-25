@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentType } from "react";
+import type { ComponentType } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -17,7 +17,6 @@ import {
   ShoppingBag,
   TrendingUp,
   Users,
-  Wallet,
   XCircle,
 } from "lucide-react";
 import { PageHeader, Grid } from "@/components/layout/primitives";
@@ -26,58 +25,33 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
-import { formatCurrency, formatNumber } from "@/lib/currency";
+import { formatNumber } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { formatPlanBytes } from "@/convex/shared/plans";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import {
-  usePlatformHealthData,
-  usePlatformOverviewData,
-  usePlatformRevenueData,
-} from "@/hooks/use-platform-offline-data";
-import type { PlatformRevenueRange } from "@/lib/offline/platform-cache";
+import { usePlatformOverviewData } from "@/hooks/use-platform-offline-data";
 
-const RANGES: { id: PlatformRevenueRange; label: string }[] = [
-  { id: "today", label: "Today" },
-  { id: "7d", label: "7 days" },
-  { id: "30d", label: "30 days" },
-  { id: "12m", label: "12 months" },
-];
-
+/**
+ * Platform home only mounts `platform.overview`. Revenue and system-health
+ * queries stay on their own routes so opening `/platform` does not fan out
+ * three heavy Super Admin collects at once.
+ */
 export function PlatformOverviewView() {
   const online = useConnectivity();
-  const [range, setRange] = useState<PlatformRevenueRange>("30d");
   const { data: overview, loading } = usePlatformOverviewData();
-  const { data: revenue } = usePlatformRevenueData(range);
-  const { data: health } = usePlatformHealthData();
 
   if (loading || !overview) {
     return <LoadingState label="Loading platform overview…" />;
   }
 
-  const lifetimeLicenses = revenue?.lifetimeLicenses ?? 0;
-  const expiredSubscriptions = overview.expiredOrganizations;
+  const devices = overview.devices;
+  const storage = overview.storage;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Platform overview"
-        description="SaaS control center for Novend — revenue, tenants, releases, and system health."
-        actions={
-          <div className="flex flex-wrap gap-1">
-            {RANGES.map((item) => (
-              <Button
-                key={item.id}
-                type="button"
-                size="sm"
-                variant={range === item.id ? "default" : "outline"}
-                onClick={() => setRange(item.id)}
-              >
-                {item.label}
-              </Button>
-            ))}
-          </div>
-        }
+        description="SaaS control center for Novend — tenants, usage, releases, and links to revenue and health."
       />
 
       {!online ? (
@@ -121,20 +95,6 @@ export function PlatformOverviewView() {
 
       <Grid cols={4}>
         <Kpi
-          title="MRR"
-          value={revenue ? formatCurrency(revenue.mrr) : "—"}
-          hint="Paying orgs only"
-          icon={TrendingUp}
-          href="/platform/insights/mrr"
-        />
-        <Kpi
-          title="ARR"
-          value={revenue ? formatCurrency(revenue.arr) : "—"}
-          hint="MRR × 12"
-          icon={Wallet}
-          href="/platform/insights/arr"
-        />
-        <Kpi
           title="Active organizations"
           value={String(overview.activeOrganizations)}
           hint={`${overview.organizationCount} total`}
@@ -147,56 +107,46 @@ export function PlatformOverviewView() {
           icon={Clock}
           href="/platform/insights/trial-organizations"
         />
-      </Grid>
-
-      <Grid cols={4}>
         <Kpi
           title="Expired subscriptions"
-          value={String(expiredSubscriptions)}
+          value={String(overview.expiredOrganizations)}
           icon={XCircle}
           href="/platform/insights/expired-subscriptions"
         />
         <Kpi
           title="Lifetime licenses"
-          value={String(lifetimeLicenses)}
+          value={String(overview.lifetimeOrganizations ?? 0)}
           icon={Crown}
           href="/platform/insights/lifetime-licenses"
         />
+      </Grid>
+
+      <Grid cols={4}>
         <Kpi
           title="Active devices"
-          value={health ? String(health.devices.active) : "—"}
-          hint={health ? `${health.devices.seenLast24h} seen in 24h` : undefined}
+          value={devices ? String(devices.active) : "—"}
+          hint={devices ? `${devices.seenLast24h} seen in 24h` : undefined}
           icon={MonitorSmartphone}
           href="/platform/insights/active-devices"
         />
         <Kpi
           title="Cloud storage used"
-          value={health ? formatPlanBytes(health.storage.totalBytes) : "—"}
-          hint={health ? `${health.storage.backupCount} backups` : undefined}
+          value={storage ? formatPlanBytes(storage.totalBytes) : "—"}
+          hint={storage ? `${storage.backupCount} backups` : undefined}
           icon={HardDrive}
           href="/platform/insights/cloud-storage"
         />
+        <Kpi title="Staff accounts" value={formatNumber(overview.userCount)} icon={Users} />
+        <Kpi title="Branches" value={formatNumber(overview.branchCount)} icon={GitBranch} />
       </Grid>
 
       <Grid cols={4}>
-        <Kpi title="Staff accounts" value={formatNumber(overview.userCount)} icon={Users} />
-        <Kpi title="Branches" value={formatNumber(overview.branchCount)} icon={GitBranch} />
         <Kpi
           title="Completed sales"
           value={formatNumber(overview.saleCount)}
           hint={`${overview.salesLast24h} in the last 24 hours`}
           icon={ShoppingBag}
         />
-        <Kpi
-          title="Net profit"
-          value={revenue ? formatCurrency(revenue.netProfit) : "—"}
-          hint={revenue ? `Costs ${formatCurrency(revenue.operatingCosts)}` : undefined}
-          icon={Wallet}
-          href="/platform/revenue"
-        />
-      </Grid>
-
-      <Grid cols={4}>
         <Kpi
           title="Product imports"
           value={formatNumber(overview.importJobCount ?? 0)}
@@ -218,11 +168,35 @@ export function PlatformOverviewView() {
           }
           icon={FileDown}
         />
+      </Grid>
+
+      <Grid cols={4}>
         <Kpi
           title="CSV-only organizations"
           value={formatNumber(overview.csvOnlyOrganizations ?? 0)}
           hint="Below Pro — no Excel or PDF"
           icon={FileDown}
+        />
+        <Kpi
+          title="MRR / ARR"
+          value="Open"
+          hint="Live revenue analytics"
+          icon={TrendingUp}
+          href="/platform/revenue"
+        />
+        <Kpi
+          title="Net profit"
+          value="Open"
+          hint="Costs and gross on Revenue"
+          icon={CreditCard}
+          href="/platform/revenue"
+        />
+        <Kpi
+          title="System health"
+          value="Open"
+          hint="Devices, billing ops, releases"
+          icon={MonitorSmartphone}
+          href="/platform/health"
         />
       </Grid>
 
@@ -286,16 +260,6 @@ export function PlatformOverviewView() {
               Published desktop and mobile installers are cached on this device for offline review.
               Fresh downloads still need a connection.
             </p>
-            {health?.latestDesktopVersion ? (
-              <p className="text-xs">
-                Latest desktop: <span className="font-medium">{health.latestDesktopTag}</span>
-              </p>
-            ) : null}
-            {health?.latestMobileVersion ? (
-              <p className="text-xs">
-                Latest mobile: <span className="font-medium">{health.latestMobileTag}</span>
-              </p>
-            ) : null}
             <Button asChild variant="outline" className="w-full">
               <Link href="/platform/releases">View downloads</Link>
             </Button>
@@ -369,26 +333,24 @@ function Kpi({
     <Card
       className={
         href
-          ? "border-l-primary hover:border-l-primary/80 hover:bg-accent/40 min-w-0 border-l-[3px] transition-colors"
-          : "border-l-primary min-w-0 border-l-[3px]"
+          ? "hover:border-primary/40 focus-within:ring-ring transition-colors focus-within:ring-2"
+          : undefined
       }
     >
-      <CardContent className="flex items-start justify-between gap-3 p-5">
-        <div className="min-w-0">
-          <p className="text-muted-foreground truncate text-sm">{title}</p>
-          <p className="mt-2 truncate text-2xl font-semibold tracking-tight">{value}</p>
-          {hint ? <p className="text-muted-foreground mt-1 text-xs">{hint}</p> : null}
-        </div>
-        <div className="bg-accent text-accent-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-          <Icon className="h-5 w-5" />
-        </div>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="text-muted-foreground h-4 w-4" />
+      </CardHeader>
+      <CardContent>
+        <p className="text-2xl font-semibold tracking-tight">{value}</p>
+        {hint ? <p className="text-muted-foreground mt-1 text-xs">{hint}</p> : null}
       </CardContent>
     </Card>
   );
 
   if (!href) return content;
   return (
-    <Link href={href} className="block">
+    <Link href={href} className="block rounded-xl outline-none">
       {content}
     </Link>
   );

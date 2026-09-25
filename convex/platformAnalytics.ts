@@ -7,6 +7,7 @@ import { sanitizeText } from "./shared/validation";
 import { writeAuditLog } from "./shared/audit";
 import { utcDay } from "./shared/platformTelemetry";
 import { indexLiveOffersByOrganization, subscriptionMrr } from "./shared/platformRevenue";
+import { readPlatformStats } from "./shared/platformStatsAggregate";
 
 const RANGE_MS = {
   today: 24 * 60 * 60 * 1000,
@@ -215,14 +216,19 @@ export const listSubscriptions = query({
   args: {},
   handler: async (ctx) => {
     await requirePlatformAdmin(ctx, "analytics.read");
-    const [organizations, subscriptions, devices, backups, profiles, billing] = await Promise.all([
-      ctx.db.query("organizations").collect(),
-      ctx.db.query("subscriptions").collect(),
-      ctx.db.query("devices").collect(),
-      ctx.db.query("cloudBackups").collect(),
-      ctx.db.query("profiles").collect(),
-      ctx.db.query("billingHistory").collect(),
-    ]);
+    // Prefer organizationPlatformStats + active devices over full profiles/devices scans.
+    const [organizations, subscriptions, activeDevices, backups, orgStats, billing] =
+      await Promise.all([
+        ctx.db.query("organizations").collect(),
+        ctx.db.query("subscriptions").collect(),
+        ctx.db
+          .query("devices")
+          .withIndex("by_isActive", (q) => q.eq("isActive", true))
+          .collect(),
+        ctx.db.query("cloudBackups").collect(),
+        ctx.db.query("organizationPlatformStats").collect(),
+        ctx.db.query("billingHistory").collect(),
+      ]);
 
     const successfulByOrg = new Map<string, (typeof billing)[number][]>();
     for (const row of billing) {
@@ -243,8 +249,7 @@ export const listSubscriptions = query({
     }
 
     const deviceCountByOrg = new Map<string, number>();
-    for (const device of devices) {
-      if (!device.isActive) continue;
+    for (const device of activeDevices) {
       const key = String(device.organizationId);
       deviceCountByOrg.set(key, (deviceCountByOrg.get(key) ?? 0) + 1);
     }
@@ -255,11 +260,7 @@ export const listSubscriptions = query({
       storageByOrg.set(key, (storageByOrg.get(key) ?? 0) + backup.sizeBytes);
     }
 
-    const usersByOrg = new Map<string, number>();
-    for (const profile of profiles) {
-      const key = String(profile.organizationId);
-      usersByOrg.set(key, (usersByOrg.get(key) ?? 0) + 1);
-    }
+    const statsByOrg = new Map(orgStats.map((row) => [String(row.organizationId), row]));
 
     return organizations
       .sort((a, b) => b.createdAt - a.createdAt)
@@ -273,6 +274,7 @@ export const listSubscriptions = query({
         const lastPayment = payments.sort(
           (a, b) => (b.paidAt ?? b.createdAt) - (a.paidAt ?? a.createdAt),
         )[0];
+        const stats = statsByOrg.get(String(org._id));
         return {
           id: org._id,
           name: org.name,
@@ -286,7 +288,7 @@ export const listSubscriptions = query({
           amount: sub?.amount ?? 0,
           currency: sub?.currency ?? org.currency,
           renewalDate: sub?.nextBillingDate ?? sub?.expiresAt ?? org.trialEndsAt ?? null,
-          users: usersByOrg.get(String(org._id)) ?? 0,
+          users: stats?.userCount ?? 0,
           devices: deviceCountByOrg.get(String(org._id)) ?? 0,
           storageBytes: storageByOrg.get(String(org._id)) ?? 0,
           revenueAll,
@@ -372,21 +374,24 @@ export const systemHealth = query({
   handler: async (ctx) => {
     await requirePlatformAdmin(ctx, "analytics.read");
     const [
-      organizations,
+      globalStats,
+      orgStats,
       subscriptions,
-      devices,
+      activeDevices,
       backups,
-      profiles,
       desktopReleases,
       mobileReleases,
       pendingPayments,
       failedPayments,
     ] = await Promise.all([
-      ctx.db.query("organizations").collect(),
+      readPlatformStats(ctx),
+      ctx.db.query("organizationPlatformStats").collect(),
       ctx.db.query("subscriptions").collect(),
-      ctx.db.query("devices").collect(),
+      ctx.db
+        .query("devices")
+        .withIndex("by_isActive", (q) => q.eq("isActive", true))
+        .collect(),
       ctx.db.query("cloudBackups").collect(),
-      ctx.db.query("profiles").collect(),
       ctx.db
         .query("desktopReleases")
         .withIndex("by_channel_releasedAt", (q) => q.eq("channel", "stable"))
@@ -412,15 +417,15 @@ export const systemHealth = query({
         .take(100),
     ]);
 
-    const activeDevices = devices.filter((d) => d.isActive);
     const storageBytes = backups.reduce((sum, b) => sum + b.sizeBytes, 0);
     const now = Date.now();
     const dayAgo = now - 24 * 60 * 60 * 1000;
+    const profileCount = orgStats.reduce((sum, row) => sum + row.userCount, 0);
 
     return {
       convexStatus: "ok" as const,
-      organizationCount: organizations.length,
-      profileCount: profiles.length,
+      organizationCount: globalStats?.organizationCount ?? 0,
+      profileCount: globalStats?.userCount ?? profileCount,
       subscriptionCounts: {
         active: subscriptions.filter((s) => s.status === "active").length,
         trialing: subscriptions.filter((s) => s.status === "trialing").length,
@@ -429,7 +434,8 @@ export const systemHealth = query({
         expired: subscriptions.filter((s) => s.status === "expired").length,
       },
       devices: {
-        total: devices.length,
+        // Prefer platformStats for total (includes inactive). Active mix uses by_isActive.
+        total: globalStats?.deviceCount ?? activeDevices.length,
         active: activeDevices.length,
         desktop: activeDevices.filter((d) => d.runtime === "desktop").length,
         web: activeDevices.filter((d) => d.runtime === "web").length,

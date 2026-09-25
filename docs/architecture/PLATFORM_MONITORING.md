@@ -75,10 +75,20 @@ branch / user counts) come from the `platformStats` singleton via
 repairable with `platformStats.rebuild`. Reserve full-table scans for near-cap
 lists and recent-org drill-downs, not headline cards.
 
+`/platform` mounts only `platform.overview` (orgs + `organizationPlatformStats` +
+active devices + backups). `revenueAnalytics` and `systemHealth` load on their
+own routes. Subscription and health lists use `organizationPlatformStats` and
+`devices.by_isActive` instead of collecting all profiles or inactive devices.
+
 Runtime mix and device health query only **active** devices (`by_isActive`).
 Activation funnel registrations use `by_registeredAt` for the selected range.
 Staff account totals come from `organizationPlatformStats` (no global profiles
 collect).
+
+> Note: `origin/perf/convex-io-reduction` overlaps this work but conflicts hard
+> with current `staging` (layout, schema, org-stats, sales/products, generated
+> API). Prefer re-implementing the safe slices above on a fresh branch rather
+> than merging that branch wholesale.
 
 ## Offline behavior
 

@@ -39,6 +39,15 @@ export type PlatformOverviewCache = {
     other: number;
   };
   csvOnlyOrganizations?: number;
+  lifetimeOrganizations?: number;
+  devices?: {
+    active: number;
+    seenLast24h: number;
+  };
+  storage?: {
+    backupCount: number;
+    totalBytes: number;
+  };
   orgsNearImportCap?: Array<{
     id: string;
     name: string;

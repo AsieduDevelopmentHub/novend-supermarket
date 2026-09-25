@@ -94,7 +94,7 @@ export const overview = query({
     const now = Date.now();
     const dayAgo = now - 24 * 60 * 60 * 1000;
 
-    const [organizations, orgStats, recentSales, exportEvents, globalStats, commercialOffers] =
+    const [organizations, orgStats, recentSales, exportEvents, globalStats, commercialOffers, activeDevices, backups] =
       await Promise.all([
         ctx.db.query("organizations").collect(),
         ctx.db.query("organizationPlatformStats").collect(),
@@ -106,6 +106,11 @@ export const overview = query({
         ctx.db.query("exportEvents").collect(),
         readPlatformStats(ctx),
         ctx.db.query("commercialOffers").collect(),
+        ctx.db
+          .query("devices")
+          .withIndex("by_isActive", (q) => q.eq("isActive", true))
+          .collect(),
+        ctx.db.query("cloudBackups").collect(),
       ]);
 
     const liveOffersByOrg = indexLiveOffersByOrganization(commercialOffers, now);
@@ -197,6 +202,9 @@ export const overview = query({
       inactiveOrganizations: organizations.filter(
         (org) => org.status === "inactive" || org.status === "disabled",
       ).length,
+      lifetimeOrganizations:
+        globalStats?.lifetimePlanCount ??
+        organizations.filter((org) => resolvePlan(org.planKey).key === "lifetime").length,
       cloudModeCounts,
       userCount,
       branchCount,
@@ -208,6 +216,14 @@ export const overview = query({
       exportsByFormat: countExportFormats(exportEvents),
       csvOnlyOrganizations,
       orgsNearImportCap: orgsNearImportCap.slice(0, 8),
+      devices: {
+        active: activeDevices.length,
+        seenLast24h: activeDevices.filter((d) => d.lastSeenAt >= dayAgo).length,
+      },
+      storage: {
+        backupCount: backups.length,
+        totalBytes: backups.reduce((sum, b) => sum + b.sizeBytes, 0),
+      },
       recentOrganizations: organizations
         .sort((a, b) => b.createdAt - a.createdAt)
         .slice(0, 8)
