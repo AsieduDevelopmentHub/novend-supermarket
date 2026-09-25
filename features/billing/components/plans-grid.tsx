@@ -89,6 +89,10 @@ function offerPriceForCycle(
 function offerAsPlanDefinition(offer: CommercialOfferSnapshot): PlanDefinition {
   const base =
     SELLABLE_PLAN_LIST.find((p) => p.key === offer.basePlanKey) ?? SELLABLE_PLAN_LIST[0]!;
+  const lifetimeOnly =
+    offer.allowedCycles.includes("lifetime") &&
+    !offer.allowedCycles.includes("monthly") &&
+    !offer.allowedCycles.includes("yearly");
   return {
     ...base,
     key: offer.basePlanKey,
@@ -96,9 +100,9 @@ function offerAsPlanDefinition(offer: CommercialOfferSnapshot): PlanDefinition {
     tagline: offer.customerMessage?.trim() || "Configured for your business",
     monthlyPrice: offer.monthlyPrice ?? null,
     yearlyPrice: offer.yearlyPrice ?? null,
-    oneTimePrice: null,
-    isLifetime: false,
-    selfServe: true,
+    oneTimePrice: offer.lifetimePrice ?? null,
+    isLifetime: lifetimeOnly,
+    selfServe: !lifetimeOnly,
     featured: true,
     features: [
       ...(offer.customerMessage ? [offer.customerMessage] : []),
@@ -188,7 +192,11 @@ export function PlansGrid({
       ? [offerAsPlanDefinition(commercialOffer)]
       : SELLABLE_PLAN_LIST;
   const cycleOptions: Array<"monthly" | "yearly"> =
-    customOfferOnly && commercialOffer ? commercialOffer.allowedCycles : ["monthly", "yearly"];
+    customOfferOnly && commercialOffer
+      ? commercialOffer.allowedCycles.filter(
+          (c): c is "monthly" | "yearly" => c === "monthly" || c === "yearly",
+        )
+      : ["monthly", "yearly"];
 
   const offerCyclePrice =
     customOfferOnly && commercialOffer ? offerPriceForCycle(commercialOffer, cycle) : null;
