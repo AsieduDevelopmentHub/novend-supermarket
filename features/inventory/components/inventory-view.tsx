@@ -204,12 +204,50 @@ function InventoryViewInner() {
 
   const visibleRows = useMemo(() => {
     if (!rows) return undefined;
+    const expandOrgAlerts = isAdmin && branchOverride === "all" && (lowOnly || expiryOnly);
+
+    if (expandOrgAlerts) {
+      return rows.flatMap((row) => {
+        const branches = row.alertBranches ?? [];
+        const matching = branches.filter((branch) =>
+          lowOnly ? branch.isLowStock : branch.isExpired || branch.isExpiring,
+        );
+        if (matching.length === 0) {
+          if (lowOnly ? row.isLowStock : row.isExpired || row.isExpiring) {
+            return [{ ...row, rowKey: String(row.id) }];
+          }
+          return [];
+        }
+        return matching.map((branch) => ({
+          ...row,
+          rowKey: `${row.id}:${branch.branchId}`,
+          stockQuantity: branch.sellableQuantity,
+          sellableQuantity: branch.sellableQuantity,
+          expiredQuantity: branch.expiredQuantity,
+          expiringQuantity: branch.expiringQuantity,
+          nearestExpiry: branch.nearestExpiry ?? row.nearestExpiry,
+          isLowStock: branch.isLowStock,
+          isExpired: branch.isExpired,
+          isExpiring: branch.isExpiring,
+          branchId: branch.branchId,
+          branchName: branch.branchName,
+          statusLabel: branch.isExpired
+            ? "Expired"
+            : branch.isExpiring
+              ? "Expiring"
+              : branch.isLowStock
+                ? "Low Stock"
+                : row.statusLabel,
+        }));
+      });
+    }
+
     return expiryOnly
       ? rows.filter((row) => row.isExpired || row.isExpiring)
       : lowOnly
         ? rows.filter((row) => row.isLowStock)
         : rows;
-  }, [rows, lowOnly, expiryOnly]);
+  }, [rows, lowOnly, expiryOnly, isAdmin, branchOverride]);
   const {
     paged: pageRows,
     page,
@@ -294,9 +332,9 @@ function InventoryViewInner() {
     }
   }
 
-  function openAdjust(productId: Id<"products">) {
+  function openAdjust(productId: Id<"products">, branchId?: Id<"branches"> | null) {
     setAdjustId(productId);
-    setAdjustBranchId(listBranchId ?? myBranchId ?? "");
+    setAdjustBranchId(branchId ?? listBranchId ?? myBranchId ?? "");
     setQuantity("");
     setDirection("add");
     setReason("receive");
@@ -528,7 +566,7 @@ function InventoryViewInner() {
                   </thead>
                   <tbody>
                     {(pageRows ?? []).map((row) => (
-                      <ClickableTableRow key={row.id} href={`/products/${row.id}`}>
+                      <ClickableTableRow key={row.rowKey ?? row.id} href={`/products/${row.id}`}>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="bg-muted relative h-9 w-9 overflow-hidden rounded-md">
@@ -539,7 +577,12 @@ function InventoryViewInner() {
                                 sizes="36px"
                               />
                             </div>
-                            <span className="font-medium">{row.name}</span>
+                            <div>
+                              <span className="font-medium">{row.name}</span>
+                              {row.branchName ? (
+                                <p className="text-muted-foreground text-xs">{row.branchName}</p>
+                              ) : null}
+                            </div>
                           </div>
                         </td>
                         <td className="px-4 py-3">{row.categoryName}</td>
@@ -608,7 +651,7 @@ function InventoryViewInner() {
                                 size="sm"
                                 variant="outline"
                                 data-tour="inventory-adjustment"
-                                onClick={() => openAdjust(row.id)}
+                                onClick={() => openAdjust(row.id, row.branchId)}
                               >
                                 Adjust
                               </Button>
@@ -642,11 +685,16 @@ function InventoryViewInner() {
 
               <div className="space-y-3 p-3 md:hidden">
                 {(pageRows ?? []).map((row) => (
-                  <div key={row.id} className="border-border space-y-2 rounded-xl border p-3">
+                  <div key={row.rowKey ?? row.id} className="border-border space-y-2 rounded-xl border p-3">
                     <div className="flex items-start justify-between gap-2">
-                      <Link href={`/products/${row.id}`} className="font-medium hover:underline">
-                        {row.name}
-                      </Link>
+                      <div>
+                        <Link href={`/products/${row.id}`} className="font-medium hover:underline">
+                          {row.name}
+                        </Link>
+                        {row.branchName ? (
+                          <p className="text-muted-foreground text-xs">{row.branchName}</p>
+                        ) : null}
+                      </div>
                       <StockStatusBadges
                         isLowStock={row.isLowStock}
                         isExpired={row.isExpired}
@@ -678,7 +726,7 @@ function InventoryViewInner() {
                           size="sm"
                           variant="outline"
                           data-tour="inventory-adjustment"
-                          onClick={() => openAdjust(row.id)}
+                          onClick={() => openAdjust(row.id, row.branchId)}
                         >
                           Adjust
                         </Button>

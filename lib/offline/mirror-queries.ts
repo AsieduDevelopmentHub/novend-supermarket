@@ -23,8 +23,22 @@ import { presenceFromLastSeenAt, sortUsersByPresence } from "@/lib/presence";
 import { ownedSaleIdsForCashier } from "@/lib/dashboard/cashier-scope";
 import { DEFAULT_EXPIRY_ALERT_DAYS, summarizeLots } from "@/convex/shared/lots";
 
+export type MirroredInventoryAlertBranch = {
+  branchId: string;
+  branchName: string;
+  stockQuantity: number;
+  sellableQuantity: number;
+  expiredQuantity: number;
+  expiringQuantity: number;
+  nearestExpiry: string | null;
+  isLowStock: boolean;
+  isExpired: boolean;
+  isExpiring: boolean;
+};
+
 export type MirroredProductRow = MirroredProduct & {
   isLowStock: boolean;
+  alertBranches?: MirroredInventoryAlertBranch[];
 };
 
 async function mapMirroredProductRows(
@@ -47,6 +61,9 @@ async function mapMirroredProductRows(
     : await branchStockMapOrgWide(db);
   const pendingTransfers = await pendingTransferDisplayAdjustments(db);
   const lots = await db.lots.toArray();
+  const allBranchStock = branchFilter == null ? await db.branchStock.toArray() : [];
+  const branches = branchFilter == null ? await db.branches.toArray() : [];
+  const branchNameById = new Map(branches.map((b) => [b.id, b.name]));
 
   return Promise.all(
     products.map(async (product) => {
@@ -68,11 +85,58 @@ async function mapMirroredProductRows(
       );
       const lotSummary =
         product.tracksExpiry && productLots.length > 0
-          ? summarizeLots(
-              productLots,
-              product.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS,
-            )
+          ? summarizeLots(productLots, product.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS)
           : null;
+
+      const alertBranches =
+        branchFilter == null
+          ? allBranchStock
+              .filter((row) => row.productId === product.id)
+              .map((row) => {
+                const branchLots = lots.filter(
+                  (lot) =>
+                    lot.productId === product.id &&
+                    lot.branchId === row.branchId &&
+                    lot.quantity > 0,
+                );
+                const summary =
+                  product.tracksExpiry && branchLots.length > 0
+                    ? summarizeLots(
+                        branchLots,
+                        product.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS,
+                      )
+                    : null;
+                const sellable = product.tracksExpiry
+                  ? (summary?.sellableQuantity ?? row.sellableQuantity ?? 0)
+                  : (row.sellableQuantity ?? row.quantity);
+                const expiredQuantity = summary?.expiredQuantity ?? 0;
+                const expiringQuantity = summary?.expiringQuantity ?? 0;
+                const isLowStock = sellable <= product.lowStockThreshold;
+                const isExpired = expiredQuantity > 0;
+                const isExpiring = expiringQuantity > 0;
+                if (!isLowStock && !isExpired && !isExpiring) return null;
+                return {
+                  branchId: row.branchId,
+                  branchName: branchNameById.get(row.branchId) ?? "Branch",
+                  stockQuantity: row.quantity,
+                  sellableQuantity: sellable,
+                  expiredQuantity,
+                  expiringQuantity,
+                  nearestExpiry: summary?.nearestExpiry ?? null,
+                  isLowStock,
+                  isExpired,
+                  isExpiring,
+                };
+              })
+              .filter((row): row is NonNullable<typeof row> => row !== null)
+          : undefined;
+
+      const isLowStock =
+        branchFilter == null
+          ? (alertBranches?.some((row) => row.isLowStock) ??
+            displayed.sellableQuantity <= product.lowStockThreshold)
+          : displayed.sellableQuantity <= product.lowStockThreshold;
+
       return {
         ...product,
         stockQuantity: displayed.stockQuantity,
@@ -82,12 +146,17 @@ async function mapMirroredProductRows(
         isExpiring:
           lotSummary != null
             ? lotSummary.expiringQuantity > 0
-            : (resolved.isExpiring ?? false),
+            : branchFilter == null
+              ? (alertBranches?.some((row) => row.isExpiring) ?? false)
+              : (resolved.isExpiring ?? false),
         isExpired:
           lotSummary != null
             ? lotSummary.expiredQuantity > 0
-            : (resolved.isExpired ?? false),
-        isLowStock: displayed.sellableQuantity <= product.lowStockThreshold,
+            : branchFilter == null
+              ? (alertBranches?.some((row) => row.isExpired) ?? false)
+              : (resolved.isExpired ?? false),
+        isLowStock,
+        alertBranches,
       };
     }),
   );
