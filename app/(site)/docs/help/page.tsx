@@ -68,7 +68,10 @@ export default function HelpCenterPage() {
           <p className="mt-2 text-sm leading-relaxed text-slate-600">{page.supportCta.detail}</p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Button asChild>
-              <a href={page.supportCta.mailto}>Contact Support</a>
+              <Link href={page.supportCta.pageHref}>{page.supportCta.pageLabel}</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <a href={page.supportCta.mailto}>Email support</a>
             </Button>
             <Button asChild variant="outline">
               <Link href="/docs">Browse documentation</Link>

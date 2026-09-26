@@ -4,6 +4,48 @@ export const LANDING_CONTACT_EMAIL = "asiedudev.hub@gmail.com";
 /** Public-facing address shown in marketing UI; mailto still uses LANDING_CONTACT_EMAIL. */
 export const LANDING_CONTACT_EMAIL_DISPLAY = "hello@novendpos.app";
 
+export const LANDING_WHATSAPP_UK = {
+  display: "+44 7868 178108",
+  href: "https://wa.me/447868178108",
+} as const;
+
+export const LANDING_WHATSAPP_GH = {
+  display: "+233 55 525 7482",
+  telHref: "tel:+233555257482",
+  href: "https://wa.me/233555257482",
+} as const;
+
+/** Official Novend POS Community WhatsApp invite. */
+export const LANDING_WHATSAPP_COMMUNITY_HREF =
+  "https://chat.whatsapp.com/CykdHkBEkGf9vbV6rJgrjP";
+
+export const LANDING_SOCIAL_LINKS = [
+  {
+    id: "community",
+    label: "WhatsApp community",
+    detail: "Novend POS Community",
+    href: LANDING_WHATSAPP_COMMUNITY_HREF,
+  },
+  {
+    id: "whatsapp",
+    label: "WhatsApp",
+    detail: "Chat with the team",
+    href: LANDING_WHATSAPP_UK.href,
+  },
+  {
+    id: "linkedin",
+    label: "LinkedIn",
+    detail: "Asiedu Development Hub",
+    href: "https://www.linkedin.com/company/asiedudevhub",
+  },
+  {
+    id: "website",
+    label: "Website",
+    detail: "asiedudevhub.auralenx.com",
+    href: "https://asiedudevhub.auralenx.com",
+  },
+] as const;
+
 /** Build a mailto URL with subject + body for sales outreach.
  * Uses encodeURIComponent (%20) — URLSearchParams uses +, which many mail clients show literally.
  */
@@ -13,6 +55,32 @@ export function buildSalesMailto(options: { subject: string; body: string }): st
     `?subject=${encodeURIComponent(options.subject)}` +
     `&body=${encodeURIComponent(options.body)}`
   );
+}
+
+export function buildContactMailto(options: {
+  name: string;
+  email: string;
+  business?: string;
+  topic: string;
+  message: string;
+}): string {
+  const topicLabel = options.topic.trim() || "General";
+  return buildSalesMailto({
+    subject: `Novend contact — ${topicLabel}`,
+    body: [
+      "Hello Novend team,",
+      "",
+      options.message.trim(),
+      "",
+      "—",
+      `Name: ${options.name.trim()}`,
+      `Email: ${options.email.trim()}`,
+      options.business?.trim() ? `Business: ${options.business.trim()}` : null,
+      `Topic: ${topicLabel}`,
+    ]
+      .filter((line): line is string => line != null)
+      .join("\n"),
+  });
 }
 
 export const ENTERPRISE_SALES_MAILTO = buildSalesMailto({
@@ -147,6 +215,27 @@ export const landingCopy = {
     title: "Built for unreliable connectivity",
     detail:
       "After setup, the counter keeps working on the device. Pending changes upload when you reconnect—without stopping the sale in front of you.",
+    scene: {
+      offline: {
+        stateLabel: "STATE 01",
+        status: "CONNECTION LOST",
+        title: "No internet",
+        detail:
+          "The connection drops. Novend detects it and keeps the current sale running on this device—no interruption at the counter.",
+      },
+      local: {
+        title: "Active local engine",
+        detail: "Business operations maintained. Transactions securely queued.",
+        processing: "PROCESSING",
+      },
+      reconnect: {
+        stateLabel: "SYS_STATE_02",
+        status: "SELF-RESOLUTION",
+        title: "Reconnection",
+        detail:
+          "When the network returns, Novend syncs queued sales automatically. You do not need to do anything.",
+      },
+    },
     steps: [
       {
         id: "write",
@@ -497,7 +586,7 @@ export const landingCopy = {
     contactTitle: "Still have questions?",
     contactDetail: "Contact our support team anytime.",
     contactCta: "Contact support",
-    contactHref: GENERAL_SALES_MAILTO,
+    contactHref: "/contact",
     items: [
       {
         q: "Does Novend work offline?",
@@ -530,7 +619,7 @@ export const landingCopy = {
     subtitle: "Set up your catalogue, make a test sale, and see how Novend handles a working day.",
     primary: "Start free",
     secondary: "Talk to sales",
-    secondaryHref: GENERAL_SALES_MAILTO,
+    secondaryHref: "/contact",
     platformsLine: "Windows • macOS • Linux • Android • iPhone/iPad PWA",
   },
   desktop: {
@@ -577,6 +666,7 @@ export const landingCopy = {
         { href: "/docs/releases", label: "Release Notes" },
         // TODO(security-page): dedicated /security trust page
         { href: "/docs#security", label: "Security" },
+        { href: "/contact", label: "Contact" },
       ],
     },
     desktop: { href: "/download", label: "Download" },
@@ -604,7 +694,7 @@ export const landingCopy = {
       { href: "/docs", label: "Documentation" },
       { href: "/docs/help", label: "Help Center" },
       { href: "/docs/releases", label: "Release Notes" },
-      { href: GENERAL_SALES_MAILTO, label: "Contact Support" },
+      { href: "/contact", label: "Contact" },
     ],
     legal: [
       { href: "/privacy", label: "Privacy Policy" },
@@ -616,6 +706,12 @@ export const landingCopy = {
     ],
     contact: {
       title: "Contact",
+      pageHref: "/contact",
+      community: {
+        label: "WhatsApp community",
+        value: "Novend POS Community",
+        href: LANDING_WHATSAPP_COMMUNITY_HREF,
+      },
       email: {
         label: "Email",
         value: LANDING_CONTACT_EMAIL_DISPLAY,
@@ -623,16 +719,86 @@ export const landingCopy = {
       },
       international: {
         label: "WhatsApp",
-        value: "+44 7868 178108",
-        href: "https://wa.me/447868178108",
+        value: LANDING_WHATSAPP_UK.display,
+        href: LANDING_WHATSAPP_UK.href,
       },
       local: {
         label: "Phone",
-        value: "+233 55 525 7482",
-        href: "tel:+233555257482",
+        value: LANDING_WHATSAPP_GH.display,
+        href: LANDING_WHATSAPP_GH.telHref,
       },
     },
+    socials: LANDING_SOCIAL_LINKS,
     copyright: "Novend. All rights reserved.",
     builtBy: "Designed & developed by Asiedu Development Hub",
+  },
+  contactPage: {
+    badge: "Contact",
+    title: "Talk to Novend",
+    subtitle:
+      "Ask about pricing, onboarding, or support—or join the WhatsApp community with other retailers using Novend.",
+    responseNote: "We typically reply within one business day. WhatsApp is fastest for quick questions.",
+    channels: {
+      title: "Reach us directly",
+      detail: "Pick the channel that fits. Include your organization name when you write.",
+      items: [
+        {
+          id: "community",
+          label: "WhatsApp community",
+          detail: "Join retailers using Novend — tips, updates, and peer help.",
+          cta: "Join on WhatsApp",
+          href: LANDING_WHATSAPP_COMMUNITY_HREF,
+          accent: "community" as const,
+        },
+        {
+          id: "whatsapp",
+          label: "Chat on WhatsApp",
+          detail: LANDING_WHATSAPP_UK.display,
+          cta: "Open chat",
+          href: LANDING_WHATSAPP_UK.href,
+          accent: "whatsapp" as const,
+        },
+        {
+          id: "email",
+          label: "Email",
+          detail: LANDING_CONTACT_EMAIL_DISPLAY,
+          cta: "Send email",
+          href: `mailto:${LANDING_CONTACT_EMAIL}`,
+          accent: "email" as const,
+        },
+        {
+          id: "phone",
+          label: "Phone / WhatsApp",
+          detail: LANDING_WHATSAPP_GH.display,
+          cta: "Call or message",
+          href: LANDING_WHATSAPP_GH.href,
+          accent: "phone" as const,
+        },
+      ],
+    },
+    form: {
+      title: "Send a message",
+      detail: "Opens your email app with a ready draft to the Novend team.",
+      nameLabel: "Full name",
+      emailLabel: "Email",
+      businessLabel: "Business name",
+      businessOptional: "Optional",
+      topicLabel: "Topic",
+      messageLabel: "How can we help?",
+      submit: "Continue in email",
+      topics: [
+        { value: "Support", label: "Product support" },
+        { value: "Sales", label: "Sales & pricing" },
+        { value: "Onboarding", label: "Onboarding help" },
+        { value: "Community", label: "Community / WhatsApp" },
+        { value: "Partnership", label: "Partnership" },
+        { value: "Other", label: "Something else" },
+      ],
+    },
+    socials: {
+      title: "Connect with Novend",
+      detail: "Follow Asiedu Development Hub and reach the team on WhatsApp.",
+      links: LANDING_SOCIAL_LINKS,
+    },
   },
 } as const;

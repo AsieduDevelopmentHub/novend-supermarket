@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Plus } from "lucide-react";
 import {
   Accordion,
@@ -60,7 +61,7 @@ export function LandingFaq() {
                 </h3>
                 <p className="mt-2.5 text-sm leading-relaxed text-slate-600">{faq.contactDetail}</p>
                 <Button asChild className="mt-6 font-semibold">
-                  <a href={faq.contactHref}>{faq.contactCta}</a>
+                  <Link href={faq.contactHref}>{faq.contactCta}</Link>
                 </Button>
               </div>
 
