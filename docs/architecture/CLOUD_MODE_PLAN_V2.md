@@ -9,7 +9,8 @@ When a **new or empty till** signs in and the PEAS planned mode is not `full_syn
 - Fields: `organizations.cloudSyncBoostUntil` (+ startedAt / reason). PEAS `cloudMode` is **not** rewritten.
 - `licenseSnapshot.cloudMode` becomes **effective** `full_sync` for all org clients while the boost is active; `plannedCloudMode` and `syncBoostUntil` are also returned.
 - Every till briefly enables realtime pull + outbox flush so older devices can push and the new till can pull.
-- TTL: 30 minutes (refresh only if less than 10 minutes remain).
+- TTL: Super Admin configurable — org override → `platformDefaults.cloudSyncBoostTtlMinutes` → **30 minutes**. Refresh only when less than **one-third** of the effective TTL remains.
+- Allowed lengths: 15 / 30 / 45 / 60 / 90 / 120 minutes (`platform.setGlobalCloudSyncBoostTtl`, `platform.setOrganizationCloudSyncBoostTtl`).
 - While boosted, tills flush **outbox events** (sales, restocks, etc.) and **pull** the compact Dexie mirror (`offline.getSnapshot`) — not an encrypted cloud package upload.
 - Triggers: `devices.registerDevice` on create/reactivate; `devices.requestCloudSyncBoost` when Dexie has no catalog.
 - Restore gate is skipped while effective mode is boosted.

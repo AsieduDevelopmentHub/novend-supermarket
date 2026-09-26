@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { MarketingSitePage } from "@/features/marketing/components/marketing-site-page";
 import { APP_NAME } from "@/constants/app";
 import { detectBrowserDesktopTarget, type BrowserDesktopTarget } from "@/lib/desktop";
-import { sanitizeReleaseNoteLines } from "@/features/marketing/lib/sanitize-release-notes";
+import { sanitizeReleaseNoteLines } from "@/lib/sanitize-release-notes";
 import { cn } from "@/lib/utils";
 import { appEntryHref } from "@/lib/hosting/hosts";
 

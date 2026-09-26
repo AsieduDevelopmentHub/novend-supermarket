@@ -62,6 +62,7 @@ import type * as shared_businessCapabilities from "../shared/businessCapabilitie
 import type * as shared_capabilities from "../shared/capabilities.js";
 import type * as shared_clientOps from "../shared/clientOps.js";
 import type * as shared_cloudMode from "../shared/cloudMode.js";
+import type * as shared_cloudSyncBoost from "../shared/cloudSyncBoost.js";
 import type * as shared_commercialOffers from "../shared/commercialOffers.js";
 import type * as shared_defaultBranch from "../shared/defaultBranch.js";
 import type * as shared_documentReferences from "../shared/documentReferences.js";
@@ -88,6 +89,8 @@ import type * as shared_paystack from "../shared/paystack.js";
 import type * as shared_permissions from "../shared/permissions.js";
 import type * as shared_planChange from "../shared/planChange.js";
 import type * as shared_plans from "../shared/plans.js";
+import type * as shared_platformDefaults from "../shared/platformDefaults.js";
+import type * as shared_platformOrganizations from "../shared/platformOrganizations.js";
 import type * as shared_platformRevenue from "../shared/platformRevenue.js";
 import type * as shared_platformRoles from "../shared/platformRoles.js";
 import type * as shared_platformStatsAggregate from "../shared/platformStatsAggregate.js";
@@ -173,6 +176,7 @@ declare const fullApi: ApiFromModules<{
   "shared/capabilities": typeof shared_capabilities;
   "shared/clientOps": typeof shared_clientOps;
   "shared/cloudMode": typeof shared_cloudMode;
+  "shared/cloudSyncBoost": typeof shared_cloudSyncBoost;
   "shared/commercialOffers": typeof shared_commercialOffers;
   "shared/defaultBranch": typeof shared_defaultBranch;
   "shared/documentReferences": typeof shared_documentReferences;
@@ -199,6 +203,8 @@ declare const fullApi: ApiFromModules<{
   "shared/permissions": typeof shared_permissions;
   "shared/planChange": typeof shared_planChange;
   "shared/plans": typeof shared_plans;
+  "shared/platformDefaults": typeof shared_platformDefaults;
+  "shared/platformOrganizations": typeof shared_platformOrganizations;
   "shared/platformRevenue": typeof shared_platformRevenue;
   "shared/platformRoles": typeof shared_platformRoles;
   "shared/platformStatsAggregate": typeof shared_platformStatsAggregate;

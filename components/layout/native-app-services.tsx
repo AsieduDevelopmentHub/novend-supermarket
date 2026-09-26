@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Fingerprint } from "lucide-react";
+import { sanitizeReleaseNoteLines } from "@/lib/sanitize-release-notes";
 import { parseMobileDeepLink } from "@/lib/auth/mobile-deep-link";
 
 type Gate = "checking" | "locked" | "open";
@@ -29,14 +30,10 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [gate, setGate] = useState<Gate>("open");
   const [updateOpen, setUpdateOpen] = useState(false);
-  const [updateNotes, setUpdateNotes] = useState("");
+  const [updateHighlights, setUpdateHighlights] = useState<string[]>([]);
   const [updateVersion, setUpdateVersion] = useState("");
   const [updateMandatory, setUpdateMandatory] = useState(false);
   const [installedVersion, setInstalledVersion] = useState("");
-  const [installedBuild, setInstalledBuild] = useState("");
-  const [hostedOrigin] = useState(() =>
-    typeof window !== "undefined" && isCapacitor() ? window.location.origin : "",
-  );
   const [exitOpen, setExitOpen] = useState(false);
 
   useEffect(() => {
@@ -93,11 +90,10 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
       const appInfo = await Hardware.app.getInfo();
       if (appInfo.data) {
         setInstalledVersion(appInfo.data.version);
-        setInstalledBuild(appInfo.data.build);
       }
       if (update.data?.available && update.data.status === "available") {
         setUpdateVersion(update.data.version || "");
-        setUpdateNotes(update.data.notes || "A newer Novend build is available.");
+        setUpdateHighlights(sanitizeReleaseNoteLines(update.data.notes));
         setUpdateMandatory(update.data.mandatory === true);
         setUpdateOpen(true);
       }
@@ -186,12 +182,29 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
           <DialogHeader>
             <DialogTitle>Update available{updateVersion ? ` · ${updateVersion}` : ""}</DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground text-sm whitespace-pre-wrap">{updateNotes}</p>
-          <p className="text-muted-foreground text-xs">
-            Installed {installedVersion || "unknown"}
-            {installedBuild ? ` (${installedBuild})` : ""} · Hosted origin{" "}
-            {hostedOrigin || "unknown"}
-          </p>
+          {updateHighlights.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium tracking-wide uppercase">What&apos;s new</p>
+              <ul className="text-muted-foreground space-y-1.5 text-sm">
+                {updateHighlights.map((line) => (
+                  <li key={line} className="flex gap-2">
+                    <span
+                      className="bg-primary mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                      aria-hidden
+                    />
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              A newer Novend version is ready. Update now to get the latest improvements.
+            </p>
+          )}
+          {installedVersion ? (
+            <p className="text-muted-foreground text-xs">You&apos;re on v{installedVersion}</p>
+          ) : null}
           <DialogFooter className="gap-2 sm:justify-between">
             {!updateMandatory ? (
               <Button type="button" variant="outline" onClick={() => setUpdateOpen(false)}>
