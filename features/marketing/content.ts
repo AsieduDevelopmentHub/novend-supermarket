@@ -38,12 +38,6 @@ export const LANDING_SOCIAL_LINKS = [
     detail: "Asiedu Development Hub",
     href: "https://www.linkedin.com/company/asiedudevhub",
   },
-  {
-    id: "website",
-    label: "Website",
-    detail: "asiedudevhub.auralenx.com",
-    href: "https://asiedudevhub.auralenx.com",
-  },
 ] as const;
 
 /** Build a mailto URL with subject + body for sales outreach.
