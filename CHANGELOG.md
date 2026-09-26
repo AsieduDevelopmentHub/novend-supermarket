@@ -6,6 +6,10 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ## Unreleased
 
+## v1.0.1 — 2026-09-26
+
+Patch release so desktop auto-update (electron-updater) can move past the retagged `v1.0.0` build. Includes post-1.0.0 till and platform fixes (`targets: all`).
+
 ### Added
 
 - Platform repair `repairs.clearTradingHistory` wipes sales/returns/held carts/receipts/expenses for one org without touching catalog or stock.
