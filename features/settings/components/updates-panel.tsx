@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { getDesktopBridge } from "@/lib/desktop";
 import type { NovendDesktopUpdateStatus } from "@/types/desktop";
+import { sanitizeReleaseNoteLines } from "@/features/marketing/lib/sanitize-release-notes";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -176,6 +177,7 @@ export function UpdatesPanel() {
     status.state === "downloading" &&
     typeof status.progressPercent === "number" &&
     Number.isFinite(status.progressPercent);
+  const releaseHighlights = sanitizeReleaseNoteLines(status.releaseNotes);
 
   return (
     <div className="space-y-4">
@@ -232,12 +234,17 @@ export function UpdatesPanel() {
             </div>
           ) : null}
 
-          {status.releaseNotes ? (
+          {releaseHighlights.length > 0 ? (
             <div className="border-border bg-muted/30 rounded-lg border px-3 py-2">
               <p className="mb-1 text-xs font-medium tracking-wide uppercase">What&apos;s new</p>
-              <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-                {status.releaseNotes}
-              </p>
+              <ul className="text-muted-foreground space-y-1.5 text-sm">
+                {releaseHighlights.map((line) => (
+                  <li key={line} className="flex gap-2">
+                    <span className="bg-primary mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" aria-hidden />
+                    {line}
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
 

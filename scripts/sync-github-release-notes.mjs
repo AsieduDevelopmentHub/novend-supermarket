@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 /**
- * Sets the GitHub Release title + body from CHANGELOG.md for a given tag.
+ * Sets the GitHub Release title + customer-facing body from CHANGELOG.md.
+ *
+ * Publishes only the `### What's new` section for the tag — not the full
+ * engineering Added/Fixed/Changed dump. Desktop + Android share one GitHub
+ * Release, so one friendly body covers both surfaces.
  *
  * Required env:
  *   GH_TOKEN / GITHUB_TOKEN
@@ -53,16 +57,29 @@ if (!sectionBody) {
   process.exit(1);
 }
 
+const whatsNewHeading = /^###\s+what['’]?s\s+new(?:\s+for\s+customers)?\s*$/im;
+const whatsNewMatch = whatsNewHeading.exec(sectionBody);
+if (!whatsNewMatch || whatsNewMatch.index === undefined) {
+  console.error(
+    `CHANGELOG section for ${tag} is missing a customer "### What's new" block.\n` +
+      `Add 3–6 plain-language bullets under ### What's new before engineering Added/Fixed sections.`,
+  );
+  process.exit(1);
+}
+
+const afterWhatsNew = sectionBody.slice(whatsNewMatch.index + whatsNewMatch[0].length);
+const nextSection = afterWhatsNew.search(/^###\s+\S/m);
+const whatsNewBody = (nextSection === -1 ? afterWhatsNew : afterWhatsNew.slice(0, nextSection))
+  .trim()
+  .replace(/\r\n/g, "\n");
+
+if (!whatsNewBody || !/[-*+]|\d+[.)]/.test(whatsNewBody)) {
+  console.error(`### What's new for ${tag} must include at least one bullet`);
+  process.exit(1);
+}
+
 const title = `Novend POS ${tag}`;
-const body = [
-  `# ${title}`,
-  "",
-  sectionBody,
-  "",
-  "---",
-  "",
-  `Full changelog: see \`CHANGELOG.md\` in the repository.`,
-].join("\n");
+const body = [`## What's new`, "", whatsNewBody].join("\n");
 
 const notesPath = path.join(process.cwd(), `.release-notes-${version}.md`);
 fs.writeFileSync(notesPath, body, "utf8");
@@ -73,7 +90,7 @@ try {
     ["release", "edit", tag, "--repo", repo, "--title", title, "--notes-file", notesPath],
     { stdio: "inherit", env: process.env },
   );
-  console.log(`Updated GitHub Release ${tag}: ${title}`);
+  console.log(`Updated GitHub Release ${tag}: customer What's new only`);
 } finally {
   fs.unlinkSync(notesPath);
 }

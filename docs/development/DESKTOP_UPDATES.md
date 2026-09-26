@@ -83,9 +83,22 @@ Requires `CONVEX_SITE_URL`, `DESKTOP_RELEASE_PUBLISH_SECRET`, `GH_TOKEN`, and `R
 electron-builder often creates the GitHub Release with a bare version title and an empty body. After installer assets land, `scripts/sync-github-release-notes.mjs` rewrites:
 
 - **Title:** `Novend POS vX.Y.Z`
-- **Body:** the matching `CHANGELOG.md` section
+- **Body:** only the `### What's new` bullets from that version in `CHANGELOG.md`
 
-Add a `## vX.Y.Z` (or `## X.Y.Z`) heading before tagging. The desktop workflow fails the notes step if that section is missing.
+Desktop and Android share one GitHub Release (and the same customer notes in Convex). Do **not** put engineering Added/Fixed dumps in `### What's new` — keep those under the usual CHANGELOG headings for developers.
+
+Before tagging, each version section must include:
+
+```markdown
+## vX.Y.Z — YYYY-MM-DD
+
+### What's new
+
+- Short plain-language bullet for cashiers / owners
+- Another key change customers will notice
+```
+
+The Product Release workflow fails the notes step if `### What's new` is missing or empty.
 
 Tag pushes default to Android APK + Convex mobile only. Desktop installers and desktop Convex metadata require workflow_dispatch with `targets: all`.
 

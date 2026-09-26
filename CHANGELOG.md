@@ -2,13 +2,25 @@
 
 All notable changes to Novend POS are recorded here. The project follows [Semantic Versioning](https://semver.org/); each `vX.Y.Z` tag runs Product Release. **Default is Android APK + Convex mobile metadata.** Desktop installers publish when the workflow is run with `targets: all`. GitHub Releases are titled **Novend POS vX.Y.Z**.
 
+Customer-facing Downloads / Releases / in-app “What’s new” publish **only** the `### What's new` bullets for that version (one shared body for desktop and Android). Keep Added / Fixed / Changed as the engineering record — they are not shown to customers.
+
 ---
 
 ## Unreleased
 
+### What's new
+
+<!-- Add 3–6 plain-language bullets before the next release. -->
+
 ## v1.0.1 — 2026-09-26
 
-Patch release so desktop auto-update (electron-updater) can move past the retagged `v1.0.0` build. Includes post-1.0.0 till and platform fixes (`targets: all`).
+### What's new
+
+- Desktop stays usable offline without the window flickering or reloading.
+- Switch cameras while scanning barcodes with a clear on-screen control.
+- Inventory low-stock and expiry alerts show the right quantities across every branch.
+- Platform Active / Trial counts ignore test organizations so live KPIs stay accurate.
+- Customer display and login accents follow your business colour.
 
 ### Added
 

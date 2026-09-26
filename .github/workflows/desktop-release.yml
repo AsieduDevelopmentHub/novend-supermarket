@@ -367,7 +367,7 @@ jobs:
           exit 1
 
       # electron-builder often creates the Release with a bare version title and empty body.
-      # Replace those with the matching CHANGELOG.md section before Convex publish reads notes.
+      # Replace those with ### What's new from CHANGELOG.md before Convex publish reads notes.
       - name: Sync GitHub Release notes from CHANGELOG
         continue-on-error: true
         env:
