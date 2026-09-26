@@ -2,6 +2,21 @@
 
 ## Updated Analytics, Platform Telemetry & Super Admin Control
 
+## Org-wide temporary sync boost
+
+When a **new or empty till** signs in and the PEAS planned mode is not `full_sync`, Novend starts an **org-wide** temporary boost:
+
+- Fields: `organizations.cloudSyncBoostUntil` (+ startedAt / reason). PEAS `cloudMode` is **not** rewritten.
+- `licenseSnapshot.cloudMode` becomes **effective** `full_sync` for all org clients while the boost is active; `plannedCloudMode` and `syncBoostUntil` are also returned.
+- Every till briefly enables realtime pull + outbox flush so older devices can push and the new till can pull.
+- TTL: 2 hours (refresh only if less than 30 minutes remain).
+- Triggers: `devices.registerDevice` on create/reactivate; `devices.requestCloudSyncBoost` when Dexie has no catalog.
+- Restore gate is skipped while effective mode is boosted.
+
+## Dexie local-write invariant
+
+Package / local modes skip **cloud pull/outbox**, not **local Dexie writes**. Inventory and other business lists must prefer Dexie when realtime subscriptions are off. Online stock edits on those modes call Convex directly (mirror-only Dexie write) so Sales and Inventory stay aligned.
+
 ## Important Architecture Update
 
 Novend must treat **business analytics** and **platform analytics** as two completely separate systems.

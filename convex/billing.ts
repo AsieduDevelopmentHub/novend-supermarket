@@ -47,6 +47,7 @@ import {
   DEFAULT_CLOUD_MODE,
   normalizeBackupIntervalHours,
   normalizeCloudMode,
+  resolveEffectiveCloudMode,
 } from "./shared/cloudMode";
 import { bumpEntitlementVersion, currentEntitlementVersion } from "./shared/entitlementVersion";
 import { resolveOrganizationConfig } from "./shared/organizationConfig";
@@ -150,6 +151,8 @@ function platformAdminLicenseSnapshot(): LicenseSnapshot {
     organizationName: "Novend Platform",
     organizationStatus: "active",
     cloudMode: DEFAULT_CLOUD_MODE,
+    plannedCloudMode: DEFAULT_CLOUD_MODE,
+    syncBoostUntil: null,
     entitlementVersion: 0,
     allowedCloudModes: [...CLOUD_MODES],
     cloudBackupEnabled: true,
@@ -278,12 +281,25 @@ export const licenseSnapshot = query({
       : null;
 
     const entitlements = entitlementsFromResolvedConfig(config, offerSnapshot);
+    const plannedCloudMode = normalizeCloudMode(organization.cloudMode);
+    const syncBoostUntil =
+      typeof organization.cloudSyncBoostUntil === "number" &&
+      organization.cloudSyncBoostUntil > now
+        ? organization.cloudSyncBoostUntil
+        : null;
+    const effectiveCloudMode = resolveEffectiveCloudMode({
+      planned: plannedCloudMode,
+      boostUntil: syncBoostUntil,
+      now,
+    });
 
     return {
       organizationId: organization._id,
       organizationName: organization.name,
       organizationStatus: organization.status,
-      cloudMode: normalizeCloudMode(organization.cloudMode),
+      cloudMode: effectiveCloudMode,
+      plannedCloudMode,
+      syncBoostUntil,
       entitlementVersion: currentEntitlementVersion(organization),
       allowedCloudModes: resolveAllowedCloudModes(organization, license.plan),
       cloudBackupEnabled: cloudEntitlements.cloudBackupEnabled,

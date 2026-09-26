@@ -67,6 +67,52 @@ export type CloudEntitlements = {
   remoteMonitoringEnabled?: boolean;
 };
 
+/** How long an org-wide catch-up boost keeps every till on effective full_sync. */
+export const CLOUD_SYNC_BOOST_TTL_MS = 2 * 60 * 60 * 1000;
+
+/** Only extend an active boost when less than this remains. */
+export const CLOUD_SYNC_BOOST_REFRESH_IF_REMAINING_MS = 30 * 60 * 1000;
+
+/**
+ * Planned PEAS mode vs temporary org-wide boost.
+ * While `boostUntil` is in the future, every client treats the org as full_sync
+ * for pull/outbox — without rewriting `organizations.cloudMode`.
+ */
+export function resolveEffectiveCloudMode(input: {
+  planned: CloudMode | unknown;
+  boostUntil?: number | null;
+  now?: number;
+}): CloudMode {
+  const planned = normalizeCloudMode(input.planned);
+  const now = input.now ?? Date.now();
+  const until = input.boostUntil;
+  if (typeof until === "number" && Number.isFinite(until) && until > now) {
+    return "full_sync";
+  }
+  return planned;
+}
+
+/** Whether to start or extend an org sync boost given the planned mode and clock. */
+export function shouldApplyCloudSyncBoost(input: {
+  planned: CloudMode | unknown;
+  boostUntil?: number | null;
+  now?: number;
+}): { apply: boolean; until: number } {
+  const now = input.now ?? Date.now();
+  const planned = normalizeCloudMode(input.planned);
+  if (planned === "full_sync") {
+    return { apply: false, until: 0 };
+  }
+  const existing = input.boostUntil;
+  if (typeof existing === "number" && existing > now) {
+    const remaining = existing - now;
+    if (remaining >= CLOUD_SYNC_BOOST_REFRESH_IF_REMAINING_MS) {
+      return { apply: false, until: existing };
+    }
+  }
+  return { apply: true, until: now + CLOUD_SYNC_BOOST_TTL_MS };
+}
+
 export function resolveCloudPolicy(
   mode: CloudMode | unknown,
   entitlements?: CloudEntitlements,

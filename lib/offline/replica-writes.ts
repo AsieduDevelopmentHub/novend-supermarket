@@ -1,11 +1,12 @@
 import { branchStockId, applyLocalBranchStockChange, getSellableQuantity } from "./branch-stock";
 import { getMeta, getOfflineDb, META_KEYS, newClientId } from "./db";
 import { pendingOutboundTransferQuantities, transferStockKey } from "./pending-transfers";
-import { enqueueOutbox } from "./outbox";
+import { enqueueOutbox, withMirrorOnly } from "./outbox";
 import { notifyReplicaChanged } from "./replica-events";
 import { putProductImage, deleteProductImage } from "./image-cache";
 import { BARCODE_ALREADY_ASSIGNED, barcodesEqual, normalizeBarcodeInput } from "./barcode-lookup";
 import { assertFeatureEnabled, assertLocalCapacity, assertLocalWriteAllowed } from "./license-guard";
+import { loadCloudPolicy } from "./cloud-policy";
 import { loadProductImagesPolicyCache } from "./product-images-policy";
 import { assertProductImageUploadsEnabled } from "@/convex/shared/productImagesPolicy";
 import { nextCatalogPrices } from "@/lib/wholesale/purchase-prices";
@@ -39,16 +40,31 @@ import {
 const QUEUED_TOAST = "Saved on this device. We'll sync when you're back online.";
 
 /**
- * Write Dexie immediately and return. Cloud sync is background work.
- * `remote` is unused — kept so call sites stay explicit about the Convex mutation.
+ * Write Dexie immediately. When online on full_sync, outbox flush updates Convex.
+ * On package/local modes outbox flush is disabled — apply Dexie without queueing,
+ * then call Convex directly so the cloud clone stays aligned (Inventory vs Sales).
  */
 export async function persistBusinessWrite(args: {
   online: boolean;
   remote: () => Promise<unknown>;
   local: () => Promise<unknown>;
 }): Promise<"remote" | "queued"> {
-  void args.remote;
   await assertLocalWriteAllowed();
+  if (args.online) {
+    const policy = await loadCloudPolicy();
+    if (!policy.shouldQueueRealtimeSync()) {
+      await withMirrorOnly(() => args.local());
+      try {
+        await args.remote();
+        notifyReplicaChanged({ flush: false });
+        return "remote";
+      } catch {
+        // Dexie already has the write; lists prefer Dexie on package modes.
+        notifyReplicaChanged({ flush: false });
+        return "queued";
+      }
+    }
+  }
   await args.local();
   notifyReplicaChanged({ flush: args.online });
   return args.online ? "remote" : "queued";

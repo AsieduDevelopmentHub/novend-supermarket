@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { canServeListsFromMirror } from "@/lib/offline/freshness";
+import { loadCloudPolicy } from "@/lib/offline/cloud-policy";
 import {
   listLocalOrders,
   listMirroredBranches,
@@ -89,6 +90,16 @@ function useMirrorListGate() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      // Package / local modes never pull a warm mirror — Dexie is the working
+      // clone after local writes. Prefering live Convex here left Inventory on
+      // stale server qty while Sales (forced local) showed the restock.
+      const policy = await loadCloudPolicy();
+      if (!policy.shouldUseRealtimeSubscriptions()) {
+        if (cancelled) return;
+        setServeLocal(true);
+        setReady(true);
+        return;
+      }
       const ok = !online ? true : await canServeListsFromMirror();
       if (cancelled) return;
       setServeLocal(ok);

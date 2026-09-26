@@ -3,6 +3,9 @@ import {
   backupIntervalMs,
   normalizeBackupIntervalHours,
   resolveCloudPolicy,
+  resolveEffectiveCloudMode,
+  shouldApplyCloudSyncBoost,
+  CLOUD_SYNC_BOOST_TTL_MS,
 } from "@/convex/shared/cloudMode";
 import { isScheduledBackupDue } from "@/lib/offline/scheduled-backup";
 
@@ -107,6 +110,57 @@ describe("backup interval", () => {
     expect(isScheduledBackupDue(0, now, 168)).toBe(true);
     expect(isScheduledBackupDue(now - DAY, now, 168)).toBe(false);
     expect(isScheduledBackupDue(now - 7 * DAY, now, 168)).toBe(true);
+  });
+});
+
+describe("org sync boost", () => {
+  it("resolves effective full_sync while boostUntil is in the future", () => {
+    const now = 1_000_000;
+    expect(
+      resolveEffectiveCloudMode({
+        planned: "snapshot_only",
+        boostUntil: now + 60_000,
+        now,
+      }),
+    ).toBe("full_sync");
+    expect(
+      resolveEffectiveCloudMode({
+        planned: "local_only",
+        boostUntil: now - 1,
+        now,
+      }),
+    ).toBe("local_only");
+  });
+
+  it("does not boost full_sync orgs", () => {
+    const now = 1_000_000;
+    expect(shouldApplyCloudSyncBoost({ planned: "full_sync", now })).toEqual({
+      apply: false,
+      until: 0,
+    });
+  });
+
+  it("starts a boost for package modes and extends when nearly expired", () => {
+    const now = 1_000_000;
+    const started = shouldApplyCloudSyncBoost({ planned: "backup_only", now });
+    expect(started.apply).toBe(true);
+    expect(started.until).toBe(now + CLOUD_SYNC_BOOST_TTL_MS);
+
+    const stillFresh = shouldApplyCloudSyncBoost({
+      planned: "backup_only",
+      boostUntil: now + 45 * 60 * 1000,
+      now,
+    });
+    expect(stillFresh.apply).toBe(false);
+    expect(stillFresh.until).toBe(now + 45 * 60 * 1000);
+
+    const nearlyDone = shouldApplyCloudSyncBoost({
+      planned: "local_only",
+      boostUntil: now + 10 * 60 * 1000,
+      now,
+    });
+    expect(nearlyDone.apply).toBe(true);
+    expect(nearlyDone.until).toBe(now + CLOUD_SYNC_BOOST_TTL_MS);
   });
 });
 
