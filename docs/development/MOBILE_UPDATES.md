@@ -134,7 +134,8 @@ APK signature and metadata, uploads the APK plus SHA-256 checksum to the GitHub 
 and then publishes mobile update metadata to Convex. A missing keystore or signing secret
 fails the Android job; there is no debug-signing fallback for release artifacts.
 
-After updating the package version and changelog, squash-merge to `main`, then tag:
+After updating the package version and changelog (`### What's new` for customers, plus
+engineering Added/Fixed), squash-merge to `main`, then tag:
 
 ```bash
 git tag v0.3.16

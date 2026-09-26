@@ -16,26 +16,52 @@ function formatReleasedAt(timestamp: number | undefined) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(timestamp));
 }
 
-type PublicRelease = {
+type PublicReleaseRow = {
   version: string;
   tag: string;
   channel: string;
   notes?: string | null;
   releasedAt: number;
   mandatory: boolean;
-  surface: "Desktop" | "Android";
 };
 
+type MergedRelease = PublicReleaseRow & {
+  surfaces: Array<"Desktop" | "Android">;
+};
+
+/** One card per version — desktop and Android share the same product notes. */
 function mergePublicReleases(
-  desktop: ReadonlyArray<Omit<PublicRelease, "surface">> | undefined,
-  mobile: ReadonlyArray<Omit<PublicRelease, "surface">> | undefined,
+  desktop: ReadonlyArray<PublicReleaseRow> | undefined,
+  mobile: ReadonlyArray<PublicReleaseRow> | undefined,
   limit: number,
-): PublicRelease[] {
-  const combined: PublicRelease[] = [
-    ...(desktop ?? []).map((row) => ({ ...row, surface: "Desktop" as const })),
-    ...(mobile ?? []).map((row) => ({ ...row, surface: "Android" as const })),
-  ];
-  return combined.sort((a, b) => b.releasedAt - a.releasedAt).slice(0, limit);
+): MergedRelease[] {
+  const byTag = new Map<string, MergedRelease>();
+
+  const ingest = (rows: ReadonlyArray<PublicReleaseRow> | undefined, surface: "Desktop" | "Android") => {
+    for (const row of rows ?? []) {
+      const existing = byTag.get(row.tag);
+      if (!existing) {
+        byTag.set(row.tag, { ...row, surfaces: [surface] });
+        continue;
+      }
+      if (!existing.surfaces.includes(surface)) {
+        existing.surfaces.push(surface);
+      }
+      // Prefer the richer notes blob and the later publish time.
+      if ((row.notes?.length ?? 0) > (existing.notes?.length ?? 0)) {
+        existing.notes = row.notes;
+      }
+      if (row.releasedAt > existing.releasedAt) {
+        existing.releasedAt = row.releasedAt;
+      }
+      existing.mandatory = existing.mandatory || row.mandatory;
+    }
+  };
+
+  ingest(desktop, "Desktop");
+  ingest(mobile, "Android");
+
+  return [...byTag.values()].sort((a, b) => b.releasedAt - a.releasedAt).slice(0, limit);
 }
 
 /** Release notes from the same live desktop + Android feeds as Downloads. */
@@ -79,8 +105,8 @@ export function ReleasesView() {
         <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center">
           <p className="text-base font-semibold text-[#111827]">No published releases yet</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-600">
-            When a new desktop or Android version is published, notes will appear here automatically
-            — matching the Download page.
+            When a new version is published, friendly highlights appear here automatically — matching
+            the Download page.
           </p>
           <Button asChild className="mt-5" size="sm">
             <Link href="/download">Check downloads</Link>
@@ -92,21 +118,25 @@ export function ReleasesView() {
             const highlights = sanitizeReleaseNoteLines(entry.notes);
             return (
               <li
-                key={`${entry.surface}-${entry.tag}`}
+                key={entry.tag}
                 className="landing-shadow-card rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8"
               >
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="bg-primary text-primary-foreground rounded-full px-3 py-1 text-xs font-bold tracking-wide">
                     {entry.tag.startsWith("v") ? entry.tag : `v${entry.version}`}
                   </span>
-                  <Badge variant="secondary">{entry.surface}</Badge>
+                  {entry.surfaces.map((surface) => (
+                    <Badge key={surface} variant="secondary">
+                      {surface}
+                    </Badge>
+                  ))}
                   {entry.mandatory ? <Badge variant="outline">Required update</Badge> : null}
                   <span className="text-sm text-slate-500">
                     {formatReleasedAt(entry.releasedAt) ?? "Date pending"}
                   </span>
                 </div>
                 <h2 className="mt-4 text-xl font-semibold tracking-tight text-[#111827]">
-                  {entry.tag}
+                  {entry.tag.startsWith("v") ? entry.tag : `v${entry.version}`}
                 </h2>
                 {highlights.length > 0 ? (
                   <ul className="mt-5 space-y-2.5">
