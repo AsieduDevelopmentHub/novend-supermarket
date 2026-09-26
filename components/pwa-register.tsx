@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { isStandaloneWebApp } from "@/lib/device-install";
 
 const SHELL_ROUTES = [
   "/dashboard",
@@ -64,6 +65,23 @@ function warmShellRoutes() {
  * would cache a login document under /dashboard.
  */
 export function PwaRegister() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const syncStandaloneClass = () => {
+      document.documentElement.classList.toggle("standalone-display", isStandaloneWebApp());
+    };
+    syncStandaloneClass();
+    const media = window.matchMedia("(display-mode: standalone)");
+    media.addEventListener("change", syncStandaloneClass);
+    window.addEventListener("appinstalled", syncStandaloneClass);
+
+    return () => {
+      media.removeEventListener("change", syncStandaloneClass);
+      window.removeEventListener("appinstalled", syncStandaloneClass);
+    };
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 

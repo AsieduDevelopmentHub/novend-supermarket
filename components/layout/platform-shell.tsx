@@ -14,6 +14,8 @@ import { PlatformNavTree } from "@/components/layout/platform-nav-tree";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useNativeShell } from "@/hooks/use-native-shell";
+import { useStandaloneDisplay } from "@/hooks/use-standalone-display";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
 
@@ -29,6 +31,9 @@ export function PlatformShell({
   sessionEmail?: string | null;
 }) {
   const online = useConnectivity();
+  const nativeShell = useNativeShell();
+  const standalone = useStandaloneDisplay();
+  const needsStatusPad = nativeShell || standalone;
   const session = useQuery(api.platform.me, online ? {} : "skip");
   const name = sessionName ?? session?.name ?? "Platform admin";
   const email = sessionEmail ?? session?.email ?? null;
@@ -57,6 +62,7 @@ export function PlatformShell({
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {needsStatusPad ? <div className="app-status-bar lg:hidden" aria-hidden /> : null}
         <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 lg:hidden">
           <MobilePlatformNav
             hasTenantRole={hasTenantRole}
@@ -180,7 +186,10 @@ function MobilePlatformNav({
           <span className="sr-only">Open platform menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="bg-sidebar text-sidebar-foreground w-72 border-0 p-0">
+      <SheetContent
+        side="left"
+        className="bg-sidebar text-sidebar-foreground w-72 border-0 p-0 pt-[var(--app-safe-top)]"
+      >
         <SheetHeader className="sr-only">
           <SheetTitle>{APP_BRAND} platform</SheetTitle>
         </SheetHeader>
