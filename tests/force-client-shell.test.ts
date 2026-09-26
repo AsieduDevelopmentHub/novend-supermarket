@@ -6,11 +6,17 @@ describe("shouldForceClientShell", () => {
     expect(shouldForceClientShell({ capacitor: true, online: true })).toBe(true);
   });
 
+  it("always uses client views on Electron", () => {
+    expect(shouldForceClientShell({ capacitor: false, electron: true, online: true })).toBe(true);
+  });
+
   it("uses client views when offline", () => {
     expect(shouldForceClientShell({ capacitor: false, online: false })).toBe(true);
   });
 
-  it("does not remount web or Electron after a timer while online", () => {
-    expect(shouldForceClientShell({ capacitor: false, online: true })).toBe(false);
+  it("does not remount web after a timer while online", () => {
+    expect(shouldForceClientShell({ capacitor: false, electron: false, online: true })).toBe(
+      false,
+    );
   });
 });

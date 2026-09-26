@@ -72,6 +72,14 @@ function isNetworkFailure(errorCode: number): boolean {
   );
 }
 
+function isLocalBootUrl(url: string): boolean {
+  return url.startsWith("file:") || url.startsWith("data:");
+}
+
+function isChromeErrorUrl(url: string): boolean {
+  return url.startsWith("chrome-error://") || url.startsWith("chrome://");
+}
+
 /**
  * Electron loadURL(https) fails offline even when the service worker already
  * cached the document (electron#35112). Load a local boot page, then
@@ -124,8 +132,7 @@ export async function reloadMainWindowShell(
 export function createMainWindow(appUrl: string): BrowserWindow {
   const icon = windowIcon();
   const trustedOrigin = createTrustedOriginPolicy(appUrl, [pathToFileURL(offlineBootPath()).href]);
-  let recovering = false;
-  let offlineFailRetries = 0;
+  let showingRecovery = false;
 
   const win = new BrowserWindow({
     width: 1440,
@@ -163,32 +170,45 @@ export function createMainWindow(appUrl: string): BrowserWindow {
     }
   });
 
-  win.webContents.on("did-finish-load", () => {
-    const url = win.webContents.getURL();
-    if (url.startsWith("http:") || url.startsWith("https:")) {
-      offlineFailRetries = 0;
-    }
-  });
+  /**
+   * Hosted navigation failed (no SW cache / dead radio). Stay on the local
+   * boot page — do not auto-navigate to https again (that flickered forever
+   * when offlineFailRetries reset on every partial https paint).
+   */
+  function showRecovery() {
+    if (showingRecovery || win.isDestroyed()) return;
+    showingRecovery = true;
+    void loadAppShell(win, appUrl, OFFLINE_ENTRY_PATH, { stay: true }).finally(() => {
+      showingRecovery = false;
+    });
+  }
 
   win.webContents.on(
     "did-fail-load",
     (_event, errorCode, _errorDescription, validatedURL, isMainFrame) => {
-      if (!isMainFrame || recovering) return;
+      if (!isMainFrame || showingRecovery) return;
+      // -3 ERR_ABORTED is normal during redirects / boot navigation.
       if (errorCode === -3) return;
       if (!isNetworkFailure(errorCode)) return;
-      if (validatedURL.startsWith("file:") || validatedURL.startsWith("data:")) return;
-      if (!isTrustedRendererUrl(trustedOrigin, validatedURL)) return;
-
-      // Trampoline to cached /login (email+password offline). After two failures,
-      // stay on the local boot page so Retry does not loop on a dead network.
-      recovering = true;
-      offlineFailRetries += 1;
-      const stay = offlineFailRetries > 2;
-      void loadAppShell(win, appUrl, "/login?fromBoot=1", { stay }).finally(() => {
-        recovering = false;
-      });
+      if (isLocalBootUrl(validatedURL)) return;
+      // Chromium interstitial often reports chrome-error://chromewebdata/.
+      if (
+        !isTrustedRendererUrl(trustedOrigin, validatedURL) &&
+        !isChromeErrorUrl(validatedURL)
+      ) {
+        return;
+      }
+      showRecovery();
     },
   );
+
+  win.webContents.on("did-finish-load", () => {
+    if (showingRecovery || win.isDestroyed()) return;
+    const url = win.webContents.getURL();
+    if (isChromeErrorUrl(url)) {
+      showRecovery();
+    }
+  });
 
   void loadAppShell(win, appUrl);
   return win;

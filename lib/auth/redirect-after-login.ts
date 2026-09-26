@@ -4,7 +4,7 @@ import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 import { bindOfflineOrganization } from "@/lib/offline/db";
 import { markOfflineSession } from "@/lib/offline/session";
 import { saveShellProfile } from "@/lib/offline/shell-profile";
-import { isCapacitor } from "@novend/hardware";
+import { isCapacitor, isElectron } from "@novend/hardware";
 
 const SKIP_SPLASH_KEY = "novend.auth.skipSplash";
 const RESOLVE_RETRIES = 8;
@@ -182,7 +182,7 @@ export function prepareHardNavigation(): void {
 export function navigateAfterLogin(path: string, router: AppRouter): void {
   markSkipStartupSplash();
 
-  if (typeof window !== "undefined" && (isCapacitor() || !navigator.onLine)) {
+  if (typeof window !== "undefined" && (isCapacitor() || isElectron() || !navigator.onLine)) {
     prepareHardNavigation();
     window.location.replace(path);
     return;

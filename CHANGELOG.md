@@ -14,6 +14,7 @@ All notable changes to Novend POS are recorded here. The project follows [Semant
 
 ### Fixed
 
+- Electron offline no longer flicker-reloads: failed hosted loads stay on the local boot page (`stay=1`), and Electron always uses the Dexie client shell (same as Cap) so false-online RSC remounts stop.
 - Barcode scan camera picker is a **Switch camera** control (no technical `camera 0, facing back` dropdown).
 - Marketing offline panel keeps rounded corners on mobile (`rounded-[24px]`), not square edge-to-edge.
 - Platform overview Active / Trial / Expired / Lifetime KPIs use a live org scan and exclude test organizations (no more stale `platformStats` active counts).
