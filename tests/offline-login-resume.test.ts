@@ -28,9 +28,11 @@ describe("offline email+password resume", () => {
   });
 
   it("navigates offline sign-out without awaiting a hung Convex signOut", () => {
-    expect(signOut).toContain("isLikelyOffline");
+    expect(signOut).toContain("shouldSkipAwaitingCloudSignOut");
     expect(signOut).toContain("await navigateToLoginAfterSignOut()");
-    expect(signOut).toMatch(/if \(isLikelyOffline\(\)\)[\s\S]*navigateToLoginAfterSignOut/);
+    expect(signOut).toMatch(
+      /if \(shouldSkipAwaitingCloudSignOut\(\)\)[\s\S]*navigateToLoginAfterSignOut/,
+    );
   });
 
   it("bounds cloud sign-in and forces hard navigation after password login", () => {

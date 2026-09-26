@@ -27,15 +27,15 @@ describe("explicit logout flag", () => {
     expect(hasExplicitLogout()).toBe(false);
   });
 
-  it("clears Dexie replica and session keys before a hard login navigation", () => {
+  it("clears session keys before a hard login navigation (replicas stay for dual-account offline)", () => {
     const source = readFileSync(resolve(process.cwd(), "lib/auth/sign-out.ts"), "utf8");
-    expect(source).toContain("await deleteBoundOfflineReplica()");
     expect(source).toContain("clearOfflineSession()");
     expect(source).toContain("clearUserDeviceState()");
     expect(source).toContain("clearCartDraft()");
     expect(source).toContain("clearCustomerDisplaySnapshot()");
     expect(source).toContain("navigateToLoginAfterSignOut()");
     expect(source).toContain("markExplicitLogout()");
+    expect(source).toContain("shouldSkipAwaitingCloudSignOut");
     expect(source).not.toContain("router.refresh()");
     expect(source).not.toContain("router.replace(");
     expect(source).not.toContain("await clearShellProfile()");
@@ -45,7 +45,7 @@ describe("explicit logout flag", () => {
     const db = readFileSync(resolve(process.cwd(), "lib/offline/db.ts"), "utf8");
     expect(db).toContain("shouldDeleteOfflineReplicaOnLogout");
     expect(db).toContain("product image");
-    expect(db).toContain("Does not delete another organization's");
+    expect(db).toContain("Never delete another tenant");
   });
 
   it("does not cover login with Convex isLoading", () => {
@@ -62,8 +62,8 @@ describe("explicit logout flag", () => {
     expect(license).toContain('isAuthenticated && online ? {} : "skip"');
     const permissions = readFileSync(resolve(process.cwd(), "hooks/use-permissions.ts"), "utf8");
     expect(permissions).toContain('isAuthenticated && online ? {} : "skip"');
-    const layout = readFileSync(resolve(process.cwd(), "app/(app)/layout.tsx"), "utf8");
-    expect(layout).toContain("if (hasExplicitLogout()) return;");
+    const layout = readFileSync(resolve(process.cwd(), "app/(app)/app-layout-client.tsx"), "utf8");
+    expect(layout).toContain("hasExplicitLogout");
     expect(layout).toContain('return <AppSplash label="Signing out…" />');
   });
 });

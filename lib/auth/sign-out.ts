@@ -9,12 +9,13 @@
  * Capacitor stays on the hosted origin (SW serves cached `/login` offline).
  * Electron reloads through the local offline-boot trampoline.
  *
- * Offline / unreachable Convex: navigate immediately and do not await
- * `signOut()` — that call can hang for minutes and trap Cap/Electron on the
- * brand splash (“Signing out…”).
+ * Offline / Cap / Electron / unreachable Convex: navigate immediately and do
+ * not await `signOut()` — that call can hang for minutes and trap the brand
+ * splash (“Signing out…”) or a Next chunk-load error sheet.
  */
 
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { isCapacitor, isElectron } from "@novend/hardware";
 import { clearLastRoute } from "@/lib/auth/last-route";
 import { markExplicitLogout } from "@/lib/auth/logout-flag";
 import { clearUserDeviceState } from "@/lib/auth/clear-user-device-state";
@@ -34,8 +35,11 @@ type SignOutOptions = {
 
 const ONLINE_SIGNOUT_BUDGET_MS = 1200;
 
-function isLikelyOffline(): boolean {
-  return typeof navigator !== "undefined" && navigator.onLine === false;
+function shouldSkipAwaitingCloudSignOut(): boolean {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
+  // Cap/Electron often report online while Convex never answers.
+  if (typeof window !== "undefined" && (isCapacitor() || isElectron())) return true;
+  return false;
 }
 
 export async function signOutAndRedirect({
@@ -54,7 +58,7 @@ export async function signOutAndRedirect({
     /* best-effort */
   });
 
-  if (isLikelyOffline()) {
+  if (shouldSkipAwaitingCloudSignOut()) {
     void signOut().catch(() => {
       /* Convex unreachable — local clears already applied */
     });
