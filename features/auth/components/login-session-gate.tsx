@@ -54,7 +54,7 @@ function LoginSessionGateInner({ children }: { children: ReactNode }) {
         return;
       }
       prepareHardNavigation();
-      window.location.replace("/dashboard");
+      window.location.replace("/dashboard?fromBoot=1");
     }, FORCE_LEAVE_BUDGET_MS);
     return () => window.clearTimeout(timer);
   }, [mounted, explicitLogout, isAuthenticated]);

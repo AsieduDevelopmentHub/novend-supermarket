@@ -25,10 +25,9 @@ import { ROUTES } from "@/config/navigation";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
 import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
-import { navigateAfterLogin, resolvePostLoginPath } from "@/lib/auth/redirect-after-login";
+import { navigateAfterLogin, resolvePostLoginPath, resolvePostLoginSession } from "@/lib/auth/redirect-after-login";
 import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { api } from "@/convex/_generated/api";
 import {
   activateOfflineSession,
   clearOfflineSession,
@@ -46,7 +45,6 @@ const REMEMBER_KEY = "novend.login.rememberEmail";
 const LOGIN_DEVICE_KEY = "novend.login.deviceKey";
 /** Cap/Electron often look online while Convex never answers. */
 const CLOUD_SIGN_IN_BUDGET_MS = 8_000;
-const STORE_VERIFIER_BUDGET_MS = 2_500;
 let volatileLoginDeviceKey: string | null = null;
 
 function isTimeoutError(error: unknown): boolean {
@@ -263,23 +261,16 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 
       redirectingRef.current = true;
       setOpeningWorkspace(true);
-      const path = await resolvePostLoginPath(convex, undefined, {
+      const session = await resolvePostLoginSession(convex, undefined, {
         expectedEmail: normalizedEmail,
       });
       try {
-        const me = await withTimeout(
-          convex.query(api.users.me, {}),
-          STORE_VERIFIER_BUDGET_MS,
-          "verifier timeout",
-        );
-        if (me?.userId) {
-          await storeLocalAuthVerifier(normalizedEmail, rawPassword, String(me.userId));
-        }
+        await storeLocalAuthVerifier(normalizedEmail, rawPassword, session.userId);
       } catch {
         /* online shell still opens; offline password resume needs one more online login */
       }
       toast.success("Welcome");
-      navigateAfterLogin(path, router, { hard: true });
+      navigateAfterLogin(session.path, router, { hard: true });
     } catch (error) {
       redirectingRef.current = false;
       setOpeningWorkspace(false);

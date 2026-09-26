@@ -14,6 +14,13 @@ const RESOLVE_RETRY_MS = 150;
 const HARD_NAV_FALLBACK_MS = 800;
 /** Don't let a hung `users.me` trap the login form for minutes. */
 const ME_QUERY_BUDGET_MS = 2500;
+/** Dexie profile write must not block leaving /login. */
+const SHELL_PROFILE_BUDGET_MS = 1_500;
+
+export type PostLoginSession = {
+  path: string;
+  userId: string;
+};
 
 type AppRouter = {
   replace: (href: string) => void;
@@ -76,34 +83,43 @@ async function bindReplicaFromMe(
     savedAt: Date.now(),
   });
   if (me.role === "administrator" || me.role === "manager" || me.role === "cashier") {
-    await saveShellProfile({
-      userId: String(me.userId),
-      name: me.name ?? "User",
-      role: me.role,
-      branchId: String(me.branchId),
-      branchName: me.branch ?? "Branch",
-      imageUrl: null,
-      email: me.email ?? null,
-      phone: null,
-      organizationName: null,
-      organizationId: String(me.organizationId),
-    });
+    try {
+      await withTimeout(
+        saveShellProfile({
+          userId: String(me.userId),
+          name: me.name ?? "User",
+          role: me.role,
+          branchId: String(me.branchId),
+          branchName: me.branch ?? "Branch",
+          imageUrl: null,
+          email: me.email ?? null,
+          phone: null,
+          organizationName: null,
+          organizationId: String(me.organizationId),
+        }),
+        SHELL_PROFILE_BUDGET_MS,
+        "shell profile timeout",
+      );
+    } catch {
+      /* localStorage session hint already set; Dexie profile can catch up later */
+    }
   }
 }
 
 /**
- * Resolve the post-login route from the live session.
+ * Resolve the post-login route + user id from the live session.
  * Retries briefly while the Convex client picks up the auth token after signIn.
- * Honors a safe `next` return path when provided.
  *
  * Always rebinds Dexie + the offline-session hint from live `me` so a previous
  * offline cashier cannot stay active after a different email signs in.
+ * Returns `userId` so the login form can store the offline password digest
+ * without a second hung `users.me` round-trip.
  */
-export async function resolvePostLoginPath(
+export async function resolvePostLoginSession(
   convex: ConvexReactClient,
   next?: string | null,
   options?: { expectedEmail?: string | null },
-): Promise<string> {
+): Promise<PostLoginSession> {
   const expectedEmail = options?.expectedEmail?.trim().toLowerCase() || null;
   let lastError: unknown;
 
@@ -128,7 +144,10 @@ export async function resolvePostLoginPath(
         }
       }
       await bindReplicaFromMe(me);
-      return resolvePostAuthPath(me, next);
+      return {
+        path: resolvePostAuthPath(me, next),
+        userId: String(me.userId),
+      };
     } catch (error) {
       lastError = error;
       const message = error instanceof Error ? error.message : "";
@@ -147,6 +166,26 @@ export async function resolvePostLoginPath(
   throw lastError instanceof Error
     ? lastError
     : new Error("Could not load your profile after sign-in. Check your connection and try again.");
+}
+
+export async function resolvePostLoginPath(
+  convex: ConvexReactClient,
+  next?: string | null,
+  options?: { expectedEmail?: string | null },
+): Promise<string> {
+  const session = await resolvePostLoginSession(convex, next, options);
+  return session.path;
+}
+
+/**
+ * Tag hard leaves so the service worker serves the cached app shell immediately
+ * (same as Electron/Cap cold boot). Without this, network-first /dashboard can
+ * hang for minutes after “Welcome” while the login skeleton stays painted.
+ */
+export function withShellBootMarker(path: string): string {
+  if (!path.startsWith("/")) return path;
+  if (path.includes("fromBoot=")) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}fromBoot=1`;
 }
 
 /**
@@ -199,13 +238,23 @@ export function navigateAfterLogin(
     options?.hard === true ||
     (typeof window !== "undefined" && (isCapacitor() || isElectron() || !navigator.onLine));
 
+  const target = forceHard ? withShellBootMarker(path) : path;
+
   if (typeof window !== "undefined" && forceHard) {
     prepareHardNavigation();
-    window.location.replace(path);
+    window.location.replace(target);
+    // Belt: if the document never unloads (hung SW / beforeunload), force again.
+    window.setTimeout(() => {
+      const here = window.location.pathname;
+      if (here === "/login" || here === "/signup") {
+        prepareHardNavigation();
+        window.location.href = target;
+      }
+    }, HARD_NAV_FALLBACK_MS);
     return;
   }
 
-  router.replace(path);
+  router.replace(target);
 
   if (typeof window === "undefined") return;
 
@@ -213,7 +262,7 @@ export function navigateAfterLogin(
     const here = window.location.pathname;
     if (here === "/login" || here === "/signup" || here === "/onboarding") {
       prepareHardNavigation();
-      window.location.replace(path);
+      window.location.replace(withShellBootMarker(path));
     }
   }, HARD_NAV_FALLBACK_MS);
 }

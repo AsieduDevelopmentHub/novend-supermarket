@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v20";
+const CACHE_NAME = "novend-pos-v21";
 /**
  * Public documents + icons only. Do not precache `/` or `/dashboard`:
  * cache.add follows the auth 302 and stores POS HTML under the marketing URL
@@ -372,10 +372,23 @@ async function cacheFirstDocument(request, url) {
   return networkFirstDocument(request, url);
 }
 
-/** Network first for documents so a cached login 302 never paints ERR_FAILED. */
+/** Network first for documents so a cached login 302 never paints ERR_FAILED.
+ * Cap/Electron often report online while the document fetch never settles —
+ * race a short budget so post-login /dashboard cannot strand the Welcome toast
+ * on the login skeleton for minutes.
+ */
+const NETWORK_DOCUMENT_BUDGET_MS = 2500;
+
 async function networkFirstDocument(request, url) {
+  const cachedFallback = () => matchNavigation(request, url);
+
   try {
-    const response = await fetchFollowRedirects(request);
+    const response = await Promise.race([
+      fetchFollowRedirects(request),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("document-network-budget")), NETWORK_DOCUMENT_BUDGET_MS);
+      }),
+    ]);
     cachePut(request, response);
     if (request.mode === "navigate" || request.destination === "document") {
       cachePut(new Request(url.pathname), response);
@@ -396,7 +409,7 @@ async function networkFirstDocument(request, url) {
         headers: { "Content-Type": "text/plain; charset=utf-8" },
       });
     }
-    const fallback = await matchNavigation(request, url);
+    const fallback = await cachedFallback();
     if (fallback) return fallback;
     return new Response(
       "<!doctype html><title>Offline</title><p>Novend POS is offline. Open a page you visited while online, or reconnect.</p>",

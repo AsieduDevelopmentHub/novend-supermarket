@@ -100,8 +100,24 @@ describe("redirect-after-login", () => {
     expect(source).toContain("element.defaultValue = element.value");
     expect(source).toContain("window.onbeforeunload = null");
     expect(source).toContain("prepareHardNavigation()");
-    expect(source).toContain("window.location.replace(path)");
-    expect(source).toContain("await saveShellProfile(");
+    expect(source).toContain("window.location.replace(target)");
+    expect(source).toContain("withShellBootMarker");
+    expect(source).toContain("saveShellProfile({");
+    expect(source).toContain("SHELL_PROFILE_BUDGET_MS");
+  });
+
+  it("resolvePostLoginSession returns userId for offline digest storage", async () => {
+    const convex = {
+      query: vi.fn().mockResolvedValue({
+        userId: "u1",
+        email: "ben@shop.com",
+        isPlatformAdmin: true,
+      }),
+    };
+    const { resolvePostLoginSession } = await import("@/lib/auth/redirect-after-login");
+    await expect(
+      resolvePostLoginSession(convex as never, null, { expectedEmail: "ben@shop.com" }),
+    ).resolves.toEqual({ path: "/platform", userId: "u1" });
   });
 
   it("onboarding binds the replica and skips splash before dashboard", () => {
