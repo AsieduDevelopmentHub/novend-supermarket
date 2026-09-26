@@ -177,6 +177,35 @@
   max-width: 100%;
 }
 
+/*
+ * Installed PWA / Cap status overlap: Android often reports safe-area-inset-top
+ * as 0 while drawing under the system status bar. Use a floor so chrome clears it.
+ */
+:root {
+  --app-safe-top: env(safe-area-inset-top, 0px);
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+  :root {
+    --app-safe-top: max(env(safe-area-inset-top, 0px), 1.75rem);
+  }
+}
+
+html.standalone-display {
+  --app-safe-top: max(env(safe-area-inset-top, 0px), 1.75rem);
+}
+
+.app-status-bar {
+  /* Shown only for Cap / installed PWA — Android often reports inset 0 under the status bar. */
+  height: max(env(safe-area-inset-top, 0px), 1.75rem);
+  flex-shrink: 0;
+  background-color: var(--card, #ffffff);
+}
+
+.dark .app-status-bar {
+  background-color: #0b1f33;
+}
+
 /* Solid status strip — light background so system icons stay dark/readable. */
 .native-shell .native-status-bar {
   height: var(--native-status-pad);

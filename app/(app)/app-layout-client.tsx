@@ -31,6 +31,7 @@ import { OfflineNavigationProvider, OfflineOutlet } from "@/providers/offline-na
 import { OrganizationExperienceRoot } from "@/features/experience/components/organization-experience-root";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useNativeShell } from "@/hooks/use-native-shell";
+import { useStandaloneDisplay } from "@/hooks/use-standalone-display";
 import {
   loadShellProfile,
   saveShellProfile,
@@ -127,6 +128,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const online = useConnectivity();
   const nativeShell = useNativeShell();
+  const standaloneDisplay = useStandaloneDisplay();
+  const needsPwaStatusPad = !nativeShell && standaloneDisplay;
   const sessionHint = useOfflineSessionHint();
   const user = useQuery(api.users.me, isAuthenticated && online ? {} : "skip");
   const ensureProfile = useMutation(api.profiles.ensureProfile);
@@ -634,6 +637,9 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                   {nativeShell ? null : <AppSidebar user={shellUser} />}
                   <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                     {nativeShell ? <div className="native-status-bar" aria-hidden /> : null}
+                    {needsPwaStatusPad ? (
+                      <div className="app-status-bar lg:hidden" aria-hidden />
+                    ) : null}
                     {nativeShell ? null : (
                       <header className="border-border bg-card z-20 flex h-14 shrink-0 items-center gap-3 border-b px-4 lg:hidden">
                         <MobileSidebar user={shellUser} />
