@@ -21,7 +21,6 @@ import { SyncStatusBanner } from "@/components/offline/sync-status-banner";
 import { SyncStatusHeaderButton } from "@/components/offline/sync-status-chip";
 import { SyncCenterDialog } from "@/components/offline/sync-center-dialog";
 import { LicenseBanner } from "@/features/billing/components/license-banner";
-import { CloudSyncBoostBanner } from "@/features/billing/components/cloud-sync-boost-banner";
 import { EmailVerificationBanner } from "@/features/auth/components/email-verification-banner";
 import { CloudReconnectBanner } from "@/features/auth/components/cloud-reconnect-banner";
 import { DeviceActivationGate } from "@/features/billing/components/device-activation-gate";
@@ -653,7 +652,6 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                       </header>
                     )}
                     <LicenseBanner />
-                    <CloudSyncBoostBanner />
                     <EmailVerificationBanner />
                     <CloudReconnectBanner />
                     <SyncStatusBanner />
