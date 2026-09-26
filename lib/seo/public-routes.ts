@@ -12,6 +12,7 @@ export const INDEXABLE_ROUTES = [
   { path: "/product/reports", changeFrequency: "monthly", priority: 0.8 },
   { path: "/product/offline-sync", changeFrequency: "monthly", priority: 0.8 },
   { path: "/download", changeFrequency: "weekly", priority: 0.9 },
+  { path: "/contact", changeFrequency: "monthly", priority: 0.75 },
   { path: "/docs", changeFrequency: "monthly", priority: 0.8 },
   { path: "/docs/help", changeFrequency: "monthly", priority: 0.8 },
   { path: "/docs/releases", changeFrequency: "weekly", priority: 0.7 },

@@ -271,6 +271,8 @@ export const sitePages = {
         "Reach the Novend team by email or WhatsApp. Include your organization name, branch, and a short description of what you were doing when the issue occurred.",
       email: LANDING_CONTACT_EMAIL,
       mailto: GENERAL_SALES_MAILTO,
+      pageHref: "/contact",
+      pageLabel: "Open contact page",
     },
   },
   releases: {

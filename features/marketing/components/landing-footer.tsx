@@ -3,11 +3,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Mail, MessageCircle, Phone } from "lucide-react";
+import { Globe, Linkedin, Mail, MessageCircle, Phone, Users } from "lucide-react";
 import { BRANDING } from "@/constants/branding";
 import { landingCopy } from "@/features/marketing/content";
 import { openCookiePreferences } from "@/lib/cookies/consent";
 import { cn } from "@/lib/utils";
+
+const SOCIAL_ICONS = {
+  community: Users,
+  whatsapp: MessageCircle,
+  linkedin: Linkedin,
+  website: Globe,
+} as const;
 
 /** Four-column marketing footer: Product, Industries, Resources, Legal. */
 export function LandingFooter() {
@@ -31,6 +38,24 @@ export function LandingFooter() {
             </Link>
             <p className="text-sm font-medium tracking-tight text-white">{footer.brandTitle}</p>
             <p className="text-sm leading-relaxed text-slate-400">{footer.description}</p>
+            <ul className="flex flex-wrap gap-2 pt-1">
+              {footer.socials.map((social) => {
+                const Icon = SOCIAL_ICONS[social.id as keyof typeof SOCIAL_ICONS] ?? Globe;
+                return (
+                  <li key={social.id}>
+                    <a
+                      href={social.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={social.label}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-slate-400 transition-colors hover:border-white/25 hover:text-white"
+                    >
+                      <Icon className="h-4 w-4" aria-hidden />
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
 
           <div className="grid flex-1 grid-cols-2 gap-8 sm:grid-cols-4">
@@ -42,10 +67,24 @@ export function LandingFooter() {
         </div>
 
         <div className="mt-12 border-t border-white/10 pt-8">
-          <p className="text-[11px] font-semibold tracking-[0.14em] text-slate-500 uppercase">
-            {contact.title}
-          </p>
-          <ul className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px] font-semibold tracking-[0.14em] text-slate-500 uppercase">
+              {contact.title}
+            </p>
+            <Link
+              href={contact.pageHref}
+              className="text-xs font-medium text-slate-400 transition-colors hover:text-[#38BDF8]"
+            >
+              Contact page
+            </Link>
+          </div>
+          <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <ContactItem
+              icon={Users}
+              label={contact.community.label}
+              value={contact.community.value}
+              href={contact.community.href}
+            />
             <ContactItem
               icon={Mail}
               label={contact.email.label}
