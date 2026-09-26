@@ -1,6 +1,9 @@
 "use client";
 
+import { useConvexAuth } from "convex/react";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
+import { hasOfflineSession } from "@/lib/offline/session";
 import { isCapacitor, isElectron } from "@novend/hardware";
 
 /**
@@ -10,19 +13,38 @@ import { isCapacitor, isElectron } from "@novend/hardware";
  * Capacitor and Electron always use client views — native shells + RSC soft
  * nav are unreliable offline and under false-online (navigator.onLine true
  * while the radio cannot reach the host). Web stays on the first RSC paint
- * while online so the dashboard is not remounted after a timer.
+ * while online so the dashboard is not remounted after a timer — except when
+ * the till is on an offline shell without a Convex JWT: RSC would 302 to
+ * /login and drop the cashier mid-shift.
  */
 export function shouldForceClientShell(input: {
   capacitor: boolean;
   electron?: boolean;
   online: boolean;
+  awaitingCloudReconnect?: boolean;
 }): boolean {
-  return input.capacitor || Boolean(input.electron) || !input.online;
+  return (
+    input.capacitor ||
+    Boolean(input.electron) ||
+    !input.online ||
+    Boolean(input.awaitingCloudReconnect)
+  );
 }
 
 export function useForceClientShell(): boolean {
   const online = useConnectivity();
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const sessionHint = useOfflineSessionHint();
   const capacitor = typeof window !== "undefined" && isCapacitor();
   const electron = typeof window !== "undefined" && isElectron();
-  return shouldForceClientShell({ capacitor, electron, online });
+  const awaitingCloudReconnect =
+    !isLoading &&
+    !isAuthenticated &&
+    (Boolean(sessionHint) || (typeof window !== "undefined" && hasOfflineSession()));
+  return shouldForceClientShell({
+    capacitor,
+    electron,
+    online,
+    awaitingCloudReconnect,
+  });
 }

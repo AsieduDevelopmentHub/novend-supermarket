@@ -248,7 +248,11 @@ JWT. Cloud mutations (outbox drain) require a JWT. Sync chrome stays calm while
 offline or while the radio is up but the till still has no JWT (“Cloud
 disconnected”). When the network returns, a non-blocking **Connect to cloud**
 banner asks for the password in place (same email as the offline session); after
-`signIn`, the outbox flushes without sending the cashier to `/login`.
+`signIn`, the outbox flushes without sending the cashier to `/login`. The shell
+must stay mounted while online-but-unauthenticated: middleware only sees cookies,
+so a document fetch that followed a 302 to `/login` would otherwise dump the till
+mid-shift. The service worker refuses to paint that login document under an app
+URL when a cached shell exists.
 
 **Shared tills / multiple staff.** Every account that signs in on the device is
 remembered in `novend.offlineSessions`. **Login always uses the same email +

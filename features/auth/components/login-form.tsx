@@ -32,6 +32,7 @@ import {
   activateOfflineSession,
   clearOfflineSession,
   listOfflineSessions,
+  markOfflineSession,
 } from "@/lib/offline/session";
 import {
   storeLocalAuthVerifier,
@@ -136,14 +137,18 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     return `${path}${path.includes("?") ? "&" : "?"}fromBoot=1`;
   }
 
-  function openOfflineWorkspace(userId: string) {
+  function openOfflineWorkspace(userId: string, email?: string) {
     if (redirectingRef.current) return false;
-    const activated = activateOfflineSession(userId);
+    let activated = activateOfflineSession(userId);
     if (!activated) {
       toast.error(
         "No cached workspace for that account on this device. Connect once while online, then try again.",
       );
       return false;
+    }
+    if (email && !activated.email) {
+      activated = { ...activated, email, savedAt: Date.now() };
+      markOfflineSession(activated);
     }
     const profile = shellProfileFromSessionHint(activated);
     if (profile) {
@@ -179,7 +184,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       );
       return false;
     }
-    return openOfflineWorkspace(verified.userId);
+    return openOfflineWorkspace(verified.userId, verified.email);
   }
 
   // Already signed in without submitting credentials (live Convex cookie).

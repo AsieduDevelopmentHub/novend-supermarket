@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v21";
+const CACHE_NAME = "novend-pos-v22";
 /**
  * Public documents + icons only. Do not precache `/` or `/dashboard`:
  * cache.add follows the auth 302 and stores POS HTML under the marketing URL
@@ -376,6 +376,10 @@ async function cacheFirstDocument(request, url) {
  * Cap/Electron often report online while the document fetch never settles —
  * race a short budget so post-login /dashboard cannot strand the Welcome toast
  * on the login skeleton for minutes.
+ *
+ * If the host 302s to /login (no Convex cookie while the till still has an
+ * offline shell), never paint that login document under the app URL — serve
+ * the cached shell so CloudReconnectBanner can ask for the password in place.
  */
 const NETWORK_DOCUMENT_BUDGET_MS = 2500;
 
@@ -389,6 +393,11 @@ async function networkFirstDocument(request, url) {
         setTimeout(() => reject(new Error("document-network-budget")), NETWORK_DOCUMENT_BUDGET_MS);
       }),
     ]);
+    if (response && response.url && isLoginDocumentUrl(response.url) && !isAuthDocument(url)) {
+      const fallback = await cachedFallback();
+      if (fallback) return fallback;
+      throw new Error("auth-redirect-without-shell-cache");
+    }
     cachePut(request, response);
     if (request.mode === "navigate" || request.destination === "document") {
       cachePut(new Request(url.pathname), response);

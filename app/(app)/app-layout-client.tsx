@@ -71,7 +71,6 @@ function AppShellWithIdleLock({
   userName: string | null;
   children: ReactNode;
 }) {
-  const router = useRouter();
   const { locked, unlock } = useWorkspaceIdleLock({ enabled: true });
 
   function handleUnlocked() {
@@ -84,11 +83,8 @@ function AppShellWithIdleLock({
         if (!main.hasAttribute("tabindex")) main.setAttribute("tabindex", "-1");
         main.focus({ preventScroll: true });
       }
-      try {
-        router.refresh();
-      } catch {
-        /* ignore */
-      }
+      // Never refresh the Next document without a Convex JWT — middleware 302s to
+      // /login and drops an offline shell that was waiting to reconnect.
       window.dispatchEvent(new PopStateEvent("popstate"));
     }, 0);
   }
@@ -174,8 +170,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Never kick a cashier who already has a local offline shell just because
-  // the radio came back — offline login has no Convex JWT until they sign in
-  // online again. Forcing /login here dropped remote tills mid-shift.
+  // the radio came back — offline login has no Convex JWT until they connect
+  // in place (CloudReconnectBanner). Forcing /login here dropped remote tills.
   useEffect(() => {
     if (!online || isAuthenticated) return;
     if (hasExplicitLogout()) return;
@@ -187,7 +183,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
     const hardNav = window.setTimeout(() => {
       if (window.location.pathname.startsWith("/login")) return;
-      if (hasOfflineSession() || readOfflineSession()) return;
+      if (hasOfflineSession() || readOfflineSession() || sessionHint) return;
       const next = new URL("/login", window.location.origin);
       if (new URLSearchParams(window.location.search).get("fromBoot") === "1") {
         next.searchParams.set("fromBoot", "1");
@@ -417,8 +413,12 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
   /** Stale-looking online (Convex hung) but we have a local shell — treat like offline session. */
   const signingOut = hasExplicitLogout();
+  const awaitingCloudReconnect =
+    !signingOut &&
+    !isAuthenticated &&
+    (Boolean(sessionHint) || hasOfflineSession() || Boolean(readOfflineSession()));
   const allowCachedShell =
-    Boolean(resolvedCache) && !signingOut && (isAuthenticated || hasOfflineSession());
+    Boolean(resolvedCache) && !signingOut && (isAuthenticated || awaitingCloudReconnect);
   const cachedShellWhileOnlineHung =
     online &&
     onlineAuthBudgetElapsed &&
@@ -460,7 +460,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return <AppSplash label="Signing out…" />;
   }
 
-  if (!isAuthenticated && online && !cachedShellWhileOnlineHung && !resolvedCache) {
+  if (!isAuthenticated && online && !cachedShellWhileOnlineHung && !resolvedCache && !awaitingCloudReconnect) {
     return <AppSplash label="Redirecting to login…" />;
   }
 
@@ -544,6 +544,11 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (!liveReady && !shellFromCache && !offlineSessionOk && !cachedShellWhileOnlineHung) {
+    // Offline shell without JWT: stay off /login even if Dexie profile has not
+    // settled yet — CloudReconnectBanner mounts once the shell paints below.
+    if (awaitingCloudReconnect) {
+      return <AppSplash label="Opening workspace…" />;
+    }
     if (profileError) {
       return (
         <div className="flex min-h-screen items-center justify-center px-4">
