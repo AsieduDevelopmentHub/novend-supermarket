@@ -10,7 +10,13 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### What's new
 
-<!-- Add 3–6 plain-language bullets before the next release. -->
+- Dashboard no longer stays blank after a desktop update when the local catalog is still catching up.
+
+<!-- Add more plain-language bullets before the next release. -->
+
+### Fixed
+
+- Dashboard unlocks after the mirror wait timeout and skips waiting on package/local cloud modes or when products are already on the device.
 
 ## v1.0.1 — 2026-09-26
 
