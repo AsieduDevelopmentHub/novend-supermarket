@@ -1,5 +1,6 @@
 import type { ConvexReactClient } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { withTimeout } from "@/lib/async/with-timeout";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 import { bindOfflineOrganization } from "@/lib/offline/db";
 import { markOfflineSession } from "@/lib/offline/session";
@@ -7,10 +8,12 @@ import { saveShellProfile } from "@/lib/offline/shell-profile";
 import { isCapacitor, isElectron } from "@novend/hardware";
 
 const SKIP_SPLASH_KEY = "novend.auth.skipSplash";
-const RESOLVE_RETRIES = 8;
-const RESOLVE_RETRY_MS = 100;
-/** Soft nav stalled on auth pages — last-resort assign after cookies settle. */
-const HARD_NAV_FALLBACK_MS = 2500;
+const RESOLVE_RETRIES = 3;
+const RESOLVE_RETRY_MS = 150;
+/** Cap/Electron: soft nav on /login never remounts the app shell — always hard-replace. */
+const HARD_NAV_FALLBACK_MS = 800;
+/** Don't let a hung `users.me` trap the login form for minutes. */
+const ME_QUERY_BUDGET_MS = 2500;
 
 type AppRouter = {
   replace: (href: string) => void;
@@ -106,7 +109,11 @@ export async function resolvePostLoginPath(
 
   for (let attempt = 0; attempt < RESOLVE_RETRIES; attempt++) {
     try {
-      const me = await convex.query(api.users.me, {});
+      const me = await withTimeout(
+        convex.query(api.users.me, {}),
+        ME_QUERY_BUDGET_MS,
+        "Could not load your profile after sign-in. Check your connection and try again.",
+      );
       if (!me?.userId) {
         throw new Error(
           "Could not load your profile after sign-in. Check your connection and try again.",
@@ -127,7 +134,8 @@ export async function resolvePostLoginPath(
       const message = error instanceof Error ? error.message : "";
       if (
         message.toLowerCase().includes("account mismatch") ||
-        message.toLowerCase().includes("could not load your profile")
+        (message.toLowerCase().includes("could not load your profile") &&
+          attempt === RESOLVE_RETRIES - 1)
       ) {
         throw error;
       }
@@ -173,16 +181,25 @@ export function prepareHardNavigation(): void {
 /**
  * Leave auth pages for the app shell.
  *
- * Capacitor / offline: SoftNav is not mounted on `/login`, so history+popstate
- * alone leaves the login layout painted on top of a dashboard URL (stacked
- * splash / broken dashboard). Use a single `location.replace` instead.
+ * Capacitor / Electron / offline / post-password: SoftNav is not mounted on
+ * `/login`, so history+popstate alone leaves the login layout painted on top
+ * of a dashboard URL (skeleton forever after “Welcome”). Prefer a single
+ * `location.replace`.
  *
- * Web online: soft `router.replace`, with a hard fallback if we never leave auth.
+ * Web online without `hard`: soft `router.replace`, with a short hard fallback.
  */
-export function navigateAfterLogin(path: string, router: AppRouter): void {
+export function navigateAfterLogin(
+  path: string,
+  router: AppRouter,
+  options?: { hard?: boolean },
+): void {
   markSkipStartupSplash();
 
-  if (typeof window !== "undefined" && (isCapacitor() || isElectron() || !navigator.onLine)) {
+  const forceHard =
+    options?.hard === true ||
+    (typeof window !== "undefined" && (isCapacitor() || isElectron() || !navigator.onLine));
+
+  if (typeof window !== "undefined" && forceHard) {
     prepareHardNavigation();
     window.location.replace(path);
     return;
@@ -196,7 +213,7 @@ export function navigateAfterLogin(path: string, router: AppRouter): void {
     const here = window.location.pathname;
     if (here === "/login" || here === "/signup" || here === "/onboarding") {
       prepareHardNavigation();
-      window.location.assign(path);
+      window.location.replace(path);
     }
   }, HARD_NAV_FALLBACK_MS);
 }

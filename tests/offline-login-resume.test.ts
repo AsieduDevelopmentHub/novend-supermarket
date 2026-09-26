@@ -33,6 +33,13 @@ describe("offline email+password resume", () => {
     expect(signOut).toMatch(/if \(isLikelyOffline\(\)\)[\s\S]*navigateToLoginAfterSignOut/);
   });
 
+  it("bounds cloud sign-in and forces hard navigation after password login", () => {
+    expect(loginForm).toContain("CLOUD_SIGN_IN_BUDGET_MS");
+    expect(loginForm).toContain("withTimeout");
+    expect(loginForm).toContain("{ hard: true }");
+    expect(loginForm).toContain("shellProfileFromSessionHint");
+  });
+
   it("sends offline empty shell to login instead of Can't start while offline", () => {
     expect(layout).toContain('label="Opening sign-in…"');
     expect(layout).toContain('next.searchParams.set("fromBoot", "1")');
