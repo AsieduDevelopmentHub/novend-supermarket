@@ -29,7 +29,7 @@ describe("offline email+password resume", () => {
 
   it("navigates offline sign-out without awaiting a hung Convex signOut", () => {
     expect(signOut).toContain("shouldSkipAwaitingCloudSignOut");
-    expect(signOut).toContain("await navigateToLoginAfterSignOut()");
+    expect(signOut).toContain("void navigateToLoginAfterSignOut()");
     expect(signOut).toMatch(
       /if \(shouldSkipAwaitingCloudSignOut\(\)\)[\s\S]*navigateToLoginAfterSignOut/,
     );

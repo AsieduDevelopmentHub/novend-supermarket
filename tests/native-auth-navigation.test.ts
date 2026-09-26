@@ -14,7 +14,7 @@ describe("native auth navigation", () => {
     );
   });
 
-  it("keeps Cap on the hosted origin and always uses Electron boot reload", () => {
+  it("keeps Cap on the hosted origin and never awaits Electron reload forever", () => {
     const source = readFileSync(
       resolve(process.cwd(), "lib/auth/native-auth-navigation.ts"),
       "utf8",
@@ -22,19 +22,31 @@ describe("native auth navigation", () => {
     expect(source).toContain("LOGIN_AFTER_SIGN_OUT_PATH");
     expect(source).toContain("reloadAuthShell");
     expect(source).toContain("CAPACITOR_BOOT_ORIGIN");
+    expect(source).toContain("HARD_LEAVE_FALLBACK_MS");
+    expect(source).toContain("hardLeaveToLogin");
+    expect(source).not.toContain("await bridge.reloadAuthShell");
     expect(source).not.toContain("!navigator.onLine");
   });
 
-  it("sign-out delegates navigation to native auth helper", () => {
+  it("sign-out kicks navigation without awaiting hung cloud calls", () => {
     const source = readFileSync(resolve(process.cwd(), "lib/auth/sign-out.ts"), "utf8");
     expect(source).toContain("navigateToLoginAfterSignOut");
+    expect(source).toContain("void navigateToLoginAfterSignOut()");
+    expect(source).toContain("shouldSkipAwaitingCloudSignOut");
     expect(source).not.toContain('window.location.replace("/login?signedOut=1")');
+  });
+
+  it("app shell watchdogs a stuck Signing out splash", () => {
+    const layout = readFileSync(resolve(process.cwd(), "app/(app)/app-layout-client.tsx"), "utf8");
+    expect(layout).toContain('label="Signing out…"');
+    expect(layout).toContain("navigateToLoginAfterSignOut");
+    expect(layout).toContain("hasExplicitLogout()");
   });
 
   it("service worker serves cached login when auth document fetch fails", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
     expect(sw).toContain('caches.match("/login")');
     expect(sw).toContain("isAuthDocument(url)");
-    expect(sw).toContain("await fetch(request)");
+    expect(sw).toContain('url.searchParams.get("signedOut") === "1"');
   });
 });
