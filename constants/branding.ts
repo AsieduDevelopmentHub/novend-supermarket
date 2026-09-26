@@ -1,16 +1,22 @@
+/** Bump when replacing files under /public/branding so Next Image + browsers refetch. */
+const BRAND_ASSET_VERSION = "20260926a";
 /** Bump when replacing files under /public/marketing so Next Image + browsers refetch. */
 const MARKETING_ASSET_VERSION = "20260924e";
+
+function brandAsset(path: string): string {
+  return `${path}?v=${BRAND_ASSET_VERSION}`;
+}
 
 function marketingAsset(path: string): string {
   return `${path}?v=${MARKETING_ASSET_VERSION}`;
 }
 
 export const BRANDING = {
-  brandmark: "/branding/brandmark.png",
-  logoHorizontal: "/branding/logo_horizontal.png",
-  logoHorizontalLight: "/branding/logo_horizontal_light.png",
-  logoVertical: "/branding/logo_vertical.png",
-  loginHero: "/branding/login_hero.png",
+  brandmark: brandAsset("/branding/brandmark.png"),
+  logoHorizontal: brandAsset("/branding/logo_horizontal.png"),
+  logoHorizontalLight: brandAsset("/branding/logo_horizontal_light.png"),
+  logoVertical: brandAsset("/branding/logo_vertical.png"),
+  loginHero: brandAsset("/branding/login_hero.png"),
   /** Real product dashboard — landing hero & analytics showcase. */
   dashboardHero: marketingAsset("/marketing/dashboard.png"),
   /** V3 landing device / diagram marketing assets (from ui_reference). */
