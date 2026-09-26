@@ -26,8 +26,8 @@ export function CloudSyncBoostBanner() {
     >
       <RefreshCw className="text-primary h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden />
       <span className="min-w-0 flex-1">
-        Temporary full sync is on until {untilLabel} so tills can catch up, then this business
-        returns to its cloud plan.
+        Temporary full sync is on until {untilLabel} so tills can catch up (events + catalog
+        mirror), then this business returns to its cloud plan.
       </span>
     </div>
   );

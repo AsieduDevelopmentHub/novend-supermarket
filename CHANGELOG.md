@@ -19,7 +19,7 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 - Dashboard unlocks after the mirror wait timeout and skips waiting on package/local cloud modes or when products are already on the device.
 - Dashboard reads `dashboard.summary` from Convex while online so Electron restarts do not paint zero KPIs when finance screens still show real totals.
-- Org-wide temporary sync boost when a new or empty till registers under package/local cloud modes.
+- Org-wide temporary sync boost (30 minutes) when a new or empty till registers under package/local cloud modes — flushes outbox events and pulls the Dexie catalog mirror, not an encrypted package.
 - Package/local modes prefer Dexie for inventory lists and push online stock edits to Convex so restock no longer leaves Inventory behind Sales.
 
 ## v1.0.1 — 2026-09-26

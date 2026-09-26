@@ -68,10 +68,10 @@ export type CloudEntitlements = {
 };
 
 /** How long an org-wide catch-up boost keeps every till on effective full_sync. */
-export const CLOUD_SYNC_BOOST_TTL_MS = 2 * 60 * 60 * 1000;
+export const CLOUD_SYNC_BOOST_TTL_MS = 30 * 60 * 1000;
 
 /** Only extend an active boost when less than this remains. */
-export const CLOUD_SYNC_BOOST_REFRESH_IF_REMAINING_MS = 30 * 60 * 1000;
+export const CLOUD_SYNC_BOOST_REFRESH_IF_REMAINING_MS = 10 * 60 * 1000;
 
 /**
  * Planned PEAS mode vs temporary org-wide boost.

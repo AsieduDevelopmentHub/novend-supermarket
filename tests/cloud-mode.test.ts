@@ -148,15 +148,15 @@ describe("org sync boost", () => {
 
     const stillFresh = shouldApplyCloudSyncBoost({
       planned: "backup_only",
-      boostUntil: now + 45 * 60 * 1000,
+      boostUntil: now + 15 * 60 * 1000,
       now,
     });
     expect(stillFresh.apply).toBe(false);
-    expect(stillFresh.until).toBe(now + 45 * 60 * 1000);
+    expect(stillFresh.until).toBe(now + 15 * 60 * 1000);
 
     const nearlyDone = shouldApplyCloudSyncBoost({
       planned: "local_only",
-      boostUntil: now + 10 * 60 * 1000,
+      boostUntil: now + 5 * 60 * 1000,
       now,
     });
     expect(nearlyDone.apply).toBe(true);
