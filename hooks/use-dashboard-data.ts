@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePermissions } from "@/hooks/use-permissions";
-import { getLastSnapshotAt } from "@/lib/offline/freshness";
+import { loadCloudPolicy } from "@/lib/offline/cloud-policy";
+import { getLastSnapshotAt, mirrorHasCatalog } from "@/lib/offline/freshness";
 import {
   buildLocalDashboardSummary,
   loadDashboardSummary,
@@ -12,6 +13,7 @@ import {
   type DashboardSummaryCache,
 } from "@/lib/offline/ui-cache";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
+import type { AppRole } from "@/config/navigation";
 
 export type DashboardData = DashboardSummaryCache & {
   source: "cache" | "local";
@@ -39,11 +41,31 @@ function isEmptySummary(summary: DashboardSummaryCache): boolean {
 }
 
 /**
+ * True when we should hold the skeleton briefly after login so we do not flash
+ * authoritative zeros before the first full_sync mirror lands.
+ *
+ * Package / local cloud modes never pull that mirror — do not wait for them.
+ * A device that already has catalog rows is ready enough to paint.
+ */
+export async function shouldWaitForFirstMirror(input: {
+  online: boolean;
+  lastSnap: number | null;
+  empty: boolean;
+}): Promise<boolean> {
+  if (!input.online || input.lastSnap || !input.empty) return false;
+  const policy = await loadCloudPolicy();
+  if (!policy.shouldUseRealtimeSubscriptions()) return false;
+  if (await mirrorHasCatalog()) return false;
+  return true;
+}
+
+/**
  * Dashboard summary is IndexedDB-only. Convex is never queried for this screen —
  * restock, sales, and returns already live in the Dexie replica.
  *
- * While online and the org replica has never been snapshotted, keep loading
- * instead of painting authoritative zeros (post-login race).
+ * While online on full_sync with an empty fresh replica, keep loading briefly
+ * instead of painting zeros — then always paint (even empty) so Electron/Cap
+ * never stick on skeletons when the mirror is delayed or skipped.
  */
 export function useDashboardData(branchFilter: Id<"branches"> | "all") {
   const online = useConnectivity();
@@ -61,9 +83,19 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
     let cancelled = false;
     const generation = ++generationRef.current;
     let paintCache = true;
+    const scopedBranch = branchKey === "all" ? undefined : branchKey;
+
+    const paintLocal = async (sourceRole: AppRole) => {
+      const local = await buildLocalDashboardSummary(sourceRole, scopedBranch);
+      if (cancelled || generation !== generationRef.current) return null;
+      setLocalData({ ...local, source: "local" });
+      setWaitingForReplica(false);
+      return local;
+    };
 
     const giveUp = window.setTimeout(() => {
-      if (!cancelled) setWaitingForReplica(false);
+      if (cancelled) return;
+      void paintLocal(role);
     }, 12_000);
 
     const load = () => {
@@ -83,14 +115,11 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
           }
         }
 
-        const local = await buildLocalDashboardSummary(
-          role,
-          branchKey === "all" ? undefined : branchKey,
-        );
+        const local = await buildLocalDashboardSummary(role, scopedBranch);
         if (cancelled || generation !== generationRef.current) return;
 
         const empty = isEmptySummary(local);
-        if (online && !lastSnap && empty) {
+        if (await shouldWaitForFirstMirror({ online, lastSnap, empty })) {
           setWaitingForReplica(true);
           return;
         }
