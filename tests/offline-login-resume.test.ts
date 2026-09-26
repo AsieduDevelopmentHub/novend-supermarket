@@ -38,6 +38,8 @@ describe("offline email+password resume", () => {
     expect(loginForm).toContain("withTimeout");
     expect(loginForm).toContain("{ hard: true }");
     expect(loginForm).toContain("shellProfileFromSessionHint");
+    expect(loginForm).toContain("resolvePostLoginSession");
+    expect(loginForm).toContain("storeLocalAuthVerifier(normalizedEmail, rawPassword, session.userId)");
   });
 
   it("sends offline empty shell to login instead of Can't start while offline", () => {
@@ -88,5 +90,21 @@ describe("local auth verifier", () => {
     await expect(verifyLocalAuth("cashier@shop.test", "wrong")).resolves.toBeNull();
     clearLocalAuthVerifier("cashier@shop.test");
     await expect(verifyLocalAuth("cashier@shop.test", "Secret123!")).resolves.toBeNull();
+  });
+
+  it("keeps two offline password digests independent on one till", async () => {
+    await storeLocalAuthVerifier("cashier-a@shop.test", "SecretA1!", "user_a");
+    await storeLocalAuthVerifier("cashier-b@shop.test", "SecretB2!", "user_b");
+    await expect(verifyLocalAuth("cashier-a@shop.test", "SecretA1!")).resolves.toEqual({
+      userId: "user_a",
+      email: "cashier-a@shop.test",
+    });
+    await expect(verifyLocalAuth("cashier-b@shop.test", "SecretB2!")).resolves.toEqual({
+      userId: "user_b",
+      email: "cashier-b@shop.test",
+    });
+    await expect(verifyLocalAuth("cashier-a@shop.test", "SecretB2!")).resolves.toBeNull();
+    clearLocalAuthVerifier("cashier-a@shop.test");
+    clearLocalAuthVerifier("cashier-b@shop.test");
   });
 });

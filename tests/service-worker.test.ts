@@ -56,7 +56,7 @@ describe("service worker navigation safety", () => {
   });
 
   it("does not precache gated app routes that 302 to login", () => {
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v20"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v21"');
     expect(sw).toContain("/branding/logo_horizontal.png");
     expect(sw).toContain("function matchStaticAsset");
     expect(sw).toContain("ignoreSearch: true");
@@ -68,6 +68,11 @@ describe("service worker navigation safety", () => {
     expect(sw).not.toMatch(/PRECACHE = \[[^\]]*\"\/\"/);
     // Must not use startsWith("/product") — that also matches /products.
     expect(sw).not.toMatch(/pathname\.startsWith\("\/product"\)/);
+  });
+
+  it("bounds hung document fetches so post-login cannot strand the login skeleton", () => {
+    expect(sw).toContain("NETWORK_DOCUMENT_BUDGET_MS");
+    expect(sw).toContain("document-network-budget");
   });
 
   it("migrates warmed shells and Next static assets on CACHE_NAME bump", () => {
