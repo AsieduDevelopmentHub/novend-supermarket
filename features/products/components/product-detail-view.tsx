@@ -43,6 +43,7 @@ import {
 import { showError } from "@/lib/errors";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { shouldUseRemoteBusinessLists } from "@/lib/offline/freshness";
 import { getMirroredProduct, listMirroredLots } from "@/lib/offline/mirror-queries";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import {
@@ -60,15 +61,18 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
   const { canManageProducts, canViewCost, isAdmin, branchId: myBranchId } = usePermissions();
   const online = useConnectivity();
   const branchScope = isAdmin ? undefined : (myBranchId ?? undefined);
+  const [preferDexie, setPreferDexie] = useState(!online);
   const remote = useQuery(
     api.products.getProduct,
-    online && !String(productId).startsWith("local_")
+    online && !preferDexie && !String(productId).startsWith("local_")
       ? { id: productId, branchId: branchScope }
       : "skip",
   );
   const remoteLots = useQuery(
     api.inventory.listLots,
-    online && !String(productId).startsWith("local_") ? { productId } : "skip",
+    online && !preferDexie && !String(productId).startsWith("local_")
+      ? { productId }
+      : "skip",
   );
   const [local, setLocal] = useState<Awaited<ReturnType<typeof getMirroredProduct>> | undefined>(
     undefined,
@@ -76,6 +80,17 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
   const [localLots, setLocalLots] = useState<
     Awaited<ReturnType<typeof listMirroredLots>> | undefined
   >(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    void shouldUseRemoteBusinessLists(online).then((useRemote) => {
+      if (!cancelled) setPreferDexie(!useRemote);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [online]);
+
   useEffect(() => {
     let cancelled = false;
     const load = () => {
@@ -111,35 +126,37 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
   const [lotDrafts, setLotDrafts] = useState<Record<string, string>>({});
   const [savingLotId, setSavingLotId] = useState<string | null>(null);
 
-  const product =
-    remote ??
-    (local
-      ? {
-          _id: productId,
-          id: productId,
-          name: local.name,
-          sku: local.sku,
-          barcode: local.barcode,
-          categoryName: local.categoryName,
-          sellingPrice: local.sellingPrice,
-          costPrice: local.costPrice,
-          stockQuantity: local.stockQuantity,
-          sellableQuantity: local.sellableQuantity ?? local.stockQuantity,
-          unit: local.unit,
-          lowStockThreshold: local.lowStockThreshold,
-          status: local.status,
-          imageUrl: local.imageUrl,
-          tracksExpiry: local.tracksExpiry,
-          nearestExpiry: local.nearestExpiry,
-          isExpired: local.isExpired,
-          isExpiring: local.isExpiring,
-          isLowStock: local.stockQuantity <= local.lowStockThreshold,
-          description: null,
-          expiredQuantity: 0,
-        }
-      : remote === undefined && local === undefined
-        ? undefined
-        : null);
+  const mappedLocal = local
+    ? {
+        _id: productId,
+        id: productId,
+        name: local.name,
+        sku: local.sku,
+        barcode: local.barcode,
+        categoryName: local.categoryName,
+        sellingPrice: local.sellingPrice,
+        costPrice: local.costPrice,
+        stockQuantity: local.stockQuantity,
+        sellableQuantity: local.sellableQuantity ?? local.stockQuantity,
+        unit: local.unit,
+        lowStockThreshold: local.lowStockThreshold,
+        status: local.status,
+        imageUrl: local.imageUrl,
+        tracksExpiry: local.tracksExpiry,
+        nearestExpiry: local.nearestExpiry,
+        isExpired: local.isExpired,
+        isExpiring: local.isExpiring,
+        isLowStock: local.stockQuantity <= local.lowStockThreshold,
+        description: null,
+        expiredQuantity: 0,
+      }
+    : null;
+
+  const product = preferDexie
+    ? (mappedLocal ?? remote ?? (local === undefined && remote === undefined ? undefined : null))
+    : (remote ??
+      mappedLocal ??
+      (remote === undefined && local === undefined ? undefined : null));
 
   if (product === undefined) {
     return <LoadingState label="Loading product…" />;
@@ -167,8 +184,9 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
           receivedAt: lot.receivedAt,
           status: lotStatus(lot.expiryDate, alertDays),
         }));
-  const lots =
-    mappedLocalLots && mappedLocalLots.length > 0
+  const lots = preferDexie
+    ? (mappedLocalLots ?? remoteLots ?? mappedLocalLots)
+    : mappedLocalLots && mappedLocalLots.length > 0
       ? mappedLocalLots
       : (remoteLots ?? mappedLocalLots);
 
