@@ -9,9 +9,8 @@
  * Capacitor stays on the hosted origin (SW serves cached `/login` offline).
  * Electron reloads through the local offline-boot trampoline.
  *
- * Offline / Cap / Electron / unreachable Convex: navigate immediately and do
- * not await `signOut()` — that call can hang for minutes and trap the brand
- * splash (“Signing out…”) or a Next chunk-load error sheet.
+ * Never await Convex `signOut()` or presence clears when the radio is dead /
+ * Cap / Electron — those calls hang and trap “Signing out…”.
  */
 
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
@@ -33,7 +32,7 @@ type SignOutOptions = {
   clearPresence?: () => Promise<unknown>;
 };
 
-const ONLINE_SIGNOUT_BUDGET_MS = 1200;
+const ONLINE_SIGNOUT_BUDGET_MS = 800;
 
 function shouldSkipAwaitingCloudSignOut(): boolean {
   if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
@@ -54,6 +53,7 @@ export async function signOutAndRedirect({
   clearCartDraft();
   clearCustomerDisplaySnapshot();
   clearUserDeviceState();
+  // Never await — Convex mutations hang when the radio just dropped.
   void clearPresence?.().catch(() => {
     /* best-effort */
   });
@@ -62,7 +62,7 @@ export async function signOutAndRedirect({
     void signOut().catch(() => {
       /* Convex unreachable — local clears already applied */
     });
-    await navigateToLoginAfterSignOut();
+    void navigateToLoginAfterSignOut();
     return;
   }
 
@@ -74,6 +74,6 @@ export async function signOutAndRedirect({
       }),
     ]);
   } finally {
-    await navigateToLoginAfterSignOut();
+    void navigateToLoginAfterSignOut();
   }
 }

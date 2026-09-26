@@ -40,6 +40,7 @@ import {
 } from "@/lib/offline/shell-profile";
 import { markOfflineSession, readOfflineSession, hasOfflineSession } from "@/lib/offline/session";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
+import { navigateToLoginAfterSignOut } from "@/lib/auth/native-auth-navigation";
 import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
 import {
   bindPlatformOfflineDb,
@@ -217,6 +218,17 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     const timer = window.setTimeout(() => setOnlineAuthBudgetElapsed(true), ONLINE_AUTH_BUDGET_MS);
     return () => window.clearTimeout(timer);
   }, [online]);
+
+  // Dead radio / hung Electron trampoline: never leave cashiers on “Signing out…”.
+  useEffect(() => {
+    if (!hasExplicitLogout()) return;
+    const timer = window.setTimeout(() => {
+      if (!hasExplicitLogout()) return;
+      if (window.location.pathname.startsWith("/login")) return;
+      void navigateToLoginAfterSignOut();
+    }, 2800);
+    return () => window.clearTimeout(timer);
+  }, [sessionHint, isAuthenticated, online]);
 
   useEffect(() => {
     if (
