@@ -36,13 +36,16 @@ import { usePermissions } from "@/hooks/use-permissions";
 export function CloudPackageRestoreGate() {
   const online = useConnectivity();
   const { isAdmin } = usePermissions();
-  const { cloudMode, organizationId } = useLicense();
+  const { cloudMode, plannedCloudMode, syncBoostUntil, organizationId } = useLicense();
   const convex = useConvex();
+  const packageMode =
+    (plannedCloudMode === "backup_only" || plannedCloudMode === "snapshot_only") &&
+    cloudMode !== "full_sync";
+  const boostActive =
+    typeof syncBoostUntil === "number" && syncBoostUntil > Date.now() && cloudMode === "full_sync";
   const usage = useQuery(
     api.cloudBackups.usage,
-    online && isAdmin && (cloudMode === "backup_only" || cloudMode === "snapshot_only")
-      ? {}
-      : "skip",
+    online && isAdmin && packageMode && !boostActive ? {} : "skip",
   );
 
   const [needed, setNeeded] = useState(false);
@@ -51,7 +54,7 @@ export function CloudPackageRestoreGate() {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    if (cloudMode !== "backup_only" && cloudMode !== "snapshot_only") {
+    if (!packageMode || boostActive) {
       setNeeded(false);
       return;
     }
@@ -62,7 +65,7 @@ export function CloudPackageRestoreGate() {
     return () => {
       cancelled = true;
     };
-  }, [cloudMode, organizationId]);
+  }, [packageMode, boostActive, organizationId]);
 
   const latest = usage?.backups[0];
   const open =
@@ -70,7 +73,8 @@ export function CloudPackageRestoreGate() {
     isAdmin &&
     needed &&
     !dismissed &&
-    (cloudMode === "backup_only" || cloudMode === "snapshot_only") &&
+    packageMode &&
+    !boostActive &&
     Boolean(latest);
 
   async function onRestore() {

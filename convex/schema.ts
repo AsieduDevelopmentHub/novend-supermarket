@@ -262,6 +262,13 @@ export default defineSchema({
      */
     cloudMode: v.optional(cloudModeValidator),
     /**
+     * Temporary org-wide full_sync window so a new/empty till can pull and other
+     * devices can flush. PEAS `cloudMode` is unchanged. Missing / past → no boost.
+     */
+    cloudSyncBoostUntil: v.optional(v.number()),
+    cloudSyncBoostStartedAt: v.optional(v.number()),
+    cloudSyncBoostReason: v.optional(v.string()),
+    /**
      * Hours between automatic encrypted uploads while the org is `backup_only`
      * or `snapshot_only`. Missing → 24. Does not apply to `full_sync` (continuous)
      * or `local_only` (none).

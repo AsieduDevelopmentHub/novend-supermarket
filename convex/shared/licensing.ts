@@ -280,6 +280,13 @@ export type LicenseSnapshot = {
   organizationStatus: OrganizationStatus;
   /** Cloud usage mode. Older caches normalize via `normalizeCloudMode`. */
   cloudMode: CloudMode;
+  /**
+   * PEAS-planned mode (ignores temporary org sync boost).
+   * Missing on older caches → same as `cloudMode`.
+   */
+  plannedCloudMode?: CloudMode;
+  /** Org-wide catch-up boost end time; missing/null → no boost. */
+  syncBoostUntil?: number | null;
   /** Monotonic entitlement counter; older caches default to 0. */
   entitlementVersion: number;
   /**

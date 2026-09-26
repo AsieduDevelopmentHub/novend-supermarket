@@ -44,6 +44,10 @@ export type LicenseState = {
   access: LicenseAccess;
   /** Cloud usage mode for this organization. Defaults to full_sync. */
   cloudMode: CloudMode;
+  /** PEAS-planned mode (ignores temporary org sync boost). */
+  plannedCloudMode: CloudMode;
+  /** Org-wide catch-up boost end time, or null. */
+  syncBoostUntil: number | null;
   /** True when the licence came from the offline cache rather than Convex. */
   fromCache: boolean;
   /** Cached licence that is too old to be trusted for writes. */
@@ -103,6 +107,11 @@ function stateFromCachedSnapshot(cached: OfflineLicenseState & { snapshot: Licen
     ...entitlements,
     access: cached.access,
     cloudMode: normalizeCloudMode(cached.snapshot.cloudMode),
+    plannedCloudMode: normalizeCloudMode(
+      cached.snapshot.plannedCloudMode ?? cached.snapshot.cloudMode,
+    ),
+    syncBoostUntil:
+      typeof cached.snapshot.syncBoostUntil === "number" ? cached.snapshot.syncBoostUntil : null,
     fromCache: true,
     stale: cached.access.stale,
     offlineState: cached.kind,
@@ -166,6 +175,9 @@ export function useLicense(): LicenseState {
       ...entitlements,
       access: remote.access,
       cloudMode: normalizeCloudMode(remote.cloudMode),
+      plannedCloudMode: normalizeCloudMode(remote.plannedCloudMode ?? remote.cloudMode),
+      syncBoostUntil:
+        typeof remote.syncBoostUntil === "number" ? remote.syncBoostUntil : null,
       fromCache: false,
       stale: false,
       offlineState: null,
@@ -205,6 +217,8 @@ export function useLicense(): LicenseState {
     configVersion: defaults.configVersion,
     access: cached ? cached.access : DEFAULT_ACCESS,
     cloudMode: DEFAULT_CLOUD_MODE,
+    plannedCloudMode: DEFAULT_CLOUD_MODE,
+    syncBoostUntil: null,
     fromCache: false,
     stale: false,
     offlineState: cached ? cached.kind : null,

@@ -264,6 +264,13 @@ function parseSnapshot(raw: string): LicenseSnapshot | null {
       ...(value as unknown as LicenseSnapshot),
       subscription,
       cloudMode: normalizeCloudMode(value.cloudMode),
+      plannedCloudMode: normalizeCloudMode(
+        value.plannedCloudMode != null ? value.plannedCloudMode : value.cloudMode,
+      ),
+      syncBoostUntil:
+        typeof value.syncBoostUntil === "number" && value.syncBoostUntil > 0
+          ? value.syncBoostUntil
+          : null,
       entitlementVersion,
       configVersion,
       allowedCloudModes: Array.isArray(value.allowedCloudModes)

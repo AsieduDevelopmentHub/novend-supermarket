@@ -5,6 +5,8 @@ import { requireRoleIgnoringLicense, requireSessionIgnoringLicense } from "./sha
 import { writeAuditLog } from "./shared/audit";
 import { assertWithinLimit, resolveLicense } from "./shared/entitlements";
 import { sanitizeText, TEXT_LIMITS } from "./shared/validation";
+import { ensureCloudSyncBoost } from "./shared/cloudSyncBoost";
+import { normalizeCloudMode } from "./shared/cloudMode";
 
 const runtimeValidator = v.union(
   v.literal("desktop"),
@@ -67,7 +69,8 @@ export const registerDevice = mutation({
     const platform = args.platform.trim().slice(0, 64) || "Unknown";
 
     if (existing) {
-      if (!existing.isActive) {
+      const wasInactive = !existing.isActive;
+      if (wasInactive) {
         // Re-activating counts against the plan again.
         await assertWithinLimit(
           ctx,
@@ -93,7 +96,29 @@ export const registerDevice = mutation({
         deactivatedAt: undefined,
         deactivatedBy: undefined,
       });
-      return { deviceId: existing._id, created: false as const };
+
+      let syncBoostUntil: number | null = null;
+      let syncBoostStarted = false;
+      if (wasInactive && normalizeCloudMode(organization.cloudMode) !== "full_sync") {
+        const boost = await ensureCloudSyncBoost(ctx, organization, {
+          actorId: userId,
+          reason: "reactivate_device",
+        });
+        syncBoostUntil = boost.syncBoostUntil;
+        syncBoostStarted = boost.boosted;
+      } else if (
+        typeof organization.cloudSyncBoostUntil === "number" &&
+        organization.cloudSyncBoostUntil > now
+      ) {
+        syncBoostUntil = organization.cloudSyncBoostUntil;
+      }
+
+      return {
+        deviceId: existing._id,
+        created: false as const,
+        syncBoostUntil,
+        syncBoostStarted,
+      };
     }
 
     const license = await resolveLicense(ctx, organization);
@@ -122,7 +147,56 @@ export const registerDevice = mutation({
       metadata: { platform, runtime: args.runtime, deliveryMode: args.deliveryMode },
     });
 
-    return { deviceId, created: true as const };
+    let syncBoostUntil: number | null = null;
+    let syncBoostStarted = false;
+    if (normalizeCloudMode(organization.cloudMode) !== "full_sync") {
+      const boost = await ensureCloudSyncBoost(ctx, organization, {
+        actorId: userId,
+        reason: "new_device",
+      });
+      syncBoostUntil = boost.syncBoostUntil;
+      syncBoostStarted = boost.boosted;
+    }
+
+    return {
+      deviceId,
+      created: true as const,
+      syncBoostUntil,
+      syncBoostStarted,
+    };
+  },
+});
+
+/**
+ * Empty till (no Dexie catalog) on a package/local org — request org-wide catch-up boost.
+ */
+export const requestCloudSyncBoost = mutation({
+  args: {
+    fingerprint: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { organizationId, userId, organization } = await requireSessionIgnoringLicense(ctx);
+    const fingerprint = requireFingerprint(args.fingerprint);
+    const device = await ctx.db
+      .query("devices")
+      .withIndex("by_organization_fingerprint", (q) =>
+        q.eq("organizationId", organizationId).eq("fingerprint", fingerprint),
+      )
+      .unique();
+    if (!device || !device.isActive) {
+      throw new Error("Activate this device before requesting a sync boost");
+    }
+
+    const boost = await ensureCloudSyncBoost(ctx, organization, {
+      actorId: userId,
+      reason: "empty_device",
+    });
+    return {
+      syncBoostUntil: boost.syncBoostUntil,
+      syncBoostStarted: boost.boosted,
+      plannedCloudMode: boost.plannedCloudMode,
+      effectiveCloudMode: boost.effectiveCloudMode,
+    };
   },
 });
 
