@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { LandingNav } from "@/features/marketing/components/landing-nav";
 import { LandingFooter } from "@/features/marketing/components/landing-footer";
+import { FloatingWhatsAppCommunity } from "@/features/marketing/components/floating-whatsapp-community";
 import { useLandingReveal } from "@/features/marketing/hooks/use-landing-motion";
 import { isCapacitor, isElectron } from "@novend/hardware";
 import { isStandaloneWebApp } from "@/lib/device-install";
@@ -34,7 +35,12 @@ export function MarketingSiteShell({ children }: { children: ReactNode }) {
       >
         {children}
       </main>
-      {embedded === false ? <LandingFooter /> : null}
+      {embedded === false ? (
+        <>
+          <LandingFooter />
+          <FloatingWhatsAppCommunity />
+        </>
+      ) : null}
     </div>
   );
 }

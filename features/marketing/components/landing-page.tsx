@@ -15,6 +15,7 @@ import { LandingPricingPreview } from "@/features/marketing/components/landing-p
 import { LandingFaq } from "@/features/marketing/components/landing-faq";
 import { LandingCta } from "@/features/marketing/components/landing-cta";
 import { LandingFooter } from "@/features/marketing/components/landing-footer";
+import { FloatingWhatsAppCommunity } from "@/features/marketing/components/floating-whatsapp-community";
 
 /**
  * Homepage per NOVEND_WEBSITE_REDESIGN_CURSOR_BRIEF — focused narrative, fewer sections.
@@ -69,6 +70,7 @@ export function LandingPage() {
         </main>
         <LandingFooter />
       </div>
+      <FloatingWhatsAppCommunity />
     </div>
   );
 }

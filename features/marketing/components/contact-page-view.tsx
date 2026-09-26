@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  Globe,
   Linkedin,
   Mail,
   MessageCircle,
@@ -25,7 +24,6 @@ const SOCIAL_ICONS: Record<string, LucideIcon> = {
   community: Users,
   whatsapp: MessageCircle,
   linkedin: Linkedin,
-  website: Globe,
 };
 
 /** Public contact page — channels, WhatsApp community, form, and social links. */
@@ -159,8 +157,7 @@ export function ContactPageView() {
           className="mx-auto mt-8 grid max-w-4xl gap-3 sm:mt-10 sm:grid-cols-2 lg:grid-cols-4"
         >
           {contactPage.socials.links.map((social) => {
-            const Icon = SOCIAL_ICONS[social.id] ?? Globe;
-            return (
+            const Icon = SOCIAL_ICONS[social.id] ?? Linkedin;            return (
               <li key={social.id}>
                 <a
                   href={social.href}

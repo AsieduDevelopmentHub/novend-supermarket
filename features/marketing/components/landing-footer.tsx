@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Globe, Linkedin, Mail, MessageCircle, Phone, Users } from "lucide-react";
+import { Linkedin, Mail, MessageCircle, Phone, Users } from "lucide-react";
 import { BRANDING } from "@/constants/branding";
 import { landingCopy } from "@/features/marketing/content";
 import { openCookiePreferences } from "@/lib/cookies/consent";
@@ -13,7 +13,6 @@ const SOCIAL_ICONS = {
   community: Users,
   whatsapp: MessageCircle,
   linkedin: Linkedin,
-  website: Globe,
 } as const;
 
 /** Four-column marketing footer: Product, Industries, Resources, Legal. */
@@ -40,8 +39,7 @@ export function LandingFooter() {
             <p className="text-sm leading-relaxed text-slate-400">{footer.description}</p>
             <ul className="flex flex-wrap gap-2 pt-1">
               {footer.socials.map((social) => {
-                const Icon = SOCIAL_ICONS[social.id as keyof typeof SOCIAL_ICONS] ?? Globe;
-                return (
+                const Icon = SOCIAL_ICONS[social.id as keyof typeof SOCIAL_ICONS] ?? Linkedin;                return (
                   <li key={social.id}>
                     <a
                       href={social.href}
