@@ -32,7 +32,7 @@ type SignOutOptions = {
   clearPresence?: () => Promise<unknown>;
 };
 
-const ONLINE_SIGNOUT_BUDGET_MS = 2500;
+const ONLINE_SIGNOUT_BUDGET_MS = 1200;
 
 function isLikelyOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;

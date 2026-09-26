@@ -6,9 +6,12 @@ import { useConvexAuth } from "convex/react";
 import { AppSplash } from "@/features/auth/components/app-splash";
 import { useIsClient } from "@/hooks/use-is-client";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
+import { prepareHardNavigation } from "@/lib/auth/redirect-after-login";
 
 /** Cap/emulator Convex can stay isAuthenticated briefly after sign-out. */
 const AUTH_COVER_BUDGET_MS = 4000;
+/** If still on /login after cover, hard-leave so "Welcome" cannot strand the form. */
+const FORCE_LEAVE_BUDGET_MS = 6000;
 
 /**
  * Covers login chrome only after mount, and only while a live session is
@@ -43,6 +46,18 @@ function LoginSessionGateInner({ children }: { children: ReactNode }) {
 
   const explicitLogout = signedOutParam || sessionLogout;
   const cover = mounted && !explicitLogout && isAuthenticated && !coverBudgetElapsed;
+
+  useEffect(() => {
+    if (!mounted || explicitLogout || !isAuthenticated) return;
+    const timer = window.setTimeout(() => {
+      if (window.location.pathname !== "/login" && window.location.pathname !== "/signup") {
+        return;
+      }
+      prepareHardNavigation();
+      window.location.replace("/dashboard");
+    }, FORCE_LEAVE_BUDGET_MS);
+    return () => window.clearTimeout(timer);
+  }, [mounted, explicitLogout, isAuthenticated]);
 
   return (
     <>

@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v19";
+const CACHE_NAME = "novend-pos-v20";
 /**
  * Public documents + icons only. Do not precache `/` or `/dashboard`:
  * cache.add follows the auth 302 and stores POS HTML under the marketing URL
@@ -205,6 +205,20 @@ function isStaticAsset(url) {
     url.pathname.endsWith(".svg") ||
     url.pathname.endsWith(".webp") ||
     url.pathname.endsWith(".woff2")
+  );
+}
+
+/** Prefer exact match, then ignore ?v= cache-bust query (branding/icons). */
+async function matchStaticAsset(request, url) {
+  const exact = await caches.match(request);
+  if (exact) return exact;
+  if (url.search) {
+    const byPath = await caches.match(url.pathname);
+    if (byPath) return byPath;
+  }
+  return (
+    (await caches.match(request, { ignoreSearch: true })) ||
+    (await caches.match(new Request(url.pathname)))
   );
 }
 
@@ -434,10 +448,14 @@ self.addEventListener("fetch", (event) => {
 
   if (isStaticAsset(url)) {
     event.respondWith(
-      caches.match(request).then((cached) => {
+      matchStaticAsset(request, url).then((cached) => {
         const networkPromise = fetchFollowRedirects(request)
           .then((response) => {
             cachePut(request, response);
+            // Also store the unversioned pathname so ?v= cache-bust still hits offline.
+            if (url.pathname.startsWith("/branding/") || url.pathname.startsWith("/icons/")) {
+              cachePut(new Request(url.pathname), response);
+            }
             return response;
           })
           .catch(async () => cached || new Response("", { status: 503, statusText: "Offline" }));

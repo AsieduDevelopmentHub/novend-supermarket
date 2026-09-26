@@ -38,11 +38,21 @@ import {
   storeLocalAuthVerifier,
   verifyLocalAuth,
 } from "@/lib/offline/local-auth";
+import { shellProfileFromSessionHint, saveShellProfile } from "@/lib/offline/shell-profile";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
+import { withTimeout } from "@/lib/async/with-timeout";
 
 const REMEMBER_KEY = "novend.login.rememberEmail";
 const LOGIN_DEVICE_KEY = "novend.login.deviceKey";
+/** Cap/Electron often look online while Convex never answers. */
+const CLOUD_SIGN_IN_BUDGET_MS = 8_000;
+const STORE_VERIFIER_BUDGET_MS = 2_500;
 let volatileLoginDeviceKey: string | null = null;
+
+function isTimeoutError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  return message.includes("timed out") || message.includes("in time") || message.includes("timeout");
+}
 
 function getLoginDeviceKey(): string {
   if (volatileLoginDeviceKey) return volatileLoginDeviceKey;
@@ -137,6 +147,10 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       );
       return false;
     }
+    const profile = shellProfileFromSessionHint(activated);
+    if (profile) {
+      void saveShellProfile(profile).catch(() => undefined);
+    }
     consumeExplicitLogout();
     redirectingRef.current = true;
     setOpeningWorkspace(true);
@@ -149,6 +163,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         }),
       ),
       router,
+      { hard: true },
     );
     return true;
   }
@@ -180,9 +195,8 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       setOpeningWorkspace(true);
       void (async () => {
         try {
-          clearOfflineSession();
           const path = await resolvePostLoginPath(convex);
-          navigateAfterLogin(withBootMarker(path), router);
+          navigateAfterLogin(withBootMarker(path), router, { hard: true });
         } catch {
           redirectingRef.current = false;
           setOpeningWorkspace(false);
@@ -212,8 +226,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         /* ignore storage errors */
       }
 
-      // Offline: verify email + password against the device digest, then open
-      // the remembered shell. No account picker — same form as online.
+      // Offline (or radio lies): verify email + password against the device digest.
       if (!online) {
         const ok = await resumeWithLocalPassword(normalizedEmail, rawPassword);
         setPending(false);
@@ -221,15 +234,32 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         return;
       }
 
-      clearOfflineSession();
+      try {
+        const formData = new FormData();
+        formData.set("email", normalizedEmail);
+        formData.set("password", rawPassword);
+        formData.set("flow", "signIn");
+        formData.set("deviceKey", getLoginDeviceKey());
+        await withTimeout(
+          signIn("password", formData),
+          CLOUD_SIGN_IN_BUDGET_MS,
+          "Couldn't reach Novend in time.",
+        );
+      } catch (cloudError) {
+        // Cap/Electron often report online while Convex never answers.
+        if (isConnectivityError(cloudError) || isTimeoutError(cloudError)) {
+          const ok = await resumeWithLocalPassword(normalizedEmail, rawPassword);
+          setPending(false);
+          if (ok) {
+            toast.message("Couldn't reach Novend — opened your cached workspace.");
+            return;
+          }
+        }
+        throw cloudError;
+      }
 
-      const formData = new FormData();
-      formData.set("email", normalizedEmail);
-      formData.set("password", rawPassword);
-      formData.set("flow", "signIn");
-      formData.set("deviceKey", getLoginDeviceKey());
-      await signIn("password", formData);
       consumeExplicitLogout();
+      clearOfflineSession();
 
       redirectingRef.current = true;
       setOpeningWorkspace(true);
@@ -237,7 +267,11 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         expectedEmail: normalizedEmail,
       });
       try {
-        const me = await convex.query(api.users.me, {});
+        const me = await withTimeout(
+          convex.query(api.users.me, {}),
+          STORE_VERIFIER_BUDGET_MS,
+          "verifier timeout",
+        );
         if (me?.userId) {
           await storeLocalAuthVerifier(normalizedEmail, rawPassword, String(me.userId));
         }
@@ -245,13 +279,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         /* online shell still opens; offline password resume needs one more online login */
       }
       toast.success("Welcome");
-      navigateAfterLogin(path, router);
+      navigateAfterLogin(path, router, { hard: true });
     } catch (error) {
       redirectingRef.current = false;
       setOpeningWorkspace(false);
 
-      // Cap/Electron often report online while Convex is unreachable.
-      if (isConnectivityError(error)) {
+      if (isConnectivityError(error) || isTimeoutError(error)) {
         const ok = await resumeWithLocalPassword(normalizedEmail, rawPassword);
         setPending(false);
         if (ok) {
