@@ -55,14 +55,22 @@ export async function canServeListsFromMirror(): Promise<boolean> {
 }
 
 /**
+ * Whether business lists (inventory, products, customers, …) may open live Convex.
+ * Package / local modes keep Dexie as the operational clone — same rule as Sales.
+ */
+export async function shouldUseRemoteBusinessLists(online: boolean): Promise<boolean> {
+  if (!online) return false;
+  const policy = await loadCloudPolicy();
+  if (!policy.shouldUseRealtimeSubscriptions()) return false;
+  return !(await canServeListsFromMirror());
+}
+
+/**
  * Whether Sales may open a live Convex catalog subscription.
  * Package modes (`backup_only` / `snapshot_only`) never mirror products into Dexie
  * via realtime sync — remote rows let staff build a cart that then fails at
  * `completeSaleLocally` with "Product unavailable".
  */
 export async function shouldUseRemoteSalesCatalog(online: boolean): Promise<boolean> {
-  if (!online) return false;
-  const policy = await loadCloudPolicy();
-  if (!policy.shouldUseRealtimeSubscriptions()) return false;
-  return !(await canServeListsFromMirror());
+  return shouldUseRemoteBusinessLists(online);
 }
