@@ -19,4 +19,15 @@ describe("shouldForceClientShell", () => {
       false,
     );
   });
+
+  it("keeps client views while an offline shell awaits cloud reconnect", () => {
+    expect(
+      shouldForceClientShell({
+        capacitor: false,
+        electron: false,
+        online: true,
+        awaitingCloudReconnect: true,
+      }),
+    ).toBe(true);
+  });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useId, useState } from "react";
+import { FormEvent, useEffect, useId, useRef, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvex, useConvexAuth } from "convex/react";
 import { Cloud, X } from "lucide-react";
@@ -20,9 +20,13 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { showError } from "@/lib/errors";
 import { consumeExplicitLogout } from "@/lib/auth/logout-flag";
 import { storeLocalAuthVerifier } from "@/lib/offline/local-auth";
+import {
+  hasOfflineSession,
+  listOfflineSessions,
+  type OfflineSessionHint,
+} from "@/lib/offline/session";
 import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
 import { useOfflineStatus } from "@/providers/offline-provider";
-import { useShowsRealtimeSyncUi } from "@/hooks/use-shows-realtime-sync-ui";
 import { cn } from "@/lib/utils";
 
 const LOGIN_DEVICE_KEY = "novend.login.deviceKey";
@@ -60,6 +64,21 @@ function readRememberedEmail(): string {
   }
 }
 
+function resolveReconnectEmail(hint: OfflineSessionHint | null): string {
+  const fromHint = hint?.email?.trim().toLowerCase();
+  if (fromHint) return fromHint;
+  try {
+    const sessions = listOfflineSessions();
+    const active =
+      (hint?.userId ? sessions.find((row) => row.userId === hint.userId) : null) ?? sessions[0];
+    const fromRegistry = active?.email?.trim().toLowerCase();
+    if (fromRegistry) return fromRegistry;
+  } catch {
+    /* ignore */
+  }
+  return readRememberedEmail();
+}
+
 function readDismissedAt(): number {
   if (typeof window === "undefined") return 0;
   try {
@@ -93,17 +112,17 @@ function clearDismissedAt() {
  * POS route and queued work can upload.
  */
 export function CloudReconnectBanner() {
-  const showSyncUi = useShowsRealtimeSyncUi();
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { online, flushOutbox, pullSnapshot } = useOfflineStatus();
   const sessionHint = useOfflineSessionHint();
   const { signIn } = useAuthActions();
   const convex = useConvex();
+  const autoOpenedRef = useRef(false);
 
-  const email =
-    sessionHint?.email?.trim().toLowerCase() || readRememberedEmail();
-  const eligible =
-    showSyncUi && online && !isLoading && !isAuthenticated && Boolean(email);
+  const email = resolveReconnectEmail(sessionHint);
+  const hasShell = Boolean(sessionHint) || hasOfflineSession();
+  // Offline shell + radio up + no JWT → in-place password connect (never /login).
+  const eligible = online && !isLoading && !isAuthenticated && hasShell && Boolean(email);
 
   const [dismissed, setDismissed] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -115,11 +134,18 @@ export function CloudReconnectBanner() {
     if (!eligible) {
       clearDismissedAt();
       setDismissed(false);
+      autoOpenedRef.current = false;
       return;
     }
     const at = readDismissedAt();
     setDismissed(at > 0 && Date.now() - at < DISMISS_TTL_MS);
   }, [eligible]);
+
+  useEffect(() => {
+    if (!eligible || dismissed || autoOpenedRef.current) return;
+    autoOpenedRef.current = true;
+    setDialogOpen(true);
+  }, [eligible, dismissed]);
 
   useEffect(() => {
     if (!eligible) return;
