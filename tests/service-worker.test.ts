@@ -56,8 +56,7 @@ describe("service worker navigation safety", () => {
   });
 
   it("does not precache gated app routes that 302 to login", () => {
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v22"');
-    expect(sw).toContain("/branding/logo_horizontal.png");
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v23"');    expect(sw).toContain("/branding/logo_horizontal.png");
     expect(sw).toContain("function matchStaticAsset");
     expect(sw).toContain("ignoreSearch: true");
     expect(sw).toContain("/docs/releases");

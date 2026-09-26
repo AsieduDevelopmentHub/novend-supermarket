@@ -1,6 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v22";
-/**
+const CACHE_NAME = "novend-pos-v23";/**
  * Public documents + icons only. Do not precache `/` or `/dashboard`:
  * cache.add follows the auth 302 and stores POS HTML under the marketing URL
  * (splash stuck on https://novend-pos.vercel.app/). Gated routes 302 to login.
@@ -439,20 +438,45 @@ self.addEventListener("fetch", (event) => {
   if (url.hostname.includes("convex")) return;
   if (url.pathname.startsWith("/api/") && url.pathname !== "/api/boot") return;
 
-  // /login and /signup: let the browser see live redirects when online
-  // (signed-in /login → /dashboard). When fetch fails (Cap/Electron offline
-  // sign-out), serve the precached login shell so the WebView does not show
-  // “webpage not available”.
+  // /login and /signup: live network when online so a signed-in session can
+  // 302 to /dashboard. Offline sign-out / cold boot (signedOut|fromBoot) must
+  // prefer the precached login document immediately — network-first hangs or
+  // returns a newer HTML shell whose /_next chunks are not cached yet, which
+  // paints “Failed to load chunk” / “You're working offline” instead of login.
   if (isAuthDocument(url)) {
     event.respondWith(
       (async () => {
-        try {
-          return await fetch(request);
-        } catch {
-          const cached =
+        const preferCache =
+          url.searchParams.get("fromBoot") === "1" ||
+          url.searchParams.get("signedOut") === "1";
+
+        async function cachedAuth() {
+          return (
             (await caches.match(url.pathname)) ||
             (await caches.match("/login")) ||
-            (await caches.match(new Request(url.pathname)));
+            (await caches.match(new Request(url.pathname))) ||
+            (await caches.match(request, { ignoreSearch: true }))
+          );
+        }
+
+        if (preferCache) {
+          const cached = await cachedAuth();
+          if (cached) {
+            void fetch(request)
+              .then((response) => {
+                if (response && response.ok) cachePut(request, response);
+              })
+              .catch(() => undefined);
+            return unwrapRedirect(cached);
+          }
+        }
+
+        try {
+          const response = await fetch(request);
+          if (response && response.ok) cachePut(request, response);
+          return response;
+        } catch {
+          const cached = await cachedAuth();
           if (cached) return unwrapRedirect(cached);
           return new Response(
             "<!doctype html><title>Signed out</title><p>Novend is offline. Reconnect to sign in, or open Novend once while online so this device can cache the login screen.</p>",
