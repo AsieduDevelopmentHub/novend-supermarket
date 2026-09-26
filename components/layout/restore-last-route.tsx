@@ -8,7 +8,7 @@ import { FROM_BOOT_PARAM, readLastRoute, resolveFromBootTarget } from "@/lib/aut
 import { type AppRole } from "@/config/navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { readOfflineSession } from "@/lib/offline/session";
-import { isCapacitor } from "@novend/hardware";
+import { isCapacitor, isElectron } from "@novend/hardware";
 
 /**
  * After Capacitor/Electron cold boot (marked with ?fromBoot=1), restore the
@@ -48,7 +48,7 @@ function RestoreLastRouteInner() {
 
     if (!target) return;
 
-    const useClientShell = isCapacitor() || !online;
+    const useClientShell = isCapacitor() || isElectron() || !online;
     if (useClientShell && typeof window !== "undefined") {
       window.history.replaceState({}, "", target.href);
       if (target.remount) {

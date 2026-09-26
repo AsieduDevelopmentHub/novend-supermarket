@@ -43,8 +43,12 @@ Boot sequence (aligned with Princellen):
    Chrome’s `ERR_FAILED` page. Dexie restores the shell.
 4. `persist:novend` keeps SW + IndexedDB + auth cookies across launches.
    If the document never leaves `file:` (first run, no cache), the boot page
-   shows the connect-once retry. `did-fail-load` on the hosted origin does
-   the same.
+   shows the connect-once retry. `did-fail-load` / `chrome-error://` recover
+   onto the local boot page with `stay=1` so Chromium does not loop
+   boot → https → fail → boot (that flickered forever offline).
+
+Electron always uses the Dexie client shell (same as Capacitor) so false-online
+`navigator.onLine` cannot drive RSC soft navigations that remount the POS.
 
 If the shell is not yet cached, recovery asks the cashier to connect once so the
 terminal can cache Novend POS. After that, offline launch uses Cache Storage —
