@@ -11,12 +11,12 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 ### What's new
 
 - Dashboard no longer stays blank after a desktop update when the local catalog is still catching up.
-
-<!-- Add more plain-language bullets before the next release. -->
+- Dashboard sales KPIs match Orders / Analytics again while online (live summary, not a stale empty mirror).
 
 ### Fixed
 
 - Dashboard unlocks after the mirror wait timeout and skips waiting on package/local cloud modes or when products are already on the device.
+- Dashboard reads `dashboard.summary` from Convex while online so Electron restarts do not paint zero KPIs when finance screens still show real totals.
 
 ## v1.0.1 — 2026-09-26
 

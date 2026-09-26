@@ -13,6 +13,9 @@ import { deriveExpiryListFields, lotSummaries, productExpiryAlertDays } from "./
 import { completedReturnsInRange, loadItemsForReturns } from "./shared/returns";
 import { collectSaleItemsForSales, collectSalesInCompletedAtRange } from "./shared/salesRange";
 
+/** Keep in sync with `lib/dashboard/window.ts` (dashboard UI copy). */
+const DASHBOARD_OPS_WINDOW_DAYS = 7;
+
 function startOfToday() {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -31,7 +34,7 @@ export const summary = query({
     const admin = isAdmin(profile);
     const manager = isManager(profile);
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
-    const since = admin || manager ? daysAgo(30) : startOfToday();
+    const since = admin || manager ? daysAgo(DASHBOARD_OPS_WINDOW_DAYS) : startOfToday();
     const rangeStart = Math.min(since, daysAgo(7));
     const now = Date.now();
 
