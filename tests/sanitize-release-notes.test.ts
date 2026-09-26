@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractWhatsNewSection,
   sanitizeReleaseNoteLines,
-} from "@/features/marketing/lib/sanitize-release-notes";
+} from "@/lib/sanitize-release-notes";
 
 describe("sanitizeReleaseNoteLines", () => {
   it("prefers ### What's new bullets over engineering sections", () => {

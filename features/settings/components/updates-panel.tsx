@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { getDesktopBridge } from "@/lib/desktop";
 import type { NovendDesktopUpdateStatus } from "@/types/desktop";
-import { sanitizeReleaseNoteLines } from "@/features/marketing/lib/sanitize-release-notes";
+import { sanitizeReleaseNoteLines } from "@/lib/sanitize-release-notes";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";

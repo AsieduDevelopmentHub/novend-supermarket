@@ -67,11 +67,59 @@ export type CloudEntitlements = {
   remoteMonitoringEnabled?: boolean;
 };
 
-/** How long an org-wide catch-up boost keeps every till on effective full_sync. */
-export const CLOUD_SYNC_BOOST_TTL_MS = 30 * 60 * 1000;
+/**
+ * Allowed catch-up boost durations (minutes). Platform admins pick from this
+ * list for the deployment default and per-org overrides.
+ */
+export const CLOUD_SYNC_BOOST_TTL_MINUTES = [15, 30, 45, 60, 90, 120] as const;
+export type CloudSyncBoostTtlMinutes = (typeof CLOUD_SYNC_BOOST_TTL_MINUTES)[number];
+export const DEFAULT_CLOUD_SYNC_BOOST_TTL_MINUTES: CloudSyncBoostTtlMinutes = 30;
 
-/** Only extend an active boost when less than this remains. */
-export const CLOUD_SYNC_BOOST_REFRESH_IF_REMAINING_MS = 10 * 60 * 1000;
+/** Default TTL in ms when neither org nor platform default is set. */
+export const CLOUD_SYNC_BOOST_TTL_MS = DEFAULT_CLOUD_SYNC_BOOST_TTL_MINUTES * 60 * 1000;
+
+/** @deprecated Prefer `cloudSyncBoostRefreshIfRemainingMs(ttlMs)`. Kept for callers on the default TTL. */
+export const CLOUD_SYNC_BOOST_REFRESH_IF_REMAINING_MS = Math.floor(CLOUD_SYNC_BOOST_TTL_MS / 3);
+
+export function normalizeCloudSyncBoostTtlMinutes(value: unknown): CloudSyncBoostTtlMinutes {
+  if (
+    typeof value === "number" &&
+    (CLOUD_SYNC_BOOST_TTL_MINUTES as readonly number[]).includes(value)
+  ) {
+    return value as CloudSyncBoostTtlMinutes;
+  }
+  return DEFAULT_CLOUD_SYNC_BOOST_TTL_MINUTES;
+}
+
+/** Org override → platform default → hard-coded 30 minutes. */
+export function resolveCloudSyncBoostTtlMinutes(input: {
+  organizationMinutes?: number | null;
+  globalMinutes?: number | null;
+}): CloudSyncBoostTtlMinutes {
+  if (
+    typeof input.organizationMinutes === "number" &&
+    (CLOUD_SYNC_BOOST_TTL_MINUTES as readonly number[]).includes(input.organizationMinutes)
+  ) {
+    return input.organizationMinutes as CloudSyncBoostTtlMinutes;
+  }
+  if (
+    typeof input.globalMinutes === "number" &&
+    (CLOUD_SYNC_BOOST_TTL_MINUTES as readonly number[]).includes(input.globalMinutes)
+  ) {
+    return input.globalMinutes as CloudSyncBoostTtlMinutes;
+  }
+  return DEFAULT_CLOUD_SYNC_BOOST_TTL_MINUTES;
+}
+
+export function cloudSyncBoostTtlMs(minutes: unknown): number {
+  return normalizeCloudSyncBoostTtlMinutes(minutes) * 60 * 1000;
+}
+
+/** Refresh only when less than one-third of the configured TTL remains. */
+export function cloudSyncBoostRefreshIfRemainingMs(ttlMs: number): number {
+  const safe = Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : CLOUD_SYNC_BOOST_TTL_MS;
+  return Math.floor(safe / 3);
+}
 
 /**
  * Planned PEAS mode vs temporary org-wide boost.
@@ -97,20 +145,27 @@ export function shouldApplyCloudSyncBoost(input: {
   planned: CloudMode | unknown;
   boostUntil?: number | null;
   now?: number;
+  /** Effective TTL for this org (resolved from org → global → default). */
+  ttlMs?: number;
 }): { apply: boolean; until: number } {
   const now = input.now ?? Date.now();
   const planned = normalizeCloudMode(input.planned);
   if (planned === "full_sync") {
     return { apply: false, until: 0 };
   }
+  const ttlMs =
+    typeof input.ttlMs === "number" && Number.isFinite(input.ttlMs) && input.ttlMs > 0
+      ? input.ttlMs
+      : CLOUD_SYNC_BOOST_TTL_MS;
+  const refreshMs = cloudSyncBoostRefreshIfRemainingMs(ttlMs);
   const existing = input.boostUntil;
   if (typeof existing === "number" && existing > now) {
     const remaining = existing - now;
-    if (remaining >= CLOUD_SYNC_BOOST_REFRESH_IF_REMAINING_MS) {
+    if (remaining >= refreshMs) {
       return { apply: false, until: existing };
     }
   }
-  return { apply: true, until: now + CLOUD_SYNC_BOOST_TTL_MS };
+  return { apply: true, until: now + ttlMs };
 }
 
 export function resolveCloudPolicy(

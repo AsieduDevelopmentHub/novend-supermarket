@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   backupIntervalMs,
+  cloudSyncBoostTtlMs,
   normalizeBackupIntervalHours,
+  normalizeCloudSyncBoostTtlMinutes,
   resolveCloudPolicy,
+  resolveCloudSyncBoostTtlMinutes,
   resolveEffectiveCloudMode,
   shouldApplyCloudSyncBoost,
   CLOUD_SYNC_BOOST_TTL_MS,
@@ -161,6 +164,51 @@ describe("org sync boost", () => {
     });
     expect(nearlyDone.apply).toBe(true);
     expect(nearlyDone.until).toBe(now + CLOUD_SYNC_BOOST_TTL_MS);
+  });
+
+  it("honours a custom TTL and refresh threshold (one-third of TTL)", () => {
+    const now = 1_000_000;
+    const ttlMs = cloudSyncBoostTtlMs(120);
+    const started = shouldApplyCloudSyncBoost({
+      planned: "snapshot_only",
+      now,
+      ttlMs,
+    });
+    expect(started.apply).toBe(true);
+    expect(started.until).toBe(now + ttlMs);
+
+    const stillFresh = shouldApplyCloudSyncBoost({
+      planned: "snapshot_only",
+      boostUntil: now + 50 * 60 * 1000,
+      now,
+      ttlMs,
+    });
+    expect(stillFresh.apply).toBe(false);
+
+    const nearlyDone = shouldApplyCloudSyncBoost({
+      planned: "snapshot_only",
+      boostUntil: now + 30 * 60 * 1000,
+      now,
+      ttlMs,
+    });
+    expect(nearlyDone.apply).toBe(true);
+    expect(nearlyDone.until).toBe(now + ttlMs);
+  });
+});
+
+describe("cloud sync boost TTL resolution", () => {
+  it("normalizes unknown minutes to 30", () => {
+    expect(normalizeCloudSyncBoostTtlMinutes(undefined)).toBe(30);
+    expect(normalizeCloudSyncBoostTtlMinutes(7)).toBe(30);
+    expect(normalizeCloudSyncBoostTtlMinutes(60)).toBe(60);
+  });
+
+  it("prefers org override over global over default", () => {
+    expect(resolveCloudSyncBoostTtlMinutes({})).toBe(30);
+    expect(resolveCloudSyncBoostTtlMinutes({ globalMinutes: 60 })).toBe(60);
+    expect(
+      resolveCloudSyncBoostTtlMinutes({ organizationMinutes: 15, globalMinutes: 60 }),
+    ).toBe(15);
   });
 });
 

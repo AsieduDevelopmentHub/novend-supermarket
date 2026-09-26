@@ -64,6 +64,9 @@ or drive hot queries **start with** `organizationId`.
   (`convex/shared/platformStatsAggregate.ts`) from `provisionOrganization`,
   `setOrganizationStatus`, `assignPlan`, and `setOrganizationCloudMode`; fully
   repairable via `platformStats.rebuild`.
+- `platformDefaults` — deployment-wide Super Admin defaults (`key: "global"`),
+  including catch-up sync boost TTL minutes. Org `cloudSyncBoostTtlMinutes`
+  overrides this when set.
 - `platformTelemetryHeartbeats` — minimal per-organization heartbeats (cloud mode,
   plan, entitlement version, branch/user/device counts, app version, storage
   estimate, last backup, outbox counts, `sentAt`). Written by

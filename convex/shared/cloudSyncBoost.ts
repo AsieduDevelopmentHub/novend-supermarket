@@ -7,11 +7,13 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { writeAuditLog } from "./audit";
 import {
+  cloudSyncBoostTtlMs,
   normalizeCloudMode,
   shouldApplyCloudSyncBoost,
   type CloudMode,
 } from "./cloudMode";
 import { bumpEntitlementVersion } from "./entitlementVersion";
+import { resolveOrganizationCloudSyncBoostTtlMinutes } from "./platformDefaults";
 
 export type CloudSyncBoostReason =
   | "new_device"
@@ -36,10 +38,15 @@ export async function ensureCloudSyncBoost(
 ): Promise<EnsureCloudSyncBoostResult> {
   const now = Date.now();
   const planned = normalizeCloudMode(organization.cloudMode);
+  const { effectiveMinutes } = await resolveOrganizationCloudSyncBoostTtlMinutes(
+    ctx,
+    organization,
+  );
   const decision = shouldApplyCloudSyncBoost({
     planned,
     boostUntil: organization.cloudSyncBoostUntil,
     now,
+    ttlMs: cloudSyncBoostTtlMs(effectiveMinutes),
   });
 
   if (!decision.apply) {
@@ -73,6 +80,7 @@ export async function ensureCloudSyncBoost(
       reason: input.reason,
       plannedCloudMode: planned,
       syncBoostUntil: decision.until,
+      ttlMinutes: effectiveMinutes,
     },
   });
 

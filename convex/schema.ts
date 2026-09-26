@@ -77,6 +77,16 @@ export const backupIntervalHoursValidator = v.union(
   v.literal(720),
 );
 
+/** Minutes for org-wide temporary full_sync catch-up boost. Missing → platform default → 30. */
+export const cloudSyncBoostTtlMinutesValidator = v.union(
+  v.literal(15),
+  v.literal(30),
+  v.literal(45),
+  v.literal(60),
+  v.literal(90),
+  v.literal(120),
+);
+
 export const subscriptionStatusValidator = v.union(
   v.literal("trialing"),
   v.literal("active"),
@@ -268,6 +278,13 @@ export default defineSchema({
     cloudSyncBoostUntil: v.optional(v.number()),
     cloudSyncBoostStartedAt: v.optional(v.number()),
     cloudSyncBoostReason: v.optional(v.string()),
+    /**
+     * Per-org override for catch-up boost duration (minutes). Missing / null →
+     * `platformDefaults.cloudSyncBoostTtlMinutes` → 30.
+     */
+    cloudSyncBoostTtlMinutes: v.optional(
+      v.union(cloudSyncBoostTtlMinutesValidator, v.null()),
+    ),
     /**
      * Hours between automatic encrypted uploads while the org is `backup_only`
      * or `snapshot_only`. Missing → 24. Does not apply to `full_sync` (continuous)
@@ -1201,6 +1218,17 @@ export default defineSchema({
     userCount: v.number(),
     saleCount: v.number(),
     updatedAt: v.number(),
+  }).index("by_key", ["key"]),
+
+  /**
+   * Deployment-wide Super Admin defaults (`key: "global"`). Org fields override
+   * these when set. See CLOUD_MODE_PLAN_V2.md (org-wide temporary sync boost).
+   */
+  platformDefaults: defineTable({
+    key: v.literal("global"),
+    cloudSyncBoostTtlMinutes: v.optional(cloudSyncBoostTtlMinutesValidator),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.id("users")),
   }).index("by_key", ["key"]),
 
   /**

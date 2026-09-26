@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MarketingSitePage } from "@/features/marketing/components/marketing-site-page";
-import { sanitizeReleaseNoteLines } from "@/features/marketing/lib/sanitize-release-notes";
+import { sanitizeReleaseNoteLines } from "@/lib/sanitize-release-notes";
 import { sitePages } from "@/features/marketing/site-content";
 
 function formatReleasedAt(timestamp: number | undefined) {

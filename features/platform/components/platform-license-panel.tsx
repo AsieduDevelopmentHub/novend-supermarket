@@ -54,9 +54,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
 import {
   BACKUP_INTERVAL_HOURS,
+  CLOUD_SYNC_BOOST_TTL_MINUTES,
   normalizeBackupIntervalHours,
   type BackupIntervalHours,
   type CloudMode,
+  type CloudSyncBoostTtlMinutes,
 } from "@/convex/shared/cloudMode";
 
 const CLOUD_MODE_OPTIONS: { value: CloudMode; label: string; hint: string }[] = [
@@ -85,6 +87,12 @@ const BACKUP_INTERVAL_OPTIONS: { value: BackupIntervalHours; label: string }[] =
               : hours === 336
                 ? "Every 14 days"
                 : "Every 30 days",
+  }));
+
+const BOOST_TTL_OPTIONS: { value: CloudSyncBoostTtlMinutes; label: string }[] =
+  CLOUD_SYNC_BOOST_TTL_MINUTES.map((minutes) => ({
+    value: minutes,
+    label: minutes < 60 ? `${minutes} minutes` : minutes === 60 ? "1 hour" : `${minutes / 60} hours`,
   }));
 
 type LimitOverrides = {
@@ -163,6 +171,7 @@ export function PlatformLicensePanel({
   const setStatus = useMutation(api.platform.setOrganizationStatus);
   const setCloudMode = useMutation(api.platform.setOrganizationCloudMode);
   const setBackupInterval = useMutation(api.platform.setOrganizationBackupInterval);
+  const setCloudSyncBoostTtl = useMutation(api.platform.setOrganizationCloudSyncBoostTtl);
   const setLimitOverrides = useMutation(api.platform.setOrganizationLimitOverrides);
   const setProductImagesEnabled = useMutation(api.platform.setProductImagesEnabled);
   const extendSubscription = useMutation(api.platform.extendSubscription);
@@ -490,6 +499,51 @@ export function PlatformLicensePanel({
                 : license.cloudMode === "local_only"
                   ? "Local only never uploads a cloud package. Switch to Backup only or Snapshot only to use this schedule."
                   : "Full sync still sends each sale to Convex as it happens. This schedule applies after you switch to Backup only or Snapshot only."}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="license-sync-boost-ttl">Catch-up sync boost duration</Label>
+            <Select
+              value={
+                license.cloudSyncBoostTtlMinutes == null
+                  ? "inherit"
+                  : String(license.cloudSyncBoostTtlMinutes)
+              }
+              disabled={pending || !online}
+              onValueChange={(value) => {
+                const next =
+                  value === "inherit"
+                    ? null
+                    : (Number(value) as CloudSyncBoostTtlMinutes);
+                const current = license.cloudSyncBoostTtlMinutes ?? null;
+                if (next === current) return;
+                void run("Sync boost duration updated", () =>
+                  setCloudSyncBoostTtl({
+                    organizationId,
+                    cloudSyncBoostTtlMinutes: next,
+                  }),
+                );
+              }}
+            >
+              <SelectTrigger id="license-sync-boost-ttl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="inherit">
+                  Platform default ({license.globalCloudSyncBoostTtlMinutes} min)
+                </SelectItem>
+                {BOOST_TTL_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={String(option.value)}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              When a new or empty till needs catch-up, every device briefly runs full sync for this
+              long (effective {license.effectiveCloudSyncBoostTtlMinutes} min). Does not change an
+              already-running boost window.
             </p>
           </div>
 

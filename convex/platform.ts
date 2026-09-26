@@ -22,6 +22,7 @@ import {
   billingCycleValidator,
   backupIntervalHoursValidator,
   cloudModeValidator,
+  cloudSyncBoostTtlMinutesValidator,
 } from "./schema";
 import { effectivePlanLimits, resolvePlan } from "./shared/plans";
 import { planCapabilities } from "./shared/capabilities";
@@ -36,8 +37,16 @@ import { provisionOrganization } from "./shared/provisionOrganization";
 import { GRACE_PERIOD_MS } from "./shared/licensing";
 import { archiveOrganizationRecord } from "./shared/accountClosure";
 import { readOrgPlatformStatsOrZero } from "./shared/organizationStats";
-import { normalizeBackupIntervalHours, normalizeCloudMode } from "./shared/cloudMode";
+import {
+  normalizeBackupIntervalHours,
+  normalizeCloudMode,
+  normalizeCloudSyncBoostTtlMinutes,
+} from "./shared/cloudMode";
 import { bumpEntitlementVersion } from "./shared/entitlementVersion";
+import {
+  ensurePlatformDefaults,
+  resolveGlobalCloudSyncBoostTtlMinutes,
+} from "./shared/platformDefaults";
 import {
   onOrganizationCloudModeChanged,
   onOrganizationStatusChanged,
@@ -652,6 +661,95 @@ export const setOrganizationBackupInterval = mutation({
       metadata: { backupIntervalHours: next, previousHours: previous },
     });
     return args.organizationId;
+  },
+});
+
+/**
+ * PEAS — per-org catch-up boost duration. `null` clears the override so the org
+ * inherits the platform default. Applies to the next boost start/refresh only.
+ */
+export const setOrganizationCloudSyncBoostTtl = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    cloudSyncBoostTtlMinutes: v.union(cloudSyncBoostTtlMinutesValidator, v.null()),
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    const org = await ctx.db.get(args.organizationId);
+    if (!org) throw new Error("Organization not found");
+    const next =
+      args.cloudSyncBoostTtlMinutes === null
+        ? null
+        : normalizeCloudSyncBoostTtlMinutes(args.cloudSyncBoostTtlMinutes);
+    const previous =
+      typeof org.cloudSyncBoostTtlMinutes === "number"
+        ? normalizeCloudSyncBoostTtlMinutes(org.cloudSyncBoostTtlMinutes)
+        : null;
+    if (previous === next) return args.organizationId;
+
+    await ctx.db.patch(args.organizationId, {
+      cloudSyncBoostTtlMinutes: next,
+      updatedAt: Date.now(),
+    });
+    await writeAuditLog(ctx, {
+      organizationId: args.organizationId,
+      actorId: userId,
+      action: "platform_set_cloud_sync_boost_ttl",
+      entityType: "organizations",
+      entityId: args.organizationId,
+      metadata: { cloudSyncBoostTtlMinutes: next, previousMinutes: previous },
+    });
+    return args.organizationId;
+  },
+});
+
+/** Deployment-wide Super Admin defaults (sync boost TTL, etc.). */
+export const getPlatformDefaults = query({
+  args: {},
+  handler: async (ctx) => {
+    await requirePlatformAdmin(ctx, "overview.read");
+    const globalMinutes = await resolveGlobalCloudSyncBoostTtlMinutes(ctx);
+    const row = await ctx.db
+      .query("platformDefaults")
+      .withIndex("by_key", (q) => q.eq("key", "global"))
+      .unique();
+    return {
+      cloudSyncBoostTtlMinutes: globalMinutes,
+      updatedAt: row?.updatedAt ?? null,
+    };
+  },
+});
+
+/**
+ * PEAS — global catch-up boost duration for orgs without an override.
+ * Does not rewrite active `cloudSyncBoostUntil` windows.
+ */
+export const setGlobalCloudSyncBoostTtl = mutation({
+  args: {
+    cloudSyncBoostTtlMinutes: cloudSyncBoostTtlMinutesValidator,
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePlatformAdmin(ctx);
+    const next = normalizeCloudSyncBoostTtlMinutes(args.cloudSyncBoostTtlMinutes);
+    const defaults = await ensurePlatformDefaults(ctx);
+    const previous = normalizeCloudSyncBoostTtlMinutes(defaults.cloudSyncBoostTtlMinutes);
+    if (previous === next) {
+      return { cloudSyncBoostTtlMinutes: next };
+    }
+    const now = Date.now();
+    await ctx.db.patch(defaults._id, {
+      cloudSyncBoostTtlMinutes: next,
+      updatedAt: now,
+      updatedBy: userId,
+    });
+    await writeAuditLog(ctx, {
+      actorId: userId,
+      action: "platform_set_global_cloud_sync_boost_ttl",
+      entityType: "platformDefaults",
+      entityId: defaults._id,
+      metadata: { cloudSyncBoostTtlMinutes: next, previousMinutes: previous },
+    });
+    return { cloudSyncBoostTtlMinutes: next };
   },
 });
 

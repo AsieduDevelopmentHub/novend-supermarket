@@ -53,6 +53,7 @@ import { bumpEntitlementVersion, currentEntitlementVersion } from "./shared/enti
 import { resolveOrganizationConfig } from "./shared/organizationConfig";
 import { onOrganizationPlanChanged } from "./shared/platformStatsAggregate";
 import { hasPendingOrganizationClosure } from "./shared/accountClosure";
+import { resolveOrganizationCloudSyncBoostTtlMinutes } from "./shared/platformDefaults";
 import {
   DEFAULT_PLAN_KEY,
   PLAN_CATALOG,
@@ -2163,6 +2164,7 @@ export const organizationLicense = query({
     const capabilities = planCapabilities(license.planKey, license.limits);
 
     const cloudEntitlements = resolveCloudEntitlements(organization);
+    const boostTtl = await resolveOrganizationCloudSyncBoostTtlMinutes(ctx, organization);
     return {
       planKey: license.planKey,
       planName: license.plan.name,
@@ -2179,6 +2181,9 @@ export const organizationLicense = query({
       cloudBackupEnabled: cloudEntitlements.cloudBackupEnabled,
       remoteMonitoringEnabled: cloudEntitlements.remoteMonitoringEnabled,
       backupIntervalHours: normalizeBackupIntervalHours(organization.backupIntervalHours),
+      cloudSyncBoostTtlMinutes: boostTtl.organizationMinutes,
+      effectiveCloudSyncBoostTtlMinutes: boostTtl.effectiveMinutes,
+      globalCloudSyncBoostTtlMinutes: boostTtl.globalMinutes,
       access: license.access,
       status: organization.status,
       trialEndsAt: organization.trialEndsAt ?? null,

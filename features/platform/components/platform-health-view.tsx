@@ -1,10 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useMutation, useQuery } from "convex/react";
 import { Activity, Cloud, MonitorSmartphone, Package, RefreshCw, Server } from "lucide-react";
+import { toast } from "sonner";
+import { api } from "@/convex/_generated/api";
 import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { formatNumber } from "@/lib/currency";
@@ -12,11 +24,25 @@ import { formatDateTime } from "@/lib/date";
 import { formatPlanBytes } from "@/convex/shared/plans";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePlatformHealthData } from "@/hooks/use-platform-offline-data";
+import { showError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
+import {
+  CLOUD_SYNC_BOOST_TTL_MINUTES,
+  type CloudSyncBoostTtlMinutes,
+} from "@/convex/shared/cloudMode";
+
+const BOOST_TTL_OPTIONS: { value: CloudSyncBoostTtlMinutes; label: string }[] =
+  CLOUD_SYNC_BOOST_TTL_MINUTES.map((minutes) => ({
+    value: minutes,
+    label: minutes < 60 ? `${minutes} minutes` : minutes === 60 ? "1 hour" : `${minutes / 60} hours`,
+  }));
 
 export function PlatformHealthView() {
   const online = useConnectivity();
   const { data: health, loading } = usePlatformHealthData();
+  const defaults = useQuery(api.platform.getPlatformDefaults, online ? {} : "skip");
+  const setGlobalBoostTtl = useMutation(api.platform.setGlobalCloudSyncBoostTtl);
+  const [ttlPending, setTtlPending] = useState(false);
 
   if (loading || health === undefined) {
     return <LoadingState label="Loading system health…" />;
@@ -29,6 +55,20 @@ export function PlatformHealthView() {
         description="Open this page online once to cache a system health snapshot for offline review."
       />
     );
+  }
+
+  async function onGlobalBoostTtlChange(value: string) {
+    const minutes = Number(value) as CloudSyncBoostTtlMinutes;
+    if (defaults && minutes === defaults.cloudSyncBoostTtlMinutes) return;
+    setTtlPending(true);
+    try {
+      await setGlobalBoostTtl({ cloudSyncBoostTtlMinutes: minutes });
+      toast.success("Global sync boost duration updated");
+    } catch (error) {
+      showError(error, "Update failed");
+    } finally {
+      setTtlPending(false);
+    }
   }
 
   return (
@@ -78,6 +118,41 @@ export function PlatformHealthView() {
           hint={`${formatNumber(health.storage.backupCount)} backups`}
         />
       </Grid>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Cloud className="h-4 w-4" />
+            Catch-up sync boost (global default)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-[minmax(0,16rem)_1fr] sm:items-end">
+          <div className="space-y-2">
+            <Label htmlFor="global-sync-boost-ttl">Duration</Label>
+            <Select
+              value={defaults ? String(defaults.cloudSyncBoostTtlMinutes) : undefined}
+              disabled={!online || ttlPending || defaults === undefined}
+              onValueChange={(value) => void onGlobalBoostTtlChange(value)}
+            >
+              <SelectTrigger id="global-sync-boost-ttl">
+                <SelectValue placeholder="Loading…" />
+              </SelectTrigger>
+              <SelectContent>
+                {BOOST_TTL_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={String(option.value)}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Applies to package/local orgs when a new or empty till needs catch-up, unless the org
+            has its own override on the Licence tab. Refresh only when less than one-third of this
+            window remains.
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
