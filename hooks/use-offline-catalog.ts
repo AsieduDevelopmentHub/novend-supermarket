@@ -29,7 +29,18 @@ export type CatalogProduct = {
   pricingMode?: "fixed" | "per_weight" | null;
   imageUrl: string | null;
   isExpiring?: boolean;
+  /** False when non-stock catalogue item (menu / room rate). Missing = track stock. */
+  tracksInventory?: boolean;
 };
+
+/** Sellable base qty for POS checks — unlimited when inventory is not tracked. */
+export function catalogAvailableQuantity(
+  product: Pick<CatalogProduct, "stockQuantity" | "tracksInventory"> | undefined,
+): number {
+  if (!product) return 0;
+  if (product.tracksInventory === false) return Number.POSITIVE_INFINITY;
+  return product.stockQuantity;
+}
 
 function mapRemoteProducts(
   remote: Array<{
@@ -44,6 +55,7 @@ function mapRemoteProducts(
     pricingMode?: CatalogProduct["pricingMode"];
     imageUrl: string | null;
     isExpiring?: boolean;
+    tracksInventory?: boolean;
   }>,
 ): CatalogProduct[] {
   return remote.map((p) => ({
@@ -58,6 +70,7 @@ function mapRemoteProducts(
     pricingMode: p.pricingMode ?? null,
     imageUrl: p.imageUrl,
     isExpiring: p.isExpiring,
+    tracksInventory: p.tracksInventory,
   }));
 }
 

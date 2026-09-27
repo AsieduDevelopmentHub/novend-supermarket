@@ -31,7 +31,7 @@ import { SaleCompletedDialog } from "@/features/receipts/components/sale-complet
 import { isCapacitor } from "@novend/hardware";
 import { listActiveSellUnits, roundQuantity } from "@/convex/shared/units";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
-import { useSalesCatalog, useSalesCustomerSearch } from "@/hooks/use-offline-catalog";
+import { useSalesCatalog, useSalesCustomerSearch, catalogAvailableQuantity } from "@/hooks/use-offline-catalog";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { usePosPreferences } from "@/hooks/use-pos-preferences";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
@@ -336,6 +336,7 @@ export function SalesView() {
     name: string;
     sellingPrice: number;
     stockQuantity: number;
+    tracksInventory?: boolean;
     unit?: string;
     costPrice?: number;
     sellUnits?: Array<{
@@ -349,7 +350,8 @@ export function SalesView() {
     pricingMode?: "fixed" | "per_weight" | null;
     isExpiring?: boolean;
   }) {
-    if (product.stockQuantity <= 0) {
+    const available = catalogAvailableQuantity(product);
+    if (available <= 0) {
       toast.error(`Not enough stock for ${product.name}`);
       return;
     }
@@ -370,8 +372,10 @@ export function SalesView() {
       if (existing) {
         const nextQty = roundQuantity(existing.quantity + step);
         const baseNeeded = roundQuantity(nextQty * unit.factorToBase);
-        if (baseNeeded > product.stockQuantity) {
-          toast.error(`Not enough stock for ${product.name}. Available: ${product.stockQuantity}.`);
+        if (baseNeeded > available) {
+          toast.error(
+            `Not enough stock for ${product.name}. Available: ${product.stockQuantity}.`,
+          );
           return prev;
         }
         return prev.map((item) =>
@@ -401,8 +405,9 @@ export function SalesView() {
     name: string;
     sellingPrice: number;
     stockQuantity: number;
+    tracksInventory?: boolean;
   }) {
-    if (product.stockQuantity <= 0) {
+    if (catalogAvailableQuantity(product) <= 0) {
       toast.error(`Not enough stock for ${product.name}`);
       return;
     }
@@ -430,6 +435,7 @@ export function SalesView() {
           sku: product.sku,
           sellingPrice: product.sellingPrice,
           stockQuantity: product.stockQuantity,
+          tracksInventory: "tracksInventory" in product ? product.tracksInventory : undefined,
           imageUrl: product.imageUrl,
         });
       }
@@ -457,8 +463,8 @@ export function SalesView() {
 
   function commitCartQuantity(productId: string) {
     const draft = qtyDrafts[productId];
-    const stock =
-      catalog.find((p) => p.id === productId)?.stockQuantity ?? Number.POSITIVE_INFINITY;
+    const product = catalog.find((p) => p.id === productId);
+    const stock = catalogAvailableQuantity(product);
     const current = cart.find((row) => row.productId === productId)?.quantity ?? 1;
 
     if (draft === undefined) return;
@@ -487,8 +493,8 @@ export function SalesView() {
       return;
     }
 
-    const quantity = Math.min(parsed, stock);
-    if (parsed > stock) {
+    const quantity = Number.isFinite(stock) ? Math.min(parsed, stock) : parsed;
+    if (Number.isFinite(stock) && parsed > stock) {
       toast.error(`Not enough stock. Available: ${stock}.`);
     }
     setCart((prev) =>
@@ -657,20 +663,23 @@ export function SalesView() {
       return;
     }
     const oversold = cart.find((item) => {
-      const available = catalog.find((p) => p.id === item.productId)?.stockQuantity ?? 0;
+      const product = catalog.find((p) => p.id === item.productId);
+      const available = catalogAvailableQuantity(product);
       const factor = item.sellUnitKey
         ? (listActiveSellUnits({
             unit: "unit",
             sellingPrice: item.unitPrice,
             costPrice: 0,
-            sellUnits: catalog.find((p) => p.id === item.productId)?.sellUnits,
-            pricingMode: catalog.find((p) => p.id === item.productId)?.pricingMode,
+            sellUnits: product?.sellUnits,
+            pricingMode: product?.pricingMode,
           }).find((u) => u.key === item.sellUnitKey)?.factorToBase ?? 1)
         : 1;
       return roundQuantity(item.quantity * factor) > available;
     });
     if (oversold) {
-      const available = catalog.find((p) => p.id === oversold.productId)?.stockQuantity ?? 0;
+      const available = catalogAvailableQuantity(
+        catalog.find((p) => p.id === oversold.productId),
+      );
       toast.error(`Not enough stock for ${oversold.name}. Available: ${available}.`);
       return;
     }
@@ -1098,7 +1107,7 @@ type SalesCheckoutFieldsProps = {
   customerQuery: string;
   customerHits: CheckoutCustomerHit[];
   cart: CartItem[];
-  catalog: Array<{ id: string; stockQuantity: number }>;
+  catalog: Array<{ id: string; stockQuantity: number; tracksInventory?: boolean }>;
   qtyDrafts: Record<string, string>;
   subtotal: number;
   cartDiscount: number;
@@ -1314,9 +1323,8 @@ function SalesCheckoutFields({
                     className="h-7 w-7"
                     aria-label={`Increase ${item.name}`}
                     onClick={() => {
-                      const stock =
-                        catalog.find((p) => p.id === item.productId)?.stockQuantity ??
-                        item.quantity + 1;
+                      const product = catalog.find((p) => p.id === item.productId);
+                      const stock = catalogAvailableQuantity(product);
                       if (item.quantity + 1 > stock) {
                         toast.error("Not enough stock");
                         return;
