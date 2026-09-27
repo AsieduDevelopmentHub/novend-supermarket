@@ -9,6 +9,11 @@
  * Electron: prefer the local offline-boot trampoline (same as cold start).
  * Never await that IPC forever — when the radio drops mid-shift, a hung
  * `reloadAuthShell` used to trap the app on “Signing out…”.
+ *
+ * Browser (online): navigate to `?signedOut=1` only — do **not** append
+ * `fromBoot=1`. That flag forces SW cache-first, and a poisoned `/login`
+ * cache (followed session 302 → dashboard HTML) painted AppSplash forever
+ * on dashboard.novendpos.app/login?signedOut=1&fromBoot=1.
  */
 
 import { getElectronBridge, isCapacitor, isElectron } from "@novend/hardware";
@@ -24,19 +29,27 @@ type AuthShellBridge = {
   reloadAuthShell?: (entry?: string) => Promise<{ ok: boolean; message?: string }>;
 };
 
-/** SW cache-first login after sign-out (see public/sw.js signedOut|fromBoot). */
-const LOGIN_AFTER_SIGN_OUT_HARD = `${LOGIN_AFTER_SIGN_OUT_PATH}&fromBoot=1`;
+/** Cap/Electron cold-boot marker — SW cache-first for offline tills. */
+const LOGIN_AFTER_SIGN_OUT_NATIVE = `${LOGIN_AFTER_SIGN_OUT_PATH}&fromBoot=1`;
 
 /** If trampoline / replace stalls, force leave so “Signing out…” cannot stick. */
 const HARD_LEAVE_FALLBACK_MS = 1600;
 
+function loginAfterSignOutHref(): string {
+  if (typeof window !== "undefined" && (isCapacitor() || isElectron())) {
+    return LOGIN_AFTER_SIGN_OUT_NATIVE;
+  }
+  return LOGIN_AFTER_SIGN_OUT_PATH;
+}
+
 function hardLeaveToLogin(): void {
   if (typeof window === "undefined") return;
   prepareHardNavigation();
+  const href = loginAfterSignOutHref();
   try {
-    window.location.replace(LOGIN_AFTER_SIGN_OUT_HARD);
+    window.location.replace(href);
   } catch {
-    window.location.href = LOGIN_AFTER_SIGN_OUT_HARD;
+    window.location.href = href;
   }
 }
 

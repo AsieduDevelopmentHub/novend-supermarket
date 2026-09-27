@@ -33,11 +33,14 @@ describe("offline sign-out recovery", () => {
     expect(shouldRecoverToLogin(new Error("anything"))).toBe(true);
   });
 
-  it("SW prefers cached login for signedOut/fromBoot navigations", () => {
+  it("SW prefers cached login for Cap fromBoot / true-offline signedOut only", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v24"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v25"');
     expect(sw).toContain('url.searchParams.get("signedOut") === "1"');
     expect(sw).toContain('url.searchParams.get("fromBoot") === "1"');
+    expect(sw).toContain("preferCache = fromBoot || (signedOut && offline)");
+    expect(sw).toContain("precacheAuthDocument");
+    expect(sw).toContain("isUsableAuthCache");
   });
 
   it("Electron sign-out does not await a hung Convex signOut", () => {

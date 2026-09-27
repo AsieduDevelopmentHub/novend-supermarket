@@ -20,12 +20,14 @@ describe("native auth navigation", () => {
       "utf8",
     );
     expect(source).toContain("LOGIN_AFTER_SIGN_OUT_PATH");
+    expect(source).toContain("LOGIN_AFTER_SIGN_OUT_NATIVE");
+    expect(source).toContain("loginAfterSignOutHref");
     expect(source).toContain("reloadAuthShell");
     expect(source).toContain("CAPACITOR_BOOT_ORIGIN");
     expect(source).toContain("HARD_LEAVE_FALLBACK_MS");
     expect(source).toContain("hardLeaveToLogin");
+    expect(source).toContain("isCapacitor() || isElectron()");
     expect(source).not.toContain("await bridge.reloadAuthShell");
-    expect(source).not.toContain("!navigator.onLine");
   });
 
   it("sign-out kicks navigation without awaiting hung cloud calls", () => {
@@ -43,10 +45,18 @@ describe("native auth navigation", () => {
     expect(layout).toContain("hasExplicitLogout()");
   });
 
-  it("service worker serves cached login when auth document fetch fails", () => {
+  it("service worker validates auth cache and does not poison login via cache.add", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
-    expect(sw).toContain('caches.match("/login")');
+    expect(sw).toContain('caches.match(expected)');
     expect(sw).toContain("isAuthDocument(url)");
+    expect(sw).toContain("precacheAuthDocument");
+    expect(sw).toContain("isUsableAuthCache");
+    expect(sw).toContain("X-Novend-Auth-Doc");
     expect(sw).toContain('url.searchParams.get("signedOut") === "1"');
+    expect(sw).toContain("preferCache = fromBoot || (signedOut && offline)");
+    expect(sw).toContain('const AUTH_PRECACHE = ["/login", "/signup"]');
+    const precacheBlock = sw.match(/const PRECACHE = \[([\s\S]*?)\];/)?.[1] ?? "";
+    expect(precacheBlock).not.toContain('"/login"');
+    expect(precacheBlock).not.toContain('"/signup"');
   });
 });
