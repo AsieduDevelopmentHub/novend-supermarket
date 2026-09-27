@@ -1,13 +1,16 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v24";/**
+const CACHE_NAME = "novend-pos-v25";/**
  * Public documents + icons only. Do not precache `/` or `/dashboard`:
  * cache.add follows the auth 302 and stores POS HTML under the marketing URL
  * (splash stuck on https://novend-pos.vercel.app/). Gated routes 302 to login.
  * Authenticated shells are warmed after login (PwaRegister) and migrated on
  * CACHE_NAME bumps so Cap/Electron cold boot keeps working offline.
+ *
+ * `/login` and `/signup` use `precacheAuthDocument` (not cache.add) so a
+ * signed-in install cannot store dashboard HTML under the login key — that
+ * poison painted AppSplash forever on `/login?signedOut=1&fromBoot=1`.
  */
 const PRECACHE = [
-  "/login",
   "/download",
   "/pricing",
   "/product",
@@ -29,6 +32,9 @@ const PRECACHE = [
   "/branding/login_hero.png",
 ];
 
+/** Auth HTML — installed separately so redirect-following cannot poison the key. */
+const AUTH_PRECACHE = ["/login", "/signup"];
+
 /** Paths that must survive a CACHE_NAME bump for Cap/Electron offline cold boot. */
 const MIGRATE_SHELL_PATHS = [
   "/dashboard",
@@ -49,8 +55,6 @@ const MIGRATE_SHELL_PATHS = [
   "/branches",
   "/suppliers",
   "/customer-display",
-  "/login",
-  "/signup",
 ];
 
 function shouldMigrateCacheEntry(url) {
@@ -94,15 +98,16 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) =>
-        Promise.all(
+      .then(async (cache) => {
+        await Promise.all(
           PRECACHE.map((url) =>
             cache.add(url).catch(() => {
               /* ignore missing public assets */
             }),
           ),
-        ),
-      )
+        );
+        await Promise.all(AUTH_PRECACHE.map((pathname) => precacheAuthDocument(cache, pathname)));
+      })
       .then(() => self.skipWaiting()),
   );
 });
@@ -231,6 +236,54 @@ function isLoginDocumentUrl(urlString) {
   }
 }
 
+/**
+ * True when a cached Response is real auth HTML for this path — not a followed
+ * `/login` → `/dashboard` body left under the login cache key.
+ */
+function isUsableAuthCache(response, expectedPathname) {
+  if (!response || !response.ok) return false;
+  if (response.headers.get("X-Novend-Auth-Doc") === "1") return true;
+  if (response.url) {
+    try {
+      const finalPath = new URL(response.url, self.location.origin).pathname;
+      return finalPath === expectedPathname;
+    } catch {
+      return false;
+    }
+  }
+  // Synthetic/unmarked entries (often unwrapRedirect copies) cannot be trusted
+  // after a poisoned install — prefer network.
+  return false;
+}
+
+function withAuthDocHeader(response) {
+  const headers = new Headers(response.headers);
+  headers.set("X-Novend-Auth-Doc", "1");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+/** Precache login/signup without storing a session 302 body under the auth key. */
+async function precacheAuthDocument(cache, pathname) {
+  try {
+    const response = await fetch(pathname, {
+      credentials: "same-origin",
+      cache: "no-cache",
+      redirect: "manual",
+    });
+    if (response.type === "opaqueredirect") return;
+    if (response.status >= 300 && response.status < 400) return;
+    if (!response.ok) return;
+    if (response.redirected && response.url && !isLoginDocumentUrl(response.url)) return;
+    await cache.put(pathname, withAuthDocHeader(unwrapRedirect(response)));
+  } catch {
+    /* ignore — offline install still warms other PRECACHE assets */
+  }
+}
+
 function extractNextStaticUrls(html) {
   const found = new Set();
   const pattern = /(?:src|href)=["'](\/_next\/static\/[^"']+)["']/g;
@@ -284,8 +337,19 @@ function cachePut(request, response) {
   const copy = unwrapRedirect(response.clone());
   const contentType = response.headers.get("content-type") || "";
   const isHtml = contentType.includes("text/html");
+  let requestedPath = "";
+  try {
+    requestedPath = new URL(
+      typeof request === "string" ? request : request.url,
+      self.location.origin,
+    ).pathname;
+  } catch {
+    requestedPath = "";
+  }
+  const marked =
+    requestedPath === "/login" || requestedPath === "/signup" ? withAuthDocHeader(copy) : copy;
   void caches.open(CACHE_NAME).then(async (cache) => {
-    await cache.put(request, copy);
+    await cache.put(request, marked);
     // Keep HTML and its hashed /_next/static chunks in the same cache generation
     // so a mid-deploy offline reopen does not paint a blank shell.
     if (isHtml) {
@@ -442,24 +506,49 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/") && url.pathname !== "/api/boot") return;
 
   // /login and /signup: live network when online so a signed-in session can
-  // 302 to /dashboard. Offline sign-out / cold boot (signedOut|fromBoot) must
-  // prefer the precached login document immediately — network-first hangs or
-  // returns a newer HTML shell whose /_next chunks are not cached yet, which
-  // paints “Failed to load chunk” / “You're working offline” instead of login.
+  // 302 to /dashboard. Cap/Electron cold boot (`fromBoot`) and true-offline
+  // signedOut must prefer a *validated* precached login document — never a
+  // followed `/login`→`/dashboard` body (that paints AppSplash forever while
+  // the address bar still says /login?signedOut=1).
   if (isAuthDocument(url)) {
     event.respondWith(
       (async () => {
-        const preferCache =
-          url.searchParams.get("fromBoot") === "1" ||
-          url.searchParams.get("signedOut") === "1";
+        const fromBoot = url.searchParams.get("fromBoot") === "1";
+        const signedOut = url.searchParams.get("signedOut") === "1";
+        const offline = self.navigator && self.navigator.onLine === false;
+        // Browser online sign-out uses ?signedOut=1 only (no fromBoot) → network.
+        // Cap/Electron append fromBoot so offline tills still hit cache immediately.
+        const preferCache = fromBoot || (signedOut && offline);
+
+        async function evictPoison(requestOrPath) {
+          try {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.delete(requestOrPath);
+            if (typeof requestOrPath !== "string") {
+              await cache.delete(url.pathname);
+            }
+          } catch {
+            /* ignore */
+          }
+        }
 
         async function cachedAuth() {
-          return (
-            (await caches.match(url.pathname)) ||
-            (await caches.match("/login")) ||
-            (await caches.match(new Request(url.pathname))) ||
-            (await caches.match(request, { ignoreSearch: true }))
-          );
+          const expected = url.pathname === "/signup" ? "/signup" : "/login";
+          const candidates = [
+            await caches.match(url.pathname),
+            await caches.match(expected),
+            await caches.match(new Request(expected)),
+            await caches.match(request, { ignoreSearch: true }),
+          ];
+          for (const hit of candidates) {
+            if (!hit) continue;
+            if (!isUsableAuthCache(hit, expected)) {
+              await evictPoison(expected);
+              continue;
+            }
+            return unwrapRedirect(hit);
+          }
+          return undefined;
         }
 
         if (preferCache) {
@@ -470,7 +559,7 @@ self.addEventListener("fetch", (event) => {
                 if (response && response.ok) cachePut(request, response);
               })
               .catch(() => undefined);
-            return unwrapRedirect(cached);
+            return cached;
           }
         }
 
@@ -480,7 +569,7 @@ self.addEventListener("fetch", (event) => {
           return response;
         } catch {
           const cached = await cachedAuth();
-          if (cached) return unwrapRedirect(cached);
+          if (cached) return cached;
           return new Response(
             "<!doctype html><title>Signed out</title><p>Novend is offline. Reconnect to sign in, or open Novend once while online so this device can cache the login screen.</p>",
             { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } },

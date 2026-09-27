@@ -17,8 +17,9 @@ describe("service worker navigation safety", () => {
     expect(sw).toContain("function isAuthDocument");
     expect(sw).toContain('url.pathname === "/login"');
     expect(sw).toContain("if (isAuthDocument(url))");
-    expect(sw).toContain('caches.match("/login")');
+    expect(sw).toContain("caches.match(expected)");
     expect(sw).toContain("await fetch(request)");
+    expect(sw).toContain("precacheAuthDocument");
   });
 
   it("does not intercept the marketing homepage so a signed-in 302 can change the URL", () => {
@@ -56,7 +57,7 @@ describe("service worker navigation safety", () => {
   });
 
   it("does not precache gated app routes that 302 to login", () => {
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v24"');    expect(sw).toContain("/branding/logo_horizontal.png");
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v25"');    expect(sw).toContain("/branding/logo_horizontal.png");
     expect(sw).toContain("function matchStaticAsset");
     expect(sw).toContain("ignoreSearch: true");
     expect(sw).toContain("/docs/releases");
@@ -65,6 +66,8 @@ describe("service worker navigation safety", () => {
     expect(sw).toContain('"/demo"');
     expect(sw).toContain('exactOrChild("/product")');
     expect(sw).toContain('exactOrChild("/demo")');
+    expect(sw).toContain("precacheAuthDocument");
+    expect(sw).toContain("AUTH_PRECACHE");
     expect(sw).not.toMatch(/PRECACHE = \[[^\]]*\/dashboard/);
     expect(sw).not.toMatch(/PRECACHE = \[[^\]]*\"\/\"/);
     // Must not use startsWith("/product") — that also matches /products.
