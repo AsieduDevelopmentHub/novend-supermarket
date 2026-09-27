@@ -144,6 +144,9 @@ Thin slice for restaurant / hotel **without** tables, kitchen, or PMS:
 | Product field | `products.tracksInventory` optional; `false` skips stock check/deduct |
 | Industry packs | `restaurant`, `hotel` → `non_stock_sales` + `configurable_pos` |
 | POS | Catalog includes zero-qty non-stock items online and offline |
+| Stock chrome | Presentation only — hide Inventory / Wholesale / Suppliers nav and dashboard low-stock UI when `industryProfile` is `restaurant` or `hotel` (`stockOpsVisibleForIndustry`) |
+| Experience presets | Applying a Restaurant pack seeds warm amber branding; Hotel seeds teal + navy. Charts use `--chart-1..5` derived from accent |
+| Admin finance | Dashboard “Inventory & profit” cards (admin only, branch filter) — inventory cost/sell value, period revenue / COGS / gross profit |
 | Out of scope here | Tables, modifiers, KDS, recipe consumption, reservations, folios |
 
 Full Phase B / C domain modules remain deferred below.

@@ -5,6 +5,7 @@
 
 import {
   DEFAULT_NOVEND_EXPERIENCE,
+  deriveChartPalette,
   type ExperienceRadiusScale,
   type ResolvedExperienceTokens,
 } from "@/convex/shared/experience";
@@ -21,11 +22,16 @@ export function applyExperienceTokens(
 ): void {
   if (typeof document === "undefined") return;
   const root = options?.target ?? document.documentElement;
+  const charts = deriveChartPalette(tokens.accent);
   root.style.setProperty("--primary", tokens.accent);
   root.style.setProperty("--primary-foreground", tokens.accentForeground);
   // Focus chrome follows brand accent (org overrides historically left focusRing on Candy Blue).
   root.style.setProperty("--ring", tokens.accent);
-  root.style.setProperty("--chart-1", tokens.accent);
+  root.style.setProperty("--chart-1", charts.chart1);
+  root.style.setProperty("--chart-2", charts.chart2);
+  root.style.setProperty("--chart-3", charts.chart3);
+  root.style.setProperty("--chart-4", charts.chart4);
+  root.style.setProperty("--chart-5", charts.chart5);
   root.style.setProperty("--sidebar", tokens.sidebarBackground);
   root.style.setProperty("--sidebar-foreground", tokens.sidebarForeground);
   root.style.setProperty("--sidebar-accent", tokens.sidebarAccent);
@@ -57,6 +63,10 @@ export function clearExperienceTokenOverrides(options?: { target?: HTMLElement }
     "--primary-foreground",
     "--ring",
     "--chart-1",
+    "--chart-2",
+    "--chart-3",
+    "--chart-4",
+    "--chart-5",
     "--sidebar",
     "--sidebar-foreground",
     "--sidebar-accent",

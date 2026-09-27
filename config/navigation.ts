@@ -15,7 +15,12 @@ import {
   Truck,
   type LucideIcon,
 } from "lucide-react";
-import type { BusinessCapabilityKey } from "@/convex/shared/businessCapabilities";
+import {
+  isStockOpsNavHref,
+  stockOpsVisibleForIndustry,
+  type BusinessCapabilityKey,
+  type IndustryProfile,
+} from "@/convex/shared/businessCapabilities";
 import type { FeatureKey } from "@/convex/shared/features";
 import type { BillingVisibility } from "@/convex/shared/organizationConfig";
 
@@ -193,6 +198,8 @@ export const NAV_ITEMS: NavItem[] = [...NAV_GROUPS.flatMap((group) => group.item
 export type NavFeatureGate = {
   features?: Partial<Record<FeatureKey, boolean>> | null;
   billingVisibility?: BillingVisibility | null;
+  /** When restaurant/hotel, stock-ops nav routes are hidden (presentation). */
+  industryProfile?: IndustryProfile | string | null;
 };
 
 export function defaultNavGroupExpanded(): Record<NavGroupId, boolean> {
@@ -222,10 +229,12 @@ export function navGroupsForRole(
   gate: NavFeatureGate = {},
 ): NavGroup[] {
   const enabled = new Set(enabledCapabilities);
+  const stockOps = stockOpsVisibleForIndustry(gate.industryProfile);
   return NAV_GROUPS.map((group) => ({
     ...group,
     items: group.items.filter((item) => {
       if (!item.roles.includes(role)) return false;
+      if (!stockOps && isStockOpsNavHref(item.href)) return false;
       if (item.capabilities?.length && !item.capabilities.every((key) => enabled.has(key))) {
         return false;
       }

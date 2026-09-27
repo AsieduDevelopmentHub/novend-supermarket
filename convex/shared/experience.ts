@@ -54,6 +54,84 @@ export const DEFAULT_NOVEND_EXPERIENCE: ResolvedExperienceTokens = {
 /** @deprecated Typo alias — prefer DEFAULT_NOVEND_EXPERIENCE. */
 export const DEFAULT_NOVENT_EXPERIENCE = DEFAULT_NOVEND_EXPERIENCE;
 
+/** Warm amber — restaurant / F&B industry pack. */
+export const RESTAURANT_EXPERIENCE: ResolvedExperienceTokens = {
+  accent: "#f59e0b",
+  accentForeground: "#111827",
+  sidebarBackground: "#1c1917",
+  sidebarForeground: "#f5f5f4",
+  sidebarAccent: "#292524",
+  sidebarAccentForeground: "#fafaf9",
+  focusRing: "#f59e0b",
+  success: "#16a34a",
+  warning: "#ea580c",
+  danger: "#dc2626",
+  radiusScale: "default",
+};
+
+/** Teal — hotel / lodging industry pack. */
+export const HOTEL_EXPERIENCE: ResolvedExperienceTokens = {
+  accent: "#0d9488",
+  accentForeground: "#f8fafc",
+  sidebarBackground: "#0f172a",
+  sidebarForeground: "#e2e8f0",
+  sidebarAccent: "#1e293b",
+  sidebarAccentForeground: "#f8fafc",
+  focusRing: "#0d9488",
+  success: "#16a34a",
+  warning: "#ea580c",
+  danger: "#dc2626",
+  radiusScale: "default",
+};
+
+export function experiencePresetForIndustry(
+  profile: string | null | undefined,
+): ResolvedExperienceTokens {
+  if (profile === "restaurant") return { ...RESTAURANT_EXPERIENCE };
+  if (profile === "hotel") return { ...HOTEL_EXPERIENCE };
+  return { ...DEFAULT_NOVEND_EXPERIENCE };
+}
+
+/**
+ * Build a 5-stop chart palette from an accent hex for CSS `--chart-*` tokens.
+ * Pure and deterministic — used by applyExperienceTokens and tests.
+ */
+export function deriveChartPalette(accentHex: string): {
+  chart1: string;
+  chart2: string;
+  chart3: string;
+  chart4: string;
+  chart5: string;
+} {
+  const validated = validateHexColor(accentHex);
+  const accent = validated.ok ? validated.value : DEFAULT_NOVEND_EXPERIENCE.accent;
+  const { r, g, b } = hexToRgb(accent);
+  return {
+    chart1: accent,
+    chart2: rgbToHex(shiftChannel(r, -20), shiftChannel(g, -10), shiftChannel(b, 30)),
+    chart3: rgbToHex(shiftChannel(r, -40), shiftChannel(g, -20), shiftChannel(b, -10)),
+    chart4: DEFAULT_NOVEND_EXPERIENCE.success,
+    chart5: DEFAULT_NOVEND_EXPERIENCE.warning,
+  };
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const raw = hex.slice(1);
+  return {
+    r: parseInt(raw.slice(0, 2), 16),
+    g: parseInt(raw.slice(2, 4), 16),
+    b: parseInt(raw.slice(4, 6), 16),
+  };
+}
+
+function shiftChannel(value: number, delta: number): number {
+  return Math.max(0, Math.min(255, value + delta));
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return `#${[r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 const UNSAFE_COLOR_RE = /(url\s*\(|var\s*\(|gradient|expression\s*\()/i;
 

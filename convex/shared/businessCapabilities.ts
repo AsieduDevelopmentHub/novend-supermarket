@@ -149,6 +149,19 @@ export function isIndustryProfile(value: string): value is IndustryProfile {
   return (INDUSTRY_PROFILES as readonly string[]).includes(value);
 }
 
+/** Nav / dashboard stock chrome — presentation only (restaurant & hotel packs). */
+export const STOCK_OPS_NAV_HREFS = ["/inventory", "/wholesale", "/suppliers"] as const;
+
+export function stockOpsVisibleForIndustry(
+  profile: IndustryProfile | string | null | undefined,
+): boolean {
+  return profile !== "restaurant" && profile !== "hotel";
+}
+
+export function isStockOpsNavHref(href: string): boolean {
+  return (STOCK_OPS_NAV_HREFS as readonly string[]).includes(href);
+}
+
 export function hasBusinessCapability(
   config: OrganizationBusinessConfiguration | null | undefined,
   key: BusinessCapabilityKey,

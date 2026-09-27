@@ -61,6 +61,14 @@ export type DashboardSummaryCache = {
   }>;
   salesTrend: Array<{ date: string; total: number }>;
   salesByCategory: Array<{ name: string; total: number }>;
+  /** Admin-only; omitted offline / for non-admins. */
+  finance?: {
+    inventoryValueCost: number | null;
+    inventoryValueSell: number;
+    revenue: number;
+    cogs: number | null;
+    grossProfit: number | null;
+  } | null;
   cachedAt: number;
 };
 

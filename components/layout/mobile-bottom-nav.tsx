@@ -3,7 +3,8 @@
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { triggerLightHaptic } from "@/lib/haptics";
-import { MOBILE_BOTTOM_TABS, resolveMobileTab } from "@/config/mobile-navigation";
+import { mobileBottomTabsForIndustry, resolveMobileTab } from "@/config/mobile-navigation";
+import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
 
 /**
@@ -13,6 +14,8 @@ import { useOfflineNavigation } from "@/providers/offline-navigation";
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { navigate, activePath } = useOfflineNavigation();
+  const { industryProfile } = useBusinessCapabilities();
+  const tabs = mobileBottomTabsForIndustry(industryProfile);
   const pathForHighlight = activePath ?? pathname;
   const active = resolveMobileTab(pathForHighlight);
 
@@ -26,7 +29,7 @@ export function MobileBottomNav() {
         data-tour="mobile-bottom-navigation"
       >
         <div className="novend-mobile-tabbar-inner">
-          {MOBILE_BOTTOM_TABS.map((tab) => {
+          {tabs.map((tab) => {
             const isActive = active === tab.id;
             const Icon = tab.icon;
             return (

@@ -19,6 +19,8 @@ import {
   type IndustryProfile,
   type OrganizationBusinessConfiguration,
 } from "./shared/businessCapabilities";
+import { experiencePresetForIndustry } from "./shared/experience";
+import { bumpEntitlementVersion } from "./shared/entitlementVersion";
 import {
   PRODUCT_IMAGES_SETTINGS_KEY,
   parseProductImagesPolicy,
@@ -448,6 +450,26 @@ export const updateBusinessCapabilities = mutation({
     }
 
     await upsertSetting(ctx, organizationId, CAPABILITIES_KEY, JSON.stringify(next));
+
+    let experienceApplied: string | null = null;
+    if (args.applyIndustryPack) {
+      const tokens = experiencePresetForIndustry(profile);
+      await ctx.db.patch(organizationId, {
+        experienceOverrides: {
+          accent: tokens.accent,
+          accentForeground: tokens.accentForeground,
+          sidebarBackground: tokens.sidebarBackground,
+          sidebarForeground: tokens.sidebarForeground,
+          sidebarAccent: tokens.sidebarAccent,
+          sidebarAccentForeground: tokens.sidebarAccentForeground,
+        },
+        experienceVersion: (organization.experienceVersion ?? 0) + 1,
+        updatedAt: Date.now(),
+      });
+      await bumpEntitlementVersion(ctx, organizationId);
+      experienceApplied = profile;
+    }
+
     await writeAuditLog(ctx, {
       actorId: userId,
       action: "update_business_capabilities",
@@ -457,6 +479,7 @@ export const updateBusinessCapabilities = mutation({
         industryProfile: next.industryProfile,
         enabledCapabilities: next.enabledCapabilities,
         configurationVersion: next.configurationVersion,
+        experienceApplied,
       },
     });
     return next;

@@ -58,7 +58,7 @@ export function MoreView() {
   const router = useRouter();
   const { signOut } = useAuthActions();
   const { role, isLoading } = usePermissions();
-  const { enabledCapabilities } = useBusinessCapabilities();
+  const { enabledCapabilities, industryProfile } = useBusinessCapabilities();
   const { features, billingVisibility } = useLicense();
   const billingHidden = isBillingHidden({ features, billingVisibility });
   const [signingOut, setSigningOut] = useState(false);
@@ -77,6 +77,7 @@ export function MoreView() {
   const sections = moreSectionsForRole(effectiveRole ?? "cashier", enabledCapabilities, {
     features,
     billingVisibility,
+    industryProfile,
   });
   const hasSystemSection = sections.some((section) => section.id === "system");
   const systemExtras = EXTRA_SYSTEM.filter(

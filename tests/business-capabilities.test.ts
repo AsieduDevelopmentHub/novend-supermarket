@@ -6,6 +6,7 @@ import {
   hasBusinessCapability,
   parseBusinessConfiguration,
   planAllowsBusinessCapability,
+  stockOpsVisibleForIndustry,
   validateBusinessCapabilitySet,
 } from "@/convex/shared/businessCapabilities";
 import { navGroupsForRole, pathAllowedForRole } from "@/config/navigation";
@@ -76,5 +77,23 @@ describe("navigation capability gates", () => {
     expect(admin.some((g) => g.items.some((i) => i.href === "/sales"))).toBe(true);
     expect(cashier.some((g) => g.items.some((i) => i.href === "/wholesale"))).toBe(false);
     expect(pathAllowedForRole("/sales", "cashier")).toBe(true);
+  });
+
+  it("hides stock-ops nav for restaurant and hotel profiles", () => {
+    expect(stockOpsVisibleForIndustry("restaurant")).toBe(false);
+    expect(stockOpsVisibleForIndustry("hotel")).toBe(false);
+    expect(stockOpsVisibleForIndustry("retail")).toBe(true);
+
+    const restaurantNav = navGroupsForRole("administrator", [], {
+      industryProfile: "restaurant",
+    });
+    const hrefs = restaurantNav.flatMap((g) => g.items.map((i) => i.href));
+    expect(hrefs).toContain("/products");
+    expect(hrefs).not.toContain("/inventory");
+    expect(hrefs).not.toContain("/wholesale");
+    expect(hrefs).not.toContain("/suppliers");
+    expect(pathAllowedForRole("/inventory", "administrator", [], { industryProfile: "hotel" })).toBe(
+      false,
+    );
   });
 });

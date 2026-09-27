@@ -141,6 +141,11 @@ export function BusinessCapabilitiesPanel() {
       setProfile(next.industryProfile);
       setSelected(next.enabledCapabilities);
       await saveBusinessCapabilitiesCache(next);
+      const brandNote =
+        effectiveProfile === "restaurant" || effectiveProfile === "hotel"
+          ? " Brand colors were reset to the pack default — reload if the UI has not updated."
+          : "";
+      toast.success(`Applied ${PROFILE_LABELS[effectiveProfile]} pack.${brandNote}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not apply industry pack");
     } finally {

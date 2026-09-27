@@ -215,7 +215,7 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
 export function OfflineOutlet({ children }: { children: ReactNode }) {
   const { clientRouting, activePath } = useOfflineNavigation();
   const { role, isLoading } = usePermissions();
-  const { enabledCapabilities } = useBusinessCapabilities();
+  const { enabledCapabilities, industryProfile } = useBusinessCapabilities();
   const { features, billingVisibility } = useLicense();
   if (clientRouting && activePath) {
     // Super Admin console is not in tenant nav. Applying pathAllowedForRole
@@ -231,7 +231,11 @@ export function OfflineOutlet({ children }: { children: ReactNode }) {
       return <>{children}</>;
     }
     if (
-      !pathAllowedForRole(activePath, role, enabledCapabilities, { features, billingVisibility })
+      !pathAllowedForRole(activePath, role, enabledCapabilities, {
+        features,
+        billingVisibility,
+        industryProfile,
+      })
     ) {
       return (
         <AccessDenied
