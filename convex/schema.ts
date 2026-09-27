@@ -397,6 +397,8 @@ export default defineSchema({
     experiencePresetId: v.id("experiencePresets"),
     featureTemplateId: v.optional(v.id("featureTemplates")),
     publicPlanKey: v.optional(sellablePlanKeyValidator),
+    /** Default industry pack for new orgs when the owner does not pick a type. */
+    defaultIndustryProfile: v.optional(v.string()),
     createdBy: v.id("users"),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -1473,4 +1475,123 @@ export default defineSchema({
   })
     .index("by_user_createdAt", ["userId", "createdAt"])
     .index("by_user_unconsumed", ["userId", "consumedAt"]),
+
+  // --- Phase B dining (restaurant / bar) — settles into sales on pay ---
+
+  diningTables: defineTable({
+    organizationId: v.id("organizations"),
+    branchId: v.id("branches"),
+    name: v.string(),
+    code: v.optional(v.string()),
+    seats: v.optional(v.number()),
+    status: v.union(v.literal("active"), v.literal("inactive")),
+    sortOrder: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_branch", ["branchId"])
+    .index("by_organization_branch", ["organizationId", "branchId"]),
+
+  diningSessions: defineTable({
+    organizationId: v.id("organizations"),
+    branchId: v.id("branches"),
+    tableId: v.id("diningTables"),
+    status: v.union(v.literal("open"), v.literal("closed")),
+    openedBy: v.id("users"),
+    openedAt: v.number(),
+    closedAt: v.optional(v.number()),
+    saleId: v.optional(v.id("sales")),
+    guestCount: v.optional(v.number()),
+    note: v.optional(v.string()),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_branch", ["branchId"])
+    .index("by_table", ["tableId"])
+    .index("by_organization_status", ["organizationId", "status"]),
+
+  diningSessionItems: defineTable({
+    organizationId: v.id("organizations"),
+    sessionId: v.id("diningSessions"),
+    productId: v.id("products"),
+    productName: v.string(),
+    quantity: v.number(),
+    unitPrice: v.number(),
+    discount: v.number(),
+    lineTotal: v.number(),
+    /** Snapshot of selected modifiers at add time. */
+    modifiersJson: v.string(),
+    kitchenStatus: v.union(
+      v.literal("pending"),
+      v.literal("fired"),
+      v.literal("ready"),
+      v.literal("done"),
+      v.literal("void"),
+    ),
+    note: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_organization", ["organizationId"]),
+
+  modifierGroups: defineTable({
+    organizationId: v.id("organizations"),
+    productId: v.id("products"),
+    name: v.string(),
+    required: v.boolean(),
+    minSelect: v.optional(v.number()),
+    maxSelect: v.optional(v.number()),
+    sortOrder: v.optional(v.number()),
+    status: v.union(v.literal("active"), v.literal("inactive")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_product", ["productId"])
+    .index("by_organization", ["organizationId"]),
+
+  modifierOptions: defineTable({
+    organizationId: v.id("organizations"),
+    groupId: v.id("modifierGroups"),
+    name: v.string(),
+    priceDelta: v.number(),
+    sortOrder: v.optional(v.number()),
+    status: v.union(v.literal("active"), v.literal("inactive")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_group", ["groupId"])
+    .index("by_organization", ["organizationId"]),
+
+  kitchenTickets: defineTable({
+    organizationId: v.id("organizations"),
+    branchId: v.id("branches"),
+    sessionId: v.id("diningSessions"),
+    tableName: v.string(),
+    status: v.union(
+      v.literal("open"),
+      v.literal("ready"),
+      v.literal("done"),
+      v.literal("void"),
+    ),
+    firedBy: v.id("users"),
+    firedAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_branch", ["branchId"])
+    .index("by_session", ["sessionId"])
+    .index("by_branch_status", ["branchId", "status"]),
+
+  kitchenTicketLines: defineTable({
+    organizationId: v.id("organizations"),
+    ticketId: v.id("kitchenTickets"),
+    sessionItemId: v.id("diningSessionItems"),
+    productName: v.string(),
+    quantity: v.number(),
+    modifiersLabel: v.optional(v.string()),
+    note: v.optional(v.string()),
+  })
+    .index("by_ticket", ["ticketId"])
+    .index("by_organization", ["organizationId"]),
 });

@@ -10,6 +10,7 @@ import {
 } from "./shared/lots";
 import { presenceFromLastSeenAt } from "./shared/presence";
 import { loadTourProgressForUser } from "./shared/tourProgress";
+import { hasBusinessCapability } from "./shared/businessCapabilities";
 
 /**
  * Compact catalog snapshot for Dexie offline mirror.
@@ -261,6 +262,35 @@ export const getSnapshot = query({
     const businessCapabilities = await loadBusinessConfiguration(ctx, profile.organizationId);
     const productImagesPolicy = await loadProductImagesPolicy(ctx, profile.organizationId);
     const branch = await ctx.db.get(branchId);
+
+    let diningTables: Array<{
+      id: string;
+      branchId: string;
+      name: string;
+      code: string | null;
+      seats: number | null;
+      status: "active" | "inactive";
+      sortOrder: number | null;
+    }> = [];
+    if (hasBusinessCapability(businessCapabilities, "tables_orders")) {
+      const tables = await ctx.db
+        .query("diningTables")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect();
+      diningTables = tables
+        .filter((t) => t.status === "active")
+        .filter((t) => (profile.role === "administrator" ? true : t.branchId === branchId))
+        .map((t) => ({
+          id: t._id as string,
+          branchId: t.branchId as string,
+          name: t.name,
+          code: t.code ?? null,
+          seats: t.seats ?? null,
+          status: t.status,
+          sortOrder: t.sortOrder ?? null,
+        }));
+    }
+
     const canManage = profile.role === "administrator" || profile.role === "manager";
 
     let suppliers: Array<{
@@ -627,6 +657,7 @@ export const getSnapshot = query({
       },
       businessCapabilities,
       productImagesPolicy,
+      diningTables,
       profile: {
         userId: userId as string,
         name: profile.name,

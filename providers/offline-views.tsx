@@ -24,6 +24,8 @@ import { ReturnDetailView } from "@/features/returns/components/return-detail-vi
 import { BranchDetailView } from "@/features/branches/components/branch-detail-view";
 import { WholesaleView } from "@/features/wholesale/components/wholesale-view";
 import { SuppliersView } from "@/features/suppliers/components/suppliers-view";
+import { DiningFloorView } from "@/features/dining/components/dining-floor-view";
+import { KitchenView } from "@/features/dining/components/kitchen-view";
 import { CustomerDetailView } from "@/features/customers/components/customer-detail-view";
 import { ProductDetailView } from "@/features/products/components/product-detail-view";
 import { UserDetailView } from "@/features/users/components/user-detail-view";
@@ -67,6 +69,8 @@ const SHELL_VIEWS: Record<string, () => ReactNode> = {
   "/branches": () => <BranchesView />,
   "/wholesale": () => <WholesaleView />,
   "/suppliers": () => <SuppliersView />,
+  "/floor": () => <DiningFloorView />,
+  "/kitchen": () => <KitchenView />,
   "/platform": () => <PlatformOverviewView />,
   "/platform/analytics": () => <PlatformMonitoringView />,
   "/platform/activity": () => <PlatformActivityView />,

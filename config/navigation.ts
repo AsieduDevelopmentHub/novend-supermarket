@@ -13,6 +13,8 @@ import {
   Undo2,
   Warehouse,
   Truck,
+  UtensilsCrossed,
+  ChefHat,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -115,6 +117,20 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/customers",
         icon: Users,
         roles: ["administrator", "manager", "cashier"],
+      },
+      {
+        title: "Floor",
+        href: "/floor",
+        icon: UtensilsCrossed,
+        roles: ["administrator", "manager", "cashier"],
+        capabilities: ["tables_orders"],
+      },
+      {
+        title: "Kitchen",
+        href: "/kitchen",
+        icon: ChefHat,
+        roles: ["administrator", "manager", "cashier"],
+        capabilities: ["kitchen_tickets"],
       },
     ],
   },

@@ -168,6 +168,18 @@ function nextBackoffMs(attempts: number) {
 export type QueuedMutators = {
   completeSale: CompleteSaleMutator;
   processReturn: ProcessReturnMutator;
+  openDiningSession: (args: {
+    tableId: Id<"diningTables">;
+    guestCount?: number;
+    clientOperationId?: string;
+  }) => Promise<{ sessionId: Id<"diningSessions"> }>;
+  payDiningSession: (args: {
+    sessionId: Id<"diningSessions">;
+    paymentMethod: "cash" | "card" | "mobile_money";
+    discount?: number;
+    customerName?: string;
+    clientOperationId?: string;
+  }) => Promise<{ saleId: Id<"sales">; invoiceNumber: string; total: number }>;
   createSupplier: (args: {
     name: string;
     contactName?: string;
@@ -444,6 +456,36 @@ export async function drainOutbox(options: {
             returnNumber: result.returnNumber,
             receiptPayload: result.receiptPayload,
           });
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "dining_open_session") {
+          const payload = JSON.parse(claimed.payloadJson) as {
+            tableId: string;
+            guestCount?: number;
+          };
+          await options.mutators.openDiningSession({
+            tableId: payload.tableId as Id<"diningTables">,
+            guestCount: payload.guestCount,
+            clientOperationId: claimed.clientOperationId,
+          });
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "dining_pay_session") {
+          const payload = JSON.parse(claimed.payloadJson) as {
+            sessionId: string;
+            paymentMethod: "cash" | "card" | "mobile_money";
+            discount?: number;
+            customerName?: string;
+          };
+          await options.mutators.payDiningSession({
+            sessionId: payload.sessionId as Id<"diningSessions">,
+            paymentMethod: payload.paymentMethod,
+            discount: payload.discount,
+            customerName: payload.customerName,
+            clientOperationId: claimed.clientOperationId,
+          });
+          await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "upsert_supplier") {

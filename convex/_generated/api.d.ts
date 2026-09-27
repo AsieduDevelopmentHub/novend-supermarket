@@ -22,6 +22,7 @@ import type * as customers from "../customers.js";
 import type * as dashboard from "../dashboard.js";
 import type * as desktopReleases from "../desktopReleases.js";
 import type * as devices from "../devices.js";
+import type * as dining from "../dining.js";
 import type * as emailVerification from "../emailVerification.js";
 import type * as experiencePresets from "../experiencePresets.js";
 import type * as featureTemplates from "../featureTemplates.js";
@@ -64,6 +65,7 @@ import type * as shared_clientOps from "../shared/clientOps.js";
 import type * as shared_cloudMode from "../shared/cloudMode.js";
 import type * as shared_cloudSyncBoost from "../shared/cloudSyncBoost.js";
 import type * as shared_commercialOffers from "../shared/commercialOffers.js";
+import type * as shared_dashboardFinance from "../shared/dashboardFinance.js";
 import type * as shared_defaultBranch from "../shared/defaultBranch.js";
 import type * as shared_documentReferences from "../shared/documentReferences.js";
 import type * as shared_emailLogoBase64 from "../shared/emailLogoBase64.js";
@@ -97,6 +99,7 @@ import type * as shared_platformStatsAggregate from "../shared/platformStatsAggr
 import type * as shared_platformTelemetry from "../shared/platformTelemetry.js";
 import type * as shared_presence from "../shared/presence.js";
 import type * as shared_productImagesPolicy from "../shared/productImagesPolicy.js";
+import type * as shared_productInventory from "../shared/productInventory.js";
 import type * as shared_provisionOrganization from "../shared/provisionOrganization.js";
 import type * as shared_randomId from "../shared/randomId.js";
 import type * as shared_returns from "../shared/returns.js";
@@ -136,6 +139,7 @@ declare const fullApi: ApiFromModules<{
   dashboard: typeof dashboard;
   desktopReleases: typeof desktopReleases;
   devices: typeof devices;
+  dining: typeof dining;
   emailVerification: typeof emailVerification;
   experiencePresets: typeof experiencePresets;
   featureTemplates: typeof featureTemplates;
@@ -178,6 +182,7 @@ declare const fullApi: ApiFromModules<{
   "shared/cloudMode": typeof shared_cloudMode;
   "shared/cloudSyncBoost": typeof shared_cloudSyncBoost;
   "shared/commercialOffers": typeof shared_commercialOffers;
+  "shared/dashboardFinance": typeof shared_dashboardFinance;
   "shared/defaultBranch": typeof shared_defaultBranch;
   "shared/documentReferences": typeof shared_documentReferences;
   "shared/emailLogoBase64": typeof shared_emailLogoBase64;
@@ -211,6 +216,7 @@ declare const fullApi: ApiFromModules<{
   "shared/platformTelemetry": typeof shared_platformTelemetry;
   "shared/presence": typeof shared_presence;
   "shared/productImagesPolicy": typeof shared_productImagesPolicy;
+  "shared/productInventory": typeof shared_productInventory;
   "shared/provisionOrganization": typeof shared_provisionOrganization;
   "shared/randomId": typeof shared_randomId;
   "shared/returns": typeof shared_returns;
