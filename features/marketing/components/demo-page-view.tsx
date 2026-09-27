@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { DemoVideoFrame } from "@/features/marketing/components/demo-video-frame";
 import { landingCopy } from "@/features/marketing/content";
 import { appEntryHref } from "@/lib/hosting/hosts";
 import { cn } from "@/lib/utils";
@@ -170,23 +171,7 @@ export function DemoPageView() {
         <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[minmax(0,19rem)_minmax(0,1fr)]">
           {/* Player first on mobile so the page is usable above the fold */}
           <div data-reveal className="order-1 min-w-0 lg:order-2">
-            <div className="overflow-hidden rounded-2xl bg-[#071426] p-1.5 shadow-[0_24px_48px_-28px_rgba(7,20,38,0.55)] sm:rounded-[28px] sm:p-3">
-              <div className="relative aspect-video overflow-hidden rounded-[14px] bg-black sm:rounded-[22px]">
-                <video
-                  key={active.src}
-                  ref={videoRef}
-                  className="h-full w-full object-contain"
-                  controls
-                  playsInline
-                  preload="metadata"
-                  controlsList="nodownload"
-                  poster={demoPage.poster}
-                >
-                  <source src={active.src} type="video/mp4" />
-                  Your browser does not support embedded video.
-                </video>
-              </div>
-            </div>
+            <DemoVideoFrame src={active.src} poster={demoPage.poster} videoRef={videoRef} />
 
             <div className="mt-4 min-w-0 sm:mt-6">
               <p className="text-primary text-[11px] font-semibold tracking-[0.12em] uppercase sm:text-[12px]">

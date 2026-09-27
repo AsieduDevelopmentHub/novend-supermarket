@@ -60,6 +60,7 @@ describe("marketing training series demo page", () => {
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
     ]);
 
+    expect(landingCopy.demoPage.poster).toBe("/branding/brandmark.png");
     const posterPath = resolve(
       process.cwd(),
       "public",

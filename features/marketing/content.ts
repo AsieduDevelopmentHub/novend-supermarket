@@ -228,7 +228,7 @@ export const landingCopy = {
     title: "Watch the full Novend training",
     subtitle:
       "Start with the complete walkthrough, then jump into short per-action clips for account setup, sales, inventory, and every other module.",
-    poster: "/marketing/demo/training/preview.jpg",
+    poster: "/branding/brandmark.png",
     primaryCta: "Start free for 14 days",
     secondaryCta: "Talk to sales",
     secondaryHref: "/contact",
