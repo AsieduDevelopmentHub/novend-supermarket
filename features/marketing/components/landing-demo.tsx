@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { LandingSection } from "@/features/marketing/components/landing-section";
+import { DemoVideoFrame } from "@/features/marketing/components/demo-video-frame";
 import { landingCopy } from "@/features/marketing/content";
 import { appEntryHref } from "@/lib/hosting/hosts";
 import { cn } from "@/lib/utils";
@@ -137,21 +138,14 @@ export function LandingDemo() {
           aria-labelledby={`demo-tab-${active.id}`}
           className="mt-8 sm:mt-10"
         >
-          <div className="landing-demo-stage overflow-hidden rounded-[24px] bg-[#071426] p-2 shadow-[0_24px_48px_-28px_rgba(7,20,38,0.55)] sm:rounded-[28px] sm:p-3">
-            <div className="relative aspect-video overflow-hidden rounded-[18px] bg-black sm:rounded-[22px]">
-              <video
-                key={active.src}
-                ref={videoRef}
-                className="h-full w-full object-contain"
-                controls
-                playsInline
-                preload="metadata"
-                controlsList="nodownload"
-              >
-                <source src={active.src} type="video/mp4" />
-                Your browser does not support embedded video.
-              </video>
-            </div>
+          <div className="landing-demo-stage">
+            <DemoVideoFrame
+              src={active.src}
+              poster={landingCopy.demoPage.poster}
+              videoRef={videoRef}
+              className="rounded-[24px] sm:rounded-[28px]"
+              frameClassName="rounded-[18px] sm:rounded-[22px]"
+            />
           </div>
 
           <p className="mx-auto mt-5 max-w-2xl text-center text-sm leading-relaxed text-[#526174] sm:text-base">

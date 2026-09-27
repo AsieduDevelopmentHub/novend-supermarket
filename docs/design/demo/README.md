@@ -36,8 +36,10 @@ public/marketing/demo/<chapter-id>.mp4
 
 ```text
 public/marketing/demo/training/<same-filename>.mp4
-public/marketing/demo/training/preview.jpg
 ```
+
+Video posters use the Novend brandmark (`/branding/brandmark.png`) — not the
+old collage `novend-training-series-preview.jpg`.
 
 Then add/update the episode in `landingCopy.demoPage.episodes`.
 Deep links: `/demo#full`, `/demo#sales`, `/demo#account-setup`.
