@@ -151,6 +151,9 @@ export function LandingNav({ scrollRootRef }: Props) {
         <nav className="hidden items-center gap-0.5 lg:flex" aria-label="Primary">
           <NavDropdown label={nav.product.label} items={nav.product.items} />
           <NavDropdown label={nav.industries.label} items={nav.industries.items} />
+          <NavHref href={nav.demo.href} className={linkClass}>
+            {nav.demo.label}
+          </NavHref>
           <NavHref href={nav.pricing.href} className={linkClass}>
             {nav.pricing.label}
           </NavHref>
@@ -242,6 +245,14 @@ export function LandingNav({ scrollRootRef }: Props) {
                       </ul>
                     </AccordionContent>
                   </AccordionItem>
+
+                  <NavHref
+                    href={nav.demo.href}
+                    className="text-foreground hover:bg-muted block rounded-lg px-3 py-3 text-sm font-medium"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {nav.demo.label}
+                  </NavHref>
 
                   <NavHref
                     href={nav.pricing.href}
