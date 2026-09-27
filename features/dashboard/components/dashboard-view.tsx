@@ -42,14 +42,23 @@ import {
   Eye,
   Package,
   ShoppingBag,
+  TrendingUp,
   Users,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { stockOpsVisibleForIndustry } from "@/convex/shared/businessCapabilities";
 
-const PIE_COLORS = ["#38bdf8", "#0ea5e9", "#111827", "#16a34a"];
+const PIE_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
 
 function RecentSalesTable({
   sales,
@@ -368,8 +377,8 @@ function SalesOverviewChart({ data }: { data: Array<{ date: string; total: numbe
         <AreaChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.35} />
-              <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.02} />
+              <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.35} />
+              <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -387,7 +396,7 @@ function SalesOverviewChart({ data }: { data: Array<{ date: string; total: numbe
             tickFormatter={(value) => `${value}`}
           />
           <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-          <Area type="monotone" dataKey="total" stroke="#38bdf8" fill="url(#salesFill)" />
+          <Area type="monotone" dataKey="total" stroke="var(--chart-1)" fill="url(#salesFill)" />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -396,6 +405,8 @@ function SalesOverviewChart({ data }: { data: Array<{ date: string; total: numbe
 
 export function DashboardView() {
   const { isAdmin, isManager, branchName, branchId: myBranchId, role } = usePermissions();
+  const { industryProfile } = useBusinessCapabilities();
+  const showStockOps = stockOpsVisibleForIndustry(industryProfile);
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
   const [topSellingMetric, setTopSellingMetric] = useLocalStorage<TopSellingMetric>(
     TOP_SELLING_METRIC_KEY,
@@ -411,6 +422,7 @@ export function DashboardView() {
   }
 
   const showOps = data.role === "administrator" || data.role === "manager";
+  const showFinance = isAdmin && data.finance != null;
   // Stock / expiry KPIs are org-wide with branch tags — never pin inventory to
   // the cashier's home branch when the dashboard is showing all branches.
   const inventoryAlertHref = (kind: "low" | "expiry") => {
@@ -438,19 +450,77 @@ export function DashboardView() {
       icon: showOps ? Users : Package,
       href: showOps ? "/customers" : "/orders",
     },
-    {
-      title: "Low Stock Items",
-      value: formatNumber(data.kpis.lowStockCount),
-      icon: AlertTriangle,
-      href: inventoryAlertHref("low"),
-    },
-    {
-      title: "Expiring / Expired",
-      value: formatNumber(data.kpis.expiringCount ?? 0),
-      icon: CalendarClock,
-      href: inventoryAlertHref("expiry"),
-    },
-  ] as const;
+    ...(showStockOps
+      ? ([
+          {
+            title: "Low Stock Items",
+            value: formatNumber(data.kpis.lowStockCount),
+            icon: AlertTriangle,
+            href: inventoryAlertHref("low"),
+          },
+          {
+            title: "Expiring / Expired",
+            value: formatNumber(data.kpis.expiringCount ?? 0),
+            icon: CalendarClock,
+            href: inventoryAlertHref("expiry"),
+          },
+        ] as const)
+      : []),
+  ];
+
+  const financeCards = showFinance
+    ? [
+        ...(data.finance!.inventoryValueCost != null
+          ? [
+              {
+                title: "Inventory value (cost)",
+                value: formatCurrency(data.finance!.inventoryValueCost),
+                icon: Package,
+                href: "/products",
+              },
+            ]
+          : []),
+        {
+          title: "Inventory value (sell)",
+          value: formatCurrency(data.finance!.inventoryValueSell),
+          icon: Package,
+          href: "/products",
+        },
+        {
+          title: `Revenue (${DASHBOARD_OPS_WINDOW_DAYS} days)`,
+          value: formatCurrency(data.finance!.revenue),
+          icon: Wallet,
+          href: "/orders",
+        },
+        ...(data.finance!.cogs != null
+          ? [
+              {
+                title: `COGS (${DASHBOARD_OPS_WINDOW_DAYS} days)`,
+                value: formatCurrency(data.finance!.cogs),
+                icon: ShoppingBag,
+                href: "/analytics",
+              },
+            ]
+          : []),
+        ...(data.finance!.grossProfit != null
+          ? [
+              {
+                title: `Gross profit (${DASHBOARD_OPS_WINDOW_DAYS} days)`,
+                value: formatCurrency(data.finance!.grossProfit),
+                icon: TrendingUp,
+                href: "/analytics",
+              },
+            ]
+          : []),
+      ]
+    : [];
+
+  const compactActions = [
+    ...(showStockOps
+      ? [{ key: "inventory", label: "Inventory", icon: Package, href: "/inventory" }]
+      : []),
+    { key: "sale", label: "New Sale", icon: ShoppingBag, href: "/sales" },
+  ];
 
   return (
     <div className="min-w-0 space-y-6" data-tour="page-content">
@@ -458,13 +528,12 @@ export function DashboardView() {
         title="Dashboard"
         description={
           showOps
-            ? `Last ${DASHBOARD_OPS_WINDOW_DAYS} days of sales, plus stock alerts`
+            ? showStockOps
+              ? `Last ${DASHBOARD_OPS_WINDOW_DAYS} days of sales, plus stock alerts`
+              : `Last ${DASHBOARD_OPS_WINDOW_DAYS} days of sales`
             : "Your sales activity today"
         }
-        compactActions={[
-          { key: "inventory", label: "Inventory", icon: Package, href: "/inventory" },
-          { key: "sale", label: "New Sale", icon: ShoppingBag, href: "/sales" },
-        ]}
+        compactActions={compactActions}
         actions={
           <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 sm:w-auto">
             {isAdmin ? (
@@ -486,9 +555,11 @@ export function DashboardView() {
                 className="min-w-0 flex-1 sm:flex-none"
               />
             ) : null}
-            <Button asChild variant="outline" className="hidden h-9 shrink-0 sm:inline-flex">
-              <Link href="/inventory">Inventory</Link>
-            </Button>
+            {showStockOps ? (
+              <Button asChild variant="outline" className="hidden h-9 shrink-0 sm:inline-flex">
+                <Link href="/inventory">Inventory</Link>
+              </Button>
+            ) : null}
             <Button asChild className="h-9 min-h-9 flex-1 shrink-0 sm:flex-none">
               <Link href="/sales">New Sale</Link>
             </Button>
@@ -501,7 +572,7 @@ export function DashboardView() {
         <KpiBentoGrid kpis={kpis} />
       </div>
       <div className="hidden md:block">
-        <Grid cols={5}>
+        <Grid cols={showStockOps ? 5 : 3}>
           {kpis.map((kpi) => (
             <KpiCard key={kpi.title} {...kpi} />
           ))}
@@ -608,7 +679,25 @@ export function DashboardView() {
         </Card>
       )}
 
-      {showOps ? (
+      {showFinance && financeCards.length > 0 ? (
+        <div className="space-y-3">
+          <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+            Inventory &amp; profit
+          </h2>
+          <div className="md:hidden">
+            <KpiBentoGrid kpis={financeCards} />
+          </div>
+          <div className="hidden md:block">
+            <Grid cols={5}>
+              {financeCards.map((kpi) => (
+                <KpiCard key={kpi.title} {...kpi} />
+              ))}
+            </Grid>
+          </div>
+        </div>
+      ) : null}
+
+      {showOps && showStockOps ? (
         <div className="grid min-w-0 gap-4 xl:grid-cols-2">
           <Card className="min-w-0 overflow-hidden">
             <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

@@ -226,10 +226,14 @@ export function SidebarNavTree({
 }) {
   const pathname = usePathname();
   const { activePath } = useOfflineNavigation();
-  const { enabledCapabilities } = useBusinessCapabilities();
+  const { enabledCapabilities, industryProfile } = useBusinessCapabilities();
   const { features, billingVisibility } = useLicense();
   const currentPath = activePath ?? pathname;
-  const groups = navGroupsForRole(role, enabledCapabilities, { features, billingVisibility });
+  const groups = navGroupsForRole(role, enabledCapabilities, {
+    features,
+    billingVisibility,
+    industryProfile,
+  });
   const { isExpanded, toggleGroup, expandGroup } = useNavTreeState();
 
   useEffect(() => {

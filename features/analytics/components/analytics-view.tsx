@@ -460,8 +460,8 @@ export function AnalyticsView() {
                     >
                       <defs>
                         <linearGradient id="netFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.35} />
-                          <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.02} />
+                          <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.35} />
+                          <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0.02} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -475,14 +475,14 @@ export function AnalyticsView() {
                         type="monotone"
                         dataKey="netProfit"
                         name="Net profit"
-                        stroke="#38bdf8"
+                        stroke="var(--chart-1)"
                         fill="url(#netFill)"
                       />
                       <Area
                         type="monotone"
                         dataKey="revenue"
                         name="Revenue"
-                        stroke="#0f766e"
+                        stroke="var(--chart-3)"
                         fill="transparent"
                       />
                     </AreaChart>

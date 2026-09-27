@@ -1,11 +1,15 @@
 import type { AppRole, NavFeatureGate, NavItem } from "@/config/navigation";
 import { flatNavForRole } from "@/config/navigation";
-import type { BusinessCapabilityKey } from "@/convex/shared/businessCapabilities";
+import {
+  stockOpsVisibleForIndustry,
+  type BusinessCapabilityKey,
+} from "@/convex/shared/businessCapabilities";
 import {
   Boxes,
   ClipboardList,
   LayoutDashboard,
   MoreHorizontal,
+  Package,
   ShoppingCart,
   type LucideIcon,
 } from "lucide-react";
@@ -28,7 +32,24 @@ export const MOBILE_BOTTOM_TABS: MobileTab[] = [
   { id: "more", title: "More", href: "/more", icon: MoreHorizontal },
 ];
 
+/** Restaurant/hotel: catalogue tab instead of inventory stock. */
+const MOBILE_CATALOGUE_TAB: MobileTab = {
+  id: "inventory",
+  title: "Products",
+  href: "/products",
+  icon: Package,
+};
+
 const TAB_HREFS = new Set(MOBILE_BOTTOM_TABS.map((t) => t.href));
+
+export function mobileBottomTabsForIndustry(
+  industryProfile?: string | null,
+): MobileTab[] {
+  if (stockOpsVisibleForIndustry(industryProfile)) return MOBILE_BOTTOM_TABS;
+  return MOBILE_BOTTOM_TABS.map((tab) =>
+    tab.id === "inventory" ? MOBILE_CATALOGUE_TAB : tab,
+  );
+}
 
 export type MoreSection = {
   id: string;
@@ -79,6 +100,8 @@ export function moreSectionsForRole(
 
 export function resolveMobileTab(pathname: string): MobileTabId {
   if (pathname === "/more" || pathname.startsWith("/more/")) return "more";
+  // Restaurant/hotel catalogue tab uses /products under the inventory slot.
+  if (pathname === "/products" || pathname.startsWith("/products/")) return "inventory";
   for (const tab of MOBILE_BOTTOM_TABS) {
     if (tab.id === "more") continue;
     if (pathname === tab.href || pathname.startsWith(`${tab.href}/`)) return tab.id;

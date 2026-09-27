@@ -9,9 +9,11 @@ import {
   isManager,
 } from "./shared/permissions";
 import { stockMapForBranch } from "./shared/branchStock";
+import { sumInventoryValues } from "./shared/dashboardFinance";
 import { deriveExpiryListFields, lotSummaries, productExpiryAlertDays } from "./shared/lots";
-import { completedReturnsInRange, loadItemsForReturns } from "./shared/returns";
+import { cogsForLines, completedReturnsInRange, loadItemsForReturns } from "./shared/returns";
 import { collectSaleItemsForSales, collectSalesInCompletedAtRange } from "./shared/salesRange";
+import { roundMoney } from "./shared/validation";
 
 /** Keep in sync with `lib/dashboard/window.ts` (dashboard UI copy). */
 const DASHBOARD_OPS_WINDOW_DAYS = 7;
@@ -254,6 +256,54 @@ export const summary = query({
         .collect()
     ).filter((c) => c.status === "active").length;
 
+    // Admin-only finance strip — same branch filter as sales KPIs (default all).
+    let finance:
+      | {
+          inventoryValueCost: number | null;
+          inventoryValueSell: number;
+          revenue: number;
+          cogs: number | null;
+          grossProfit: number | null;
+        }
+      | null = null;
+
+    if (admin) {
+      const valueBranchIds = branchFilter
+        ? [branchFilter]
+        : branches.filter((b) => b.status === "active").map((b) => b._id);
+
+      const onHandByProduct = new Map<Id<"products">, number>();
+      for (const bid of valueBranchIds) {
+        const stockByProduct = await stockMapForBranch(ctx, bid);
+        for (const [productId, qty] of stockByProduct) {
+          onHandByProduct.set(productId, (onHandByProduct.get(productId) ?? 0) + qty);
+        }
+      }
+
+      const inventory = sumInventoryValues(
+        activeProducts.map((p) => ({
+          onHand: onHandByProduct.get(p._id) ?? 0,
+          costPrice: p.costPrice,
+          sellingPrice: p.sellingPrice,
+          tracksInventory: p.tracksInventory,
+        })),
+      );
+
+      const costByProduct = new Map(activeProducts.map((p) => [p._id, p.costPrice]));
+      const soldCogs = cogsForLines(saleItems, costByProduct);
+      const returnedCogs = cogsForLines(returnItems, costByProduct);
+      const cogs = roundMoney(soldCogs - returnedCogs);
+      const showCost = canViewCostPrice(profile);
+
+      finance = {
+        inventoryValueCost: showCost ? inventory.cost : null,
+        inventoryValueSell: inventory.sell,
+        revenue: roundMoney(revenue),
+        cogs: showCost ? cogs : null,
+        grossProfit: showCost ? roundMoney(revenue - cogs) : null,
+      };
+    }
+
     return {
       role: profile.role,
       branchId: branchFilter,
@@ -266,6 +316,7 @@ export const summary = query({
         expiringCount: expiryAlerts.length,
         customersEstimate: admin || manager ? customerCount : undefined,
       },
+      finance,
       lowStock: lowStock.slice(0, 12),
       expiryAlerts: expiryAlerts.slice(0, 12),
       topProducts,

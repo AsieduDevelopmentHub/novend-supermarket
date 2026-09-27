@@ -59,6 +59,13 @@ type RemoteDashboard = {
   }>;
   salesTrend: Array<{ date: string; total: number }>;
   salesByCategory: Array<{ name: string; total: number }>;
+  finance?: {
+    inventoryValueCost: number | null;
+    inventoryValueSell: number;
+    revenue: number;
+    cogs: number | null;
+    grossProfit: number | null;
+  } | null;
 };
 
 function cacheKeyFor(isAdmin: boolean, branchFilter: Id<"branches"> | "all") {
@@ -127,6 +134,7 @@ function mapRemote(remote: RemoteDashboard): DashboardData {
     })),
     salesTrend: remote.salesTrend,
     salesByCategory: remote.salesByCategory,
+    finance: remote.finance ?? null,
     cachedAt: Date.now(),
     source: "remote",
   };
@@ -144,6 +152,7 @@ function toCachePayload(remote: RemoteDashboard): Omit<DashboardSummaryCache, "c
     recentSales: mapped.recentSales,
     salesTrend: mapped.salesTrend,
     salesByCategory: mapped.salesByCategory,
+    finance: mapped.finance ?? null,
   };
 }
 
