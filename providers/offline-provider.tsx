@@ -64,6 +64,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const convex = useConvex();
   const completeSale = useMutation(api.sales.completeSale);
   const processReturn = useMutation(api.returns.processReturn);
+  const openDiningSession = useMutation(api.dining.openSession);
+  const payDiningSession = useMutation(api.dining.paySession);
   const createSupplier = useMutation(api.suppliers.create);
   const updateSupplier = useMutation(api.suppliers.update);
   const recordPurchase = useMutation(api.wholesale.recordPurchase);
@@ -210,6 +212,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
           mutators: {
             completeSale: (args) => completeSale(args),
             processReturn: (args) => processReturn(args),
+            openDiningSession: (args) => openDiningSession(args),
+            payDiningSession: (args) => payDiningSession(args),
             createSupplier: (args) => createSupplier(args),
             updateSupplier: (args) => updateSupplier(args),
             recordPurchase: (payload) =>
@@ -334,6 +338,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     [
       completeSale,
       processReturn,
+      openDiningSession,
+      payDiningSession,
       createSupplier,
       updateSupplier,
       recordPurchase,

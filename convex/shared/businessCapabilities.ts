@@ -8,8 +8,8 @@
 
 import { resolvePlan, type PlanKey } from "./plans";
 
-/** Stage 1 configurationVersion — UOM adapter N is defined in Stage 2. */
-export const BUSINESS_CAPABILITY_CONFIGURATION_VERSION = 1;
+/** Stage 1 configurationVersion — UOM adapter N is defined in Stage 2. Bumped for Phase B dining keys. */
+export const BUSINESS_CAPABILITY_CONFIGURATION_VERSION = 2;
 
 export const BUSINESS_CAPABILITY_KEYS = [
   "multi_unit_pricing",
@@ -20,6 +20,9 @@ export const BUSINESS_CAPABILITY_KEYS = [
   "custom_fields",
   "configurable_pos",
   "non_stock_sales",
+  "modifiers",
+  "tables_orders",
+  "kitchen_tickets",
 ] as const;
 
 export type BusinessCapabilityKey = (typeof BUSINESS_CAPABILITY_KEYS)[number];
@@ -32,6 +35,7 @@ export const INDUSTRY_PROFILES = [
   "electronics",
   "pharmacy",
   "restaurant",
+  "bar",
   "hotel",
   "custom",
 ] as const;
@@ -126,6 +130,28 @@ export const BUSINESS_CAPABILITY_REGISTRY: Record<
       "Sell menu items or room rates without requiring on-hand stock. Adds a Track inventory toggle on Add Product.",
     minPlanSortOrder: resolvePlan("basic").sortOrder,
   },
+  modifiers: {
+    key: "modifiers",
+    version: 1,
+    label: "Product modifiers",
+    description: "Optional add-ons and choices on menu items (size, extras) with price deltas.",
+    minPlanSortOrder: resolvePlan("basic").sortOrder,
+  },
+  tables_orders: {
+    key: "tables_orders",
+    version: 1,
+    label: "Tables & open checks",
+    description: "Floor tables and open dining checks that settle into a completed sale.",
+    minPlanSortOrder: resolvePlan("basic").sortOrder,
+  },
+  kitchen_tickets: {
+    key: "kitchen_tickets",
+    version: 1,
+    label: "Kitchen tickets",
+    description: "Fire open-check lines to a kitchen / bar ticket queue.",
+    dependencies: ["tables_orders"],
+    minPlanSortOrder: resolvePlan("basic").sortOrder,
+  },
 };
 
 /** Industry packs are presets of capability keys — not hardcoded industry branches. */
@@ -136,7 +162,20 @@ export const INDUSTRY_PACKS: Record<IndustryProfile, BusinessCapabilityKey[]> = 
   cold_store: ["sell_by_weight", "lot_expiry", "scale_hardware", "configurable_pos"],
   electronics: ["serial_tracking", "configurable_pos"],
   pharmacy: ["lot_expiry", "custom_fields", "configurable_pos"],
-  restaurant: ["non_stock_sales", "configurable_pos"],
+  restaurant: [
+    "non_stock_sales",
+    "configurable_pos",
+    "modifiers",
+    "tables_orders",
+    "kitchen_tickets",
+  ],
+  bar: [
+    "non_stock_sales",
+    "configurable_pos",
+    "modifiers",
+    "tables_orders",
+    "kitchen_tickets",
+  ],
   hotel: ["non_stock_sales", "configurable_pos"],
   custom: [],
 };
@@ -149,13 +188,30 @@ export function isIndustryProfile(value: string): value is IndustryProfile {
   return (INDUSTRY_PROFILES as readonly string[]).includes(value);
 }
 
-/** Nav / dashboard stock chrome — presentation only (restaurant & hotel packs). */
+/** Nav / dashboard stock chrome — presentation only (restaurant, bar, hotel packs). */
 export const STOCK_OPS_NAV_HREFS = ["/inventory", "/wholesale", "/suppliers"] as const;
 
 export function stockOpsVisibleForIndustry(
   profile: IndustryProfile | string | null | undefined,
 ): boolean {
-  return profile !== "restaurant" && profile !== "hotel";
+  return profile !== "restaurant" && profile !== "hotel" && profile !== "bar";
+}
+
+/**
+ * Resolve industry for org create / onboarding.
+ * `custom` and unknown values map to retail. Explicit valid profiles pass through.
+ */
+export function resolveIndustryProfileForProvision(
+  requested: string | null | undefined,
+  policyDefault?: string | null,
+): IndustryProfile {
+  if (requested && requested !== "custom" && isIndustryProfile(requested)) {
+    return requested;
+  }
+  if (policyDefault && policyDefault !== "custom" && isIndustryProfile(policyDefault)) {
+    return policyDefault;
+  }
+  return "retail";
 }
 
 export function isStockOpsNavHref(href: string): boolean {

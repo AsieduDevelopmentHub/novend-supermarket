@@ -87,7 +87,7 @@ export const HOTEL_EXPERIENCE: ResolvedExperienceTokens = {
 export function experiencePresetForIndustry(
   profile: string | null | undefined,
 ): ResolvedExperienceTokens {
-  if (profile === "restaurant") return { ...RESTAURANT_EXPERIENCE };
+  if (profile === "restaurant" || profile === "bar") return { ...RESTAURANT_EXPERIENCE };
   if (profile === "hotel") return { ...HOTEL_EXPERIENCE };
   return { ...DEFAULT_NOVEND_EXPERIENCE };
 }

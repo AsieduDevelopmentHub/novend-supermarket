@@ -67,6 +67,53 @@ export async function enqueueProcessReturn(
   return row;
 }
 
+export async function enqueueDiningOpenSession(
+  db: NovendOfflineDb,
+  clientOperationId: string,
+  payload: { tableId: string; guestCount?: number },
+): Promise<OutboxRow> {
+  const now = Date.now();
+  const row: OutboxRow = {
+    id: newClientId("outbox"),
+    type: "dining_open_session",
+    clientOperationId,
+    payloadJson: JSON.stringify(payload),
+    status: "pending",
+    attempts: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.outbox.put(row);
+  notifyReplicaChanged();
+  return row;
+}
+
+export async function enqueueDiningPaySession(
+  db: NovendOfflineDb,
+  clientOperationId: string,
+  payload: {
+    sessionId: string;
+    paymentMethod: "cash" | "card" | "mobile_money";
+    discount?: number;
+    customerName?: string;
+  },
+): Promise<OutboxRow> {
+  const now = Date.now();
+  const row: OutboxRow = {
+    id: newClientId("outbox"),
+    type: "dining_pay_session",
+    clientOperationId,
+    payloadJson: JSON.stringify(payload),
+    status: "pending",
+    attempts: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.outbox.put(row);
+  notifyReplicaChanged();
+  return row;
+}
+
 export async function listPendingOutbox(db: NovendOfflineDb): Promise<OutboxRow[]> {
   try {
     return await db.outbox

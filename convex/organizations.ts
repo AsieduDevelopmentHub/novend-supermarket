@@ -42,6 +42,7 @@ export const create = mutation({
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
     taxId: v.optional(v.string()),
+    industryProfile: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId, user } = await requireAuth(ctx);
@@ -71,6 +72,7 @@ export const create = mutation({
       actorId: userId,
       license: { kind: "trial", planKey: "pro" },
       auditAction: "organization_self_signup",
+      industryProfile: args.industryProfile,
     });
 
     if (args.timezone?.trim()) {

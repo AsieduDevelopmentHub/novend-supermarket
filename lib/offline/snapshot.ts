@@ -52,6 +52,7 @@ import type {
   MirroredBranchStock,
   MirroredCategory,
   MirroredCustomer,
+  MirroredDiningTable,
   MirroredExpense,
   MirroredLot,
   MirroredOrder,
@@ -186,6 +187,7 @@ export async function applySnapshot(
     staffCompensation?: MirroredStaffCompensation[];
     returns?: MirroredReturn[];
     lots?: MirroredLot[];
+    diningTables?: MirroredDiningTable[];
     print: PrintSnapshot;
     businessCapabilities?: OrganizationBusinessConfiguration;
     productImagesPolicy?: ProductImagesPolicy;
@@ -218,6 +220,7 @@ export async function applySnapshot(
     db.expenses,
     db.returns,
     db.lots,
+    db.diningTables,
     db.meta,
   ];
   await db.transaction("rw", tables, async () => {
@@ -294,6 +297,7 @@ export async function applySnapshot(
     await replaceServerRows(db.expenses, snapshot.expenses ?? [], pendingLocalIds, sameExpense);
     await replaceServerRows(db.returns, snapshot.returns ?? [], pendingLocalIds, sameReturnNumber);
     await replaceServerRows(db.lots, snapshot.lots ?? [], pendingLocalIds);
+    await replaceServerRows(db.diningTables, snapshot.diningTables ?? [], pendingLocalIds);
     await setMeta(db, META_KEYS.printSnapshot, JSON.stringify(snapshot.print));
     await setMeta(
       db,

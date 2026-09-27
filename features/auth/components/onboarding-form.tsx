@@ -8,12 +8,33 @@ import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import { navigateAfterLogin, resolvePostLoginPath } from "@/lib/auth/redirect-after-login";
+import type { IndustryProfile } from "@/convex/shared/businessCapabilities";
+
+const ONBOARDING_INDUSTRY_OPTIONS: Array<{ value: IndustryProfile | "other"; label: string }> = [
+  { value: "retail", label: "Retail shop" },
+  { value: "wholesale", label: "Wholesale distribution" },
+  { value: "supermarket", label: "Supermarket" },
+  { value: "cold_store", label: "Cold store / meat & fish" },
+  { value: "electronics", label: "Electronics" },
+  { value: "pharmacy", label: "Pharmacy" },
+  { value: "restaurant", label: "Restaurant / F&B" },
+  { value: "bar", label: "Bar / lounge" },
+  { value: "hotel", label: "Hotel / lodging" },
+  { value: "other", label: "Other (retail defaults)" },
+];
 
 /** Completes public SaaS signup by creating the owner's organization on a Pro trial. */
 export function OnboardingForm() {
@@ -24,6 +45,7 @@ export function OnboardingForm() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [industry, setIndustry] = useState<string>("retail");
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
@@ -47,11 +69,13 @@ export function OnboardingForm() {
     event.preventDefault();
     setPending(true);
     try {
+      const industryProfile = industry === "other" ? "custom" : industry;
       await createOrganization({
         name,
         currency: "GHS",
         phone: phone.trim() || undefined,
         address: address.trim() || undefined,
+        industryProfile,
       });
       toast.success("Your 14-day Pro trial is live");
       const path = await resolvePostLoginPath(convex);
@@ -96,6 +120,25 @@ export function OnboardingForm() {
             className="h-11"
             placeholder="e.g. East Legon Pharmacy"
           />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="business-type">Business type</Label>
+          <Select value={industry} onValueChange={setIndustry}>
+            <SelectTrigger id="business-type" className="h-11">
+              <SelectValue placeholder="Choose type" />
+            </SelectTrigger>
+            <SelectContent>
+              {ONBOARDING_INDUSTRY_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-muted-foreground text-xs">
+            Restaurant and bar unlock floor tables, modifiers, and kitchen. Hotel starts with
+            room-rate catalogue (no stock ops). Other uses retail defaults.
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="business-phone">Phone (optional)</Label>

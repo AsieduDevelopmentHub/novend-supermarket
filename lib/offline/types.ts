@@ -27,7 +27,19 @@ export type OutboxOpType =
   | "upsert_branch"
   | "upsert_staff_compensation"
   | "pay_salary"
-  | "pay_commission";
+  | "pay_commission"
+  | "dining_open_session"
+  | "dining_pay_session";
+
+export type MirroredDiningTable = {
+  id: string;
+  branchId: string;
+  name: string;
+  code?: string | null;
+  seats?: number | null;
+  status: "active" | "inactive";
+  sortOrder?: number | null;
+};
 
 export type LocalSaleSyncStatus = "pending" | "synced" | "failed";
 

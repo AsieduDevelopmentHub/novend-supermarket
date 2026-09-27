@@ -6,6 +6,7 @@ import {
   hasBusinessCapability,
   parseBusinessConfiguration,
   planAllowsBusinessCapability,
+  resolveIndustryProfileForProvision,
   stockOpsVisibleForIndustry,
   validateBusinessCapabilitySet,
 } from "@/convex/shared/businessCapabilities";
@@ -60,9 +61,26 @@ describe("businessCapabilities registry", () => {
     const restaurant = configurationFromIndustryPack("restaurant", "basic");
     expect(restaurant.enabledCapabilities).toContain("non_stock_sales");
     expect(restaurant.enabledCapabilities).toContain("configurable_pos");
+    expect(restaurant.enabledCapabilities).toContain("tables_orders");
+    expect(restaurant.enabledCapabilities).toContain("kitchen_tickets");
+    expect(restaurant.enabledCapabilities).toContain("modifiers");
 
     const hotel = configurationFromIndustryPack("hotel", "basic");
     expect(hotel.enabledCapabilities).toContain("non_stock_sales");
+    expect(hotel.enabledCapabilities).not.toContain("tables_orders");
+  });
+
+  it("applies bar pack like restaurant dining", () => {
+    const bar = configurationFromIndustryPack("bar", "basic");
+    expect(bar.enabledCapabilities).toContain("tables_orders");
+    expect(bar.enabledCapabilities).toContain("kitchen_tickets");
+  });
+
+  it("resolves provision industry with custom → retail and policy default", () => {
+    expect(resolveIndustryProfileForProvision("custom")).toBe("retail");
+    expect(resolveIndustryProfileForProvision(undefined, "restaurant")).toBe("restaurant");
+    expect(resolveIndustryProfileForProvision("bar")).toBe("bar");
+    expect(resolveIndustryProfileForProvision("other")).toBe("retail");
   });
 
   it("allows non_stock_sales on Basic", () => {
@@ -79,9 +97,10 @@ describe("navigation capability gates", () => {
     expect(pathAllowedForRole("/sales", "cashier")).toBe(true);
   });
 
-  it("hides stock-ops nav for restaurant and hotel profiles", () => {
+  it("hides stock-ops nav for restaurant, hotel, and bar profiles", () => {
     expect(stockOpsVisibleForIndustry("restaurant")).toBe(false);
     expect(stockOpsVisibleForIndustry("hotel")).toBe(false);
+    expect(stockOpsVisibleForIndustry("bar")).toBe(false);
     expect(stockOpsVisibleForIndustry("retail")).toBe(true);
 
     const restaurantNav = navGroupsForRole("administrator", [], {

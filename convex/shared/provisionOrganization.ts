@@ -14,6 +14,13 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { writeAuditLog } from "./audit";
 import { DEFAULT_BRANCH_CODE, DEFAULT_BRANCH_NAME } from "./defaultBranch";
+import {
+  BUSINESS_CAPABILITY_CONFIGURATION_VERSION,
+  configurationFromIndustryPack,
+  resolveIndustryProfileForProvision,
+  type IndustryProfile,
+} from "./businessCapabilities";
+import { experiencePresetForIndustry } from "./experience";
 import { PLAN_CATALOG, supportsCycle, type BillingCycle, type PlanKey } from "./plans";
 import { activateSubscription, startTrial } from "./subscriptions";
 import { sanitizeOptionalText, sanitizeText, TEXT_LIMITS } from "./validation";
@@ -44,6 +51,8 @@ export type ProvisionOrganizationArgs = {
   actorId?: Id<"users">;
   license: ProvisionLicense;
   auditAction: string;
+  /** Owner-selected industry; custom/omitted resolves via policy default then retail. */
+  industryProfile?: string;
 };
 
 /**
@@ -85,6 +94,12 @@ export async function provisionOrganization(
   const now = Date.now();
   const policy = await resolveActiveProvisioningPolicy(ctx, now);
 
+  const industryProfile: IndustryProfile = resolveIndustryProfileForProvision(
+    args.industryProfile,
+    policy?.defaultIndustryProfile,
+  );
+  const tokens = experiencePresetForIndustry(industryProfile);
+
   const organizationId = await ctx.db.insert("organizations", {
     name,
     slug,
@@ -97,7 +112,15 @@ export async function provisionOrganization(
     entitlementVersion: 1,
     experiencePresetId: policy?.experiencePresetId,
     featureTemplateId: policy?.featureTemplateId,
-    experienceVersion: policy?.experiencePresetId ? 1 : undefined,
+    experienceOverrides: {
+      accent: tokens.accent,
+      accentForeground: tokens.accentForeground,
+      sidebarBackground: tokens.sidebarBackground,
+      sidebarForeground: tokens.sidebarForeground,
+      sidebarAccent: tokens.sidebarAccent,
+      sidebarAccentForeground: tokens.sidebarAccentForeground,
+    },
+    experienceVersion: 1,
     featureEntitlementVersion: policy?.featureTemplateId ? 1 : undefined,
     createdAt: now,
     updatedAt: now,
@@ -145,16 +168,6 @@ export async function provisionOrganization(
     key: "pos.preferences",
     value: JSON.stringify({ autoPrintReceipt: false, receiptPrintMode: "manual" }),
   });
-  await ctx.db.insert("settings", {
-    organizationId,
-    key: "business.capabilities",
-    value: JSON.stringify({
-      industryProfile: "retail",
-      enabledCapabilities: [],
-      capabilitySettings: {},
-      configurationVersion: 1,
-    }),
-  });
 
   let planKey: PlanKey;
   if (args.license.kind === "trial") {
@@ -180,6 +193,16 @@ export async function provisionOrganization(
     });
   }
 
+  const capabilities = configurationFromIndustryPack(industryProfile, planKey);
+  await ctx.db.insert("settings", {
+    organizationId,
+    key: "business.capabilities",
+    value: JSON.stringify({
+      ...capabilities,
+      configurationVersion: BUSINESS_CAPABILITY_CONFIGURATION_VERSION,
+    }),
+  });
+
   await writeAuditLog(ctx, {
     organizationId,
     actorId: args.actorId ?? args.ownerUserId,
@@ -190,6 +213,7 @@ export async function provisionOrganization(
       planKey,
       trial: args.license.kind === "trial",
       provisioningPolicyId: policy?._id ?? null,
+      industryProfile,
     },
   });
 

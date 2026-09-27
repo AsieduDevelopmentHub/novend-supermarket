@@ -36,6 +36,7 @@ const PROFILE_LABELS: Record<IndustryProfile, string> = {
   electronics: "Electronics",
   pharmacy: "Pharmacy (inventory)",
   restaurant: "Restaurant / F&B",
+  bar: "Bar / lounge",
   hotel: "Hotel / lodging",
   custom: "Custom",
 };
@@ -47,7 +48,8 @@ const PROFILE_BLURBS: Record<IndustryProfile, string> = {
   cold_store: "Weight selling, lots, and optional scale support.",
   electronics: "Serial / IMEI tracking for high-value items.",
   pharmacy: "Lots, expiry, and room for custom catalog fields.",
-  restaurant: "Menu items without required stock; optional stock for drinks and supplies.",
+  restaurant: "Menu catalogue, floor tables, modifiers, and kitchen tickets.",
+  bar: "Drink menu, floor/tables, modifiers, and bar ticket queue.",
   hotel: "Room types and rates at POS — quantity is nights; stock not required.",
   custom: "Start empty and turn on only what you need.",
 };
@@ -59,6 +61,9 @@ const CATALOG_KEYS: BusinessCapabilityKey[] = [
   "lot_expiry",
   "serial_tracking",
   "non_stock_sales",
+  "modifiers",
+  "tables_orders",
+  "kitchen_tickets",
 ];
 
 const OTHER_KEYS: BusinessCapabilityKey[] = (
@@ -77,6 +82,12 @@ function productFormHint(key: BusinessCapabilityKey): string | null {
       return "Serial fields land in a later release";
     case "non_stock_sales":
       return "Shows Track inventory toggle on Add Product";
+    case "modifiers":
+      return "Modifier groups on menu products";
+    case "tables_orders":
+      return "Floor tables and open checks";
+    case "kitchen_tickets":
+      return "Kitchen / bar ticket queue";
     default:
       return null;
   }
@@ -142,7 +153,9 @@ export function BusinessCapabilitiesPanel() {
       setSelected(next.enabledCapabilities);
       await saveBusinessCapabilitiesCache(next);
       const brandNote =
-        effectiveProfile === "restaurant" || effectiveProfile === "hotel"
+        effectiveProfile === "restaurant" ||
+        effectiveProfile === "hotel" ||
+        effectiveProfile === "bar"
           ? " Brand colors were reset to the pack default — reload if the UI has not updated."
           : "";
       toast.success(`Applied ${PROFILE_LABELS[effectiveProfile]} pack.${brandNote}`);

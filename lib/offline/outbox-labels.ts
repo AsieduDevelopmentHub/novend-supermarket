@@ -9,6 +9,8 @@ import {
 
 const OP_LABELS: Record<OutboxOpType, string> = {
   complete_sale: "Sale",
+  dining_open_session: "Open table check",
+  dining_pay_session: "Pay table check",
   process_return: "Return",
   upsert_supplier: "Supplier",
   record_wholesale_purchase: "Wholesale purchase",

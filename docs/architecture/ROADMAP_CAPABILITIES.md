@@ -153,15 +153,24 @@ Full Phase B / C domain modules remain deferred below.
 
 ---
 
-## Phase B — Restaurant domain (deferred)
+## Phase B — Restaurant / bar floor — **implemented (MVP)**
 
-Separate product effort after Stages 1–5 prove the kernel.
+| Item | Notes |
+| ---- | ----- |
+| Capabilities | `modifiers`, `tables_orders`, `kitchen_tickets` (Basic+; kitchen depends on tables) |
+| Profiles | `restaurant` / `bar` packs include lite + Phase B keys; `hotel` stays room-rate lite |
+| Onboarding | Owner picks business type; Other/custom → retail; optional policy `defaultIndustryProfile` |
+| Domain tables | `diningTables`, `diningSessions`, `diningSessionItems`, `modifierGroups`, `modifierOptions`, `kitchenTickets`, `kitchenTicketLines` |
+| Settle | `dining.paySession` → immutable `sales` / `saleItems` / receipts / stock |
+| UI | `/floor`, `/kitchen`; product modifier editor when capability on |
+| Offline | Dining tables mirrored in Dexie; open/pay outbox ops; floor/kitchen writes require online for MVP |
+| Still deferred | Recipe/BOM → inventory, tip pools, guest QR |
 
-Entities such as: restaurant order, table session, modifiers, kitchen ticket, recipe consumption → inventory via `inventoryHistory`.
+## Phase B — Restaurant domain (deferred extensions)
 
-Capabilities (when designed): `modifiers`, `tables_orders`, `kitchen_tickets`.
+Recipe consumption → `inventoryHistory`, advanced course firing.
 
-**Do not** implement on the same branch as UOM or pack pricing.
+Capabilities (when designed): recipe BOM (extends Phase B MVP).
 
 ---
 

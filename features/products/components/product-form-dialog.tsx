@@ -29,6 +29,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { TakeProductPhotoDialog } from "@/features/products/components/take-product-photo-dialog";
+import { ProductModifiersEditor } from "@/features/dining/components/product-modifiers-editor";
 import { ProductBarcodeField } from "@/features/products/components/product-barcode-field";
 import {
   ProductSellUnitsEditor,
@@ -222,11 +223,12 @@ function ProductFormBody({
   const showWeight = hasCapability("sell_by_weight");
   const showSellUnits = showPacks || showWeight;
   const showNonStock = hasCapability("non_stock_sales");
+  const showModifiers = hasCapability("modifiers");
   const showExpiry = hasCapability("lot_expiry") || initialProduct?.tracksExpiry === true;
   const defaultUnit =
     industryProfile === "hotel"
       ? "night"
-      : industryProfile === "restaurant"
+      : industryProfile === "restaurant" || industryProfile === "bar"
         ? "portion"
         : showPacks || showWeight
           ? "packs"
@@ -969,6 +971,12 @@ function ProductFormBody({
           ) : null}
         </aside>
       </div>
+
+      {showModifiers && productId ? (
+        <div className="mt-4">
+          <ProductModifiersEditor productId={productId} />
+        </div>
+      ) : null}
 
       <DialogFooter className="gap-2 sm:justify-end">
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

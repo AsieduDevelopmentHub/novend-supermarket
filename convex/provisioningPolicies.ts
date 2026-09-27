@@ -71,6 +71,7 @@ export const create = mutation({
     experiencePresetId: v.optional(v.id("experiencePresets")),
     featureTemplateId: v.optional(v.id("featureTemplates")),
     publicPlanKey: v.optional(sellablePlanKeyValidator),
+    defaultIndustryProfile: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
@@ -112,6 +113,7 @@ export const create = mutation({
       experiencePresetId,
       featureTemplateId: args.featureTemplateId,
       publicPlanKey: args.publicPlanKey,
+      defaultIndustryProfile: args.defaultIndustryProfile?.trim() || undefined,
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
@@ -129,6 +131,7 @@ export const create = mutation({
         experiencePresetId,
         featureTemplateId: args.featureTemplateId ?? null,
         publicPlanKey: args.publicPlanKey ?? null,
+        defaultIndustryProfile: args.defaultIndustryProfile ?? null,
       },
     });
 
@@ -145,6 +148,7 @@ export const update = mutation({
     experiencePresetId: v.optional(v.id("experiencePresets")),
     featureTemplateId: v.optional(v.union(v.id("featureTemplates"), v.null())),
     publicPlanKey: v.optional(v.union(sellablePlanKeyValidator, v.null())),
+    defaultIndustryProfile: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
     const { userId } = await requirePlatformAdmin(ctx, "entitlements.write");
@@ -190,6 +194,12 @@ export const update = mutation({
     }
     if (args.publicPlanKey !== undefined) {
       patch.publicPlanKey = args.publicPlanKey === null ? undefined : args.publicPlanKey;
+    }
+    if (args.defaultIndustryProfile !== undefined) {
+      patch.defaultIndustryProfile =
+        args.defaultIndustryProfile === null || args.defaultIndustryProfile === ""
+          ? undefined
+          : args.defaultIndustryProfile.trim();
     }
 
     await ctx.db.patch(args.policyId, patch);
