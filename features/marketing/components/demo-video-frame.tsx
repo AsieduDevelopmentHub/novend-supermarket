@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   src: string;
-  /** Brandmark (or other logo) shown before playback. */
+  /** Brandmark shown as a soft watermark before playback. */
   poster: string;
   videoRef?: RefObject<HTMLVideoElement | null>;
   className?: string;
@@ -14,9 +14,8 @@ type Props = {
 };
 
 /**
- * 16:9 marketing video frame with Novend logo poster overlay.
- * Native `poster` alone stretches a square brandmark across the frame;
- * the overlay keeps the logo centered on the navy stage until play.
+ * 16:9 marketing video frame with a book-style Novend watermark.
+ * Soft opacity on the navy stage — not a hard opaque thumbnail collage.
  */
 export function DemoVideoFrame({ src, poster, videoRef, className, frameClassName }: Props) {
   const [playing, setPlaying] = useState(false);
@@ -38,31 +37,14 @@ export function DemoVideoFrame({ src, poster, videoRef, className, frameClassNam
           frameClassName,
         )}
       >
-        {!playing ? (
-          <div
-            className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-[#071426]"
-            aria-hidden
-          >
-            <Image
-              src={poster}
-              alt=""
-              width={160}
-              height={160}
-              unoptimized
-              className="h-16 w-16 object-contain opacity-95 sm:h-24 sm:w-24"
-              sizes="96px"
-            />
-          </div>
-        ) : null}
         <video
           key={src}
           ref={videoRef}
-          className="relative z-[2] h-full w-full object-contain"
+          className="h-full w-full object-contain"
           controls
           playsInline
           preload="metadata"
           controlsList="nodownload"
-          poster={poster}
           onPlay={() => setPlaying(true)}
           onPause={(event) => {
             if (event.currentTarget.currentTime < 0.35) setPlaying(false);
@@ -72,6 +54,23 @@ export function DemoVideoFrame({ src, poster, videoRef, className, frameClassNam
           <source src={src} type="video/mp4" />
           Your browser does not support embedded video.
         </video>
+
+        {!playing ? (
+          <div
+            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#071426]"
+            aria-hidden
+          >
+            <Image
+              src={poster}
+              alt=""
+              width={200}
+              height={200}
+              unoptimized
+              className="h-20 w-20 object-contain opacity-[0.28] sm:h-28 sm:w-28 sm:opacity-[0.32]"
+              sizes="112px"
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );
