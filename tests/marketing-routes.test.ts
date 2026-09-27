@@ -20,6 +20,7 @@ describe("isMarketingPath", () => {
     expect(isMarketingPath("/")).toBe(true);
     expect(isMarketingPath("/download")).toBe(true);
     expect(isMarketingPath("/contact")).toBe(true);
+    expect(isMarketingPath("/demo")).toBe(true);
     expect(isMarketingPath("/docs/help")).toBe(true);
     expect(isMarketingPath("/privacy")).toBe(true);
   });

@@ -2,11 +2,13 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { landingCopy } from "@/features/marketing/content";
+import { isMarketingPath } from "@/lib/marketing-routes";
 
 describe("marketing product demo", () => {
-  it("publishes overview and guided chapters with public media files", () => {
+  it("publishes complete training and guided chapters with public media files", () => {
     const published = landingCopy.demo.chapters.filter((chapter) => chapter.published);
     expect(published.map((chapter) => chapter.id)).toEqual(["overview", "guided"]);
+    expect(published[0]?.src).toBe("/marketing/demo/complete-training.mp4");
 
     for (const chapter of published) {
       expect(chapter.src).toMatch(/^\/marketing\/demo\/.+\.mp4$/);
@@ -33,8 +35,48 @@ describe("marketing product demo", () => {
   it("exposes demo CTAs and nav entry", () => {
     expect(landingCopy.demo.primaryCta.length).toBeGreaterThan(0);
     expect(landingCopy.demo.secondaryHref).toBe("/contact");
-    expect(landingCopy.nav.demo.href).toBe("/#demo");
-    expect(landingCopy.hero.secondaryHref).toBe("/#demo");
-    expect(landingCopy.footer.product.some((item) => item.href === "/#demo")).toBe(true);
+    expect(landingCopy.demo.seriesHref).toBe("/demo");
+    expect(landingCopy.nav.demo.href).toBe("/demo");
+    expect(landingCopy.hero.secondaryHref).toBe("/demo");
+    expect(landingCopy.footer.product.some((item) => item.href === "/demo")).toBe(true);
+  });
+});
+
+describe("marketing training series demo page", () => {
+  it("defaults to the merged complete training as the main video", () => {
+    expect(landingCopy.demoPage.full.id).toBe("full");
+    expect(landingCopy.demoPage.full.src).toBe("/marketing/demo/complete-training.mp4");
+    const fullPath = resolve(
+      process.cwd(),
+      "public",
+      landingCopy.demoPage.full.src.replace(/^\//, ""),
+    );
+    expect(existsSync(fullPath), `missing ${landingCopy.demoPage.full.src}`).toBe(true);
+  });
+
+  it("publishes fourteen per-action episodes with media on disk", () => {
+    expect(landingCopy.demoPage.episodes).toHaveLength(14);
+    expect(landingCopy.demoPage.episodes.map((episode) => episode.order)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    ]);
+
+    const posterPath = resolve(
+      process.cwd(),
+      "public",
+      landingCopy.demoPage.poster.replace(/^\//, ""),
+    );
+    expect(existsSync(posterPath), `missing ${landingCopy.demoPage.poster}`).toBe(true);
+
+    for (const episode of landingCopy.demoPage.episodes) {
+      expect(episode.src).toMatch(/^\/marketing\/demo\/training\/.+\.mp4$/);
+      const diskPath = resolve(process.cwd(), "public", episode.src.replace(/^\//, ""));
+      expect(existsSync(diskPath), `missing ${episode.src}`).toBe(true);
+    }
+  });
+
+  it("treats /demo as a public marketing route", () => {
+    expect(isMarketingPath("/demo")).toBe(true);
+    expect(isMarketingPath("/demo#sales")).toBe(true);
+    expect(isMarketingPath("/demo#full")).toBe(true);
   });
 });

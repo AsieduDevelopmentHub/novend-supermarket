@@ -172,6 +172,14 @@ export function LandingDemo() {
             variant="outline"
             className="h-12 rounded-full border-[rgba(11,18,32,0.12)] bg-white px-7 text-[15px] font-semibold text-[#0B1220]"
           >
+            <Link href={demo.seriesHref}>{demo.seriesCta}</Link>
+          </Button>
+          <Button
+            asChild
+            size="lg"
+            variant="ghost"
+            className="h-12 rounded-full px-5 text-[15px] font-semibold text-slate-600"
+          >
             <Link href={demo.secondaryHref}>{demo.secondaryCta}</Link>
           </Button>
         </div>
