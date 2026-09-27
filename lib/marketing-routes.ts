@@ -30,6 +30,7 @@ export function isMarketingPath(pathname: string | null | undefined): boolean {
     exactOrChild(path, "/download") ||
     exactOrChild(path, "/pricing") ||
     exactOrChild(path, "/contact") ||
+    exactOrChild(path, "/demo") ||
     exactOrChild(path, "/product") ||
     exactOrChild(path, "/industries") ||
     exactOrChild(path, "/docs") ||

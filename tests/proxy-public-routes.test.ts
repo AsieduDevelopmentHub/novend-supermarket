@@ -12,6 +12,8 @@ describe("proxy public routes", () => {
     expect(source).toContain('"/product/(.*)"');
     expect(source).toContain('"/contact"');
     expect(source).toContain('"/contact/(.*)"');
+    expect(source).toContain('"/demo"');
+    expect(source).toContain('"/demo/(.*)"');
     expect(source).toContain("isStaticPublicRoute");
     expect(source).toContain("isPublicRoute");
 

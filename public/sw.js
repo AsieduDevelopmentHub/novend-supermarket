@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v23";/**
+const CACHE_NAME = "novend-pos-v24";/**
  * Public documents + icons only. Do not precache `/` or `/dashboard`:
  * cache.add follows the auth 302 and stores POS HTML under the marketing URL
  * (splash stuck on https://novend-pos.vercel.app/). Gated routes 302 to login.
@@ -11,6 +11,7 @@ const PRECACHE = [
   "/download",
   "/pricing",
   "/product",
+  "/demo",
   "/privacy",
   "/terms",
   "/docs",
@@ -317,7 +318,9 @@ function isMarketingPathname(pathname) {
     exactOrChild("/download") ||
     exactOrChild("/pricing") ||
     exactOrChild("/product") ||
+    exactOrChild("/demo") ||
     exactOrChild("/industries") ||
+    exactOrChild("/contact") ||
     pathname === "/privacy" ||
     pathname === "/terms" ||
     pathname === "/unauthorized" ||
