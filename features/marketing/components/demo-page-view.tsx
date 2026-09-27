@@ -21,14 +21,15 @@ type Playable = {
   order?: number;
 };
 
-function parsePlayableHash(hash: string): PlayableId | null {
-  const raw = hash.replace(/^#/, "");
+/** Resolve URL hash to a playable id. Empty / unknown / legacy `#demo` → full. */
+export function parsePlayableHash(hash: string): PlayableId {
+  const raw = hash.replace(/^#/, "").trim();
   if (!raw || raw === "demo" || raw === "full") return "full";
   const id = (raw.startsWith("episode-") ? raw.slice("episode-".length) : raw) as PlayableId;
   if (id === "full") return "full";
   return landingCopy.demoPage.episodes.some((episode) => episode.id === id)
     ? (id as EpisodeId)
-    : null;
+    : "full";
 }
 
 function resolvePlayable(id: PlayableId): Playable {
@@ -87,7 +88,7 @@ function DemoChip({ selected, label, badge, description, onSelect, className }: 
 /**
  * Demo detail page — complete training is the main video; series is per-action.
  * Mobile: player first, then a compact horizontal episode rail.
- * Deep link: `/demo`, `/demo#full`, `/demo#sales`, `/demo#episode-inventory`.
+ * Deep link: `/demo` and `/demo#full` open complete training; `/demo#sales` opens an episode.
  */
 export function DemoPageView() {
   const { demoPage } = landingCopy;
@@ -101,8 +102,12 @@ export function DemoPageView() {
   useEffect(() => {
     const applyHash = () => {
       const id = parsePlayableHash(window.location.hash);
-      if (!id) return;
       setActiveId(id);
+      // Normalize bare `/demo` (and unknown hashes) to the full-video deep link.
+      const nextHash = id === "full" ? "#full" : `#${id}`;
+      if (window.location.hash !== nextHash) {
+        window.history.replaceState(null, "", nextHash);
+      }
     };
     applyHash();
     window.addEventListener("hashchange", applyHash);
@@ -119,6 +124,11 @@ export function DemoPageView() {
   useEffect(() => {
     const rail = railRef.current;
     if (!rail) return;
+    // Keep Full at the start of the rail — centering it scrolls Dashboard into view.
+    if (activeId === "full") {
+      rail.scrollLeft = 0;
+      return;
+    }
     const selected = rail.querySelector<HTMLElement>("[aria-current='true']");
     selected?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   }, [activeId]);
