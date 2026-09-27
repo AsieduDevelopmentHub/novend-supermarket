@@ -174,12 +174,24 @@ Capabilities (when designed): recipe BOM (extends Phase B MVP).
 
 ---
 
-## Phase C — Hospitality and regulated pharmacy (deferred)
+## Phase C — Hotel folio MVP (implemented)
 
-| Area          | Notes                                                                                                                    |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Hospitality   | Rooms, guests, reservations, stays, folios—beyond catalogue room rates. Capability: `rooms_folio` (and related) when designed. Room-rate POS sales use `non_stock_sales` (Phase B lite). |
-| `rx_controls` | Regulated; **out of scope** until a compliance design exists.                                                            |
+| Area | Notes |
+| ---- | ----- |
+| Capabilities | `rooms_folio`, `reservations` (Basic+; reservations depends on rooms_folio) |
+| Hotel pack | `non_stock_sales`, `configurable_pos`, `rooms_folio`, `reservations` |
+| Domain tables | `hotelRooms`, `hotelReservations`, `hotelStays`, `hotelFolioCharges` |
+| Guests | Existing `customers` (no separate guest CRM) |
+| Settle | `hotel.checkoutPay` → immutable `sales` / `saleItems` / receipts / stock |
+| UI | `/rooms` board + folio, `/reservations`; org experience tokens (`--primary`) |
+| Offline | Rooms mirrored in Dexie; check-in / checkout outbox ops; board writes online-first |
+| Still deferred | OTA/channels, deposits, tax splits, dining-on-folio, housekeeping apps |
+
+## Phase C — Regulated pharmacy (deferred)
+
+| Area | Notes |
+| ---- | ----- |
+| `rx_controls` | Regulated; **out of scope** until a compliance design exists. |
 
 ---
 
@@ -194,7 +206,8 @@ Capabilities (when designed): recipe BOM (extends Phase B MVP).
 5  custom_fields · import/receipt presets · configurable_pos
 5b non_stock_sales + restaurant/hotel packs (lite)
 —  Phase B restaurant (tables / modifiers / kitchen)
-—  Phase C hospitality / rx_controls
+—  Phase C hotel folio MVP (rooms / reservations / checkout → sales)
+—  Phase C rx_controls (deferred)
 ```
 
 ---

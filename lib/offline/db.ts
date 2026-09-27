@@ -22,6 +22,7 @@ import type {
   MirroredWholesaleStock,
   MirroredWholesaleTransfer,
   MirroredDiningTable,
+  MirroredHotelRoom,
   OfflineMeta,
   OutboxRow,
   LocalReturn,
@@ -55,6 +56,7 @@ export type NovendOfflineDb = Dexie & {
   productImages: EntityTable<ProductImageCache, "id">;
   lots: EntityTable<MirroredLot, "id">;
   diningTables: EntityTable<MirroredDiningTable, "id">;
+  hotelRooms: EntityTable<MirroredHotelRoom, "id">;
   outbox: EntityTable<OutboxRow, "id">;
 };
 
@@ -377,6 +379,16 @@ export function createOfflineDb(organizationId?: string, userId?: string): Noven
     expenses:
       "id, occurredAt, branchId, category, beneficiaryProfileId, payPeriodKey, sourceKind, recordedByUserId",
     diningTables: "id, branchId, status, name",
+  });
+  // v12: Phase C hotel rooms mirror; stays/folio stay online-authoritative.
+  db.version(12).stores({
+    ...storesV8,
+    lots: "id, productId, branchId, expiryDate, [productId+branchId]",
+    staffCompensation: "id",
+    expenses:
+      "id, occurredAt, branchId, category, beneficiaryProfileId, payPeriodKey, sourceKind, recordedByUserId",
+    diningTables: "id, branchId, status, name",
+    hotelRooms: "id, branchId, status, name",
   });
   return db;
 }

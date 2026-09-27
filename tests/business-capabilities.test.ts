@@ -67,7 +67,18 @@ describe("businessCapabilities registry", () => {
 
     const hotel = configurationFromIndustryPack("hotel", "basic");
     expect(hotel.enabledCapabilities).toContain("non_stock_sales");
+    expect(hotel.enabledCapabilities).toContain("rooms_folio");
+    expect(hotel.enabledCapabilities).toContain("reservations");
     expect(hotel.enabledCapabilities).not.toContain("tables_orders");
+  });
+
+  it("expands reservations dependency on rooms_folio", () => {
+    const result = validateBusinessCapabilitySet(["reservations"], "basic");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.keys).toContain("rooms_folio");
+      expect(result.keys).toContain("reservations");
+    }
   });
 
   it("applies bar pack like restaurant dining", () => {

@@ -291,6 +291,34 @@ export const getSnapshot = query({
         }));
     }
 
+    let hotelRooms: Array<{
+      id: string;
+      branchId: string;
+      name: string;
+      roomType: string | null;
+      defaultProductId: string | null;
+      status: "available" | "occupied" | "dirty" | "maintenance" | "inactive";
+      sortOrder: number | null;
+    }> = [];
+    if (hasBusinessCapability(businessCapabilities, "rooms_folio")) {
+      const rooms = await ctx.db
+        .query("hotelRooms")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect();
+      hotelRooms = rooms
+        .filter((r) => r.status !== "inactive")
+        .filter((r) => (profile.role === "administrator" ? true : r.branchId === branchId))
+        .map((r) => ({
+          id: r._id as string,
+          branchId: r.branchId as string,
+          name: r.name,
+          roomType: r.roomType ?? null,
+          defaultProductId: (r.defaultProductId as string | undefined) ?? null,
+          status: r.status,
+          sortOrder: r.sortOrder ?? null,
+        }));
+    }
+
     const canManage = profile.role === "administrator" || profile.role === "manager";
 
     let suppliers: Array<{
@@ -658,6 +686,7 @@ export const getSnapshot = query({
       businessCapabilities,
       productImagesPolicy,
       diningTables,
+      hotelRooms,
       profile: {
         userId: userId as string,
         name: profile.name,

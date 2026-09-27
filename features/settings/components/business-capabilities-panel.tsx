@@ -50,7 +50,7 @@ const PROFILE_BLURBS: Record<IndustryProfile, string> = {
   pharmacy: "Lots, expiry, and room for custom catalog fields.",
   restaurant: "Menu catalogue, floor tables, modifiers, and kitchen tickets.",
   bar: "Drink menu, floor/tables, modifiers, and bar ticket queue.",
-  hotel: "Room types and rates at POS — quantity is nights; stock not required.",
+  hotel: "Rooms board, reservations, folio checkout, and room-rate catalogue at POS.",
   custom: "Start empty and turn on only what you need.",
 };
 
@@ -64,6 +64,8 @@ const CATALOG_KEYS: BusinessCapabilityKey[] = [
   "modifiers",
   "tables_orders",
   "kitchen_tickets",
+  "rooms_folio",
+  "reservations",
 ];
 
 const OTHER_KEYS: BusinessCapabilityKey[] = (
@@ -88,6 +90,10 @@ function productFormHint(key: BusinessCapabilityKey): string | null {
       return "Floor tables and open checks";
     case "kitchen_tickets":
       return "Kitchen / bar ticket queue";
+    case "rooms_folio":
+      return "Rooms board, stays, and folio checkout";
+    case "reservations":
+      return "Book arrivals and check in from a reservation";
     default:
       return null;
   }

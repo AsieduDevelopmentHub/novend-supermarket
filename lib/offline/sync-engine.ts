@@ -180,6 +180,19 @@ export type QueuedMutators = {
     customerName?: string;
     clientOperationId?: string;
   }) => Promise<{ saleId: Id<"sales">; invoiceNumber: string; total: number }>;
+  hotelCheckIn: (args: {
+    roomId: Id<"hotelRooms">;
+    customerId: Id<"customers">;
+    reservationId?: Id<"hotelReservations">;
+    notes?: string;
+    clientOperationId?: string;
+  }) => Promise<{ stayId: Id<"hotelStays"> }>;
+  hotelCheckoutPay: (args: {
+    stayId: Id<"hotelStays">;
+    paymentMethod: "cash" | "card" | "mobile_money";
+    discount?: number;
+    clientOperationId?: string;
+  }) => Promise<{ saleId: Id<"sales">; invoiceNumber: string; total: number }>;
   createSupplier: (args: {
     name: string;
     contactName?: string;
@@ -483,6 +496,38 @@ export async function drainOutbox(options: {
             paymentMethod: payload.paymentMethod,
             discount: payload.discount,
             customerName: payload.customerName,
+            clientOperationId: claimed.clientOperationId,
+          });
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "hotel_check_in") {
+          const payload = JSON.parse(claimed.payloadJson) as {
+            roomId: string;
+            customerId: string;
+            reservationId?: string;
+            notes?: string;
+          };
+          await options.mutators.hotelCheckIn({
+            roomId: payload.roomId as Id<"hotelRooms">,
+            customerId: payload.customerId as Id<"customers">,
+            reservationId: payload.reservationId as Id<"hotelReservations"> | undefined,
+            notes: payload.notes,
+            clientOperationId: claimed.clientOperationId,
+          });
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "hotel_checkout_pay") {
+          const payload = JSON.parse(claimed.payloadJson) as {
+            stayId: string;
+            paymentMethod: "cash" | "card" | "mobile_money";
+            discount?: number;
+          };
+          await options.mutators.hotelCheckoutPay({
+            stayId: payload.stayId as Id<"hotelStays">,
+            paymentMethod: payload.paymentMethod,
+            discount: payload.discount,
             clientOperationId: claimed.clientOperationId,
           });
           await markOutboxSynced(db, claimed.id);

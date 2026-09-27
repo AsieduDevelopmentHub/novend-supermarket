@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import { PageHeader } from "@/components/layout/primitives";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,11 +16,21 @@ import { toast } from "sonner";
 
 export function KitchenView() {
   const online = useConnectivity();
-  const tickets = useQuery(api.dining.listKitchenTickets, online ? {} : "skip");
+  const { hasCapability } = useBusinessCapabilities();
+  const canKitchen = hasCapability("kitchen_tickets");
+  const tickets = useQuery(api.dining.listKitchenTickets, online && canKitchen ? {} : "skip");
   const updateStatus = useMutation(api.dining.updateKitchenTicketStatus);
 
   if (!online) {
     return <OfflineUnavailable title="Kitchen needs a connection" />;
+  }
+  if (!canKitchen) {
+    return (
+      <EmptyState
+        title="Kitchen not enabled"
+        description="Turn on Kitchen tickets in Settings → Business type, or apply the Restaurant / Bar pack."
+      />
+    );
   }
   if (tickets === undefined) {
     return <LoadingState label="Loading kitchen…" />;

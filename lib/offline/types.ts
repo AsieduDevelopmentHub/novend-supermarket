@@ -29,7 +29,9 @@ export type OutboxOpType =
   | "pay_salary"
   | "pay_commission"
   | "dining_open_session"
-  | "dining_pay_session";
+  | "dining_pay_session"
+  | "hotel_check_in"
+  | "hotel_checkout_pay";
 
 export type MirroredDiningTable = {
   id: string;
@@ -38,6 +40,16 @@ export type MirroredDiningTable = {
   code?: string | null;
   seats?: number | null;
   status: "active" | "inactive";
+  sortOrder?: number | null;
+};
+
+export type MirroredHotelRoom = {
+  id: string;
+  branchId: string;
+  name: string;
+  roomType?: string | null;
+  defaultProductId?: string | null;
+  status: "available" | "occupied" | "dirty" | "maintenance" | "inactive";
   sortOrder?: number | null;
 };
 

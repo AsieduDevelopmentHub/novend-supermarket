@@ -15,6 +15,8 @@ import {
   Truck,
   UtensilsCrossed,
   ChefHat,
+  BedDouble,
+  CalendarDays,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -131,6 +133,20 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: ChefHat,
         roles: ["administrator", "manager", "cashier"],
         capabilities: ["kitchen_tickets"],
+      },
+      {
+        title: "Rooms",
+        href: "/rooms",
+        icon: BedDouble,
+        roles: ["administrator", "manager", "cashier"],
+        capabilities: ["rooms_folio"],
+      },
+      {
+        title: "Reservations",
+        href: "/reservations",
+        icon: CalendarDays,
+        roles: ["administrator", "manager", "cashier"],
+        capabilities: ["reservations"],
       },
     ],
   },

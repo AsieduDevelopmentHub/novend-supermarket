@@ -8,8 +8,8 @@
 
 import { resolvePlan, type PlanKey } from "./plans";
 
-/** Stage 1 configurationVersion — UOM adapter N is defined in Stage 2. Bumped for Phase B dining keys. */
-export const BUSINESS_CAPABILITY_CONFIGURATION_VERSION = 2;
+/** Stage 1 configurationVersion — UOM adapter N is defined in Stage 2. Bumped for Phase C hotel keys. */
+export const BUSINESS_CAPABILITY_CONFIGURATION_VERSION = 3;
 
 export const BUSINESS_CAPABILITY_KEYS = [
   "multi_unit_pricing",
@@ -23,6 +23,8 @@ export const BUSINESS_CAPABILITY_KEYS = [
   "modifiers",
   "tables_orders",
   "kitchen_tickets",
+  "rooms_folio",
+  "reservations",
 ] as const;
 
 export type BusinessCapabilityKey = (typeof BUSINESS_CAPABILITY_KEYS)[number];
@@ -152,6 +154,21 @@ export const BUSINESS_CAPABILITY_REGISTRY: Record<
     dependencies: ["tables_orders"],
     minPlanSortOrder: resolvePlan("basic").sortOrder,
   },
+  rooms_folio: {
+    key: "rooms_folio",
+    version: 1,
+    label: "Rooms & folio",
+    description: "Room board, stays, and folio charges that settle into a completed sale at checkout.",
+    minPlanSortOrder: resolvePlan("basic").sortOrder,
+  },
+  reservations: {
+    key: "reservations",
+    version: 1,
+    label: "Reservations",
+    description: "Book rooms ahead of arrival and check guests in from a reservation.",
+    dependencies: ["rooms_folio"],
+    minPlanSortOrder: resolvePlan("basic").sortOrder,
+  },
 };
 
 /** Industry packs are presets of capability keys — not hardcoded industry branches. */
@@ -176,7 +193,7 @@ export const INDUSTRY_PACKS: Record<IndustryProfile, BusinessCapabilityKey[]> = 
     "tables_orders",
     "kitchen_tickets",
   ],
-  hotel: ["non_stock_sales", "configurable_pos"],
+  hotel: ["non_stock_sales", "configurable_pos", "rooms_folio", "reservations"],
   custom: [],
 };
 

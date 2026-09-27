@@ -100,7 +100,8 @@ export const listTables = query({
       "manager",
       "cashier",
     ]);
-    await requireBusinessCapability(ctx, organizationId, "tables_orders");
+    const config = await loadBusinessConfiguration(ctx, organizationId);
+    if (!hasBusinessCapability(config, "tables_orders")) return [];
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
     const rows = await ctx.db
       .query("diningTables")
@@ -184,7 +185,8 @@ export const listOpenSessions = query({
       "manager",
       "cashier",
     ]);
-    await requireBusinessCapability(ctx, organizationId, "tables_orders");
+    const config = await loadBusinessConfiguration(ctx, organizationId);
+    if (!hasBusinessCapability(config, "tables_orders")) return [];
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
     const sessions = await ctx.db
       .query("diningSessions")
@@ -474,7 +476,8 @@ export const listKitchenTickets = query({
       "manager",
       "cashier",
     ]);
-    await requireBusinessCapability(ctx, organizationId, "kitchen_tickets");
+    const config = await loadBusinessConfiguration(ctx, organizationId);
+    if (!hasBusinessCapability(config, "kitchen_tickets")) return [];
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
     const tickets = await ctx.db
       .query("kitchenTickets")

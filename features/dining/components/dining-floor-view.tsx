@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,23 +30,25 @@ import {
 
 export function DiningFloorView() {
   const online = useConnectivity();
+  const { hasCapability } = useBusinessCapabilities();
+  const canFloor = hasCapability("tables_orders");
   const { branchId, isAdmin, isManager } = usePermissions();
   const [selectedSessionId, setSelectedSessionId] = useState<Id<"diningSessions"> | null>(null);
   const [newTableName, setNewTableName] = useState("");
-  const [productId, setProductId] = useState<string>("");
+  const [productId, setProductId] = useState<string | undefined>(undefined);
   const [qty, setQty] = useState("1");
   const [paying, setPaying] = useState(false);
 
-  const tables = useQuery(api.dining.listTables, online ? {} : "skip");
-  const sessions = useQuery(api.dining.listOpenSessions, online ? {} : "skip");
+  const tables = useQuery(api.dining.listTables, online && canFloor ? {} : "skip");
+  const sessions = useQuery(api.dining.listOpenSessions, online && canFloor ? {} : "skip");
   const session = useQuery(
     api.dining.getSession,
-    online && selectedSessionId ? { sessionId: selectedSessionId } : "skip",
+    online && canFloor && selectedSessionId ? { sessionId: selectedSessionId } : "skip",
   );
-  const products = useQuery(api.products.listProducts, online ? {} : "skip");
+  const products = useQuery(api.products.listProducts, online && canFloor ? {} : "skip");
   const modifierGroups = useQuery(
     api.dining.listModifierGroupsForProduct,
-    online && productId ? { productId: productId as Id<"products"> } : "skip",
+    online && canFloor && productId ? { productId: productId as Id<"products"> } : "skip",
   );
 
   const upsertTable = useMutation(api.dining.upsertTable);
@@ -67,6 +70,15 @@ export function DiningFloorView() {
 
   if (!online) {
     return <OfflineUnavailable title="Floor needs a connection" />;
+  }
+
+  if (!canFloor) {
+    return (
+      <EmptyState
+        title="Floor not enabled"
+        description="Turn on Tables & open checks in Settings → Business type, or apply the Restaurant / Bar pack."
+      />
+    );
   }
 
   if (tables === undefined || sessions === undefined) {
@@ -176,11 +188,11 @@ export function DiningFloorView() {
         </Card>
       ) : null}
 
-      <Grid cols={tables.length > 4 ? 4 : 3}>
-        {tables.length === 0 ? (
-          <EmptyState title="No tables yet" description="Add a table to start taking orders." />
-        ) : (
-          tables.map((table) => {
+      {tables.length === 0 ? (
+        <EmptyState title="No tables yet" description="Add a table to start taking orders." />
+      ) : (
+        <Grid cols={tables.length > 4 ? 4 : 3}>
+          {tables.map((table) => {
             const openId = sessionByTable.get(String(table._id));
             const selected = openId && openId === selectedSessionId;
             return (
@@ -200,9 +212,9 @@ export function DiningFloorView() {
                 </p>
               </button>
             );
-          })
-        )}
-      </Grid>
+          })}
+        </Grid>
+      )}
 
       {selectedSessionId && session ? (
         <div className="grid min-w-0 gap-4 xl:grid-cols-2">
@@ -320,7 +332,7 @@ export function DiningFloorView() {
                     {group.required ? " *" : ""}
                   </Label>
                   <Select
-                    value={selectedOptions[group._id] ?? ""}
+                    value={selectedOptions[group._id]}
                     onValueChange={(value) =>
                       setSelectedOptions((prev) => ({ ...prev, [group._id]: value }))
                     }

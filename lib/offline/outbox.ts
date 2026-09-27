@@ -114,6 +114,57 @@ export async function enqueueDiningPaySession(
   return row;
 }
 
+export async function enqueueHotelCheckIn(
+  db: NovendOfflineDb,
+  clientOperationId: string,
+  payload: {
+    roomId: string;
+    customerId: string;
+    reservationId?: string;
+    notes?: string;
+  },
+): Promise<OutboxRow> {
+  const now = Date.now();
+  const row: OutboxRow = {
+    id: newClientId("outbox"),
+    type: "hotel_check_in",
+    clientOperationId,
+    payloadJson: JSON.stringify(payload),
+    status: "pending",
+    attempts: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.outbox.put(row);
+  notifyReplicaChanged();
+  return row;
+}
+
+export async function enqueueHotelCheckoutPay(
+  db: NovendOfflineDb,
+  clientOperationId: string,
+  payload: {
+    stayId: string;
+    paymentMethod: "cash" | "card" | "mobile_money";
+    discount?: number;
+  },
+): Promise<OutboxRow> {
+  const now = Date.now();
+  const row: OutboxRow = {
+    id: newClientId("outbox"),
+    type: "hotel_checkout_pay",
+    clientOperationId,
+    payloadJson: JSON.stringify(payload),
+    status: "pending",
+    attempts: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.outbox.put(row);
+  notifyReplicaChanged();
+  return row;
+}
+
 export async function listPendingOutbox(db: NovendOfflineDb): Promise<OutboxRow[]> {
   try {
     return await db.outbox
