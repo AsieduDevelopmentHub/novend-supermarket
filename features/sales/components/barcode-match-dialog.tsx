@@ -17,6 +17,7 @@ export type BarcodeMatchProduct = {
   sku: string;
   sellingPrice: number;
   stockQuantity: number;
+  tracksInventory?: boolean;
   imageUrl?: string | null;
 };
 
@@ -60,8 +61,10 @@ export function BarcodeMatchDialog({ open, code, products, onOpenChange, onSelec
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{product.name}</p>
                   <p className="text-muted-foreground truncate text-xs">
-                    {product.sku} · {formatCurrency(product.sellingPrice)} · Stock{" "}
-                    {product.stockQuantity}
+                    {product.sku} · {formatCurrency(product.sellingPrice)}
+                    {product.tracksInventory === false
+                      ? null
+                      : ` · Stock ${product.stockQuantity}`}
                   </p>
                 </div>
               </button>

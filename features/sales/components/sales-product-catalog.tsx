@@ -198,7 +198,9 @@ function SalesProductTile({
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{product.name}</p>
             <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-              Stock {product.stockQuantity} {product.unit}
+              {product.tracksInventory === false
+                ? product.unit
+                : `Stock ${product.stockQuantity} ${product.unit}`}
               {product.isExpiring ? " · Expiring soon" : null}
             </p>
           </div>
@@ -257,11 +259,15 @@ function SalesProductTile({
           </p>
           {!isIcons ? (
             <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-              Stock {product.stockQuantity} {product.unit}
+              {product.tracksInventory === false
+                ? product.unit
+                : `Stock ${product.stockQuantity} ${product.unit}`}
             </p>
           ) : (
             <p className="text-muted-foreground mt-0.5 truncate text-[10px] leading-tight tabular-nums">
-              {product.stockQuantity} {product.unit}
+              {product.tracksInventory === false
+                ? product.unit
+                : `${product.stockQuantity} ${product.unit}`}
             </p>
           )}
           {product.isExpiring && !isIcons ? (
