@@ -145,6 +145,7 @@ export const getSnapshot = query({
             ? await ctx.storage.getUrl(product.imageStorageId)
             : null,
           tracksExpiry: expiry.tracksExpiry,
+          tracksInventory: product.tracksInventory !== false,
           expiryAlertDays: expiry.expiryAlertDays,
           nearestExpiry: expiry.nearestExpiry,
           isExpired: expiry.isExpired,

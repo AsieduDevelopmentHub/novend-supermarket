@@ -31,7 +31,7 @@ or drive hot queries **start with** `organizationId`.
   `beneficiaryProfileId`, `payPeriodKey`, `sourceKind`, `paymentStatus` for payroll
 - `branches` — name, unique code per org, status (MVP: MAIN)
 - `categories` — name, slug unique per org
-- `products` — catalog (pricing, unit, low-stock, optional expiry tracking)
+- `products` — catalog (pricing, unit, low-stock, optional expiry tracking, optional `tracksInventory` for non-stock sales)
 - `branchStock` — per-branch on-hand quantity
 - `suppliers` / `supplierPurchases` / `supplierPurchaseItems` — warehouse buys; line `unitCost` and optional `unitSellingPrice` snapshot the catalog prices applied on receive
 - `wholesaleStock` / `wholesaleLots` — supplier stock before issue to a branch

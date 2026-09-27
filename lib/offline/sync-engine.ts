@@ -111,6 +111,7 @@ async function hydrateUpsertProductPayload(
     description: local.description ?? undefined,
     tracksExpiry,
     expiryAlertDays: local.expiryAlertDays ?? undefined,
+    tracksInventory: local.tracksInventory,
     expiryDate: tracksExpiry
       ? optionalText(payload.expiryDate) || optionalText(local.nearestExpiry)
       : undefined,
@@ -256,6 +257,7 @@ export type QueuedMutators = {
     tracksExpiry?: boolean;
     expiryAlertDays?: number;
     expiryDate?: string;
+    tracksInventory?: boolean;
     branchId?: Id<"branches">;
   }) => Promise<string | { toString(): string }>;
   updateProduct: (args: {
@@ -283,6 +285,7 @@ export type QueuedMutators = {
     tracksExpiry?: boolean;
     expiryAlertDays?: number;
     openingExpiryDate?: string;
+    tracksInventory?: boolean;
     stockQuantity?: number;
     stockBranchId?: Id<"branches">;
   }) => Promise<unknown>;
@@ -729,6 +732,7 @@ export async function drainOutbox(options: {
               status: payload.status,
               tracksExpiry: payload.tracksExpiry,
               expiryAlertDays: payload.expiryAlertDays,
+              tracksInventory: payload.tracksInventory,
               openingExpiryDate: optionalText(payload.expiryDate),
               ...(payload.applyStockQuantity
                 ? {
@@ -758,6 +762,7 @@ export async function drainOutbox(options: {
               status: payload.status,
               tracksExpiry: payload.tracksExpiry,
               expiryAlertDays: payload.expiryAlertDays,
+              tracksInventory: payload.tracksInventory,
               expiryDate: optionalText(payload.expiryDate),
               ...(barcode ? { barcode } : {}),
               ...(description ? { description } : {}),

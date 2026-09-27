@@ -26,6 +26,8 @@ import {
 import { saveShellProfile } from "./shell-profile";
 import type { OrganizationBusinessConfiguration } from "@/convex/shared/businessCapabilities";
 import { DEFAULT_BUSINESS_CONFIGURATION } from "@/convex/shared/businessCapabilities";
+import { productTracksInventory } from "@/convex/shared/productInventory";
+import { loadBusinessCapabilitiesCache } from "./business-capabilities";
 import type { ProductImagesPolicy } from "@/convex/shared/productImagesPolicy";
 import { DEFAULT_PRODUCT_IMAGES_POLICY } from "@/convex/shared/productImagesPolicy";
 import {
@@ -369,6 +371,7 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
 
   const stockByProduct = await branchStockMapForBranch(db, effectiveBranchId);
   const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
+  const businessConfig = await loadBusinessCapabilitiesCache();
 
   return products
     .map((product) => {
@@ -397,9 +400,10 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
         pricingMode: product.pricingMode ?? null,
         imageUrl: product.imageUrl,
         isExpiring,
+        tracksInventory: productTracksInventory(product, businessConfig),
       };
     })
-    .filter((p) => p.stockQuantity > 0)
+    .filter((p) => p.tracksInventory === false || p.stockQuantity > 0)
     .sort((a, b) => a.name.localeCompare(b.name))
     .slice(0, 48);
 }
@@ -429,6 +433,7 @@ export async function findLocalProductsByBarcode(code: string, branchId?: string
 
   const stockByProduct = await branchStockMapForBranch(db, effectiveBranchId);
   const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
+  const businessConfig = await loadBusinessCapabilitiesCache();
 
   return products
     .map((product) => {
@@ -451,9 +456,10 @@ export async function findLocalProductsByBarcode(code: string, branchId?: string
         unit: product.unit,
         imageUrl: product.imageUrl,
         isExpiring: stock?.isExpiring ?? product.isExpiring,
+        tracksInventory: productTracksInventory(product, businessConfig),
       };
     })
-    .filter((product) => product.stockQuantity > 0);
+    .filter((product) => product.tracksInventory === false || product.stockQuantity > 0);
 }
 
 export async function searchLocalCustomers(q: string, limit = 6) {

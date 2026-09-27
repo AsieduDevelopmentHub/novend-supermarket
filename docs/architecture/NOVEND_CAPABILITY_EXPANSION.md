@@ -117,20 +117,19 @@ NOVEND PLATFORM
 ├── CAPABILITY ENGINE
 │   multi_unit_pricing · sell_by_weight · lot_expiry
 │   serial_tracking · custom_fields · configurable_pos
-│   scale_hardware
+│   scale_hardware · non_stock_sales
 │   (deferred keys — see roadmap Phase B/C)
 │
 ├── INDUSTRY PACKS (presets)
 │   Retail · Wholesale · Supermarket · Cold store
-│   Electronics · Pharmacy-inventory · Custom
-│   (+ Restaurant / Hospitality packs when those domains ship)
+│   Electronics · Pharmacy-inventory · Restaurant · Hotel · Custom
 │
 └── INFRASTRUCTURE
     Dexie · Outbox / sync engine · Convex
     Conflict reconciliation · Observability
 ```
 
-Specialized domains (restaurant orders, hotel folios, regulated Rx) sit **beside** the commerce kernel and settle into shared payments / inventory / ledger—they do not overload `products` or `sales` beyond recognition.
+Specialized domains (full restaurant orders, hotel folios, regulated Rx) sit **beside** the commerce kernel and settle into shared payments / inventory / ledger—they do not overload `products` or `sales` beyond recognition. Restaurant/hotel **lite** uses `non_stock_sales` + catalogue products (menu items / room rates) without those domain modules.
 
 ---
 
@@ -140,8 +139,16 @@ Specialized domains (restaurant orders, hotel folios, regulated Rx) sit **beside
 
 ```ts
 type IndustryProfile =
-  "retail" | "wholesale" | "supermarket" | "cold_store" | "electronics" | "pharmacy" | "custom";
-// restaurant | hospitality added when Phase B/C domains ship
+  | "retail"
+  | "wholesale"
+  | "supermarket"
+  | "cold_store"
+  | "electronics"
+  | "pharmacy"
+  | "restaurant"
+  | "hotel"
+  | "custom";
+// Full hospitality PMS / restaurant floor modules remain Phase B/C on the roadmap
 
 interface OrganizationBusinessConfiguration {
   industryProfile: IndustryProfile;

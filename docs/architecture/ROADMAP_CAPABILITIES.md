@@ -134,6 +134,22 @@ Pharmacy **lots / expiry / custom field types** may appear here or in Stage 5 **
 
 ---
 
+## Phase B lite — Non-stock catalogue (`non_stock_sales`) — **implemented**
+
+Thin slice for restaurant / hotel **without** tables, kitchen, or PMS:
+
+| Item | Notes |
+| ---- | ----- |
+| Capability | `non_stock_sales` (Basic+) — Track inventory toggle on Add Product |
+| Product field | `products.tracksInventory` optional; `false` skips stock check/deduct |
+| Industry packs | `restaurant`, `hotel` → `non_stock_sales` + `configurable_pos` |
+| POS | Catalog includes zero-qty non-stock items online and offline |
+| Out of scope here | Tables, modifiers, KDS, recipe consumption, reservations, folios |
+
+Full Phase B / C domain modules remain deferred below.
+
+---
+
 ## Phase B — Restaurant domain (deferred)
 
 Separate product effort after Stages 1–5 prove the kernel.
@@ -150,7 +166,7 @@ Capabilities (when designed): `modifiers`, `tables_orders`, `kitchen_tickets`.
 
 | Area          | Notes                                                                                                                    |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Hospitality   | Rooms, guests, reservations, stays, folios—not ordinary products. Capability: `rooms_folio` (and related) when designed. |
+| Hospitality   | Rooms, guests, reservations, stays, folios—beyond catalogue room rates. Capability: `rooms_folio` (and related) when designed. Room-rate POS sales use `non_stock_sales` (Phase B lite). |
 | `rx_controls` | Regulated; **out of scope** until a compliance design exists.                                                            |
 
 ---
@@ -164,7 +180,8 @@ Capabilities (when designed): `modifiers`, `tables_orders`, `kitchen_tickets`.
 3b sell_by_weight (+ conflict matrix) · scale_hardware optional follow-up
 4  inventoryHistory / lots / serials (separate branches per key)
 5  custom_fields · import/receipt presets · configurable_pos
-—  Phase B restaurant
+5b non_stock_sales + restaurant/hotel packs (lite)
+—  Phase B restaurant (tables / modifiers / kitchen)
 —  Phase C hospitality / rx_controls
 ```
 

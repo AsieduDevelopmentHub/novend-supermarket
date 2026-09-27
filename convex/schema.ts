@@ -682,6 +682,11 @@ export default defineSchema({
     sellingPrice: v.number(),
     stockQuantity: v.number(),
     unit: v.string(),
+    /**
+     * When false and org has `non_stock_sales`, sales skip stock check/deduct.
+     * Missing / true = track inventory (default retail behavior).
+     */
+    tracksInventory: v.optional(v.boolean()),
     /** Optional multi-unit / weight configuration (Stage 2+). */
     sellUnits: v.optional(
       v.array(

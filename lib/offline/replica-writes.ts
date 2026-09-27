@@ -578,6 +578,7 @@ export async function queueUpsertProduct(
     description: payload.description ?? existing?.description ?? null,
     imageUrl: clearImage ? null : (existing?.imageUrl ?? null),
     tracksExpiry: payload.tracksExpiry,
+    tracksInventory: payload.tracksInventory,
     expiryAlertDays: payload.expiryAlertDays ?? null,
     nearestExpiry: payload.expiryDate ?? existing?.nearestExpiry ?? null,
     isExpired: expiryStatus === "expired",

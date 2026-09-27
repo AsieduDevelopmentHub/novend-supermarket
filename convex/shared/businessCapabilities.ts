@@ -19,6 +19,7 @@ export const BUSINESS_CAPABILITY_KEYS = [
   "scale_hardware",
   "custom_fields",
   "configurable_pos",
+  "non_stock_sales",
 ] as const;
 
 export type BusinessCapabilityKey = (typeof BUSINESS_CAPABILITY_KEYS)[number];
@@ -30,6 +31,8 @@ export const INDUSTRY_PROFILES = [
   "cold_store",
   "electronics",
   "pharmacy",
+  "restaurant",
+  "hotel",
   "custom",
 ] as const;
 
@@ -115,6 +118,14 @@ export const BUSINESS_CAPABILITY_REGISTRY: Record<
     description: "POS layout presets (not a free-form page builder).",
     minPlanSortOrder: resolvePlan("basic").sortOrder,
   },
+  non_stock_sales: {
+    key: "non_stock_sales",
+    version: 1,
+    label: "Non-stock catalogue",
+    description:
+      "Sell menu items or room rates without requiring on-hand stock. Adds a Track inventory toggle on Add Product.",
+    minPlanSortOrder: resolvePlan("basic").sortOrder,
+  },
 };
 
 /** Industry packs are presets of capability keys — not hardcoded industry branches. */
@@ -125,6 +136,8 @@ export const INDUSTRY_PACKS: Record<IndustryProfile, BusinessCapabilityKey[]> = 
   cold_store: ["sell_by_weight", "lot_expiry", "scale_hardware", "configurable_pos"],
   electronics: ["serial_tracking", "configurable_pos"],
   pharmacy: ["lot_expiry", "custom_fields", "configurable_pos"],
+  restaurant: ["non_stock_sales", "configurable_pos"],
+  hotel: ["non_stock_sales", "configurable_pos"],
   custom: [],
 };
 

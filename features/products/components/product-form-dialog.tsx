@@ -85,6 +85,7 @@ type ProductDetails = {
   pricingMode?: PricingMode | null;
   lowStockThreshold: number;
   tracksExpiry?: boolean;
+  tracksInventory?: boolean;
   expiryAlertDays?: number;
   nearestExpiry?: string | null;
   status: "active" | "inactive" | "archived";
@@ -136,6 +137,7 @@ export function ProductFormDialog({
             pricingMode: mirroredRow.pricingMode ?? null,
             lowStockThreshold: mirroredRow.lowStockThreshold,
             tracksExpiry: mirroredRow.tracksExpiry,
+            tracksInventory: mirroredRow.tracksInventory,
             expiryAlertDays: mirroredRow.expiryAlertDays ?? undefined,
             nearestExpiry: mirroredRow.nearestExpiry ?? null,
             status: mirroredRow.status === "inactive" ? "inactive" : "active",
@@ -156,7 +158,8 @@ export function ProductFormDialog({
   const wideForm =
     hasCapability("multi_unit_pricing") ||
     hasCapability("sell_by_weight") ||
-    hasCapability("lot_expiry");
+    hasCapability("lot_expiry") ||
+    hasCapability("non_stock_sales");
 
   return (
     <ResponsiveFormSurface
@@ -212,14 +215,22 @@ function ProductFormBody({
   const online = useConnectivity();
   const { branchId: profileBranchId } = usePermissions();
   const { features } = useLicense();
-  const { hasCapability } = useBusinessCapabilities();
+  const { hasCapability, industryProfile } = useBusinessCapabilities();
   const productImagesPolicy = useProductImagesPolicy();
   const imagesUploadEnabled = productImagesPolicy.enabled;
   const showPacks = hasCapability("multi_unit_pricing");
   const showWeight = hasCapability("sell_by_weight");
   const showSellUnits = showPacks || showWeight;
+  const showNonStock = hasCapability("non_stock_sales");
   const showExpiry = hasCapability("lot_expiry") || initialProduct?.tracksExpiry === true;
-  const defaultUnit = showPacks || showWeight ? "packs" : "pcs";
+  const defaultUnit =
+    industryProfile === "hotel"
+      ? "night"
+      : industryProfile === "restaurant"
+        ? "portion"
+        : showPacks || showWeight
+          ? "packs"
+          : "pcs";
 
   const [name, setName] = useState(initialProduct?.name ?? "");
   const [sku, setSku] = useState(initialProduct?.sku ?? "");
@@ -233,6 +244,11 @@ function ProductFormBody({
   >([]);
   const [sellingPrice, setSellingPrice] = useState(String(initialProduct?.sellingPrice ?? 0));
   const [costPrice, setCostPrice] = useState(String(initialProduct?.costPrice ?? 0));
+  const [tracksInventory, setTracksInventory] = useState(() => {
+    if (!showNonStock) return true;
+    if (initialProduct) return initialProduct.tracksInventory !== false;
+    return false;
+  });
   const [stockQuantity, setStockQuantity] = useState(
     String(warehouseIntake ? 0 : (initialProduct?.stockQuantity ?? 0)),
   );
@@ -258,6 +274,7 @@ function ProductFormBody({
   const canEditStock =
     Boolean(productId) &&
     featureEnabled(features, "products.editStock") &&
+    tracksInventory &&
     tracksExpiry !== true &&
     initialProduct?.tracksExpiry !== true;
   const [expiryAlertDays, setExpiryAlertDays] = useState(
@@ -384,7 +401,9 @@ function ProductFormBody({
         resolvedPricingMode = showWeight && pricingMode === "per_weight" ? "per_weight" : "fixed";
       }
       const resolvedUnit = unit.trim() || defaultUnit;
-      const resolvedTracksExpiry = showExpiry ? tracksExpiry : false;
+      const resolvedTracksInventory = showNonStock ? tracksInventory : true;
+      const resolvedTracksExpiry =
+        resolvedTracksInventory && showExpiry ? tracksExpiry : false;
       let savedId = productId ?? "";
       let resolvedCategoryId = categoryId;
       const kind = await persistBusinessWrite({
@@ -405,6 +424,7 @@ function ProductFormBody({
                 lowStockThreshold: Number(lowStockThreshold),
                 status,
                 description,
+                tracksInventory: resolvedTracksInventory,
                 tracksExpiry: resolvedTracksExpiry,
                 expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
                 openingExpiryDate: resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
@@ -424,13 +444,15 @@ function ProductFormBody({
                 categoryId: resolvedCategoryId as Id<"categories">,
                 costPrice: Number(costPrice),
                 sellingPrice: Number(sellingPrice),
-                stockQuantity: warehouseIntake ? 0 : Number(stockQuantity),
+                stockQuantity:
+                  warehouseIntake || !resolvedTracksInventory ? 0 : Number(stockQuantity),
                 unit: resolvedUnit,
                 ...(sellUnits ? { sellUnits } : {}),
                 ...(resolvedPricingMode ? { pricingMode: resolvedPricingMode } : {}),
                 lowStockThreshold: Number(lowStockThreshold),
                 status,
                 description,
+                tracksInventory: resolvedTracksInventory,
                 tracksExpiry: resolvedTracksExpiry,
                 expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
                 expiryDate: resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
@@ -461,7 +483,8 @@ function ProductFormBody({
             categoryName: resolvedCategoryName,
             costPrice: Number(costPrice),
             sellingPrice: Number(sellingPrice),
-            stockQuantity: warehouseIntake ? 0 : Number(stockQuantity),
+            stockQuantity:
+              warehouseIntake || !resolvedTracksInventory ? 0 : Number(stockQuantity),
             applyStockQuantity: Boolean(productId && canEditStock),
             unit: resolvedUnit,
             sellUnits,
@@ -469,6 +492,7 @@ function ProductFormBody({
             lowStockThreshold: Number(lowStockThreshold),
             status,
             description,
+            tracksInventory: resolvedTracksInventory,
             tracksExpiry: resolvedTracksExpiry,
             expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
             expiryDate: resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
@@ -582,9 +606,32 @@ function ProductFormBody({
             <div className="space-y-1">
               <h3 className="text-sm font-medium">Pricing & stock</h3>
               <p className="text-muted-foreground text-xs">
-                Used at checkout and for stock alerts.
+                {showNonStock
+                  ? "Used at checkout. Turn off inventory tracking for menu items or room rates."
+                  : "Used at checkout and for stock alerts."}
               </p>
             </div>
+            {showNonStock ? (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 px-3 py-2.5">
+                <div className="min-w-0">
+                  <Label htmlFor="tracks-inventory" className="text-sm font-medium">
+                    Track inventory
+                  </Label>
+                  <p className="text-muted-foreground mt-0.5 text-xs leading-snug">
+                    Off = sell without on-hand stock (menu dishes, room nights). On = normal stock
+                    for drinks, supplies, or amenity SKUs.
+                  </p>
+                </div>
+                <Switch
+                  id="tracks-inventory"
+                  checked={tracksInventory}
+                  onCheckedChange={(checked) => {
+                    setTracksInventory(checked);
+                    if (!checked) setTracksExpiry(false);
+                  }}
+                />
+              </div>
+            ) : null}
             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="min-w-0 space-y-2">
                 <Label htmlFor="sell">Selling price (GHC)</Label>
@@ -621,6 +668,14 @@ function ProductFormBody({
                     Stays 0. Warehouse quantity is added when you save the supplier purchase.
                   </p>
                 </div>
+              ) : !tracksInventory ? (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Stock</Label>
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    Inventory is not tracked for this item. It stays sellable at the counter with
+                    zero on-hand quantity.
+                  </p>
+                </div>
               ) : (
                 <div className="min-w-0 space-y-2">
                   <Label htmlFor="stock">Stock quantity</Label>
@@ -648,28 +703,34 @@ function ProductFormBody({
                   ) : null}
                 </div>
               )}
-              <div className="min-w-0 space-y-2">
-                <Label htmlFor="low">Low stock alert</Label>
-                <UnsignedQuantityInput
-                  id="low"
-                  value={lowStockThreshold}
-                  onValueChange={setLowStockThreshold}
-                  required
-                />
-              </div>
+              {tracksInventory ? (
+                <div className="min-w-0 space-y-2">
+                  <Label htmlFor="low">Low stock alert</Label>
+                  <UnsignedQuantityInput
+                    id="low"
+                    value={lowStockThreshold}
+                    onValueChange={setLowStockThreshold}
+                    required
+                  />
+                </div>
+              ) : null}
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="min-w-0">
                 <UnitPresetField
                   id="unit"
-                  label="Stock unit"
+                  label={industryProfile === "hotel" ? "Sell unit" : "Stock unit"}
                   value={unit}
                   onChange={setUnit}
                   required
                   hint={
-                    showPacks || showWeight
-                      ? "Inventory is counted in this unit. Sell units convert to it."
-                      : "How you count this product (pieces, packs, cartons…)."
+                    industryProfile === "hotel"
+                      ? "Usually night — quantity at checkout is nights (or rooms × nights)."
+                      : industryProfile === "restaurant"
+                        ? "Usually portion, plate, or serving."
+                        : showPacks || showWeight
+                          ? "Inventory is counted in this unit. Sell units convert to it."
+                          : "How you count this product (pieces, packs, cartons…)."
                   }
                 />
               </div>
@@ -729,7 +790,7 @@ function ProductFormBody({
             </section>
           ) : null}
 
-          {showExpiry ? (
+          {showExpiry && tracksInventory ? (
             <section className="border-border space-y-3 rounded-[16px] border p-3 sm:p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">

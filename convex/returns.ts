@@ -17,13 +17,14 @@ import { writeAuditLog } from "./shared/audit";
 import { Id } from "./_generated/dataModel";
 import { applyBranchStockChange } from "./shared/branchStock";
 import { increaseLot, productTracksExpiry } from "./shared/lots";
+import { productTracksInventory } from "./shared/productInventory";
 import {
   lineRefundAmount,
   loadReturnedLotQty,
   loadReturnableLines,
   nextReturnNumber,
 } from "./shared/returns";
-import { loadPrintSnapshot } from "./settings";
+import { loadPrintSnapshot, loadBusinessConfiguration } from "./settings";
 
 type DbCtx = QueryCtx | MutationCtx;
 
@@ -170,6 +171,7 @@ export const processReturn = mutation({
     const returnNumber = await nextReturnNumber(ctx, organizationId, args.returnNumber);
     const completedAt = Date.now();
     const snapshot = await loadPrintSnapshot(ctx, organizationId, branchId);
+    const businessConfig = await loadBusinessConfiguration(ctx, organizationId);
 
     const kind = returningQty >= remainingQty ? "full" : "partial";
     const returnId = await ctx.db.insert("saleReturns", {
@@ -223,7 +225,10 @@ export const processReturn = mutation({
       });
 
       const restockNote = `Return ${returnNumber} for ${sale.invoiceNumber}`;
-      if (product && productTracksExpiry(product)) {
+      if (!product || !productTracksInventory(product, businessConfig)) {
+        continue;
+      }
+      if (productTracksExpiry(product)) {
         const allocations = await ctx.db
           .query("saleItemLots")
           .withIndex("by_saleItem", (q) => q.eq("saleItemId", line.saleItem.saleItemId))

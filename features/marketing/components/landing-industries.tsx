@@ -28,6 +28,8 @@ const SCREEN_ALT: Record<IndustryId, string> = {
   wholesale: "Novend wholesale POS with pack pricing and bulk cart",
   fashion: "Novend fashion boutique POS with apparel catalog",
   electronics: "Novend electronics store POS with high-value SKUs",
+  restaurant: "Novend POS checkout for restaurant menu items",
+  hotel: "Novend POS checkout for hotel room rates",
 };
 
 /** Industry section — tabbed preview with POS monitor frame. Mobile-first stacked layout. */
