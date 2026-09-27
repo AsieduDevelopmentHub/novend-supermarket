@@ -1,0 +1,4 @@
+# Editing masters stay local — publish copies live under public/marketing/demo/
+*.mp4
+*.webm
+*.mov

@@ -140,9 +140,81 @@ export const landingCopy = {
     subhead:
       "Novend brings checkout, inventory, branch transfers, and reporting into one dependable system built for everyday retail.",
     primaryCta: "Start free for 14 days",
-    secondaryCta: "Explore the product",
-    secondaryHref: "/product",
+    secondaryCta: "Watch the demo",
+    secondaryHref: "/#demo",
     proofRow: ["No card required", "Works offline after setup", "Desktop and mobile"],
+  },
+  /**
+   * Activity walkthroughs. Edit masters in `docs/design/demo/`, publish to
+   * `public/marketing/demo/<id>.mp4`, then set `src` + `published: true`.
+   */
+  demo: {
+    badge: "Product demo",
+    title: "See Novend run a working day",
+    subtitle:
+      "Watch checkout, inventory, and everyday retail flows — then start a trial on your own catalogue.",
+    primaryCta: "Start free for 14 days",
+    secondaryCta: "Talk to sales",
+    secondaryHref: "/contact",
+    comingSoonNote: "More activity videos (login, signup, onboarding, and more) are being edited.",
+    chapters: [
+      {
+        id: "overview" as const,
+        label: "Overview",
+        description: "A full pass through the Novend counter — sell, stock, and stay productive.",
+        src: "/marketing/demo/overview.mp4",
+        published: true,
+      },
+      {
+        id: "guided" as const,
+        label: "Guided tour",
+        description: "Cursor walkthrough of the same flows — follow along step by step.",
+        src: "/marketing/demo/guided.mp4",
+        published: true,
+      },
+      {
+        id: "login" as const,
+        label: "Login",
+        description: "Sign in on desktop, mobile, and offline resume.",
+        src: null,
+        published: false,
+      },
+      {
+        id: "signup" as const,
+        label: "Signup",
+        description: "Create an organization and land in a ready workspace.",
+        src: null,
+        published: false,
+      },
+      {
+        id: "onboarding" as const,
+        label: "Onboarding",
+        description: "First catalogue, first sale, and the path to a live counter.",
+        src: null,
+        published: false,
+      },
+      {
+        id: "checkout" as const,
+        label: "Checkout",
+        description: "Barcode sell, hold and resume, payment, and receipt.",
+        src: null,
+        published: false,
+      },
+      {
+        id: "inventory" as const,
+        label: "Inventory",
+        description: "Stock levels, transfers, and low-stock visibility.",
+        src: null,
+        published: false,
+      },
+      {
+        id: "offline" as const,
+        label: "Offline & sync",
+        description: "Keep selling when the radio drops, then sync on reconnect.",
+        src: null,
+        published: false,
+      },
+    ],
   },
   proofStrip: {
     items: [
@@ -651,6 +723,7 @@ export const landingCopy = {
         { href: "/#industry-electronics", label: "Electronics" },
       ],
     },
+    demo: { href: "/#demo", label: "Demo" },
     pricing: { href: "/pricing", label: "Pricing" },
     resources: {
       label: "Resources",
@@ -674,6 +747,7 @@ export const landingCopy = {
       { href: "/product/pos", label: "Point of Sale" },
       { href: "/product/inventory", label: "Inventory" },
       { href: "/product/offline-sync", label: "Offline & Sync" },
+      { href: "/#demo", label: "Product demo" },
       { href: "/pricing", label: "Pricing" },
       { href: "/download", label: "Download" },
     ],

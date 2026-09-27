@@ -8,6 +8,7 @@ import { LandingNav } from "@/features/marketing/components/landing-nav";
 import { LandingHero } from "@/features/marketing/components/landing-hero";
 import { LandingProofStrip } from "@/features/marketing/components/landing-proof-strip";
 import { LandingEditorialFeatures } from "@/features/marketing/components/landing-editorial-features";
+import { LandingDemo } from "@/features/marketing/components/landing-demo";
 import { LandingOfflineFlow } from "@/features/marketing/components/landing-offline-flow";
 import { LandingIndustries } from "@/features/marketing/components/landing-industries";
 import { LandingResearchProof } from "@/features/marketing/components/landing-research-proof";
@@ -60,6 +61,7 @@ export function LandingPage() {
         <main>
           <LandingHero />
           <LandingProofStrip />
+          <LandingDemo />
           <LandingEditorialFeatures />
           <LandingOfflineFlow />
           <LandingIndustries />
