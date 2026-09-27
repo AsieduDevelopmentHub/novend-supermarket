@@ -156,7 +156,7 @@ export const landingCopy = {
     primaryCta: "Start free for 14 days",
     secondaryCta: "Talk to sales",
     secondaryHref: "/contact",
-    comingSoonNote: "Short activity clips (login, signup, onboarding) are still being edited.",
+    comingSoonNote: "",
     seriesCta: "Watch full training & modules",
     seriesHref: "/demo",
     chapters: [

@@ -184,7 +184,7 @@ export function LandingDemo() {
           </Button>
         </div>
 
-        {hasComingSoon ? (
+        {hasComingSoon && demo.comingSoonNote ? (
           <p data-reveal className="mt-6 text-center text-sm text-slate-500">
             {demo.comingSoonNote}
           </p>
