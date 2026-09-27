@@ -58,8 +58,9 @@ import {
   lotSummaries,
   remainingLotQuantity,
 } from "./shared/lots";
-import { loadProductImagesPolicy } from "./settings";
+import { loadProductImagesPolicy, loadBusinessConfiguration } from "./settings";
 import { assertProductImageUploadsEnabled } from "./shared/productImagesPolicy";
+import { hasBusinessCapability } from "./shared/businessCapabilities";
 
 export const listProducts = query({
   args: {
@@ -142,6 +143,7 @@ export const listProducts = query({
           isLowStock: expiry.isLowStock,
           branchId,
           tracksExpiry: expiry.tracksExpiry,
+          tracksInventory: product.tracksInventory !== false,
           sellableQuantity: expiry.sellableQuantity,
           expiredQuantity: expiry.expiredQuantity,
           nearestExpiry: expiry.nearestExpiry,
@@ -186,6 +188,7 @@ export const getProduct = query({
       imageUrl,
       branchId,
       tracksExpiry: expiry.tracksExpiry,
+      tracksInventory: product.tracksInventory !== false,
       expiryAlertDays: expiry.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS,
       sellableQuantity: expiry.sellableQuantity,
       expiredQuantity: expiry.expiredQuantity,
@@ -246,6 +249,7 @@ export const createProduct = mutation({
     tracksExpiry: v.optional(v.boolean()),
     expiryAlertDays: v.optional(v.number()),
     expiryDate: v.optional(v.string()),
+    tracksInventory: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { userId, profile, organizationId, organization } = await requireRole(ctx, [
@@ -254,6 +258,14 @@ export const createProduct = mutation({
     ]);
     if (!canManageCatalog(profile)) throw new Error("Forbidden");
     await assertOrganizationCapacity(ctx, organization, "products");
+
+    const businessConfig = await loadBusinessConfiguration(ctx, organizationId);
+    const nonStockAllowed = hasBusinessCapability(businessConfig, "non_stock_sales");
+    if (args.tracksInventory === false && !nonStockAllowed) {
+      throw new Error("Non-stock catalogue is not enabled for this organization");
+    }
+    const tracksInventory =
+      nonStockAllowed && args.tracksInventory === false ? false : true;
 
     const name = sanitizeText(args.name, "Product name", TEXT_LIMITS.name);
     const sku = sanitizeSku(args.sku);
@@ -266,7 +278,7 @@ export const createProduct = mutation({
     if (!Number.isFinite(args.lowStockThreshold) || args.lowStockThreshold < 0) {
       throw new Error("Invalid low stock threshold");
     }
-    const tracksExpiry = args.tracksExpiry === true;
+    const tracksExpiry = tracksInventory && args.tracksExpiry === true;
     let expiryAlertDays: number | undefined;
     if (tracksExpiry) {
       expiryAlertDays = Math.floor(args.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS);
@@ -325,6 +337,7 @@ export const createProduct = mutation({
       lowStockThreshold: Math.floor(args.lowStockThreshold),
       tracksExpiry: tracksExpiry || undefined,
       expiryAlertDays,
+      tracksInventory: tracksInventory ? undefined : false,
       status: args.status,
       description,
       imageStorageId: args.imageStorageId,
@@ -412,6 +425,7 @@ export const updateProduct = mutation({
     tracksExpiry: v.optional(v.boolean()),
     expiryAlertDays: v.optional(v.number()),
     openingExpiryDate: v.optional(v.string()),
+    tracksInventory: v.optional(v.boolean()),
     /** Absolute branch stock — only when products.editStock entitlement is on. */
     stockQuantity: v.optional(v.number()),
     /** Branch to set stock on (defaults to the actor’s working branch). */
@@ -425,6 +439,14 @@ export const updateProduct = mutation({
     if (!canManageCatalog(profile)) throw new Error("Forbidden");
     const product = await ctx.db.get(args.id);
     if (!product || product.organizationId !== organizationId) throw new Error("Product not found");
+
+    const businessConfig = await loadBusinessConfiguration(ctx, organizationId);
+    const nonStockAllowed = hasBusinessCapability(businessConfig, "non_stock_sales");
+    if (args.tracksInventory === false && !nonStockAllowed) {
+      throw new Error("Non-stock catalogue is not enabled for this organization");
+    }
+    const tracksInventory =
+      nonStockAllowed && args.tracksInventory === false ? false : true;
 
     const name = sanitizeText(args.name, "Product name", TEXT_LIMITS.name);
     const sku = sanitizeSku(args.sku);
@@ -451,7 +473,7 @@ export const updateProduct = mutation({
       throw new Error("Invalid low stock threshold");
     }
 
-    const tracksExpiry = args.tracksExpiry === true;
+    const tracksExpiry = tracksInventory && args.tracksExpiry === true;
     let expiryAlertDays: number | undefined;
     if (tracksExpiry) {
       expiryAlertDays = Math.floor(args.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS);
@@ -539,6 +561,7 @@ export const updateProduct = mutation({
       lowStockThreshold: Math.floor(args.lowStockThreshold),
       tracksExpiry,
       expiryAlertDays,
+      tracksInventory: tracksInventory ? undefined : false,
       status: args.status,
       description: sanitizeOptionalText(args.description, "Description", TEXT_LIMITS.description),
       imageStorageId,

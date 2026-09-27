@@ -672,6 +672,28 @@ export const landingCopy = {
         capabilities: ["Serial / SKU control", "High-value inventory", "Precise stock counts"],
         cta: "Start free trial",
       },
+      {
+        id: "restaurant",
+        pill: "Restaurant",
+        title: "Food service counters",
+        detail:
+          "Sell menu items without requiring on-hand stock — food is cooked to order. Keep inventory on drinks and supplies when you need it.",
+        capabilities: [
+          "Menu catalogue without stock",
+          "Optional stock for drinks & supplies",
+          "Same POS checkout & receipts",
+        ],
+        cta: "Start free trial",
+      },
+      {
+        id: "hotel",
+        pill: "Hotel",
+        title: "Rooms and rates",
+        detail:
+          "Sell room types with nightly rates at the counter. Quantity is nights — no reservation calendar required in this release.",
+        capabilities: ["Room types as catalogue items", "Nightly rates at POS", "Stock not required"],
+        cta: "Start free trial",
+      },
     ],
   },
   researchProof: {
@@ -849,6 +871,8 @@ export const landingCopy = {
         { href: "/#industry-wholesale", label: "Wholesale" },
         { href: "/#industry-fashion", label: "Fashion & Specialty Retail" },
         { href: "/#industry-electronics", label: "Electronics" },
+        { href: "/#industry-restaurant", label: "Restaurant" },
+        { href: "/#industry-hotel", label: "Hotel" },
       ],
     },
     demo: { href: "/demo#full", label: "Demo" },
@@ -885,6 +909,8 @@ export const landingCopy = {
       { href: "/#industry-wholesale", label: "Wholesale" },
       { href: "/#industry-fashion", label: "Fashion & Specialty" },
       { href: "/#industry-electronics", label: "Electronics" },
+      { href: "/#industry-restaurant", label: "Restaurant" },
+      { href: "/#industry-hotel", label: "Hotel" },
     ],
     resources: [
       { href: "/docs", label: "Documentation" },

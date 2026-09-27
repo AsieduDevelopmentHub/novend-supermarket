@@ -54,6 +54,19 @@ describe("businessCapabilities registry", () => {
     expect(pro.enabledCapabilities).toContain("sell_by_weight");
     expect(pro.enabledCapabilities).toContain("scale_hardware");
   });
+
+  it("applies restaurant and hotel packs with non_stock_sales on Basic", () => {
+    const restaurant = configurationFromIndustryPack("restaurant", "basic");
+    expect(restaurant.enabledCapabilities).toContain("non_stock_sales");
+    expect(restaurant.enabledCapabilities).toContain("configurable_pos");
+
+    const hotel = configurationFromIndustryPack("hotel", "basic");
+    expect(hotel.enabledCapabilities).toContain("non_stock_sales");
+  });
+
+  it("allows non_stock_sales on Basic", () => {
+    expect(planAllowsBusinessCapability("basic", "non_stock_sales")).toBe(true);
+  });
 });
 
 describe("navigation capability gates", () => {

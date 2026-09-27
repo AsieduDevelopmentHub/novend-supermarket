@@ -77,6 +77,9 @@ export const INDUSTRY_SHOWCASE_SCREENS = {
   fashion: "/marketing/ui/sale-fashion.jpg",
   electronics: "/marketing/ui/sale-electronics.jpg",
   convenience: "/marketing/ui/sale-convenience.jpg",
+  /** Reuse POS frame until dedicated restaurant/hotel shots exist. */
+  restaurant: "/marketing/ui/sales-pos.jpg",
+  hotel: "/marketing/ui/sales-pos.jpg",
 } as const;
 
 export type DocsDemoShot = {

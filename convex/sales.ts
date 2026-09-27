@@ -23,6 +23,7 @@ import {
 import { loadReturnableLines } from "./shared/returns";
 import { allocateInvoiceNumber, sanitizeInvoiceNumber } from "./shared/documentReferences";
 import { hasBusinessCapability } from "./shared/businessCapabilities";
+import { productTracksInventory } from "./shared/productInventory";
 import {
   buildSaleLineUnitSnapshot,
   lineGrossForSellUnit,
@@ -82,6 +83,7 @@ export const catalog = query({
     const { branchId, organizationId } = await requireBranchId(ctx, args.branchId);
     const stockByProduct = await stockMapForBranch(ctx, branchId);
     const summaries = await lotSummaries(ctx, branchId);
+    const businessConfig = await loadBusinessConfiguration(ctx, organizationId);
     let products = (
       await ctx.db
         .query("products")
@@ -90,6 +92,7 @@ export const catalog = query({
         )
         .collect()
     ).filter((p) => {
+      if (!productTracksInventory(p, businessConfig)) return true;
       const onHand = stockByProduct.get(p._id) ?? 0;
       const expiry = deriveExpiryListFields(p, onHand, summaries.get(p._id));
       return expiry.sellableQuantity > 0;
@@ -103,13 +106,14 @@ export const catalog = query({
       products.slice(0, 48).map(async (product) => {
         const onHand = stockByProduct.get(product._id) ?? 0;
         const expiry = deriveExpiryListFields(product, onHand, summaries.get(product._id));
+        const tracksInventory = productTracksInventory(product, businessConfig);
         return {
           id: product._id,
           name: product.name,
           sku: product.sku,
           barcode: product.barcode,
           sellingPrice: product.sellingPrice,
-          stockQuantity: expiry.sellableQuantity,
+          stockQuantity: tracksInventory ? expiry.sellableQuantity : onHand,
           unit: product.unit,
           sellUnits: product.sellUnits ?? null,
           pricingMode: product.pricingMode ?? null,
@@ -118,6 +122,7 @@ export const catalog = query({
             : null,
           branchId,
           tracksExpiry: expiry.tracksExpiry,
+          tracksInventory,
           isExpiring: expiry.isExpiring,
           nearestSellableExpiry: expiry.nearestSellableExpiry,
         };
@@ -451,11 +456,13 @@ export const completeSale = mutation({
       }
 
       const snapshot = buildSaleLineUnitSnapshot(unit, displayedQuantity);
-      const available = productTracksExpiry(product)
-        ? await getSellableQuantity(ctx, branchId, product._id)
-        : await getBranchQuantity(ctx, branchId, product._id);
-      if (available < snapshot.baseQuantity) {
-        throw new Error(`Not enough stock for ${product.name}. Available: ${available}.`);
+      if (productTracksInventory(product, businessConfig)) {
+        const available = productTracksExpiry(product)
+          ? await getSellableQuantity(ctx, branchId, product._id)
+          : await getBranchQuantity(ctx, branchId, product._id);
+        if (available < snapshot.baseQuantity) {
+          throw new Error(`Not enough stock for ${product.name}. Available: ${available}.`);
+        }
       }
       const gross = lineGrossForSellUnit(unit, snapshot.displayedQuantity);
       if (item.discount > gross) {
@@ -530,6 +537,9 @@ export const completeSale = mutation({
       const product = await ctx.db.get(line.productId);
       if (!product || product.status !== "active") {
         throw new Error("Product unavailable");
+      }
+      if (!productTracksInventory(product, businessConfig)) {
+        continue;
       }
       if (productTracksExpiry(product)) {
         const allocations = await decreaseLots(ctx, {

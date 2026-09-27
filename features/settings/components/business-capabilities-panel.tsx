@@ -35,6 +35,8 @@ const PROFILE_LABELS: Record<IndustryProfile, string> = {
   cold_store: "Cold store / meat & fish",
   electronics: "Electronics",
   pharmacy: "Pharmacy (inventory)",
+  restaurant: "Restaurant / F&B",
+  hotel: "Hotel / lodging",
   custom: "Custom",
 };
 
@@ -45,6 +47,8 @@ const PROFILE_BLURBS: Record<IndustryProfile, string> = {
   cold_store: "Weight selling, lots, and optional scale support.",
   electronics: "Serial / IMEI tracking for high-value items.",
   pharmacy: "Lots, expiry, and room for custom catalog fields.",
+  restaurant: "Menu items without required stock; optional stock for drinks and supplies.",
+  hotel: "Room types and rates at POS — quantity is nights; stock not required.",
   custom: "Start empty and turn on only what you need.",
 };
 
@@ -54,6 +58,7 @@ const CATALOG_KEYS: BusinessCapabilityKey[] = [
   "sell_by_weight",
   "lot_expiry",
   "serial_tracking",
+  "non_stock_sales",
 ];
 
 const OTHER_KEYS: BusinessCapabilityKey[] = (
@@ -70,6 +75,8 @@ function productFormHint(key: BusinessCapabilityKey): string | null {
       return "Shows expiry tracking on Add Product";
     case "serial_tracking":
       return "Serial fields land in a later release";
+    case "non_stock_sales":
+      return "Shows Track inventory toggle on Add Product";
     default:
       return null;
   }

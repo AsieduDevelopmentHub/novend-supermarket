@@ -7,6 +7,7 @@ import {
   roundQuantity,
 } from "@/convex/shared/units";
 import { hasBusinessCapability } from "@/convex/shared/businessCapabilities";
+import { productTracksInventory } from "@/convex/shared/productInventory";
 import { loadBusinessCapabilitiesCache } from "./business-capabilities";
 import {
   getMeta,
@@ -167,9 +168,11 @@ export async function completeSaleLocally(input: {
         }
 
         const unitSnapshot = buildSaleLineUnitSnapshot(unit, displayedQuantity);
-        const available = await getSellableQuantity(db, branchId, item.productId, product);
-        if (available < unitSnapshot.baseQuantity) {
-          throw new Error(`Not enough stock for ${product.name}. Available: ${available}.`);
+        if (productTracksInventory(product, businessConfig)) {
+          const available = await getSellableQuantity(db, branchId, item.productId, product);
+          if (available < unitSnapshot.baseQuantity) {
+            throw new Error(`Not enough stock for ${product.name}. Available: ${available}.`);
+          }
         }
         const gross = lineGrossForSellUnit(unit, unitSnapshot.displayedQuantity);
         if (!Number.isFinite(item.discount) || item.discount < 0 || item.discount - gross > 0.001) {
@@ -199,13 +202,15 @@ export async function completeSaleLocally(input: {
           factorToBase: unitSnapshot.factorToBase,
           pricingMode: unitSnapshot.pricingMode,
         });
-        await applyLocalBranchStockChange(
-          db,
-          branchId,
-          product.id,
-          -unitSnapshot.baseQuantity,
-          product,
-        );
+        if (productTracksInventory(product, businessConfig)) {
+          await applyLocalBranchStockChange(
+            db,
+            branchId,
+            product.id,
+            -unitSnapshot.baseQuantity,
+            product,
+          );
+        }
       }
 
       const cartDiscount = roundMoney(input.discount);
@@ -331,6 +336,8 @@ export async function markLocalSaleFailed(localSaleId: string, error: string) {
         for (const item of items) {
           const product = await db.products.get(item.productId);
           if (!product || !sale.branchId) continue;
+          const businessConfig = await loadBusinessCapabilitiesCache();
+          if (!productTracksInventory(product, businessConfig)) continue;
           await applyLocalBranchStockChange(
             db,
             sale.branchId,

@@ -57,6 +57,8 @@ export type MirroredProduct = {
   description?: string | null;
   imageUrl: string | null;
   tracksExpiry?: boolean;
+  /** When false and non_stock_sales is on, sell without stock. Missing = true. */
+  tracksInventory?: boolean;
   expiryAlertDays?: number | null;
   nearestExpiry?: string | null;
   expiredQuantity?: number;
@@ -579,6 +581,7 @@ export type UpsertProductPayload = {
   status: "active" | "inactive";
   description?: string;
   tracksExpiry?: boolean;
+  tracksInventory?: boolean;
   expiryAlertDays?: number;
   expiryDate?: string;
   imageStorageId?: string;
