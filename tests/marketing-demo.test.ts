@@ -35,10 +35,10 @@ describe("marketing product demo", () => {
   it("exposes demo CTAs and nav entry", () => {
     expect(landingCopy.demo.primaryCta.length).toBeGreaterThan(0);
     expect(landingCopy.demo.secondaryHref).toBe("/contact");
-    expect(landingCopy.demo.seriesHref).toBe("/demo");
-    expect(landingCopy.nav.demo.href).toBe("/demo");
-    expect(landingCopy.hero.secondaryHref).toBe("/demo");
-    expect(landingCopy.footer.product.some((item) => item.href === "/demo")).toBe(true);
+    expect(landingCopy.demo.seriesHref).toBe("/demo#full");
+    expect(landingCopy.nav.demo.href).toBe("/demo#full");
+    expect(landingCopy.hero.secondaryHref).toBe("/demo#full");
+    expect(landingCopy.footer.product.some((item) => item.href === "/demo#full")).toBe(true);
   });
 });
 
@@ -79,5 +79,21 @@ describe("marketing training series demo page", () => {
     expect(isMarketingPath("/demo")).toBe(true);
     expect(isMarketingPath("/demo#sales")).toBe(true);
     expect(isMarketingPath("/demo#full")).toBe(true);
+  });
+});
+
+describe("demo page hash defaults", () => {
+  it("resolves empty and unknown hashes to the full training video", async () => {
+    const { parsePlayableHash } = await import(
+      "@/features/marketing/components/demo-page-view"
+    );
+    expect(parsePlayableHash("")).toBe("full");
+    expect(parsePlayableHash("#")).toBe("full");
+    expect(parsePlayableHash("#demo")).toBe("full");
+    expect(parsePlayableHash("#full")).toBe("full");
+    expect(parsePlayableHash("#demo-guided")).toBe("full");
+    expect(parsePlayableHash("#sales")).toBe("sales");
+    expect(parsePlayableHash("#dashboard")).toBe("dashboard");
+    expect(parsePlayableHash("#episode-inventory")).toBe("inventory");
   });
 });

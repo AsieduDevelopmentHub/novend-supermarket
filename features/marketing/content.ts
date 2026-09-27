@@ -141,7 +141,7 @@ export const landingCopy = {
       "Novend brings checkout, inventory, branch transfers, and reporting into one dependable system built for everyday retail.",
     primaryCta: "Start free for 14 days",
     secondaryCta: "Watch the demo",
-    secondaryHref: "/demo",
+    secondaryHref: "/demo#full",
     proofRow: ["No card required", "Works offline after setup", "Desktop and mobile"],
   },
   /**
@@ -158,7 +158,7 @@ export const landingCopy = {
     secondaryHref: "/contact",
     comingSoonNote: "",
     seriesCta: "Watch full training & modules",
-    seriesHref: "/demo",
+    seriesHref: "/demo#full",
     chapters: [
       {
         id: "overview" as const,
@@ -851,7 +851,7 @@ export const landingCopy = {
         { href: "/#industry-electronics", label: "Electronics" },
       ],
     },
-    demo: { href: "/demo", label: "Demo" },
+    demo: { href: "/demo#full", label: "Demo" },
     pricing: { href: "/pricing", label: "Pricing" },
     resources: {
       label: "Resources",
@@ -875,7 +875,7 @@ export const landingCopy = {
       { href: "/product/pos", label: "Point of Sale" },
       { href: "/product/inventory", label: "Inventory" },
       { href: "/product/offline-sync", label: "Offline & Sync" },
-      { href: "/demo", label: "Product demo" },
+      { href: "/demo#full", label: "Product demo" },
       { href: "/pricing", label: "Pricing" },
       { href: "/download", label: "Download" },
     ],
