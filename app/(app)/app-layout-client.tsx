@@ -38,7 +38,13 @@ import {
   shellProfileFromSessionHint,
   type ShellProfile,
 } from "@/lib/offline/shell-profile";
-import { markOfflineSession, readOfflineSession, hasOfflineSession } from "@/lib/offline/session";
+import {
+  markOfflineSession,
+  readOfflineSession,
+  hasOfflineSession,
+  ensureActiveOfflineSession,
+  listOfflineSessions,
+} from "@/lib/offline/session";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { isAwaitingCloudReconnect } from "@/lib/auth/awaiting-cloud-reconnect";
 import { navigateToLoginAfterSignOut } from "@/lib/auth/native-auth-navigation";
@@ -148,7 +154,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     void loadShellProfile().then((profile) => {
       if (cancelled) return;
-      const hint = readOfflineSession();
+      const hint = readOfflineSession() ?? ensureActiveOfflineSession();
       if (!hint) {
         setCachedProfile(null);
         setCacheReady(true);
@@ -171,14 +177,23 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Never kick a cashier who already has a local offline shell just because
-  // the radio came back — offline login has no Convex JWT until they connect
-  // in place (CloudReconnectBanner). Forcing /login here dropped remote tills.
+  // Re-activate a registry shell when the active key expired/cleared so
+  // Cap/Electron reconnect paints POS chrome instead of bouncing to /login.
+  useEffect(() => {
+    if (isAuthenticated || hasExplicitLogout()) return;
+    if (sessionHint) return;
+    if (!hasOfflineSession()) return;
+    ensureActiveOfflineSession();
+  }, [isAuthenticated, sessionHint]);
+
+  // Radio returned without a Convex JWT: keep the local shell. Never kick to
+  // /login while any remembered offline account exists on this device.
   useEffect(() => {
     if (!online || isAuthenticated) return;
-    if (isAwaitingCloudReconnect({ isAuthenticated, sessionHint })) return;
     if (hasExplicitLogout()) return;
+    if (isAwaitingCloudReconnect({ isAuthenticated, sessionHint })) return;
     if (hasOfflineSession() || readOfflineSession() || sessionHint) return;
+    if (ensureActiveOfflineSession()) return;
     if (isLoading && !onlineAuthBudgetElapsed) return;
 
     router.replace("/login");
@@ -188,6 +203,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       if (window.location.pathname.startsWith("/login")) return;
       if (isAwaitingCloudReconnect({ isAuthenticated: false, sessionHint })) return;
       if (hasOfflineSession() || readOfflineSession() || sessionHint) return;
+      if (ensureActiveOfflineSession()) return;
       const next = new URL("/login", window.location.origin);
       if (new URLSearchParams(window.location.search).get("fromBoot") === "1") {
         next.searchParams.set("fromBoot", "1");
@@ -386,7 +402,15 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const hintProfile = sessionHint ? shellProfileFromSessionHint(sessionHint) : null;
+  // Registry fallback (read-only) so reconnect paints chrome before the
+  // ensureActive effect rewrites the active key.
+  const registryHint =
+    !sessionHint && typeof window !== "undefined" ? (listOfflineSessions()[0] ?? null) : null;
+  const hintProfile = sessionHint
+    ? shellProfileFromSessionHint(sessionHint)
+    : registryHint
+      ? shellProfileFromSessionHint(registryHint)
+      : null;
   const resolvedCache = cachedProfile ?? hintProfile;
 
   const resolvedPlatformSession: PlatformOfflineSession | null =
@@ -565,8 +589,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (!liveReady && !shellFromCache && !offlineSessionOk && !cachedShellWhileOnlineHung) {
-    // Offline shell without JWT: stay off /login even if Dexie profile has not
-    // settled yet — CloudReconnectBanner mounts once the shell paints below.
+    // Offline shell without JWT: stay off /login — effect + registry hint should
+    // already have produced resolvedCache; only splash briefly if storage is empty.
     if (awaitingCloudReconnect) {
       return <AppSplash label="Opening workspace…" />;
     }
@@ -586,7 +610,12 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       );
     }
 
-    if (onlineAuthBudgetElapsed && !resolvedCache && !resolvedPlatformSession) {
+    if (
+      onlineAuthBudgetElapsed &&
+      !resolvedCache &&
+      !resolvedPlatformSession &&
+      !hasOfflineSession()
+    ) {
       return <AppSplash label="Redirecting to login…" />;
     }
 

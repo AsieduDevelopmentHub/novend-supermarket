@@ -55,5 +55,7 @@ describe("offline sign-out recovery", () => {
     expect(source).toContain("recoverToLoginAfterFailure");
     expect(source).toContain("Open sign-in");
     expect(source).toContain("Opening sign-in…");
+    expect(source).toContain("resumeOfflineShellToDashboard");
+    expect(source).not.toMatch(/asChild[\s\S]*Link href=["']\/dashboard["']/);
   });
 });

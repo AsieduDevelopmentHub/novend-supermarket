@@ -7,6 +7,7 @@ import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { navigateToLoginAfterSignOut } from "@/lib/auth/native-auth-navigation";
 import { LOGIN_AFTER_SIGN_OUT_PATH } from "@/lib/auth/capacitor-boot";
 import { prepareHardNavigation } from "@/lib/auth/redirect-after-login";
+import { hasOfflineSession } from "@/lib/offline/session";
 
 export function isChunkLoadError(error: unknown): boolean {
   const text =
@@ -26,6 +27,9 @@ export function isChunkLoadError(error: unknown): boolean {
 export function shouldRecoverToLogin(error: unknown): boolean {
   if (typeof window === "undefined") return false;
   if (hasExplicitLogout()) return true;
+  // Offline / reconnect shells must stay in the POS — CTAs that bounce to
+  // /login drop queued work and look like a crash after the radio returns.
+  if (hasOfflineSession()) return false;
   if (window.location.pathname === "/login" || window.location.pathname === "/signup") {
     return isChunkLoadError(error);
   }

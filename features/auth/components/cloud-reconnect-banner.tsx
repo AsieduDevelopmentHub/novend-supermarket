@@ -34,6 +34,8 @@ const REMEMBER_KEY = "novend.login.rememberEmail";
 const DISMISS_KEY = "novend.cloudReconnect.dismissedAt";
 /** Re-show the banner after dismiss once this window elapses (same shift). */
 const DISMISS_TTL_MS = 30 * 60 * 1000;
+/** Let Convex auth settle after the radio flips before auto-opening the dialog. */
+const AUTO_OPEN_SETTLE_MS = 900;
 
 let volatileLoginDeviceKey: string | null = null;
 
@@ -150,8 +152,12 @@ export function CloudReconnectBanner() {
 
   useEffect(() => {
     if (!canAutoOpen || dismissed || autoOpenedRef.current) return;
-    autoOpenedRef.current = true;
-    setDialogOpen(true);
+    const timer = window.setTimeout(() => {
+      if (autoOpenedRef.current) return;
+      autoOpenedRef.current = true;
+      setDialogOpen(true);
+    }, AUTO_OPEN_SETTLE_MS);
+    return () => window.clearTimeout(timer);
   }, [canAutoOpen, dismissed]);
 
   useEffect(() => {

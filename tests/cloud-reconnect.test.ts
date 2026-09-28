@@ -18,6 +18,7 @@ describe("cloud reconnect in place", () => {
     expect(banner).toContain("hasOfflineSession");
     expect(banner).toContain("autoOpenedRef");
     expect(banner).toContain("shellEligible");
+    expect(banner).toContain("AUTO_OPEN_SETTLE_MS");
     expect(banner).toContain('toast.success("Connected to cloud")');
   });
 
@@ -30,8 +31,18 @@ describe("cloud reconnect in place", () => {
   it("never kicks an offline shell to /login just because online flipped", () => {
     expect(layout).toContain("awaitingCloudReconnect");
     expect(layout).toContain("isAwaitingCloudReconnect");
+    expect(layout).toContain("ensureActiveOfflineSession");
     expect(layout).toContain("CloudReconnectBanner");
     expect(layout).not.toContain("router.refresh()");
+  });
+
+  it("error boundaries soft-recover to dashboard without Next Link", () => {
+    const errorBoundary = readFileSync(resolve(process.cwd(), "app/(app)/error.tsx"), "utf8");
+    const globalError = readFileSync(resolve(process.cwd(), "app/global-error.tsx"), "utf8");
+    for (const source of [errorBoundary, globalError]) {
+      expect(source).toContain("resumeOfflineShellToDashboard");
+      expect(source).not.toMatch(/asChild[\s\S]*Link href=["']\/dashboard["']/);
+    }
   });
 
   it("documents in-place reconnect instead of /login", () => {
