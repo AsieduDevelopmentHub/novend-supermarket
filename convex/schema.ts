@@ -1594,4 +1594,88 @@ export default defineSchema({
   })
     .index("by_ticket", ["ticketId"])
     .index("by_organization", ["organizationId"]),
+
+  // --- Phase C hotel folio — settles into sales on checkout ---
+
+  hotelRooms: defineTable({
+    organizationId: v.id("organizations"),
+    branchId: v.id("branches"),
+    name: v.string(),
+    roomType: v.optional(v.string()),
+    defaultProductId: v.optional(v.id("products")),
+    status: v.union(
+      v.literal("available"),
+      v.literal("occupied"),
+      v.literal("dirty"),
+      v.literal("maintenance"),
+      v.literal("inactive"),
+    ),
+    sortOrder: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_branch", ["branchId"])
+    .index("by_organization_branch", ["organizationId", "branchId"])
+    .index("by_organization_status", ["organizationId", "status"]),
+
+  hotelReservations: defineTable({
+    organizationId: v.id("organizations"),
+    branchId: v.id("branches"),
+    roomId: v.optional(v.id("hotelRooms")),
+    customerId: v.id("customers"),
+    arrivalDate: v.string(),
+    departureDate: v.string(),
+    status: v.union(
+      v.literal("booked"),
+      v.literal("confirmed"),
+      v.literal("checked_in"),
+      v.literal("cancelled"),
+      v.literal("no_show"),
+    ),
+    guests: v.optional(v.number()),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_branch", ["branchId"])
+    .index("by_room", ["roomId"])
+    .index("by_organization_status", ["organizationId", "status"])
+    .index("by_organization_arrival", ["organizationId", "arrivalDate"]),
+
+  hotelStays: defineTable({
+    organizationId: v.id("organizations"),
+    branchId: v.id("branches"),
+    roomId: v.id("hotelRooms"),
+    customerId: v.id("customers"),
+    reservationId: v.optional(v.id("hotelReservations")),
+    status: v.union(v.literal("open"), v.literal("closed")),
+    checkInAt: v.number(),
+    checkOutAt: v.optional(v.number()),
+    saleId: v.optional(v.id("sales")),
+    notes: v.optional(v.string()),
+    checkedInBy: v.id("users"),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_branch", ["branchId"])
+    .index("by_room", ["roomId"])
+    .index("by_organization_status", ["organizationId", "status"]),
+
+  hotelFolioCharges: defineTable({
+    organizationId: v.id("organizations"),
+    stayId: v.id("hotelStays"),
+    kind: v.union(v.literal("room"), v.literal("product"), v.literal("other")),
+    productId: v.id("products"),
+    description: v.string(),
+    quantity: v.number(),
+    unitPrice: v.number(),
+    discount: v.number(),
+    lineTotal: v.number(),
+    status: v.union(v.literal("open"), v.literal("void")),
+    createdAt: v.number(),
+    createdBy: v.id("users"),
+  })
+    .index("by_stay", ["stayId"])
+    .index("by_organization", ["organizationId"]),
 });

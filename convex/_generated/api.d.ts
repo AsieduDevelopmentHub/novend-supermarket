@@ -26,6 +26,7 @@ import type * as dining from "../dining.js";
 import type * as emailVerification from "../emailVerification.js";
 import type * as experiencePresets from "../experiencePresets.js";
 import type * as featureTemplates from "../featureTemplates.js";
+import type * as hotel from "../hotel.js";
 import type * as http from "../http.js";
 import type * as imports from "../imports.js";
 import type * as inventory from "../inventory.js";
@@ -143,6 +144,7 @@ declare const fullApi: ApiFromModules<{
   emailVerification: typeof emailVerification;
   experiencePresets: typeof experiencePresets;
   featureTemplates: typeof featureTemplates;
+  hotel: typeof hotel;
   http: typeof http;
   imports: typeof imports;
   inventory: typeof inventory;

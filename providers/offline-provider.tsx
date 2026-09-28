@@ -66,6 +66,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const processReturn = useMutation(api.returns.processReturn);
   const openDiningSession = useMutation(api.dining.openSession);
   const payDiningSession = useMutation(api.dining.paySession);
+  const hotelCheckIn = useMutation(api.hotel.checkIn);
+  const hotelCheckoutPay = useMutation(api.hotel.checkoutPay);
   const createSupplier = useMutation(api.suppliers.create);
   const updateSupplier = useMutation(api.suppliers.update);
   const recordPurchase = useMutation(api.wholesale.recordPurchase);
@@ -214,6 +216,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
             processReturn: (args) => processReturn(args),
             openDiningSession: (args) => openDiningSession(args),
             payDiningSession: (args) => payDiningSession(args),
+            hotelCheckIn: (args) => hotelCheckIn(args),
+            hotelCheckoutPay: (args) => hotelCheckoutPay(args),
             createSupplier: (args) => createSupplier(args),
             updateSupplier: (args) => updateSupplier(args),
             recordPurchase: (payload) =>
@@ -340,6 +344,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       processReturn,
       openDiningSession,
       payDiningSession,
+      hotelCheckIn,
+      hotelCheckoutPay,
       createSupplier,
       updateSupplier,
       recordPurchase,
