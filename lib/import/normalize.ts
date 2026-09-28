@@ -39,14 +39,31 @@ export function parseBooleanCell(raw: string): boolean | null {
   return null;
 }
 
-/** Opening-stock expiry. Accepts YYYY-MM-DD (same as Convex lots). */
+/** Opening-stock expiry. Accepts YYYY-MM-DD or dd/mm/yyyy (Ghana/EU). */
 export function parseExpiryDateCell(raw: string): string | null {
   const text = stripCell(raw);
   if (!text) return null;
   const iso = text.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (!iso) return null;
-  const value = iso[1];
-  const [year, month, day] = value.split("-").map(Number);
+  if (iso) {
+    const value = iso[1];
+    const [year, month, day] = value.split("-").map(Number);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (
+      parsed.getUTCFullYear() !== year ||
+      parsed.getUTCMonth() !== month - 1 ||
+      parsed.getUTCDate() !== day
+    ) {
+      return null;
+    }
+    return value;
+  }
+  // Spreadsheet cells often use dd/mm/yyyy — never treat as US mm/dd.
+  const dmy = text.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+  if (!dmy) return null;
+  const day = Number(dmy[1]);
+  const month = Number(dmy[2]);
+  const year = Number(dmy[3]);
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return null;
   const parsed = new Date(Date.UTC(year, month - 1, day));
   if (
     parsed.getUTCFullYear() !== year ||
@@ -55,7 +72,7 @@ export function parseExpiryDateCell(raw: string): string | null {
   ) {
     return null;
   }
-  return value;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 export function parseStatusCell(raw: string): "active" | "inactive" | null {

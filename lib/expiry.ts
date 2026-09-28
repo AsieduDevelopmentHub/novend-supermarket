@@ -1,11 +1,13 @@
 import { format } from "date-fns";
+import { toLocalDateInput } from "@/lib/date";
 
 export const DEFAULT_EXPIRY_ALERT_DAYS = 30;
 
 export type LotStatus = "expired" | "expiring" | "ok";
 
+/** Local calendar day — UTC `toISOString` flipped Ghana/EU dates near midnight. */
 export function todayDateString(now = Date.now()): string {
-  return new Date(now).toISOString().slice(0, 10);
+  return toLocalDateInput(new Date(now));
 }
 
 export function formatExpiryDate(isoDate: string) {

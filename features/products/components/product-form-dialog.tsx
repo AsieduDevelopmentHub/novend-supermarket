@@ -438,6 +438,14 @@ function ProductFormBody({
       const resolvedTracksInventory = showNonStock ? tracksInventory : true;
       const resolvedTracksExpiry =
         resolvedTracksInventory && showExpiry ? tracksExpiry : false;
+      // Only send an opening expiry when creating or first enabling lot tracking.
+      // Re-sending nearestExpiry on every edit made Dexie look like dates "changed by themselves".
+      const shouldSendOpeningExpiry =
+        resolvedTracksExpiry &&
+        Boolean(resolvedOpeningExpiry) &&
+        (!productId ||
+          productId.startsWith("local_") ||
+          initialProduct?.tracksExpiry !== true);
       let savedId = productId ?? "";
       let resolvedCategoryId = categoryId;
       const kind = await persistBusinessWrite({
@@ -461,7 +469,7 @@ function ProductFormBody({
                 tracksInventory: resolvedTracksInventory,
                 tracksExpiry: resolvedTracksExpiry,
                 expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
-                openingExpiryDate: resolvedTracksExpiry ? resolvedOpeningExpiry : undefined,
+                openingExpiryDate: shouldSendOpeningExpiry ? resolvedOpeningExpiry : undefined,
                 ...(canEditStock
                   ? {
                       stockQuantity: Math.max(0, Math.floor(Number(stockQuantity) || 0)),
@@ -489,7 +497,7 @@ function ProductFormBody({
                 tracksInventory: resolvedTracksInventory,
                 tracksExpiry: resolvedTracksExpiry,
                 expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
-                expiryDate: resolvedTracksExpiry ? resolvedOpeningExpiry : undefined,
+                expiryDate: shouldSendOpeningExpiry ? resolvedOpeningExpiry : undefined,
               }),
         local: async () => {
           resolvedCategoryId = await resolveCategoryIdForProduct({
@@ -529,7 +537,7 @@ function ProductFormBody({
             tracksInventory: resolvedTracksInventory,
             tracksExpiry: resolvedTracksExpiry,
             expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
-            expiryDate: resolvedTracksExpiry ? resolvedOpeningExpiry : undefined,
+            expiryDate: shouldSendOpeningExpiry ? resolvedOpeningExpiry : undefined,
             branchId: profileBranchId ?? undefined,
             imageBlob: removeImage ? undefined : (file ?? undefined),
             hasLocalImage: removeImage ? false : Boolean(file),

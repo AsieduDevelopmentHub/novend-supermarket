@@ -548,13 +548,23 @@ export async function queueUpsertProduct(
       : (existing?.stockQuantity ?? 0);
   const openingQty = Math.max(0, Math.floor(isCreate ? stockQuantity : 0));
   const alertDays = payload.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS;
-  const expiryStatus =
-    tracksExpiry && payload.expiryDate ? lotStatus(payload.expiryDate, alertDays) : "ok";
   const { imageBlob, ...rest } = payload;
   const clearImage = payload.clearImage === true;
   if (imageBlob && !clearImage) {
     assertProductImageUploadsEnabled(await loadProductImagesPolicyCache());
   }
+  // Preserve FEFO nearestExpiry on routine edits — only seed from opening expiry
+  // when creating or first enabling lot tracking.
+  const nextNearestExpiry =
+    tracksExpiry && payload.expiryDate && (isCreate || existing?.tracksExpiry !== true)
+      ? payload.expiryDate
+      : tracksExpiry
+        ? (existing?.nearestExpiry ?? null)
+        : null;
+  const expiryForStatus = tracksExpiry
+    ? (payload.expiryDate ?? existing?.nearestExpiry ?? null)
+    : null;
+  const expiryStatus = expiryForStatus ? lotStatus(expiryForStatus, alertDays) : "ok";
   await db.products.put({
     id: localId,
     name: payload.name,
@@ -580,7 +590,7 @@ export async function queueUpsertProduct(
     tracksExpiry: payload.tracksExpiry,
     tracksInventory: payload.tracksInventory,
     expiryAlertDays: payload.expiryAlertDays ?? null,
-    nearestExpiry: payload.expiryDate ?? existing?.nearestExpiry ?? null,
+    nearestExpiry: nextNearestExpiry,
     isExpired: expiryStatus === "expired",
     isExpiring: expiryStatus === "expiring",
     updatedAt: Date.now(),
