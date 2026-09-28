@@ -381,14 +381,19 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
           />
         </div>
 
-        <label className="flex cursor-pointer items-center gap-2 pt-0.5 text-sm">
+        <div className="flex items-center gap-2 pt-0.5">
           <Checkbox
+            id="login-remember-me"
             checked={rememberMe}
             onCheckedChange={(value) => setRememberMe(value === true)}
-            aria-label="Remember me"
           />
-          <span className="text-foreground/90">Remember me</span>
-        </label>
+          <Label
+            htmlFor="login-remember-me"
+            className="text-foreground/90 cursor-pointer text-sm font-normal"
+          >
+            Remember me
+          </Label>
+        </div>
 
         <Button
           type="submit"
