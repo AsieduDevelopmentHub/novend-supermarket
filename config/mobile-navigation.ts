@@ -59,6 +59,11 @@ export type MoreSection = {
 
 const MORE_SECTIONS: Array<{ id: string; label: string; hrefs: string[] }> = [
   {
+    id: "operations",
+    label: "Operations",
+    hrefs: ["/floor", "/kitchen", "/rooms", "/reservations"],
+  },
+  {
     id: "business",
     label: "Business",
     hrefs: ["/returns", "/customers", "/wholesale", "/suppliers", "/products"],

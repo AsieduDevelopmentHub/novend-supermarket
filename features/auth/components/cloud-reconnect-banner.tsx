@@ -18,7 +18,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { showError } from "@/lib/errors";
-import { consumeExplicitLogout } from "@/lib/auth/logout-flag";
+import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { storeLocalAuthVerifier } from "@/lib/offline/local-auth";
 import {
   hasOfflineSession,
@@ -121,8 +121,11 @@ export function CloudReconnectBanner() {
 
   const email = resolveReconnectEmail(sessionHint);
   const hasShell = Boolean(sessionHint) || hasOfflineSession();
-  // Offline shell + radio up + no JWT → in-place password connect (never /login).
-  const eligible = online && !isLoading && !isAuthenticated && hasShell && Boolean(email);
+  // Keep reconnect UI across Convex isLoading flicker — gating on !isLoading
+  // briefly unmounted the password dialog and dropped forceClientShell → /login.
+  const shellEligible =
+    online && !isAuthenticated && hasShell && Boolean(email) && !hasExplicitLogout();
+  const canAutoOpen = shellEligible && !isLoading;
 
   const [dismissed, setDismissed] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -131,24 +134,28 @@ export function CloudReconnectBanner() {
   const titleId = useId();
 
   useEffect(() => {
-    if (!eligible) {
+    if (shellEligible) {
+      const at = readDismissedAt();
+      setDismissed(at > 0 && Date.now() - at < DISMISS_TTL_MS);
+      return;
+    }
+    // Only reset when leaving reconnect mode for real (not auth-loading flicker).
+    if (!online || isAuthenticated || !hasShell) {
       clearDismissedAt();
       setDismissed(false);
       autoOpenedRef.current = false;
-      return;
+      setDialogOpen(false);
     }
-    const at = readDismissedAt();
-    setDismissed(at > 0 && Date.now() - at < DISMISS_TTL_MS);
-  }, [eligible]);
+  }, [shellEligible, online, isAuthenticated, hasShell]);
 
   useEffect(() => {
-    if (!eligible || dismissed || autoOpenedRef.current) return;
+    if (!canAutoOpen || dismissed || autoOpenedRef.current) return;
     autoOpenedRef.current = true;
     setDialogOpen(true);
-  }, [eligible, dismissed]);
+  }, [canAutoOpen, dismissed]);
 
   useEffect(() => {
-    if (!eligible) return;
+    if (!shellEligible) return;
     function onFocus() {
       const at = readDismissedAt();
       if (at > 0 && Date.now() - at >= DISMISS_TTL_MS) {
@@ -158,9 +165,11 @@ export function CloudReconnectBanner() {
     }
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [eligible]);
+  }, [shellEligible]);
 
-  if (!eligible || dismissed) return null;
+  // Stay mounted while the dialog is open even if Convex flips isLoading.
+  if (!shellEligible && !dialogOpen) return null;
+  if (shellEligible && dismissed && !dialogOpen) return null;
 
   function dismiss() {
     writeDismissedAt(Date.now());
@@ -205,32 +214,36 @@ export function CloudReconnectBanner() {
 
   return (
     <>
-      <div
-        role="status"
-        className={cn(
-          "border-primary/25 bg-primary/10 text-foreground flex items-center justify-between gap-3 border-b px-4 py-2 text-sm",
-        )}
-      >
-        <div className="flex min-w-0 items-center gap-2">
-          <Cloud className="text-primary size-4 shrink-0" aria-hidden />
-          <p className="truncate">Internet is back — connect to sync</p>
+      {shellEligible && !dismissed ? (
+        <div
+          role="status"
+          className={cn(
+            "border-primary/25 bg-primary/10 text-foreground flex items-center justify-between gap-3 border-b px-4 py-2 text-sm",
+          )}
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <Cloud className="text-primary size-4 shrink-0" aria-hidden />
+            <p className="truncate">
+              {isLoading ? "Checking cloud session…" : "Internet is back — connect to sync"}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Button type="button" size="sm" onClick={() => setDialogOpen(true)}>
+              Connect
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="size-8 px-0"
+              aria-label="Dismiss for now"
+              onClick={dismiss}
+            >
+              <X className="size-4" aria-hidden />
+            </Button>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          <Button type="button" size="sm" onClick={() => setDialogOpen(true)}>
-            Connect
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="size-8 px-0"
-            aria-label="Dismiss for now"
-            onClick={dismiss}
-          >
-            <X className="size-4" aria-hidden />
-          </Button>
-        </div>
-      </div>
+      ) : null}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-sm">

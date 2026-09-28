@@ -40,6 +40,7 @@ import {
 } from "@/lib/offline/shell-profile";
 import { markOfflineSession, readOfflineSession, hasOfflineSession } from "@/lib/offline/session";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
+import { isAwaitingCloudReconnect } from "@/lib/auth/awaiting-cloud-reconnect";
 import { navigateToLoginAfterSignOut } from "@/lib/auth/native-auth-navigation";
 import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
 import {
@@ -175,6 +176,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   // in place (CloudReconnectBanner). Forcing /login here dropped remote tills.
   useEffect(() => {
     if (!online || isAuthenticated) return;
+    if (isAwaitingCloudReconnect({ isAuthenticated, sessionHint })) return;
     if (hasExplicitLogout()) return;
     if (hasOfflineSession() || readOfflineSession() || sessionHint) return;
     if (isLoading && !onlineAuthBudgetElapsed) return;
@@ -184,6 +186,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
     const hardNav = window.setTimeout(() => {
       if (window.location.pathname.startsWith("/login")) return;
+      if (isAwaitingCloudReconnect({ isAuthenticated: false, sessionHint })) return;
       if (hasOfflineSession() || readOfflineSession() || sessionHint) return;
       const next = new URL("/login", window.location.origin);
       if (new URLSearchParams(window.location.search).get("fromBoot") === "1") {
@@ -425,10 +428,10 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
   /** Stale-looking online (Convex hung) but we have a local shell — treat like offline session. */
   const signingOut = hasExplicitLogout();
-  const awaitingCloudReconnect =
-    !signingOut &&
-    !isAuthenticated &&
-    (Boolean(sessionHint) || hasOfflineSession() || Boolean(readOfflineSession()));
+  const awaitingCloudReconnect = isAwaitingCloudReconnect({
+    isAuthenticated,
+    sessionHint,
+  });
   const allowCachedShell =
     Boolean(resolvedCache) && !signingOut && (isAuthenticated || awaitingCloudReconnect);
   const cachedShellWhileOnlineHung =

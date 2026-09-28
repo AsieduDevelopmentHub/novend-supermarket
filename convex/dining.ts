@@ -116,7 +116,7 @@ export const listTables = query({
 export const upsertTable = mutation({
   args: {
     tableId: v.optional(v.id("diningTables")),
-    branchId: v.id("branches"),
+    branchId: v.optional(v.id("branches")),
     name: v.string(),
     code: v.optional(v.string()),
     seats: v.optional(v.number()),
@@ -129,9 +129,17 @@ export const upsertTable = mutation({
       "manager",
     ]);
     await requireBusinessCapability(ctx, organizationId, "tables_orders");
-    const branch = await ctx.db.get(args.branchId);
+
+    let branchId = args.branchId ?? profile.branchId ?? null;
+    if (!branchId) {
+      const { findDefaultBranch, ensureDefaultBranch } = await import("./shared/defaultBranch");
+      const existing = await findDefaultBranch(ctx, organizationId);
+      branchId = existing?._id ?? (await ensureDefaultBranch(ctx, organizationId));
+    }
+
+    const branch = await ctx.db.get(branchId);
     assertActiveOrgBranch(branch, organizationId);
-    if (profile.role === "manager" && profile.branchId !== args.branchId) {
+    if (profile.role === "manager" && profile.branchId !== branchId) {
       throw new Error("Forbidden: branch access denied");
     }
     const name = sanitizeText(args.name, "Table name", TEXT_LIMITS.name);
@@ -151,12 +159,12 @@ export const upsertTable = mutation({
         status: args.status ?? existing.status,
         updatedAt: now,
       });
-      return args.tableId;
+      return { tableId: args.tableId };
     }
 
-    const id = await ctx.db.insert("diningTables", {
+    const tableId = await ctx.db.insert("diningTables", {
       organizationId,
-      branchId: args.branchId,
+      branchId,
       name,
       code: code ?? undefined,
       seats: args.seats,
@@ -169,9 +177,10 @@ export const upsertTable = mutation({
       actorId: userId,
       action: "dining_table_create",
       entityType: "diningTables",
-      entityId: id,
+      entityId: tableId,
+      organizationId,
     });
-    return id;
+    return { tableId };
   },
 });
 

@@ -370,7 +370,10 @@ function SettingsTreeNav({
   onSelect: (value: SettingsTab) => void;
 }) {
   return (
-    <nav data-tour="settings-sections" className="border-border hidden w-56 shrink-0 lg:block">
+    <nav
+      data-tour="settings-sections"
+      className="border-border hidden w-56 shrink-0 lg:sticky lg:top-4 lg:block lg:max-h-[calc(100dvh-5.5rem)] lg:self-start lg:overflow-y-auto"
+    >
       <div className="space-y-5">
         {groups.map((group) => (
           <div key={group.label}>

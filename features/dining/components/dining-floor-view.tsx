@@ -35,6 +35,7 @@ export function DiningFloorView() {
   const { branchId, isAdmin, isManager } = usePermissions();
   const [selectedSessionId, setSelectedSessionId] = useState<Id<"diningSessions"> | null>(null);
   const [newTableName, setNewTableName] = useState("");
+  const [createBranchId, setCreateBranchId] = useState<string | undefined>(undefined);
   const [productId, setProductId] = useState<string | undefined>(undefined);
   const [qty, setQty] = useState("1");
   const [paying, setPaying] = useState(false);
@@ -46,6 +47,10 @@ export function DiningFloorView() {
     online && canFloor && selectedSessionId ? { sessionId: selectedSessionId } : "skip",
   );
   const products = useQuery(api.products.listProducts, online && canFloor ? {} : "skip");
+  const branches = useQuery(
+    api.branches.list,
+    online && canFloor && (isAdmin || isManager) ? {} : "skip",
+  );
   const modifierGroups = useQuery(
     api.dining.listModifierGroupsForProduct,
     online && canFloor && productId ? { productId: productId as Id<"products"> } : "skip",
@@ -86,10 +91,15 @@ export function DiningFloorView() {
   }
 
   async function onCreateTable() {
-    if (!branchId || !newTableName.trim()) return;
+    if (!newTableName.trim()) return;
+    const resolvedBranch =
+      createBranchId ??
+      branchId ??
+      branches?.find((b) => b.status === "active")?.id ??
+      undefined;
     try {
       await upsertTable({
-        branchId: branchId as Id<"branches">,
+        branchId: resolvedBranch ? (resolvedBranch as Id<"branches">) : undefined,
         name: newTableName.trim(),
       });
       setNewTableName("");
@@ -166,12 +176,34 @@ export function DiningFloorView() {
         description="Open checks by table, send to kitchen, then pay."
       />
 
-      {(isAdmin || isManager) && branchId ? (
+      {(isAdmin || isManager) ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Add table</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap items-end gap-2">
+            {isAdmin && (branches?.length ?? 0) > 1 ? (
+              <div className="min-w-[160px] flex-1 space-y-1">
+                <Label>Branch</Label>
+                <Select
+                  value={createBranchId ?? branchId ?? undefined}
+                  onValueChange={setCreateBranchId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(branches ?? [])
+                      .filter((b) => b.status === "active")
+                      .map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <div className="min-w-[160px] flex-1 space-y-1">
               <Label htmlFor="table-name">Name</Label>
               <Input

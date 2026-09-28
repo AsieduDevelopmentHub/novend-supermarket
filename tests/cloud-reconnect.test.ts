@@ -14,11 +14,19 @@ describe("cloud reconnect in place", () => {
     expect(banner).toContain("resolveReconnectEmail");
     expect(banner).toContain("hasOfflineSession");
     expect(banner).toContain("autoOpenedRef");
+    expect(banner).toContain("shellEligible");
     expect(banner).toContain('toast.success("Connected to cloud")');
+  });
+
+  it("keeps reconnect UI across Convex isLoading flicker", () => {
+    expect(banner).toContain("shellEligible");
+    expect(banner).toContain("canAutoOpen");
+    expect(banner).not.toMatch(/const eligible = online && !isLoading && !isAuthenticated/);
   });
 
   it("never kicks an offline shell to /login just because online flipped", () => {
     expect(layout).toContain("awaitingCloudReconnect");
+    expect(layout).toContain("isAwaitingCloudReconnect");
     expect(layout).toContain("CloudReconnectBanner");
     expect(layout).not.toContain("router.refresh()");
   });

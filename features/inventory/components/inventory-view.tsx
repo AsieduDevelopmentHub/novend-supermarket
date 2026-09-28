@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { PageHeader, type PageHeaderCompactAction } from "@/components/layout/primitives";
+import { PageHeader, Grid, type PageHeaderCompactAction } from "@/components/layout/primitives";
 import { BarcodeSearchField } from "@/components/hardware/barcode-search-field";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,9 +46,11 @@ import {
   type StockAdjustReason,
   type StockDirection,
 } from "@/features/inventory/stock-adjust";
-import { ArrowLeftRight, Boxes, Eye, Package } from "lucide-react";
+import { ArrowLeftRight, Boxes, Eye, Package, TrendingUp, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import { formatCurrency } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 import { ProductImage } from "@/components/media/product-image";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { useClientPagedRows } from "@/hooks/use-ui";
@@ -177,6 +179,11 @@ function InventoryViewInner() {
       ? branchOverride
       : undefined
     : undefined;
+
+  const valuation = useQuery(
+    api.inventory.valuationSummary,
+    online ? { branchId: listBranchId } : "skip",
+  );
 
   const { rows } = useInventoryList({
     search,
@@ -442,6 +449,64 @@ function InventoryViewInner() {
           </div>
         }
       />
+
+      {valuation ? (
+        <div className="space-y-3">
+          <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+            Inventory &amp; profit
+          </h2>
+          <Grid cols={valuation.inventoryValueCost != null ? 3 : 1}>
+            {valuation.inventoryValueCost != null ? (
+              <Card>
+                <CardContent className="flex items-start justify-between gap-3 p-4">
+                  <div className="min-w-0">
+                    <p className="text-muted-foreground text-sm">Inventory value (cost)</p>
+                    <p className="mt-1 truncate text-2xl font-semibold tracking-tight">
+                      {formatCurrency(valuation.inventoryValueCost)}
+                    </p>
+                  </div>
+                  <div className="bg-accent text-accent-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+                    <Package className="h-5 w-5" />
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+            <Card>
+              <CardContent className="flex items-start justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="text-muted-foreground text-sm">Inventory value (sell)</p>
+                  <p className="mt-1 truncate text-2xl font-semibold tracking-tight">
+                    {formatCurrency(valuation.inventoryValueSell)}
+                  </p>
+                </div>
+                <div className="bg-accent text-accent-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+                  <Wallet className="h-5 w-5" />
+                </div>
+              </CardContent>
+            </Card>
+            {valuation.possibleProfit != null ? (
+              <Card>
+                <CardContent className="flex items-start justify-between gap-3 p-4">
+                  <div className="min-w-0">
+                    <p className="text-muted-foreground text-sm">Possible profit after sales</p>
+                    <p
+                      className={cn(
+                        "mt-1 truncate text-2xl font-semibold tracking-tight",
+                        valuation.possibleProfit < 0 && "text-destructive",
+                      )}
+                    >
+                      {formatCurrency(valuation.possibleProfit)}
+                    </p>
+                  </div>
+                  <div className="bg-accent text-accent-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+          </Grid>
+        </div>
+      ) : null}
 
       <div data-tour="inventory-filters" className="space-y-3">
         <BarcodeSearchField

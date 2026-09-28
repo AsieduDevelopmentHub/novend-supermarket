@@ -42,7 +42,6 @@ import {
   Eye,
   Package,
   ShoppingBag,
-  TrendingUp,
   Users,
   Wallet,
 } from "lucide-react";
@@ -422,7 +421,6 @@ export function DashboardView() {
   }
 
   const showOps = data.role === "administrator" || data.role === "manager";
-  const showFinance = isAdmin && data.finance != null;
   // Stock / expiry KPIs are org-wide with branch tags — never pin inventory to
   // the cashier's home branch when the dashboard is showing all branches.
   const inventoryAlertHref = (kind: "low" | "expiry") => {
@@ -467,53 +465,6 @@ export function DashboardView() {
         ] as const)
       : []),
   ];
-
-  const financeCards = showFinance
-    ? [
-        ...(data.finance!.inventoryValueCost != null
-          ? [
-              {
-                title: "Inventory value (cost)",
-                value: formatCurrency(data.finance!.inventoryValueCost),
-                icon: Package,
-                href: "/products",
-              },
-            ]
-          : []),
-        {
-          title: "Inventory value (sell)",
-          value: formatCurrency(data.finance!.inventoryValueSell),
-          icon: Package,
-          href: "/products",
-        },
-        {
-          title: `Revenue (${DASHBOARD_OPS_WINDOW_DAYS} days)`,
-          value: formatCurrency(data.finance!.revenue),
-          icon: Wallet,
-          href: "/orders",
-        },
-        ...(data.finance!.cogs != null
-          ? [
-              {
-                title: `COGS (${DASHBOARD_OPS_WINDOW_DAYS} days)`,
-                value: formatCurrency(data.finance!.cogs),
-                icon: ShoppingBag,
-                href: "/analytics",
-              },
-            ]
-          : []),
-        ...(data.finance!.grossProfit != null
-          ? [
-              {
-                title: `Gross profit (${DASHBOARD_OPS_WINDOW_DAYS} days)`,
-                value: formatCurrency(data.finance!.grossProfit),
-                icon: TrendingUp,
-                href: "/analytics",
-              },
-            ]
-          : []),
-      ]
-    : [];
 
   const compactActions = [
     ...(showStockOps
@@ -678,24 +629,6 @@ export function DashboardView() {
           </CardContent>
         </Card>
       )}
-
-      {showFinance && financeCards.length > 0 ? (
-        <div className="space-y-3">
-          <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-            Inventory &amp; profit
-          </h2>
-          <div className="md:hidden">
-            <KpiBentoGrid kpis={financeCards} />
-          </div>
-          <div className="hidden md:block">
-            <Grid cols={5}>
-              {financeCards.map((kpi) => (
-                <KpiCard key={kpi.title} {...kpi} />
-              ))}
-            </Grid>
-          </div>
-        </div>
-      ) : null}
 
       {showOps && showStockOps ? (
         <div className="grid min-w-0 gap-4 xl:grid-cols-2">
