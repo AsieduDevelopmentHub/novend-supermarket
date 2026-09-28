@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { isConnectivityError, toUserMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import {
   isChunkLoadError,
   recoverToLoginAfterFailure,
   shouldRecoverToLogin,
 } from "@/lib/auth/recover-auth-navigation";
+import { resumeOfflineShellToDashboard } from "@/lib/auth/awaiting-cloud-reconnect";
+import { hasOfflineSession } from "@/lib/offline/session";
 
 /**
  * Root error boundary — branded Novend UI instead of a blank host error sheet.
@@ -24,6 +25,7 @@ export default function GlobalError({
   const offline = isConnectivityError(error);
   const chunkMiss = isChunkLoadError(error);
   const recoverLogin = shouldRecoverToLogin(error);
+  const hasShell = typeof window !== "undefined" && hasOfflineSession();
 
   useEffect(() => {
     if (!recoverLogin || recovering) return;
@@ -56,6 +58,14 @@ export default function GlobalError({
         : "We hit an unexpected problem. You can try again or go back to the dashboard.",
   );
 
+  function goDashboard() {
+    if (hasShell) {
+      resumeOfflineShellToDashboard(reset);
+      return;
+    }
+    window.location.assign("/dashboard");
+  }
+
   return (
     <html lang="en">
       <body className="bg-background text-foreground antialiased">
@@ -66,7 +76,7 @@ export default function GlobalError({
             <Button type="button" onClick={reset}>
               {offline ? "Continue" : "Try again"}
             </Button>
-            {chunkMiss || offline ? (
+            {chunkMiss && !hasShell ? (
               <Button
                 type="button"
                 variant="outline"
@@ -78,8 +88,8 @@ export default function GlobalError({
                 Open sign-in
               </Button>
             ) : (
-              <Button asChild type="button" variant="outline">
-                <Link href="/dashboard">Go to dashboard</Link>
+              <Button type="button" variant="outline" onClick={goDashboard}>
+                Go to dashboard
               </Button>
             )}
           </div>

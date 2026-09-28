@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { isConnectivityError, toUserMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +8,8 @@ import {
   recoverToLoginAfterFailure,
   shouldRecoverToLogin,
 } from "@/lib/auth/recover-auth-navigation";
+import { resumeOfflineShellToDashboard } from "@/lib/auth/awaiting-cloud-reconnect";
+import { hasOfflineSession } from "@/lib/offline/session";
 
 export default function AppError({
   error,
@@ -21,6 +22,7 @@ export default function AppError({
   const offline = isConnectivityError(error);
   const chunkMiss = isChunkLoadError(error);
   const recoverLogin = shouldRecoverToLogin(error);
+  const hasShell = typeof window !== "undefined" && hasOfflineSession();
 
   useEffect(() => {
     if (!recoverLogin || recovering) return;
@@ -49,6 +51,16 @@ export default function AppError({
         : "We hit an unexpected problem. Please try again.",
   );
 
+  function goDashboard() {
+    // Soft client recover — Next Link to the dashboard route hits middleware
+    // without a Convex JWT and redirects Cap/Electron reconnect shells to login.
+    if (hasShell) {
+      resumeOfflineShellToDashboard(reset);
+      return;
+    }
+    window.location.assign("/dashboard");
+  }
+
   return (
     <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 px-4 text-center">
       <h2 className="text-lg font-semibold">{title}</h2>
@@ -57,7 +69,7 @@ export default function AppError({
         <Button type="button" onClick={reset}>
           {offline ? "Continue" : "Try again"}
         </Button>
-        {chunkMiss || offline ? (
+        {chunkMiss && !hasShell ? (
           <Button
             type="button"
             variant="outline"
@@ -69,8 +81,8 @@ export default function AppError({
             Open sign-in
           </Button>
         ) : (
-          <Button asChild type="button" variant="outline">
-            <Link href="/dashboard">Go to dashboard</Link>
+          <Button type="button" variant="outline" onClick={goDashboard}>
+            Go to dashboard
           </Button>
         )}
       </div>

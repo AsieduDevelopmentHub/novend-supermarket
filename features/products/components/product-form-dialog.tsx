@@ -23,6 +23,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { generateSkuFromName } from "@/lib/sku";
 import { DEFAULT_EXPIRY_ALERT_DAYS } from "@/lib/expiry";
+import { formatIsoDateAsDdMmYyyy, parseDdMmYyyyToIso } from "@/lib/date";
 import { assertValidImageFile, compressProductImage, IMAGE_ACCEPT } from "@/lib/uploads/image";
 import { Camera, ImagePlus, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
@@ -282,7 +283,10 @@ function ProductFormBody({
   const [expiryAlertDays, setExpiryAlertDays] = useState(
     String(initialProduct?.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS),
   );
-  const [expiryDate, setExpiryDate] = useState(initialProduct?.nearestExpiry ?? "");
+  /** Visible entry uses dd/mm/yyyy; converted to ISO YYYY-MM-DD on save. */
+  const [expiryInput, setExpiryInput] = useState(() =>
+    formatIsoDateAsDdMmYyyy(initialProduct?.nearestExpiry ?? ""),
+  );
   const [status, setStatus] = useState<"active" | "inactive">(
     initialProduct?.status === "inactive" ? "inactive" : "active",
   );
@@ -394,6 +398,34 @@ function ProductFormBody({
       toast.error("Select a stock unit");
       return;
     }
+    const resolvedTracksInventoryPreview = showNonStock ? tracksInventory : true;
+    const resolvedTracksExpiryPreview =
+      resolvedTracksInventoryPreview && showExpiry ? tracksExpiry : false;
+    let resolvedOpeningExpiry: string | undefined;
+    if (resolvedTracksExpiryPreview) {
+      const trimmedExpiry = expiryInput.trim();
+      if (trimmedExpiry) {
+        const parsed = parseDdMmYyyyToIso(trimmedExpiry);
+        if (!parsed) {
+          toast.error("Enter expiry date as dd/mm/yyyy");
+          return;
+        }
+        resolvedOpeningExpiry = parsed;
+        setExpiryInput(formatIsoDateAsDdMmYyyy(parsed));
+      } else {
+        const needsExpiry =
+          Number(stockQuantity) > 0 || (initialProduct?.stockQuantity ?? 0) > 0;
+        if (
+          needsExpiry &&
+          (!productId ||
+            productId.startsWith("local_") ||
+            initialProduct?.tracksExpiry !== true)
+        ) {
+          toast.error("Enter expiry date as dd/mm/yyyy");
+          return;
+        }
+      }
+    }
     setPending(true);
     try {
       let sellUnits: ProductSellUnit[] | undefined;
@@ -429,7 +461,7 @@ function ProductFormBody({
                 tracksInventory: resolvedTracksInventory,
                 tracksExpiry: resolvedTracksExpiry,
                 expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
-                openingExpiryDate: resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
+                openingExpiryDate: resolvedTracksExpiry ? resolvedOpeningExpiry : undefined,
                 ...(canEditStock
                   ? {
                       stockQuantity: Math.max(0, Math.floor(Number(stockQuantity) || 0)),
@@ -457,7 +489,7 @@ function ProductFormBody({
                 tracksInventory: resolvedTracksInventory,
                 tracksExpiry: resolvedTracksExpiry,
                 expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
-                expiryDate: resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
+                expiryDate: resolvedTracksExpiry ? resolvedOpeningExpiry : undefined,
               }),
         local: async () => {
           resolvedCategoryId = await resolveCategoryIdForProduct({
@@ -497,7 +529,7 @@ function ProductFormBody({
             tracksInventory: resolvedTracksInventory,
             tracksExpiry: resolvedTracksExpiry,
             expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
-            expiryDate: resolvedTracksExpiry && expiryDate ? expiryDate : undefined,
+            expiryDate: resolvedTracksExpiry ? resolvedOpeningExpiry : undefined,
             branchId: profileBranchId ?? undefined,
             imageBlob: removeImage ? undefined : (file ?? undefined),
             hasLocalImage: removeImage ? false : Boolean(file),
@@ -834,14 +866,25 @@ function ProductFormBody({
                       </Label>
                       <Input
                         id="opening-expiry"
-                        type="date"
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="dd/mm/yyyy"
+                        autoComplete="off"
                         className="min-h-11 w-full min-w-0"
-                        value={expiryDate}
-                        onChange={(e) => setExpiryDate(e.target.value)}
+                        value={expiryInput}
+                        onChange={(e) => setExpiryInput(e.target.value)}
+                        onBlur={() => {
+                          if (!expiryInput.trim()) return;
+                          const parsed = parseDdMmYyyyToIso(expiryInput);
+                          if (parsed) {
+                            setExpiryInput(formatIsoDateAsDdMmYyyy(parsed));
+                          }
+                        }}
                         required={
                           Number(stockQuantity) > 0 || (initialProduct?.stockQuantity ?? 0) > 0
                         }
                       />
+                      <p className="text-muted-foreground text-xs">Use dd/mm/yyyy</p>
                       {productId && !productId.startsWith("local_") ? (
                         <p className="text-muted-foreground text-xs">
                           Required when converting existing on-hand stock into dated lots.

@@ -57,12 +57,17 @@ export async function canServeListsFromMirror(): Promise<boolean> {
 /**
  * Whether business lists (inventory, products, customers, …) may open live Convex.
  * Package / local modes keep Dexie as the operational clone — same rule as Sales.
+ *
+ * Prefer Dexie whenever the mirror already has catalog rows (stale-while-revalidate).
+ * Live `listProducts` / inventory still `.collect()` the full org and freeze Electron
+ * tills once the 5-minute list TTL expires; background snapshot pull refreshes Dexie.
  */
 export async function shouldUseRemoteBusinessLists(online: boolean): Promise<boolean> {
   if (!online) return false;
   const policy = await loadCloudPolicy();
   if (!policy.shouldUseRealtimeSubscriptions()) return false;
-  return !(await canServeListsFromMirror());
+  if (await mirrorHasCatalog()) return false;
+  return true;
 }
 
 /**

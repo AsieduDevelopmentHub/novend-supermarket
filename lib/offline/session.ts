@@ -193,6 +193,19 @@ export function activateOfflineSession(userId: string): OfflineSessionHint | nul
   return next;
 }
 
+/**
+ * If the active hint was cleared (or TTL-expired) but the registry still has
+ * accounts, re-activate the newest one so Cap/Electron reconnect keeps the POS
+ * shell instead of bouncing to `/login`.
+ */
+export function ensureActiveOfflineSession(): OfflineSessionHint | null {
+  const active = getOfflineSessionSnapshot();
+  if (active) return active;
+  const first = listOfflineSessions()[0];
+  if (!first) return null;
+  return activateOfflineSession(first.userId);
+}
+
 /** Drop one remembered account (and stop auto-resuming it). Does not wipe Dexie. */
 export function forgetOfflineSession(userId: string): void {
   const remaining = listOfflineSessions().filter((row) => row.userId !== userId);

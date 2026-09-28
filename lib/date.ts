@@ -17,6 +17,52 @@ export function parseLocalDateInput(value: string) {
   return new Date(year, month - 1, day);
 }
 
+/**
+ * Format stored ISO `YYYY-MM-DD` for Ghana/EU-style entry as `dd/mm/yyyy`.
+ * Returns "" when the value is not a valid calendar ISO date.
+ */
+export function formatIsoDateAsDdMmYyyy(iso: string | null | undefined): string {
+  if (!iso?.trim()) return "";
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!match) return "";
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return "";
+  }
+  return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+}
+
+/**
+ * Parse `dd/mm/yyyy` (also accepts `d/m/yyyy`, `-` or `.` separators) into
+ * stored ISO `YYYY-MM-DD`. Rejects impossible calendar dates.
+ */
+export function parseDdMmYyyyToIso(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const match = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(trimmed);
+  if (!match) return null;
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return toLocalDateInput(date);
+}
+
 export function startOfLocalDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
