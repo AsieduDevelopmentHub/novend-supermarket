@@ -25,7 +25,12 @@ import { ROUTES } from "@/config/navigation";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
 import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
-import { navigateAfterLogin, resolvePostLoginPath, resolvePostLoginSession } from "@/lib/auth/redirect-after-login";
+import {
+  navigateAfterLogin,
+  prepareHardNavigation,
+  resolvePostLoginPath,
+  resolvePostLoginSession,
+} from "@/lib/auth/redirect-after-login";
 import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import {
@@ -156,6 +161,8 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     }
     consumeExplicitLogout();
     redirectingRef.current = true;
+    // Clear dirty form state while inputs are still mounted (avoids leave-site prompt).
+    prepareHardNavigation();
     setOpeningWorkspace(true);
     navigateAfterLogin(
       withBootMarker(
@@ -195,6 +202,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     if (!isAuthenticated || authLoading || redirectingRef.current || pending) return;
     redirectingRef.current = true;
     queueMicrotask(() => {
+      prepareHardNavigation();
       setOpeningWorkspace(true);
       void (async () => {
         try {
@@ -265,6 +273,9 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       clearOfflineSession();
 
       redirectingRef.current = true;
+      // Sync form defaults before the splash unmounts inputs — otherwise Chrome
+      // treats the typed password as unsaved edits on location.replace.
+      prepareHardNavigation();
       setOpeningWorkspace(true);
       const session = await resolvePostLoginSession(convex, undefined, {
         expectedEmail: normalizedEmail,
