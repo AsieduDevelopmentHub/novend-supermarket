@@ -7,6 +7,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import {
+  assertBranchAccess,
   requireBusinessCapability,
   requireRole,
   resolveBranchFilter,
@@ -151,6 +152,7 @@ export const upsertTable = mutation({
       if (!existing || existing.organizationId !== organizationId) {
         throw new Error("Table not found");
       }
+      assertBranchAccess(profile, existing.branchId);
       await ctx.db.patch(args.tableId, {
         name,
         code: code ?? undefined,
@@ -210,7 +212,7 @@ export const listOpenSessions = query({
 export const getSession = query({
   args: { sessionId: v.id("diningSessions") },
   handler: async (ctx, args) => {
-    const { organizationId } = await requireRole(ctx, [
+    const { profile, organizationId } = await requireRole(ctx, [
       "administrator",
       "manager",
       "cashier",
@@ -218,6 +220,7 @@ export const getSession = query({
     await requireBusinessCapability(ctx, organizationId, "tables_orders");
     const session = await ctx.db.get(args.sessionId);
     if (!session || session.organizationId !== organizationId) return null;
+    assertBranchAccess(profile, session.branchId);
     const table = await ctx.db.get(session.tableId);
     const items = await ctx.db
       .query("diningSessionItems")
@@ -304,7 +307,7 @@ export const addSessionItem = mutation({
     note: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await requireRole(ctx, [
+    const { profile, organizationId } = await requireRole(ctx, [
       "administrator",
       "manager",
       "cashier",
@@ -314,6 +317,7 @@ export const addSessionItem = mutation({
     if (!session || session.organizationId !== organizationId || session.status !== "open") {
       throw new Error("Open check not found");
     }
+    assertBranchAccess(profile, session.branchId);
     const product = await ctx.db.get(args.productId);
     if (
       !product ||
@@ -399,7 +403,7 @@ export const addSessionItem = mutation({
 export const voidSessionItem = mutation({
   args: { itemId: v.id("diningSessionItems") },
   handler: async (ctx, args) => {
-    const { organizationId } = await requireRole(ctx, [
+    const { profile, organizationId } = await requireRole(ctx, [
       "administrator",
       "manager",
       "cashier",
@@ -408,7 +412,10 @@ export const voidSessionItem = mutation({
     const item = await ctx.db.get(args.itemId);
     if (!item || item.organizationId !== organizationId) throw new Error("Line not found");
     const session = await ctx.db.get(item.sessionId);
-    if (!session || session.status !== "open") throw new Error("Check is not open");
+    if (!session || session.organizationId !== organizationId || session.status !== "open") {
+      throw new Error("Check is not open");
+    }
+    assertBranchAccess(profile, session.branchId);
     await ctx.db.patch(args.itemId, { kitchenStatus: "void", updatedAt: Date.now() });
   },
 });
@@ -421,7 +428,7 @@ export const fireKitchenTicket = mutation({
     itemIds: v.optional(v.array(v.id("diningSessionItems"))),
   },
   handler: async (ctx, args) => {
-    const { userId, organizationId } = await requireRole(ctx, [
+    const { userId, profile, organizationId } = await requireRole(ctx, [
       "administrator",
       "manager",
       "cashier",
@@ -431,6 +438,7 @@ export const fireKitchenTicket = mutation({
     if (!session || session.organizationId !== organizationId || session.status !== "open") {
       throw new Error("Open check not found");
     }
+    assertBranchAccess(profile, session.branchId);
     const table = await ctx.db.get(session.tableId);
     const allItems = await ctx.db
       .query("diningSessionItems")
@@ -523,7 +531,7 @@ export const updateKitchenTicketStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const { organizationId } = await requireRole(ctx, [
+    const { profile, organizationId } = await requireRole(ctx, [
       "administrator",
       "manager",
       "cashier",
@@ -533,6 +541,7 @@ export const updateKitchenTicketStatus = mutation({
     if (!ticket || ticket.organizationId !== organizationId) {
       throw new Error("Ticket not found");
     }
+    assertBranchAccess(profile, ticket.branchId);
     const now = Date.now();
     await ctx.db.patch(args.ticketId, { status: args.status, updatedAt: now });
     if (args.status === "ready" || args.status === "done") {
@@ -752,7 +761,7 @@ export const paySession = mutation({
 
     for (const item of items) {
       const product = await ctx.db.get(item.productId);
-      if (!product || product.status !== "active") {
+      if (!product || product.organizationId !== organizationId || product.status !== "active") {
         throw new Error(`Product unavailable: ${item.productName}`);
       }
       if (productTracksInventory(product, businessConfig)) {

@@ -7,6 +7,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import {
+  assertBranchAccess,
   requireBusinessCapability,
   requireRole,
   resolveBranchFilter,
@@ -119,9 +120,7 @@ export const upsertRoom = mutation({
     await requireBusinessCapability(ctx, organizationId, "rooms_folio");
     const branch = await ctx.db.get(args.branchId);
     assertActiveOrgBranch(branch, organizationId);
-    if (profile.role !== "administrator" && profile.branchId !== args.branchId) {
-      throw new Error("Forbidden: branch access denied");
-    }
+    assertBranchAccess(profile, args.branchId);
 
     const name = sanitizeText(args.name, "Room name", TEXT_LIMITS.name);
     const roomType = sanitizeOptionalText(args.roomType, "Room type", TEXT_LIMITS.name);
@@ -138,6 +137,10 @@ export const upsertRoom = mutation({
       const existing = await ctx.db.get(args.roomId);
       if (!existing || existing.organizationId !== organizationId) {
         throw new Error("Room not found");
+      }
+      assertBranchAccess(profile, existing.branchId);
+      if (existing.branchId !== args.branchId) {
+        throw new Error("Cannot move room to another branch");
       }
       await ctx.db.patch(args.roomId, {
         name,
@@ -438,9 +441,7 @@ export const checkIn = mutation({
     if (!room || room.organizationId !== organizationId || room.status === "inactive") {
       throw new Error("Room not found");
     }
-    if (profile.role !== "administrator" && profile.branchId !== room.branchId) {
-      throw new Error("Forbidden: branch access denied");
-    }
+    assertBranchAccess(profile, room.branchId);
     if (room.status === "occupied") {
       throw new Error("Room is already occupied");
     }
@@ -466,6 +467,9 @@ export const checkIn = mutation({
       const reservation = await ctx.db.get(args.reservationId);
       if (!reservation || reservation.organizationId !== organizationId) {
         throw new Error("Reservation not found");
+      }
+      if (reservation.branchId !== room.branchId) {
+        throw new Error("Reservation is for a different branch");
       }
       if (reservation.status === "cancelled" || reservation.status === "checked_in") {
         throw new Error("Reservation cannot be checked in");
@@ -578,10 +582,10 @@ export const voidFolioCharge = mutation({
     const charge = await ctx.db.get(args.chargeId);
     if (!charge || charge.organizationId !== organizationId) throw new Error("Charge not found");
     const stay = await ctx.db.get(charge.stayId);
-    if (!stay || stay.status !== "open") throw new Error("Stay is not open");
-    if (profile.role !== "administrator" && profile.branchId !== stay.branchId) {
-      throw new Error("Forbidden: branch access denied");
+    if (!stay || stay.organizationId !== organizationId || stay.status !== "open") {
+      throw new Error("Stay is not open");
     }
+    assertBranchAccess(profile, stay.branchId);
     await ctx.db.patch(charge._id, { status: "void" });
     await writeAuditLog(ctx, {
       actorId: userId,
@@ -613,11 +617,11 @@ export const postRoomNight = mutation({
       throw new Error("Forbidden: branch access denied");
     }
     const room = await ctx.db.get(stay.roomId);
-    if (!room?.defaultProductId) {
+    if (!room || room.organizationId !== organizationId || !room.defaultProductId) {
       throw new Error("Set a default room-rate product on this room first");
     }
     const product = await ctx.db.get(room.defaultProductId);
-    if (!product || product.status !== "active") {
+    if (!product || product.organizationId !== organizationId || product.status !== "active") {
       throw new Error("Room-rate product unavailable");
     }
     const nights = Math.max(1, Math.floor(args.nights ?? 1));
@@ -712,7 +716,7 @@ export const checkoutPay = mutation({
 
     for (const charge of charges) {
       const product = await ctx.db.get(charge.productId);
-      if (!product || product.status !== "active") {
+      if (!product || product.organizationId !== organizationId || product.status !== "active") {
         throw new Error(`Product unavailable: ${charge.description}`);
       }
       if (productTracksInventory(product, businessConfig)) {
