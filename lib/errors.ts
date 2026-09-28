@@ -157,6 +157,9 @@ export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): strin
   if (lower.includes("auth provider discovery")) {
     return SERVER_UNREACHABLE_MESSAGE;
   }
+  if (lower.includes("dynamic module import unsupported")) {
+    return "This action could not run on the server. Refresh and try again.";
+  }
   if (isOfflineError(message)) return OFFLINE_MESSAGE;
   if (isConnectivityError(message)) return SERVER_UNREACHABLE_MESSAGE;
   if (

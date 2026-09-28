@@ -3,7 +3,13 @@ import { QueryCtx, MutationCtx } from "../_generated/server";
 import { Doc, Id, TableNames } from "../_generated/dataModel";
 import { findDefaultBranch } from "./defaultBranch";
 import { deriveAccess, type LicenseAccess, type OrganizationStatus } from "./licensing";
-import { getActiveSubscription } from "./entitlements";
+import { getActiveSubscription, resolveLicense } from "./entitlements";
+import {
+  assertBusinessCapabilityEnabled,
+  parseBusinessConfiguration,
+  planAllowsBusinessCapability,
+  type BusinessCapabilityKey,
+} from "./businessCapabilities";
 import {
   isPlatformAdminActive,
   permissionsForRole,
@@ -14,6 +20,9 @@ import {
 } from "./platformRoles";
 
 type Ctx = QueryCtx | MutationCtx;
+
+/** Must match `CAPABILITIES_KEY` in `convex/settings.ts` (avoid importing settings — cycle). */
+const BUSINESS_CAPABILITIES_SETTING_KEY = "business.capabilities";
 
 export type AppRole = "administrator" | "manager" | "cashier";
 
@@ -348,24 +357,28 @@ export function resolveBranchFilter(
 /**
  * Backend gate for Stage 1+ business capabilities.
  * Capability enabled ≠ role permission; both must pass, and the plan must allow the key.
+ *
+ * Uses static imports only — Convex's V8 isolate throws
+ * `TypeError: dynamic module import unsupported` on `await import(...)`.
  */
 export async function requireBusinessCapability(
   ctx: Ctx,
   organizationId: Id<"organizations">,
-  key: import("./businessCapabilities").BusinessCapabilityKey,
+  key: BusinessCapabilityKey,
 ) {
-  const { loadBusinessConfiguration } = await import("../settings");
-  const { assertBusinessCapabilityEnabled, planAllowsBusinessCapability } =
-    await import("./businessCapabilities");
-  const { resolveLicense } = await import("./entitlements");
-
   const organization = await ctx.db.get(organizationId);
   if (!organization) throw new Error("Organization not found");
   const license = await resolveLicense(ctx, organization);
   if (!planAllowsBusinessCapability(license.planKey, key)) {
     throw new Error("This capability is not available on your plan.");
   }
-  const config = await loadBusinessConfiguration(ctx, organizationId);
+  const row = await ctx.db
+    .query("settings")
+    .withIndex("by_organization_key", (q) =>
+      q.eq("organizationId", organizationId).eq("key", BUSINESS_CAPABILITIES_SETTING_KEY),
+    )
+    .unique();
+  const config = parseBusinessConfiguration(row?.value);
   assertBusinessCapabilityEnabled(config, key);
   return config;
 }

@@ -23,6 +23,7 @@ import {
 } from "./shared/validation";
 import { loadBusinessConfiguration, loadPrintSnapshot } from "./settings";
 import { hasBusinessCapability } from "./shared/businessCapabilities";
+import { ensureDefaultBranch, findDefaultBranch } from "./shared/defaultBranch";
 import { productTracksInventory } from "./shared/productInventory";
 import { applyBranchStockChange, getBranchQuantity } from "./shared/branchStock";
 import { decreaseLots, getSellableQuantity, productTracksExpiry } from "./shared/lots";
@@ -133,7 +134,6 @@ export const upsertTable = mutation({
 
     let branchId = args.branchId ?? profile.branchId ?? null;
     if (!branchId) {
-      const { findDefaultBranch, ensureDefaultBranch } = await import("./shared/defaultBranch");
       const existing = await findDefaultBranch(ctx, organizationId);
       branchId = existing?._id ?? (await ensureDefaultBranch(ctx, organizationId));
     }
