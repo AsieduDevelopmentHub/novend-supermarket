@@ -300,7 +300,11 @@ The sidebar chip is the only always-on offline indicator. The top banner
 appears only when sync items need attention (failed / exhausted retries). **Sync
 Center** (from the chip) lists waiting uploads, server conflicts, and recently
 synced events. **Sync now** bypasses retry backoff and re-queues failed rows.
-Transient network failures stay `pending` with exponential backoff (see
+Failed / blocked outbox rows older than **7 days** are cleared automatically on
+the next drain (same stock restore as Discard) so cashiers who cannot navigate
+per-row Discard — e.g. Global Medicine tills — heal without support. Sync Center
+also shows **Clear old problems** for the same week-old set. Transient network
+failures stay `pending` with exponential backoff (see
 `lib/offline/outbox-policy.ts`). Definitive validation rejections (expiry, SKU,
 stock, forbidden) move to `failed` immediately; ambiguous errors retry up to
 `MAX_OUTBOX_UPLOAD_ATTEMPTS` before surfacing as needs attention. Fix updates the

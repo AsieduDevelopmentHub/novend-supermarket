@@ -28,6 +28,7 @@ import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
 import { markLocalReturnFailed, markLocalReturnSynced } from "./returns-repository";
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
 import { isSyncBusinessConflict, isSyncDependencyWait } from "./sync-errors";
+import { discardStaleFailedOutboxEvents } from "./outbox-actions";
 import { shouldMarkOutboxFailed } from "./outbox-policy";
 import { rekeyProductImage } from "./image-cache";
 import { loadCloudPolicy } from "./cloud-policy";
@@ -377,6 +378,9 @@ export async function drainOutbox(options: {
 
   try {
     await recoverInterruptedSync(db);
+    // Week-old failed uploads block Sync Center for cashiers who cannot use
+    // per-row Discard (e.g. Global Medicine tills). Clear them safely first.
+    await discardStaleFailedOutboxEvents();
 
     const stalledWaits = await db.outbox.where("status").equals("failed").toArray();
     for (const row of stalledWaits) {

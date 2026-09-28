@@ -329,7 +329,7 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                     setDirection("add");
                     setReason("receive");
                     setNote("");
-                    setExpiryDate("");
+                    setExpiryInput("");
                     setRestockOpen(true);
                   },
                 },
@@ -361,7 +361,7 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                     setDirection("add");
                     setReason("receive");
                     setNote("");
-                    setExpiryDate("");
+                    setExpiryInput("");
                     setRestockOpen(true);
                   }}
                 >

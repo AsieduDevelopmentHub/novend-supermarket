@@ -5,9 +5,9 @@ import { LANDING_SOCIAL_LINKS, LANDING_WHATSAPP_COMMUNITY_HREF } from "@/feature
 
 describe("marketing contact + WhatsApp community", () => {
   it("does not link the Auralenx studio site from marketing socials", () => {
-    const ids = LANDING_SOCIAL_LINKS.map((link) => link.id as string);
     expect(LANDING_SOCIAL_LINKS.some((link) => link.href.includes("auralenx"))).toBe(false);
-    expect(ids).not.toContain("website");
+    const ids = LANDING_SOCIAL_LINKS.map((link) => String(link.id));
+    expect(ids.includes("website")).toBe(false);
   });
 
   it("exposes a floating WhatsApp community CTA on marketing chrome", () => {
