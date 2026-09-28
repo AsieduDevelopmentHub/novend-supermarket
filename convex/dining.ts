@@ -319,11 +319,7 @@ export const addSessionItem = mutation({
     }
     assertBranchAccess(profile, session.branchId);
     const product = await ctx.db.get(args.productId);
-    if (
-      !product ||
-      product.organizationId !== organizationId ||
-      product.status !== "active"
-    ) {
+    if (!product || product.organizationId !== organizationId || product.status !== "active") {
       throw new Error("Product unavailable");
     }
     const qty = args.quantity;
@@ -523,12 +519,7 @@ export const listKitchenTickets = query({
 export const updateKitchenTicketStatus = mutation({
   args: {
     ticketId: v.id("kitchenTickets"),
-    status: v.union(
-      v.literal("open"),
-      v.literal("ready"),
-      v.literal("done"),
-      v.literal("void"),
-    ),
+    status: v.union(v.literal("open"), v.literal("ready"), v.literal("done"), v.literal("void")),
   },
   handler: async (ctx, args) => {
     const { profile, organizationId } = await requireRole(ctx, [
@@ -565,11 +556,7 @@ export const updateKitchenTicketStatus = mutation({
 export const listModifierGroupsForProduct = query({
   args: { productId: v.id("products") },
   handler: async (ctx, args) => {
-    const { organizationId } = await requireRole(ctx, [
-      "administrator",
-      "manager",
-      "cashier",
-    ]);
+    const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
     const product = await ctx.db.get(args.productId);
     if (!product || product.organizationId !== organizationId) return [];
     const config = await loadBusinessConfiguration(ctx, organizationId);

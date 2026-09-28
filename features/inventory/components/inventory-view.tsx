@@ -750,7 +750,10 @@ function InventoryViewInner() {
 
               <div className="space-y-3 p-3 md:hidden">
                 {(pageRows ?? []).map((row) => (
-                  <div key={row.rowKey ?? row.id} className="border-border space-y-2 rounded-xl border p-3">
+                  <div
+                    key={row.rowKey ?? row.id}
+                    className="border-border space-y-2 rounded-xl border p-3"
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <Link href={`/products/${row.id}`} className="font-medium hover:underline">

@@ -42,13 +42,9 @@ const MOBILE_CATALOGUE_TAB: MobileTab = {
 
 const TAB_HREFS = new Set(MOBILE_BOTTOM_TABS.map((t) => t.href));
 
-export function mobileBottomTabsForIndustry(
-  industryProfile?: string | null,
-): MobileTab[] {
+export function mobileBottomTabsForIndustry(industryProfile?: string | null): MobileTab[] {
   if (stockOpsVisibleForIndustry(industryProfile)) return MOBILE_BOTTOM_TABS;
-  return MOBILE_BOTTOM_TABS.map((tab) =>
-    tab.id === "inventory" ? MOBILE_CATALOGUE_TAB : tab,
-  );
+  return MOBILE_BOTTOM_TABS.map((tab) => (tab.id === "inventory" ? MOBILE_CATALOGUE_TAB : tab));
 }
 
 export type MoreSection = {

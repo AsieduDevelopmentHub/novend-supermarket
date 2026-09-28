@@ -161,8 +161,7 @@ export function SettingsView() {
   // Banners and in-app links deep-link here with `?section=billing|devices|backup|…`.
   // URL section wins so Privacy → Billing does not stay stuck on the previous tab.
   const linkedTab = sections.find((section) => section.value === requestedSection)?.value ?? null;
-  const deniedBillingDeepLink =
-    billingHidden && requestedSection === "billing" && isAdmin;
+  const deniedBillingDeepLink = billingHidden && requestedSection === "billing" && isAdmin;
 
   if (linkedTab !== lastLinkedTab) {
     setLastLinkedTab(linkedTab);
@@ -170,8 +169,7 @@ export function SettingsView() {
   }
 
   const activeTab: SettingsTab =
-    linkedTab ??
-    (tab && sections.some((s) => s.value === tab) ? tab : "profile");
+    linkedTab ?? (tab && sections.some((s) => s.value === tab) ? tab : "profile");
 
   if (permissionsLoading) {
     return <LoadingState label="Loading settings…" variant="form" />;

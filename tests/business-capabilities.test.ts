@@ -122,9 +122,9 @@ describe("navigation capability gates", () => {
     expect(hrefs).not.toContain("/inventory");
     expect(hrefs).not.toContain("/wholesale");
     expect(hrefs).not.toContain("/suppliers");
-    expect(pathAllowedForRole("/inventory", "administrator", [], { industryProfile: "hotel" })).toBe(
-      false,
-    );
+    expect(
+      pathAllowedForRole("/inventory", "administrator", [], { industryProfile: "hotel" }),
+    ).toBe(false);
   });
 });
 

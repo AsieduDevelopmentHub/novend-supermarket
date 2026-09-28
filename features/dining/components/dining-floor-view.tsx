@@ -93,10 +93,7 @@ export function DiningFloorView() {
   async function onCreateTable() {
     if (!newTableName.trim()) return;
     const resolvedBranch =
-      createBranchId ??
-      branchId ??
-      branches?.find((b) => b.status === "active")?.id ??
-      undefined;
+      createBranchId ?? branchId ?? branches?.find((b) => b.status === "active")?.id ?? undefined;
     try {
       await upsertTable({
         branchId: resolvedBranch ? (resolvedBranch as Id<"branches">) : undefined,
@@ -171,12 +168,9 @@ export function DiningFloorView() {
 
   return (
     <div className="min-w-0 space-y-6" data-tour="page-content">
-      <PageHeader
-        title="Floor"
-        description="Open checks by table, send to kitchen, then pay."
-      />
+      <PageHeader title="Floor" description="Open checks by table, send to kitchen, then pay." />
 
-      {(isAdmin || isManager) ? (
+      {isAdmin || isManager ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Add table</CardTitle>
@@ -213,7 +207,11 @@ export function DiningFloorView() {
                 placeholder="Table 1"
               />
             </div>
-            <Button type="button" onClick={() => void onCreateTable()} disabled={!newTableName.trim()}>
+            <Button
+              type="button"
+              onClick={() => void onCreateTable()}
+              disabled={!newTableName.trim()}
+            >
               Add
             </Button>
           </CardContent>
@@ -305,7 +303,11 @@ export function DiningFloorView() {
                   <Button type="button" variant="outline" onClick={() => void onFire()}>
                     Send kitchen
                   </Button>
-                  <Button type="button" disabled={paying || checkTotal <= 0} onClick={() => void onPay("cash")}>
+                  <Button
+                    type="button"
+                    disabled={paying || checkTotal <= 0}
+                    onClick={() => void onPay("cash")}
+                  >
                     Pay cash
                   </Button>
                   <Button
@@ -385,7 +387,12 @@ export function DiningFloorView() {
                   </Select>
                 </div>
               ))}
-              <Button type="button" className="w-full" onClick={() => void onAddItem()} disabled={!productId}>
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => void onAddItem()}
+                disabled={!productId}
+              >
                 Add to check
               </Button>
             </CardContent>

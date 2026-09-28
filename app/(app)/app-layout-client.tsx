@@ -475,7 +475,13 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return <AppSplash label="Signing out…" />;
   }
 
-  if (!isAuthenticated && online && !cachedShellWhileOnlineHung && !resolvedCache && !awaitingCloudReconnect) {
+  if (
+    !isAuthenticated &&
+    online &&
+    !cachedShellWhileOnlineHung &&
+    !resolvedCache &&
+    !awaitingCloudReconnect
+  ) {
     return <AppSplash label="Redirecting to login…" />;
   }
 

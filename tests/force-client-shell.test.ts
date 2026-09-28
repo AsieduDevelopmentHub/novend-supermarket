@@ -16,9 +16,7 @@ describe("shouldForceClientShell", () => {
   });
 
   it("does not remount web after a timer while online", () => {
-    expect(shouldForceClientShell({ capacitor: false, electron: false, online: true })).toBe(
-      false,
-    );
+    expect(shouldForceClientShell({ capacitor: false, electron: false, online: true })).toBe(false);
   });
 
   it("keeps client views while an offline shell awaits cloud reconnect", () => {

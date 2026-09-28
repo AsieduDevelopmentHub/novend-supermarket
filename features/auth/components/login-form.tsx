@@ -6,11 +6,7 @@ import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import {
-  isConnectivityError,
-  SERVER_UNREACHABLE_MESSAGE,
-  showError,
-} from "@/lib/errors";
+import { isConnectivityError, SERVER_UNREACHABLE_MESSAGE, showError } from "@/lib/errors";
 import Image from "next/image";
 import { ArrowLeft, Mail } from "lucide-react";
 import { isCapacitor, isElectron } from "@novend/hardware";
@@ -39,10 +35,7 @@ import {
   listOfflineSessions,
   markOfflineSession,
 } from "@/lib/offline/session";
-import {
-  storeLocalAuthVerifier,
-  verifyLocalAuth,
-} from "@/lib/offline/local-auth";
+import { storeLocalAuthVerifier, verifyLocalAuth } from "@/lib/offline/local-auth";
 import { shellProfileFromSessionHint, saveShellProfile } from "@/lib/offline/shell-profile";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 import { withTimeout } from "@/lib/async/with-timeout";
@@ -55,7 +48,9 @@ let volatileLoginDeviceKey: string | null = null;
 
 function isTimeoutError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
-  return message.includes("timed out") || message.includes("in time") || message.includes("timeout");
+  return (
+    message.includes("timed out") || message.includes("in time") || message.includes("timeout")
+  );
 }
 
 function getLoginDeviceKey(): string {

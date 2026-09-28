@@ -7,7 +7,10 @@ const banner = readFileSync(
   "utf8",
 );
 const layout = readFileSync(resolve(process.cwd(), "app/(app)/app-layout-client.tsx"), "utf8");
-const offlineSync = readFileSync(resolve(process.cwd(), "docs/architecture/OFFLINE_SYNC.md"), "utf8");
+const offlineSync = readFileSync(
+  resolve(process.cwd(), "docs/architecture/OFFLINE_SYNC.md"),
+  "utf8",
+);
 
 describe("cloud reconnect in place", () => {
   it("auto-opens the password dialog when the radio returns on an offline shell", () => {
