@@ -257,15 +257,13 @@ export const summary = query({
     ).filter((c) => c.status === "active").length;
 
     // Admin-only finance strip — same branch filter as sales KPIs (default all).
-    let finance:
-      | {
-          inventoryValueCost: number | null;
-          inventoryValueSell: number;
-          revenue: number;
-          cogs: number | null;
-          grossProfit: number | null;
-        }
-      | null = null;
+    let finance: {
+      inventoryValueCost: number | null;
+      inventoryValueSell: number;
+      revenue: number;
+      cogs: number | null;
+      grossProfit: number | null;
+    } | null = null;
 
     if (admin) {
       const valueBranchIds = branchFilter
@@ -317,8 +315,8 @@ export const summary = query({
         customersEstimate: admin || manager ? customerCount : undefined,
       },
       finance,
-      lowStock: lowStock.slice(0, 12),
-      expiryAlerts: expiryAlerts.slice(0, 12),
+      lowStock: lowStock.slice(0, 5),
+      expiryAlerts: expiryAlerts.slice(0, 5),
       topProducts,
       recentSales,
       salesTrend,

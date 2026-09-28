@@ -122,8 +122,32 @@ describe("navigation capability gates", () => {
     expect(hrefs).not.toContain("/inventory");
     expect(hrefs).not.toContain("/wholesale");
     expect(hrefs).not.toContain("/suppliers");
-    expect(pathAllowedForRole("/inventory", "administrator", [], { industryProfile: "hotel" })).toBe(
-      false,
-    );
+    expect(
+      pathAllowedForRole("/inventory", "administrator", [], { industryProfile: "hotel" }),
+    ).toBe(false);
+  });
+});
+
+describe("Cap More menu hospitality routes", () => {
+  it("lists Floor and Kitchen when dining capabilities are on", async () => {
+    const { moreSectionsForRole } = await import("@/config/mobile-navigation");
+    const sections = moreSectionsForRole("administrator", ["tables_orders", "kitchen_tickets"], {
+      industryProfile: "restaurant",
+    });
+    const hrefs = sections.flatMap((s) => s.items.map((i) => i.href));
+    expect(hrefs).toContain("/floor");
+    expect(hrefs).toContain("/kitchen");
+    expect(hrefs).not.toContain("/rooms");
+  });
+
+  it("lists Rooms and Reservations when hotel capabilities are on", async () => {
+    const { moreSectionsForRole } = await import("@/config/mobile-navigation");
+    const sections = moreSectionsForRole("administrator", ["rooms_folio", "reservations"], {
+      industryProfile: "hotel",
+    });
+    const hrefs = sections.flatMap((s) => s.items.map((i) => i.href));
+    expect(hrefs).toContain("/rooms");
+    expect(hrefs).toContain("/reservations");
+    expect(hrefs).not.toContain("/floor");
   });
 });

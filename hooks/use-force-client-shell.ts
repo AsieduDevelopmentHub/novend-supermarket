@@ -3,7 +3,7 @@
 import { useConvexAuth } from "convex/react";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
-import { hasOfflineSession } from "@/lib/offline/session";
+import { isAwaitingCloudReconnect } from "@/lib/auth/awaiting-cloud-reconnect";
 import { isCapacitor, isElectron } from "@novend/hardware";
 
 /**
@@ -33,14 +33,14 @@ export function shouldForceClientShell(input: {
 
 export function useForceClientShell(): boolean {
   const online = useConnectivity();
-  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { isAuthenticated } = useConvexAuth();
   const sessionHint = useOfflineSessionHint();
   const capacitor = typeof window !== "undefined" && isCapacitor();
   const electron = typeof window !== "undefined" && isElectron();
-  const awaitingCloudReconnect =
-    !isLoading &&
-    !isAuthenticated &&
-    (Boolean(sessionHint) || (typeof window !== "undefined" && hasOfflineSession()));
+  const awaitingCloudReconnect = isAwaitingCloudReconnect({
+    isAuthenticated,
+    sessionHint,
+  });
   return shouldForceClientShell({
     capacitor,
     electron,

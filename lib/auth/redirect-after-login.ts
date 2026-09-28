@@ -191,31 +191,45 @@ export function withShellBootMarker(path: string): string {
 /**
  * Chrome / Android WebView treat a typed login form as unsaved edits. A
  * following `location.replace` then shows “Leave this page?”. Syncing each
- * field's default to its current value marks the document clean.
+ * field's default to its current value marks the document clean — must run
+ * while the fields are still in the DOM (before React swaps to a splash).
  */
 export function prepareHardNavigation(): void {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   window.onbeforeunload = null;
+
   const active = document.activeElement;
   if (active instanceof HTMLElement) active.blur();
-  for (const form of Array.from(document.forms)) {
-    for (const element of Array.from(form.elements)) {
-      if (element instanceof HTMLInputElement) {
-        if (element.type === "checkbox" || element.type === "radio") {
-          element.defaultChecked = element.checked;
-        } else {
-          element.defaultValue = element.value;
-        }
-      } else if (element instanceof HTMLTextAreaElement) {
+
+  const fields = document.querySelectorAll("input, textarea, select");
+  for (const element of Array.from(fields)) {
+    if (element instanceof HTMLInputElement) {
+      if (element.type === "checkbox" || element.type === "radio") {
+        element.defaultChecked = element.checked;
+      } else {
         element.defaultValue = element.value;
-      } else if (element instanceof HTMLSelectElement) {
-        for (const option of Array.from(element.options)) {
-          option.defaultSelected = option.selected;
-        }
+      }
+    } else if (element instanceof HTMLTextAreaElement) {
+      element.defaultValue = element.value;
+    } else if (element instanceof HTMLSelectElement) {
+      for (const option of Array.from(element.options)) {
+        option.defaultSelected = option.selected;
       }
     }
   }
+
+  // After defaults match values, reset keeps the same visible data and clears
+  // Chromium's "user edited this form" bit used for the leave-site prompt.
+  for (const form of Array.from(document.forms)) {
+    try {
+      form.reset();
+    } catch {
+      /* ignore */
+    }
+  }
 }
+
+let hardNavigationPending = false;
 
 /**
  * Leave auth pages for the app shell.
@@ -241,14 +255,23 @@ export function navigateAfterLogin(
   const target = forceHard ? withShellBootMarker(path) : path;
 
   if (typeof window !== "undefined" && forceHard) {
+    // Avoid a second leave-site prompt from the hung-nav fallback.
+    if (hardNavigationPending) {
+      prepareHardNavigation();
+      window.location.replace(target);
+      return;
+    }
+    hardNavigationPending = true;
     prepareHardNavigation();
     window.location.replace(target);
-    // Belt: if the document never unloads (hung SW / beforeunload), force again.
+    // Belt: if the document never unloads (hung SW), force again once.
     window.setTimeout(() => {
       const here = window.location.pathname;
       if (here === "/login" || here === "/signup") {
         prepareHardNavigation();
-        window.location.href = target;
+        window.location.replace(target);
+      } else {
+        hardNavigationPending = false;
       }
     }, HARD_NAV_FALLBACK_MS);
     return;
@@ -261,6 +284,8 @@ export function navigateAfterLogin(
   window.setTimeout(() => {
     const here = window.location.pathname;
     if (here === "/login" || here === "/signup" || here === "/onboarding") {
+      if (hardNavigationPending) return;
+      hardNavigationPending = true;
       prepareHardNavigation();
       window.location.replace(withShellBootMarker(path));
     }

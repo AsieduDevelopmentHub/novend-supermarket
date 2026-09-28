@@ -161,8 +161,7 @@ export function SettingsView() {
   // Banners and in-app links deep-link here with `?section=billing|devices|backup|…`.
   // URL section wins so Privacy → Billing does not stay stuck on the previous tab.
   const linkedTab = sections.find((section) => section.value === requestedSection)?.value ?? null;
-  const deniedBillingDeepLink =
-    billingHidden && requestedSection === "billing" && isAdmin;
+  const deniedBillingDeepLink = billingHidden && requestedSection === "billing" && isAdmin;
 
   if (linkedTab !== lastLinkedTab) {
     setLastLinkedTab(linkedTab);
@@ -170,8 +169,7 @@ export function SettingsView() {
   }
 
   const activeTab: SettingsTab =
-    linkedTab ??
-    (tab && sections.some((s) => s.value === tab) ? tab : "profile");
+    linkedTab ?? (tab && sections.some((s) => s.value === tab) ? tab : "profile");
 
   if (permissionsLoading) {
     return <LoadingState label="Loading settings…" variant="form" />;
@@ -370,7 +368,10 @@ function SettingsTreeNav({
   onSelect: (value: SettingsTab) => void;
 }) {
   return (
-    <nav data-tour="settings-sections" className="border-border hidden w-56 shrink-0 lg:block">
+    <nav
+      data-tour="settings-sections"
+      className="border-border hidden w-56 shrink-0 lg:sticky lg:top-4 lg:block lg:max-h-[calc(100dvh-5.5rem)] lg:self-start lg:overflow-y-auto"
+    >
       <div className="space-y-5">
         {groups.map((group) => (
           <div key={group.label}>

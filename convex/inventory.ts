@@ -4,6 +4,7 @@ import { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import {
   assertBranchAccess,
+  canViewCostPrice,
   isAdmin,
   requireBranchId,
   requireRole,
@@ -31,7 +32,15 @@ import {
 } from "./shared/lots";
 import { writeAuditLog } from "./shared/audit";
 import { rememberClientOp, replayClientOp } from "./shared/clientOps";
-import { sanitizeOptionalText, productMatchesLookup, TEXT_LIMITS } from "./shared/validation";
+import {
+  sanitizeOptionalText,
+  productMatchesLookup,
+  roundMoney,
+  TEXT_LIMITS,
+} from "./shared/validation";
+import { sumInventoryValues } from "./shared/dashboardFinance";
+import { productTracksInventory } from "./shared/productInventory";
+import { loadBusinessConfiguration } from "./settings";
 
 export const list = query({
   args: {
@@ -196,6 +205,63 @@ export const list = query({
           };
         }),
     );
+  },
+});
+
+/** On-hand inventory valuation for the Inventory page (branch-scoped like list). */
+export const valuationSummary = query({
+  args: { branchId: v.optional(v.id("branches")) },
+  handler: async (ctx, args) => {
+    const { profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
+    const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
+    const businessConfig = await loadBusinessConfiguration(ctx, organizationId);
+    const showCost = canViewCostPrice(profile);
+
+    const products = (
+      await ctx.db
+        .query("products")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect()
+    ).filter((p) => p.status === "active");
+
+    const valueBranchIds = branchFilter
+      ? [branchFilter]
+      : (
+          await ctx.db
+            .query("branches")
+            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+            .collect()
+        )
+          .filter((b) => b.status === "active")
+          .map((b) => b._id);
+
+    const onHandByProduct = new Map<Id<"products">, number>();
+    for (const bid of valueBranchIds) {
+      const stockByProduct = await stockMapForBranch(ctx, bid);
+      for (const [productId, qty] of stockByProduct) {
+        onHandByProduct.set(productId, (onHandByProduct.get(productId) ?? 0) + qty);
+      }
+    }
+
+    const inventory = sumInventoryValues(
+      products.map((p) => ({
+        onHand: onHandByProduct.get(p._id) ?? 0,
+        costPrice: p.costPrice,
+        sellingPrice: p.sellingPrice,
+        tracksInventory: productTracksInventory(p, businessConfig),
+      })),
+    );
+
+    const possibleProfit = roundMoney(inventory.sell - inventory.cost);
+    return {
+      inventoryValueCost: showCost ? inventory.cost : null,
+      inventoryValueSell: inventory.sell,
+      possibleProfit: showCost ? possibleProfit : null,
+    };
   },
 });
 

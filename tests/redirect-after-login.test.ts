@@ -99,11 +99,26 @@ describe("redirect-after-login", () => {
     expect(source).toContain("export function prepareHardNavigation");
     expect(source).toContain("element.defaultValue = element.value");
     expect(source).toContain("window.onbeforeunload = null");
+    expect(source).toContain("form.reset()");
     expect(source).toContain("prepareHardNavigation()");
     expect(source).toContain("window.location.replace(target)");
+    expect(source).not.toContain("window.location.href = target");
     expect(source).toContain("withShellBootMarker");
     expect(source).toContain("saveShellProfile({");
     expect(source).toContain("SHELL_PROFILE_BUDGET_MS");
+  });
+
+  it("login form prepares hard navigation before unmounting the form", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "features/auth/components/login-form.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("prepareHardNavigation");
+    const prepareIdx = source.indexOf("prepareHardNavigation();");
+    const splashIdx = source.indexOf("setOpeningWorkspace(true);");
+    expect(prepareIdx).toBeGreaterThan(-1);
+    expect(splashIdx).toBeGreaterThan(-1);
+    expect(prepareIdx).toBeLessThan(splashIdx);
   });
 
   it("resolvePostLoginSession returns userId for offline digest storage", async () => {

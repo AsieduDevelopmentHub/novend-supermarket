@@ -6,11 +6,7 @@ import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import {
-  isConnectivityError,
-  SERVER_UNREACHABLE_MESSAGE,
-  showError,
-} from "@/lib/errors";
+import { isConnectivityError, SERVER_UNREACHABLE_MESSAGE, showError } from "@/lib/errors";
 import Image from "next/image";
 import { ArrowLeft, Mail } from "lucide-react";
 import { isCapacitor, isElectron } from "@novend/hardware";
@@ -25,7 +21,12 @@ import { ROUTES } from "@/config/navigation";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
 import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
-import { navigateAfterLogin, resolvePostLoginPath, resolvePostLoginSession } from "@/lib/auth/redirect-after-login";
+import {
+  navigateAfterLogin,
+  prepareHardNavigation,
+  resolvePostLoginPath,
+  resolvePostLoginSession,
+} from "@/lib/auth/redirect-after-login";
 import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import {
@@ -34,10 +35,7 @@ import {
   listOfflineSessions,
   markOfflineSession,
 } from "@/lib/offline/session";
-import {
-  storeLocalAuthVerifier,
-  verifyLocalAuth,
-} from "@/lib/offline/local-auth";
+import { storeLocalAuthVerifier, verifyLocalAuth } from "@/lib/offline/local-auth";
 import { shellProfileFromSessionHint, saveShellProfile } from "@/lib/offline/shell-profile";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 import { withTimeout } from "@/lib/async/with-timeout";
@@ -50,7 +48,9 @@ let volatileLoginDeviceKey: string | null = null;
 
 function isTimeoutError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
-  return message.includes("timed out") || message.includes("in time") || message.includes("timeout");
+  return (
+    message.includes("timed out") || message.includes("in time") || message.includes("timeout")
+  );
 }
 
 function getLoginDeviceKey(): string {
@@ -156,6 +156,8 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     }
     consumeExplicitLogout();
     redirectingRef.current = true;
+    // Clear dirty form state while inputs are still mounted (avoids leave-site prompt).
+    prepareHardNavigation();
     setOpeningWorkspace(true);
     navigateAfterLogin(
       withBootMarker(
@@ -195,6 +197,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     if (!isAuthenticated || authLoading || redirectingRef.current || pending) return;
     redirectingRef.current = true;
     queueMicrotask(() => {
+      prepareHardNavigation();
       setOpeningWorkspace(true);
       void (async () => {
         try {
@@ -265,6 +268,9 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       clearOfflineSession();
 
       redirectingRef.current = true;
+      // Sync form defaults before the splash unmounts inputs — otherwise Chrome
+      // treats the typed password as unsaved edits on location.replace.
+      prepareHardNavigation();
       setOpeningWorkspace(true);
       const session = await resolvePostLoginSession(convex, undefined, {
         expectedEmail: normalizedEmail,
@@ -381,14 +387,19 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
           />
         </div>
 
-        <label className="flex cursor-pointer items-center gap-2 pt-0.5 text-sm">
+        <div className="flex items-center gap-2 pt-0.5">
           <Checkbox
+            id="login-remember-me"
             checked={rememberMe}
             onCheckedChange={(value) => setRememberMe(value === true)}
-            aria-label="Remember me"
           />
-          <span className="text-foreground/90">Remember me</span>
-        </label>
+          <Label
+            htmlFor="login-remember-me"
+            className="text-foreground/90 cursor-pointer text-sm font-normal"
+          >
+            Remember me
+          </Label>
+        </div>
 
         <Button
           type="submit"
