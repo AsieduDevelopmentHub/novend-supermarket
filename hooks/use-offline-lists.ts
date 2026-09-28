@@ -360,8 +360,11 @@ export function useInventoryList(options: {
 }
 
 export function useCategoriesList() {
-  const { online, ready, lastSyncAt } = useMirrorListGate();
-  const remote = useQuery(api.categories.list, online && ready ? {} : "skip");
+  const { online, serveLocal, ready, lastSyncAt } = useMirrorListGate();
+  const remote = useQuery(
+    api.categories.list,
+    online && ready && !serveLocal ? {} : "skip",
+  );
   const [local, setLocal] = useState<Array<{ _id: Id<"categories">; name: string }> | null>(null);
 
   useEffect(() => {
@@ -381,7 +384,7 @@ export function useCategoriesList() {
   }, [remote, lastSyncAt]);
 
   useEffect(() => {
-    if (!remote?.length) return;
+    if (!remote?.length || serveLocal) return;
     void (async () => {
       const db = await getOfflineDb();
       if (!db) return;
@@ -394,14 +397,17 @@ export function useCategoriesList() {
         })),
       );
     })();
-  }, [remote]);
+  }, [remote, serveLocal]);
 
   const merged = useMemo(() => {
     const byId = new Map<string, { _id: Id<"categories">; name: string }>();
     for (const row of local ?? []) byId.set(row._id, row);
-    for (const row of remote ?? []) byId.set(row._id, row);
+    // Only merge live rows when we intentionally opened the subscription.
+    if (!serveLocal) {
+      for (const row of remote ?? []) byId.set(row._id, row);
+    }
     return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [local, remote]);
+  }, [local, remote, serveLocal]);
 
   if (merged.length > 0) return merged;
   return local ?? remote;

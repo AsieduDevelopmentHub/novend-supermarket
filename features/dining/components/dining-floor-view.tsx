@@ -7,6 +7,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { useProductsList } from "@/hooks/use-offline-lists";
 import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,14 @@ export function DiningFloorView() {
     api.dining.getSession,
     online && canFloor && selectedSessionId ? { sessionId: selectedSessionId } : "skip",
   );
-  const products = useQuery(api.products.listProducts, online && canFloor ? {} : "skip");
+  // Dexie-first — never subscribe to listProducts `.collect()` when the mirror has rows.
+  const { products: productRows } = useProductsList({
+    search: "",
+    includeInactive: false,
+    canViewCost: false,
+    branchId: branchId ?? undefined,
+  });
+  const products = { items: productRows };
   const branches = useQuery(
     api.branches.list,
     online && canFloor && (isAdmin || isManager) ? {} : "skip",

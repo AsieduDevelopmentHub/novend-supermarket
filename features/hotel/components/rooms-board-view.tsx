@@ -7,6 +7,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { useCustomersList, useProductsList } from "@/hooks/use-offline-lists";
 import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,8 +65,19 @@ export function RoomsBoardView() {
     api.hotel.getStay,
     online && canRooms && selectedStayId ? { stayId: selectedStayId } : "skip",
   );
-  const customers = useQuery(api.customers.list, online && canRooms ? {} : "skip");
-  const products = useQuery(api.products.listProducts, online && canRooms ? {} : "skip");
+  // Dexie-first — avoid live customers.list / listProducts org `.collect()`.
+  const { customers: customerRows } = useCustomersList({
+    search: "",
+    includeInactive: false,
+  });
+  const customers = customerRows ?? [];
+  const { products: productRows } = useProductsList({
+    search: "",
+    includeInactive: false,
+    canViewCost: false,
+    branchId: branchId ?? undefined,
+  });
+  const products = { items: productRows };
 
   const upsertRoom = useMutation(api.hotel.upsertRoom);
   const setRoomStatus = useMutation(api.hotel.setRoomStatus);

@@ -1,15 +1,23 @@
 /**
  * Offline mirror freshness helpers.
  * List UIs and snapshot pulls use these TTLs to avoid redundant Convex traffic.
+ *
+ * Design rule: once Dexie has catalog rows, business list UIs must **not** open
+ * live Convex subscriptions (`listProducts` / inventory / customers still
+ * `.collect()` the org and dominate database bandwidth). Background snapshot
+ * pull is the only bulk refresh path.
  */
 import { getMeta, getOfflineDb, META_KEYS } from "./db";
 import { loadCloudPolicy } from "./cloud-policy";
 
-/** How long a Dexie snapshot is considered warm enough to skip live list subscriptions. */
+/** Legacy “warm window” for callers that still check TTL (not used to open live lists). */
 export const MIRROR_LIST_TTL_MS = 5 * 60 * 1000;
 
-/** Minimum gap between background catalog snapshot pulls (unless forced). */
-export const SNAPSHOT_PULL_TTL_MS = 2 * 60 * 1000;
+/**
+ * Minimum gap between background catalog snapshot pulls (unless forced).
+ * Keep aligned with AUTO_SYNC — a 2-minute pull was burning Convex I/O on every till.
+ */
+export const SNAPSHOT_PULL_TTL_MS = 20 * 60 * 1000;
 
 /**
  * Background auto-sync cadence while online.
@@ -56,16 +64,17 @@ export async function canServeListsFromMirror(): Promise<boolean> {
 
 /**
  * Whether business lists (inventory, products, customers, …) may open live Convex.
- * Package / local modes keep Dexie as the operational clone — same rule as Sales.
  *
  * Prefer Dexie whenever the mirror already has catalog rows (stale-while-revalidate).
- * Live `listProducts` / inventory still `.collect()` the full org and freeze Electron
- * tills once the 5-minute list TTL expires; background snapshot pull refreshes Dexie.
+ * Live list queries `.collect()` the full org — never open them just because the
+ * snapshot TTL expired; background `pullSnapshot` refreshes Dexie instead.
  */
 export async function shouldUseRemoteBusinessLists(online: boolean): Promise<boolean> {
   if (!online) return false;
   const policy = await loadCloudPolicy();
   if (!policy.shouldUseRealtimeSubscriptions()) return false;
+  // Cold till only: no mirrored products yet → one live subscription bootstraps UI
+  // until the first snapshot lands. After that, always Dexie.
   if (await mirrorHasCatalog()) return false;
   return true;
 }
