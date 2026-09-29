@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   BUSINESS_CAPABILITY_CONFIGURATION_VERSION,
   DEFAULT_BUSINESS_CONFIGURATION,
@@ -10,6 +12,13 @@ import {
   stockOpsVisibleForIndustry,
   validateBusinessCapabilitySet,
 } from "@/convex/shared/businessCapabilities";
+import {
+  opsDisableWarningCopy,
+  resolveBusinessTerms,
+  resolveNavTitleFromTerms,
+  salesViewDescription,
+  termsForIndustry,
+} from "@/convex/shared/businessTerms";
 import { navGroupsForRole, pathAllowedForRole } from "@/config/navigation";
 
 describe("businessCapabilities registry", () => {
@@ -99,6 +108,68 @@ describe("businessCapabilities registry", () => {
   });
 });
 
+describe("business terminology", () => {
+  it("uses retail-sensible defaults for retail, pharmacy, supermarket, wholesale", () => {
+    expect(termsForIndustry("retail").product).toBe("Product");
+    expect(termsForIndustry("pharmacy").product).toBe("Medicine");
+    expect(termsForIndustry("supermarket").customer).toBe("Customer");
+    expect(termsForIndustry("wholesale").customer).toBe("Buyer");
+  });
+
+  it("uses hospitality defaults for restaurant, bar, hotel", () => {
+    expect(termsForIndustry("restaurant").check).toBe("Check");
+    expect(termsForIndustry("restaurant").ticket).toBe("Kitchen ticket");
+    expect(termsForIndustry("bar").check).toBe("Tab");
+    expect(termsForIndustry("bar").kitchen).toBe("Bar queue");
+    expect(termsForIndustry("hotel").folio).toBe("Folio");
+    expect(termsForIndustry("hotel").branch).toBe("Property");
+  });
+
+  it("merges admin overrides on top of industry defaults", () => {
+    const terms = resolveBusinessTerms("bar", { kitchen: "Service bar" });
+    expect(terms.kitchen).toBe("Service bar");
+    expect(terms.check).toBe("Tab");
+  });
+
+  it("resolves industry-sensitive nav titles from terms", () => {
+    const bar = termsForIndustry("bar");
+    const hotel = termsForIndustry("hotel");
+    expect(resolveNavTitleFromTerms("/kitchen", bar, "Kitchen")).toBe("Bar queue");
+    expect(resolveNavTitleFromTerms("/floor", bar, "Floor")).toBe("Floor");
+    expect(resolveNavTitleFromTerms("/rooms", hotel, "Rooms")).toBe("Rooms");
+    expect(resolveNavTitleFromTerms("/products", hotel, "Products")).toBe("Services");
+  });
+
+  it("applies hospitality POS copy while keeping retail/wholesale classic wording", () => {
+    const retail = termsForIndustry("retail");
+    const hotel = termsForIndustry("hotel");
+    expect(salesViewDescription("retail", retail)).toBe(
+      "Create a new wholesale or retail sale.",
+    );
+    expect(salesViewDescription("wholesale", retail)).toBe(
+      "Create a new wholesale or retail sale.",
+    );
+    expect(salesViewDescription("hotel", hotel)).toMatch(/folio/i);
+  });
+
+  it("warns when disabling ops capabilities", () => {
+    expect(opsDisableWarningCopy([])).toBeNull();
+    expect(opsDisableWarningCopy(["tables_orders"])).toMatch(/open checks/i);
+  });
+
+  it("labels nav groups with saved terms without changing capability gates", () => {
+    const barTerms = termsForIndustry("bar");
+    const groups = navGroupsForRole(
+      "administrator",
+      ["tables_orders", "kitchen_tickets"],
+      { industryProfile: "bar" },
+      barTerms,
+    );
+    const kitchen = groups.flatMap((g) => g.items).find((i) => i.href === "/kitchen");
+    expect(kitchen?.title).toBe("Bar queue");
+  });
+});
+
 describe("navigation capability gates", () => {
   it("keeps existing routes when no capability flags are set on items", () => {
     const admin = navGroupsForRole("administrator");
@@ -149,5 +220,19 @@ describe("Cap More menu hospitality routes", () => {
     expect(hrefs).toContain("/rooms");
     expect(hrefs).toContain("/reservations");
     expect(hrefs).not.toContain("/floor");
+  });
+});
+
+describe("pack save branding safety", () => {
+  it("does not reset experienceOverrides inside updateBusinessCapabilities", () => {
+    const source = readFileSync(resolve(process.cwd(), "convex/settings.ts"), "utf8");
+    const mutationStart = source.indexOf("export const updateBusinessCapabilities");
+    expect(mutationStart).toBeGreaterThan(-1);
+    const nextExport = source.indexOf("export const getBusinessTerminology", mutationStart);
+    const body = source.slice(mutationStart, nextExport > 0 ? nextExport : undefined);
+    // Comment may mention branding; assert no code patches brand tokens.
+    expect(body).not.toMatch(/experienceOverrides\s*:/);
+    expect(body).not.toMatch(/experiencePresetForIndustry\s*\(/);
+    expect(body).not.toMatch(/bumpEntitlementVersion\s*\(/);
   });
 });

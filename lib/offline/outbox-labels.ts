@@ -10,8 +10,12 @@ import {
 const OP_LABELS: Record<OutboxOpType, string> = {
   complete_sale: "Sale",
   dining_open_session: "Open table check",
+  dining_add_session_item: "Add check item",
+  dining_fire_kitchen_ticket: "Send kitchen ticket",
   dining_pay_session: "Pay table check",
+  hotel_create_reservation: "Create reservation",
   hotel_check_in: "Hotel check-in",
+  hotel_add_folio_charge: "Folio charge",
   hotel_checkout_pay: "Hotel checkout",
   process_return: "Return",
   upsert_supplier: "Supplier",

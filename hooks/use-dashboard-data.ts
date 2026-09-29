@@ -20,6 +20,27 @@ export type DashboardData = DashboardSummaryCache & {
   source: "remote" | "cache" | "local";
 };
 
+export type HospitalityOpsSnapshot = {
+  hotel: {
+    roomsAvailable: number;
+    roomsOccupied: number;
+    roomsDirty: number;
+    roomsMaintenance: number;
+    arrivalsToday: number;
+    departuresToday: number;
+    openFolios: number;
+    outstandingFolioBalance: number | null;
+  } | null;
+  dining: {
+    occupiedTables: number;
+    openChecks: number;
+    pendingKitchenTickets: number;
+    readyTickets: number;
+  } | null;
+};
+
+const EMPTY_HOSPITALITY: HospitalityOpsSnapshot = { hotel: null, dining: null };
+
 type RemoteDashboard = {
   role: string;
   branchId: Id<"branches"> | null;
@@ -181,6 +202,23 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
       : "skip",
   );
 
+  const hospitalityRemote = useQuery(
+    api.dashboard.hospitalityOps,
+    online && isAuthenticated
+      ? {
+          branchId: isAdmin && branchFilter !== "all" ? branchFilter : undefined,
+        }
+      : "skip",
+  );
+
+  const hospitality: HospitalityOpsSnapshot =
+    hospitalityRemote === undefined
+      ? EMPTY_HOSPITALITY
+      : {
+          hotel: hospitalityRemote.hotel,
+          dining: hospitalityRemote.dining,
+        };
+
   useEffect(() => {
     setAcceptEmptyLocal(false);
   }, [branchKey, role]);
@@ -250,7 +288,7 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
   }, [remote, branchKey]);
 
   if (remote) {
-    return { data: mapRemote(remote), loading: false };
+    return { data: mapRemote(remote), loading: false, hospitality };
   }
 
   if (
@@ -259,12 +297,12 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
     (!role || localData.role === role) &&
     (acceptEmptyLocal || !(online && isAuthenticated && isEmptySummary(localData)))
   ) {
-    return { data: localData, loading: false };
+    return { data: localData, loading: false, hospitality };
   }
 
   // Online + auth: Convex is in flight (or briefly unavailable). Offline: still
   // building Dexie. Either way show skeleton instead of false zeros.
-  return { data: null, loading: true };
+  return { data: null, loading: true, hospitality };
 }
 
 /** @deprecated Kept for unit tests that imported the mirror-wait helper. */

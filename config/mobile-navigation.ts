@@ -4,6 +4,7 @@ import {
   stockOpsVisibleForIndustry,
   type BusinessCapabilityKey,
 } from "@/convex/shared/businessCapabilities";
+import type { BusinessTermsMap } from "@/convex/shared/businessTerms";
 import {
   Boxes,
   ClipboardList,
@@ -42,9 +43,15 @@ const MOBILE_CATALOGUE_TAB: MobileTab = {
 
 const TAB_HREFS = new Set(MOBILE_BOTTOM_TABS.map((t) => t.href));
 
-export function mobileBottomTabsForIndustry(industryProfile?: string | null): MobileTab[] {
+export function mobileBottomTabsForIndustry(
+  industryProfile?: string | null,
+  terms?: BusinessTermsMap | null,
+): MobileTab[] {
   if (stockOpsVisibleForIndustry(industryProfile)) return MOBILE_BOTTOM_TABS;
-  return MOBILE_BOTTOM_TABS.map((tab) => (tab.id === "inventory" ? MOBILE_CATALOGUE_TAB : tab));
+  const catalogueTitle = terms?.product_plural ?? MOBILE_CATALOGUE_TAB.title;
+  return MOBILE_BOTTOM_TABS.map((tab) =>
+    tab.id === "inventory" ? { ...MOBILE_CATALOGUE_TAB, title: catalogueTitle } : tab,
+  );
 }
 
 export type MoreSection = {
@@ -86,9 +93,10 @@ export function moreSectionsForRole(
   role: AppRole,
   enabledCapabilities: readonly BusinessCapabilityKey[] = [],
   gate: NavFeatureGate = {},
+  terms?: BusinessTermsMap | null,
 ): MoreSection[] {
   const allowed = new Map(
-    flatNavForRole(role, enabledCapabilities, gate).map((item) => [item.href, item]),
+    flatNavForRole(role, enabledCapabilities, gate, terms).map((item) => [item.href, item]),
   );
   return MORE_SECTIONS.map((section) => ({
     id: section.id,

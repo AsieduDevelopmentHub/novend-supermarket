@@ -777,7 +777,7 @@ function ProductFormBody({
                 />
               </div>
               <div className="min-w-0 space-y-2">
-                <Label>Status</Label>
+                <Label>Catalogue status</Label>
                 <Select
                   value={status}
                   onValueChange={(value) => setStatus(value as "active" | "inactive")}
@@ -786,7 +786,7 @@ function ProductFormBody({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">In stock</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
                   </SelectContent>
                 </Select>

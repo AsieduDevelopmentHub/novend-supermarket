@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   DEFAULT_NOVEND_EXPERIENCE,
   HOTEL_EXPERIENCE,
@@ -13,6 +15,21 @@ describe("experiencePresetForIndustry", () => {
     expect(experiencePresetForIndustry("restaurant").accent).toBe(RESTAURANT_EXPERIENCE.accent);
     expect(experiencePresetForIndustry("hotel").accent).toBe(HOTEL_EXPERIENCE.accent);
     expect(experiencePresetForIndustry("retail").accent).toBe(DEFAULT_NOVEND_EXPERIENCE.accent);
+  });
+
+  it("is used for org provisioning seed, not pack save", () => {
+    const provision = readFileSync(
+      resolve(process.cwd(), "convex/shared/provisionOrganization.ts"),
+      "utf8",
+    );
+    expect(provision).toMatch(/experiencePresetForIndustry/);
+    expect(provision).toMatch(/experienceOverrides/);
+
+    const settings = readFileSync(resolve(process.cwd(), "convex/settings.ts"), "utf8");
+    // Pack / capability save must preserve brand colours (gpt §10 / finding #12).
+    expect(settings).not.toMatch(
+      /if \(args\.applyIndustryPack\) \{\s*const tokens = experiencePresetForIndustry/,
+    );
   });
 });
 

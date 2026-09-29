@@ -1,29 +1,95 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { usePermissions } from "@/hooks/use-permissions";
 import { PageHeader } from "@/components/layout/primitives";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
-import { OfflineUnavailable } from "@/components/offline/offline-unavailable";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
+import { listMirroredKitchenTickets } from "@/lib/offline/mirror-queries";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
+import { pickLiveListWhenOnline } from "@/lib/offline/list-preference";
+
+type KitchenTicketRow = {
+  _id: string;
+  tableName: string;
+  status: string;
+  lines: Array<{
+    _id: string;
+    productName: string;
+    quantity: number;
+    modifiersLabel?: string | null;
+    note?: string | null;
+  }>;
+};
 
 export function KitchenView() {
   const online = useConnectivity();
   const { hasCapability } = useBusinessCapabilities();
+  const { branchId, isAdmin } = usePermissions();
   const canKitchen = hasCapability("kitchen_tickets");
-  const tickets = useQuery(api.dining.listKitchenTickets, online && canKitchen ? {} : "skip");
+  const [localTickets, setLocalTickets] = useState<
+    Awaited<ReturnType<typeof listMirroredKitchenTickets>>
+  >(null);
+
+  const remoteTickets = useQuery(
+    api.dining.listKitchenTickets,
+    online && canKitchen ? {} : "skip",
+  );
   const updateStatus = useMutation(api.dining.updateKitchenTicketStatus);
 
-  if (!online) {
-    return <OfflineUnavailable title="Kitchen needs a connection" />;
-  }
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      void listMirroredKitchenTickets(isAdmin ? undefined : (branchId ?? undefined)).then(
+        (rows) => {
+          if (!cancelled) setLocalTickets(rows);
+        },
+      );
+    };
+    load();
+    return subscribeReplicaChanged(load);
+  }, [branchId, isAdmin, remoteTickets]);
+
+  const tickets = pickLiveListWhenOnline({
+    local: localTickets?.map(
+      (t): KitchenTicketRow => ({
+        _id: t.id,
+        tableName: t.tableName,
+        status: t.status,
+        lines: t.lines.map((line, index) => ({
+          _id: line.id ?? `${t.id}-${index}`,
+          productName: line.productName,
+          quantity: line.quantity,
+          modifiersLabel: line.modifiersLabel,
+          note: line.note,
+        })),
+      }),
+    ),
+    remote: remoteTickets?.map((t) => ({
+      _id: String(t._id),
+      tableName: t.tableName,
+      status: t.status,
+      lines: t.lines.map((line) => ({
+        _id: String(line._id),
+        productName: line.productName,
+        quantity: line.quantity,
+        modifiersLabel: line.modifiersLabel,
+        note: line.note,
+      })),
+    })),
+    online,
+  });
+
   if (!canKitchen) {
     return (
       <EmptyState
@@ -32,13 +98,20 @@ export function KitchenView() {
       />
     );
   }
-  if (tickets === undefined) {
+  if (tickets === undefined || tickets === null) {
     return <LoadingState label="Loading kitchen…" />;
   }
 
   return (
     <div className="min-w-0 space-y-6" data-tour="page-content">
-      <PageHeader title="Kitchen" description="Open tickets from the floor." />
+      <PageHeader
+        title="Kitchen"
+        description={
+          online
+            ? "Open tickets from the floor."
+            : "Cached kitchen tickets — status updates require a connection."
+        }
+      />
       {tickets.length === 0 ? (
         <EmptyState title="No open tickets" description="Fired orders will appear here." />
       ) : (
@@ -68,12 +141,15 @@ export function KitchenView() {
                   ))}
                 </ul>
                 <div className="flex flex-wrap gap-2">
-                  {ticket.status === "open" ? (
+                  {online && ticket.status === "open" ? (
                     <Button
                       type="button"
                       size="sm"
                       onClick={() =>
-                        void updateStatus({ ticketId: ticket._id, status: "ready" })
+                        void updateStatus({
+                          ticketId: ticket._id as Id<"kitchenTickets">,
+                          status: "ready",
+                        })
                           .then(() => toast.success("Marked ready"))
                           .catch((e) => showError(e, "Could not update ticket"))
                       }
@@ -81,18 +157,25 @@ export function KitchenView() {
                       Ready
                     </Button>
                   ) : null}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      void updateStatus({ ticketId: ticket._id, status: "done" })
-                        .then(() => toast.success("Ticket done"))
-                        .catch((e) => showError(e, "Could not update ticket"))
-                    }
-                  >
-                    Done
-                  </Button>
+                  {online ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        void updateStatus({
+                          ticketId: ticket._id as Id<"kitchenTickets">,
+                          status: "done",
+                        })
+                          .then(() => toast.success("Ticket done"))
+                          .catch((e) => showError(e, "Could not update ticket"))
+                      }
+                    >
+                      Done
+                    </Button>
+                  ) : (
+                    <p className="text-muted-foreground text-xs">Connect to update ticket status.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -20,7 +20,6 @@ import {
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { formatCurrency, roundMoney } from "@/lib/currency";
-import { formatDateTime } from "@/lib/date";
 import { Minus, Plus, ScanBarcode, ShoppingCart, Trash2, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -31,7 +30,9 @@ import { SaleCompletedDialog } from "@/features/receipts/components/sale-complet
 import { isCapacitor } from "@novend/hardware";
 import { listActiveSellUnits, roundQuantity } from "@/convex/shared/units";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
-import { useSalesCatalog, useSalesCustomerSearch, catalogAvailableQuantity } from "@/hooks/use-offline-catalog";
+import { useBusinessTerms } from "@/hooks/use-business-terms";
+import { salesViewDescription } from "@/convex/shared/businessTerms";
+import { useSalesCatalog, useSalesCustomerSearch, catalogAvailableQuantity, resolveCatalogAvailable, type CatalogStockHint } from "@/hooks/use-offline-catalog";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { usePosPreferences } from "@/hooks/use-pos-preferences";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
@@ -50,7 +51,7 @@ import {
 } from "@/lib/offline/sales-repository";
 import { notifyReplicaChanged } from "@/lib/offline/replica-events";
 import { queueUpsertCustomer } from "@/lib/offline/replica-writes";
-import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
+import { findLocalProductsByBarcode, getLocalProductAvailability } from "@/lib/offline/snapshot";
 import { postSaleReceiptAction, resolveReceiptPrintMode } from "@/lib/receipt-print-mode";
 import type { LocalHeldSale } from "@/lib/offline/types";
 import {
@@ -69,6 +70,7 @@ import {
   SalesProductCatalog,
   SalesProductDisplayControls,
 } from "@/features/sales/components/sales-product-catalog";
+import { HeldSalesPanel } from "@/features/sales/components/held-sales-panel";
 import {
   readCartDraft,
   writeCartDraft,
@@ -120,7 +122,8 @@ function formatHoldRef(id: string) {
 export function SalesView() {
   const { isAdmin, branchId: myBranchId, branchName } = usePermissions();
   const { access, capabilities, experience } = useLicense();
-  const { hasCapability } = useBusinessCapabilities();
+  const { hasCapability, industryProfile } = useBusinessCapabilities();
+  const { terms } = useBusinessTerms();
   const multiUnitOn = hasCapability("multi_unit_pricing");
   const weightOn = hasCapability("sell_by_weight");
   const nativeShell = useNativeShell();
@@ -148,6 +151,8 @@ export function SalesView() {
   const [cashierId, setCashierId] = useState<string | null>(null);
   /** Draft qty strings while editing — empty allowed until blur. */
   const [qtyDrafts, setQtyDrafts] = useState<Record<string, string>>({});
+  /** Last-known stock for products added this session — catalog is search-capped (~48). */
+  const [stockHints, setStockHints] = useState<Record<string, CatalogStockHint>>({});
   const [barcodeMatches, setBarcodeMatches] = useState<{
     code: string;
     products: BarcodeMatchProduct[];
@@ -175,6 +180,72 @@ export function SalesView() {
     refreshLocal,
   } = useSalesCatalog(search, workingBranchId ?? myBranchId ?? undefined);
   const customerHits = useSalesCustomerSearch(customerQuery);
+
+  useEffect(() => {
+    if (catalog.length === 0) return;
+    setStockHints((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const product of catalog) {
+        const hint = {
+          stockQuantity: product.stockQuantity,
+          tracksInventory: product.tracksInventory,
+        };
+        const prior = next[product.id];
+        if (
+          !prior ||
+          prior.stockQuantity !== hint.stockQuantity ||
+          prior.tracksInventory !== hint.tracksInventory
+        ) {
+          next[product.id] = hint;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [catalog]);
+
+  // Cart lines often leave the search window — refresh stock from Dexie by id.
+  useEffect(() => {
+    if (cart.length === 0) return;
+    let cancelled = false;
+    const branch = workingBranchId ?? myBranchId ?? null;
+    void (async () => {
+      const missing = cart
+        .map((row) => row.productId)
+        .filter((id) => !catalog.some((p) => p.id === id));
+      if (missing.length === 0) return;
+      const updates: Record<string, CatalogStockHint> = {};
+      for (const productId of missing) {
+        const row = await getLocalProductAvailability(productId, branch);
+        if (row) updates[productId] = row;
+      }
+      if (cancelled || Object.keys(updates).length === 0) return;
+      setStockHints((prev) => ({ ...prev, ...updates }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cart, catalog, workingBranchId, myBranchId]);
+
+  function rememberStockHint(product: {
+    id: string;
+    stockQuantity: number;
+    tracksInventory?: boolean;
+  }) {
+    setStockHints((prev) => ({
+      ...prev,
+      [product.id]: {
+        stockQuantity: product.stockQuantity,
+        tracksInventory: product.tracksInventory,
+      },
+    }));
+  }
+
+  function availableFor(productId: string): number {
+    return resolveCatalogAvailable(productId, catalog, stockHints);
+  }
+
   const remoteHeld = useQuery(api.sales.listHeld, online ? {} : "skip");
   const holdSale = useMutation(api.sales.holdSale);
   const resumeHeld = useMutation(api.sales.resumeHeld);
@@ -350,6 +421,7 @@ export function SalesView() {
     pricingMode?: "fixed" | "per_weight" | null;
     isExpiring?: boolean;
   }) {
+    rememberStockHint(product);
     const available = catalogAvailableQuantity(product);
     if (available <= 0) {
       toast.error(`Not enough stock for ${product.name}`);
@@ -374,7 +446,7 @@ export function SalesView() {
         const baseNeeded = roundQuantity(nextQty * unit.factorToBase);
         if (baseNeeded > available) {
           toast.error(
-            `Not enough stock for ${product.name}. Available: ${product.stockQuantity}.`,
+            `Not enough stock for ${product.name}. Available: ${Number.isFinite(available) ? available : product.stockQuantity}.`,
           );
           return prev;
         }
@@ -463,8 +535,7 @@ export function SalesView() {
 
   function commitCartQuantity(productId: string) {
     const draft = qtyDrafts[productId];
-    const product = catalog.find((p) => p.id === productId);
-    const stock = catalogAvailableQuantity(product);
+    const stock = availableFor(productId);
     const current = cart.find((row) => row.productId === productId)?.quantity ?? 1;
 
     if (draft === undefined) return;
@@ -509,6 +580,7 @@ export function SalesView() {
 
   function changeBranch(next: Id<"branches"> | "all") {
     if (next === "all") return;
+    setStockHints({});
     setBranchOverride(next);
   }
 
@@ -664,7 +736,7 @@ export function SalesView() {
     }
     const oversold = cart.find((item) => {
       const product = catalog.find((p) => p.id === item.productId);
-      const available = catalogAvailableQuantity(product);
+      const available = availableFor(item.productId);
       const factor = item.sellUnitKey
         ? (listActiveSellUnits({
             unit: "unit",
@@ -677,9 +749,7 @@ export function SalesView() {
       return roundQuantity(item.quantity * factor) > available;
     });
     if (oversold) {
-      const available = catalogAvailableQuantity(
-        catalog.find((p) => p.id === oversold.productId),
-      );
+      const available = availableFor(oversold.productId);
       toast.error(`Not enough stock for ${oversold.name}. Available: ${available}.`);
       return;
     }
@@ -726,57 +796,69 @@ export function SalesView() {
     }
   }
 
-  async function onResume(row: HeldRow) {
+  async function onResume(rowKey: string, mode: "replace" | "merge") {
+    const row = heldRows.find((entry) => entry.key === rowKey);
+    if (!row) return;
+
     try {
+      let items: CartItem[] = [];
+      let heldDiscount = 0;
+      let heldCustomer: SelectedCustomer = null;
+
       if (row.source === "local" && row.localId) {
         const heldSale = await resumeLocalHeldSale(row.localId);
-        setCart(
-          heldSale.items.map((item) => ({
-            productId: item.productId,
-            name: item.productName,
-            unitPrice: item.unitPrice,
-            quantity: item.quantity,
-            discount: item.discount,
-          })),
-        );
-        setDiscountMode("amount");
-        setDiscountField(heldSale.discount);
-        if (heldSale.customerId) {
-          setCustomer({
-            id: heldSale.customerId,
-            name: heldSale.customerName ?? "Customer",
-            phone: null,
-          });
-        } else {
-          setCustomer(null);
-        }
-        await refreshLocalHeld();
-        toast.success("Held sale resumed");
-        return;
-      }
-
-      if (!row.remoteId) return;
-      const heldSale = await resumeHeld({ id: row.remoteId });
-      setCart(
-        heldSale.items.map((item) => ({
+        items = heldSale.items.map((item) => ({
           productId: item.productId,
           name: item.productName,
           unitPrice: item.unitPrice,
           quantity: item.quantity,
           discount: item.discount,
-        })),
-      );
-      setDiscountMode("amount");
-      setDiscountField(heldSale.discount);
-      if (heldSale.customerId) {
-        setCustomer({
-          id: heldSale.customerId,
-          name: heldSale.customerName ?? "Customer",
-          phone: null,
-        });
+        }));
+        heldDiscount = heldSale.discount;
+        heldCustomer = heldSale.customerId
+          ? {
+              id: heldSale.customerId,
+              name: heldSale.customerName ?? "Customer",
+              phone: null,
+            }
+          : null;
+        await refreshLocalHeld();
+      } else if (row.remoteId) {
+        const heldSale = await resumeHeld({ id: row.remoteId });
+        items = heldSale.items.map((item) => ({
+          productId: item.productId,
+          name: item.productName,
+          unitPrice: item.unitPrice,
+          quantity: item.quantity,
+          discount: item.discount,
+        }));
+        heldDiscount = heldSale.discount;
+        heldCustomer = heldSale.customerId
+          ? {
+              id: heldSale.customerId,
+              name: heldSale.customerName ?? "Customer",
+              phone: null,
+            }
+          : null;
       } else {
-        setCustomer(null);
+        return;
       }
+
+      if (mode === "merge") {
+        setCart((prev) => [...prev, ...items]);
+        setDiscountMode("amount");
+        setDiscountField((prev) => roundMoney(prev + heldDiscount));
+        if (!customer && heldCustomer) {
+          setCustomer(heldCustomer);
+        }
+        toast.success("Held sale merged into cart");
+        return;
+      }
+
+      setCart(items);
+      setDiscountMode("amount");
+      setDiscountField(heldDiscount);
+      setCustomer(heldCustomer);
       toast.success("Held sale resumed");
     } catch (error) {
       showError(error, "Resume failed");
@@ -822,7 +904,7 @@ export function SalesView() {
         nativeShell ? "pb-[calc(var(--novend-tabbar-offset)+3.75rem)]" : "pb-24",
       )}
     >
-      <PageHeader title="Sales" description="Create a new wholesale or retail sale." />
+      <PageHeader title="Sales" description={salesViewDescription(industryProfile, terms)} />
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <div className="min-w-0 space-y-4">
@@ -852,6 +934,12 @@ export function SalesView() {
               display={productDisplay}
               onDisplayChange={setProductDisplay}
             />
+            <HeldSalesPanel
+              heldSales={heldRows}
+              cartHasItems={cart.length > 0}
+              onResume={onResume}
+              className="shrink-0 self-end"
+            />
             {isAdmin ? (
               <BranchFilter
                 branches={branches}
@@ -876,42 +964,6 @@ export function SalesView() {
             display={productDisplay}
             onAddToCart={addToCart}
           />
-
-          {heldRows.length > 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Held sales</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {heldRows.map((sale) => (
-                  <div key={sale.key} className="flex items-center justify-between gap-3 text-sm">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">
-                        {sale.label}
-                        <span className="text-muted-foreground font-normal">
-                          {" "}
-                          · #{sale.holdRef}
-                        </span>
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        {formatDateTime(sale.heldAt)} · {formatCurrency(sale.total)}
-                        {sale.source === "local" ? " · This device" : null}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="shrink-0"
-                      onClick={() => void onResume(sale)}
-                    >
-                      Resume
-                    </Button>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ) : null}
         </div>
 
         <Card
@@ -919,9 +971,17 @@ export function SalesView() {
           className="hidden h-fit self-start xl:sticky xl:top-4 xl:block xl:max-h-[calc(100dvh-5.5rem)] xl:overflow-y-auto"
         >
           <CardHeader className="bg-card/95 supports-[backdrop-filter]:bg-card/80 sticky top-0 z-10 backdrop-blur">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ShoppingCart className="h-4 w-4" />
-              Current Sale
+            <CardTitle className="flex items-center justify-between gap-2 text-base">
+              <span className="flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4" aria-hidden />
+                Current Sale
+              </span>
+              <HeldSalesPanel
+                heldSales={heldRows}
+                cartHasItems={cart.length > 0}
+                onResume={onResume}
+                compact
+              />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -931,6 +991,7 @@ export function SalesView() {
               customerQuery={customerQuery}
               customerHits={customerHits}
               cart={cart}
+              stockHints={stockHints}
               catalog={catalog}
               qtyDrafts={qtyDrafts}
               subtotal={subtotal}
@@ -978,9 +1039,17 @@ export function SalesView() {
           overlayClassName="bg-black/60"
         >
           <DrawerHeader className="border-border shrink-0 border-b text-left">
-            <DrawerTitle className="flex items-center gap-2">
-              <ShoppingCart className="h-4 w-4" aria-hidden />
-              Current Sale
+            <DrawerTitle className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4" aria-hidden />
+                Current Sale
+              </span>
+              <HeldSalesPanel
+                heldSales={heldRows}
+                cartHasItems={cart.length > 0}
+                onResume={onResume}
+                compact
+              />
             </DrawerTitle>
           </DrawerHeader>
           <div className="flex min-h-0 flex-1 flex-col px-4 pt-2">
@@ -990,6 +1059,7 @@ export function SalesView() {
               customerQuery={customerQuery}
               customerHits={customerHits}
               cart={cart}
+              stockHints={stockHints}
               catalog={catalog}
               qtyDrafts={qtyDrafts}
               subtotal={subtotal}
@@ -1107,6 +1177,7 @@ type SalesCheckoutFieldsProps = {
   customerQuery: string;
   customerHits: CheckoutCustomerHit[];
   cart: CartItem[];
+  stockHints: Record<string, CatalogStockHint>;
   catalog: Array<{ id: string; stockQuantity: number; tracksInventory?: boolean }>;
   qtyDrafts: Record<string, string>;
   subtotal: number;
@@ -1141,6 +1212,7 @@ function SalesCheckoutFields({
   customerQuery,
   customerHits,
   cart,
+  stockHints,
   catalog,
   qtyDrafts,
   subtotal,
@@ -1323,10 +1395,13 @@ function SalesCheckoutFields({
                     className="h-7 w-7"
                     aria-label={`Increase ${item.name}`}
                     onClick={() => {
-                      const product = catalog.find((p) => p.id === item.productId);
-                      const stock = catalogAvailableQuantity(product);
+                      const stock = resolveCatalogAvailable(item.productId, catalog, stockHints);
                       if (item.quantity + 1 > stock) {
-                        toast.error("Not enough stock");
+                        toast.error(
+                          Number.isFinite(stock)
+                            ? `Not enough stock. Available: ${stock}.`
+                            : "Not enough stock",
+                        );
                         return;
                       }
                       onSetCart((prev) =>

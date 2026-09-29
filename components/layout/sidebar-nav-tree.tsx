@@ -14,6 +14,7 @@ import {
 } from "@/config/navigation";
 import { useNavTreeState } from "@/hooks/use-nav-tree-state";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { useBusinessTerms } from "@/hooks/use-business-terms";
 import { useLicense } from "@/hooks/use-license";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
 import { cn } from "@/lib/utils";
@@ -227,13 +228,14 @@ export function SidebarNavTree({
   const pathname = usePathname();
   const { activePath } = useOfflineNavigation();
   const { enabledCapabilities, industryProfile } = useBusinessCapabilities();
+  const { terms } = useBusinessTerms();
   const { features, billingVisibility } = useLicense();
   const currentPath = activePath ?? pathname;
   const groups = navGroupsForRole(role, enabledCapabilities, {
     features,
     billingVisibility,
     industryProfile,
-  });
+  }, terms);
   const { isExpanded, toggleGroup, expandGroup } = useNavTreeState();
 
   useEffect(() => {

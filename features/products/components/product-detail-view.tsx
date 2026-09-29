@@ -144,6 +144,7 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
         status: local.status,
         imageUrl: local.imageUrl,
         tracksExpiry: local.tracksExpiry,
+        tracksInventory: local.tracksInventory !== false,
         nearestExpiry: local.nearestExpiry,
         isExpired: local.isExpired,
         isExpiring: local.isExpiring,
@@ -170,6 +171,7 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
   const isLow = product.isLowStock ?? product.stockQuantity <= product.lowStockThreshold;
   const isArchived = product.status === "archived";
   const tracksExpiry = product.tracksExpiry === true;
+  const tracksInventory = product.tracksInventory !== false;
   const productUnit = product.unit;
   const alertDays = local?.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS;
   const mappedLocalLots =
@@ -320,19 +322,23 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                   icon: Pencil,
                   onClick: () => setEditOpen(true),
                 },
-                {
-                  key: "restock",
-                  label: "Restock",
-                  icon: PackagePlus,
-                  onClick: () => {
-                    setQuantity("");
-                    setDirection("add");
-                    setReason("receive");
-                    setNote("");
-                    setExpiryInput("");
-                    setRestockOpen(true);
-                  },
-                },
+                ...(tracksInventory
+                  ? [
+                      {
+                        key: "restock",
+                        label: "Restock",
+                        icon: PackagePlus,
+                        onClick: () => {
+                          setQuantity("");
+                          setDirection("add" as const);
+                          setReason("receive" as const);
+                          setNote("");
+                          setExpiryInput("");
+                          setRestockOpen(true);
+                        },
+                      },
+                    ]
+                  : []),
               ]
             : []),
         ]}
@@ -353,21 +359,23 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                   <Pencil className="h-4 w-4" />
                   Edit
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setQuantity("");
-                    setDirection("add");
-                    setReason("receive");
-                    setNote("");
-                    setExpiryInput("");
-                    setRestockOpen(true);
-                  }}
-                >
-                  <PackagePlus className="h-4 w-4" />
-                  Restock
-                </Button>
+                {tracksInventory ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setQuantity("");
+                      setDirection("add");
+                      setReason("receive");
+                      setNote("");
+                      setExpiryInput("");
+                      setRestockOpen(true);
+                    }}
+                  >
+                    <PackagePlus className="h-4 w-4" />
+                    Restock
+                  </Button>
+                ) : null}
                 <Button type="button" variant="outline" onClick={() => setArchiveOpen(true)}>
                   <Trash2 className="text-destructive h-4 w-4" />
                   Archive
@@ -409,23 +417,42 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                 value={product.costPrice !== undefined ? formatCurrency(product.costPrice) : "—"}
               />
             ) : null}
-            <Field label="Stock" value={`${product.stockQuantity} ${product.unit}`} />
-            {tracksExpiry ? (
+            <Field
+              label="Stock"
+              value={
+                tracksInventory ? `${product.stockQuantity} ${product.unit}` : "Non-stock item"
+              }
+            />
+            {tracksInventory && tracksExpiry ? (
               <Field
                 label="Sellable"
                 value={`${product.sellableQuantity ?? product.stockQuantity} ${product.unit}`}
               />
             ) : null}
             <div>
-              <p className="text-muted-foreground">Status</p>
+              <p className="text-muted-foreground">Catalogue</p>
               <div className="mt-1 flex flex-wrap gap-2">
                 {isArchived ? (
                   <Badge variant="secondary">Archived</Badge>
                 ) : (
+                  <Badge variant={product.status === "active" ? "success" : "secondary"}>
+                    {product.status === "active" ? "Active" : "Inactive"}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Availability</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {!tracksInventory ? (
+                  <Badge variant="outline">Non-stock</Badge>
+                ) : isArchived ? (
+                  <Badge variant="secondary">Archived</Badge>
+                ) : (
                   <StockStatusBadges
                     isLowStock={isLow}
-                    isExpired={product.isExpired}
-                    isExpiring={product.isExpiring}
+                    isExpired={tracksExpiry ? product.isExpired : false}
+                    isExpiring={tracksExpiry ? product.isExpiring : false}
                   />
                 )}
               </div>

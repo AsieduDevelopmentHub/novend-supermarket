@@ -29,8 +29,12 @@ export type OutboxOpType =
   | "pay_salary"
   | "pay_commission"
   | "dining_open_session"
+  | "dining_add_session_item"
+  | "dining_fire_kitchen_ticket"
   | "dining_pay_session"
+  | "hotel_create_reservation"
   | "hotel_check_in"
+  | "hotel_add_folio_charge"
   | "hotel_checkout_pay";
 
 export type MirroredDiningTable = {
@@ -43,6 +47,47 @@ export type MirroredDiningTable = {
   sortOrder?: number | null;
 };
 
+export type MirroredDiningSession = {
+  id: string;
+  branchId: string;
+  tableId: string;
+  tableName: string;
+  status: "open" | "closed";
+  openedBy: string;
+  openedByName?: string | null;
+  openedAt: number;
+  guestCount?: number | null;
+  note?: string | null;
+  syncStatus?: "pending" | "synced" | "conflict";
+};
+
+export type MirroredDiningSessionItem = {
+  id: string;
+  sessionId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+  lineTotal: number;
+  modifiersJson: string;
+  kitchenStatus: "pending" | "fired" | "ready" | "done" | "void";
+  note?: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type MirroredKitchenTicket = {
+  id: string;
+  branchId: string;
+  sessionId: string;
+  tableName: string;
+  status: "open" | "ready" | "done" | "void";
+  firedAt: number;
+  updatedAt: number;
+  linesJson: string;
+};
+
 export type MirroredHotelRoom = {
   id: string;
   branchId: string;
@@ -51,6 +96,53 @@ export type MirroredHotelRoom = {
   defaultProductId?: string | null;
   status: "available" | "occupied" | "dirty" | "maintenance" | "inactive";
   sortOrder?: number | null;
+};
+
+export type MirroredHotelReservation = {
+  id: string;
+  branchId: string;
+  roomId?: string | null;
+  roomName?: string | null;
+  customerId: string;
+  customerName: string;
+  arrivalDate: string;
+  departureDate: string;
+  status: "booked" | "confirmed" | "checked_in" | "cancelled" | "no_show";
+  guests?: number | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  syncStatus?: "pending" | "synced" | "conflict";
+};
+
+export type MirroredHotelStay = {
+  id: string;
+  branchId: string;
+  roomId: string;
+  roomName: string;
+  customerId: string;
+  customerName: string;
+  reservationId?: string | null;
+  status: "open" | "closed";
+  checkInAt: number;
+  notes?: string | null;
+  checkedInBy: string;
+  checkedInByName?: string | null;
+  syncStatus?: "pending" | "synced" | "conflict";
+};
+
+export type MirroredHotelFolioCharge = {
+  id: string;
+  stayId: string;
+  kind: "room" | "product" | "other";
+  productId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+  lineTotal: number;
+  status: "open" | "void";
+  createdAt: number;
 };
 
 export type LocalSaleSyncStatus = "pending" | "synced" | "failed";

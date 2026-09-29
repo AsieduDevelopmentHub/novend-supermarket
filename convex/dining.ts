@@ -305,6 +305,7 @@ export const addSessionItem = mutation({
     discount: v.optional(v.number()),
     optionIds: v.optional(v.array(v.id("modifierOptions"))),
     note: v.optional(v.string()),
+    clientOperationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { profile, organizationId } = await requireRole(ctx, [
@@ -313,6 +314,16 @@ export const addSessionItem = mutation({
       "cashier",
     ]);
     await requireBusinessCapability(ctx, organizationId, "tables_orders");
+
+    if (args.clientOperationId?.trim()) {
+      const replay = await replayClientOp<{ itemId: Id<"diningSessionItems"> }>(
+        ctx,
+        organizationId,
+        args.clientOperationId.trim(),
+      );
+      if (replay) return replay.itemId;
+    }
+
     const session = await ctx.db.get(args.sessionId);
     if (!session || session.organizationId !== organizationId || session.status !== "open") {
       throw new Error("Open check not found");
@@ -378,7 +389,7 @@ export const addSessionItem = mutation({
     const lineTotal = roundMoney(gross - discount);
     const now = Date.now();
 
-    return await ctx.db.insert("diningSessionItems", {
+    const itemId = await ctx.db.insert("diningSessionItems", {
       organizationId,
       sessionId: session._id,
       productId: product._id,
@@ -393,6 +404,16 @@ export const addSessionItem = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    if (args.clientOperationId?.trim()) {
+      await rememberClientOp(ctx, {
+        organizationId,
+        clientOperationId: args.clientOperationId.trim(),
+        kind: "dining_add_session_item",
+        result: { itemId },
+      });
+    }
+    return itemId;
   },
 });
 
@@ -422,6 +443,7 @@ export const fireKitchenTicket = mutation({
   args: {
     sessionId: v.id("diningSessions"),
     itemIds: v.optional(v.array(v.id("diningSessionItems"))),
+    clientOperationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId, profile, organizationId } = await requireRole(ctx, [
@@ -430,6 +452,16 @@ export const fireKitchenTicket = mutation({
       "cashier",
     ]);
     await requireBusinessCapability(ctx, organizationId, "kitchen_tickets");
+
+    if (args.clientOperationId?.trim()) {
+      const replay = await replayClientOp<{ ticketId: Id<"kitchenTickets"> }>(
+        ctx,
+        organizationId,
+        args.clientOperationId.trim(),
+      );
+      if (replay) return replay;
+    }
+
     const session = await ctx.db.get(args.sessionId);
     if (!session || session.organizationId !== organizationId || session.status !== "open") {
       throw new Error("Open check not found");
@@ -472,7 +504,16 @@ export const fireKitchenTicket = mutation({
       });
       await ctx.db.patch(item._id, { kitchenStatus: "fired", updatedAt: now });
     }
-    return { ticketId };
+    const result = { ticketId };
+    if (args.clientOperationId?.trim()) {
+      await rememberClientOp(ctx, {
+        organizationId,
+        clientOperationId: args.clientOperationId.trim(),
+        kind: "dining_fire_kitchen_ticket",
+        result,
+      });
+    }
+    return result;
   },
 });
 

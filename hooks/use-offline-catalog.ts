@@ -42,6 +42,21 @@ export function catalogAvailableQuantity(
   return product.stockQuantity;
 }
 
+export type CatalogStockHint = Pick<CatalogProduct, "stockQuantity" | "tracksInventory">;
+
+/** Prefer live catalog row, then session hint (cart products often leave the search window). */
+export function resolveCatalogAvailable(
+  productId: string,
+  catalog: Array<Pick<CatalogProduct, "id" | "stockQuantity" | "tracksInventory">>,
+  hints?: Record<string, CatalogStockHint>,
+): number {
+  const live = catalog.find((row) => row.id === productId);
+  if (live) return catalogAvailableQuantity(live);
+  const hint = hints?.[productId];
+  if (hint) return catalogAvailableQuantity(hint);
+  return 0;
+}
+
 function mapRemoteProducts(
   remote: Array<{
     id: string;

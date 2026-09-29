@@ -15,12 +15,16 @@ import {
   parseBusinessConfiguration,
   validateBusinessCapabilitySet,
   DEFAULT_BUSINESS_CONFIGURATION,
-  type BusinessCapabilityKey,
   type IndustryProfile,
   type OrganizationBusinessConfiguration,
 } from "./shared/businessCapabilities";
-import { experiencePresetForIndustry } from "./shared/experience";
-import { bumpEntitlementVersion } from "./shared/entitlementVersion";
+import {
+  parseBusinessTerminologyOverrides,
+  resolveBusinessTerms,
+  sanitizeBusinessTerminologyOverrides,
+  type BusinessTerminologyOverrides,
+  type BusinessTermsMap,
+} from "./shared/businessTerms";
 import {
   PRODUCT_IMAGES_SETTINGS_KEY,
   parseProductImagesPolicy,
@@ -98,6 +102,7 @@ const BUSINESS_KEY = "business.profile";
 const RECEIPT_KEY = "receipt.template";
 const POS_KEY = "pos.preferences";
 const CAPABILITIES_KEY = "business.capabilities";
+const TERMINOLOGY_KEY = "business.terminology";
 
 export type ReceiptPrintMode = "automatic" | "manual" | "never";
 
@@ -229,6 +234,39 @@ export async function loadBusinessConfiguration(
   organizationId: Id<"organizations">,
 ): Promise<OrganizationBusinessConfiguration> {
   return parseBusinessConfiguration(await getSettingValue(ctx, organizationId, CAPABILITIES_KEY));
+}
+
+/** Admin terminology overrides (partial). */
+export async function loadBusinessTerminologyOverrides(
+  ctx: DbCtx,
+  organizationId: Id<"organizations">,
+): Promise<BusinessTerminologyOverrides> {
+  return parseBusinessTerminologyOverrides(
+    await getSettingValue(ctx, organizationId, TERMINOLOGY_KEY),
+  );
+}
+
+/** Resolved terms for offline snapshot (industry defaults + overrides). */
+export async function loadResolvedBusinessTerms(
+  ctx: DbCtx,
+  organizationId: Id<"organizations">,
+  industryProfile?: IndustryProfile | string | null,
+): Promise<{
+  industryProfile: IndustryProfile | string;
+  overrides: BusinessTerminologyOverrides;
+  terms: BusinessTermsMap;
+}> {
+  const config =
+    industryProfile != null
+      ? null
+      : await loadBusinessConfiguration(ctx, organizationId);
+  const profile = industryProfile ?? config?.industryProfile ?? "retail";
+  const overrides = await loadBusinessTerminologyOverrides(ctx, organizationId);
+  return {
+    industryProfile: profile,
+    overrides,
+    terms: resolveBusinessTerms(profile, overrides),
+  };
 }
 
 /** Product-image upload policy for Convex gates and offline snapshot. */
@@ -421,6 +459,11 @@ export const updateBusinessCapabilities = mutation({
   args: {
     industryProfile: v.string(),
     enabledCapabilities: v.array(v.string()),
+    /**
+     * When true, ignore `enabledCapabilities` and load the industry pack
+     * (plan-filtered). Does NOT reset brand / experienceOverrides — branding
+     * is only seeded at org provision.
+     */
     applyIndustryPack: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -451,25 +494,6 @@ export const updateBusinessCapabilities = mutation({
 
     await upsertSetting(ctx, organizationId, CAPABILITIES_KEY, JSON.stringify(next));
 
-    let experienceApplied: string | null = null;
-    if (args.applyIndustryPack) {
-      const tokens = experiencePresetForIndustry(profile);
-      await ctx.db.patch(organizationId, {
-        experienceOverrides: {
-          accent: tokens.accent,
-          accentForeground: tokens.accentForeground,
-          sidebarBackground: tokens.sidebarBackground,
-          sidebarForeground: tokens.sidebarForeground,
-          sidebarAccent: tokens.sidebarAccent,
-          sidebarAccentForeground: tokens.sidebarAccentForeground,
-        },
-        experienceVersion: (organization.experienceVersion ?? 0) + 1,
-        updatedAt: Date.now(),
-      });
-      await bumpEntitlementVersion(ctx, organizationId);
-      experienceApplied = profile;
-    }
-
     await writeAuditLog(ctx, {
       actorId: userId,
       action: "update_business_capabilities",
@@ -479,10 +503,45 @@ export const updateBusinessCapabilities = mutation({
         industryProfile: next.industryProfile,
         enabledCapabilities: next.enabledCapabilities,
         configurationVersion: next.configurationVersion,
-        experienceApplied,
       },
     });
     return next;
+  },
+});
+
+export const getBusinessTerminology = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthenticated");
+
+    const profile = await getProfileByUserId(ctx, userId);
+    if (!profile || profile.status !== "active") {
+      const platformAdmin = await getPlatformAdmin(ctx, userId);
+      if (platformAdmin) return {} as BusinessTerminologyOverrides;
+      throw new Error("Forbidden");
+    }
+
+    return loadBusinessTerminologyOverrides(ctx, profile.organizationId);
+  },
+});
+
+export const updateBusinessTerminology = mutation({
+  args: {
+    overrides: v.record(v.string(), v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { userId, organizationId } = await requireRole(ctx, ["administrator"]);
+    const cleaned = sanitizeBusinessTerminologyOverrides(args.overrides);
+    await upsertSetting(ctx, organizationId, TERMINOLOGY_KEY, JSON.stringify(cleaned));
+    await writeAuditLog(ctx, {
+      actorId: userId,
+      action: "update_business_terminology",
+      entityType: "settings",
+      entityId: TERMINOLOGY_KEY,
+      metadata: { keys: Object.keys(cleaned) },
+    });
+    return cleaned;
   },
 });
 

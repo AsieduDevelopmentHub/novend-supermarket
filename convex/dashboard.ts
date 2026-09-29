@@ -14,6 +14,8 @@ import { deriveExpiryListFields, lotSummaries, productExpiryAlertDays } from "./
 import { cogsForLines, completedReturnsInRange, loadItemsForReturns } from "./shared/returns";
 import { collectSaleItemsForSales, collectSalesInCompletedAtRange } from "./shared/salesRange";
 import { roundMoney } from "./shared/validation";
+import { loadBusinessConfiguration } from "./settings";
+import { hasBusinessCapability } from "./shared/businessCapabilities";
 
 /** Keep in sync with `lib/dashboard/window.ts` (dashboard UI copy). */
 const DASHBOARD_OPS_WINDOW_DAYS = 7;
@@ -321,6 +323,155 @@ export const summary = query({
       recentSales,
       salesTrend,
       salesByCategory: admin || manager ? salesByCategory : [],
+    };
+  },
+});
+
+/**
+ * Hospitality operational snapshot for owner/manager dashboards.
+ * Soft-empty when capabilities are off. Cashiers get counts only (no folio balance).
+ */
+export const hospitalityOps = query({
+  args: {
+    branchId: v.optional(v.id("branches")),
+  },
+  handler: async (ctx, args) => {
+    const { profile, organizationId } = await requireProfile(ctx);
+    const admin = isAdmin(profile);
+    const manager = isManager(profile);
+    const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
+    const config = await loadBusinessConfiguration(ctx, organizationId);
+    const showHotel = hasBusinessCapability(config, "rooms_folio");
+    const showReservations = hasBusinessCapability(config, "reservations");
+    const showDining = hasBusinessCapability(config, "tables_orders");
+    const showKitchen = hasBusinessCapability(config, "kitchen_tickets");
+    const today = new Date().toISOString().slice(0, 10);
+    const includeBalances = admin || manager;
+
+    let hotel: {
+      roomsAvailable: number;
+      roomsOccupied: number;
+      roomsDirty: number;
+      roomsMaintenance: number;
+      arrivalsToday: number;
+      departuresToday: number;
+      openFolios: number;
+      outstandingFolioBalance: number | null;
+    } | null = null;
+
+    if (showHotel || showReservations) {
+      const rooms = showHotel
+        ? (
+            await ctx.db
+              .query("hotelRooms")
+              .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+              .collect()
+          ).filter((r) => r.status !== "inactive" && (!branchFilter || r.branchId === branchFilter))
+        : [];
+
+      let arrivalsToday = 0;
+      let departuresToday = 0;
+      if (showReservations) {
+        const reservations = await ctx.db
+          .query("hotelReservations")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect();
+        for (const row of reservations) {
+          if (branchFilter && row.branchId !== branchFilter) continue;
+          if (row.status === "cancelled" || row.status === "no_show") continue;
+          if (row.arrivalDate === today && (row.status === "booked" || row.status === "confirmed")) {
+            arrivalsToday += 1;
+          }
+          if (row.departureDate === today && row.status === "checked_in") {
+            departuresToday += 1;
+          }
+        }
+      }
+
+      const openStays = showHotel
+        ? (
+            await ctx.db
+              .query("hotelStays")
+              .withIndex("by_organization_status", (q) =>
+                q.eq("organizationId", organizationId).eq("status", "open"),
+              )
+              .collect()
+          ).filter((s) => !branchFilter || s.branchId === branchFilter)
+        : [];
+
+      let outstandingFolioBalance: number | null = null;
+      if (includeBalances && openStays.length > 0) {
+        let sum = 0;
+        for (const stay of openStays) {
+          const charges = await ctx.db
+            .query("hotelFolioCharges")
+            .withIndex("by_stay", (q) => q.eq("stayId", stay._id))
+            .collect();
+          for (const c of charges) {
+            if (c.status === "open") sum += c.lineTotal;
+          }
+        }
+        outstandingFolioBalance = roundMoney(sum);
+      }
+
+      hotel = {
+        roomsAvailable: rooms.filter((r) => r.status === "available").length,
+        roomsOccupied: rooms.filter((r) => r.status === "occupied").length,
+        roomsDirty: rooms.filter((r) => r.status === "dirty").length,
+        roomsMaintenance: rooms.filter((r) => r.status === "maintenance").length,
+        arrivalsToday,
+        departuresToday,
+        openFolios: openStays.length,
+        outstandingFolioBalance,
+      };
+    }
+
+    let dining: {
+      occupiedTables: number;
+      openChecks: number;
+      pendingKitchenTickets: number;
+      readyTickets: number;
+    } | null = null;
+
+    if (showDining || showKitchen) {
+      const openSessions = showDining
+        ? (
+            await ctx.db
+              .query("diningSessions")
+              .withIndex("by_organization_status", (q) =>
+                q.eq("organizationId", organizationId).eq("status", "open"),
+              )
+              .collect()
+          ).filter((s) => !branchFilter || s.branchId === branchFilter)
+        : [];
+
+      let pendingKitchenTickets = 0;
+      let readyTickets = 0;
+      if (showKitchen) {
+        const tickets = await ctx.db
+          .query("kitchenTickets")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect();
+        for (const t of tickets) {
+          if (branchFilter && t.branchId !== branchFilter) continue;
+          if (t.status === "open") pendingKitchenTickets += 1;
+          else if (t.status === "ready") readyTickets += 1;
+        }
+      }
+
+      dining = {
+        occupiedTables: openSessions.length,
+        openChecks: openSessions.length,
+        pendingKitchenTickets,
+        readyTickets,
+      };
+    }
+
+    return {
+      role: profile.role,
+      branchId: branchFilter,
+      hotel,
+      dining,
     };
   },
 });

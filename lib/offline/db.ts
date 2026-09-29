@@ -22,7 +22,13 @@ import type {
   MirroredWholesaleStock,
   MirroredWholesaleTransfer,
   MirroredDiningTable,
+  MirroredDiningSession,
+  MirroredDiningSessionItem,
+  MirroredKitchenTicket,
   MirroredHotelRoom,
+  MirroredHotelReservation,
+  MirroredHotelStay,
+  MirroredHotelFolioCharge,
   OfflineMeta,
   OutboxRow,
   LocalReturn,
@@ -56,7 +62,13 @@ export type NovendOfflineDb = Dexie & {
   productImages: EntityTable<ProductImageCache, "id">;
   lots: EntityTable<MirroredLot, "id">;
   diningTables: EntityTable<MirroredDiningTable, "id">;
+  diningSessions: EntityTable<MirroredDiningSession, "id">;
+  diningSessionItems: EntityTable<MirroredDiningSessionItem, "id">;
+  kitchenTickets: EntityTable<MirroredKitchenTicket, "id">;
   hotelRooms: EntityTable<MirroredHotelRoom, "id">;
+  hotelReservations: EntityTable<MirroredHotelReservation, "id">;
+  hotelStays: EntityTable<MirroredHotelStay, "id">;
+  hotelFolioCharges: EntityTable<MirroredHotelFolioCharge, "id">;
   outbox: EntityTable<OutboxRow, "id">;
 };
 
@@ -390,6 +402,22 @@ export function createOfflineDb(organizationId?: string, userId?: string): Noven
     diningTables: "id, branchId, status, name",
     hotelRooms: "id, branchId, status, name",
   });
+  // v13: Phase D open hospitality ops mirrors (sessions, tickets, stays, reservations, folio).
+  db.version(13).stores({
+    ...storesV8,
+    lots: "id, productId, branchId, expiryDate, [productId+branchId]",
+    staffCompensation: "id",
+    expenses:
+      "id, occurredAt, branchId, category, beneficiaryProfileId, payPeriodKey, sourceKind, recordedByUserId",
+    diningTables: "id, branchId, status, name",
+    diningSessions: "id, branchId, tableId, status, openedAt",
+    diningSessionItems: "id, sessionId, productId, kitchenStatus",
+    kitchenTickets: "id, branchId, sessionId, status, firedAt",
+    hotelRooms: "id, branchId, status, name",
+    hotelReservations: "id, branchId, roomId, status, arrivalDate, customerId",
+    hotelStays: "id, branchId, roomId, status, checkInAt, customerId",
+    hotelFolioCharges: "id, stayId, status, createdAt",
+  });
   return db;
 }
 
@@ -497,6 +525,8 @@ export const META_KEYS = {
   billingHistory: "billingHistory",
   posPreferences: "posPreferences",
   businessCapabilities: "businessCapabilities",
+  /** Resolved industry terminology (+ overrides) for offline nav / headers. */
+  businessTerminology: "businessTerminology",
   productImagesPolicy: "productImagesPolicy",
   lastCleanupAt: "lastCleanupAt",
   lastSyncAt: "lastSyncAt",
@@ -532,7 +562,7 @@ export const META_KEYS = {
 } as const;
 
 /** Bump when Dexie adds replica tables so TTL snapshot skips cannot leave new stores empty. */
-export const REPLICA_SCHEMA_VERSION = "12";
+export const REPLICA_SCHEMA_VERSION = "13";
 
 export async function getMeta(db: NovendOfflineDb, key: string): Promise<string | null> {
   try {
