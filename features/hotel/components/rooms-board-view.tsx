@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -16,18 +16,21 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
-import { OfflineUnavailable } from "@/components/offline/offline-unavailable";
 import { formatCurrency } from "@/lib/currency";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  listMirroredHotelRooms,
+  listMirroredOpenHotelStays,
+} from "@/lib/offline/mirror-queries";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
+import {
+  offlineAddFolioCharge,
+  offlineHotelCheckIn,
+  offlineHotelCheckoutPay,
+} from "@/lib/offline/hospitality-actions";
 
 type RoomStatus = "available" | "occupied" | "dirty" | "maintenance" | "inactive";
 
@@ -48,9 +51,15 @@ export function RoomsBoardView() {
   const online = useConnectivity();
   const { hasCapability } = useBusinessCapabilities();
   const canRooms = hasCapability("rooms_folio");
-  const { branchId, isAdmin, isManager } = usePermissions();
-  const [selectedStayId, setSelectedStayId] = useState<Id<"hotelStays"> | null>(null);
-  const [selectedRoomId, setSelectedRoomId] = useState<Id<"hotelRooms"> | null>(null);
+  const { branchId, isAdmin, isManager, userId } = usePermissions();
+  const [selectedStayId, setSelectedStayId] = useState<Id<"hotelStays"> | string | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<Id<"hotelRooms"> | string | null>(null);
+  const [localRooms, setLocalRooms] = useState<
+    Awaited<ReturnType<typeof listMirroredHotelRooms>>
+  >(null);
+  const [localStays, setLocalStays] = useState<
+    Awaited<ReturnType<typeof listMirroredOpenHotelStays>>
+  >(null);
   const [newRoomName, setNewRoomName] = useState("");
   const [newRoomType, setNewRoomType] = useState("");
   const [newRoomProductId, setNewRoomProductId] = useState<string | undefined>(undefined);
@@ -59,12 +68,52 @@ export function RoomsBoardView() {
   const [chargeQty, setChargeQty] = useState("1");
   const [paying, setPaying] = useState(false);
 
-  const rooms = useQuery(api.hotel.listRooms, online && canRooms ? {} : "skip");
-  const openStays = useQuery(api.hotel.listOpenStays, online && canRooms ? {} : "skip");
+  const remoteRooms = useQuery(api.hotel.listRooms, online && canRooms ? {} : "skip");
+  const remoteOpenStays = useQuery(api.hotel.listOpenStays, online && canRooms ? {} : "skip");
   const stay = useQuery(
     api.hotel.getStay,
-    online && canRooms && selectedStayId ? { stayId: selectedStayId } : "skip",
+    online && canRooms && selectedStayId && !String(selectedStayId).startsWith("local_")
+      ? { stayId: selectedStayId as Id<"hotelStays"> }
+      : "skip",
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      void Promise.all([
+        listMirroredHotelRooms(isAdmin ? undefined : (branchId ?? undefined)),
+        listMirroredOpenHotelStays(isAdmin ? undefined : (branchId ?? undefined)),
+      ]).then(([roomsRows, staysRows]) => {
+        if (cancelled) return;
+        setLocalRooms(roomsRows);
+        setLocalStays(staysRows);
+      });
+    };
+    load();
+    return subscribeReplicaChanged(load);
+  }, [branchId, isAdmin, remoteRooms, remoteOpenStays]);
+
+  const rooms =
+    online && remoteRooms !== undefined
+      ? remoteRooms
+      : (localRooms ?? []).map((r) => ({
+          _id: r.id as Id<"hotelRooms">,
+          branchId: r.branchId as Id<"branches">,
+          name: r.name,
+          roomType: r.roomType,
+          defaultProductId: r.defaultProductId as Id<"products"> | undefined,
+          status: r.status,
+          sortOrder: r.sortOrder,
+        }));
+  const openStays =
+    online && remoteOpenStays !== undefined
+      ? remoteOpenStays
+      : (localStays ?? []).map((s) => ({
+          _id: s.id as Id<"hotelStays">,
+          roomId: s.roomId as Id<"hotelRooms">,
+          customerName: s.customerName,
+          status: s.status,
+        }));
   // Dexie-first — avoid live customers.list / listProducts org `.collect()`.
   const { customers: customerRows } = useCustomersList({
     search: "",
@@ -87,9 +136,6 @@ export function RoomsBoardView() {
   const postNight = useMutation(api.hotel.postRoomNight);
   const checkoutPay = useMutation(api.hotel.checkoutPay);
 
-  if (!online) {
-    return <OfflineUnavailable title="Rooms need a connection" />;
-  }
   if (!canRooms) {
     return (
       <EmptyState
@@ -98,13 +144,20 @@ export function RoomsBoardView() {
       />
     );
   }
-  if (rooms === undefined || openStays === undefined) {
+  if (online && (remoteRooms === undefined || remoteOpenStays === undefined) && !localRooms) {
     return <LoadingState label="Loading rooms…" />;
+  }
+  if (!online && localRooms === null) {
+    return <LoadingState label="Loading cached rooms…" />;
   }
 
   const stayByRoom = new Map(openStays.map((s) => [String(s.roomId), s]));
 
   async function onAddRoom() {
+    if (!online) {
+      toast.error("Adding rooms requires a connection");
+      return;
+    }
     if (!branchId || !newRoomName.trim()) return;
     try {
       await upsertRoom({
@@ -124,7 +177,7 @@ export function RoomsBoardView() {
     }
   }
 
-  async function onSelectRoom(roomId: Id<"hotelRooms">) {
+  async function onSelectRoom(roomId: Id<"hotelRooms"> | string) {
     setSelectedRoomId(roomId);
     const open = stayByRoom.get(String(roomId));
     setSelectedStayId(open?._id ?? null);
@@ -133,8 +186,28 @@ export function RoomsBoardView() {
   async function onCheckIn() {
     if (!selectedRoomId || !checkInCustomerId) return;
     try {
+      if (!online) {
+        const room = rooms.find((r) => String(r._id) === String(selectedRoomId));
+        const customer = customers.find((c) => String(c.id) === checkInCustomerId);
+        if (!branchId || !userId || !room || !customer) {
+          toast.error("Missing data for offline check-in");
+          return;
+        }
+        const result = await offlineHotelCheckIn({
+          roomId: String(selectedRoomId),
+          roomName: room.name,
+          branchId,
+          customerId: checkInCustomerId,
+          customerName: customer.name,
+          checkedInBy: userId,
+        });
+        setSelectedStayId(result.stayId);
+        setCheckInCustomerId(undefined);
+        toast.success("Checked in — pending sync");
+        return;
+      }
       const result = await checkIn({
-        roomId: selectedRoomId,
+        roomId: selectedRoomId as Id<"hotelRooms">,
         customerId: checkInCustomerId as Id<"customers">,
       });
       setSelectedStayId(result.stayId);
@@ -148,8 +221,25 @@ export function RoomsBoardView() {
   async function onAddCharge() {
     if (!selectedStayId || !chargeProductId) return;
     try {
+      if (!online) {
+        const product = products.items?.find((p) => String(p.id) === chargeProductId);
+        if (!product) {
+          toast.error("Product not in local catalogue");
+          return;
+        }
+        await offlineAddFolioCharge({
+          stayId: String(selectedStayId),
+          productId: chargeProductId,
+          description: product.name,
+          quantity: Number(chargeQty) || 1,
+          unitPrice: product.sellingPrice,
+          kind: "product",
+        });
+        toast.success("Charge queued — pending sync");
+        return;
+      }
       await addCharge({
-        stayId: selectedStayId,
+        stayId: selectedStayId as Id<"hotelStays">,
         kind: "product",
         productId: chargeProductId as Id<"products">,
         quantity: Number(chargeQty) || 1,
@@ -164,7 +254,20 @@ export function RoomsBoardView() {
     if (!selectedStayId) return;
     setPaying(true);
     try {
-      const result = await checkoutPay({ stayId: selectedStayId, paymentMethod: method });
+      if (!online) {
+        await offlineHotelCheckoutPay({
+          stayId: String(selectedStayId),
+          paymentMethod: method,
+        });
+        toast.success("Checkout queued — pending sync");
+        setSelectedStayId(null);
+        setSelectedRoomId(null);
+        return;
+      }
+      const result = await checkoutPay({
+        stayId: selectedStayId as Id<"hotelStays">,
+        paymentMethod: method,
+      });
       toast.success(`Checked out — ${result.invoiceNumber}`);
       setSelectedStayId(null);
       setSelectedRoomId(null);
@@ -208,18 +311,23 @@ export function RoomsBoardView() {
             </div>
             <div className="min-w-[160px] flex-1 space-y-1">
               <Label>Nightly rate product</Label>
-              <Select value={newRoomProductId} onValueChange={setNewRoomProductId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Optional" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(products?.items ?? []).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={[
+                  { value: "__none__", label: "Optional — none" },
+                  ...(products?.items ?? []).map((p) => ({
+                    value: p.id,
+                    label: p.name,
+                    keywords: p.sku,
+                  })),
+                ]}
+                value={newRoomProductId ?? "__none__"}
+                onValueChange={(value) =>
+                  setNewRoomProductId(value === "__none__" ? undefined : value)
+                }
+                placeholder="Optional"
+                searchPlaceholder="Search products…"
+                emptyMessage="No products found."
+              />
             </div>
             <Button type="button" onClick={() => void onAddRoom()} disabled={!newRoomName.trim()}>
               Add
@@ -274,19 +382,18 @@ export function RoomsBoardView() {
               <CardContent className="space-y-3">
                 <div className="space-y-1">
                   <Label>Guest (customer)</Label>
-                  <Select value={checkInCustomerId} onValueChange={setCheckInCustomerId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select guest" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(customers ?? []).map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                          {c.phone ? ` · ${c.phone}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    options={(customers ?? []).map((c) => ({
+                      value: c.id,
+                      label: c.phone ? `${c.name} · ${c.phone}` : c.name,
+                      keywords: `${c.name} ${c.phone ?? ""}`,
+                    }))}
+                    value={checkInCustomerId}
+                    onValueChange={setCheckInCustomerId}
+                    placeholder="Select guest"
+                    searchPlaceholder="Search guests…"
+                    emptyMessage="No guests found."
+                  />
                 </div>
                 <Button
                   type="button"
@@ -301,8 +408,12 @@ export function RoomsBoardView() {
                     type="button"
                     size="sm"
                     variant="outline"
+                    disabled={!online}
                     onClick={() =>
-                      void setRoomStatus({ roomId: selectedRoomId, status: "available" })
+                      void setRoomStatus({
+                        roomId: selectedRoomId as Id<"hotelRooms">,
+                        status: "available",
+                      })
                         .then(() => toast.success("Marked available"))
                         .catch((e) => showError(e, "Could not update room"))
                     }
@@ -313,8 +424,12 @@ export function RoomsBoardView() {
                     type="button"
                     size="sm"
                     variant="outline"
+                    disabled={!online}
                     onClick={() =>
-                      void setRoomStatus({ roomId: selectedRoomId, status: "dirty" })
+                      void setRoomStatus({
+                        roomId: selectedRoomId as Id<"hotelRooms">,
+                        status: "dirty",
+                      })
                         .then(() => toast.success("Marked dirty"))
                         .catch((e) => showError(e, "Could not update room"))
                     }
@@ -325,8 +440,12 @@ export function RoomsBoardView() {
                     type="button"
                     size="sm"
                     variant="outline"
+                    disabled={!online}
                     onClick={() =>
-                      void setRoomStatus({ roomId: selectedRoomId, status: "maintenance" })
+                      void setRoomStatus({
+                        roomId: selectedRoomId as Id<"hotelRooms">,
+                        status: "maintenance",
+                      })
                         .then(() => toast.success("Marked maintenance"))
                         .catch((e) => showError(e, "Could not update room"))
                     }
@@ -428,18 +547,18 @@ export function RoomsBoardView() {
                 <CardContent className="space-y-3">
                   <div className="space-y-1">
                     <Label>Product</Label>
-                    <Select value={chargeProductId} onValueChange={setChargeProductId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(products?.items ?? []).map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      options={(products?.items ?? []).map((p) => ({
+                        value: p.id,
+                        label: p.name,
+                        keywords: p.sku,
+                      }))}
+                      value={chargeProductId}
+                      onValueChange={setChargeProductId}
+                      placeholder="Choose product"
+                      searchPlaceholder="Search products…"
+                      emptyMessage="No products found."
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="charge-qty">Quantity</Label>

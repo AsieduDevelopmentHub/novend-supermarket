@@ -26,6 +26,8 @@ import {
 import { saveShellProfile } from "./shell-profile";
 import type { OrganizationBusinessConfiguration } from "@/convex/shared/businessCapabilities";
 import { DEFAULT_BUSINESS_CONFIGURATION } from "@/convex/shared/businessCapabilities";
+import type { BusinessTermsMap, BusinessTerminologyOverrides } from "@/convex/shared/businessTerms";
+import { DEFAULT_BUSINESS_TERMS } from "@/convex/shared/businessTerms";
 import { productTracksInventory } from "@/convex/shared/productInventory";
 import { loadBusinessCapabilitiesCache } from "./business-capabilities";
 import type { ProductImagesPolicy } from "@/convex/shared/productImagesPolicy";
@@ -53,7 +55,13 @@ import type {
   MirroredCategory,
   MirroredCustomer,
   MirroredDiningTable,
+  MirroredDiningSession,
+  MirroredDiningSessionItem,
+  MirroredKitchenTicket,
   MirroredHotelRoom,
+  MirroredHotelReservation,
+  MirroredHotelStay,
+  MirroredHotelFolioCharge,
   MirroredExpense,
   MirroredLot,
   MirroredOrder,
@@ -189,9 +197,20 @@ export async function applySnapshot(
     returns?: MirroredReturn[];
     lots?: MirroredLot[];
     diningTables?: MirroredDiningTable[];
+    diningSessions?: MirroredDiningSession[];
+    diningSessionItems?: MirroredDiningSessionItem[];
+    kitchenTickets?: MirroredKitchenTicket[];
     hotelRooms?: MirroredHotelRoom[];
+    hotelStays?: MirroredHotelStay[];
+    hotelFolioCharges?: MirroredHotelFolioCharge[];
+    hotelReservations?: MirroredHotelReservation[];
     print: PrintSnapshot;
     businessCapabilities?: OrganizationBusinessConfiguration;
+    businessTerminology?: {
+      industryProfile: string;
+      overrides: BusinessTerminologyOverrides;
+      terms: BusinessTermsMap;
+    };
     productImagesPolicy?: ProductImagesPolicy;
     profile: {
       userId: string;
@@ -223,7 +242,13 @@ export async function applySnapshot(
     db.returns,
     db.lots,
     db.diningTables,
+    db.diningSessions,
+    db.diningSessionItems,
+    db.kitchenTickets,
     db.hotelRooms,
+    db.hotelStays,
+    db.hotelFolioCharges,
+    db.hotelReservations,
     db.meta,
   ];
   await db.transaction("rw", tables, async () => {
@@ -301,12 +326,41 @@ export async function applySnapshot(
     await replaceServerRows(db.returns, snapshot.returns ?? [], pendingLocalIds, sameReturnNumber);
     await replaceServerRows(db.lots, snapshot.lots ?? [], pendingLocalIds);
     await replaceServerRows(db.diningTables, snapshot.diningTables ?? [], pendingLocalIds);
+    await replaceServerRows(db.diningSessions, snapshot.diningSessions ?? [], pendingLocalIds);
+    await replaceServerRows(
+      db.diningSessionItems,
+      snapshot.diningSessionItems ?? [],
+      pendingLocalIds,
+    );
+    await replaceServerRows(db.kitchenTickets, snapshot.kitchenTickets ?? [], pendingLocalIds);
     await replaceServerRows(db.hotelRooms, snapshot.hotelRooms ?? [], pendingLocalIds);
+    await replaceServerRows(db.hotelStays, snapshot.hotelStays ?? [], pendingLocalIds);
+    await replaceServerRows(
+      db.hotelFolioCharges,
+      snapshot.hotelFolioCharges ?? [],
+      pendingLocalIds,
+    );
+    await replaceServerRows(
+      db.hotelReservations,
+      snapshot.hotelReservations ?? [],
+      pendingLocalIds,
+    );
     await setMeta(db, META_KEYS.printSnapshot, JSON.stringify(snapshot.print));
     await setMeta(
       db,
       META_KEYS.businessCapabilities,
       JSON.stringify(snapshot.businessCapabilities ?? DEFAULT_BUSINESS_CONFIGURATION),
+    );
+    await setMeta(
+      db,
+      META_KEYS.businessTerminology,
+      JSON.stringify(
+        snapshot.businessTerminology ?? {
+          industryProfile: snapshot.businessCapabilities?.industryProfile ?? "retail",
+          overrides: {},
+          terms: DEFAULT_BUSINESS_TERMS,
+        },
+      ),
     );
     await setMeta(
       db,
@@ -468,6 +522,42 @@ export async function findLocalProductsByBarcode(code: string, branchId?: string
       };
     })
     .filter((product) => product.tracksInventory === false || product.stockQuantity > 0);
+}
+
+/**
+ * Branch sellable qty for one product — not search-scoped.
+ * Sales cart checks must use this (or a session cache) because the POS catalog
+ * is limited to ~48 search hits; cart lines fall out of that window and looked
+ * like Available: 0 after a few different products.
+ */
+export async function getLocalProductAvailability(
+  productId: string,
+  branchId?: string | null,
+): Promise<{ stockQuantity: number; tracksInventory: boolean } | null> {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  const product = await db.products.get(productId);
+  if (!product || product.status !== "active") return null;
+
+  const effectiveBranchId = await resolveCatalogBranchId(db, branchId);
+  if (!effectiveBranchId) return null;
+
+  const stockByProduct = await branchStockMapForBranch(db, effectiveBranchId);
+  const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
+  const businessConfig = await loadBusinessCapabilitiesCache();
+  const stock = stockByProduct.get(product.id);
+  let stockQuantity: number;
+  if (stock) {
+    stockQuantity = sellableFromBranchStock(stock, product);
+  } else if (profileBranchId && profileBranchId === effectiveBranchId) {
+    stockQuantity = product.sellableQuantity ?? product.stockQuantity;
+  } else {
+    stockQuantity = 0;
+  }
+  return {
+    stockQuantity,
+    tracksInventory: productTracksInventory(product, businessConfig),
+  };
 }
 
 export async function searchLocalCustomers(q: string, limit = 6) {

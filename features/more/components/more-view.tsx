@@ -7,6 +7,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { usePermissions } from "@/hooks/use-permissions";
 import { moreSectionsForRole } from "@/config/mobile-navigation";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { useBusinessTerms } from "@/hooks/use-business-terms";
 import { useLicense } from "@/hooks/use-license";
 import { isBillingHidden } from "@/config/navigation";
 import type { AppRole } from "@/config/navigation";
@@ -59,6 +60,7 @@ export function MoreView() {
   const { signOut } = useAuthActions();
   const { role, isLoading } = usePermissions();
   const { enabledCapabilities, industryProfile } = useBusinessCapabilities();
+  const { terms } = useBusinessTerms();
   const { features, billingVisibility } = useLicense();
   const billingHidden = isBillingHidden({ features, billingVisibility });
   const [signingOut, setSigningOut] = useState(false);
@@ -78,7 +80,7 @@ export function MoreView() {
     features,
     billingVisibility,
     industryProfile,
-  });
+  }, terms);
   const hasSystemSection = sections.some((section) => section.id === "system");
   const systemExtras = EXTRA_SYSTEM.filter(
     (item) => !(billingHidden && item.href.includes("section=billing")),

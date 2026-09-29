@@ -1,26 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { usePermissions } from "@/hooks/use-permissions";
+import { usePermissions, useCurrentUser } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { useBusinessTerms } from "@/hooks/use-business-terms";
+import { floorViewCopy } from "@/convex/shared/businessTerms";
 import { useProductsList } from "@/hooks/use-offline-lists";
 import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
-import { OfflineUnavailable } from "@/components/offline/offline-unavailable";
 import { formatCurrency } from "@/lib/currency";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Select,
   SelectContent,
@@ -28,26 +29,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  getMirroredDiningSession,
+  listMirroredDiningTables,
+  listMirroredOpenDiningSessions,
+} from "@/lib/offline/mirror-queries";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
+import { pickLiveListWhenOnline } from "@/lib/offline/list-preference";
+import {
+  offlineAddDiningSessionItem,
+  offlineFireKitchenTicket,
+  offlineOpenDiningSession,
+  offlinePayDiningSession,
+} from "@/lib/offline/hospitality-actions";
 
 export function DiningFloorView() {
   const online = useConnectivity();
   const { hasCapability } = useBusinessCapabilities();
+  const { terms } = useBusinessTerms();
+  const floorCopy = floorViewCopy(terms);
   const canFloor = hasCapability("tables_orders");
-  const { branchId, isAdmin, isManager } = usePermissions();
-  const [selectedSessionId, setSelectedSessionId] = useState<Id<"diningSessions"> | null>(null);
+  const { branchId, isAdmin, isManager, userId } = usePermissions();
+  const { user } = useCurrentUser();
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [newTableName, setNewTableName] = useState("");
   const [createBranchId, setCreateBranchId] = useState<string | undefined>(undefined);
   const [productId, setProductId] = useState<string | undefined>(undefined);
   const [qty, setQty] = useState("1");
   const [paying, setPaying] = useState(false);
+  const [localTables, setLocalTables] = useState<
+    Awaited<ReturnType<typeof listMirroredDiningTables>>
+  >(null);
+  const [localSessions, setLocalSessions] = useState<
+    Awaited<ReturnType<typeof listMirroredOpenDiningSessions>>
+  >(null);
+  const [localSessionDetail, setLocalSessionDetail] = useState<
+    Awaited<ReturnType<typeof getMirroredDiningSession>>
+  >(null);
 
-  const tables = useQuery(api.dining.listTables, online && canFloor ? {} : "skip");
-  const sessions = useQuery(api.dining.listOpenSessions, online && canFloor ? {} : "skip");
-  const session = useQuery(
+  const remoteTables = useQuery(api.dining.listTables, online && canFloor ? {} : "skip");
+  const remoteSessions = useQuery(api.dining.listOpenSessions, online && canFloor ? {} : "skip");
+  const remoteSession = useQuery(
     api.dining.getSession,
-    online && canFloor && selectedSessionId ? { sessionId: selectedSessionId } : "skip",
+    online && canFloor && selectedSessionId && !selectedSessionId.startsWith("local_")
+      ? { sessionId: selectedSessionId as Id<"diningSessions"> }
+      : "skip",
   );
-  // Dexie-first — never subscribe to listProducts `.collect()` when the mirror has rows.
   const { products: productRows } = useProductsList({
     search: "",
     includeInactive: false,
@@ -73,32 +100,114 @@ export function DiningFloorView() {
 
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      void Promise.all([
+        listMirroredDiningTables(isAdmin ? undefined : (branchId ?? undefined)),
+        listMirroredOpenDiningSessions(isAdmin ? undefined : (branchId ?? undefined)),
+      ]).then(([tablesRows, sessionRows]) => {
+        if (cancelled) return;
+        setLocalTables(tablesRows);
+        setLocalSessions(sessionRows);
+      });
+    };
+    load();
+    return subscribeReplicaChanged(load);
+  }, [branchId, isAdmin, remoteTables, remoteSessions]);
+
+  useEffect(() => {
+    if (!selectedSessionId) {
+      setLocalSessionDetail(null);
+      return;
+    }
+    let cancelled = false;
+    const load = () => {
+      void getMirroredDiningSession(selectedSessionId).then((detail) => {
+        if (!cancelled) setLocalSessionDetail(detail);
+      });
+    };
+    load();
+    return subscribeReplicaChanged(load);
+  }, [selectedSessionId, remoteSession]);
+
+  const tables = pickLiveListWhenOnline({
+    local: localTables ?? undefined,
+    remote: remoteTables?.map((t) => ({
+      id: String(t._id),
+      branchId: String(t.branchId),
+      name: t.name,
+      code: t.code ?? null,
+      seats: t.seats ?? null,
+      status: t.status,
+      sortOrder: t.sortOrder ?? null,
+    })),
+    online,
+  });
+
+  const sessions = pickLiveListWhenOnline({
+    local: localSessions?.map((s) => ({
+      _id: s.id,
+      tableId: s.tableId,
+      branchId: s.branchId,
+      status: s.status,
+      openedAt: s.openedAt,
+    })),
+    remote: remoteSessions?.map((s) => ({
+      _id: String(s._id),
+      tableId: String(s.tableId),
+      branchId: String(s.branchId),
+      status: s.status,
+      openedAt: s.openedAt,
+    })),
+    online,
+  });
+
+  const session = useMemo(() => {
+    if (online && remoteSession && selectedSessionId && !selectedSessionId.startsWith("local_")) {
+      return remoteSession;
+    }
+    if (!localSessionDetail) return undefined;
+    return {
+      tableName: localSessionDetail.tableName,
+      items: localSessionDetail.items.map((i) => ({
+        _id: i.id,
+        productName: i.productName,
+        quantity: i.quantity,
+        lineTotal: i.lineTotal,
+        kitchenStatus: i.kitchenStatus,
+      })),
+    };
+  }, [online, remoteSession, localSessionDetail, selectedSessionId]);
+
   const sessionByTable = useMemo(() => {
-    const map = new Map<string, Id<"diningSessions">>();
+    const map = new Map<string, string>();
     for (const s of sessions ?? []) {
-      map.set(String(s.tableId), s._id);
+      map.set(String(s.tableId), String(s._id));
     }
     return map;
   }, [sessions]);
 
-  if (!online) {
-    return <OfflineUnavailable title="Floor needs a connection" />;
-  }
-
   if (!canFloor) {
     return (
       <EmptyState
-        title="Floor not enabled"
-        description="Turn on Tables & open checks in Settings → Business type, or apply the Restaurant / Bar pack."
+        title={`${floorCopy.title} not enabled`}
+        description="Turn on Tables & open checks in Settings → Selling options, or apply the Restaurant / Bar pack."
       />
     );
   }
 
-  if (tables === undefined || sessions === undefined) {
-    return <LoadingState label="Loading floor…" />;
+  if (tables === undefined || tables === null || sessions === undefined || sessions === null) {
+    return <LoadingState label={`Loading ${floorCopy.title.toLowerCase()}…`} />;
   }
 
+  const floorTables = tables;
+
   async function onCreateTable() {
+    if (!online) {
+      toast.error("Adding tables requires a connection");
+      return;
+    }
     if (!newTableName.trim()) return;
     const resolvedBranch =
       createBranchId ?? branchId ?? branches?.find((b) => b.status === "active")?.id ?? undefined;
@@ -114,15 +223,31 @@ export function DiningFloorView() {
     }
   }
 
-  async function onOpenOrSelect(tableId: Id<"diningTables">) {
+  async function onOpenOrSelect(tableId: string, tableName: string) {
     const existing = sessionByTable.get(String(tableId));
     if (existing) {
       setSelectedSessionId(existing);
       return;
     }
     try {
-      const result = await openSession({ tableId });
-      setSelectedSessionId(result.sessionId);
+      if (!online) {
+        if (!branchId || !userId) {
+          toast.error("Missing branch or user for offline check");
+          return;
+        }
+        const result = await offlineOpenDiningSession({
+          tableId,
+          tableName,
+          branchId,
+          openedBy: userId,
+          openedByName: user?.name,
+        });
+        setSelectedSessionId(result.sessionId);
+        toast.success("Check opened — pending sync");
+        return;
+      }
+      const result = await openSession({ tableId: tableId as Id<"diningTables"> });
+      setSelectedSessionId(String(result.sessionId));
     } catch (error) {
       showError(error, "Could not open check");
     }
@@ -131,9 +256,30 @@ export function DiningFloorView() {
   async function onAddItem() {
     if (!selectedSessionId || !productId) return;
     const optionIds = Object.values(selectedOptions).filter(Boolean) as Id<"modifierOptions">[];
+    const product = products.items?.find((p) => String(p.id) === productId);
     try {
+      if (!online) {
+        if (optionIds.length > 0) {
+          toast.error("Modifiers require a connection offline");
+          return;
+        }
+        if (!product) {
+          toast.error("Product not in local catalogue");
+          return;
+        }
+        await offlineAddDiningSessionItem({
+          sessionId: selectedSessionId,
+          productId,
+          productName: product.name,
+          quantity: Number(qty) || 1,
+          unitPrice: product.sellingPrice,
+        });
+        setSelectedOptions({});
+        toast.success("Added — pending sync");
+        return;
+      }
       await addItem({
-        sessionId: selectedSessionId,
+        sessionId: selectedSessionId as Id<"diningSessions">,
         productId: productId as Id<"products">,
         quantity: Number(qty) || 1,
         optionIds: optionIds.length ? optionIds : undefined,
@@ -148,7 +294,20 @@ export function DiningFloorView() {
   async function onFire() {
     if (!selectedSessionId) return;
     try {
-      await fireTicket({ sessionId: selectedSessionId });
+      if (!online) {
+        const tableName =
+          session?.tableName ||
+          floorTables.find((t) => sessionByTable.get(t.id) === selectedSessionId)?.name ||
+          "Table";
+        await offlineFireKitchenTicket({
+          sessionId: selectedSessionId,
+          tableName,
+          branchId: branchId ?? floorTables[0]?.branchId ?? "",
+        });
+        toast.success("Sent to kitchen — pending sync");
+        return;
+      }
+      await fireTicket({ sessionId: selectedSessionId as Id<"diningSessions"> });
       toast.success("Sent to kitchen");
     } catch (error) {
       showError(error, "Could not fire ticket");
@@ -159,8 +318,17 @@ export function DiningFloorView() {
     if (!selectedSessionId) return;
     setPaying(true);
     try {
+      if (!online) {
+        await offlinePayDiningSession({
+          sessionId: selectedSessionId,
+          paymentMethod: method,
+        });
+        toast.success("Payment queued — pending sync");
+        setSelectedSessionId(null);
+        return;
+      }
       const result = await paySession({
-        sessionId: selectedSessionId,
+        sessionId: selectedSessionId as Id<"diningSessions">,
         paymentMethod: method,
       });
       toast.success(`Paid — ${result.invoiceNumber}`);
@@ -176,7 +344,14 @@ export function DiningFloorView() {
 
   return (
     <div className="min-w-0 space-y-6" data-tour="page-content">
-      <PageHeader title="Floor" description="Open checks by table, send to kitchen, then pay." />
+      <PageHeader
+        title={floorCopy.title}
+        description={
+          online
+            ? floorCopy.description
+            : `${floorCopy.description} Showing cached open checks — sync when back online.`
+        }
+      />
 
       {isAdmin || isManager ? (
         <Card>
@@ -187,226 +362,192 @@ export function DiningFloorView() {
             {isAdmin && (branches?.length ?? 0) > 1 ? (
               <div className="min-w-[160px] flex-1 space-y-1">
                 <Label>Branch</Label>
-                <Select
+                <SearchableSelect
                   value={createBranchId ?? branchId ?? undefined}
                   onValueChange={setCreateBranchId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(branches ?? [])
-                      .filter((b) => b.status === "active")
-                      .map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                  options={(branches ?? [])
+                    .filter((b) => b.status === "active")
+                    .map((b) => ({
+                      value: b.id,
+                      label: b.name,
+                    }))}
+                  placeholder="Choose branch"
+                  searchPlaceholder="Search branches"
+                />
               </div>
             ) : null}
             <div className="min-w-[160px] flex-1 space-y-1">
-              <Label htmlFor="table-name">Name</Label>
+              <Label>Name</Label>
               <Input
-                id="table-name"
                 value={newTableName}
                 onChange={(e) => setNewTableName(e.target.value)}
                 placeholder="Table 1"
               />
             </div>
-            <Button
-              type="button"
-              onClick={() => void onCreateTable()}
-              disabled={!newTableName.trim()}
-            >
+            <Button type="button" onClick={() => void onCreateTable()} disabled={!online}>
               Add
             </Button>
           </CardContent>
         </Card>
       ) : null}
 
-      {tables.length === 0 ? (
-        <EmptyState title="No tables yet" description="Add a table to start taking orders." />
-      ) : (
-        <Grid cols={tables.length > 4 ? 4 : 3}>
-          {tables.map((table) => {
-            const openId = sessionByTable.get(String(table._id));
-            const selected = openId && openId === selectedSessionId;
-            return (
-              <button
-                key={table._id}
-                type="button"
-                onClick={() => void onOpenOrSelect(table._id)}
-                className={cn(
-                  "border-border hover:border-primary rounded-xl border p-4 text-left transition",
-                  openId ? "bg-primary/5" : "bg-card",
-                  selected ? "ring-primary ring-2" : null,
-                )}
-              >
-                <p className="font-semibold">{table.name}</p>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {openId ? "Open check" : "Available"}
-                </p>
-              </button>
-            );
-          })}
-        </Grid>
-      )}
+      <Grid className="gap-4 lg:grid-cols-[1fr_360px]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {floorTables.length === 0 ? (
+            <EmptyState title="No tables yet" description="Add a table to open a check." />
+          ) : (
+            floorTables.map((table) => {
+              const openId = sessionByTable.get(table.id);
+              return (
+                <button
+                  key={table.id}
+                  type="button"
+                  className={cn(
+                    "border-border rounded-xl border p-4 text-left transition",
+                    openId ? "border-primary/50 bg-primary/10" : "bg-card hover:border-primary/40",
+                    selectedSessionId === openId && "ring-primary ring-2",
+                  )}
+                  onClick={() => void onOpenOrSelect(table.id, table.name)}
+                >
+                  <p className="font-semibold">{table.name}</p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {openId ? "Open check" : "Available"}
+                  </p>
+                </button>
+              );
+            })
+          )}
+        </div>
 
-      {selectedSessionId && session ? (
-        <div className="grid min-w-0 gap-4 xl:grid-cols-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2">
-              <CardTitle>{session.tableName}</CardTitle>
-              <Badge variant="secondary">{session.items.length} lines</Badge>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {session.items.length === 0 ? (
-                <EmptyState title="Empty check" description="Add menu items below." />
-              ) : (
-                <ul className="space-y-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {session ? `Check · ${session.tableName}` : "Check"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!selectedSessionId ? (
+              <p className="text-muted-foreground text-sm">
+                Select a table to open or resume a check.
+              </p>
+            ) : !session ? (
+              <LoadingState label="Loading check…" />
+            ) : (
+              <>
+                <ul className="max-h-48 space-y-2 overflow-y-auto text-sm">
                   {session.items.map((item) => (
-                    <li
-                      key={item._id}
-                      className="border-border flex items-start justify-between gap-2 rounded-lg border px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
+                    <li key={String(item._id)} className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium">
                           {item.quantity}× {item.productName}
                         </p>
-                        {item.modifiers.length > 0 ? (
-                          <p className="text-muted-foreground text-xs">
-                            {item.modifiers.map((m) => m.optionName).join(", ")}
-                          </p>
-                        ) : null}
-                        <Badge variant="outline" className="mt-1 text-[10px]">
+                        <p className="text-muted-foreground text-xs capitalize">
                           {item.kitchenStatus}
-                        </Badge>
+                        </p>
                       </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
-                        <span className="text-sm tabular-nums">
-                          {formatCurrency(item.lineTotal)}
-                        </span>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            void voidItem({ itemId: item._id }).catch((e) =>
-                              showError(e, "Could not void line"),
-                            )
-                          }
-                        >
-                          Void
-                        </Button>
+                      <div className="flex items-center gap-2">
+                        <span>{formatCurrency(item.lineTotal)}</span>
+                        {online ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              void voidItem({ itemId: item._id as Id<"diningSessionItems"> })
+                                .then(() => toast.success("Voided"))
+                                .catch((e) => showError(e, "Could not void"))
+                            }
+                          >
+                            Void
+                          </Button>
+                        ) : null}
                       </div>
                     </li>
                   ))}
                 </ul>
-              )}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
-                <p className="font-semibold tabular-nums">{formatCurrency(checkTotal)}</p>
+                <p className="font-semibold">Total {formatCurrency(checkTotal)}</p>
+                <div className="space-y-2">
+                  <SearchableSelect
+                    value={productId}
+                    onValueChange={setProductId}
+                    options={(products.items ?? []).map((p) => ({
+                      value: String(p.id),
+                      label: p.name,
+                    }))}
+                    placeholder="Add item…"
+                    searchPlaceholder="Search products"
+                  />
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      value={qty}
+                      onChange={(e) => setQty(e.target.value)}
+                      className="w-20"
+                    />
+                    <Button type="button" onClick={() => void onAddItem()}>
+                      Add
+                    </Button>
+                    <Button type="button" variant="secondary" onClick={() => void onFire()}>
+                      Fire
+                    </Button>
+                  </div>
+                  {online && modifierGroups && modifierGroups.length > 0 ? (
+                    <div className="space-y-2">
+                      {modifierGroups.map((group) => (
+                        <div key={group._id} className="space-y-1">
+                          <Label>{group.name}</Label>
+                          <Select
+                            value={selectedOptions[group._id] ?? ""}
+                            onValueChange={(value) =>
+                              setSelectedOptions((prev) => ({ ...prev, [group._id]: value }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {group.options.map((opt) => (
+                                <SelectItem key={opt._id} value={opt._id}>
+                                  {opt.name}
+                                  {opt.priceDelta
+                                    ? ` (${opt.priceDelta > 0 ? "+" : ""}${formatCurrency(opt.priceDelta)})`
+                                    : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" onClick={() => void onFire()}>
-                    Send kitchen
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={paying || checkTotal <= 0}
-                    onClick={() => void onPay("cash")}
-                  >
-                    Pay cash
+                  <Button type="button" disabled={paying} onClick={() => void onPay("cash")}>
+                    Cash
                   </Button>
                   <Button
                     type="button"
                     variant="secondary"
-                    disabled={paying || checkTotal <= 0}
+                    disabled={paying}
+                    onClick={() => void onPay("card")}
+                  >
+                    Card
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={paying}
                     onClick={() => void onPay("mobile_money")}
                   >
-                    Pay MoMo
+                    Mobile money
                   </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Add item</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1">
-                <Label>Product</Label>
-                <Select
-                  value={productId}
-                  onValueChange={(value) => {
-                    setProductId(value);
-                    setSelectedOptions({});
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(products?.items ?? []).map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="qty">Quantity</Label>
-                <Input
-                  id="qty"
-                  type="number"
-                  min={1}
-                  value={qty}
-                  onChange={(e) => setQty(e.target.value)}
-                />
-              </div>
-              {(modifierGroups ?? []).map((group) => (
-                <div key={group._id} className="space-y-1">
-                  <Label>
-                    {group.name}
-                    {group.required ? " *" : ""}
-                  </Label>
-                  <Select
-                    value={selectedOptions[group._id]}
-                    onValueChange={(value) =>
-                      setSelectedOptions((prev) => ({ ...prev, [group._id]: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {group.options.map((opt) => (
-                        <SelectItem key={opt._id} value={opt._id}>
-                          {opt.name}
-                          {opt.priceDelta
-                            ? ` (${opt.priceDelta > 0 ? "+" : ""}${formatCurrency(opt.priceDelta)})`
-                            : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-              <Button
-                type="button"
-                className="w-full"
-                onClick={() => void onAddItem()}
-                disabled={!productId}
-              >
-                Add to check
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </Grid>
     </div>
   );
 }

@@ -33,6 +33,7 @@ import type * as inventory from "../inventory.js";
 import type * as loginGuards from "../loginGuards.js";
 import type * as mobileReleases from "../mobileReleases.js";
 import type * as offline from "../offline.js";
+import type * as operations from "../operations.js";
 import type * as organizations from "../organizations.js";
 import type * as passwordReset from "../passwordReset.js";
 import type * as payroll from "../payroll.js";
@@ -61,6 +62,7 @@ import type * as shared_billingPeriod from "../shared/billingPeriod.js";
 import type * as shared_billingProvider from "../shared/billingProvider.js";
 import type * as shared_branchStock from "../shared/branchStock.js";
 import type * as shared_businessCapabilities from "../shared/businessCapabilities.js";
+import type * as shared_businessTerms from "../shared/businessTerms.js";
 import type * as shared_capabilities from "../shared/capabilities.js";
 import type * as shared_clientOps from "../shared/clientOps.js";
 import type * as shared_cloudMode from "../shared/cloudMode.js";
@@ -77,6 +79,7 @@ import type * as shared_entitlementVersion from "../shared/entitlementVersion.js
 import type * as shared_entitlements from "../shared/entitlements.js";
 import type * as shared_experience from "../shared/experience.js";
 import type * as shared_features from "../shared/features.js";
+import type * as shared_hotelReservations from "../shared/hotelReservations.js";
 import type * as shared_importExportSnapshot from "../shared/importExportSnapshot.js";
 import type * as shared_licensing from "../shared/licensing.js";
 import type * as shared_loginRateLimit from "../shared/loginRateLimit.js";
@@ -151,6 +154,7 @@ declare const fullApi: ApiFromModules<{
   loginGuards: typeof loginGuards;
   mobileReleases: typeof mobileReleases;
   offline: typeof offline;
+  operations: typeof operations;
   organizations: typeof organizations;
   passwordReset: typeof passwordReset;
   payroll: typeof payroll;
@@ -179,6 +183,7 @@ declare const fullApi: ApiFromModules<{
   "shared/billingProvider": typeof shared_billingProvider;
   "shared/branchStock": typeof shared_branchStock;
   "shared/businessCapabilities": typeof shared_businessCapabilities;
+  "shared/businessTerms": typeof shared_businessTerms;
   "shared/capabilities": typeof shared_capabilities;
   "shared/clientOps": typeof shared_clientOps;
   "shared/cloudMode": typeof shared_cloudMode;
@@ -195,6 +200,7 @@ declare const fullApi: ApiFromModules<{
   "shared/entitlements": typeof shared_entitlements;
   "shared/experience": typeof shared_experience;
   "shared/features": typeof shared_features;
+  "shared/hotelReservations": typeof shared_hotelReservations;
   "shared/importExportSnapshot": typeof shared_importExportSnapshot;
   "shared/licensing": typeof shared_licensing;
   "shared/loginRateLimit": typeof shared_loginRateLimit;

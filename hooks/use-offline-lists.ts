@@ -48,6 +48,8 @@ type ProductListRow = {
   isExpiring?: boolean;
   status: string;
   tracksExpiry?: boolean;
+  /** When false, catalogue item does not track stock quantity. */
+  tracksInventory?: boolean;
   expiryAlertDays?: number | null;
   nearestExpiry?: string | null;
   imageUrl: string | null;
@@ -72,6 +74,7 @@ function mapProduct(row: MirroredProductRow, canViewCost: boolean): ProductListR
     isExpiring: row.isExpiring,
     status: row.status,
     tracksExpiry: row.tracksExpiry,
+    tracksInventory: row.tracksInventory !== false,
     expiryAlertDays: row.expiryAlertDays,
     nearestExpiry: row.nearestExpiry ?? null,
     imageUrl: row.imageUrl,

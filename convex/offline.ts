@@ -1,7 +1,7 @@
 import { query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireBranchId, canViewCostPrice, isAdmin } from "./shared/permissions";
-import { loadPrintSnapshot, loadBusinessConfiguration, loadProductImagesPolicy } from "./settings";
+import { loadPrintSnapshot, loadBusinessConfiguration, loadProductImagesPolicy, loadResolvedBusinessTerms } from "./settings";
 import { stockMapForBranch } from "./shared/branchStock";
 import {
   deriveExpiryListFields,
@@ -260,6 +260,11 @@ export const getSnapshot = query({
     const print = await loadPrintSnapshot(ctx, profile.organizationId, branchId);
     const { business, template } = print;
     const businessCapabilities = await loadBusinessConfiguration(ctx, profile.organizationId);
+    const businessTerminology = await loadResolvedBusinessTerms(
+      ctx,
+      profile.organizationId,
+      businessCapabilities.industryProfile,
+    );
     const productImagesPolicy = await loadProductImagesPolicy(ctx, profile.organizationId);
     const branch = await ctx.db.get(branchId);
 
@@ -271,6 +276,44 @@ export const getSnapshot = query({
       seats: number | null;
       status: "active" | "inactive";
       sortOrder: number | null;
+    }> = [];
+    let diningSessions: Array<{
+      id: string;
+      branchId: string;
+      tableId: string;
+      tableName: string;
+      status: "open" | "closed";
+      openedBy: string;
+      openedByName: string | null;
+      openedAt: number;
+      guestCount: number | null;
+      note: string | null;
+      syncStatus: "synced";
+    }> = [];
+    let diningSessionItems: Array<{
+      id: string;
+      sessionId: string;
+      productId: string;
+      productName: string;
+      quantity: number;
+      unitPrice: number;
+      discount: number;
+      lineTotal: number;
+      modifiersJson: string;
+      kitchenStatus: "pending" | "fired" | "ready" | "done" | "void";
+      note: string | null;
+      createdAt: number;
+      updatedAt: number;
+    }> = [];
+    let kitchenTickets: Array<{
+      id: string;
+      branchId: string;
+      sessionId: string;
+      tableName: string;
+      status: "open" | "ready" | "done" | "void";
+      firedAt: number;
+      updatedAt: number;
+      linesJson: string;
     }> = [];
     if (hasBusinessCapability(businessCapabilities, "tables_orders")) {
       const tables = await ctx.db
@@ -289,6 +332,83 @@ export const getSnapshot = query({
           status: t.status,
           sortOrder: t.sortOrder ?? null,
         }));
+      const tableNameById = new Map(tables.map((t) => [String(t._id), t.name]));
+      const openSessions = await ctx.db
+        .query("diningSessions")
+        .withIndex("by_organization_status", (q) =>
+          q.eq("organizationId", organizationId).eq("status", "open"),
+        )
+        .collect();
+      const scopedSessions = openSessions.filter((s) =>
+        profile.role === "administrator" ? true : s.branchId === branchId,
+      );
+      diningSessions = scopedSessions.map((s) => ({
+        id: s._id as string,
+        branchId: s.branchId as string,
+        tableId: s.tableId as string,
+        tableName: tableNameById.get(String(s.tableId)) ?? "Table",
+        status: s.status,
+        openedBy: s.openedBy as string,
+        openedByName: nameByUser.get(s.openedBy) ?? null,
+        openedAt: s.openedAt,
+        guestCount: s.guestCount ?? null,
+        note: s.note ?? null,
+        syncStatus: "synced" as const,
+      }));
+      for (const session of scopedSessions) {
+        const items = await ctx.db
+          .query("diningSessionItems")
+          .withIndex("by_session", (q) => q.eq("sessionId", session._id))
+          .collect();
+        for (const item of items) {
+          diningSessionItems.push({
+            id: item._id as string,
+            sessionId: item.sessionId as string,
+            productId: item.productId as string,
+            productName: item.productName,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discount: item.discount,
+            lineTotal: item.lineTotal,
+            modifiersJson: item.modifiersJson,
+            kitchenStatus: item.kitchenStatus,
+            note: item.note ?? null,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          });
+        }
+        if (hasBusinessCapability(businessCapabilities, "kitchen_tickets")) {
+          const tickets = await ctx.db
+            .query("kitchenTickets")
+            .withIndex("by_session", (q) => q.eq("sessionId", session._id))
+            .collect();
+          for (const ticket of tickets) {
+            if (ticket.status !== "open" && ticket.status !== "ready") continue;
+            const lines = await ctx.db
+              .query("kitchenTicketLines")
+              .withIndex("by_ticket", (q) => q.eq("ticketId", ticket._id))
+              .collect();
+            kitchenTickets.push({
+              id: ticket._id as string,
+              branchId: ticket.branchId as string,
+              sessionId: ticket.sessionId as string,
+              tableName: ticket.tableName,
+              status: ticket.status,
+              firedAt: ticket.firedAt,
+              updatedAt: ticket.updatedAt,
+              linesJson: JSON.stringify(
+                lines.map((line) => ({
+                  id: line._id as string,
+                  productName: line.productName,
+                  quantity: line.quantity,
+                  modifiersLabel: line.modifiersLabel ?? null,
+                  note: line.note ?? null,
+                })),
+              ),
+            });
+          }
+        }
+      }
     }
 
     let hotelRooms: Array<{
@@ -299,6 +419,50 @@ export const getSnapshot = query({
       defaultProductId: string | null;
       status: "available" | "occupied" | "dirty" | "maintenance" | "inactive";
       sortOrder: number | null;
+    }> = [];
+    let hotelStays: Array<{
+      id: string;
+      branchId: string;
+      roomId: string;
+      roomName: string;
+      customerId: string;
+      customerName: string;
+      reservationId: string | null;
+      status: "open" | "closed";
+      checkInAt: number;
+      notes: string | null;
+      checkedInBy: string;
+      checkedInByName: string | null;
+      syncStatus: "synced";
+    }> = [];
+    let hotelFolioCharges: Array<{
+      id: string;
+      stayId: string;
+      kind: "room" | "product" | "other";
+      productId: string;
+      description: string;
+      quantity: number;
+      unitPrice: number;
+      discount: number;
+      lineTotal: number;
+      status: "open" | "void";
+      createdAt: number;
+    }> = [];
+    let hotelReservations: Array<{
+      id: string;
+      branchId: string;
+      roomId: string | null;
+      roomName: string | null;
+      customerId: string;
+      customerName: string;
+      arrivalDate: string;
+      departureDate: string;
+      status: "booked" | "confirmed" | "checked_in" | "cancelled" | "no_show";
+      guests: number | null;
+      notes: string | null;
+      createdAt: number;
+      updatedAt: number;
+      syncStatus: "synced";
     }> = [];
     if (hasBusinessCapability(businessCapabilities, "rooms_folio")) {
       const rooms = await ctx.db
@@ -317,6 +481,93 @@ export const getSnapshot = query({
           status: r.status,
           sortOrder: r.sortOrder ?? null,
         }));
+      const roomNameById = new Map(rooms.map((r) => [String(r._id), r.name]));
+      const openStays = await ctx.db
+        .query("hotelStays")
+        .withIndex("by_organization_status", (q) =>
+          q.eq("organizationId", organizationId).eq("status", "open"),
+        )
+        .collect();
+      const scopedStays = openStays.filter((s) =>
+        profile.role === "administrator" ? true : s.branchId === branchId,
+      );
+      for (const stay of scopedStays) {
+        const customer = await ctx.db.get(stay.customerId);
+        hotelStays.push({
+          id: stay._id as string,
+          branchId: stay.branchId as string,
+          roomId: stay.roomId as string,
+          roomName: roomNameById.get(String(stay.roomId)) ?? "Room",
+          customerId: stay.customerId as string,
+          customerName: customer?.name ?? "Guest",
+          reservationId: (stay.reservationId as string | undefined) ?? null,
+          status: stay.status,
+          checkInAt: stay.checkInAt,
+          notes: stay.notes ?? null,
+          checkedInBy: stay.checkedInBy as string,
+          checkedInByName: nameByUser.get(stay.checkedInBy) ?? null,
+          syncStatus: "synced",
+        });
+        const charges = await ctx.db
+          .query("hotelFolioCharges")
+          .withIndex("by_stay", (q) => q.eq("stayId", stay._id))
+          .collect();
+        for (const charge of charges) {
+          hotelFolioCharges.push({
+            id: charge._id as string,
+            stayId: charge.stayId as string,
+            kind: charge.kind,
+            productId: charge.productId as string,
+            description: charge.description,
+            quantity: charge.quantity,
+            unitPrice: charge.unitPrice,
+            discount: charge.discount,
+            lineTotal: charge.lineTotal,
+            status: charge.status,
+            createdAt: charge.createdAt,
+          });
+        }
+      }
+    }
+    if (hasBusinessCapability(businessCapabilities, "reservations")) {
+      const rooms = await ctx.db
+        .query("hotelRooms")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect();
+      const roomNameById = new Map(rooms.map((r) => [String(r._id), r.name]));
+      const today = new Date().toISOString().slice(0, 10);
+      const untilDate = new Date();
+      untilDate.setDate(untilDate.getDate() + 14);
+      const until = untilDate.toISOString().slice(0, 10);
+      const reservations = await ctx.db
+        .query("hotelReservations")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect();
+      for (const reservation of reservations) {
+        if (profile.role !== "administrator" && reservation.branchId !== branchId) continue;
+        if (reservation.status !== "booked" && reservation.status !== "confirmed") continue;
+        if (reservation.departureDate < today) continue;
+        if (reservation.arrivalDate > until) continue;
+        const customer = await ctx.db.get(reservation.customerId);
+        hotelReservations.push({
+          id: reservation._id as string,
+          branchId: reservation.branchId as string,
+          roomId: (reservation.roomId as string | undefined) ?? null,
+          roomName: reservation.roomId
+            ? (roomNameById.get(String(reservation.roomId)) ?? null)
+            : null,
+          customerId: reservation.customerId as string,
+          customerName: customer?.name ?? "Guest",
+          arrivalDate: reservation.arrivalDate,
+          departureDate: reservation.departureDate,
+          status: reservation.status,
+          guests: reservation.guests ?? null,
+          notes: reservation.notes ?? null,
+          createdAt: reservation.createdAt,
+          updatedAt: reservation.updatedAt,
+          syncStatus: "synced",
+        });
+      }
     }
 
     const canManage = profile.role === "administrator" || profile.role === "manager";
@@ -684,9 +935,16 @@ export const getSnapshot = query({
         template,
       },
       businessCapabilities,
+      businessTerminology,
       productImagesPolicy,
       diningTables,
+      diningSessions,
+      diningSessionItems,
+      kitchenTickets,
       hotelRooms,
+      hotelStays,
+      hotelFolioCharges,
+      hotelReservations,
       profile: {
         userId: userId as string,
         name: profile.name,

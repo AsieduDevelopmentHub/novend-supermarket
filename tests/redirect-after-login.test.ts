@@ -108,17 +108,22 @@ describe("redirect-after-login", () => {
     expect(source).toContain("SHELL_PROFILE_BUDGET_MS");
   });
 
-  it("login form prepares hard navigation before unmounting the form", () => {
+  it("login form hard-navigates before swapping to the opening splash", () => {
     const source = readFileSync(
       resolve(process.cwd(), "features/auth/components/login-form.tsx"),
       "utf8",
     );
-    expect(source).toContain("prepareHardNavigation");
-    const prepareIdx = source.indexOf("prepareHardNavigation();");
-    const splashIdx = source.indexOf("setOpeningWorkspace(true);");
-    expect(prepareIdx).toBeGreaterThan(-1);
-    expect(splashIdx).toBeGreaterThan(-1);
-    expect(prepareIdx).toBeLessThan(splashIdx);
+    expect(source).toContain("navigateAfterLogin");
+    // Avoid await between prepare and replace — that caused Leave site?
+    expect(source).toMatch(
+      /navigateAfterLogin\([\s\S]*?\{ hard: true \}\);\s*setOpeningWorkspace\(true\);/,
+    );
+  });
+
+  it("prepareHardNavigation detaches forms so Chromium cannot warn on replace", () => {
+    const source = readFileSync(resolve(process.cwd(), "lib/auth/redirect-after-login.ts"), "utf8");
+    expect(source).toContain("form.remove()");
+    expect(source).toContain("form.reset()");
   });
 
   it("resolvePostLoginSession returns userId for offline digest storage", async () => {

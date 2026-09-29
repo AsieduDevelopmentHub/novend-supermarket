@@ -25,6 +25,10 @@ import {
   type BusinessCapabilityKey,
   type IndustryProfile,
 } from "@/convex/shared/businessCapabilities";
+import {
+  resolveNavTitleFromTerms,
+  type BusinessTermsMap,
+} from "@/convex/shared/businessTerms";
 import type { FeatureKey } from "@/convex/shared/features";
 import type { BillingVisibility } from "@/convex/shared/organizationConfig";
 
@@ -259,19 +263,26 @@ export function navGroupsForRole(
   role: AppRole,
   enabledCapabilities: readonly BusinessCapabilityKey[] = [],
   gate: NavFeatureGate = {},
+  terms?: BusinessTermsMap | null,
 ): NavGroup[] {
   const enabled = new Set(enabledCapabilities);
   const stockOps = stockOpsVisibleForIndustry(gate.industryProfile);
   return NAV_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter((item) => {
-      if (!item.roles.includes(role)) return false;
-      if (!stockOps && isStockOpsNavHref(item.href)) return false;
-      if (item.capabilities?.length && !item.capabilities.every((key) => enabled.has(key))) {
-        return false;
-      }
-      return itemAllowedByFeatures(item, gate);
-    }),
+    items: group.items
+      .filter((item) => {
+        if (!item.roles.includes(role)) return false;
+        if (!stockOps && isStockOpsNavHref(item.href)) return false;
+        if (item.capabilities?.length && !item.capabilities.every((key) => enabled.has(key))) {
+          return false;
+        }
+        return itemAllowedByFeatures(item, gate);
+      })
+      .map((item) =>
+        terms
+          ? { ...item, title: resolveNavTitleFromTerms(item.href, terms, item.title) }
+          : item,
+      ),
   })).filter((group) => group.items.length > 0);
 }
 
@@ -279,8 +290,11 @@ export function flatNavForRole(
   role: AppRole,
   enabledCapabilities: readonly BusinessCapabilityKey[] = [],
   gate: NavFeatureGate = {},
+  terms?: BusinessTermsMap | null,
 ): NavItem[] {
-  const items = navGroupsForRole(role, enabledCapabilities, gate).flatMap((group) => group.items);
+  const items = navGroupsForRole(role, enabledCapabilities, gate, terms).flatMap(
+    (group) => group.items,
+  );
   if (SETTINGS_ITEM.roles.includes(role)) {
     items.push(SETTINGS_ITEM);
   }
@@ -333,8 +347,9 @@ export function navForRole(
   role: AppRole,
   enabledCapabilities: readonly BusinessCapabilityKey[] = [],
   gate: NavFeatureGate = {},
+  terms?: BusinessTermsMap | null,
 ) {
-  return flatNavForRole(role, enabledCapabilities, gate);
+  return flatNavForRole(role, enabledCapabilities, gate, terms);
 }
 
 export function findNavGroupForPath(path: string): NavGroupId | null {

@@ -1,5 +1,32 @@
 import type { DateRangePreset } from "@/lib/date";
 import { toLocalDateInput } from "@/lib/date";
+import type { OpenOperationSource } from "@/features/orders/open-operations";
+
+export const ORDERS_ACTIVITY_TABS = [
+  { value: "all", label: "All activity" },
+  { value: "open", label: "Open operations" },
+  { value: "completed", label: "Completed sales" },
+] as const;
+
+export type OrdersActivityTab = (typeof ORDERS_ACTIVITY_TABS)[number]["value"];
+
+export const OPEN_OPERATION_SOURCE_FILTERS: {
+  value: "all" | OpenOperationSource;
+  label: string;
+}[] = [
+  { value: "all", label: "All sources" },
+  { value: "restaurant_table", label: "Table check" },
+  { value: "bar_tab", label: "Bar tab" },
+  { value: "room_folio", label: "Room folio" },
+  { value: "reservation", label: "Reservation" },
+];
+
+export const OPEN_OPERATION_STATUS_FILTERS = [
+  { value: "all", label: "All statuses" },
+  { value: "open", label: "Open" },
+  { value: "booked", label: "Booked" },
+  { value: "confirmed", label: "Confirmed" },
+] as const;
 
 export const ORDER_DATE_PRESETS: { value: DateRangePreset; label: string }[] = [
   { value: "today", label: "Today" },
@@ -38,6 +65,9 @@ export type OrdersFilterState = {
   maxAmount: string;
   paymentMethod: PaymentFilter;
   returnStatus: ReturnStatusFilter;
+  activityTab: OrdersActivityTab;
+  operationSource: "all" | OpenOperationSource;
+  operationStatus: (typeof OPEN_OPERATION_STATUS_FILTERS)[number]["value"];
 };
 
 export function defaultOrdersFilters(): OrdersFilterState {
@@ -53,6 +83,9 @@ export function defaultOrdersFilters(): OrdersFilterState {
     maxAmount: "",
     paymentMethod: "all",
     returnStatus: "all",
+    activityTab: "all",
+    operationSource: "all",
+    operationStatus: "all",
   };
 }
 

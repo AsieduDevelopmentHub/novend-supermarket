@@ -65,8 +65,12 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const completeSale = useMutation(api.sales.completeSale);
   const processReturn = useMutation(api.returns.processReturn);
   const openDiningSession = useMutation(api.dining.openSession);
+  const addDiningSessionItem = useMutation(api.dining.addSessionItem);
+  const fireKitchenTicket = useMutation(api.dining.fireKitchenTicket);
   const payDiningSession = useMutation(api.dining.paySession);
+  const createHotelReservation = useMutation(api.hotel.createReservation);
   const hotelCheckIn = useMutation(api.hotel.checkIn);
+  const addHotelFolioCharge = useMutation(api.hotel.addFolioCharge);
   const hotelCheckoutPay = useMutation(api.hotel.checkoutPay);
   const createSupplier = useMutation(api.suppliers.create);
   const updateSupplier = useMutation(api.suppliers.update);
@@ -215,8 +219,12 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
             completeSale: (args) => completeSale(args),
             processReturn: (args) => processReturn(args),
             openDiningSession: (args) => openDiningSession(args),
+            addDiningSessionItem: (args) => addDiningSessionItem(args),
+            fireKitchenTicket: (args) => fireKitchenTicket(args),
             payDiningSession: (args) => payDiningSession(args),
+            createHotelReservation: (args) => createHotelReservation(args),
             hotelCheckIn: (args) => hotelCheckIn(args),
+            addHotelFolioCharge: (args) => addHotelFolioCharge(args),
             hotelCheckoutPay: (args) => hotelCheckoutPay(args),
             createSupplier: (args) => createSupplier(args),
             updateSupplier: (args) => updateSupplier(args),
@@ -343,8 +351,12 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       completeSale,
       processReturn,
       openDiningSession,
+      addDiningSessionItem,
+      fireKitchenTicket,
       payDiningSession,
+      createHotelReservation,
       hotelCheckIn,
+      addHotelFolioCharge,
       hotelCheckoutPay,
       createSupplier,
       updateSupplier,

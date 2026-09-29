@@ -23,7 +23,6 @@ import { cn } from "@/lib/utils";
 import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import {
   navigateAfterLogin,
-  prepareHardNavigation,
   resolvePostLoginPath,
   resolvePostLoginSession,
 } from "@/lib/auth/redirect-after-login";
@@ -156,9 +155,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     }
     consumeExplicitLogout();
     redirectingRef.current = true;
-    // Clear dirty form state while inputs are still mounted (avoids leave-site prompt).
-    prepareHardNavigation();
-    setOpeningWorkspace(true);
+    // Keep the form mounted until replace — prepare + navigate must be sync.
     navigateAfterLogin(
       withBootMarker(
         resolvePostAuthPath({
@@ -170,6 +167,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       router,
       { hard: true },
     );
+    setOpeningWorkspace(true);
     return true;
   }
 
@@ -196,20 +194,19 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     if (signedOut) return;
     if (!isAuthenticated || authLoading || redirectingRef.current || pending) return;
     redirectingRef.current = true;
-    queueMicrotask(() => {
-      prepareHardNavigation();
-      setOpeningWorkspace(true);
-      void (async () => {
-        try {
-          const path = await resolvePostLoginPath(convex);
-          navigateAfterLogin(withBootMarker(path), router, { hard: true });
-        } catch {
-          redirectingRef.current = false;
-          setOpeningWorkspace(false);
-          toast.error("Could not open your account. Sign in again.");
-        }
-      })();
-    });
+    void (async () => {
+      try {
+        // Resolve destination while the login form is still mounted, then
+        // hard-navigate in one sync turn (prepareHardNavigation + replace).
+        const path = await resolvePostLoginPath(convex);
+        navigateAfterLogin(withBootMarker(path), router, { hard: true });
+        setOpeningWorkspace(true);
+      } catch {
+        redirectingRef.current = false;
+        setOpeningWorkspace(false);
+        toast.error("Could not open your account. Sign in again.");
+      }
+    })();
   }, [isAuthenticated, authLoading, convex, router, pending, fromBoot, signedOut]);
 
   async function onSubmit(event: FormEvent) {
@@ -268,10 +265,9 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       clearOfflineSession();
 
       redirectingRef.current = true;
-      // Sync form defaults before the splash unmounts inputs — otherwise Chrome
-      // treats the typed password as unsaved edits on location.replace.
-      prepareHardNavigation();
-      setOpeningWorkspace(true);
+      // Resolve session while inputs are still mounted. prepareHardNavigation
+      // + location.replace must run together — awaiting after a splash unmount
+      // is what resurfaced “Leave site?” on Electron/Chrome.
       const session = await resolvePostLoginSession(convex, undefined, {
         expectedEmail: normalizedEmail,
       });
@@ -282,6 +278,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       }
       toast.success("Welcome");
       navigateAfterLogin(session.path, router, { hard: true });
+      setOpeningWorkspace(true);
     } catch (error) {
       redirectingRef.current = false;
       setOpeningWorkspace(false);

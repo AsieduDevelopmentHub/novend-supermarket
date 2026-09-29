@@ -38,10 +38,13 @@ import {
 } from "recharts";
 import {
   AlertTriangle,
+  BedDouble,
   CalendarClock,
+  ChefHat,
   Eye,
   Package,
   ShoppingBag,
+  UtensilsCrossed,
   Users,
   Wallet,
 } from "lucide-react";
@@ -49,7 +52,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { useBusinessTerms } from "@/hooks/use-business-terms";
 import { stockOpsVisibleForIndustry } from "@/convex/shared/businessCapabilities";
+import { dashboardViewDescription } from "@/convex/shared/businessTerms";
+import type { HospitalityOpsSnapshot } from "@/hooks/use-dashboard-data";
 
 const PIE_COLORS = [
   "var(--chart-1)",
@@ -402,9 +408,119 @@ function SalesOverviewChart({ data }: { data: Array<{ date: string; total: numbe
   );
 }
 
+function HospitalityOpsCards({
+  hospitality,
+  terms,
+}: {
+  hospitality: HospitalityOpsSnapshot;
+  terms: ReturnType<typeof useBusinessTerms>["terms"];
+}) {
+  const { hotel, dining } = hospitality;
+  if (!hotel && !dining) return null;
+
+  return (
+    <div className="space-y-3">
+      {hotel ? (
+        <div className="space-y-2">
+          <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+            {terms.room_plural} operations
+          </h2>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-4">
+            <KpiCard
+              title="Available"
+              value={formatNumber(hotel.roomsAvailable)}
+              icon={BedDouble}
+              href="/rooms"
+            />
+            <KpiCard
+              title="Occupied"
+              value={formatNumber(hotel.roomsOccupied)}
+              icon={BedDouble}
+              href="/rooms"
+            />
+            <KpiCard
+              title="Dirty"
+              value={formatNumber(hotel.roomsDirty)}
+              icon={BedDouble}
+              href="/rooms"
+            />
+            <KpiCard
+              title="Maintenance"
+              value={formatNumber(hotel.roomsMaintenance)}
+              icon={BedDouble}
+              href="/rooms"
+            />
+            <KpiCard
+              title="Arrivals today"
+              value={formatNumber(hotel.arrivalsToday)}
+              icon={CalendarClock}
+              href="/reservations"
+            />
+            <KpiCard
+              title="Departures today"
+              value={formatNumber(hotel.departuresToday)}
+              icon={CalendarClock}
+              href="/reservations"
+            />
+            <KpiCard
+              title={`Open ${terms.folio_plural.toLowerCase()}`}
+              value={formatNumber(hotel.openFolios)}
+              icon={Wallet}
+              href="/rooms"
+            />
+            {hotel.outstandingFolioBalance !== null ? (
+              <KpiCard
+                title="Outstanding folios"
+                value={formatCurrency(hotel.outstandingFolioBalance)}
+                icon={Wallet}
+                href="/rooms"
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {dining ? (
+        <div className="space-y-2">
+          <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+            {terms.floor} operations
+          </h2>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <KpiCard
+              title={`Occupied ${terms.table_plural.toLowerCase()}`}
+              value={formatNumber(dining.occupiedTables)}
+              icon={UtensilsCrossed}
+              href="/floor"
+            />
+            <KpiCard
+              title={`Open ${terms.check_plural.toLowerCase()}`}
+              value={formatNumber(dining.openChecks)}
+              icon={UtensilsCrossed}
+              href="/floor"
+            />
+            <KpiCard
+              title={`Pending ${terms.ticket_plural.toLowerCase()}`}
+              value={formatNumber(dining.pendingKitchenTickets)}
+              icon={ChefHat}
+              href="/kitchen"
+            />
+            <KpiCard
+              title="Ready tickets"
+              value={formatNumber(dining.readyTickets)}
+              icon={ChefHat}
+              href="/kitchen"
+            />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function DashboardView() {
   const { isAdmin, isManager, branchName, branchId: myBranchId, role } = usePermissions();
   const { industryProfile } = useBusinessCapabilities();
+  const { terms } = useBusinessTerms();
   const showStockOps = stockOpsVisibleForIndustry(industryProfile);
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
   const [topSellingMetric, setTopSellingMetric] = useLocalStorage<TopSellingMetric>(
@@ -414,7 +530,7 @@ export function DashboardView() {
   const metric = parseTopSellingMetric(topSellingMetric);
   const mirroredBranches = useBranchesList(false, Boolean(isAdmin || isManager));
   const branches = isAdmin || isManager ? mirroredBranches : undefined;
-  const { data, loading } = useDashboardData(branchFilter);
+  const { data, loading, hospitality } = useDashboardData(branchFilter);
 
   if (!role || loading || !data) {
     return <LoadingState label="Loading dashboard…" />;
@@ -477,13 +593,13 @@ export function DashboardView() {
     <div className="min-w-0 space-y-6" data-tour="page-content">
       <PageHeader
         title="Dashboard"
-        description={
-          showOps
-            ? showStockOps
-              ? `Last ${DASHBOARD_OPS_WINDOW_DAYS} days of sales, plus stock alerts`
-              : `Last ${DASHBOARD_OPS_WINDOW_DAYS} days of sales`
-            : "Your sales activity today"
-        }
+        description={dashboardViewDescription({
+          profile: industryProfile,
+          showOps,
+          showStockOps,
+          opsWindowDays: DASHBOARD_OPS_WINDOW_DAYS,
+          terms,
+        })}
         compactActions={compactActions}
         actions={
           <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 sm:w-auto">
@@ -529,6 +645,8 @@ export function DashboardView() {
           ))}
         </Grid>
       </div>
+
+      <HospitalityOpsCards hospitality={hospitality} terms={terms} />
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-3">
         <Card className="min-w-0 overflow-hidden xl:col-span-2">

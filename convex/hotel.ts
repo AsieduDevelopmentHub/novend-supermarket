@@ -28,7 +28,15 @@ import { applyBranchStockChange, getBranchQuantity } from "./shared/branchStock"
 import { decreaseLots, getSellableQuantity, productTracksExpiry } from "./shared/lots";
 import { allocateInvoiceNumber, sanitizeInvoiceNumber } from "./shared/documentReferences";
 import { bumpOrgSaleStats } from "./shared/organizationStats";
-import type { MutationCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
+import {
+  evaluateRoomAssignmentConflict,
+  listAvailableRoomsForDates,
+  millisToIsoDate,
+  type OpenStayCandidate,
+  type ReservationConflictCandidate,
+  type RoomAvailabilityCandidate,
+} from "./shared/hotelReservations";
 
 const roomStatusValidator = v.union(
   v.literal("available"),
@@ -78,6 +86,111 @@ async function nextInvoiceNumber(
 function assertIsoDate(value: string, label: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new Error(`${label} must be YYYY-MM-DD`);
+  }
+}
+
+async function loadReservationConflictContext(
+  ctx: MutationCtx | QueryCtx,
+  organizationId: Id<"organizations">,
+  branchId: Id<"branches">,
+) {
+  const [rooms, reservations, stays] = await Promise.all([
+    ctx.db
+      .query("hotelRooms")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect(),
+    ctx.db
+      .query("hotelReservations")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect(),
+    ctx.db
+      .query("hotelStays")
+      .withIndex("by_organization_status", (q) =>
+        q.eq("organizationId", organizationId).eq("status", "open"),
+      )
+      .collect(),
+  ]);
+
+  const roomCandidates: RoomAvailabilityCandidate[] = rooms
+    .filter((r) => r.branchId === branchId && r.status !== "inactive")
+    .map((r) => ({
+      id: r._id,
+      name: r.name,
+      status: r.status,
+      branchId: r.branchId,
+    }));
+
+  const reservationCandidates: ReservationConflictCandidate[] = reservations
+    .filter((r) => r.branchId === branchId)
+    .map((r) => ({
+      id: r._id,
+      roomId: r.roomId,
+      status: r.status,
+      arrivalDate: r.arrivalDate,
+      departureDate: r.departureDate,
+    }));
+
+  const openStays: OpenStayCandidate[] = stays
+    .filter((s) => s.branchId === branchId)
+    .map((s) => ({
+      roomId: s.roomId,
+      status: s.status,
+      checkInDate: millisToIsoDate(s.checkInAt),
+    }));
+
+  return { rooms, roomCandidates, reservationCandidates, openStays };
+}
+
+async function assertRoomAssignableForDates(
+  ctx: MutationCtx,
+  input: {
+    organizationId: Id<"organizations">;
+    branchId: Id<"branches">;
+    roomId: Id<"hotelRooms">;
+    arrivalDate: string;
+    departureDate: string;
+    excludeReservationId?: Id<"hotelReservations">;
+  },
+) {
+  const { rooms, roomCandidates, reservationCandidates, openStays } =
+    await loadReservationConflictContext(ctx, input.organizationId, input.branchId);
+  const room = rooms.find((r) => r._id === input.roomId);
+  if (!room || room.organizationId !== input.organizationId || room.branchId !== input.branchId) {
+    throw new Error("Room not found");
+  }
+  if (room.status === "inactive") {
+    throw new Error("Room is inactive");
+  }
+  if (room.status === "maintenance") {
+    throw new Error("Room is under maintenance");
+  }
+
+  const available = listAvailableRoomsForDates({
+    rooms: roomCandidates,
+    arrivalDate: input.arrivalDate,
+    departureDate: input.departureDate,
+    reservations: reservationCandidates,
+    openStays,
+    branchId: input.branchId,
+    excludeReservationId: input.excludeReservationId,
+  });
+  const availableNames = available
+    .filter((r) => r.id !== input.roomId)
+    .map((r) => r.name);
+
+  const conflict = evaluateRoomAssignmentConflict({
+    roomId: room._id,
+    roomName: room.name,
+    roomStatus: room.status,
+    arrivalDate: input.arrivalDate,
+    departureDate: input.departureDate,
+    reservations: reservationCandidates,
+    openStays,
+    excludeReservationId: input.excludeReservationId,
+    availableRoomNames: availableNames,
+  });
+  if (conflict) {
+    throw new Error(conflict.message);
   }
 }
 
@@ -267,6 +380,7 @@ export const createReservation = mutation({
     guests: v.optional(v.number()),
     notes: v.optional(v.string()),
     status: v.optional(v.union(v.literal("booked"), v.literal("confirmed"))),
+    clientOperationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId, profile, organizationId } = await requireRole(ctx, [
@@ -275,6 +389,21 @@ export const createReservation = mutation({
       "cashier",
     ]);
     await requireBusinessCapability(ctx, organizationId, "reservations");
+
+    if (args.clientOperationId?.trim()) {
+      const existing = await ctx.db
+        .query("mutationClientOps")
+        .withIndex("by_organization_clientOperationId", (q) =>
+          q
+            .eq("organizationId", organizationId)
+            .eq("clientOperationId", args.clientOperationId!.trim()),
+        )
+        .unique();
+      if (existing) {
+        return JSON.parse(existing.resultJson) as { reservationId: Id<"hotelReservations"> };
+      }
+    }
+
     const branch = await ctx.db.get(args.branchId);
     assertActiveOrgBranch(branch, organizationId);
     if (profile.role !== "administrator" && profile.branchId !== args.branchId) {
@@ -290,10 +419,13 @@ export const createReservation = mutation({
       throw new Error("Customer not found");
     }
     if (args.roomId) {
-      const room = await ctx.db.get(args.roomId);
-      if (!room || room.organizationId !== organizationId || room.branchId !== args.branchId) {
-        throw new Error("Room not found");
-      }
+      await assertRoomAssignableForDates(ctx, {
+        organizationId,
+        branchId: args.branchId,
+        roomId: args.roomId,
+        arrivalDate: args.arrivalDate,
+        departureDate: args.departureDate,
+      });
     }
     const now = Date.now();
     const reservationId = await ctx.db.insert("hotelReservations", {
@@ -315,7 +447,101 @@ export const createReservation = mutation({
       entityType: "hotelReservations",
       entityId: reservationId,
     });
-    return { reservationId };
+    const result = { reservationId };
+    if (args.clientOperationId?.trim()) {
+      await ctx.db.insert("mutationClientOps", {
+        organizationId,
+        clientOperationId: args.clientOperationId.trim(),
+        kind: "hotel_create_reservation",
+        resultJson: JSON.stringify(result),
+        createdAt: now,
+      });
+    }
+    return result;
+  },
+});
+
+/** Update room and/or stay dates — re-validates overlap conflicts. */
+export const updateReservation = mutation({
+  args: {
+    reservationId: v.id("hotelReservations"),
+    roomId: v.optional(v.id("hotelRooms")),
+    arrivalDate: v.optional(v.string()),
+    departureDate: v.optional(v.string()),
+    guests: v.optional(v.number()),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { userId, profile, organizationId } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+      "cashier",
+    ]);
+    await requireBusinessCapability(ctx, organizationId, "reservations");
+    const reservation = await ctx.db.get(args.reservationId);
+    if (!reservation || reservation.organizationId !== organizationId) {
+      throw new Error("Reservation not found");
+    }
+    if (profile.role !== "administrator" && profile.branchId !== reservation.branchId) {
+      throw new Error("Forbidden: branch access denied");
+    }
+    if (
+      reservation.status === "cancelled" ||
+      reservation.status === "no_show" ||
+      reservation.status === "checked_in"
+    ) {
+      throw new Error("This reservation can no longer be edited");
+    }
+
+    const arrivalDate = args.arrivalDate ?? reservation.arrivalDate;
+    const departureDate = args.departureDate ?? reservation.departureDate;
+    assertIsoDate(arrivalDate, "Arrival date");
+    assertIsoDate(departureDate, "Departure date");
+    if (departureDate <= arrivalDate) {
+      throw new Error("Departure must be after arrival");
+    }
+
+    const nextRoomId = args.roomId ?? reservation.roomId;
+    const roomOrDatesChanged =
+      nextRoomId !== reservation.roomId ||
+      arrivalDate !== reservation.arrivalDate ||
+      departureDate !== reservation.departureDate;
+
+    if (nextRoomId && roomOrDatesChanged) {
+      await assertRoomAssignableForDates(ctx, {
+        organizationId,
+        branchId: reservation.branchId,
+        roomId: nextRoomId,
+        arrivalDate,
+        departureDate,
+        excludeReservationId: reservation._id,
+      });
+    }
+
+    await ctx.db.patch(reservation._id, {
+      ...(args.roomId !== undefined ? { roomId: args.roomId } : {}),
+      arrivalDate,
+      departureDate,
+      guests:
+        args.guests !== undefined
+          ? args.guests > 0
+            ? Math.floor(args.guests)
+            : undefined
+          : reservation.guests,
+      notes:
+        args.notes !== undefined
+          ? (sanitizeOptionalText(args.notes, "Notes", TEXT_LIMITS.note) ?? undefined)
+          : reservation.notes,
+      updatedAt: Date.now(),
+    });
+
+    await writeAuditLog(ctx, {
+      actorId: userId,
+      action: "hotel_reservation_update",
+      entityType: "hotelReservations",
+      entityId: reservation._id,
+    });
+    return { ok: true as const };
   },
 });
 
@@ -437,6 +663,20 @@ export const checkIn = mutation({
     ]);
     await requireBusinessCapability(ctx, organizationId, "rooms_folio");
 
+    if (args.clientOperationId?.trim()) {
+      const existing = await ctx.db
+        .query("mutationClientOps")
+        .withIndex("by_organization_clientOperationId", (q) =>
+          q
+            .eq("organizationId", organizationId)
+            .eq("clientOperationId", args.clientOperationId!.trim()),
+        )
+        .unique();
+      if (existing) {
+        return JSON.parse(existing.resultJson) as { stayId: Id<"hotelStays"> };
+      }
+    }
+
     const room = await ctx.db.get(args.roomId);
     if (!room || room.organizationId !== organizationId || room.status === "inactive") {
       throw new Error("Room not found");
@@ -510,7 +750,17 @@ export const checkIn = mutation({
       metadata: { roomId: room._id, reservationId: args.reservationId },
     });
 
-    return { stayId };
+    const result = { stayId };
+    if (args.clientOperationId?.trim()) {
+      await ctx.db.insert("mutationClientOps", {
+        organizationId,
+        clientOperationId: args.clientOperationId.trim(),
+        kind: "hotel_check_in",
+        resultJson: JSON.stringify(result),
+        createdAt: now,
+      });
+    }
+    return result;
   },
 });
 
@@ -523,6 +773,7 @@ export const addFolioCharge = mutation({
     quantity: v.number(),
     unitPrice: v.optional(v.number()),
     discount: v.optional(v.number()),
+    clientOperationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId, profile, organizationId } = await requireRole(ctx, [
@@ -531,6 +782,21 @@ export const addFolioCharge = mutation({
       "cashier",
     ]);
     await requireBusinessCapability(ctx, organizationId, "rooms_folio");
+
+    if (args.clientOperationId?.trim()) {
+      const existing = await ctx.db
+        .query("mutationClientOps")
+        .withIndex("by_organization_clientOperationId", (q) =>
+          q
+            .eq("organizationId", organizationId)
+            .eq("clientOperationId", args.clientOperationId!.trim()),
+        )
+        .unique();
+      if (existing) {
+        return JSON.parse(existing.resultJson) as { chargeId: Id<"hotelFolioCharges"> };
+      }
+    }
+
     const stay = await ctx.db.get(args.stayId);
     if (!stay || stay.organizationId !== organizationId || stay.status !== "open") {
       throw new Error("Open stay not found");
@@ -566,7 +832,17 @@ export const addFolioCharge = mutation({
       createdAt: Date.now(),
       createdBy: userId,
     });
-    return { chargeId };
+    const result = { chargeId };
+    if (args.clientOperationId?.trim()) {
+      await ctx.db.insert("mutationClientOps", {
+        organizationId,
+        clientOperationId: args.clientOperationId.trim(),
+        kind: "hotel_add_folio_charge",
+        resultJson: JSON.stringify(result),
+        createdAt: Date.now(),
+      });
+    }
+    return result;
   },
 });
 

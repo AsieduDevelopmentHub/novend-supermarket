@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { triggerLightHaptic } from "@/lib/haptics";
 import { mobileBottomTabsForIndustry, resolveMobileTab } from "@/config/mobile-navigation";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { useBusinessTerms } from "@/hooks/use-business-terms";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
 
 /**
@@ -15,7 +16,8 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const { navigate, activePath } = useOfflineNavigation();
   const { industryProfile } = useBusinessCapabilities();
-  const tabs = mobileBottomTabsForIndustry(industryProfile);
+  const { terms } = useBusinessTerms();
+  const tabs = mobileBottomTabsForIndustry(industryProfile, terms);
   const pathForHighlight = activePath ?? pathname;
   const active = resolveMobileTab(pathForHighlight);
 

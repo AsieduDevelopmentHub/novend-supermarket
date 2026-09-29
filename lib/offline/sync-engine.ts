@@ -174,6 +174,20 @@ export type QueuedMutators = {
     guestCount?: number;
     clientOperationId?: string;
   }) => Promise<{ sessionId: Id<"diningSessions"> }>;
+  addDiningSessionItem: (args: {
+    sessionId: Id<"diningSessions">;
+    productId: Id<"products">;
+    quantity: number;
+    discount?: number;
+    optionIds?: Id<"modifierOptions">[];
+    note?: string;
+    clientOperationId?: string;
+  }) => Promise<Id<"diningSessionItems">>;
+  fireKitchenTicket: (args: {
+    sessionId: Id<"diningSessions">;
+    itemIds?: Id<"diningSessionItems">[];
+    clientOperationId?: string;
+  }) => Promise<{ ticketId: Id<"kitchenTickets"> }>;
   payDiningSession: (args: {
     sessionId: Id<"diningSessions">;
     paymentMethod: "cash" | "card" | "mobile_money";
@@ -181,6 +195,17 @@ export type QueuedMutators = {
     customerName?: string;
     clientOperationId?: string;
   }) => Promise<{ saleId: Id<"sales">; invoiceNumber: string; total: number }>;
+  createHotelReservation: (args: {
+    branchId: Id<"branches">;
+    customerId: Id<"customers">;
+    roomId?: Id<"hotelRooms">;
+    arrivalDate: string;
+    departureDate: string;
+    guests?: number;
+    notes?: string;
+    status?: "booked" | "confirmed";
+    clientOperationId?: string;
+  }) => Promise<{ reservationId: Id<"hotelReservations"> }>;
   hotelCheckIn: (args: {
     roomId: Id<"hotelRooms">;
     customerId: Id<"customers">;
@@ -188,6 +213,15 @@ export type QueuedMutators = {
     notes?: string;
     clientOperationId?: string;
   }) => Promise<{ stayId: Id<"hotelStays"> }>;
+  addHotelFolioCharge: (args: {
+    stayId: Id<"hotelStays">;
+    kind: "room" | "product" | "other";
+    productId: Id<"products">;
+    quantity: number;
+    discount?: number;
+    description?: string;
+    clientOperationId?: string;
+  }) => Promise<{ chargeId: Id<"hotelFolioCharges"> }>;
   hotelCheckoutPay: (args: {
     stayId: Id<"hotelStays">;
     paymentMethod: "cash" | "card" | "mobile_money";
@@ -480,11 +514,65 @@ export async function drainOutbox(options: {
             tableId: string;
             guestCount?: number;
           };
-          await options.mutators.openDiningSession({
+          const result = await options.mutators.openDiningSession({
             tableId: payload.tableId as Id<"diningTables">,
             guestCount: payload.guestCount,
             clientOperationId: claimed.clientOperationId,
           });
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+          void result;
+        } else if (claimed.type === "dining_add_session_item") {
+          const payload = JSON.parse(claimed.payloadJson) as {
+            sessionId: string;
+            productId: string;
+            quantity: number;
+            discount?: number;
+            optionIds?: string[];
+            note?: string;
+            localItemId?: string;
+          };
+          const itemId = await options.mutators.addDiningSessionItem({
+            sessionId: payload.sessionId as Id<"diningSessions">,
+            productId: payload.productId as Id<"products">,
+            quantity: payload.quantity,
+            discount: payload.discount,
+            optionIds: payload.optionIds as Id<"modifierOptions">[] | undefined,
+            note: payload.note,
+            clientOperationId: claimed.clientOperationId,
+          });
+          if (payload.localItemId?.startsWith("local_")) {
+            const local = await db.diningSessionItems.get(payload.localItemId);
+            if (local) {
+              await db.diningSessionItems.delete(payload.localItemId);
+              await db.diningSessionItems.put({ ...local, id: String(itemId) });
+            }
+          }
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "dining_fire_kitchen_ticket") {
+          const payload = JSON.parse(claimed.payloadJson) as {
+            sessionId: string;
+            itemIds?: string[];
+            localTicketId?: string;
+          };
+          const result = await options.mutators.fireKitchenTicket({
+            sessionId: payload.sessionId as Id<"diningSessions">,
+            itemIds: payload.itemIds as Id<"diningSessionItems">[] | undefined,
+            clientOperationId: claimed.clientOperationId,
+          });
+          if (payload.localTicketId?.startsWith("local_")) {
+            const local = await db.kitchenTickets.get(payload.localTicketId);
+            if (local) {
+              await db.kitchenTickets.delete(payload.localTicketId);
+              await db.kitchenTickets.put({
+                ...local,
+                id: String(result.ticketId),
+              });
+            }
+          }
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;
@@ -505,6 +593,43 @@ export async function drainOutbox(options: {
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;
+        } else if (claimed.type === "hotel_create_reservation") {
+          const payload = JSON.parse(claimed.payloadJson) as {
+            branchId: string;
+            customerId: string;
+            roomId?: string;
+            arrivalDate: string;
+            departureDate: string;
+            guests?: number;
+            notes?: string;
+            status?: "booked" | "confirmed";
+            localReservationId?: string;
+          };
+          const result = await options.mutators.createHotelReservation({
+            branchId: payload.branchId as Id<"branches">,
+            customerId: payload.customerId as Id<"customers">,
+            roomId: payload.roomId as Id<"hotelRooms"> | undefined,
+            arrivalDate: payload.arrivalDate,
+            departureDate: payload.departureDate,
+            guests: payload.guests,
+            notes: payload.notes,
+            status: payload.status,
+            clientOperationId: claimed.clientOperationId,
+          });
+          if (payload.localReservationId?.startsWith("local_")) {
+            const local = await db.hotelReservations.get(payload.localReservationId);
+            if (local) {
+              await db.hotelReservations.delete(payload.localReservationId);
+              await db.hotelReservations.put({
+                ...local,
+                id: String(result.reservationId),
+                syncStatus: "synced",
+              });
+            }
+          }
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
         } else if (claimed.type === "hotel_check_in") {
           const payload = JSON.parse(claimed.payloadJson) as {
             roomId: string;
@@ -519,6 +644,33 @@ export async function drainOutbox(options: {
             notes: payload.notes,
             clientOperationId: claimed.clientOperationId,
           });
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "hotel_add_folio_charge") {
+          const payload = JSON.parse(claimed.payloadJson) as {
+            stayId: string;
+            productId: string;
+            quantity: number;
+            discount?: number;
+            kind?: "room" | "product" | "other";
+            localChargeId?: string;
+          };
+          const result = await options.mutators.addHotelFolioCharge({
+            stayId: payload.stayId as Id<"hotelStays">,
+            kind: payload.kind ?? "product",
+            productId: payload.productId as Id<"products">,
+            quantity: payload.quantity,
+            discount: payload.discount,
+            clientOperationId: claimed.clientOperationId,
+          });
+          if (payload.localChargeId?.startsWith("local_")) {
+            const local = await db.hotelFolioCharges.get(payload.localChargeId);
+            if (local) {
+              await db.hotelFolioCharges.delete(payload.localChargeId);
+              await db.hotelFolioCharges.put({ ...local, id: String(result.chargeId) });
+            }
+          }
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;

@@ -752,3 +752,280 @@ export async function getMirroredReturn(id: string) {
   if (ownedSaleIds && !ownedSaleIds.has(row.saleId)) return null;
   return row;
 }
+
+/** Open hospitality operations from Dexie mirrors (Orders offline tab). */
+export async function listLocalOpenOperations(options?: {
+  branchId?: string;
+  industryProfile?: string | null;
+}): Promise<
+  Array<{
+    id: string;
+    kind: "dining_session" | "hotel_stay" | "hotel_reservation";
+    source: "restaurant_table" | "bar_tab" | "room_folio" | "reservation";
+    originLabel: string;
+    status: string;
+    paymentStatus: "unpaid";
+    fulfilmentStatus: string | null;
+    branchId: string;
+    branchName: string | null;
+    openedAt: number;
+    total: number;
+    itemCount: number;
+    guestLabel: string | null;
+    serverName: string | null;
+    kitchenOpenCount: number;
+    kitchenReadyCount: number;
+    href: string;
+  }>
+> {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  const branches = await db.branches.toArray();
+  const branchNameById = new Map(branches.map((b) => [b.id, b.name]));
+  const diningSource =
+    options?.industryProfile === "bar" ? ("bar_tab" as const) : ("restaurant_table" as const);
+  const rows: Array<{
+    id: string;
+    kind: "dining_session" | "hotel_stay" | "hotel_reservation";
+    source: "restaurant_table" | "bar_tab" | "room_folio" | "reservation";
+    originLabel: string;
+    status: string;
+    paymentStatus: "unpaid";
+    fulfilmentStatus: string | null;
+    branchId: string;
+    branchName: string | null;
+    openedAt: number;
+    total: number;
+    itemCount: number;
+    guestLabel: string | null;
+    serverName: string | null;
+    kitchenOpenCount: number;
+    kitchenReadyCount: number;
+    href: string;
+  }> = [];
+
+  try {
+    const sessions = (await db.diningSessions.toArray()).filter((s) => s.status === "open");
+    const items = await db.diningSessionItems.toArray();
+    const tickets = await db.kitchenTickets.toArray();
+    for (const session of sessions) {
+      if (options?.branchId && session.branchId !== options.branchId) continue;
+      const sessionItems = items.filter(
+        (i) => i.sessionId === session.id && i.kitchenStatus !== "void",
+      );
+      const sessionTickets = tickets.filter((t) => t.sessionId === session.id);
+      const kitchenOpenCount = sessionTickets.filter((t) => t.status === "open").length;
+      const kitchenReadyCount = sessionTickets.filter((t) => t.status === "ready").length;
+      let fulfilmentStatus: string | null = "Open";
+      if (kitchenReadyCount > 0) fulfilmentStatus = "Ready";
+      else if (kitchenOpenCount > 0) fulfilmentStatus = "Preparing";
+      rows.push({
+        id: session.id,
+        kind: "dining_session",
+        source: diningSource,
+        originLabel: `Table ${session.tableName}`,
+        status: session.status,
+        paymentStatus: "unpaid",
+        fulfilmentStatus,
+        branchId: session.branchId,
+        branchName: branchNameById.get(session.branchId) ?? null,
+        openedAt: session.openedAt,
+        total: sessionItems.reduce((sum, i) => sum + i.lineTotal, 0),
+        itemCount: sessionItems.length,
+        guestLabel: session.guestCount ? `${session.guestCount} guests` : null,
+        serverName: session.openedByName ?? null,
+        kitchenOpenCount,
+        kitchenReadyCount,
+        href: "/floor",
+      });
+    }
+
+    const stays = (await db.hotelStays.toArray()).filter((s) => s.status === "open");
+    const charges = await db.hotelFolioCharges.toArray();
+    for (const stay of stays) {
+      if (options?.branchId && stay.branchId !== options.branchId) continue;
+      const openCharges = charges.filter((c) => c.stayId === stay.id && c.status === "open");
+      rows.push({
+        id: stay.id,
+        kind: "hotel_stay",
+        source: "room_folio",
+        originLabel: `Room ${stay.roomName}`,
+        status: stay.status,
+        paymentStatus: "unpaid",
+        fulfilmentStatus: null,
+        branchId: stay.branchId,
+        branchName: branchNameById.get(stay.branchId) ?? null,
+        openedAt: stay.checkInAt,
+        total: openCharges.reduce((sum, c) => sum + c.lineTotal, 0),
+        itemCount: openCharges.length,
+        guestLabel: stay.customerName,
+        serverName: stay.checkedInByName ?? null,
+        kitchenOpenCount: 0,
+        kitchenReadyCount: 0,
+        href: "/rooms",
+      });
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const untilDate = new Date();
+    untilDate.setDate(untilDate.getDate() + 14);
+    const until = untilDate.toISOString().slice(0, 10);
+    const reservations = await db.hotelReservations.toArray();
+    for (const reservation of reservations) {
+      if (options?.branchId && reservation.branchId !== options.branchId) continue;
+      if (reservation.status !== "booked" && reservation.status !== "confirmed") continue;
+      if (reservation.departureDate < today) continue;
+      if (reservation.arrivalDate > until) continue;
+      const ref = `#${reservation.id.slice(-6).toUpperCase()}`;
+      const roomPart = reservation.roomName ? ` · Room ${reservation.roomName}` : "";
+      rows.push({
+        id: reservation.id,
+        kind: "hotel_reservation",
+        source: "reservation",
+        originLabel: `Reservation ${ref}${roomPart}`,
+        status: reservation.status,
+        paymentStatus: "unpaid",
+        fulfilmentStatus: null,
+        branchId: reservation.branchId,
+        branchName: branchNameById.get(reservation.branchId) ?? null,
+        openedAt: reservation.createdAt,
+        total: 0,
+        itemCount: 0,
+        guestLabel: reservation.customerName,
+        serverName: null,
+        kitchenOpenCount: 0,
+        kitchenReadyCount: 0,
+        href: "/reservations",
+      });
+    }
+  } catch {
+    /* Stores missing until replica upgrade ? return what we have. */
+  }
+
+  return rows.sort((a, b) => b.openedAt - a.openedAt);
+}
+
+export async function listMirroredDiningTables(branchId?: string) {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  try {
+    const rows = await db.diningTables.toArray();
+    return rows
+      .filter((r) => r.status === "active")
+      .filter((r) => !branchId || r.branchId === branchId)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name));
+  } catch {
+    return [];
+  }
+}
+
+export async function listMirroredOpenDiningSessions(branchId?: string) {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  try {
+    return (await db.diningSessions.toArray())
+      .filter((s) => s.status === "open")
+      .filter((s) => !branchId || s.branchId === branchId);
+  } catch {
+    return [];
+  }
+}
+
+export async function getMirroredDiningSession(sessionId: string) {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  try {
+    const session = await db.diningSessions.get(sessionId);
+    if (!session || session.status !== "open") return null;
+    const items = (await db.diningSessionItems.where("sessionId").equals(sessionId).toArray()).filter(
+      (i) => i.kitchenStatus !== "void",
+    );
+    return { ...session, items };
+  } catch {
+    return null;
+  }
+}
+
+export async function listMirroredKitchenTickets(branchId?: string) {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  try {
+    return (await db.kitchenTickets.toArray())
+      .filter((t) => t.status === "open" || t.status === "ready")
+      .filter((t) => !branchId || t.branchId === branchId)
+      .sort((a, b) => a.firedAt - b.firedAt)
+      .map((t) => {
+        let lines: Array<{
+          id: string;
+          productName: string;
+          quantity: number;
+          modifiersLabel?: string | null;
+          note?: string | null;
+        }> = [];
+        try {
+          lines = JSON.parse(t.linesJson) as typeof lines;
+        } catch {
+          lines = [];
+        }
+        return { ...t, lines };
+      });
+  } catch {
+    return [];
+  }
+}
+
+export async function listMirroredHotelRooms(branchId?: string) {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  try {
+    return (await db.hotelRooms.toArray())
+      .filter((r) => r.status !== "inactive")
+      .filter((r) => !branchId || r.branchId === branchId)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name));
+  } catch {
+    return [];
+  }
+}
+
+export async function listMirroredOpenHotelStays(branchId?: string) {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  try {
+    return (await db.hotelStays.toArray())
+      .filter((s) => s.status === "open")
+      .filter((s) => !branchId || s.branchId === branchId);
+  } catch {
+    return [];
+  }
+}
+
+export async function getMirroredHotelStay(stayId: string) {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  try {
+    const stay = await db.hotelStays.get(stayId);
+    if (!stay) return null;
+    const charges = await db.hotelFolioCharges.where("stayId").equals(stayId).toArray();
+    const openCharges = charges.filter((c) => c.status === "open");
+    return {
+      ...stay,
+      charges: charges.sort((a, b) => a.createdAt - b.createdAt),
+      folioTotal: openCharges.reduce((sum, c) => sum + c.lineTotal, 0),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function listMirroredHotelReservations(branchId?: string) {
+  const db = await getOfflineDb();
+  if (!db) return null;
+  try {
+    return (await db.hotelReservations.toArray())
+      .filter((r) => r.status !== "cancelled")
+      .filter((r) => !branchId || r.branchId === branchId)
+      .sort((a, b) => a.arrivalDate.localeCompare(b.arrivalDate));
+  } catch {
+    return [];
+  }
+}

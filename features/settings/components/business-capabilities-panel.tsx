@@ -11,9 +11,14 @@ import {
   type BusinessCapabilityKey,
   type IndustryProfile,
 } from "@/convex/shared/businessCapabilities";
+import {
+  OPS_CAPABILITY_DISABLE_WARNING_KEYS,
+  opsDisableWarningCopy,
+} from "@/convex/shared/businessTerms";
 import { useLicense } from "@/hooks/use-license";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { saveBusinessCapabilitiesCache } from "@/lib/offline/business-capabilities";
+import { cacheResolvedBusinessTerms } from "@/lib/offline/business-terms";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -72,6 +77,8 @@ const OTHER_KEYS: BusinessCapabilityKey[] = (
   Object.keys(BUSINESS_CAPABILITY_REGISTRY) as BusinessCapabilityKey[]
 ).filter((key) => !CATALOG_KEYS.includes(key));
 
+const OPS_DISABLE_SET = new Set<string>(OPS_CAPABILITY_DISABLE_WARNING_KEYS);
+
 function productFormHint(key: BusinessCapabilityKey): string | null {
   switch (key) {
     case "multi_unit_pricing":
@@ -99,8 +106,21 @@ function productFormHint(key: BusinessCapabilityKey): string | null {
   }
 }
 
+function capabilityDiff(
+  saved: readonly BusinessCapabilityKey[],
+  draft: readonly BusinessCapabilityKey[],
+): { added: BusinessCapabilityKey[]; removed: BusinessCapabilityKey[] } {
+  const savedSet = new Set(saved);
+  const draftSet = new Set(draft);
+  return {
+    added: draft.filter((key) => !savedSet.has(key)),
+    removed: saved.filter((key) => !draftSet.has(key)),
+  };
+}
+
 /**
- * Industry pack + capability flags. Catalog flags control what appears on Add Product.
+ * Industry pack + capability flags.
+ * Draft-only until Save — navigation keeps reading the last saved config.
  */
 export function BusinessCapabilitiesPanel() {
   const { online } = useOfflineStatus();
@@ -112,15 +132,24 @@ export function BusinessCapabilitiesPanel() {
   const [selected, setSelected] = useState<BusinessCapabilityKey[] | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const effectiveProfile = profile ?? remote?.industryProfile ?? "retail";
-  const effectiveSelected = selected ?? remote?.enabledCapabilities ?? [];
+  const savedProfile = remote?.industryProfile ?? "retail";
+  const savedSelected = remote?.enabledCapabilities ?? [];
+  const effectiveProfile = profile ?? savedProfile;
+  const effectiveSelected = selected ?? savedSelected;
 
   const allowedOnPlan = useMemo(
     () => new Set(businessCapabilitiesAllowedOnPlan(planKey)),
     [planKey],
   );
 
-  const packPreview = INDUSTRY_PACKS[effectiveProfile];
+  const packPreview = INDUSTRY_PACKS[effectiveProfile].filter((key) => allowedOnPlan.has(key));
+  const diff = capabilityDiff(savedSelected, effectiveSelected);
+  const profileDirty = effectiveProfile !== savedProfile;
+  const capsDirty = diff.added.length > 0 || diff.removed.length > 0;
+  const dirty = profileDirty || capsDirty;
+
+  const disablingOps = diff.removed.filter((key) => OPS_DISABLE_SET.has(key));
+  const opsWarning = opsDisableWarningCopy(disablingOps);
 
   if (!online) {
     return (
@@ -147,29 +176,20 @@ export function BusinessCapabilitiesPanel() {
     );
   }
 
-  async function onApplyPack() {
-    setSaving(true);
-    try {
-      const next = await update({
-        industryProfile: effectiveProfile,
-        enabledCapabilities: INDUSTRY_PACKS[effectiveProfile],
-        applyIndustryPack: true,
-      });
-      setProfile(next.industryProfile);
-      setSelected(next.enabledCapabilities);
-      await saveBusinessCapabilitiesCache(next);
-      const brandNote =
-        effectiveProfile === "restaurant" ||
-        effectiveProfile === "hotel" ||
-        effectiveProfile === "bar"
-          ? " Brand colors were reset to the pack default — reload if the UI has not updated."
-          : "";
-      toast.success(`Applied ${PROFILE_LABELS[effectiveProfile]} pack.${brandNote}`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not apply industry pack");
-    } finally {
-      setSaving(false);
-    }
+  function fillDraftFromPack(nextProfile: IndustryProfile) {
+    const pack = INDUSTRY_PACKS[nextProfile].filter((key) => allowedOnPlan.has(key));
+    setProfile(nextProfile);
+    setSelected(pack);
+  }
+
+  function onProfileChange(value: IndustryProfile) {
+    // Selecting a profile loads pack defaults into local draft only — nav stays on saved config.
+    fillDraftFromPack(value);
+  }
+
+  function onApplyPackToDraft() {
+    fillDraftFromPack(effectiveProfile);
+    toast.message(`Loaded ${PROFILE_LABELS[effectiveProfile]} pack into draft — Save to apply.`);
   }
 
   async function onSave() {
@@ -183,11 +203,18 @@ export function BusinessCapabilitiesPanel() {
       setProfile(next.industryProfile);
       setSelected(next.enabledCapabilities);
       await saveBusinessCapabilitiesCache(next);
+      await cacheResolvedBusinessTerms(next.industryProfile);
+      toast.success("Selling options saved. Navigation updates to the new profile.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save capabilities");
     } finally {
       setSaving(false);
     }
+  }
+
+  function onDiscardDraft() {
+    setProfile(null);
+    setSelected(null);
   }
 
   function toggleKey(key: BusinessCapabilityKey, checked: boolean) {
@@ -203,6 +230,8 @@ export function BusinessCapabilitiesPanel() {
     const planOk = allowedOnPlan.has(def.key);
     const checked = effectiveSelected.includes(def.key);
     const hint = productFormHint(def.key);
+    const willAdd = diff.added.includes(def.key);
+    const willRemove = diff.removed.includes(def.key);
     return (
       <label
         key={def.key}
@@ -220,6 +249,16 @@ export function BusinessCapabilitiesPanel() {
             {hint ? (
               <Badge variant="outline" className="font-normal">
                 Add Product
+              </Badge>
+            ) : null}
+            {willAdd ? (
+              <Badge variant="secondary" className="font-normal">
+                Will enable
+              </Badge>
+            ) : null}
+            {willRemove ? (
+              <Badge variant="destructive" className="font-normal">
+                Will disable
               </Badge>
             ) : null}
           </span>
@@ -241,6 +280,10 @@ export function BusinessCapabilitiesPanel() {
     <Card className="rounded-[20px]">
       <CardHeader className="space-y-1.5">
         <CardTitle className="text-base">Selling & catalog options</CardTitle>
+        <CardDescription>
+          Changes stay in this form until you Save. Navigation and features keep using the last
+          saved profile. Brand colours are never reset by a pack save.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
         <section className="space-y-3">
@@ -249,7 +292,7 @@ export function BusinessCapabilitiesPanel() {
           </div>
           <Select
             value={effectiveProfile}
-            onValueChange={(value) => setProfile(value as IndustryProfile)}
+            onValueChange={(value) => onProfileChange(value as IndustryProfile)}
           >
             <SelectTrigger id="industry-profile" className="min-h-11 max-w-md">
               <SelectValue />
@@ -275,11 +318,40 @@ export function BusinessCapabilitiesPanel() {
             type="button"
             variant="secondary"
             disabled={saving}
-            onClick={() => void onApplyPack()}
+            onClick={onApplyPackToDraft}
           >
-            Apply pack defaults
+            Fill draft from pack
           </Button>
         </section>
+
+        {dirty ? (
+          <section className="border-border bg-muted/40 space-y-2 rounded-[14px] border px-3 py-3">
+            <p className="text-sm font-medium">Preview before Save</p>
+            {profileDirty ? (
+              <p className="text-muted-foreground text-xs">
+                Profile: {PROFILE_LABELS[savedProfile]} → {PROFILE_LABELS[effectiveProfile]}
+              </p>
+            ) : null}
+            {diff.added.length > 0 ? (
+              <p className="text-muted-foreground text-xs">
+                Will enable:{" "}
+                {diff.added.map((key) => BUSINESS_CAPABILITY_REGISTRY[key].label).join(" · ")}
+              </p>
+            ) : null}
+            {diff.removed.length > 0 ? (
+              <p className="text-muted-foreground text-xs">
+                Will disable:{" "}
+                {diff.removed.map((key) => BUSINESS_CAPABILITY_REGISTRY[key].label).join(" · ")}
+              </p>
+            ) : null}
+            {!profileDirty && !capsDirty ? null : null}
+            {opsWarning ? (
+              <p className="text-amber-700 dark:text-amber-400 text-xs leading-relaxed">
+                {opsWarning}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
         <section className="space-y-3">
           <div className="space-y-1">
@@ -302,9 +374,14 @@ export function BusinessCapabilitiesPanel() {
         </section>
 
         <div className="border-border flex flex-wrap items-center gap-3 border-t pt-4">
-          <Button type="button" disabled={saving} onClick={() => void onSave()}>
+          <Button type="button" disabled={saving || !dirty} onClick={() => void onSave()}>
             {saving ? "Saving…" : "Save selling options"}
           </Button>
+          {dirty ? (
+            <Button type="button" variant="ghost" disabled={saving} onClick={onDiscardDraft}>
+              Discard draft
+            </Button>
+          ) : null}
           <p className="text-muted-foreground text-xs">
             Retail default keeps Add Product free of packs, weight, and expiry fields.
           </p>

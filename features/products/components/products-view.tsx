@@ -21,6 +21,7 @@ import { showError } from "@/lib/errors";
 import { ProductFormDialog } from "./product-form-dialog";
 import { ProductImportWizard } from "./product-import-wizard";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
+import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
 import { BranchFilter } from "@/components/filters/branch-filter";
@@ -250,7 +251,8 @@ export function ProductsView() {
                       <th className="px-4 py-3 font-medium">Selling Price</th>
                       {canViewCost ? <th className="px-4 py-3 font-medium">Cost Price</th> : null}
                       <th className="px-4 py-3 font-medium">Stock</th>
-                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium">Catalogue</th>
+                      <th className="px-4 py-3 font-medium">Availability</th>
                       <th className="px-4 py-3 font-medium">Action</th>
                     </tr>
                   </thead>
@@ -289,14 +291,25 @@ export function ProductsView() {
                           </td>
                         ) : null}
                         <td className="px-4 py-3">
-                          {product.stockQuantity} {product.unit}
+                          {product.tracksInventory === false
+                            ? "—"
+                            : `${product.stockQuantity} ${product.unit}`}
                         </td>
                         <td className="px-4 py-3">
-                          <StockStatusBadges
-                            isLowStock={product.isLowStock}
-                            isExpired={product.isExpired}
-                            isExpiring={product.isExpiring}
-                          />
+                          <Badge variant={product.status === "active" ? "success" : "secondary"}>
+                            {product.status === "active" ? "Active" : "Inactive"}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          {product.tracksInventory === false ? (
+                            <Badge variant="outline">Non-stock</Badge>
+                          ) : (
+                            <StockStatusBadges
+                              isLowStock={product.isLowStock}
+                              isExpired={product.tracksExpiry ? product.isExpired : false}
+                              isExpiring={product.tracksExpiry ? product.isExpiring : false}
+                            />
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
@@ -421,14 +434,18 @@ export function ProductsView() {
                                     <Pencil className="mr-2 h-4 w-4" />
                                     Edit
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      router.push(`/inventory?q=${encodeURIComponent(product.sku)}`)
-                                    }
-                                  >
-                                    <Warehouse className="mr-2 h-4 w-4" />
-                                    Adjust stock
-                                  </DropdownMenuItem>
+                                  {product.tracksInventory === false ? null : (
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        router.push(
+                                          `/inventory?q=${encodeURIComponent(product.sku)}`,
+                                        )
+                                      }
+                                    >
+                                      <Warehouse className="mr-2 h-4 w-4" />
+                                      Adjust stock
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem
                                     className="text-destructive focus:text-destructive"
                                     onClick={() =>
@@ -447,14 +464,23 @@ export function ProductsView() {
                           <p className="text-sm font-semibold">
                             {formatCurrency(product.sellingPrice)}
                           </p>
-                          <p className="text-muted-foreground text-xs">
-                            Stock {product.stockQuantity}
-                          </p>
-                          <StockStatusBadges
-                            isLowStock={product.isLowStock}
-                            isExpired={product.isExpired}
-                            isExpiring={product.isExpiring}
-                          />
+                          {product.tracksInventory === false ? (
+                            <Badge variant="outline">Non-stock</Badge>
+                          ) : (
+                            <p className="text-muted-foreground text-xs">
+                              Stock {product.stockQuantity}
+                            </p>
+                          )}
+                          <Badge variant={product.status === "active" ? "success" : "secondary"}>
+                            {product.status === "active" ? "Active" : "Inactive"}
+                          </Badge>
+                          {product.tracksInventory === false ? null : (
+                            <StockStatusBadges
+                              isLowStock={product.isLowStock}
+                              isExpired={product.tracksExpiry ? product.isExpired : false}
+                              isExpiring={product.tracksExpiry ? product.isExpiring : false}
+                            />
+                          )}
                         </div>
                       </div>
                     </div>
