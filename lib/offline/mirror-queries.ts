@@ -877,7 +877,7 @@ export async function listLocalOpenOperations(options?: {
       if (reservation.departureDate < today) continue;
       if (reservation.arrivalDate > until) continue;
       const ref = `#${reservation.id.slice(-6).toUpperCase()}`;
-      const roomPart = reservation.roomName ? ` · Room ${reservation.roomName}` : "";
+      const roomPart = reservation.roomName ? `  -  Room ${reservation.roomName}` : "";
       rows.push({
         id: reservation.id,
         kind: "hotel_reservation",
