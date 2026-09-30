@@ -9,6 +9,11 @@ const KEEP_EXACT = new Set([
   "novend.idleLock.timeoutMinutes",
   /** Remembered staff shells for offline resume on shared tills. */
   "novend.offlineSessions",
+  /**
+   * Explicit sign-out marker (sessionStorage). Must survive clearUserDeviceState
+   * or hydrate/ensureActive revive the POS shell before /login paints.
+   */
+  "novend.auth.signedOut",
   "princellen.terminal.printer",
   "novend-theme",
   "novend-font-size",

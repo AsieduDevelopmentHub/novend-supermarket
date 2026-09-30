@@ -14,6 +14,7 @@ describe("clearUserDeviceState", () => {
       ["novend.posPreferences", '{"receiptPrintMode":"never"}'],
       ["novend.idleLock.timeoutMinutes", "10"],
     ]);
+    const session = new Map<string, string>([["novend.auth.signedOut", "1"]]);
     vi.stubGlobal("localStorage", {
       get length() {
         return store.size;
@@ -29,12 +30,16 @@ describe("clearUserDeviceState", () => {
     });
     vi.stubGlobal("sessionStorage", {
       get length() {
-        return 0;
+        return session.size;
       },
-      key: () => null,
-      getItem: () => null,
-      setItem: () => undefined,
-      removeItem: () => undefined,
+      key: (index: number) => [...session.keys()][index] ?? null,
+      getItem: (key: string) => session.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        session.set(key, value);
+      },
+      removeItem: (key: string) => {
+        session.delete(key);
+      },
     });
     vi.stubGlobal("window", {
       localStorage: globalThis.localStorage,
@@ -51,5 +56,6 @@ describe("clearUserDeviceState", () => {
     expect(store.get("novend.terminal.printer")).toBe("printer");
     expect(store.get("novend.posPreferences")).toContain("never");
     expect(store.get("novend.idleLock.timeoutMinutes")).toBe("10");
+    expect(session.get("novend.auth.signedOut")).toBe("1");
   });
 });
