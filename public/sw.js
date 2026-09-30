@@ -1,5 +1,8 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v25";/**
+const CACHE_NAME = "novend-pos-v26";
+const FINAL_URL_HEADER = "X-Novend-Final-URL";
+
+/**
  * Public documents + icons only. Do not precache `/` or `/dashboard`:
  * cache.add follows the auth 302 and stores POS HTML under the marketing URL
  * (splash stuck on https://novend-pos.vercel.app/). Gated routes 302 to login.
@@ -66,6 +69,20 @@ function shouldMigrateCacheEntry(url) {
   );
 }
 
+async function isLikelyAuthHtml(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("text/html")) return false;
+  try {
+    const html = await response.clone().text();
+    return (
+      html.includes('id="login-remember-me"') ||
+      (html.includes("you@business.com") && html.includes("Start a 14-day free trial"))
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function migrateShellCaches(oldCacheNames) {
   const next = await caches.open(CACHE_NAME);
   for (const name of oldCacheNames) {
@@ -84,6 +101,9 @@ async function migrateShellCaches(oldCacheNames) {
       if (already) continue;
       const response = await previous.match(request);
       if (response) {
+        if (MIGRATE_SHELL_PATHS.includes(parsed.pathname) && await isLikelyAuthHtml(response)) {
+          continue;
+        }
         try {
           await next.put(request, response);
         } catch {
@@ -135,6 +155,10 @@ self.addEventListener("activate", (event) => {
  * / net::ERR_FAILED on login → dashboard, then the real page loads — or the
  * WebView stays on the error sheet.
  */
+function responseFinalUrl(response) {
+  return response?.headers?.get(FINAL_URL_HEADER) || response?.url || "";
+}
+
 function unwrapRedirect(response) {
   if (!response) {
     return new Response("Novend POS is offline. Reconnect and try again.", {
@@ -150,10 +174,12 @@ function unwrapRedirect(response) {
     });
   }
   if (!response.redirected) return response;
+  const headers = new Headers(response.headers);
+  if (response.url) headers.set(FINAL_URL_HEADER, response.url);
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
-    headers: response.headers,
+    headers,
   });
 }
 
@@ -320,14 +346,15 @@ async function warmDocumentStaticAssets(html) {
 function cachePut(request, response) {
   if (!response || !response.ok || response.type === "opaque") return;
   // Never store a followed login 302 under /dashboard (ERR_FAILED on Cap).
-  if (response.url && isLoginDocumentUrl(response.url)) return;
-  if (response.url) {
+  const finalResponseUrl = responseFinalUrl(response);
+  if (finalResponseUrl && isLoginDocumentUrl(finalResponseUrl)) return;
+  if (finalResponseUrl) {
     try {
       const requested = new URL(
         typeof request === "string" ? request : request.url,
         self.location.origin,
       );
-      const finalUrl = new URL(response.url, self.location.origin);
+      const finalUrl = new URL(finalResponseUrl, self.location.origin);
       // Followed `/` → `/dashboard` must not occupy the marketing cache key.
       if (finalUrl.pathname !== requested.pathname) return;
     } catch {
@@ -364,10 +391,8 @@ function cachePut(request, response) {
 }
 
 /**
- * Offline navigation fallback.
-/**
- * Prefer an exact cache hit for the requested URL. If missing, serve a known
- * *workspace* shell — never marketing HTML (`/`, /docs, /privacy). Cold-start
+ * Offline navigation fallback. Prefer an exact cache hit for the requested
+ * URL. If missing, serve a known *workspace* shell — never marketing HTML (`/`, /docs, /privacy). Cold-start
  * `fromBoot=1` used to paint the public landing page as the POS because `/`
  * is precached and `/dashboard` is not.
  * The browser URL stays as the deep path; OfflineNavigationProvider honors it.
@@ -459,7 +484,8 @@ async function networkFirstDocument(request, url) {
         setTimeout(() => reject(new Error("document-network-budget")), NETWORK_DOCUMENT_BUDGET_MS);
       }),
     ]);
-    if (response && response.url && isLoginDocumentUrl(response.url) && !isAuthDocument(url)) {
+    const finalResponseUrl = responseFinalUrl(response);
+    if (finalResponseUrl && isLoginDocumentUrl(finalResponseUrl) && !isAuthDocument(url)) {
       const fallback = await cachedFallback();
       if (fallback) return fallback;
       throw new Error("auth-redirect-without-shell-cache");

@@ -30,6 +30,7 @@ import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag
 import { useConnectivity } from "@/hooks/use-connectivity";
 import {
   activateOfflineSession,
+  activateOfflineSessionWithFallback,
   clearOfflineSession,
   listOfflineSessions,
   markOfflineSession,
@@ -136,9 +137,10 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     return `${path}${path.includes("?") ? "&" : "?"}fromBoot=1`;
   }
 
-  function openOfflineWorkspace(userId: string, email?: string) {
+  async function openOfflineWorkspace(userId: string, email?: string) {
     if (redirectingRef.current) return false;
-    let activated = activateOfflineSession(userId);
+    let activated =
+      activateOfflineSession(userId) ?? (await activateOfflineSessionWithFallback(userId));
     if (!activated) {
       toast.error(
         "No cached workspace for that account on this device. Connect once while online, then try again.",
@@ -184,7 +186,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       );
       return false;
     }
-    return openOfflineWorkspace(verified.userId, verified.email);
+    return await openOfflineWorkspace(verified.userId, verified.email);
   }
 
   // Already signed in without submitting credentials (live Convex cookie).
@@ -272,9 +274,16 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         expectedEmail: normalizedEmail,
       });
       try {
-        await storeLocalAuthVerifier(normalizedEmail, rawPassword, session.userId);
+        const prepared = await storeLocalAuthVerifier(
+          normalizedEmail,
+          rawPassword,
+          session.userId,
+        );
+        if (!prepared) {
+          toast.warning("Signed in, but this device could not prepare offline sign-in.");
+        }
       } catch {
-        /* online shell still opens; offline password resume needs one more online login */
+        toast.warning("Signed in, but offline sign-in could not be prepared on this device.");
       }
       toast.success("Welcome");
       navigateAfterLogin(session.path, router, { hard: true });

@@ -34,7 +34,9 @@ describe("service worker navigation safety", () => {
 
   it("never caches a followed login document under an app-shell URL", () => {
     expect(sw).toContain("function isLoginDocumentUrl");
-    expect(sw).toContain("if (response.url && isLoginDocumentUrl(response.url)) return;");
+    expect(sw).toContain("const FINAL_URL_HEADER");
+    expect(sw).toContain("function responseFinalUrl");
+    expect(sw).toContain("finalResponseUrl && isLoginDocumentUrl(finalResponseUrl)");
   });
 
   it("leaves JSON /api/ unintercepted but can cache /api/boot for older Capacitor APKs", () => {
@@ -57,7 +59,8 @@ describe("service worker navigation safety", () => {
   });
 
   it("does not precache gated app routes that 302 to login", () => {
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v25"');    expect(sw).toContain("/branding/logo_horizontal.png");
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v26"');
+    expect(sw).toContain("/branding/logo_horizontal.png");
     expect(sw).toContain("function matchStaticAsset");
     expect(sw).toContain("ignoreSearch: true");
     expect(sw).toContain("/docs/releases");
@@ -87,6 +90,7 @@ describe("service worker navigation safety", () => {
     expect(sw).toContain('"/dashboard"');
     expect(sw).toContain('url.pathname.startsWith("/_next/static/")');
     expect(sw).toContain("await migrateShellCaches(stale)");
+    expect(sw).toContain("function isLikelyAuthHtml");
   });
 
   it("co-caches /_next/static assets when storing shell HTML", () => {

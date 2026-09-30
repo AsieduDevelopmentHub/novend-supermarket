@@ -39,10 +39,16 @@ describe("cloud reconnect in place", () => {
   it("error boundaries soft-recover to dashboard without Next Link", () => {
     const errorBoundary = readFileSync(resolve(process.cwd(), "app/(app)/error.tsx"), "utf8");
     const globalError = readFileSync(resolve(process.cwd(), "app/global-error.tsx"), "utf8");
+    const resume = readFileSync(
+      resolve(process.cwd(), "lib/auth/awaiting-cloud-reconnect.ts"),
+      "utf8",
+    );
     for (const source of [errorBoundary, globalError]) {
       expect(source).toContain("resumeOfflineShellToDashboard");
       expect(source).not.toMatch(/asChild[\s\S]*Link href=["']\/dashboard["']/);
     }
+    expect(resume).toContain("hasExplicitLogout()");
+    expect(resume).toContain('/login?signedOut=1');
   });
 
   it("documents in-place reconnect instead of /login", () => {

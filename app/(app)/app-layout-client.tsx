@@ -43,6 +43,7 @@ import {
   readOfflineSession,
   hasOfflineSession,
   ensureActiveOfflineSession,
+  hydrateOfflineSessionsFromDeviceStore,
   listOfflineSessions,
 } from "@/lib/offline/session";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
@@ -152,9 +153,13 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   // novend.offlineSession and traps the next login in the splash).
   useEffect(() => {
     let cancelled = false;
-    void loadShellProfile().then((profile) => {
+    void (async () => {
+      await hydrateOfflineSessionsFromDeviceStore();
+      const hint = hasExplicitLogout()
+        ? null
+        : (readOfflineSession() ?? ensureActiveOfflineSession());
+      const profile = await loadShellProfile();
       if (cancelled) return;
-      const hint = readOfflineSession() ?? ensureActiveOfflineSession();
       if (!hint) {
         setCachedProfile(null);
         setCacheReady(true);
@@ -171,7 +176,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         bindPlatformOfflineDb(platformHint.userId);
       }
       setCacheReady(true);
-    });
+    })();
     return () => {
       cancelled = true;
     };

@@ -7,7 +7,15 @@
  * keeps the rest available from the login screen.
  */
 
+import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { bindOfflineOrganization, unbindOfflineOrganization } from "./db";
+import {
+  clearDeviceOfflineSessions,
+  deleteDeviceOfflineSession,
+  listDeviceOfflineSessions,
+  readDeviceOfflineSession,
+  saveDeviceOfflineSession,
+} from "./device-auth-store";
 
 const ACTIVE_KEY = "novend.offlineSession";
 const REGISTRY_KEY = "novend.offlineSessions";
@@ -175,6 +183,7 @@ export function markOfflineSession(hint: OfflineSessionHint): void {
   }
   rememberActiveSnapshot(raw, hint);
   upsertRegistry(hint);
+  void saveDeviceOfflineSession(hint);
   if (hint.organizationId) {
     bindOfflineOrganization(hint.organizationId, hint.userId);
   }
@@ -193,6 +202,43 @@ export function activateOfflineSession(userId: string): OfflineSessionHint | nul
   return next;
 }
 
+/** Restore a remembered account even when localStorage was evicted or corrupted. */
+export async function activateOfflineSessionWithFallback(
+  userId: string,
+): Promise<OfflineSessionHint | null> {
+  const local = activateOfflineSession(userId);
+  if (local) return local;
+  const durable = await readDeviceOfflineSession(userId);
+  if (!isFreshHint(durable)) return null;
+  const next = { ...durable, savedAt: Date.now() };
+  markOfflineSession(next);
+  return next;
+}
+
+/**
+ * Rebuild fast boot hints from the device IndexedDB before opening an org replica.
+ * After an explicit sign-out, only refresh the account registry — never re-mark
+ * the active shell (that would skip login and trap the splash).
+ */
+export async function hydrateOfflineSessionsFromDeviceStore(): Promise<OfflineSessionHint | null> {
+  const durable = (await listDeviceOfflineSessions()).filter(isFreshHint);
+  const local = listOfflineSessions();
+  const merged = new Map<string, OfflineSessionHint>();
+  for (const row of [...durable, ...local]) {
+    const current = merged.get(row.userId);
+    if (!current || row.savedAt > current.savedAt) merged.set(row.userId, row);
+  }
+  const rows = [...merged.values()].sort((a, b) => b.savedAt - a.savedAt);
+  if (rows.length > 0) writeRegistry(rows);
+  const active = getOfflineSessionSnapshot();
+  if (active) return active;
+  if (hasExplicitLogout()) return null;
+  const first = rows[0];
+  if (!first) return null;
+  markOfflineSession(first);
+  return first;
+}
+
 /**
  * If the active hint was cleared (or TTL-expired) but the registry still has
  * accounts, re-activate the newest one so Cap/Electron reconnect keeps the POS
@@ -201,6 +247,7 @@ export function activateOfflineSession(userId: string): OfflineSessionHint | nul
 export function ensureActiveOfflineSession(): OfflineSessionHint | null {
   const active = getOfflineSessionSnapshot();
   if (active) return active;
+  if (hasExplicitLogout()) return null;
   const first = listOfflineSessions()[0];
   if (!first) return null;
   return activateOfflineSession(first.userId);
@@ -221,6 +268,7 @@ export function forgetOfflineSession(userId: string): void {
     rememberActiveSnapshot(null, null);
     unbindOfflineOrganization();
   }
+  void deleteDeviceOfflineSession(userId);
   notifyOfflineSession();
 }
 
@@ -251,6 +299,7 @@ export function clearAllOfflineSessions(): void {
   }
   rememberActiveSnapshot(null, null);
   rememberRegistrySnapshot(null, []);
+  void clearDeviceOfflineSessions();
   unbindOfflineOrganization();
   notifyOfflineSession();
 }

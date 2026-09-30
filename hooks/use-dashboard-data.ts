@@ -184,12 +184,20 @@ function toCachePayload(remote: RemoteDashboard): Omit<DashboardSummaryCache, "c
  * after Electron updates when the mirror lagged or skipped — restore the same
  * hybrid pattern as Orders (remote when online, Dexie when offline).
  */
-export function useDashboardData(branchFilter: Id<"branches"> | "all") {
+export function useDashboardData(
+  branchFilter: Id<"branches"> | "all",
+  requestedRange?: { startDate: number; endDate: number },
+) {
   const online = useConnectivity();
   const { isAuthenticated } = useConvexAuth();
   const { lastSyncAt } = useOfflineStatus();
   const { isAdmin, role } = usePermissions();
   const branchKey = cacheKeyFor(isAdmin, branchFilter);
+  const showOps = role === "administrator" || role === "manager";
+  const range = showOps ? requestedRange : undefined;
+  const cacheKey = range
+    ? `${branchKey}:${range.startDate}:${range.endDate}`
+    : `${branchKey}:today`;
   const [localData, setLocalData] = useState<DashboardData | null>(null);
   const [acceptEmptyLocal, setAcceptEmptyLocal] = useState(false);
 
@@ -198,6 +206,8 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
     online && isAuthenticated
       ? {
           branchId: isAdmin && branchFilter !== "all" ? branchFilter : undefined,
+          startDate: range?.startDate,
+          endDate: range?.endDate,
         }
       : "skip",
   );
@@ -221,7 +231,8 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
 
   useEffect(() => {
     setAcceptEmptyLocal(false);
-  }, [branchKey, role]);
+    setLocalData(null);
+  }, [cacheKey, role]);
 
   useEffect(() => {
     if (!role) return;
@@ -229,7 +240,7 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
 
     const loadLocal = () => {
       void (async () => {
-        const cached = await loadDashboardSummary(branchKey);
+        const cached = await loadDashboardSummary(cacheKey);
         if (cancelled) return;
         if (cached && cacheMatchesScope(cached, branchKey) && cached.role === role) {
           // Prefer a warm non-empty cache for instant paint; empty zeros are
@@ -242,6 +253,7 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
         const local = await buildLocalDashboardSummary(
           role as AppRole,
           branchKey === "all" ? undefined : branchKey,
+          range,
         );
         if (cancelled) return;
         if (online && isEmptySummary(local) && isAuthenticated) {
@@ -250,7 +262,7 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
         }
         setLocalData({ ...local, source: "local" });
         if (!isEmptySummary(local)) {
-          await saveDashboardSummary(local, branchKey);
+          await saveDashboardSummary(local, cacheKey);
         }
       })();
     };
@@ -265,6 +277,7 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
         const local = await buildLocalDashboardSummary(
           role as AppRole,
           branchKey === "all" ? undefined : branchKey,
+          range,
         );
         if (cancelled) return;
         setAcceptEmptyLocal(true);
@@ -277,15 +290,15 @@ export function useDashboardData(branchFilter: Id<"branches"> | "all") {
       window.clearTimeout(giveUp);
       unsub();
     };
-  }, [role, branchKey, online, isAuthenticated, lastSyncAt]);
+  }, [role, branchKey, cacheKey, range, online, isAuthenticated, lastSyncAt]);
 
   useEffect(() => {
     if (!remote) return;
     const mapped = mapRemote(remote);
-    void saveDashboardSummary(toCachePayload(remote), branchKey).then(() => {
+    void saveDashboardSummary(toCachePayload(remote), cacheKey).then(() => {
       setLocalData(mapped);
     });
-  }, [remote, branchKey]);
+  }, [remote, cacheKey]);
 
   if (remote) {
     return { data: mapRemote(remote), loading: false, hospitality };

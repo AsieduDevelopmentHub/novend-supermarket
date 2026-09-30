@@ -284,22 +284,24 @@ export function dashboardViewDescription(input: {
   showOps: boolean;
   showStockOps: boolean;
   opsWindowDays: number;
+  opsPeriodLabel?: string;
   terms: BusinessTermsMap;
 }): string {
-  const { profile, showOps, showStockOps, opsWindowDays, terms } = input;
+  const { profile, showOps, showStockOps, opsWindowDays, opsPeriodLabel, terms } = input;
   if (!showOps) return "Your sales activity today";
+  const period = opsPeriodLabel ?? `Last ${opsWindowDays} days`;
   if (showStockOps) {
-    return `Last ${opsWindowDays} days of sales, plus stock alerts`;
+    return `${period} of sales, plus stock alerts`;
   }
   switch (profile) {
     case "restaurant":
-      return `Last ${opsWindowDays} days of sales — open ${terms.check_plural.toLowerCase()} live on the ${terms.floor.toLowerCase()}`;
+      return `${period} of sales — open ${terms.check_plural.toLowerCase()} live on the ${terms.floor.toLowerCase()}`;
     case "bar":
-      return `Last ${opsWindowDays} days of sales — open ${terms.check_plural.toLowerCase()} live on the ${terms.floor.toLowerCase()}`;
+      return `${period} of sales — open ${terms.check_plural.toLowerCase()} live on the ${terms.floor.toLowerCase()}`;
     case "hotel":
-      return `Last ${opsWindowDays} days of sales — ${terms.room_plural.toLowerCase()}, ${terms.reservation_plural.toLowerCase()}, and ${terms.folio_plural.toLowerCase()}`;
+      return `${period} of sales — ${terms.room_plural.toLowerCase()}, ${terms.reservation_plural.toLowerCase()}, and ${terms.folio_plural.toLowerCase()}`;
     default:
-      return `Last ${opsWindowDays} days of sales`;
+      return `${period} of sales`;
   }
 }
 

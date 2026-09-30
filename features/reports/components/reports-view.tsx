@@ -8,7 +8,6 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Grid } from "@/components/layout/primitives";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -16,6 +15,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { BranchFilter } from "@/components/filters/branch-filter";
+import { PeriodFilter } from "@/components/filters/period-filter";
 import { ExportMenu } from "@/components/export/export-menu";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
@@ -26,7 +26,12 @@ import { buildLocalSalesReport, type LocalSalesReport } from "@/lib/offline/ui-c
 import { salesReportExportTable } from "@/lib/export/sales-report";
 import { formatCurrency, formatNumber } from "@/lib/currency";
 import { useNarrowScreen } from "@/hooks/use-narrow-screen";
-import { toast } from "sonner";
+import { useUserFilterPreferences } from "@/hooks/use-user-filter-preferences";
+import {
+  isPeriodPreset,
+  resolvePeriodPreset,
+  type PeriodPreset,
+} from "@/lib/period-filter";
 import {
   Area,
   AreaChart,
@@ -52,34 +57,64 @@ function endOfDay(date: Date) {
   return startOfDay(date) + 24 * 60 * 60 * 1000 - 1;
 }
 
-export function ReportsView() {
-  const todayLocal = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  };
-  const weekAgoLocal = () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 6);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  };
+type ReportFilterPreferences = {
+  preset: PeriodPreset;
+  customStart: string;
+  customEnd: string;
+  branchFilter: string;
+};
 
-  const { isAdmin, isManager, branchName, branchId: myBranchId } = usePermissions();
+function createReportFilterPreferences(): ReportFilterPreferences {
+  const range = resolvePeriodPreset("last_7_days");
+  return {
+    preset: "last_7_days",
+    customStart: range.start,
+    customEnd: range.end,
+    branchFilter: "all",
+  };
+}
+
+function isReportFilterPreferences(value: unknown): value is ReportFilterPreferences {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return (
+    isPeriodPreset(row.preset) &&
+    typeof row.customStart === "string" &&
+    typeof row.customEnd === "string" &&
+    typeof row.branchFilter === "string"
+  );
+}
+
+export function ReportsView() {
+  const { isAdmin, isManager, branchName, branchId: myBranchId, userId } = usePermissions();
   const { capabilities, planName } = useLicense();
   const online = useConnectivity();
   const router = useRouter();
   const narrow = useNarrowScreen();
-  const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
-  const [start, setStart] = useState(weekAgoLocal);
-  const [end, setEnd] = useState(todayLocal);
-  const [applied, setApplied] = useState({ start: weekAgoLocal(), end: todayLocal() });
-  const [rangeError, setRangeError] = useState<string | null>(null);
+  const initialFilters = useMemo(createReportFilterPreferences, []);
+  const [filters, setFilters] = useUserFilterPreferences(
+    "reports",
+    userId,
+    initialFilters,
+    isReportFilterPreferences,
+  );
+  const selectedDates = useMemo(
+    () =>
+      filters.preset === "custom"
+        ? { start: filters.customStart, end: filters.customEnd }
+        : resolvePeriodPreset(filters.preset),
+    [filters.preset, filters.customStart, filters.customEnd],
+  );
+  const start = selectedDates.start;
+  const end = selectedDates.end;
+  const branchFilter = filters.branchFilter as Id<"branches"> | "all";
   const [localReport, setLocalReport] = useState<LocalSalesReport | null>(null);
 
   const branches = useBranchesList(false, Boolean(isAdmin || isManager));
 
   const range = useMemo(() => {
-    const startDateObj = parseLocalDate(applied.start);
-    const endDateObj = parseLocalDate(applied.end);
+    const startDateObj = parseLocalDate(start);
+    const endDateObj = parseLocalDate(end);
     if (!startDateObj || !endDateObj) return null;
     const startDate = startOfDay(startDateObj);
     const endDate = endOfDay(endDateObj);
@@ -87,7 +122,15 @@ export function ReportsView() {
       return null;
     }
     return { startDate, endDate };
-  }, [applied]);
+  }, [start, end]);
+
+  const rangeError = range ? null : "Choose a valid period or custom date range.";
+
+  useEffect(() => {
+    if (!isAdmin || !branches || branchFilter === "all") return;
+    if (branches.some((branch) => branch.id === branchFilter)) return;
+    setFilters((current) => ({ ...current, branchFilter: "all" }));
+  }, [isAdmin, branches, branchFilter, setFilters]);
 
   const remoteReport = useQuery(
     api.reports.salesSummary,
@@ -122,8 +165,8 @@ export function ReportsView() {
   const exportTable = report
     ? salesReportExportTable({
         report,
-        start: applied.start,
-        end: applied.end,
+        start: start,
+        end: end,
         branchLabel:
           isAdmin && branchFilter !== "all"
             ? branches?.find((b) => b.id === branchFilter)?.name
@@ -131,25 +174,8 @@ export function ReportsView() {
       })
     : null;
 
-  function onGenerate() {
-    const startDateObj = parseLocalDate(start);
-    const endDateObj = parseLocalDate(end);
-    if (!startDateObj || !endDateObj) {
-      setRangeError("Choose a valid start and end date.");
-      toast.error("Choose a valid start and end date.");
-      return;
-    }
-    if (endOfDay(endDateObj) < startOfDay(startDateObj)) {
-      setRangeError("End date must be on or after the start date.");
-      toast.error("End date must be on or after the start date.");
-      return;
-    }
-    setRangeError(null);
-    setApplied({ start, end });
-  }
-
   function metricHref(metric: string) {
-    const params = new URLSearchParams({ start: applied.start, end: applied.end });
+    const params = new URLSearchParams({ start: start, end: end });
     if (isAdmin && branchFilter !== "all") params.set("branch", branchFilter);
     return `/reports/${metric}?${params.toString()}`;
   }
@@ -157,8 +183,8 @@ export function ReportsView() {
   function dayHref(date: string) {
     const params = new URLSearchParams({
       date,
-      start: applied.start,
-      end: applied.end,
+      start: start,
+      end: end,
     });
     if (isAdmin && branchFilter !== "all") params.set("branch", branchFilter);
     return `/reports/day?${params.toString()}`;
@@ -188,29 +214,29 @@ export function ReportsView() {
 
       <Card data-tour="reports-range">
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">
-          <div className="space-y-1">
-            <p className="text-muted-foreground text-xs">Start</p>
-            <Input
-              type="date"
-              className="w-full max-w-full min-w-0"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <p className="text-muted-foreground text-xs">End</p>
-            <Input
-              type="date"
-              className="w-full max-w-full min-w-0"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-            />
-          </div>
+          <PeriodFilter
+            preset={filters.preset}
+            start={start}
+            end={end}
+            onPresetChange={(preset) =>
+              setFilters((current) => ({ ...current, preset }))
+            }
+            onCustomRangeChange={(next) =>
+              setFilters((current) => ({
+                ...current,
+                preset: "custom",
+                customStart: next.start,
+                customEnd: next.end,
+              }))
+            }
+          />
           {isAdmin ? (
             <BranchFilter
               branches={branches}
               value={branchFilter}
-              onChange={setBranchFilter}
+              onChange={(next) =>
+                setFilters((current) => ({ ...current, branchFilter: String(next) }))
+              }
               allowAll
             />
           ) : isManager && branchName ? (
@@ -221,16 +247,13 @@ export function ReportsView() {
               lockedLabel={branchName}
             />
           ) : null}
-          <Button type="button" onClick={onGenerate}>
-            Generate
-          </Button>
         </CardContent>
       </Card>
 
       {rangeError ? <ErrorState message={rangeError} /> : null}
 
       {!range ? (
-        <EmptyState title="Select a date range" description="Choose dates and click Generate." />
+        <EmptyState title="Select a date range" description="Choose a valid period or custom dates." />
       ) : !report ? (
         <LoadingState label="Generating report…" variant="cards" />
       ) : (

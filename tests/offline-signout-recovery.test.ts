@@ -35,7 +35,7 @@ describe("offline sign-out recovery", () => {
 
   it("SW prefers cached login for Cap fromBoot / true-offline signedOut only", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v25"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v26"');
     expect(sw).toContain('url.searchParams.get("signedOut") === "1"');
     expect(sw).toContain('url.searchParams.get("fromBoot") === "1"');
     expect(sw).toContain("preferCache = fromBoot || (signedOut && offline)");

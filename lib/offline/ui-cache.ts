@@ -118,23 +118,26 @@ export async function loadPrintSnapshotMeta(): Promise<PrintSnapshot | null> {
 }
 
 /** Build the dashboard from Dexie products, mirrored orders, and unsynced local sales.
- * Admin/manager sales and order KPIs are a rolling last `DASHBOARD_OPS_WINDOW_DAYS`
- * days — not all-time totals. Cashiers are scoped to today (local midnight).
+ * Admin/manager KPIs use the requested range (last seven days by default).
+ * Cashiers remain scoped to today.
  */
 export async function buildLocalDashboardSummary(
   role: AppRole,
   branchId?: string,
+  requestedRange?: { startDate: number; endDate: number },
 ): Promise<DashboardSummaryCache> {
   const db = await getOfflineDb();
   const now = Date.now();
   const startToday = new Date();
   startToday.setHours(0, 0, 0, 0);
   const sinceToday = startToday.getTime();
-  const since7 = now - DASHBOARD_OPS_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const defaultOpsStart = now - DASHBOARD_OPS_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const showOps = role === "administrator" || role === "manager";
+  const rangeStart = showOps ? (requestedRange?.startDate ?? defaultOpsStart) : sinceToday;
+  const rangeEnd = showOps ? (requestedRange?.endDate ?? now) : now;
 
   if (!db) {
-    return emptyDashboard(role, now);
+    return emptyDashboard(role, now, rangeStart, rangeEnd);
   }
 
   const [
@@ -308,9 +311,9 @@ export async function buildLocalDashboardSummary(
   const branchSales = branchId
     ? combinedSales.filter((s) => s.branchId === branchId)
     : combinedSales;
-  const scopedSales = showOps
-    ? branchSales.filter((s) => s.completedAt >= since7)
-    : branchSales.filter((s) => s.completedAt >= sinceToday);
+  const scopedSales = branchSales.filter(
+    (sale) => sale.completedAt >= rangeStart && sale.completedAt <= rangeEnd,
+  );
 
   const unsyncedReturns = localReturns.filter((row) => {
     if (row.syncStatus !== "pending" && row.syncStatus !== "failed") return false;
@@ -334,8 +337,8 @@ export async function buildLocalDashboardSummary(
         (row) => !("branchId" in row) || row.branchId == null || row.branchId === branchId,
       )
     : combinedReturns;
-  const scopedReturns = branchReturns.filter((row) =>
-    showOps ? row.completedAt >= since7 : row.completedAt >= sinceToday,
+  const scopedReturns = branchReturns.filter(
+    (row) => row.completedAt >= rangeStart && row.completedAt <= rangeEnd,
   );
   const refunds = scopedReturns.reduce((sum, row) => sum + row.refundAmount, 0);
   const revenue = scopedSales.reduce((sum, s) => sum + s.total, 0) - refunds;
@@ -372,14 +375,16 @@ export async function buildLocalDashboardSummary(
   const topProducts = collectTopSellingCandidates([...productTotals.values()]);
 
   const trendMap = new Map<string, number>();
-  for (let i = 6; i >= 0; i -= 1) {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() - i);
-    trendMap.set(d.toISOString().slice(0, 10), 0);
+  const trendCursor = new Date(rangeStart);
+  trendCursor.setHours(0, 0, 0, 0);
+  const trendEnd = new Date(rangeEnd);
+  trendEnd.setHours(0, 0, 0, 0);
+  for (let count = 0; trendCursor.getTime() <= trendEnd.getTime() && count < 371; count += 1) {
+    trendMap.set(trendCursor.toISOString().slice(0, 10), 0);
+    trendCursor.setDate(trendCursor.getDate() + 1);
   }
   for (const sale of branchSales) {
-    if (sale.completedAt < since7) continue;
+    if (sale.completedAt < rangeStart || sale.completedAt > rangeEnd) continue;
     const key = new Date(sale.completedAt).toISOString().slice(0, 10);
     if (trendMap.has(key)) {
       trendMap.set(key, (trendMap.get(key) ?? 0) + sale.total);
@@ -416,7 +421,7 @@ export async function buildLocalDashboardSummary(
     lowStock: lowStock.slice(0, 12),
     expiryAlerts: expiryAlerts.slice(0, 12),
     topProducts,
-    recentSales: [...combinedSales]
+    recentSales: [...scopedSales]
       .sort((a, b) => b.completedAt - a.completedAt)
       .slice(0, 8)
       .map((s) => ({
@@ -435,13 +440,20 @@ export async function buildLocalDashboardSummary(
   };
 }
 
-function emptyDashboard(role: AppRole, now: number): DashboardSummaryCache {
+function emptyDashboard(
+  role: AppRole,
+  now: number,
+  rangeStart: number,
+  rangeEnd: number,
+): DashboardSummaryCache {
   const trendMap: Array<{ date: string; total: number }> = [];
-  for (let i = 6; i >= 0; i -= 1) {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() - i);
-    trendMap.push({ date: d.toISOString().slice(0, 10), total: 0 });
+  const cursor = new Date(rangeStart);
+  cursor.setHours(0, 0, 0, 0);
+  const end = new Date(rangeEnd);
+  end.setHours(0, 0, 0, 0);
+  for (let count = 0; cursor.getTime() <= end.getTime() && count < 371; count += 1) {
+    trendMap.push({ date: cursor.toISOString().slice(0, 10), total: 0 });
+    cursor.setDate(cursor.getDate() + 1);
   }
   return {
     role,

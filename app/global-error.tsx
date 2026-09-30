@@ -58,6 +58,14 @@ export default function GlobalError({
         : "We hit an unexpected problem. You can try again or go back to the dashboard.",
   );
 
+  function retry() {
+    if (hasShell) {
+      resumeOfflineShellToDashboard(reset);
+      return;
+    }
+    reset();
+  }
+
   function goDashboard() {
     if (hasShell) {
       resumeOfflineShellToDashboard(reset);
@@ -73,7 +81,7 @@ export default function GlobalError({
           <h1 className="text-xl font-semibold">{title}</h1>
           <p className="text-muted-foreground max-w-md text-sm">{message}</p>
           <div className="flex flex-wrap justify-center gap-2">
-            <Button type="button" onClick={reset}>
+            <Button type="button" onClick={retry}>
               {offline ? "Continue" : "Try again"}
             </Button>
             {chunkMiss && !hasShell ? (

@@ -51,6 +51,14 @@ export default function AppError({
         : "We hit an unexpected problem. Please try again.",
   );
 
+  function retry() {
+    if (hasShell) {
+      resumeOfflineShellToDashboard(reset);
+      return;
+    }
+    reset();
+  }
+
   function goDashboard() {
     // Soft client recover — Next Link to the dashboard route hits middleware
     // without a Convex JWT and redirects Cap/Electron reconnect shells to login.
@@ -66,7 +74,7 @@ export default function AppError({
       <h2 className="text-lg font-semibold">{title}</h2>
       <p className="text-muted-foreground max-w-md text-sm">{message}</p>
       <div className="flex flex-wrap justify-center gap-2">
-        <Button type="button" onClick={reset}>
+        <Button type="button" onClick={retry}>
           {offline ? "Continue" : "Try again"}
         </Button>
         {chunkMiss && !hasShell ? (

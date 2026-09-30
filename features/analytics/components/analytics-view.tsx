@@ -1,13 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -21,12 +20,20 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
+import { PeriodFilter } from "@/components/filters/period-filter";
 import { ExportMenu } from "@/components/export/export-menu";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { useNarrowScreen } from "@/hooks/use-narrow-screen";
+import { useUserFilterPreferences } from "@/hooks/use-user-filter-preferences";
+import {
+  isPeriodPreset,
+  recommendedGranularity,
+  resolvePeriodPreset,
+  type PeriodPreset,
+} from "@/lib/period-filter";
 import { useOfflineAnalytics } from "@/hooks/use-offline-analytics";
 import { useLocalExpenses, useBranchesList } from "@/hooks/use-offline-lists";
 import {
@@ -55,6 +62,40 @@ import {
 
 type Granularity = "day" | "week" | "month" | "year";
 
+type AnalyticsFilterPreferences = {
+  preset: PeriodPreset;
+  customStart: string;
+  customEnd: string;
+  branchFilter: string;
+  granularity: Granularity;
+};
+
+function createAnalyticsFilterPreferences(): AnalyticsFilterPreferences {
+  const range = resolvePeriodPreset("last_30_days");
+  return {
+    preset: "last_30_days",
+    customStart: range.start,
+    customEnd: range.end,
+    branchFilter: "all",
+    granularity: "day",
+  };
+}
+
+function isAnalyticsFilterPreferences(value: unknown): value is AnalyticsFilterPreferences {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return (
+    isPeriodPreset(row.preset) &&
+    typeof row.customStart === "string" &&
+    typeof row.customEnd === "string" &&
+    typeof row.branchFilter === "string" &&
+    (row.granularity === "day" ||
+      row.granularity === "week" ||
+      row.granularity === "month" ||
+      row.granularity === "year")
+  );
+}
+
 function parseLocalDate(isoDate: string) {
   const [year, month, day] = isoDate.split("-").map(Number);
   if (!year || !month || !day) return null;
@@ -69,44 +110,54 @@ function endOfDay(date: Date) {
   return startOfDay(date) + 24 * 60 * 60 * 1000 - 1;
 }
 
-function localIso(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 export function AnalyticsView() {
-  const { isAdmin, isManager, branchName, branchId: myBranchId } = usePermissions();
+  const { isAdmin, isManager, branchName, branchId: myBranchId, userId } = usePermissions();
   const { capabilities, planName } = useLicense();
   const online = useConnectivity();
   const narrow = useNarrowScreen();
-  const today = localIso(new Date());
-  const weekAgo = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 29);
-    return localIso(d);
-  })();
+  const initialFilters = useMemo(createAnalyticsFilterPreferences, []);
+  const [filters, setFilters] = useUserFilterPreferences(
+    "analytics",
+    userId,
+    initialFilters,
+    isAnalyticsFilterPreferences,
+  );
+  const selectedDates = useMemo(
+    () =>
+      filters.preset === "custom"
+        ? { start: filters.customStart, end: filters.customEnd }
+        : resolvePeriodPreset(filters.preset),
+    [filters.preset, filters.customStart, filters.customEnd],
+  );
+  const start = selectedDates.start;
+  const end = selectedDates.end;
+  const granularity = filters.granularity;
+  const branchFilter = filters.branchFilter as Id<"branches"> | "all";
 
-  const [start, setStart] = useState(weekAgo);
-  const [end, setEnd] = useState(today);
-  const [applied, setApplied] = useState({ start: weekAgo, end: today });
-  const [granularity, setGranularity] = useState<Granularity>("day");
-  const [rangeError, setRangeError] = useState<string | null>(null);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [editing, setEditing] = useState<ExpenseRow | null>(null);
-  const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
   const [deleteTarget, setDeleteTarget] = useState<ExpenseRow | null>(null);
   const [deletePending, setDeletePending] = useState(false);
 
   const branches = useBranchesList(false, Boolean(isAdmin || isManager));
 
   const range = useMemo(() => {
-    const startDateObj = parseLocalDate(applied.start);
-    const endDateObj = parseLocalDate(applied.end);
+    const startDateObj = parseLocalDate(start);
+    const endDateObj = parseLocalDate(end);
     if (!startDateObj || !endDateObj) return null;
     const startDate = startOfDay(startDateObj);
     const endDate = endOfDay(endDateObj);
     if (endDate < startDate) return null;
     return { startDate, endDate };
-  }, [applied]);
+  }, [start, end]);
+
+  const rangeError = range ? null : "Choose a valid period or custom date range.";
+
+  useEffect(() => {
+    if (!isAdmin || !branches || branchFilter === "all") return;
+    if (branches.some((branch) => branch.id === branchFilter)) return;
+    setFilters((current) => ({ ...current, branchFilter: "all" }));
+  }, [isAdmin, branches, branchFilter, setFilters]);
 
   const branchArg = isAdmin && branchFilter !== "all" ? branchFilter : undefined;
 
@@ -136,8 +187,8 @@ export function AnalyticsView() {
   const recordExport = useMutation(api.imports.recordExport);
   const exportTable = summary
     ? analyticsExportTable({
-        start: applied.start,
-        end: applied.end,
+        start: start,
+        end: end,
         granularity,
         branchLabel:
           isAdmin && branchFilter !== "all"
@@ -161,26 +212,8 @@ export function AnalyticsView() {
       branchName: row.branchName,
     }));
 
-  if (!summary && remoteSummary === undefined && localSummary === undefined) {
+  if (range && !summary && remoteSummary === undefined && localSummary === undefined) {
     return <LoadingState label="Loading analytics…" variant="cards" />;
-  }
-
-  function onApply() {
-    const startDateObj = parseLocalDate(start);
-    const endDateObj = parseLocalDate(end);
-    if (!startDateObj || !endDateObj) {
-      setRangeError("Choose a valid start and end date.");
-      toast.error("Choose a valid start and end date.");
-      return;
-    }
-    if (endOfDay(endDateObj) < startOfDay(startDateObj)) {
-      setRangeError("End date must be on or after the start date.");
-      toast.error("End date must be on or after the start date.");
-      return;
-    }
-    setRangeError(null);
-    setApplied({ start, end });
-    toast.success("Analytics updated");
   }
 
   function printReport() {
@@ -194,7 +227,7 @@ export function AnalyticsView() {
       .join("");
 
     const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8" /><title>P&L ${applied.start} – ${applied.end}</title>
+<html><head><meta charset="utf-8" /><title>P&L ${start} – ${end}</title>
 <style>
   body { font-family: ui-sans-serif, system-ui, sans-serif; padding: 24px; color: #111; }
   h1 { font-size: 20px; margin: 0 0 4px; }
@@ -204,7 +237,7 @@ export function AnalyticsView() {
   .total { font-weight: 700; }
 </style></head><body>
   <h1>Profit &amp; Loss</h1>
-  <p>${escapeHtml(applied.start)} to ${escapeHtml(applied.end)}</p>
+  <p>${escapeHtml(start)} to ${escapeHtml(end)}</p>
   <table>
     <tr><td>Gross revenue</td><td style="text-align:right">${escapeHtml(formatCurrency(summary.pnl.grossRevenue ?? summary.pnl.revenue))}</td></tr>
     <tr><td>Refunds</td><td style="text-align:right">${escapeHtml(formatCurrency(summary.pnl.totalRefunds ?? 0))}</td></tr>
@@ -263,7 +296,7 @@ export function AnalyticsView() {
   }
 
   function metricHref(metric: string) {
-    const params = new URLSearchParams({ start: applied.start, end: applied.end });
+    const params = new URLSearchParams({ start: start, end: end });
     if (branchArg) params.set("branch", branchArg);
     return `/analytics/${metric}?${params.toString()}`;
   }
@@ -324,19 +357,33 @@ export function AnalyticsView() {
 
       <Card>
         <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:flex-wrap lg:items-end">
-          <div className="space-y-1">
-            <p className="text-muted-foreground text-xs">Start</p>
-            <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
-          </div>
-          <div className="space-y-1">
-            <p className="text-muted-foreground text-xs">End</p>
-            <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
-          </div>
+          <PeriodFilter
+            preset={filters.preset}
+            start={start}
+            end={end}
+            onPresetChange={(preset) =>
+              setFilters((current) => ({
+                ...current,
+                preset,
+                granularity: recommendedGranularity(preset),
+              }))
+            }
+            onCustomRangeChange={(next) =>
+              setFilters((current) => ({
+                ...current,
+                preset: "custom",
+                customStart: next.start,
+                customEnd: next.end,
+              }))
+            }
+          />
           {isAdmin ? (
             <BranchFilter
               branches={branches}
               value={branchFilter}
-              onChange={setBranchFilter}
+              onChange={(next) =>
+                setFilters((current) => ({ ...current, branchFilter: String(next) }))
+              }
               allowAll
             />
           ) : isManager && branchName ? (
@@ -349,7 +396,12 @@ export function AnalyticsView() {
           ) : null}
           <div className="space-y-1">
             <p className="text-muted-foreground text-xs">Trend</p>
-            <Select value={granularity} onValueChange={(v) => setGranularity(v as Granularity)}>
+            <Select
+              value={granularity}
+              onValueChange={(value) =>
+                setFilters((current) => ({ ...current, granularity: value as Granularity }))
+              }
+            >
               <SelectTrigger className="w-[140px]">
                 <SelectValue />
               </SelectTrigger>
@@ -361,9 +413,6 @@ export function AnalyticsView() {
               </SelectContent>
             </Select>
           </div>
-          <Button type="button" onClick={onApply}>
-            Apply
-          </Button>
         </CardContent>
       </Card>
 
@@ -606,7 +655,7 @@ export function AnalyticsView() {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  Profit & loss · {applied.start} → {applied.end}
+                  Profit & loss · {start} → {end}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import { formatCurrency, formatNumber } from "@/lib/currency";
 import { formatTime } from "@/lib/date";
@@ -11,16 +11,22 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { Grid, PageHeader } from "@/components/layout/primitives";
 import { BranchFilter } from "@/components/filters/branch-filter";
+import { PeriodFilter } from "@/components/filters/period-filter";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
-import { DASHBOARD_OPS_WINDOW_DAYS } from "@/lib/dashboard/window";
 import { useBranchesList } from "@/hooks/use-offline-lists";
-import { useLocalStorage } from "@/hooks/use-ui";
 import { useNarrowScreen } from "@/hooks/use-narrow-screen";
+import { useUserFilterPreferences } from "@/hooks/use-user-filter-preferences";
+import {
+  isPeriodPreset,
+  periodPresetLabel,
+  resolvePeriodPreset,
+  clampPeriodRangeMs,
+  type PeriodPreset,
+} from "@/lib/period-filter";
 import {
   parseTopSellingMetric,
   sortTopSelling,
-  TOP_SELLING_METRIC_KEY,
   type TopSellingMetric,
 } from "@/lib/dashboard/top-selling";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -56,6 +62,37 @@ import { useBusinessTerms } from "@/hooks/use-business-terms";
 import { stockOpsVisibleForIndustry } from "@/convex/shared/businessCapabilities";
 import { dashboardViewDescription } from "@/convex/shared/businessTerms";
 import type { HospitalityOpsSnapshot } from "@/hooks/use-dashboard-data";
+
+type DashboardFilterPreferences = {
+  preset: PeriodPreset;
+  customStart: string;
+  customEnd: string;
+  branchFilter: string;
+  topSellingMetric: TopSellingMetric;
+};
+
+function createDashboardFilterPreferences(): DashboardFilterPreferences {
+  const range = resolvePeriodPreset("last_7_days");
+  return {
+    preset: "last_7_days",
+    customStart: range.start,
+    customEnd: range.end,
+    branchFilter: "all",
+    topSellingMetric: "quantity",
+  };
+}
+
+function isDashboardFilterPreferences(value: unknown): value is DashboardFilterPreferences {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return (
+    isPeriodPreset(row.preset) &&
+    typeof row.customStart === "string" &&
+    typeof row.customEnd === "string" &&
+    typeof row.branchFilter === "string" &&
+    (row.topSellingMetric === "quantity" || row.topSellingMetric === "amount")
+  );
+}
 
 const PIE_COLORS = [
   "var(--chart-1)",
@@ -518,19 +555,59 @@ function HospitalityOpsCards({
 }
 
 export function DashboardView() {
-  const { isAdmin, isManager, branchName, branchId: myBranchId, role } = usePermissions();
+  const {
+    isAdmin,
+    isManager,
+    branchName,
+    branchId: myBranchId,
+    role,
+    userId,
+  } = usePermissions();
   const { industryProfile } = useBusinessCapabilities();
   const { terms } = useBusinessTerms();
   const showStockOps = stockOpsVisibleForIndustry(industryProfile);
-  const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all">("all");
-  const [topSellingMetric, setTopSellingMetric] = useLocalStorage<TopSellingMetric>(
-    TOP_SELLING_METRIC_KEY,
-    "quantity",
+  const initialFilters = useMemo(createDashboardFilterPreferences, []);
+  const [filters, setFilters] = useUserFilterPreferences(
+    "dashboard",
+    userId,
+    initialFilters,
+    isDashboardFilterPreferences,
   );
-  const metric = parseTopSellingMetric(topSellingMetric);
+  const selectedDates = useMemo(
+    () =>
+      filters.preset === "custom"
+        ? { start: filters.customStart, end: filters.customEnd }
+        : resolvePeriodPreset(filters.preset),
+    [filters.preset, filters.customStart, filters.customEnd],
+  );
+  const periodRange = useMemo(() => {
+    const startDate = new Date(`${selectedDates.start}T00:00:00`).getTime();
+    const endDate = new Date(`${selectedDates.end}T23:59:59.999`).getTime();
+    if (Number.isFinite(startDate) && Number.isFinite(endDate) && endDate >= startDate) {
+      return clampPeriodRangeMs({ startDate, endDate });
+    }
+    const fallback = resolvePeriodPreset("last_7_days");
+    return clampPeriodRangeMs({
+      startDate: new Date(`${fallback.start}T00:00:00`).getTime(),
+      endDate: new Date(`${fallback.end}T23:59:59.999`).getTime(),
+    });
+  }, [selectedDates.start, selectedDates.end]);
+  const periodLabel = periodPresetLabel(filters.preset);
+  const periodDays = Math.max(
+    1,
+    Math.round((periodRange.endDate - periodRange.startDate + 1) / (24 * 60 * 60 * 1000)),
+  );
+  const branchFilter = filters.branchFilter as Id<"branches"> | "all";
+  const metric = parseTopSellingMetric(filters.topSellingMetric);
   const mirroredBranches = useBranchesList(false, Boolean(isAdmin || isManager));
   const branches = isAdmin || isManager ? mirroredBranches : undefined;
-  const { data, loading, hospitality } = useDashboardData(branchFilter);
+  const { data, loading, hospitality } = useDashboardData(branchFilter, periodRange);
+
+  useEffect(() => {
+    if (!isAdmin || !branches || branchFilter === "all") return;
+    if (branches.some((branch) => branch.id === branchFilter)) return;
+    setFilters((current) => ({ ...current, branchFilter: "all" }));
+  }, [isAdmin, branches, branchFilter, setFilters]);
 
   if (!role || loading || !data) {
     return <LoadingState label="Loading dashboard…" />;
@@ -547,13 +624,13 @@ export function DashboardView() {
 
   const kpis = [
     {
-      title: showOps ? `Sales (${DASHBOARD_OPS_WINDOW_DAYS} days)` : "Today's Sales",
+      title: showOps ? `Sales (${periodLabel})` : "Today's Sales",
       value: formatCurrency(data.kpis.revenue),
       icon: Wallet,
       href: "/orders",
     },
     {
-      title: showOps ? `Orders (${DASHBOARD_OPS_WINDOW_DAYS} days)` : "Today's Orders",
+      title: showOps ? `Orders (${periodLabel})` : "Today's Orders",
       value: formatNumber(data.kpis.orders),
       icon: ShoppingBag,
       href: "/orders",
@@ -597,18 +674,40 @@ export function DashboardView() {
           profile: industryProfile,
           showOps,
           showStockOps,
-          opsWindowDays: DASHBOARD_OPS_WINDOW_DAYS,
+          opsWindowDays: periodDays,
+          opsPeriodLabel: periodLabel,
           terms,
         })}
         compactActions={compactActions}
         actions={
-          <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 sm:w-auto">
+          <div className="flex w-full min-w-0 flex-wrap items-end gap-2 sm:w-auto">
+            {isAdmin || isManager ? (
+              <PeriodFilter
+                preset={filters.preset}
+                start={selectedDates.start}
+                end={selectedDates.end}
+                onPresetChange={(preset) =>
+                  setFilters((current) => ({ ...current, preset }))
+                }
+                onCustomRangeChange={(next) =>
+                  setFilters((current) => ({
+                    ...current,
+                    preset: "custom",
+                    customStart: next.start,
+                    customEnd: next.end,
+                  }))
+                }
+                className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end"
+              />
+            ) : null}
             {isAdmin ? (
               <BranchFilter
                 inline
                 branches={branches}
                 value={branchFilter}
-                onChange={setBranchFilter}
+                onChange={(next) =>
+                  setFilters((current) => ({ ...current, branchFilter: String(next) }))
+                }
                 allowAll
                 className="min-w-0 flex-1 sm:flex-none"
               />
@@ -652,7 +751,7 @@ export function DashboardView() {
         <Card className="min-w-0 overflow-hidden xl:col-span-2">
           <CardHeader className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
             <CardTitle>
-              {showOps ? `Sales Overview (${DASHBOARD_OPS_WINDOW_DAYS} days)` : "Sales Overview"}
+              {showOps ? `Sales Overview (${periodLabel})` : "Sales Overview"}
             </CardTitle>
             <Button asChild size="sm" variant="ghost" className="self-start sm:self-auto">
               <Link href="/reports">Reports</Link>
@@ -673,7 +772,9 @@ export function DashboardView() {
               {showOps ? "Sales by Category" : "Top Selling Products"}
             </CardTitle>
             {showOps ? null : (
-              <TopSellingMetricToggle value={metric} onChange={setTopSellingMetric} />
+              <TopSellingMetricToggle value={metric} onChange={(next) =>
+                setFilters((current) => ({ ...current, topSellingMetric: next }))
+              } />
             )}
           </CardHeader>
           <CardContent className="min-w-0 overflow-y-auto p-3 pt-0 sm:p-6 sm:pt-0">
@@ -715,7 +816,9 @@ export function DashboardView() {
           <Card className="min-w-0 overflow-hidden">
             <CardHeader className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <CardTitle>Top Selling Products</CardTitle>
-              <TopSellingMetricToggle value={metric} onChange={setTopSellingMetric} />
+              <TopSellingMetricToggle value={metric} onChange={(next) =>
+                setFilters((current) => ({ ...current, topSellingMetric: next }))
+              } />
             </CardHeader>
             <CardContent>
               <TopSellingList products={data.topProducts} metric={metric} bordered />
