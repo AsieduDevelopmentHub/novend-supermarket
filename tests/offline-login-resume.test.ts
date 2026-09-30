@@ -41,7 +41,10 @@ describe("offline email+password resume", () => {
     expect(loginForm).toContain("{ hard: true }");
     expect(loginForm).toContain("shellProfileFromSessionHint");
     expect(loginForm).toContain("resolvePostLoginSession");
-    expect(loginForm).toContain("storeLocalAuthVerifier(normalizedEmail, rawPassword, session.userId)");
+    expect(loginForm).toContain("storeLocalAuthVerifier(");
+    expect(loginForm).toContain("activateOfflineSessionWithFallback");
+    expect(layout).toContain("hydrateOfflineSessionsFromDeviceStore");
+    expect(layout).toContain("hasExplicitLogout()");
   });
 
   it("sends offline empty shell to login instead of Can't start while offline", () => {
@@ -90,7 +93,7 @@ describe("local auth verifier", () => {
       email: "cashier@shop.test",
     });
     await expect(verifyLocalAuth("cashier@shop.test", "wrong")).resolves.toBeNull();
-    clearLocalAuthVerifier("cashier@shop.test");
+    await clearLocalAuthVerifier("cashier@shop.test");
     await expect(verifyLocalAuth("cashier@shop.test", "Secret123!")).resolves.toBeNull();
   });
 
@@ -106,7 +109,7 @@ describe("local auth verifier", () => {
       email: "cashier-b@shop.test",
     });
     await expect(verifyLocalAuth("cashier-a@shop.test", "SecretB2!")).resolves.toBeNull();
-    clearLocalAuthVerifier("cashier-a@shop.test");
-    clearLocalAuthVerifier("cashier-b@shop.test");
+    await clearLocalAuthVerifier("cashier-a@shop.test");
+    await clearLocalAuthVerifier("cashier-b@shop.test");
   });
 });

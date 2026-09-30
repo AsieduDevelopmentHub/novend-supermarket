@@ -32,20 +32,34 @@ function daysAgo(n: number) {
 export const summary = query({
   args: {
     branchId: v.optional(v.id("branches")),
+    startDate: v.optional(v.number()),
+    endDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { profile, organizationId } = await requireProfile(ctx);
     const admin = isAdmin(profile);
     const manager = isManager(profile);
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
-    const since = admin || manager ? daysAgo(DASHBOARD_OPS_WINDOW_DAYS) : startOfToday();
-    const rangeStart = Math.min(since, daysAgo(7));
     const now = Date.now();
+    const hasRequestedRange = args.startDate !== undefined || args.endDate !== undefined;
+    if (hasRequestedRange && (args.startDate === undefined || args.endDate === undefined)) {
+      throw new Error("Both startDate and endDate are required");
+    }
+    if (
+      args.startDate !== undefined &&
+      args.endDate !== undefined &&
+      (args.endDate < args.startDate || args.endDate - args.startDate > 370 * 24 * 60 * 60 * 1000)
+    ) {
+      throw new Error("Dashboard period must be between 1 and 370 days");
+    }
+    const since =
+      admin || manager ? (args.startDate ?? daysAgo(DASHBOARD_OPS_WINDOW_DAYS)) : startOfToday();
+    const rangeEnd = admin || manager ? (args.endDate ?? now) : now;
 
-    const sales = await collectSalesInCompletedAtRange(ctx, organizationId, rangeStart, now);
+    const sales = await collectSalesInCompletedAtRange(ctx, organizationId, since, rangeEnd);
 
     const scoped = sales.filter((sale) => {
-      if (sale.completedAt < since) return false;
+      if (sale.completedAt < since || sale.completedAt > rangeEnd) return false;
       if (branchFilter && sale.branchId !== branchFilter) return false;
       if (!admin && !manager && sale.cashierId !== profile.userId) return false;
       return true;
@@ -55,7 +69,7 @@ export const summary = query({
     const cashierSaleIds = !admin && !manager ? new Set(scoped.map((s) => s._id)) : undefined;
     const returns = await completedReturnsInRange(ctx, {
       startDate: since,
-      endDate: Date.now(),
+      endDate: rangeEnd,
       organizationId,
       branchId: branchFilter,
       cashierSaleIds,
@@ -216,14 +230,16 @@ export const summary = query({
       }));
 
     const trendMap = new Map<string, number>();
-    for (let i = 6; i >= 0; i -= 1) {
-      const d = new Date();
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      trendMap.set(d.toISOString().slice(0, 10), 0);
+    const trendCursor = new Date(since);
+    trendCursor.setHours(0, 0, 0, 0);
+    const trendEnd = new Date(rangeEnd);
+    trendEnd.setHours(0, 0, 0, 0);
+    for (let count = 0; trendCursor.getTime() <= trendEnd.getTime() && count < 371; count += 1) {
+      trendMap.set(trendCursor.toISOString().slice(0, 10), 0);
+      trendCursor.setDate(trendCursor.getDate() + 1);
     }
     for (const sale of sales) {
-      if (sale.completedAt < daysAgo(7)) continue;
+      if (sale.completedAt < since || sale.completedAt > rangeEnd) continue;
       if (branchFilter && sale.branchId !== branchFilter) continue;
       if (!admin && !manager && sale.cashierId !== profile.userId) continue;
       const key = new Date(sale.completedAt).toISOString().slice(0, 10);

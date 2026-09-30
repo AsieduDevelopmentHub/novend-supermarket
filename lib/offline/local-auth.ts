@@ -9,6 +9,14 @@
  * Digests never leave the device; plaintext passwords are never persisted.
  */
 
+import {
+  clearDeviceAuthVerifiers,
+  deleteDeviceAuthVerifier,
+  readDeviceAuthVerifier,
+  requestPersistentDeviceStorage,
+  saveDeviceAuthVerifier,
+} from "./device-auth-store";
+
 const STORAGE_PREFIX = "novend.localAuth.v1.";
 const ITERATIONS = 120_000;
 const HASH_BYTES = 32;
@@ -79,10 +87,10 @@ export async function storeLocalAuthVerifier(
   email: string,
   password: string,
   userId: string,
-): Promise<void> {
-  if (typeof window === "undefined" || !window.crypto?.subtle) return;
+): Promise<boolean> {
+  if (typeof window === "undefined" || !window.crypto?.subtle) return false;
   const normalized = normalizeEmail(email);
-  if (!normalized || !password || !userId) return;
+  if (!normalized || !password || !userId) return false;
 
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const hash = await deriveHash(password, salt, ITERATIONS);
@@ -93,11 +101,16 @@ export async function storeLocalAuthVerifier(
     hash: bufferToBase64(hash),
     iterations: ITERATIONS,
   };
+  let saved = false;
   try {
     window.localStorage.setItem(storageKey(normalized), JSON.stringify(payload));
+    saved = true;
   } catch {
     /* private mode / quota */
   }
+  const durableSaved = await saveDeviceAuthVerifier({ email: normalized, ...payload });
+  void requestPersistentDeviceStorage();
+  return saved || durableSaved;
 }
 
 export type LocalAuthMatch = {
@@ -114,21 +127,33 @@ export async function verifyLocalAuth(
   const normalized = normalizeEmail(email);
   if (!normalized || !password) return null;
 
-  let raw: string | null = null;
+  let stored: StoredVerifier | null = null;
   try {
-    raw = window.localStorage.getItem(storageKey(normalized));
+    const raw = window.localStorage.getItem(storageKey(normalized));
+    if (raw) stored = JSON.parse(raw) as StoredVerifier;
   } catch {
-    return null;
+    stored = null;
   }
-  if (!raw) return null;
 
-  let stored: StoredVerifier;
-  try {
-    stored = JSON.parse(raw) as StoredVerifier;
-  } catch {
-    return null;
+  if (!stored) {
+    const durable = await readDeviceAuthVerifier(normalized);
+    if (durable) {
+      stored = durable;
+      try {
+        const payload: StoredVerifier = {
+          v: durable.v,
+          userId: durable.userId,
+          salt: durable.salt,
+          hash: durable.hash,
+          iterations: durable.iterations,
+        };
+        window.localStorage.setItem(storageKey(normalized), JSON.stringify(payload));
+      } catch {
+        /* IndexedDB remains authoritative on this device. */
+      }
+    }
   }
-  if (stored.v !== 1 || !stored.userId || !stored.salt || !stored.hash) return null;
+  if (!stored || stored.v !== 1 || !stored.userId || !stored.salt || !stored.hash) return null;
 
   try {
     const salt = base64ToBytes(stored.salt);
@@ -150,13 +175,19 @@ export function hasLocalAuthVerifier(email: string): boolean {
   }
 }
 
-export function clearLocalAuthVerifier(email?: string): void {
+export async function clearLocalAuthVerifier(email?: string): Promise<void> {
   if (typeof window === "undefined") return;
-  try {
-    if (email) {
+  if (email) {
+    try {
       window.localStorage.removeItem(storageKey(email));
-      return;
+    } catch {
+      /* IndexedDB deletion below remains authoritative. */
     }
+    await deleteDeviceAuthVerifier(normalizeEmail(email));
+    return;
+  }
+
+  try {
     const keys: string[] = [];
     for (let i = 0; i < window.localStorage.length; i += 1) {
       const key = window.localStorage.key(i);
@@ -164,8 +195,9 @@ export function clearLocalAuthVerifier(email?: string): void {
     }
     for (const key of keys) window.localStorage.removeItem(key);
   } catch {
-    /* ignore */
+    /* Clear the durable registry even when localStorage is unavailable. */
   }
+  await clearDeviceAuthVerifiers();
 }
 
 /** Prefix kept across sign-out so offline password resume still works. */

@@ -1,5 +1,6 @@
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import {
+  ensureActiveOfflineSession,
   hasOfflineSession,
   listOfflineSessions,
   readOfflineSession,
@@ -30,7 +31,25 @@ export function isAwaitingCloudReconnect(input: {
 /** Soft recovery target when an error boundary fires with a local workspace. */
 export function resumeOfflineShellToDashboard(reset?: () => void): void {
   if (typeof window === "undefined") return;
+  if (hasExplicitLogout()) {
+    reset?.();
+    window.location.replace("/login?signedOut=1");
+    return;
+  }
+  const session = readOfflineSession() ?? ensureActiveOfflineSession();
+  if (!session) {
+    reset?.();
+    return;
+  }
+
+  // A hard recovery through fromBoot is cache-first and escapes a poisoned
+  // Next error boundary without asking middleware for a cloud session.
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    window.location.replace("/dashboard?fromBoot=1&recover=1");
+    return;
+  }
+
   window.history.replaceState({}, "", "/dashboard");
   window.dispatchEvent(new PopStateEvent("popstate"));
-  reset?.();
+  queueMicrotask(() => reset?.());
 }
