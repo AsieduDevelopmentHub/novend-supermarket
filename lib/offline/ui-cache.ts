@@ -500,6 +500,7 @@ export type LocalSalesReport = {
 export async function buildLocalSalesReport(
   startDate: number,
   endDate: number,
+  branchId?: string,
 ): Promise<LocalSalesReport> {
   const db = await getOfflineDb();
   if (!db) {
@@ -510,14 +511,32 @@ export async function buildLocalSalesReport(
     };
   }
 
-  const sales = (await db.localSales.toArray()).filter(
-    (s) => s.completedAt >= startDate && s.completedAt <= endDate,
+  const [allSales, allOrders, allReturns] = await Promise.all([
+    db.localSales.toArray(),
+    db.orders.toArray(),
+    db.localReturns.toArray(),
+  ]);
+  const inRange = (completedAt: number) => completedAt >= startDate && completedAt <= endDate;
+  const sales = allSales.filter(
+    (sale) => inRange(sale.completedAt) && (!branchId || sale.branchId === branchId),
   );
-  const mirrored = (await db.orders.toArray()).filter(
-    (s) => s.completedAt >= startDate && s.completedAt <= endDate,
+  const mirrored = allOrders.filter(
+    (sale) => inRange(sale.completedAt) && (!branchId || sale.branchId === branchId),
   );
-  const returns = (await db.localReturns.toArray()).filter(
-    (row) => row.completedAt >= startDate && row.completedAt <= endDate,
+  // A return can occur in this period for a sale from an earlier period.
+  // Local returns lack branchId, so resolve scope from the original sale.
+  const branchSaleIds = new Set<string>();
+  for (const sale of allOrders) {
+    if (!branchId || sale.branchId === branchId) branchSaleIds.add(sale.id);
+  }
+  for (const sale of allSales) {
+    if (!branchId || sale.branchId === branchId) {
+      branchSaleIds.add(sale.id);
+      if (sale.serverSaleId) branchSaleIds.add(sale.serverSaleId);
+    }
+  }
+  const returns = allReturns.filter(
+    (row) => inRange(row.completedAt) && (!branchId || branchSaleIds.has(row.saleId)),
   );
   const mirroredIds = new Set(mirrored.map((o) => o.id));
   const mirroredInvoices = new Set(mirrored.map((o) => o.invoiceNumber));

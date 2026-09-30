@@ -5,6 +5,8 @@ describe("clearUserDeviceState", () => {
   it("drops session replica keys and keeps device identity", () => {
     const store = new Map<string, string>([
       ["novend.offlineSession", "yes"],
+      ["novend.userFilters.v1.u1.dashboard", '{"preset":"this_month"}'],
+      ["novend.userFilters.v1.u2.reports", '{"preset":"today"}'],
       ["novend.offlineSessions", '[{"userId":"u1"}]'],
       ["novend.license.org.org1", '{"planKey":"lifetime"}'],
       ["novend.offlineUserId", "u1"],
@@ -49,6 +51,8 @@ describe("clearUserDeviceState", () => {
     clearUserDeviceState();
 
     expect(store.has("novend.offlineSession")).toBe(false);
+    expect(store.get("novend.userFilters.v1.u1.dashboard")).toContain("this_month");
+    expect(store.get("novend.userFilters.v1.u2.reports")).toContain("today");
     expect(store.has("novend.offlineUserId")).toBe(false);
     expect(store.get("novend.offlineSessions")).toContain("u1");
     expect(store.get("novend.license.org.org1")).toContain("lifetime");

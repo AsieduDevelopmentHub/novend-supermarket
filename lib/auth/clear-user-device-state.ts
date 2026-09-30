@@ -26,6 +26,8 @@ function shouldKeepKey(key: string): boolean {
   if (key.startsWith("novend.license.org.")) return true;
   /** Device-local password digests for offline email+password resume. */
   if (key.startsWith("novend.localAuth.")) return true;
+  /** Per-user report/dashboard preferences survive shared-till sign-out. */
+  if (key.startsWith("novend.userFilters.")) return true;
   return false;
 }
 

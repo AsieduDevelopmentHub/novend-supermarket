@@ -22,6 +22,7 @@ import {
   periodPresetLabel,
   resolvePeriodPreset,
   clampPeriodRangeMs,
+  localIsoDate,
   type PeriodPreset,
 } from "@/lib/period-filter";
 import {
@@ -592,7 +593,14 @@ export function DashboardView() {
       endDate: new Date(`${fallback.end}T23:59:59.999`).getTime(),
     });
   }, [selectedDates.start, selectedDates.end]);
-  const periodLabel = periodPresetLabel(filters.preset);
+  const requestedStartMs = new Date(`${selectedDates.start}T00:00:00`).getTime();
+  const rangeWasLimited = Number.isFinite(requestedStartMs) &&
+    periodRange.startDate !== requestedStartMs;
+  const effectiveStart = localIsoDate(new Date(periodRange.startDate));
+  const effectiveEnd = localIsoDate(new Date(periodRange.endDate));
+  const periodLabel = rangeWasLimited
+    ? `${effectiveStart} to ${effectiveEnd}`
+    : periodPresetLabel(filters.preset);
   const periodDays = Math.max(
     1,
     Math.round((periodRange.endDate - periodRange.startDate + 1) / (24 * 60 * 60 * 1000)),
@@ -732,6 +740,13 @@ export function DashboardView() {
           </div>
         }
       />
+
+      {(isAdmin || isManager) && rangeWasLimited ? (
+        <p role="status" className="border-border bg-muted text-foreground rounded-lg border p-3 text-sm">
+          Dashboard ranges are limited to 370 days. Showing {effectiveStart} to {effectiveEnd},
+          rather than the full selected range. Choose a shorter range to show all selected dates.
+        </p>
+      ) : null}
 
       {/* Mobile: 2×3 bento grid (hero KPI spans 2 cols) · Desktop: row */}
       <div className="md:hidden">

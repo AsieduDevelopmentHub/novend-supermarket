@@ -108,6 +108,9 @@ export function ReportsView() {
   const start = selectedDates.start;
   const end = selectedDates.end;
   const branchFilter = filters.branchFilter as Id<"branches"> | "all";
+  const reportBranchId = isAdmin
+    ? (branchFilter === "all" ? undefined : String(branchFilter))
+    : (myBranchId ? String(myBranchId) : undefined);
   const [localReport, setLocalReport] = useState<LocalSalesReport | null>(null);
 
   const branches = useBranchesList(false, Boolean(isAdmin || isManager));
@@ -146,9 +149,10 @@ export function ReportsView() {
   // Always hydrate Dexie so Cap false-online never waits on a hung Convex query.
   useEffect(() => {
     if (!range) return;
+    setLocalReport(null);
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      void buildLocalSalesReport(range.startDate, range.endDate).then((next) => {
+      void buildLocalSalesReport(range.startDate, range.endDate, reportBranchId).then((next) => {
         if (cancelled) return;
         setLocalReport(next);
       });
@@ -157,7 +161,7 @@ export function ReportsView() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [range]);
+  }, [range, reportBranchId]);
 
   const report =
     preferLocal || !online ? (localReport ?? remoteReport) : (remoteReport ?? localReport);
