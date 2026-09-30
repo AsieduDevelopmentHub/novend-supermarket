@@ -45,7 +45,9 @@ export async function signOutAndRedirect({
   signOut,
   clearPresence,
 }: SignOutOptions): Promise<void> {
-  markExplicitLogout();
+  // Clear device keys first, then set the logout marker. clearUserDeviceState
+  // used to wipe novend.auth.signedOut when markExplicitLogout ran first,
+  // which let hydrate/ensureActive revive the offline shell mid sign-out.
   clearOfflineSession();
   unbindOfflineOrganization();
   clearPlatformOfflineSession();
@@ -53,6 +55,7 @@ export async function signOutAndRedirect({
   clearCartDraft();
   clearCustomerDisplaySnapshot();
   clearUserDeviceState();
+  markExplicitLogout();
   // Never await — Convex mutations hang when the radio just dropped.
   void clearPresence?.().catch(() => {
     /* best-effort */

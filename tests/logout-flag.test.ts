@@ -36,6 +36,10 @@ describe("explicit logout flag", () => {
     expect(source).toContain("navigateToLoginAfterSignOut()");
     expect(source).toContain("markExplicitLogout()");
     expect(source).toContain("shouldSkipAwaitingCloudSignOut");
+    // Logout marker must be set *after* device wipe or sign-out revives the shell.
+    expect(source.indexOf("clearUserDeviceState()")).toBeLessThan(
+      source.indexOf("markExplicitLogout()"),
+    );
     expect(source).not.toContain("router.refresh()");
     expect(source).not.toContain("router.replace(");
     expect(source).not.toContain("await clearShellProfile()");
