@@ -691,6 +691,7 @@ export function DashboardView() {
           <div className="flex w-full min-w-0 flex-wrap items-end gap-2 sm:w-auto">
             {isAdmin || isManager ? (
               <PeriodFilter
+                inline
                 preset={filters.preset}
                 start={selectedDates.start}
                 end={selectedDates.end}
@@ -705,7 +706,7 @@ export function DashboardView() {
                     customEnd: next.end,
                   }))
                 }
-                className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end"
+                className="min-w-0 shrink-0"
               />
             ) : null}
             {isAdmin ? (

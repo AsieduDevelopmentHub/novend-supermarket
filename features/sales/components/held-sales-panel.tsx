@@ -80,9 +80,12 @@ export function HeldSalesPanel({
     <Button
       type="button"
       variant={compact ? "ghost" : "outline"}
-      size={compact ? "icon" : "sm"}
+      size={compact ? "icon" : "default"}
       className={cn(
-        compact ? "relative size-8 shrink-0" : "relative gap-1.5",
+        compact
+          ? "relative size-8 shrink-0"
+          : // Match Sales toolbar SelectTrigger heights (min-h-10 / sm:h-9).
+            "relative h-10 shrink-0 gap-1.5 px-3 sm:h-9",
         className,
       )}
       aria-label={

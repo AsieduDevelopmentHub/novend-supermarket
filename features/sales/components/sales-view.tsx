@@ -909,8 +909,8 @@ export function SalesView() {
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <div className="min-w-0 space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-            <div className="flex max-w-lg flex-1 gap-2">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex min-w-0 max-w-lg flex-1 basis-full gap-2 sm:basis-auto">
               <Input
                 data-tour="sales-search"
                 value={search}
@@ -931,16 +931,17 @@ export function SalesView() {
                 </Button>
               ) : null}
             </div>
-            <SalesProductDisplayControls
-              display={productDisplay}
-              onDisplayChange={setProductDisplay}
-            />
-            <HeldSalesPanel
-              heldSales={heldRows}
-              cartHasItems={cart.length > 0}
-              onResume={onResume}
-              className="shrink-0 self-end"
-            />
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <SalesProductDisplayControls
+                display={productDisplay}
+                onDisplayChange={setProductDisplay}
+              />
+              <HeldSalesPanel
+                heldSales={heldRows}
+                cartHasItems={cart.length > 0}
+                onResume={onResume}
+              />
+            </div>
             {isAdmin ? (
               <BranchFilter
                 branches={branches}
@@ -948,6 +949,7 @@ export function SalesView() {
                 onChange={changeBranch}
                 allowAll={false}
                 label="Selling from"
+                className="min-w-0"
               />
             ) : branchName ? (
               <BranchFilter
@@ -956,6 +958,7 @@ export function SalesView() {
                 onChange={() => undefined}
                 lockedLabel={branchName}
                 label="Branch"
+                className="min-w-0"
               />
             ) : null}
           </div>

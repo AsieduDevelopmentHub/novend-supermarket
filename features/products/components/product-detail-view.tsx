@@ -33,7 +33,6 @@ import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { formatCurrency } from "@/lib/currency";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
 import { formatExpiryDate, lotStatus, DEFAULT_EXPIRY_ALERT_DAYS } from "@/lib/expiry";
-import { formatIsoDateAsDdMmYyyy, parseDdMmYyyyToIso } from "@/lib/date";
 import { signedStockDelta } from "@/lib/quantity";
 import {
   alignDirectionToReason,
@@ -194,10 +193,9 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
       : (remoteLots ?? mappedLocalLots);
 
   async function onSaveLotExpiry(lotId: string, currentIso: string) {
-    const raw = (lotDrafts[lotId] ?? formatIsoDateAsDdMmYyyy(currentIso)).trim();
-    const next = parseDdMmYyyyToIso(raw);
-    if (!next) {
-      toast.error("Enter expiry date as dd/mm/yyyy");
+    const next = (lotDrafts[lotId] ?? currentIso).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(next)) {
+      toast.error("Select a valid expiry date");
       return;
     }
     if (next === currentIso) return;
@@ -239,12 +237,12 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
     }
     let resolvedExpiry: string | undefined;
     if (tracksExpiry && direction === "add") {
-      const parsed = parseDdMmYyyyToIso(expiryInput);
-      if (!parsed) {
-        toast.error("Enter expiry date as dd/mm/yyyy");
+      const trimmed = expiryInput.trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        toast.error("Select an expiry date");
         return;
       }
-      resolvedExpiry = parsed;
+      resolvedExpiry = trimmed;
     }
     try {
       const kind = await persistBusinessWrite({
@@ -509,9 +507,7 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                   </thead>
                   <tbody>
                     {lots.map((lot) => {
-                      const draftDisplay =
-                        lotDrafts[lot.id] ?? formatIsoDateAsDdMmYyyy(lot.expiryDate);
-                      const draftIso = parseDdMmYyyyToIso(draftDisplay);
+                      const draftIso = lotDrafts[lot.id] ?? lot.expiryDate;
                       const dirty = Boolean(draftIso && draftIso !== lot.expiryDate);
                       return (
                         <tr key={lot.id} className="border-border/70 border-b last:border-0">
@@ -525,25 +521,13 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                           <td className="py-2.5">
                             {canManageProducts && !isArchived ? (
                               <Input
-                                type="text"
-                                inputMode="numeric"
-                                placeholder="dd/mm/yyyy"
-                                autoComplete="off"
+                                type="date"
                                 className="h-9 w-full max-w-[11rem] min-w-0"
-                                value={draftDisplay}
+                                value={draftIso}
                                 aria-label={`Expiry for lot ${lot.lotCode}`}
                                 onChange={(e) =>
                                   setLotDrafts((prev) => ({ ...prev, [lot.id]: e.target.value }))
                                 }
-                                onBlur={() => {
-                                  const parsed = parseDdMmYyyyToIso(draftDisplay);
-                                  if (parsed) {
-                                    setLotDrafts((prev) => ({
-                                      ...prev,
-                                      [lot.id]: formatIsoDateAsDdMmYyyy(parsed),
-                                    }));
-                                  }
-                                }}
                               />
                             ) : (
                               formatExpiryDate(lot.expiryDate)
@@ -644,20 +628,11 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
                     <Label htmlFor="restock-expiry">Expiry date</Label>
                     <Input
                       id="restock-expiry"
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="dd/mm/yyyy"
-                      autoComplete="off"
+                      type="date"
                       value={expiryInput}
                       onChange={(e) => setExpiryInput(e.target.value)}
-                      onBlur={() => {
-                        if (!expiryInput.trim()) return;
-                        const parsed = parseDdMmYyyyToIso(expiryInput);
-                        if (parsed) setExpiryInput(formatIsoDateAsDdMmYyyy(parsed));
-                      }}
                       required
                     />
-                    <p className="text-muted-foreground text-xs">Use dd/mm/yyyy</p>
                   </div>
                 ) : null}
                 <div className="space-y-2">

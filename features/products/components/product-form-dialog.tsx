@@ -23,7 +23,6 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { generateSkuFromName } from "@/lib/sku";
 import { DEFAULT_EXPIRY_ALERT_DAYS } from "@/lib/expiry";
-import { formatIsoDateAsDdMmYyyy, parseDdMmYyyyToIso } from "@/lib/date";
 import { assertValidImageFile, compressProductImage, IMAGE_ACCEPT } from "@/lib/uploads/image";
 import { Camera, ImagePlus, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
@@ -283,9 +282,9 @@ function ProductFormBody({
   const [expiryAlertDays, setExpiryAlertDays] = useState(
     String(initialProduct?.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS),
   );
-  /** Visible entry uses dd/mm/yyyy; converted to ISO YYYY-MM-DD on save. */
-  const [expiryInput, setExpiryInput] = useState(() =>
-    formatIsoDateAsDdMmYyyy(initialProduct?.nearestExpiry ?? ""),
+  /** Native date input value — ISO `YYYY-MM-DD` (same as inventory receive). */
+  const [expiryInput, setExpiryInput] = useState(
+    () => initialProduct?.nearestExpiry ?? "",
   );
   const [status, setStatus] = useState<"active" | "inactive">(
     initialProduct?.status === "inactive" ? "inactive" : "active",
@@ -405,13 +404,11 @@ function ProductFormBody({
     if (resolvedTracksExpiryPreview) {
       const trimmedExpiry = expiryInput.trim();
       if (trimmedExpiry) {
-        const parsed = parseDdMmYyyyToIso(trimmedExpiry);
-        if (!parsed) {
-          toast.error("Enter expiry date as dd/mm/yyyy");
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedExpiry)) {
+          toast.error("Select a valid expiry date");
           return;
         }
-        resolvedOpeningExpiry = parsed;
-        setExpiryInput(formatIsoDateAsDdMmYyyy(parsed));
+        resolvedOpeningExpiry = trimmedExpiry;
       } else {
         const needsExpiry =
           Number(stockQuantity) > 0 || (initialProduct?.stockQuantity ?? 0) > 0;
@@ -421,7 +418,7 @@ function ProductFormBody({
             productId.startsWith("local_") ||
             initialProduct?.tracksExpiry !== true)
         ) {
-          toast.error("Enter expiry date as dd/mm/yyyy");
+          toast.error("Select an expiry date");
           return;
         }
       }
@@ -874,25 +871,14 @@ function ProductFormBody({
                       </Label>
                       <Input
                         id="opening-expiry"
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="dd/mm/yyyy"
-                        autoComplete="off"
+                        type="date"
                         className="min-h-11 w-full min-w-0"
                         value={expiryInput}
                         onChange={(e) => setExpiryInput(e.target.value)}
-                        onBlur={() => {
-                          if (!expiryInput.trim()) return;
-                          const parsed = parseDdMmYyyyToIso(expiryInput);
-                          if (parsed) {
-                            setExpiryInput(formatIsoDateAsDdMmYyyy(parsed));
-                          }
-                        }}
                         required={
                           Number(stockQuantity) > 0 || (initialProduct?.stockQuantity ?? 0) > 0
                         }
                       />
-                      <p className="text-muted-foreground text-xs">Use dd/mm/yyyy</p>
                       {productId && !productId.startsWith("local_") ? (
                         <p className="text-muted-foreground text-xs">
                           Required when converting existing on-hand stock into dated lots.
