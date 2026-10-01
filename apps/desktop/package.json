@@ -1,6 +1,6 @@
 {
   "name": "@novend/desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Novend POS desktop shell",
   "homepage": "https://github.com/AsieduDevelopmentHub/novend-pos",

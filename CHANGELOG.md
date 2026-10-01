@@ -10,6 +10,17 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### What's new
 
+- No entries yet.
+
+### Fixed
+
+- No entries yet.
+
+## v1.0.2 — 2026-10-01
+
+### What's new
+
+- Signing out offline now stays signed out after the app closes and reopens.
 - Dashboard no longer stays blank after a desktop update when the local catalog is still catching up.
 - Dashboard sales KPIs match Orders / Analytics again while online (live summary, not a stale empty mirror).
 - New tills briefly turn on full sync for the whole business so every device can catch up, then return to the cloud plan.
@@ -17,6 +28,7 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### Fixed
 
+- Offline sign-out keeps a persistent local security barrier, revokes any stale cloud session after reconnect, and preserves the login route during Electron recovery.
 - Dashboard unlocks after the mirror wait timeout and skips waiting on package/local cloud modes or when products are already on the device.
 - Dashboard reads `dashboard.summary` from Convex while online so Electron restarts do not paint zero KPIs when finance screens still show real totals.
 - Org-wide temporary sync boost (30 minutes) when a new or empty till registers under package/local cloud modes — flushes outbox events and pulls the Dexie catalog mirror, not an encrypted package.
