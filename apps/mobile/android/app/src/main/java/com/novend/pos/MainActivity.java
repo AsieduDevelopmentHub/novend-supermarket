@@ -2,6 +2,7 @@ package com.novend.pos;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.Bundle;
 import android.webkit.JsResult;
@@ -31,6 +32,7 @@ public class MainActivity extends BridgeActivity {
     private boolean leavePageBypassInstalled = false;
     private boolean recovering = false;
     private int hostedFailures = 0;
+    private boolean mainFrameFailed = false;
 
     private final AtomicReference<CountDownLatch> bluetoothPermissionLatch =
         new AtomicReference<>(null);
@@ -201,11 +203,20 @@ public class MainActivity extends BridgeActivity {
         this.bridge.setWebViewClient(
                 new BridgeWebViewClient(this.bridge) {
                     @Override
+                    public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                        mainFrameFailed = false;
+                        super.onPageStarted(view, url, favicon);
+                    }
+
+                    @Override
                     public void onPageFinished(WebView view, String url) {
-                        if (url != null
+                        if (!mainFrameFailed && url != null
                                 && !url.contains("stay=1")
                                 && !url.contains("error.html")) {
                             hostedFailures = 0;
+                            // Cache-first is a one-navigation recovery aid, not
+                            // the permanent policy after the connection returns.
+                            view.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
                         }
                         super.onPageFinished(view, url);
                     }
@@ -214,6 +225,7 @@ public class MainActivity extends BridgeActivity {
                     public void onReceivedError(
                             WebView view, WebResourceRequest request, WebResourceError error) {
                         if (shouldRecover(request)) {
+                            mainFrameFailed = true;
                             loadRecovery(view, request.getUrl() != null
                                     ? request.getUrl().toString()
                                     : null);
@@ -226,7 +238,10 @@ public class MainActivity extends BridgeActivity {
                     @SuppressWarnings("deprecation")
                     public void onReceivedError(
                             WebView view, int errorCode, String description, String failingUrl) {
-                        if (shouldRecoverUrl(failingUrl)) {
+                        if (view != null
+                                && shouldRecoverUrl(failingUrl)
+                                && failingUrl.equals(view.getUrl())) {
+                            mainFrameFailed = true;
                             loadRecovery(view, failingUrl);
                             return;
                         }
@@ -282,6 +297,7 @@ public class MainActivity extends BridgeActivity {
         hostedFailures = 0;
         view.post(() -> {
             try {
+                view.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
                 view.loadUrl(LOCAL_RECOVERY);
             } finally {
                 recovering = false;

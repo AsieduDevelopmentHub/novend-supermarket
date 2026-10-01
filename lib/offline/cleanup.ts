@@ -1,5 +1,6 @@
 import type { NovendOfflineDb } from "./db";
 import { getMeta, META_KEYS, setMeta } from "./db";
+import { SYNC_LEASE_MS } from "./sync-lock";
 
 const DEFAULT_SYNCED_OUTBOX_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const DEFAULT_SYNCED_SALE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -62,20 +63,24 @@ export async function cleanupStaleOfflineRecords(
   };
 }
 
-/** Recover rows left in `syncing` after a crash / tab kill. */
+/** Recover expired claims only; a recent claim may still belong to a live worker. */
 export async function recoverInterruptedSync(db: NovendOfflineDb): Promise<number> {
-  const stuck = await db.outbox.where("status").equals("syncing").toArray();
-  if (stuck.length === 0) return 0;
-  const now = Date.now();
-  await db.outbox.bulkPut(
-    stuck.map((row) => ({
-      ...row,
-      status: "pending" as const,
-      lastError: row.lastError || "Recovered after interrupted sync",
-      updatedAt: now,
-    })),
-  );
-  return stuck.length;
+  return db.transaction("rw", db.outbox, async () => {
+    const now = Date.now();
+    const syncing = await db.outbox.where("status").equals("syncing").toArray();
+    const stuck = syncing.filter((row) => now - row.updatedAt >= SYNC_LEASE_MS);
+    if (stuck.length === 0) return 0;
+    await db.outbox.bulkPut(
+      stuck.map((row) => ({
+        ...row,
+        status: "pending" as const,
+        syncOwner: undefined,
+        lastError: row.lastError || "Recovered after interrupted sync",
+        updatedAt: now,
+      })),
+    );
+    return stuck.length;
+  });
 }
 
 export async function recordSyncDiagnostics(

@@ -43,6 +43,30 @@ function installStorage() {
 }
 
 describe("offline session snapshot", () => {
+  it("does not extend online authority when an account is activated offline", () => {
+    installStorage();
+    const now = Date.now();
+    const savedAt = now - 29 * 24 * 60 * 60 * 1000;
+    markOfflineSession({
+      userId: "expiry",
+      name: "Ada",
+      role: "cashier",
+      branchId: "b1",
+      branchName: "Main",
+      savedAt,
+    });
+    expect(activateOfflineSession("expiry")?.savedAt).toBe(savedAt);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now + 2 * 24 * 60 * 60 * 1000);
+    try {
+      // Storage is unchanged: cached snapshots must still enforce the TTL.
+      expect(getOfflineSessionSnapshot()).toBeNull();
+      expect(listOfflineSessions()).toHaveLength(0);
+      expect(ensureActiveOfflineSession()).toBeNull();
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it("returns the same object while storage is unchanged", () => {
     installStorage();
 

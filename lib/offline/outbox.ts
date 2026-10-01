@@ -177,17 +177,25 @@ export async function listPendingOutbox(db: NovendOfflineDb): Promise<OutboxRow[
   }
 }
 
-export async function claimOutboxRow(db: NovendOfflineDb, id: string): Promise<OutboxRow | null> {
-  const row = await db.outbox.get(id);
-  if (!row || (row.status !== "pending" && row.status !== "failed")) return null;
-  const next: OutboxRow = {
-    ...row,
-    status: "syncing",
-    attempts: row.attempts + 1,
-    updatedAt: Date.now(),
-  };
-  await db.outbox.put(next);
-  return next;
+export async function claimOutboxRow(
+  db: NovendOfflineDb,
+  id: string,
+  syncOwner?: string,
+): Promise<OutboxRow | null> {
+  // IndexedDB serializes overlapping read/write transactions across tabs.
+  return db.transaction("rw", db.outbox, async () => {
+    const row = await db.outbox.get(id);
+    if (!row || (row.status !== "pending" && row.status !== "failed")) return null;
+    const next: OutboxRow = {
+      ...row,
+      status: "syncing",
+      attempts: row.attempts + 1,
+      updatedAt: Date.now(),
+      syncOwner,
+    };
+    await db.outbox.put(next);
+    return next;
+  });
 }
 
 export async function markOutboxSynced(db: NovendOfflineDb, id: string) {
@@ -196,6 +204,7 @@ export async function markOutboxSynced(db: NovendOfflineDb, id: string) {
   await db.outbox.put({
     ...row,
     status: "synced",
+    syncOwner: undefined,
     lastError: undefined,
     updatedAt: Date.now(),
   });
@@ -207,6 +216,7 @@ export async function markOutboxFailed(db: NovendOfflineDb, id: string, error: s
   await db.outbox.put({
     ...row,
     status: "failed",
+    syncOwner: undefined,
     lastError: error,
     updatedAt: Date.now(),
   });
@@ -222,6 +232,7 @@ export async function markOutboxBlockedByEntitlement(
   await db.outbox.put({
     ...row,
     status: "blocked_by_entitlement",
+    syncOwner: undefined,
     lastError: error,
     updatedAt: Date.now(),
   });
@@ -234,6 +245,7 @@ export async function markOutboxPending(db: NovendOfflineDb, id: string, error?:
   await db.outbox.put({
     ...row,
     status: "pending",
+    syncOwner: undefined,
     lastError: error,
     updatedAt: Date.now(),
   });

@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { assertOrgDoc, requireRole } from "./shared/permissions";
 import { writeAuditLog } from "./shared/audit";
+import { rememberClientOp, replayClientOp } from "./shared/clientOps";
+import type { Id } from "./_generated/dataModel";
 import {
   sanitizeEmail,
   sanitizeOptionalText,
@@ -150,6 +152,7 @@ export const create = mutation({
     phone: v.optional(v.string()),
     email: v.optional(v.string()),
     notes: v.optional(v.string()),
+    clientOperationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId, organizationId } = await requireRole(ctx, [
@@ -158,6 +161,12 @@ export const create = mutation({
       "cashier",
     ]);
     const name = sanitizeText(args.name, "Customer name", TEXT_LIMITS.name);
+    const replayed = await replayClientOp<Id<"customers">>(
+      ctx,
+      organizationId,
+      args.clientOperationId,
+    );
+    if (replayed !== null) return replayed;
 
     const id = await ctx.db.insert("customers", {
       organizationId,
@@ -173,6 +182,13 @@ export const create = mutation({
       action: "create_customer",
       entityType: "customers",
       entityId: id,
+    });
+
+    await rememberClientOp(ctx, {
+      organizationId,
+      clientOperationId: args.clientOperationId,
+      kind: "create_customer",
+      result: id,
     });
 
     return id;

@@ -18,7 +18,7 @@ import {
   type NovendOfflineDb,
 } from "./db";
 import { applyLocalBranchStockChange, getSellableQuantity } from "./branch-stock";
-import { enqueueCompleteSale } from "./outbox";
+import { enqueueCompleteSale, markOutboxSynced } from "./outbox";
 import { assertLocalWriteAllowed } from "./license-guard";
 import { notifyReplicaChanged } from "./replica-events";
 import type {
@@ -360,13 +360,19 @@ export async function markLocalSaleFailed(localSaleId: string, error: string) {
 export async function markLocalSaleSynced(
   localSaleId: string,
   result: { saleId: string; invoiceNumber: string; receiptPayload: unknown },
+  acknowledgement?: { db: NovendOfflineDb; outboxId: string },
 ) {
-  const db = await getOfflineDb();
+  const db = acknowledgement?.db ?? (await getOfflineDb());
   if (!db) return;
 
-  await db.transaction("rw", db.localSales, db.localReceipts, async () => {
+  await db.transaction("rw", [db.localSales, db.localReceipts, db.outbox], async () => {
     const sale = await db.localSales.get(localSaleId);
-    if (!sale) return;
+    if (!sale) {
+      if (acknowledgement) {
+        throw new Error("Local sale missing; upload acknowledgement retained for retry");
+      }
+      return;
+    }
     const invoiceNumber = sale.invoiceNumber.toUpperCase().startsWith("INV-")
       ? sale.invoiceNumber
       : result.invoiceNumber;
@@ -385,6 +391,7 @@ export async function markLocalSaleSynced(
         payloadJson: JSON.stringify(stampPrintedInvoice(result.receiptPayload, invoiceNumber)),
       });
     }
+    if (acknowledgement) await markOutboxSynced(db, acknowledgement.outboxId);
   });
 }
 

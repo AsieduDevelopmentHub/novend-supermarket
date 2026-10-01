@@ -2,7 +2,7 @@ import type { ReceiptPayload } from "@/features/receipts/types";
 import { getMeta, getOfflineDb, META_KEYS, newClientId, type NovendOfflineDb } from "./db";
 import { allocateReturnNumber } from "@/convex/shared/documentReferences";
 import { applyLocalBranchStockChange } from "./branch-stock";
-import { enqueueProcessReturn } from "./outbox";
+import { enqueueProcessReturn, markOutboxSynced } from "./outbox";
 import { assertLocalWriteAllowed } from "./license-guard";
 import { notifyReplicaChanged } from "./replica-events";
 import { estimateReturnRefund } from "@/lib/sales/returns";
@@ -214,25 +214,34 @@ export async function processReturnLocally(input: {
 export async function markLocalReturnSynced(
   localReturnId: string,
   result: { returnId: string; returnNumber: string; receiptPayload: unknown },
+  acknowledgement?: { db: NovendOfflineDb; outboxId: string },
 ) {
-  const db = await getOfflineDb();
+  const db = acknowledgement?.db ?? (await getOfflineDb());
   if (!db) return;
-  const row = await db.localReturns.get(localReturnId);
-  if (!row) return;
-  const returnNumber = row.returnNumber;
-  const stamped =
-    result.receiptPayload &&
-    typeof result.receiptPayload === "object" &&
-    !Array.isArray(result.receiptPayload)
-      ? { ...result.receiptPayload, returnNumber, invoiceNumber: returnNumber }
-      : result.receiptPayload;
-  await db.localReturns.put({
-    ...row,
-    serverReturnId: result.returnId,
-    returnNumber,
-    syncStatus: "synced",
-    payloadJson: JSON.stringify(stamped),
-    lastError: undefined,
+  await db.transaction("rw", [db.localReturns, db.outbox], async () => {
+    const row = await db.localReturns.get(localReturnId);
+    if (!row) {
+      if (acknowledgement) {
+        throw new Error("Local return missing; upload acknowledgement retained for retry");
+      }
+      return;
+    }
+    const returnNumber = row.returnNumber;
+    const stamped =
+      result.receiptPayload &&
+      typeof result.receiptPayload === "object" &&
+      !Array.isArray(result.receiptPayload)
+        ? { ...result.receiptPayload, returnNumber, invoiceNumber: returnNumber }
+        : result.receiptPayload;
+    await db.localReturns.put({
+      ...row,
+      serverReturnId: result.returnId,
+      returnNumber,
+      syncStatus: "synced",
+      payloadJson: JSON.stringify(stamped),
+      lastError: undefined,
+    });
+    if (acknowledgement) await markOutboxSynced(db, acknowledgement.outboxId);
   });
 }
 

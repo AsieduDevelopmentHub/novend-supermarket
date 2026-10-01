@@ -1,4 +1,5 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -15,19 +16,35 @@ export function sendWindowsRaw(printerName: string, data: Buffer): Promise<void>
       return;
     }
 
-    const tmp = path.join(os.tmpdir(), `novend-receipt-${Date.now()}-${process.pid}.bin`);
-    fs.writeFileSync(tmp, data);
+    const tmp = path.join(os.tmpdir(), `novend-receipt-${randomUUID()}.bin`);
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let ps: ChildProcess;
+    const settle = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      try {
+        fs.unlinkSync(tmp);
+      } catch {
+        /* already removed */
+      }
+      if (error) reject(error);
+      else resolve();
+    };
 
-    const ps = spawn(
-      "powershell.exe",
-      [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-Command",
-        `$bytes = [System.IO.File]::ReadAllBytes('${tmp.replaceAll("'", "''")}'); ` +
-          `$printer = '${printerName.replaceAll("'", "''")}'; ` +
-          `Add-Type -TypeDefinition @"
+    try {
+      fs.writeFileSync(tmp, data);
+      ps = spawn(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          `$bytes = [System.IO.File]::ReadAllBytes('${tmp.replaceAll("'", "''")}'); ` +
+            `$printer = '${printerName.replaceAll("'", "''")}'; ` +
+            `Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 public class RawPrinter {
@@ -57,25 +74,40 @@ public class RawPrinter {
   }
 }
 "@; ` +
-          `if (-not [RawPrinter]::Send($printer, $bytes)) { throw "Printer offline or not installed: $printer" }`,
-      ],
-      { windowsHide: true },
-    );
+            `if (-not [RawPrinter]::Send($printer, $bytes)) { throw "Printer offline or not installed: $printer" }`,
+        ],
+        { windowsHide: true },
+      );
+    } catch (error) {
+      settle(error instanceof Error ? error : new Error(String(error)));
+      return;
+    }
 
-    let stderr = "";
-    ps.stderr.on("data", (d) => {
-      stderr += String(d);
-    });
-    ps.on("close", (code) => {
+    timer = setTimeout(() => {
       try {
-        fs.unlinkSync(tmp);
+        ps.kill();
       } catch {
-        /* ignore */
+        /* reject even if process termination fails */
       }
-      if (code === 0) resolve();
-      else {
-        reject(new Error(stderr.trim() || `Printer offline or not installed: ${printerName}`));
-      }
+      settle(
+        new Error(
+          "Printing timed out. Check the printer before retrying to avoid duplicate receipts.",
+        ),
+      );
+    }, 30_000);
+    let stderr = "";
+    ps.stderr?.on("data", (d) => {
+      stderr = (stderr + String(d)).slice(-8_192);
+    });
+    ps.once("error", (error) =>
+      settle(new Error(`Could not start Windows printing: ${error.message}`)),
+    );
+    ps.once("close", (code) => {
+      settle(
+        code === 0
+          ? undefined
+          : new Error(stderr.trim() || `Printer offline or not installed: ${printerName}`),
+      );
     });
   });
 }

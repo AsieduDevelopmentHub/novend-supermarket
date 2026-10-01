@@ -16,7 +16,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateTime, formatRelative } from "@/lib/date";
 import { listOpenOutbox, listRecentSyncedOutbox } from "@/lib/offline/outbox";
-import { discardOutboxEvent, discardStaleFailedOutboxEvents, isStaleFailedOutboxRow, retryOutboxEvent } from "@/lib/offline/outbox-actions";
+import {
+  discardOutboxEvent,
+  retryOutboxEvent,
+} from "@/lib/offline/outbox-actions";
 import {
   describeOutboxEvent,
   describeOutboxConflict,
@@ -162,8 +165,6 @@ export function SyncCenterDialog() {
   const [recent, setRecent] = useState<OutboxRow[]>([]);
   const [discardTarget, setDiscardTarget] = useState<OutboxRow | null>(null);
   const [discardPending, setDiscardPending] = useState(false);
-  const [clearOldConfirm, setClearOldConfirm] = useState(false);
-  const [clearOldPending, setClearOldPending] = useState(false);
   const [tab, setTab] = useState("waiting");
   const [tabSessionOpen, setTabSessionOpen] = useState(false);
 
@@ -239,27 +240,8 @@ export function SyncCenterDialog() {
     }
   }
 
-  async function onClearOldProblems() {
-    setClearOldPending(true);
-    try {
-      const cleared = await discardStaleFailedOutboxEvents();
-      setClearOldConfirm(false);
-      if (cleared > 0) {
-        toast.success(
-          cleared === 1 ? "Cleared 1 old sync problem" : `Cleared ${cleared} old sync problems`,
-        );
-      } else {
-        toast.message("No week-old sync problems left");
-      }
-      await reload();
-    } finally {
-      setClearOldPending(false);
-    }
-  }
-
   const discardCopy = discardTarget ? describeOutboxEvent(discardTarget) : null;
   const needsFixCount = conflicts.length;
-  const staleConflictCount = conflicts.filter((row) => isStaleFailedOutboxRow(row)).length;
 
   if (!showSyncUi) return null;
 
@@ -342,24 +324,6 @@ export function SyncCenterDialog() {
                 <EmptyState>No sync conflicts.</EmptyState>
               ) : (
                 <div className="space-y-3">
-                  {staleConflictCount > 0 ? (
-                    <div className="border-border bg-muted/40 flex flex-col gap-2 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-sm">
-                        {staleConflictCount} old problem
-                        {staleConflictCount === 1 ? "" : "s"} from a week or more ago. Clear them so
-                        sync can work again — no need to discard one by one.
-                      </p>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        disabled={syncing || clearOldPending}
-                        onClick={() => setClearOldConfirm(true)}
-                      >
-                        Clear old problems
-                      </Button>
-                    </div>
-                  ) : null}
                   <ul className="space-y-2">
                     {conflicts.map((row) => (
                       <EventRow
@@ -389,35 +353,7 @@ export function SyncCenterDialog() {
           </div>
         </Tabs>
 
-        {clearOldConfirm ? (
-          <div className="border-destructive/30 bg-destructive/5 flex flex-col gap-3 border-t px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm">
-              Clear {staleConflictCount} old sync problem
-              {staleConflictCount === 1 ? "" : "s"}? They will not upload. Newer conflicts stay so
-              you can still fix or retry them.
-            </p>
-            <div className="flex shrink-0 gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={clearOldPending}
-                onClick={() => setClearOldConfirm(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                disabled={clearOldPending}
-                onClick={() => void onClearOldProblems()}
-              >
-                {clearOldPending ? "Clearing…" : "Clear old problems"}
-              </Button>
-            </div>
-          </div>
-        ) : discardCopy ? (
+        {discardCopy ? (
           <div className="border-destructive/30 bg-destructive/5 flex flex-col gap-3 border-t px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm">
               Discard {discardCopy.title.toLowerCase()}? {discardCopy.detail} will not upload. Use

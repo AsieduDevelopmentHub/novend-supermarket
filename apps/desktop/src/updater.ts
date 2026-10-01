@@ -9,6 +9,7 @@
 import { app, dialog, type BrowserWindow } from "electron";
 import { autoUpdater, type UpdateInfo, type ProgressInfo } from "electron-updater";
 import { resolveUpdateFeedUrl } from "./update-feed";
+import { prepareRendererForUpdate } from "./update-shutdown";
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const STATUS_CHANNEL = "desktop:updates:status";
@@ -32,6 +33,7 @@ export type DesktopUpdateStatus = {
 
 let started = false;
 let promptingRestart = false;
+let installing = false;
 let getWindow: (() => BrowserWindow | null) | null = null;
 
 let status: DesktopUpdateStatus = {
@@ -101,7 +103,7 @@ function notifyDownloaded(window: BrowserWindow | null, version: string) {
   const options = {
     type: "info" as const,
     buttons: ["Restart now", "Later"],
-    defaultId: 0,
+    defaultId: 1,
     cancelId: 1,
     title: "Update ready",
     message: `Novend POS ${version} is ready to install.`,
@@ -114,7 +116,7 @@ function notifyDownloaded(window: BrowserWindow | null, version: string) {
   void result.then(({ response }) => {
     promptingRestart = false;
     if (response === 0) {
-      setImmediate(() => autoUpdater.quitAndInstall());
+      void installDownloadedUpdate();
     }
   });
 }
@@ -212,7 +214,8 @@ export function startAutoUpdater(resolveWindow: () => BrowserWindow | null) {
     url: feedUrl,
   });
   autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  // Every installation must pass the renderer write barrier.
+  autoUpdater.autoInstallOnAppQuit = false;
 
   publish({
     state: "idle",
@@ -252,7 +255,7 @@ export async function checkForUpdates(): Promise<DesktopUpdateStatus> {
   return getUpdateStatus();
 }
 
-export function installDownloadedUpdate(): { ok: boolean; message: string } {
+export async function installDownloadedUpdate(): Promise<{ ok: boolean; message: string }> {
   if (status.state !== "ready") {
     return {
       ok: false,
@@ -260,8 +263,26 @@ export function installDownloadedUpdate(): { ok: boolean; message: string } {
     };
   }
 
-  setImmediate(() => autoUpdater.quitAndInstall());
-  return { ok: true, message: "Restarting to install the update…" };
+  if (installing) return { ok: false, message: "Update preparation is already in progress." };
+  installing = true;
+  let approved = false;
+  try {
+    if (!(await prepareRendererForUpdate(getWindow?.() ?? null))) {
+      const message =
+        "Update postponed: local writes could not be secured. Finish your work and try again.";
+      publish({ errorMessage: message });
+      return { ok: false, message };
+    }
+    approved = true;
+    setImmediate(() => autoUpdater.quitAndInstall());
+    return { ok: true, message: "Restarting to install the update…" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Update preparation failed";
+    publish({ errorMessage: message });
+    return { ok: false, message };
+  } finally {
+    if (!approved) installing = false;
+  }
 }
 
 export { STATUS_CHANNEL as UPDATE_STATUS_CHANNEL };
