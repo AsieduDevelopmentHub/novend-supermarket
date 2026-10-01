@@ -517,6 +517,30 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
         };
       }
     },
+    async openDateTimeSettings() {
+      try {
+        const isAndroid = typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
+        if (isAndroid) {
+          window.open("intent:#Intent;action=android.settings.DATE_SETTINGS;end", "_system");
+          return { ok: true as const };
+        }
+        // iOS has no public Date & Time deep link — app settings is the best we can do.
+        window.open("app-settings:", "_system");
+        return {
+          ok: true as const,
+          message: "In Settings, open General → Date & Time.",
+        };
+      } catch (error) {
+        const raw = error instanceof Error ? error.message : String(error ?? "");
+        return {
+          ok: false as const,
+          message: friendlyHardwareMessage(
+            raw,
+            "Open device Settings → Date & Time and turn on automatic date.",
+          ),
+        };
+      }
+    },
     async addAppStateListener(callback) {
       const handle = await App.addListener("appStateChange", (state) => {
         callback(Boolean(state.isActive));

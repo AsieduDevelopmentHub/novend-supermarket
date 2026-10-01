@@ -134,6 +134,7 @@ export type NovendDesktopBridge = {
     title: string;
     body: string;
   }) => Promise<{ ok: boolean; message?: string }>;
+  openDateTimeSettings: () => Promise<{ ok: boolean; message?: string }>;
 };
 
 const bridge: NovendDesktopBridge = {
@@ -216,6 +217,7 @@ const bridge: NovendDesktopBridge = {
   },
   reloadAuthShell: (entry) => ipcRenderer.invoke("desktop:shell:reloadAuth", { entry }),
   showNotification: (payload) => ipcRenderer.invoke("desktop:notifications:show", payload),
+  openDateTimeSettings: () => ipcRenderer.invoke("desktop:shell:openDateTimeSettings"),
 };
 
 contextBridge.exposeInMainWorld("novendDesktop", bridge);

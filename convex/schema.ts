@@ -864,7 +864,10 @@ export default defineSchema({
     paymentMethod: v.union(v.literal("cash"), v.literal("card"), v.literal("mobile_money")),
     itemCount: v.number(),
     status: v.literal("completed"),
+    /** Till wall-clock when the sale completed (CCTV / business time). */
     completedAt: v.number(),
+    /** Server ingest time when Convex accepted the sale (optional on legacy rows). */
+    syncedAt: v.optional(v.number()),
   })
     .index("by_organization", ["organizationId"])
     .index("by_organization_invoice", ["organizationId", "invoiceNumber"])

@@ -27,6 +27,7 @@ import { printReceipt, loadTerminalPrinterConfig, probePrintBridge } from "@/ser
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { ReceiptPreviewDialog } from "@/features/receipts/components/receipt-preview-dialog";
 import { SaleCompletedDialog } from "@/features/receipts/components/sale-completed-dialog";
+import { SalesTillClock } from "@/features/sales/components/sales-till-clock";
 import { isCapacitor } from "@novend/hardware";
 import { listActiveSellUnits, roundQuantity } from "@/convex/shared/units";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
@@ -987,6 +988,7 @@ export function SalesView() {
           <CardContent className="space-y-4">
             <SalesCheckoutFields
               canQuickCreate={dexieAvailable || online}
+              online={online}
               customer={customer}
               customerQuery={customerQuery}
               customerHits={customerHits}
@@ -1055,6 +1057,7 @@ export function SalesView() {
           <div className="flex min-h-0 flex-1 flex-col px-4 pt-2">
             <SalesCheckoutFields
               canQuickCreate={dexieAvailable || online}
+              online={online}
               customer={customer}
               customerQuery={customerQuery}
               customerHits={customerHits}
@@ -1173,6 +1176,7 @@ type CheckoutCustomerHit = {
 
 type SalesCheckoutFieldsProps = {
   canQuickCreate: boolean;
+  online: boolean;
   customer: SelectedCustomer;
   customerQuery: string;
   customerHits: CheckoutCustomerHit[];
@@ -1208,6 +1212,7 @@ type SalesCheckoutFieldsProps = {
 
 function SalesCheckoutFields({
   canQuickCreate,
+  online,
   customer,
   customerQuery,
   customerHits,
@@ -1243,6 +1248,7 @@ function SalesCheckoutFields({
 
   const actions = (
     <div className="space-y-2">
+      <SalesTillClock showFixCta={!online} />
       <div className="grid grid-cols-2 gap-2">
         <Button
           type="button"

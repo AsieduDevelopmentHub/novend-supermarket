@@ -35,6 +35,8 @@ type OrderDetail = {
   discount: number;
   total: number;
   completedAt: number;
+  /** Server ingest time when known (diverges after offline sync). */
+  syncedAt?: number | null;
   items: Array<{
     id: string;
     productId: string;
@@ -116,6 +118,7 @@ function mapRemoteOrder(remote: {
   discount: number;
   total: number;
   completedAt: number;
+  syncedAt?: number | null;
   items: OrderDetail["items"];
   refundedAmount: number;
   remainingRefundable: number;
@@ -134,6 +137,7 @@ function mapRemoteOrder(remote: {
     discount: remote.discount,
     total: remote.total,
     completedAt: remote.completedAt,
+    syncedAt: remote.syncedAt ?? null,
     items: remote.items.map((item) => ({
       id: item.id,
       productId: item.productId,
@@ -461,11 +465,18 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
     return <ErrorState message="Order not found." />;
   }
 
+  const syncedDiverged =
+    typeof order.syncedAt === "number" &&
+    Math.abs(order.syncedAt - order.completedAt) > 60_000;
+  const orderWhenLabel = syncedDiverged
+    ? `${formatDateTime(order.completedAt)} · Synced ${formatDateTime(order.syncedAt!)}`
+    : formatDateTime(order.completedAt);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={order.invoiceNumber}
-        description={formatDateTime(order.completedAt)}
+        description={orderWhenLabel}
         compactActions={[
           { key: "back", label: "Orders", icon: ArrowLeft, href: "/orders" },
           ...(order.receiptPayload

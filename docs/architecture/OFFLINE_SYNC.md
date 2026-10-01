@@ -266,10 +266,13 @@ offline cashier cannot stay active. Lifetime (and local-only) licence snapshots
 are mirrored per organization on the device so a second cashier does not hit
 “activation required” offline just because their Dexie replica is new.
 
-Sign-out while offline navigates to `/login` immediately and does not wait on
-Convex `signOut` (that call can hang and trap Cap/Electron on the brand splash).
-Offline cold start without a local shell opens `/login` for email/password —
-never a dead-end “Can't start while offline” card.
+**Sale timestamps.** Checkout is Dexie-first: the till stamps `completedAt`
+with the device clock when Pay succeeds (receipts and local reports use that).
+Outbox sync sends that stamp to Convex as `clientCompletedAt`. Convex stores it
+as `completedAt` (after skew checks: not more than ~5 minutes ahead or ~30 days
+behind server time) and sets `syncedAt` to server ingest time. Day/range reports
+and Orders list by `completedAt` so CCTV / till wall time stay aligned after
+reconnect. Legacy sales may omit `syncedAt`.
 
 Name, phone, catalog, inventory, wholesale, suppliers, customers, expenses,
 sales, returns, reports, analytics, **admin/manager branch switching**, and

@@ -1,4 +1,6 @@
-import { Notification, ipcMain, type IpcMainInvokeEvent } from "electron";
+import { Notification, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 import {
   discoverDevices,
@@ -35,7 +37,47 @@ const CHANNELS = {
   updatesInstall: "desktop:updates:install",
   reloadAuthShell: "desktop:shell:reloadAuth",
   showNotification: "desktop:notifications:show",
+  openDateTimeSettings: "desktop:shell:openDateTimeSettings",
 } as const;
+
+const execFileAsync = promisify(execFile);
+
+async function openOsDateTimeSettings(): Promise<{ ok: boolean; message?: string }> {
+  try {
+    if (process.platform === "win32") {
+      await shell.openExternal("ms-settings:dateandtime");
+      return { ok: true };
+    }
+    if (process.platform === "darwin") {
+      try {
+        await execFileAsync("open", [
+          "x-apple.systempreferences:com.apple.preference.datetime",
+        ]);
+        return { ok: true };
+      } catch {
+        await execFileAsync("open", ["-b", "com.apple.systempreferences"]);
+        return {
+          ok: true,
+          message: "Open Date & Time in System Settings.",
+        };
+      }
+    }
+    try {
+      await execFileAsync("gnome-control-center", ["datetime"]);
+      return { ok: true };
+    } catch {
+      return {
+        ok: false,
+        message: "Open your system Date & Time settings from the OS control panel.",
+      };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not open date & time settings.",
+    };
+  }
+}
 
 function isPrintJobRequest(value: unknown): value is PrintJobRequest {
   if (!value || typeof value !== "object") return false;
@@ -157,6 +199,11 @@ export function registerDesktopIpc() {
         message: error instanceof Error ? error.message : "Could not show notification.",
       };
     }
+  });
+
+  ipcMain.handle(CHANNELS.openDateTimeSettings, async (event) => {
+    requireTrustedSender(event);
+    return openOsDateTimeSettings();
   });
 }
 
