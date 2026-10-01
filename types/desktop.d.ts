@@ -123,6 +123,7 @@ export type NovendDesktopBridge = {
     listener: (payload: { ok: boolean; displays: NovendDesktopDisplayInfo[] }) => void,
   ) => () => void;
   reloadAuthShell: (entry?: string) => Promise<{ ok: boolean; message?: string }>;
+  openDateTimeSettings: () => Promise<{ ok: boolean; message?: string }>;
 };
 
 declare global {

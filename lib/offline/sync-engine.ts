@@ -136,6 +136,7 @@ export type CompleteSaleMutator = (args: {
   clientOperationId?: string;
   branchId?: Id<"branches">;
   invoiceNumber?: string;
+  clientCompletedAt?: number;
 }) => Promise<{
   saleId: Id<"sales">;
   invoiceNumber: string;
@@ -505,6 +506,7 @@ async function drainOwnedOutbox(
             clientOperationId: claimed.clientOperationId,
             branchId: payload.branchId as Id<"branches"> | undefined,
             invoiceNumber,
+            clientCompletedAt: payload.completedAt ?? localSale?.completedAt,
           });
           await markLocalSaleSynced(
             payload.localSaleId,

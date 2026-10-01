@@ -31,6 +31,7 @@ import {
   roundQuantity,
 } from "./shared/units";
 import { bumpOrgSaleStats } from "./shared/organizationStats";
+import { resolveSaleCompletedAt } from "./shared/saleTimestamps";
 
 type CartLine = {
   productId: Id<"products">;
@@ -343,6 +344,8 @@ export const completeSale = mutation({
     clientOperationId: v.optional(v.string()),
     /** Invoice printed at checkout. Convex persists this number; it must not change on sync. */
     invoiceNumber: v.optional(v.string()),
+    /** Till wall-clock when Pay succeeded (Dexie-first / offline outbox). */
+    clientCompletedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { userId, profile, branchId } = await requireBranchId(ctx, args.branchId);
@@ -496,7 +499,8 @@ export const completeSale = mutation({
     const cartDiscount = roundMoney(args.discount);
     const total = Math.max(0, roundMoney(subtotal - cartDiscount));
     const invoiceNumber = await nextInvoiceNumber(ctx, profile.organizationId, args.invoiceNumber);
-    const completedAt = Date.now();
+    const syncedAt = Date.now();
+    const { completedAt } = resolveSaleCompletedAt(args.clientCompletedAt, syncedAt);
     const snapshot = await loadPrintSnapshot(ctx, profile.organizationId, branchId);
 
     const saleId = await ctx.db.insert("sales", {
@@ -513,6 +517,7 @@ export const completeSale = mutation({
       itemCount,
       status: "completed",
       completedAt,
+      syncedAt,
     });
 
     for (const line of lines) {
@@ -623,7 +628,7 @@ export const completeSale = mutation({
       action: "complete_sale",
       entityType: "sales",
       entityId: saleId,
-      metadata: { invoiceNumber, total, branchId },
+      metadata: { invoiceNumber, total, branchId, completedAt, syncedAt },
     });
 
     await bumpOrgSaleStats(ctx, profile.organizationId, {
@@ -857,6 +862,7 @@ export const listOrders = query({
       paymentMethod: sale.paymentMethod,
       status: sale.status,
       completedAt: sale.completedAt,
+      syncedAt: sale.syncedAt ?? null,
       cashierId: sale.cashierId,
       cashierName: nameByUser.get(sale.cashierId) ?? "Cashier",
       branchId: sale.branchId ?? null,
@@ -946,6 +952,7 @@ export const getOrder = query({
       itemCount: sale.itemCount,
       paymentMethod: sale.paymentMethod,
       completedAt: sale.completedAt,
+      syncedAt: sale.syncedAt ?? null,
       customerName: sale.customerName,
       customerId: sale.customerId ?? null,
       cashierName: cashierProfile?.name ?? "Cashier",
@@ -982,6 +989,7 @@ export const getOrder = query({
       paymentMethod: sale.paymentMethod,
       status: sale.status,
       completedAt: sale.completedAt,
+      syncedAt: sale.syncedAt ?? null,
       cashierId: sale.cashierId,
       cashierName: cashierProfile?.name ?? "Cashier",
       refundedAmount: returnable.refundedAmount,

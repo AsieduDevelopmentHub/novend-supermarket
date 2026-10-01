@@ -257,6 +257,43 @@ export const appServices = {
     const mod = await capServices();
     return mod.createCapacitorAppServicesAdapter().openAppSettings();
   },
+  openDateTimeSettings: async () => {
+    if (isCapacitor()) {
+      const mod = await capServices();
+      return mod.createCapacitorAppServicesAdapter().openDateTimeSettings();
+    }
+    if (isElectron()) {
+      type DateTimeBridge = {
+        openDateTimeSettings?: () => Promise<{ ok: boolean; message?: string }>;
+      };
+      const bridge = getElectronBridge<DateTimeBridge>();
+      if (!bridge?.openDateTimeSettings) {
+        return {
+          ok: false as const,
+          message: "Open Windows Settings → Time & language → Date & time.",
+        };
+      }
+      try {
+        const result = await bridge.openDateTimeSettings();
+        return result.ok
+          ? { ok: true as const, message: result.message }
+          : {
+              ok: false as const,
+              message: result.message ?? "Could not open date & time settings.",
+            };
+      } catch {
+        return {
+          ok: false as const,
+          message: "Open Windows Settings → Time & language → Date & time.",
+        };
+      }
+    }
+    return {
+      ok: false as const,
+      message:
+        "Open your computer’s Date & Time settings and turn on automatic date and time.",
+    };
+  },
   addAppStateListener: async (callback: (isActive: boolean) => void): Promise<AppUrlOpenHandle> => {
     if (!isCapacitor()) {
       return { remove: async () => undefined };

@@ -140,6 +140,8 @@ export type AppServicesAdapter = {
   ) => Promise<AppBackButtonHandle>;
   exitApp: () => Promise<HardwareResult>;
   openAppSettings: () => Promise<HardwareResult>;
+  /** Open the OS Date & Time settings pane when the platform allows it. */
+  openDateTimeSettings: () => Promise<HardwareResult>;
   addAppStateListener: (callback: (isActive: boolean) => void) => Promise<AppUrlOpenHandle>;
 };
 

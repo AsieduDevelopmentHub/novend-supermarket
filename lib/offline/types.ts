@@ -334,6 +334,8 @@ export type CompleteSaleOutboxPayload = {
   localSaleId: string;
   /** Invoice printed on the receipt — Convex must persist this number. */
   invoiceNumber?: string;
+  /** Till wall-clock when Pay succeeded — preserved as Convex completedAt. */
+  completedAt?: number;
   customerId?: string;
   customerName?: string;
   items: Array<{

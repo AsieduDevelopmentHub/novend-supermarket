@@ -284,6 +284,7 @@ export async function completeSaleLocally(input: {
       const payload: CompleteSaleOutboxPayload = {
         localSaleId,
         invoiceNumber,
+        completedAt,
         customerId: input.customerId,
         customerName,
         items: input.items.map((i) => ({
