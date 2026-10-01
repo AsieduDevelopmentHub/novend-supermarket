@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CloudOff, Loader2, Pencil, RefreshCw, Trash2 } from "lucide-react";
+import { useConvexAuth } from "convex/react";
+import { AlertTriangle, CloudOff, Loader2, LogIn, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -26,16 +27,14 @@ import {
   outboxFixPath,
   outboxStatusLabel,
 } from "@/lib/offline/outbox-labels";
+import { isDisplayedConflict, isOutboxAuthWait } from "@/lib/offline/outbox-display";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
-import { shouldMarkOutboxFailed } from "@/lib/offline/outbox-policy";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { useShowsRealtimeSyncUi } from "@/hooks/use-shows-realtime-sync-ui";
+import { requestCloudReconnectPrompt } from "@/features/auth/components/cloud-reconnect-banner";
+import { hasOfflineSession } from "@/lib/offline/session";
+import { ROUTES } from "@/config/navigation";
 import type { OutboxRow } from "@/lib/offline/types";
-
-function isDisplayedConflict(row: OutboxRow) {
-  if (row.status === "failed" || row.status === "blocked_by_entitlement") return true;
-  return Boolean(row.lastError && shouldMarkOutboxFailed(row.attempts, row.lastError));
-}
 
 function statusVariant(row: OutboxRow) {
   if (isDisplayedConflict(row)) return "destructive" as const;
@@ -47,22 +46,41 @@ function statusVariant(row: OutboxRow) {
 function EventRow({
   row,
   busy,
+  cloudConnected,
   onRetry,
   onDiscard,
   onFix,
+  onSignIn,
 }: {
   row: OutboxRow;
   busy: boolean;
+  cloudConnected: boolean;
   onRetry?: (row: OutboxRow) => void;
   onDiscard?: (row: OutboxRow) => void;
   onFix?: (href: string) => void;
+  onSignIn?: () => void;
 }) {
   const copy = describeOutboxEvent(row);
-  const conflict = isDisplayedConflict(row) ? describeOutboxConflict(row) : null;
+  const conflict =
+    isDisplayedConflict(row) || isOutboxAuthWait(row) || row.status === "failed" || Boolean(row.lastError)
+      ? describeOutboxConflict(row, { cloudConnected })
+      : null;
+  const authWait = Boolean(
+    !cloudConnected && conflict?.kind === "waiting" && isOutboxAuthWait(row),
+  );
   const fixHref = outboxFixPath(row);
-  // Auth / network waits are not discard-first — connect or retry instead.
+  // Business conflicts, true auth waits, and interrupted uploads (when already
+  // cloud-connected) can discard — e.g. sale already in Orders.
   const showDiscard =
-    Boolean(onDiscard) && (!conflict || conflict.kind === "business" || conflict.permanent);
+    Boolean(onDiscard) &&
+    (!conflict ||
+      conflict.kind === "business" ||
+      conflict.permanent ||
+      authWait ||
+      (conflict.kind === "network" && cloudConnected));
+  const showSignIn = authWait && Boolean(onSignIn);
+  const showRetry = Boolean(onRetry) && !showSignIn;
+
   return (
     <li className="border-border flex flex-col gap-2 rounded-lg border px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
@@ -89,9 +107,9 @@ function EventRow({
           {row.attempts > 0 ? ` · ${row.attempts} attempt${row.attempts === 1 ? "" : "s"}` : ""}
         </p>
       </div>
-      {onRetry || showDiscard || (fixHref && onFix) ? (
+      {showRetry || showDiscard || showSignIn || (fixHref && onFix) ? (
         <div className="flex shrink-0 flex-wrap gap-2">
-          {fixHref && onFix ? (
+          {fixHref && onFix && !showSignIn ? (
             <Button
               type="button"
               size="sm"
@@ -102,7 +120,18 @@ function EventRow({
               Fix
             </Button>
           ) : null}
-          {onRetry ? (
+          {showSignIn && onSignIn ? (
+            <Button
+              type="button"
+              size="sm"
+              disabled={busy}
+              onClick={onSignIn}
+            >
+              <LogIn className="size-3.5" aria-hidden />
+              Sign in
+            </Button>
+          ) : null}
+          {showRetry && onRetry ? (
             <Button
               type="button"
               size="sm"
@@ -141,6 +170,7 @@ function EmptyState({ children }: { children: string }) {
  */
 export function SyncCenterDialog() {
   const router = useRouter();
+  const { isAuthenticated } = useConvexAuth();
   const showSyncUi = useShowsRealtimeSyncUi();
   const {
     online,
@@ -178,14 +208,14 @@ export function SyncCenterDialog() {
   const reload = useCallback(async () => {
     const [open, synced] = await Promise.all([listOpenOutbox(), listRecentSyncedOutbox()]);
     const conflictRows = open.filter(isDisplayedConflict);
-    const waitingRows = open.filter(
-      (row) => !isDisplayedConflict(row) && (row.status === "pending" || row.status === "syncing"),
-    );
+    const waitingRows = open.filter((row) => !isDisplayedConflict(row));
     setConflicts(conflictRows);
     setWaiting(waitingRows);
     setRecent(synced);
     if (conflictRows.length > 0 && waitingRows.length === 0) {
       setTab("conflicts");
+    } else if (waitingRows.length > 0 && conflictRows.length === 0) {
+      setTab("waiting");
     }
     await refreshStatus();
   }, [refreshStatus]);
@@ -205,9 +235,24 @@ export function SyncCenterDialog() {
     };
   }, [syncCenterOpen, reload]);
 
+  function onSignIn() {
+    closeSyncCenter();
+    requestCloudReconnectPrompt();
+    toast.message("Sign in with email and password while online, then tap Sync now.");
+    // Offline shell: Connect-to-cloud banner/dialog handles password in place.
+    if (hasOfflineSession()) return;
+    if (!isAuthenticated) {
+      router.push(ROUTES.login);
+    }
+  }
+
   async function syncNow() {
     if (!online) {
       toast.error("Connect to the internet to sync.");
+      return;
+    }
+    if (!isAuthenticated) {
+      onSignIn();
       return;
     }
     await pullSnapshot({ force: true });
@@ -216,6 +261,10 @@ export function SyncCenterDialog() {
   }
 
   async function onRetry(row: OutboxRow) {
+    if (!isAuthenticated) {
+      onSignIn();
+      return;
+    }
     await retryOutboxEvent(row.id);
     toast.message("Retry queued");
     await flushOutbox({ force: true, showProgress: true });
@@ -241,7 +290,9 @@ export function SyncCenterDialog() {
   }
 
   const discardCopy = discardTarget ? describeOutboxEvent(discardTarget) : null;
+  const discardIsAuthWait = discardTarget ? isOutboxAuthWait(discardTarget) : false;
   const needsFixCount = conflicts.length;
+  const authWaitingCount = waiting.filter(isOutboxAuthWait).length;
 
   if (!showSyncUi) return null;
 
@@ -259,8 +310,8 @@ export function SyncCenterDialog() {
         <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-6 py-3">
           <div className="min-w-0 text-sm">
             <p className="font-medium">
-              {pendingCount > 0
-                ? `${pendingCount} waiting to upload`
+              {pendingCount > 0 || authWaitingCount > 0
+                ? `${Math.max(pendingCount, waiting.length)} waiting to upload`
                 : needsFixCount > 0
                   ? `${needsFixCount} need${needsFixCount === 1 ? "s" : ""} a fix`
                   : "Everything is uploaded"}
@@ -268,9 +319,11 @@ export function SyncCenterDialog() {
             <p className="text-muted-foreground truncate text-xs">
               {!online
                 ? "Waiting until you're back online."
-                : lastSyncAt
-                  ? `Last cloud refresh ${formatDateTime(lastSyncAt)}`
-                  : "Not synced yet"}
+                : !isAuthenticated
+                  ? "Sign in online to upload queued changes."
+                  : lastSyncAt
+                    ? `Last cloud refresh ${formatDateTime(lastSyncAt)}`
+                    : "Not synced yet"}
             </p>
             {lastError && (pendingCount > 0 || failedCount > 0) ? (
               <p className="text-destructive mt-1 text-xs">{lastError}</p>
@@ -284,12 +337,14 @@ export function SyncCenterDialog() {
           >
             {syncing ? (
               <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : !isAuthenticated ? (
+              <LogIn className="size-3.5" aria-hidden />
             ) : online ? (
               <RefreshCw className="size-3.5" aria-hidden />
             ) : (
               <CloudOff className="size-3.5" aria-hidden />
             )}
-            {syncing ? "Syncing…" : "Sync now"}
+            {syncing ? "Syncing…" : !isAuthenticated ? "Sign in" : "Sync now"}
           </Button>
         </div>
 
@@ -311,9 +366,11 @@ export function SyncCenterDialog() {
                       key={row.id}
                       row={row}
                       busy={syncing}
+                      cloudConnected={isAuthenticated}
                       onRetry={online ? onRetry : undefined}
                       onDiscard={() => setDiscardTarget(row)}
                       onFix={onFix}
+                      onSignIn={onSignIn}
                     />
                   ))}
                 </ul>
@@ -330,9 +387,11 @@ export function SyncCenterDialog() {
                         key={row.id}
                         row={row}
                         busy={syncing}
-                        onRetry={online ? onRetry : undefined}
+                        cloudConnected={isAuthenticated}
+                        onRetry={online && isAuthenticated ? onRetry : undefined}
                         onDiscard={() => setDiscardTarget(row)}
                         onFix={onFix}
+                        onSignIn={onSignIn}
                       />
                     ))}
                   </ul>
@@ -345,7 +404,12 @@ export function SyncCenterDialog() {
               ) : (
                 <ul className="space-y-2">
                   {recent.map((row) => (
-                    <EventRow key={row.id} row={row} busy={false} />
+                    <EventRow
+                      key={row.id}
+                      row={row}
+                      busy={false}
+                      cloudConnected={isAuthenticated}
+                    />
                   ))}
                 </ul>
               )}
@@ -356,8 +420,9 @@ export function SyncCenterDialog() {
         {discardCopy ? (
           <div className="border-destructive/30 bg-destructive/5 flex flex-col gap-3 border-t px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm">
-              Discard {discardCopy.title.toLowerCase()}? {discardCopy.detail} will not upload. Use
-              Fix to edit the product instead if the server asked for a change.
+              {discardIsAuthWait
+                ? `Discard ${discardCopy.title.toLowerCase()}? Only do this if it already exists in the cloud or you no longer want it uploaded. This removes the local upload queue entry only.`
+                : `Discard ${discardCopy.title.toLowerCase()}? ${discardCopy.detail} will not upload. Use Fix to edit the product instead if the server asked for a change.`}
             </p>
             <div className="flex shrink-0 gap-2">
               <Button
@@ -380,13 +445,13 @@ export function SyncCenterDialog() {
               </Button>
             </div>
           </div>
-        ) : conflicts.length > 0 ? (
+        ) : waiting.length > 0 || conflicts.length > 0 ? (
           <p className="text-muted-foreground flex items-start gap-2 border-t px-6 py-3 text-xs">
             <AlertTriangle className="text-destructive mt-0.5 size-3.5 shrink-0" aria-hidden />
-            Business conflicts need a fix (stock, expiry, permissions) before Retry. Network
-            failures say “Retry later” and are not permanent rejections. Week-old problems can be
-            cleared in one tap above. Discard one row only if you do not want that local event
-            uploaded.
+            Sign-in waits need an online email/password session, then Sync now. Business conflicts
+            need a fix (stock, expiry, permissions) or Discard. Network failures say “Retry later”
+            and are not permanent rejections. Discard one row only if you do not want that local
+            event uploaded (or it is already on the server).
           </p>
         ) : null}
       </DialogContent>

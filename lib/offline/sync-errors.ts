@@ -8,11 +8,14 @@ export function isSyncDependencyWait(message: string) {
 /**
  * Offline shell / expired JWT — keep events pending until the till signs in
  * online. Never treat these as discardable "Needs a fix" conflicts.
+ *
+ * Do not treat bare "Sync failed" as auth — that is the generic catch fallback
+ * when a mutation throws without a useful message, and it commonly appears while
+ * the till is already cloud-authenticated (other uploads succeeding).
  */
 export function isAuthRequiredError(message: string) {
   const m = message.trim().toLowerCase();
   if (!m) return false;
-  if (m === "sync failed") return true;
   return (
     m.includes("not authenticated") ||
     m.includes("unauthenticated") ||
@@ -21,6 +24,11 @@ export function isAuthRequiredError(message: string) {
     m.includes("no auth") ||
     (m.includes("sign in") && (m.includes("again") || m.includes("online")))
   );
+}
+
+/** Generic drain placeholders — retry, do not file as business conflicts. */
+export function isTransientSyncPlaceholder(message: string) {
+  return message.trim().toLowerCase() === "sync failed";
 }
 
 /**
@@ -33,6 +41,7 @@ export function isSyncBusinessConflict(message: string) {
   if (isConnectivityError(new Error(message))) return false;
   if (isSyncDependencyWait(message)) return false;
   if (isAuthRequiredError(message)) return false;
+  if (isTransientSyncPlaceholder(message)) return false;
   const m = message.toLowerCase();
   if (
     m.includes("too many requests") ||

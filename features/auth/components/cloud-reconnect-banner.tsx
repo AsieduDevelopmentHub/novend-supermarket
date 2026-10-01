@@ -36,6 +36,7 @@ const DISMISS_KEY = "novend.cloudReconnect.dismissedAt";
 const DISMISS_TTL_MS = 30 * 60 * 1000;
 /** Let Convex auth settle after the radio flips before auto-opening the dialog. */
 const AUTO_OPEN_SETTLE_MS = 900;
+const RECONNECT_REQUEST_EVENT = "novend:request-cloud-reconnect";
 
 let volatileLoginDeviceKey: string | null = null;
 
@@ -108,6 +109,14 @@ function clearDismissedAt() {
   }
 }
 
+/** Clear a prior dismiss so the Connect-to-cloud banner can offer password sign-in again. */
+export function requestCloudReconnectPrompt() {
+  clearDismissedAt();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(RECONNECT_REQUEST_EVENT));
+  }
+}
+
 /**
  * When the radio returns but the till is still on an offline shell (no Convex
  * JWT), offer an in-place password connect so the cashier stays on the current
@@ -169,8 +178,17 @@ export function CloudReconnectBanner() {
         setDismissed(false);
       }
     }
+    function onReconnectRequest() {
+      clearDismissedAt();
+      setDismissed(false);
+      setDialogOpen(true);
+    }
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    window.addEventListener(RECONNECT_REQUEST_EVENT, onReconnectRequest);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener(RECONNECT_REQUEST_EVENT, onReconnectRequest);
+    };
   }, [shellEligible]);
 
   // Stay mounted while the dialog is open even if Convex flips isLoading.

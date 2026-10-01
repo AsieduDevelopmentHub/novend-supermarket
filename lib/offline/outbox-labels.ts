@@ -5,6 +5,7 @@ import {
   isAuthRequiredError,
   isSyncBusinessConflict,
   isSyncDependencyWait,
+  isTransientSyncPlaceholder,
 } from "./sync-errors";
 
 const OP_LABELS: Record<OutboxOpType, string> = {
@@ -172,7 +173,10 @@ function stockConflictExplanation(message: string, payload: Record<string, unkno
  * Cashier-facing conflict copy. Separates retryable network failures from
  * permanent business rejections so a rejected sale is never a generic tech error.
  */
-export function describeOutboxConflict(row: OutboxRow): OutboxConflictView {
+export function describeOutboxConflict(
+  row: OutboxRow,
+  options?: { cloudConnected?: boolean },
+): OutboxConflictView {
   const message = (row.lastError ?? "").trim();
   const base = describeOutboxEvent(row);
   const payload = payloadRecord(row);
@@ -207,6 +211,14 @@ export function describeOutboxConflict(row: OutboxRow): OutboxConflictView {
   }
 
   if (isAuthRequiredError(message)) {
+    if (options?.cloudConnected) {
+      return {
+        kind: "network",
+        headline: "Ready to upload",
+        explanation: `${base.title} (${base.detail}) is still queued on this device. Tap Retry or Sync now — you are already signed in.`,
+        permanent: false,
+      };
+    }
     return {
       kind: "waiting",
       headline: "Sign in online to upload",
@@ -215,11 +227,19 @@ export function describeOutboxConflict(row: OutboxRow): OutboxConflictView {
     };
   }
 
-  if (isConnectivityError(new Error(message)) || !isSyncBusinessConflict(message)) {
+  if (
+    isTransientSyncPlaceholder(message) ||
+    isConnectivityError(new Error(message)) ||
+    !isSyncBusinessConflict(message)
+  ) {
     return {
       kind: "network",
-      headline: "Could not reach the server",
-      explanation: `${base.title} (${base.detail}) will retry when you are online. This is not a permanent rejection.`,
+      headline: isTransientSyncPlaceholder(message)
+        ? "Upload interrupted"
+        : "Could not reach the server",
+      explanation: isTransientSyncPlaceholder(message)
+        ? `${base.title} (${base.detail}) did not finish uploading. Tap Retry or Sync now. If it already appears in Orders, Discard this queue row.`
+        : `${base.title} (${base.detail}) will retry when you are online. This is not a permanent rejection.`,
       permanent: false,
     };
   }
