@@ -8,7 +8,9 @@ export function bytesToBlob(bytes: Uint8Array, type: string): Blob {
 
 type NativeDownloads = {
   beginSave: (fileName: string, mimeType: string) => void;
-  appendChunk: (base64: string) => void;
+  appendChunk: (base64: string) => boolean | void;
+  maxSaveBytes?: () => number;
+  cancelSave?: () => void;
   finishSave: () => boolean;
   finishShare?: () => boolean;
 };
@@ -46,13 +48,32 @@ async function pushViaNativeBridge(
 ): Promise<boolean> {
   const bridge = nativeDownloads();
   if (!bridge) return false;
+  const reportedLimit = bridge.maxSaveBytes?.();
+  const limit =
+    reportedLimit && Number.isFinite(reportedLimit) && reportedLimit > 0
+      ? reportedLimit
+      : 32 * 1024 * 1024;
+  if (blob.size > limit) {
+    throw new Error(
+      "This file is too large to export safely on this phone. Export a smaller date range or use the desktop app.",
+    );
+  }
   const buffer = new Uint8Array(await blob.arrayBuffer());
   const mime = blob.type || "application/octet-stream";
   bridge.beginSave(filename, mime);
-  for (let offset = 0; offset < buffer.length; offset += NATIVE_CHUNK_BYTES) {
-    bridge.appendChunk(bytesToBase64(buffer.subarray(offset, offset + NATIVE_CHUNK_BYTES)));
+  try {
+    for (let offset = 0; offset < buffer.length; offset += NATIVE_CHUNK_BYTES) {
+      const encoded = bytesToBase64(buffer.subarray(offset, offset + NATIVE_CHUNK_BYTES));
+      if (bridge.appendChunk(encoded) === false) {
+        throw new Error(
+          "The phone could not buffer this export safely. Export a smaller date range or use the desktop app.",
+        );
+      }
+    }
+    return finish(bridge);
+  } finally {
+    bridge.cancelSave?.();
   }
-  return finish(bridge);
 }
 
 async function saveViaNativeBridge(filename: string, blob: Blob): Promise<boolean> {

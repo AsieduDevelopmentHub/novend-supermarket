@@ -112,6 +112,9 @@ export type NovendDesktopBridge = {
   getUpdateStatus: () => Promise<DesktopUpdateStatus>;
   checkForUpdates: () => Promise<DesktopUpdateStatus>;
   installUpdate: () => Promise<DesktopInstallUpdateResult>;
+  onPrepareUpdate: (listener: (request: { id: string }) => void) => () => void;
+  onCancelUpdatePreparation: (listener: (request: { id: string }) => void) => () => void;
+  acknowledgeUpdatePreparation: (id: string, ready: boolean) => Promise<boolean>;
   onUpdateStatus: (listener: (status: DesktopUpdateStatus) => void) => () => void;
   openCustomerDisplay: (options?: {
     displayId?: number | null;
@@ -142,6 +145,26 @@ const bridge: NovendDesktopBridge = {
   getUpdateStatus: () => ipcRenderer.invoke("desktop:updates:getStatus"),
   checkForUpdates: () => ipcRenderer.invoke("desktop:updates:check"),
   installUpdate: () => ipcRenderer.invoke("desktop:updates:install"),
+  onPrepareUpdate: (listener) => {
+    const handler = (_event: IpcRendererEvent, request: { id: string }) => {
+      listener(request);
+    };
+    ipcRenderer.on("desktop:updates:prepare", handler);
+    return () => {
+      ipcRenderer.removeListener("desktop:updates:prepare", handler);
+    };
+  },
+  onCancelUpdatePreparation: (listener) => {
+    const handler = (_event: IpcRendererEvent, request: { id: string }) => {
+      listener(request);
+    };
+    ipcRenderer.on("desktop:updates:cancelPreparation", handler);
+    return () => {
+      ipcRenderer.removeListener("desktop:updates:cancelPreparation", handler);
+    };
+  },
+  acknowledgeUpdatePreparation: (id, ready) =>
+    ipcRenderer.invoke("desktop:updates:prepared", { id, ready }),
   onUpdateStatus: (listener) => {
     const handler = (_event: IpcRendererEvent, status: DesktopUpdateStatus) => {
       listener(status);

@@ -5,7 +5,14 @@ import {
   recoverInterruptedSync,
   recordSyncDiagnostics,
 } from "./cleanup";
-import { getMeta, getOfflineDb, getBoundOrganizationId, META_KEYS } from "./db";
+import {
+  getMeta,
+  getOfflineDb,
+  getBoundOrganizationId,
+  META_KEYS,
+  type NovendOfflineDb,
+} from "./db";
+import { withOutboxSyncLock } from "./sync-lock";
 import {
   claimOutboxRow,
   listPendingOutbox,
@@ -28,7 +35,6 @@ import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
 import { markLocalReturnFailed, markLocalReturnSynced } from "./returns-repository";
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
 import { isSyncBusinessConflict, isSyncDependencyWait } from "./sync-errors";
-import { discardStaleFailedOutboxEvents } from "./outbox-actions";
 import { shouldMarkOutboxFailed } from "./outbox-policy";
 import { rekeyProductImage } from "./image-cache";
 import { loadCloudPolicy } from "./cloud-policy";
@@ -263,6 +269,7 @@ export type QueuedMutators = {
     phone?: string;
     email?: string;
     notes?: string;
+    clientOperationId?: string;
   }) => Promise<Id<"customers">>;
   updateCustomer: (args: {
     id: Id<"customers">;
@@ -369,14 +376,38 @@ export type QueuedMutators = {
 };
 
 /** Drain pending outbox ops to Convex. Safe to call frequently. */
-export async function drainOutbox(options: {
+type DrainOptions = {
   mutators: QueuedMutators;
   convex: SnapshotSource;
   /** Ignore backoff and re-queue failed rows (cashier Sync now / Sync Center). */
   force?: boolean;
   /** Fired only after skip checks fail-open — this is a real drain, not a queue. */
   onStart?: () => void;
-}): Promise<{ processed: number; failed: number; skipped: boolean }> {
+};
+type DrainResult = { processed: number; failed: number; skipped: boolean };
+
+export async function drainOutbox(options: DrainOptions): Promise<DrainResult> {
+  const db = await getOfflineDb();
+  if (!db) return { processed: 0, failed: 0, skipped: true };
+  const organizationId = getBoundOrganizationId();
+  return (
+    (await withOutboxSyncLock(db, (ownsLease, owner) =>
+      drainOwnedOutbox(
+        options,
+        db,
+        async () => getBoundOrganizationId() === organizationId && (await ownsLease()),
+        owner,
+      ),
+    )) ?? { processed: 0, failed: 0, skipped: true }
+  );
+}
+
+async function drainOwnedOutbox(
+  options: DrainOptions,
+  db: NovendOfflineDb,
+  ownsLease: () => Promise<boolean>,
+  syncOwner: string,
+): Promise<DrainResult> {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     return { processed: 0, failed: 0, skipped: true };
   }
@@ -401,20 +432,16 @@ export async function drainOutbox(options: {
     return { processed: 0, failed: 0, skipped: true };
   }
 
-  const db = await getOfflineDb();
-  if (!db) return { processed: 0, failed: 0, skipped: true };
-
   draining = true;
-  options.onStart?.();
   let processed = 0;
   let failed = 0;
   let lastError: string | null = null;
 
   try {
+    options.onStart?.();
     await recoverInterruptedSync(db);
-    // Week-old failed uploads block Sync Center for cashiers who cannot use
-    // per-row Discard (e.g. Global Medicine tills). Clear them safely first.
-    await discardStaleFailedOutboxEvents();
+    // Unresolved transactions are retained regardless of age. Discard now
+    // requires explicit per-row confirmation in Sync Center.
 
     const stalledWaits = await db.outbox.where("status").equals("failed").toArray();
     for (const row of stalledWaits) {
@@ -443,7 +470,8 @@ export async function drainOutbox(options: {
     const uploadRows = sortOutboxForDrain(pending);
     const licenseSnapshot = await loadLicenseSnapshot();
     for (const row of uploadRows) {
-      const claimed = await claimOutboxRow(db, row.id);
+      if (!(await ownsLease())) break;
+      const claimed = await claimOutboxRow(db, row.id, syncOwner);
       if (!claimed) continue;
 
       const requiredFeature = requiredFeatureForOutbox(claimed.type);
@@ -478,12 +506,15 @@ export async function drainOutbox(options: {
             branchId: payload.branchId as Id<"branches"> | undefined,
             invoiceNumber,
           });
-          await markOutboxSynced(db, claimed.id);
-          await markLocalSaleSynced(payload.localSaleId, {
-            saleId: result.saleId,
-            invoiceNumber: result.invoiceNumber,
-            receiptPayload: result.receiptPayload,
-          });
+          await markLocalSaleSynced(
+            payload.localSaleId,
+            {
+              saleId: result.saleId,
+              invoiceNumber: result.invoiceNumber,
+              receiptPayload: result.receiptPayload,
+            },
+            { db, outboxId: claimed.id },
+          );
           processed += 1;
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "process_return") {
@@ -501,12 +532,15 @@ export async function drainOutbox(options: {
             clientOperationId: claimed.clientOperationId,
             returnNumber,
           });
-          await markOutboxSynced(db, claimed.id);
-          await markLocalReturnSynced(payload.localReturnId, {
-            returnId: result.returnId,
-            returnNumber: result.returnNumber,
-            receiptPayload: result.receiptPayload,
-          });
+          await markLocalReturnSynced(
+            payload.localReturnId,
+            {
+              returnId: result.returnId,
+              returnNumber: result.returnNumber,
+              receiptPayload: result.receiptPayload,
+            },
+            { db, outboxId: claimed.id },
+          );
           processed += 1;
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "dining_open_session") {
@@ -803,29 +837,39 @@ export async function drainOutbox(options: {
               phone: payload.phone,
               email: payload.email,
               notes: payload.notes,
+              clientOperationId: claimed.clientOperationId,
             });
-            await replaceIdInPendingOutbox(db, payload.localId, id);
-            if (payload.localId.startsWith("local_")) {
-              const existing = await db.customers.get(payload.localId);
-              await db.customers.delete(payload.localId);
-              if (existing) {
-                await db.customers.put({ ...existing, id });
-              }
-              const localSales = await db.localSales.toArray();
-              for (const sale of localSales) {
-                if (sale.customerId === payload.localId) {
-                  await db.localSales.put({ ...sale, customerId: id });
+            await db.transaction(
+              "rw",
+              [db.customers, db.outbox, db.localSales, db.heldSales],
+              async () => {
+                await replaceIdInPendingOutbox(db, payload.localId, id);
+                if (payload.localId.startsWith("local_")) {
+                  const existing = await db.customers.get(payload.localId);
+                  await db.customers.delete(payload.localId);
+                  if (existing) {
+                    await db.customers.put({ ...existing, id });
+                  }
+                  const localSales = await db.localSales.toArray();
+                  for (const sale of localSales) {
+                    if (sale.customerId === payload.localId) {
+                      await db.localSales.put({ ...sale, customerId: id });
+                    }
+                  }
+                  const held = await db.heldSales.toArray();
+                  for (const row of held) {
+                    if (row.customerId === payload.localId) {
+                      await db.heldSales.put({ ...row, customerId: id });
+                    }
+                  }
                 }
-              }
-              const held = await db.heldSales.toArray();
-              for (const row of held) {
-                if (row.customerId === payload.localId) {
-                  await db.heldSales.put({ ...row, customerId: id });
-                }
-              }
-            }
+                await markOutboxSynced(db, claimed.id);
+              },
+            );
           }
-          await markOutboxSynced(db, claimed.id);
+          if (payload.serverId && !payload.serverId.startsWith("local_")) {
+            await markOutboxSynced(db, claimed.id);
+          }
           processed += 1;
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "create_expense") {

@@ -103,6 +103,9 @@ export type NovendDesktopBridge = {
   getUpdateStatus: () => Promise<NovendDesktopUpdateStatus>;
   checkForUpdates: () => Promise<NovendDesktopUpdateStatus>;
   installUpdate: () => Promise<NovendDesktopInstallUpdateResult>;
+  onPrepareUpdate?: (listener: (request: { id: string }) => void) => () => void;
+  onCancelUpdatePreparation?: (listener: (request: { id: string }) => void) => () => void;
+  acknowledgeUpdatePreparation?: (id: string, ready: boolean) => Promise<boolean>;
   onUpdateStatus: (listener: (status: NovendDesktopUpdateStatus) => void) => () => void;
   openCustomerDisplay: (options?: {
     displayId?: number | null;

@@ -256,6 +256,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (
+      !isAuthenticated ||
+      !online ||
       !user ||
       user.needsProfile ||
       !user.role ||
@@ -293,7 +295,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         savedAt: Date.now(),
       });
     });
-  }, [user]);
+  }, [user, isAuthenticated, online]);
 
   useEffect(() => {
     if (!isAuthenticated || !user || multiBranchReady.current || bootstrapping.current) {

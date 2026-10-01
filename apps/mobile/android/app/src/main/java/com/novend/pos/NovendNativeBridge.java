@@ -51,6 +51,8 @@ public class NovendNativeBridge {
     private static final UUID SPP_UUID =
         UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     private static final int CHUNK_SIZE = 512;
+    /** Bound heap usage, including the decoded copy made by takePending(). */
+    private static final int MAX_PENDING_FILE_BYTES = 32 * 1024 * 1024;
 
     private final Activity activity;
     private final Context context;
@@ -346,21 +348,40 @@ public class NovendNativeBridge {
     }
 
     @JavascriptInterface
-    public void appendChunk(String base64) {
+    public int maxSaveBytes() {
+        return MAX_PENDING_FILE_BYTES;
+    }
+
+    @JavascriptInterface
+    public void cancelSave() {
+        synchronized (lock) { clearPending(); }
+    }
+
+    @JavascriptInterface
+    public boolean appendChunk(String base64) {
         if (base64 == null || base64.isEmpty()) {
-            return;
+            return false;
         }
         synchronized (lock) {
             if (pending == null) {
-                return;
+                return false;
             }
             try {
+                // Reject oversized encoded input before allocating its decoded buffer.
+                if (base64.length() > ((MAX_PENDING_FILE_BYTES - pending.size()) / 3L + 1) * 4) {
+                    clearPending();
+                    return false;
+                }
                 byte[] chunk = Base64.decode(base64, Base64.DEFAULT);
+                if (chunk.length > MAX_PENDING_FILE_BYTES - pending.size()) {
+                    clearPending();
+                    return false;
+                }
                 pending.write(chunk, 0, chunk.length);
+                return true;
             } catch (IllegalArgumentException ignored) {
-                pending = null;
-                pendingName = null;
-                pendingMime = null;
+                clearPending();
+                return false;
             }
         }
     }
@@ -634,6 +655,12 @@ public class NovendNativeBridge {
         } catch (IOException ignored) {
             /* ignore */
         }
+    }
+
+    private void clearPending() {
+        pending = null;
+        pendingName = null;
+        pendingMime = null;
     }
 
     private PendingFile takePending() {

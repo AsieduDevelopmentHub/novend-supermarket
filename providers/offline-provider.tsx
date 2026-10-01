@@ -30,6 +30,7 @@ import type { OfflineStatus } from "@/lib/offline/types";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { toUserMessage } from "@/lib/errors";
 import { PLATFORM_OFFLINE_ORG_ID } from "@/lib/offline/platform-cache";
+import { holdDatabaseForUpdate } from "@/lib/offline/update-barrier";
 
 function isPlatformReplicaBound() {
   return getBoundOrganizationId() === PLATFORM_OFFLINE_ORG_ID;
@@ -102,6 +103,58 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<OfflineStatus>(emptyStatus);
   const [syncCenterOpen, setSyncCenterOpen] = useState(false);
   const pullingRef = useRef(false);
+  const [preparingUpdate, setPreparingUpdate] = useState(false);
+
+  useEffect(() => {
+    const bridge = window.novendDesktop;
+    if (!bridge?.onPrepareUpdate || !bridge.acknowledgeUpdatePreparation) return;
+    const acknowledge = bridge.acknowledgeUpdatePreparation;
+    let active: { id: string; controller: AbortController } | null = null;
+    const preventInput = (event: Event) => {
+      if (!active) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    const inputEvents = ["keydown", "pointerdown", "click", "submit"];
+    for (const name of inputEvents) window.addEventListener(name, preventInput, true);
+    const unsubscribe = bridge.onPrepareUpdate(({ id }) => {
+      if (active) {
+        void acknowledge(id, false);
+        return;
+      }
+      const controller = new AbortController();
+      active = { id, controller };
+      setPreparingUpdate(true);
+      void (async () => {
+        try {
+          const db = await getOfflineDb();
+          if (!db || controller.signal.aborted) {
+            await acknowledge(id, false);
+            return;
+          }
+          await holdDatabaseForUpdate(db, controller.signal, () => acknowledge(id, true));
+        } catch {
+          await acknowledge(id, false).catch(() => undefined);
+        } finally {
+          if (active?.id === id) active = null;
+          if (!controller.signal.aborted) setPreparingUpdate(false);
+        }
+      })();
+    });
+    const cancel = bridge.onCancelUpdatePreparation?.(({ id }) => {
+      if (active?.id !== id) return;
+      active.controller.abort();
+      active = null;
+      setPreparingUpdate(false);
+    });
+    return () => {
+      unsubscribe();
+      cancel?.();
+      active?.controller.abort();
+      active = null;
+      for (const name of inputEvents) window.removeEventListener(name, preventInput, true);
+    };
+  }, []);
 
   const openSyncCenter = useCallback(() => setSyncCenterOpen(true), []);
   const closeSyncCenter = useCallback(() => setSyncCenterOpen(false), []);
@@ -539,7 +592,20 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>;
+  return (
+    <OfflineContext.Provider value={value}>
+      {children}
+      {preparingUpdate ? (
+        <div
+          className="bg-background/95 fixed inset-0 z-[9999] grid place-items-center p-6"
+          role="status"
+          aria-live="polite"
+        >
+          <p className="text-foreground text-center">Securing local records before restarting…</p>
+        </div>
+      ) : null}
+    </OfflineContext.Provider>
+  );
 }
 
 export function useOfflineStatus() {

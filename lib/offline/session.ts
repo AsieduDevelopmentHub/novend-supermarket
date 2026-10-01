@@ -32,6 +32,7 @@ export type OfflineSessionHint = {
   organizationId?: string;
   /** Optional sign-in email for the offline account picker. */
   email?: string;
+  /** Last online authority refresh; offline activation must never renew this. */
   savedAt: number;
 };
 
@@ -148,7 +149,7 @@ function upsertRegistry(hint: OfflineSessionHint): OfflineSessionHint[] {
  */
 export function getOfflineSessionSnapshot(): OfflineSessionHint | null {
   const raw = readActiveRaw();
-  if (raw === snapshotRaw) return snapshotHint;
+  if (raw === snapshotRaw && (!snapshotHint || isFreshHint(snapshotHint))) return snapshotHint;
   const hint = parseHint(raw);
   rememberActiveSnapshot(raw, hint);
   return hint;
@@ -157,7 +158,7 @@ export function getOfflineSessionSnapshot(): OfflineSessionHint | null {
 /** All fresh offline shells remembered on this device (newest first). */
 export function listOfflineSessions(): OfflineSessionHint[] {
   const raw = readRegistryRaw();
-  if (raw === registrySnapshotRaw) return registrySnapshot;
+  if (raw === registrySnapshotRaw && registrySnapshot.every(isFreshHint)) return registrySnapshot;
   let rows = parseRegistry(raw);
 
   // Migrate: single active hint from older builds becomes the registry seed.
@@ -197,9 +198,8 @@ export function markOfflineSession(hint: OfflineSessionHint): void {
 export function activateOfflineSession(userId: string): OfflineSessionHint | null {
   const hint = listOfflineSessions().find((row) => row.userId === userId) ?? null;
   if (!hint) return null;
-  const next = { ...hint, savedAt: Date.now() };
-  markOfflineSession(next);
-  return next;
+  markOfflineSession(hint);
+  return hint;
 }
 
 /** Restore a remembered account even when localStorage was evicted or corrupted. */
@@ -210,9 +210,8 @@ export async function activateOfflineSessionWithFallback(
   if (local) return local;
   const durable = await readDeviceOfflineSession(userId);
   if (!isFreshHint(durable)) return null;
-  const next = { ...durable, savedAt: Date.now() };
-  markOfflineSession(next);
-  return next;
+  markOfflineSession(durable);
+  return durable;
 }
 
 /**

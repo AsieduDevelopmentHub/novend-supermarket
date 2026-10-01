@@ -17,6 +17,7 @@ import {
 import { resolveAppUrl } from "./desktop-config";
 import { offlineBootPath, reloadMainWindowShell } from "./window";
 import { closeCustomerDisplayWithMainWindow } from "./customer-display";
+import { ACK_UPDATE_CHANNEL, acknowledgeUpdatePreparation } from "./update-shutdown";
 import {
   assertTrustedIpcSender,
   createTrustedOriginPolicy,
@@ -49,6 +50,12 @@ export function registerDesktopIpc() {
   const requireTrustedSender = (event: IpcMainInvokeEvent) => {
     assertTrustedIpcSender(trustedOrigin, event);
   };
+
+  ipcMain.handle(ACK_UPDATE_CHANNEL, (event, payload: unknown) => {
+    requireTrustedSender(event);
+    if (event.senderFrame !== event.sender.mainFrame) return false;
+    return acknowledgeUpdatePreparation(event.sender.id, payload);
+  });
 
   ipcMain.handle(CHANNELS.getRuntime, (event) => {
     requireTrustedSender(event);

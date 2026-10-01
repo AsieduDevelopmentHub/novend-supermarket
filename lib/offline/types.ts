@@ -718,6 +718,8 @@ export type OutboxRow = {
   lastError?: string;
   createdAt: number;
   updatedAt: number;
+  /** Current drainer lease owner; cleared when the claim settles. */
+  syncOwner?: string;
 };
 
 export type OfflineMeta = {
