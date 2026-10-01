@@ -2,6 +2,7 @@ import {
   isAuthRequiredError,
   isSyncBusinessConflict,
   isSyncDependencyWait,
+  isTransientSyncPlaceholder,
 } from "./sync-errors";
 
 /** Outbox upload attempts before surfacing "requires attention" in the UI. */
@@ -35,6 +36,7 @@ export function isDefinitiveBusinessConflict(message: string) {
 export function shouldMarkOutboxFailed(attempts: number, message: string) {
   if (isSyncDependencyWait(message)) return false;
   if (isAuthRequiredError(message)) return false;
+  if (isTransientSyncPlaceholder(message)) return false;
   if (isDefinitiveBusinessConflict(message)) return true;
   if (isSyncBusinessConflict(message) && attempts >= 3) return true;
   return attempts >= MAX_OUTBOX_UPLOAD_ATTEMPTS;

@@ -16,10 +16,16 @@ describe("isSyncBusinessConflict", () => {
     expect(isSyncBusinessConflict("net::ERR_INTERNET_DISCONNECTED")).toBe(false);
   });
 
-  it("leaves auth / empty Sync failed as transient", () => {
+  it("leaves auth and Sync failed placeholders as transient", () => {
     expect(isSyncBusinessConflict("Not authenticated")).toBe(false);
     expect(isSyncBusinessConflict("Unauthenticated")).toBe(false);
     expect(isSyncBusinessConflict("Sync failed")).toBe(false);
+  });
+
+  it("does not treat bare Sync failed as an auth-required error", async () => {
+    const { isAuthRequiredError } = await import("@/lib/offline/sync-errors");
+    expect(isAuthRequiredError("Sync failed")).toBe(false);
+    expect(isAuthRequiredError("Sign in online to continue")).toBe(true);
   });
 
   it("does not treat category/product wait messages as conflicts", () => {

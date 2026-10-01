@@ -34,8 +34,9 @@ import { loadLicenseSnapshot } from "./license";
 import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
 import { markLocalReturnFailed, markLocalReturnSynced } from "./returns-repository";
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
-import { isSyncBusinessConflict, isSyncDependencyWait } from "./sync-errors";
+import { isSyncBusinessConflict } from "./sync-errors";
 import { shouldMarkOutboxFailed } from "./outbox-policy";
+import { shouldReopenFailedOutboxWait } from "./outbox-display";
 import { rekeyProductImage } from "./image-cache";
 import { loadCloudPolicy } from "./cloud-policy";
 import { loadProductImagesPolicyCache } from "./product-images-policy";
@@ -446,7 +447,7 @@ async function drainOwnedOutbox(
 
     const stalledWaits = await db.outbox.where("status").equals("failed").toArray();
     for (const row of stalledWaits) {
-      if (row.lastError && isSyncDependencyWait(row.lastError)) {
+      if (row.lastError && shouldReopenFailedOutboxWait(row.lastError)) {
         await markOutboxPending(db, row.id, row.lastError);
       }
     }
