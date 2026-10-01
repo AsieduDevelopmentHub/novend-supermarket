@@ -80,6 +80,20 @@ function isChromeErrorUrl(url: string): boolean {
   return url.startsWith("chrome-error://") || url.startsWith("chrome://");
 }
 
+function appEntryFromUrl(appUrl: string, candidateUrl: string): string | null {
+  try {
+    const app = new URL(appUrl);
+    const candidate = new URL(candidateUrl);
+    if (candidate.origin !== app.origin) return null;
+    // The boot page appends this marker itself.
+    candidate.searchParams.delete("fromBoot");
+    const search = candidate.searchParams.toString();
+    return `${candidate.pathname}${search ? `?${search}` : ""}${candidate.hash}`;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Electron loadURL(https) fails offline even when the service worker already
  * cached the document (electron#35112). Load a local boot page, then
@@ -113,6 +127,7 @@ async function loadAppShell(
 }
 
 let mainBrowserWindow: BrowserWindow | null = null;
+let mainShellEntry = OFFLINE_ENTRY_PATH;
 
 export function setMainBrowserWindow(win: BrowserWindow | null) {
   mainBrowserWindow = win;
@@ -125,11 +140,13 @@ export async function reloadMainWindowShell(
   if (!mainBrowserWindow || mainBrowserWindow.isDestroyed()) {
     return { ok: false };
   }
+  mainShellEntry = entry;
   void loadAppShell(mainBrowserWindow, appUrl, entry);
   return { ok: true };
 }
 
 export function createMainWindow(appUrl: string): BrowserWindow {
+  mainShellEntry = OFFLINE_ENTRY_PATH;
   const icon = windowIcon();
   const trustedOrigin = createTrustedOriginPolicy(appUrl, [pathToFileURL(offlineBootPath()).href]);
   let showingRecovery = false;
@@ -178,7 +195,7 @@ export function createMainWindow(appUrl: string): BrowserWindow {
   function showRecovery() {
     if (showingRecovery || win.isDestroyed()) return;
     showingRecovery = true;
-    void loadAppShell(win, appUrl, OFFLINE_ENTRY_PATH, { stay: true }).finally(() => {
+    void loadAppShell(win, appUrl, mainShellEntry, { stay: true }).finally(() => {
       showingRecovery = false;
     });
   }
@@ -198,6 +215,7 @@ export function createMainWindow(appUrl: string): BrowserWindow {
       ) {
         return;
       }
+      mainShellEntry = appEntryFromUrl(appUrl, validatedURL) ?? mainShellEntry;
       showRecovery();
     },
   );
@@ -207,7 +225,9 @@ export function createMainWindow(appUrl: string): BrowserWindow {
     const url = win.webContents.getURL();
     if (isChromeErrorUrl(url)) {
       showRecovery();
+      return;
     }
+    mainShellEntry = appEntryFromUrl(appUrl, url) ?? mainShellEntry;
   });
 
   void loadAppShell(win, appUrl);

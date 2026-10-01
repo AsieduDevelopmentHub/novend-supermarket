@@ -95,7 +95,7 @@ export function LoginForm({ compact = false }: { compact?: boolean }) {
 
 function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const websiteHref = usePublicSiteHref("/");
-  const { signIn } = useAuthActions();
+  const { signIn, signOut } = useAuthActions();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const online = useConnectivity();
   const convex = useConvex();
@@ -104,12 +104,29 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const fromBoot = searchParams.get("fromBoot") === "1";
   const signedOut = searchParams.get("signedOut") === "1" || hasExplicitLogout();
   const redirectingRef = useRef(false);
+  const staleCloudLogoutRef = useRef(false);
   /** Cap / Electron are the product shell — no escape hatch to the marketing site. */
   const [hideWebsiteLink, setHideWebsiteLink] = useState(false);
 
   useEffect(() => {
     setHideWebsiteLink(isCapacitor() || isElectron());
   }, []);
+
+  // Offline sign-out cannot immediately revoke the cloud token. Keep the
+  // persistent local barrier in place, and revoke that stale token once the
+  // device can reach Convex again.
+  useEffect(() => {
+    if (!online) {
+      staleCloudLogoutRef.current = false;
+      return;
+    }
+    if (!signedOut || authLoading || !isAuthenticated) return;
+    if (staleCloudLogoutRef.current) return;
+    staleCloudLogoutRef.current = true;
+    void signOut().catch(() => {
+      // Retry only after the connectivity state changes again.
+    });
+  }, [signedOut, online, authLoading, isAuthenticated, signOut]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
