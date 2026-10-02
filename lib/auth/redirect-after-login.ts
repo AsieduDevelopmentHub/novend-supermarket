@@ -22,6 +22,12 @@ export type PostLoginSession = {
   userId: string;
 };
 
+type ExpectedCloudIdentity = {
+  expectedEmail?: string | null;
+  expectedUserId?: string | null;
+  expectedOrganizationId?: string | null;
+};
+
 type AppRouter = {
   replace: (href: string) => void;
   refresh?: () => void | Promise<void>;
@@ -118,9 +124,13 @@ async function bindReplicaFromMe(
 export async function resolvePostLoginSession(
   convex: ConvexReactClient,
   next?: string | null,
-  options?: { expectedEmail?: string | null },
+  options?: ExpectedCloudIdentity,
 ): Promise<PostLoginSession> {
   const expectedEmail = options?.expectedEmail?.trim().toLowerCase() || null;
+  const expectedUserId = options?.expectedUserId ? String(options.expectedUserId) : null;
+  const expectedOrganizationId = options?.expectedOrganizationId
+    ? String(options.expectedOrganizationId)
+    : null;
   let lastError: unknown;
 
   for (let attempt = 0; attempt < RESOLVE_RETRIES; attempt++) {
@@ -133,6 +143,19 @@ export async function resolvePostLoginSession(
       if (!me?.userId) {
         throw new Error(
           "Could not load your profile after sign-in. Check your connection and try again.",
+        );
+      }
+      if (expectedUserId && String(me.userId) !== expectedUserId) {
+        throw new Error(
+          "Account mismatch: the cloud session belongs to a different user. Verify this account again.",
+        );
+      }
+      if (
+        expectedOrganizationId &&
+        String(me.organizationId ?? "") !== expectedOrganizationId
+      ) {
+        throw new Error(
+          "Account mismatch: the cloud session belongs to a different business. Verify this account again.",
         );
       }
       if (expectedEmail && me.email) {
@@ -152,7 +175,7 @@ export async function resolvePostLoginSession(
       lastError = error;
       const message = error instanceof Error ? error.message : "";
       if (
-        message.toLowerCase().includes("account mismatch") ||
+        message.toLowerCase().includes("mismatch") ||
         (message.toLowerCase().includes("could not load your profile") &&
           attempt === RESOLVE_RETRIES - 1)
       ) {
@@ -171,7 +194,7 @@ export async function resolvePostLoginSession(
 export async function resolvePostLoginPath(
   convex: ConvexReactClient,
   next?: string | null,
-  options?: { expectedEmail?: string | null },
+  options?: ExpectedCloudIdentity,
 ): Promise<string> {
   const session = await resolvePostLoginSession(convex, next, options);
   return session.path;

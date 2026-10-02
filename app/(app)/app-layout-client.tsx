@@ -24,6 +24,7 @@ import { SyncCenterDialog } from "@/components/offline/sync-center-dialog";
 import { LicenseBanner } from "@/features/billing/components/license-banner";
 import { EmailVerificationBanner } from "@/features/auth/components/email-verification-banner";
 import { CloudReconnectBanner } from "@/features/auth/components/cloud-reconnect-banner";
+import { CloudSessionMismatchGate } from "@/features/auth/components/cloud-session-mismatch-gate";
 import { DeviceActivationGate } from "@/features/billing/components/device-activation-gate";
 import { InstallPromptDialog } from "@/components/install-prompt-dialog";
 import { CloudPackageRestoreGate } from "@/features/settings/components/cloud-package-restore-gate";
@@ -49,6 +50,7 @@ import {
 } from "@/lib/offline/session";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { isAwaitingCloudReconnect } from "@/lib/auth/awaiting-cloud-reconnect";
+import { getCloudSessionIdentityState } from "@/lib/auth/cloud-session-identity";
 import { navigateToLoginAfterSignOut } from "@/lib/auth/native-auth-navigation";
 import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
 import {
@@ -201,8 +203,40 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const [cacheReady, setCacheReady] = useState(false);
   const [offlineAuthBudgetElapsed, setOfflineAuthBudgetElapsed] = useState(false);
   const [onlineAuthBudgetElapsed, setOnlineAuthBudgetElapsed] = useState(false);
+  const [cloudSwitchUserId, setCloudSwitchUserId] = useState<string | null>(null);
   const bootstrapping = useRef(false);
   const multiBranchReady = useRef(false);
+
+  const activeLocalUserId = sessionHint?.userId ?? cachedProfile?.userId ?? null;
+  const activeLocalOrganizationId =
+    sessionHint?.organizationId ?? cachedProfile?.organizationId ?? null;
+  const cloudIdentityState = getCloudSessionIdentityState({
+    online,
+    isAuthenticated,
+    localIdentity: activeLocalUserId
+      ? {
+          userId: activeLocalUserId,
+          organizationId: activeLocalOrganizationId,
+        }
+      : null,
+    cloudIdentity:
+      user === undefined
+        ? undefined
+        : user?.userId
+          ? {
+              userId: String(user.userId),
+              organizationId:
+                "organizationId" in user && user.organizationId
+                  ? String(user.organizationId)
+                  : null,
+            }
+          : null,
+  });
+  const cloudIdentityUnsafe =
+    online &&
+    isAuthenticated &&
+    Boolean(activeLocalUserId) &&
+    cloudIdentityState !== "matched";
 
   // Open Dexie + restore shell identity before auth/network settle.
   // Never resurrect a signed-out user's Dexie profile (that re-marks
@@ -310,10 +344,27 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [sessionHint, isAuthenticated, online]);
 
+  // Keep the identity gate mounted while it replaces a stale cloud account.
+  // signOut briefly flips Convex to unauthenticated; clearing the gate at that
+  // point would mount sync providers before the intended local user signs in.
+  useEffect(() => {
+    const nextUserId =
+      !online || !activeLocalUserId
+        ? null
+        : cloudIdentityState === "mismatch"
+          ? activeLocalUserId
+          : cloudIdentityState === "matched"
+            ? null
+            : cloudSwitchUserId;
+    if (nextUserId === cloudSwitchUserId) return;
+    queueMicrotask(() => setCloudSwitchUserId(nextUserId));
+  }, [online, activeLocalUserId, cloudIdentityState, cloudSwitchUserId]);
+
   useEffect(() => {
     if (
       !isAuthenticated ||
       !online ||
+      cloudIdentityUnsafe ||
       !user ||
       user.needsProfile ||
       !user.role ||
@@ -351,10 +402,16 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         savedAt: Date.now(),
       });
     });
-  }, [user, isAuthenticated, online]);
+  }, [user, isAuthenticated, online, cloudIdentityUnsafe]);
 
   useEffect(() => {
-    if (!isAuthenticated || !user || multiBranchReady.current || bootstrapping.current) {
+    if (
+      !isAuthenticated ||
+      !user ||
+      cloudIdentityUnsafe ||
+      multiBranchReady.current ||
+      bootstrapping.current
+    ) {
       return;
     }
     if (!online) return;
@@ -388,10 +445,25 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         bootstrapping.current = false;
       }
     })();
-  }, [ensureProfile, isAuthenticated, online, user, router, pathname]);
+  }, [
+    ensureProfile,
+    isAuthenticated,
+    online,
+    user,
+    router,
+    pathname,
+    cloudIdentityUnsafe,
+  ]);
 
   useEffect(() => {
-    if (!online || !isAuthenticated || !user || user.needsProfile || !user.role) {
+    if (
+      !online ||
+      !isAuthenticated ||
+      cloudIdentityUnsafe ||
+      !user ||
+      user.needsProfile ||
+      !user.role
+    ) {
       return;
     }
 
@@ -433,10 +505,10 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       if (interval !== undefined) window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [heartbeat, isAuthenticated, online, user]);
+  }, [heartbeat, isAuthenticated, online, user, cloudIdentityUnsafe]);
 
   useEffect(() => {
-    if (!user?.isPlatformAdmin || !user.userId) return;
+    if (cloudIdentityUnsafe || !user?.isPlatformAdmin || !user.userId) return;
     const next: PlatformOfflineSession = {
       userId: String(user.userId),
       name: user.name,
@@ -445,9 +517,40 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       savedAt: Date.now(),
     };
     markPlatformOfflineSession(next);
-  }, [user]);
+  }, [user, cloudIdentityUnsafe]);
 
-  if (user?.isPlatformAdmin && user.userId) {
+  const expectedCloudSession =
+    sessionHint ??
+    (cachedProfile?.userId
+      ? {
+          userId: cachedProfile.userId,
+          name: cachedProfile.name,
+          email: cachedProfile.email ?? undefined,
+          organizationId: cachedProfile.organizationId ?? undefined,
+        }
+      : null);
+  const cloudIdentityChecking =
+    online &&
+    isAuthenticated &&
+    Boolean(activeLocalUserId) &&
+    cloudIdentityState === "checking";
+  const cloudIdentityBlocked =
+    online &&
+    Boolean(activeLocalUserId) &&
+    (cloudIdentityState === "mismatch" || cloudSwitchUserId === activeLocalUserId);
+
+  if (cloudIdentityChecking) {
+    return <AppSplash label="Verifying account…" showLabel />;
+  }
+
+  if (cloudIdentityBlocked) {
+    if (expectedCloudSession) {
+      return <CloudSessionMismatchGate session={expectedCloudSession} />;
+    }
+    return <AppSplash label="Securing account…" showLabel />;
+  }
+
+  if (!cloudIdentityUnsafe && user?.isPlatformAdmin && user.userId) {
     const next: PlatformOfflineSession = {
       userId: String(user.userId),
       name: user.name,
