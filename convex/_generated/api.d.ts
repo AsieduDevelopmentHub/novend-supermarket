@@ -78,6 +78,7 @@ import type * as shared_emailVerificationLookup from "../shared/emailVerificatio
 import type * as shared_entitlementVersion from "../shared/entitlementVersion.js";
 import type * as shared_entitlements from "../shared/entitlements.js";
 import type * as shared_experience from "../shared/experience.js";
+import type * as shared_expiryPolicy from "../shared/expiryPolicy.js";
 import type * as shared_features from "../shared/features.js";
 import type * as shared_hotelReservations from "../shared/hotelReservations.js";
 import type * as shared_importExportSnapshot from "../shared/importExportSnapshot.js";
@@ -107,6 +108,7 @@ import type * as shared_productInventory from "../shared/productInventory.js";
 import type * as shared_provisionOrganization from "../shared/provisionOrganization.js";
 import type * as shared_randomId from "../shared/randomId.js";
 import type * as shared_returns from "../shared/returns.js";
+import type * as shared_saleTimestamps from "../shared/saleTimestamps.js";
 import type * as shared_salesRange from "../shared/salesRange.js";
 import type * as shared_storageSessions from "../shared/storageSessions.js";
 import type * as shared_subscriptions from "../shared/subscriptions.js";
@@ -199,6 +201,7 @@ declare const fullApi: ApiFromModules<{
   "shared/entitlementVersion": typeof shared_entitlementVersion;
   "shared/entitlements": typeof shared_entitlements;
   "shared/experience": typeof shared_experience;
+  "shared/expiryPolicy": typeof shared_expiryPolicy;
   "shared/features": typeof shared_features;
   "shared/hotelReservations": typeof shared_hotelReservations;
   "shared/importExportSnapshot": typeof shared_importExportSnapshot;
@@ -228,6 +231,7 @@ declare const fullApi: ApiFromModules<{
   "shared/provisionOrganization": typeof shared_provisionOrganization;
   "shared/randomId": typeof shared_randomId;
   "shared/returns": typeof shared_returns;
+  "shared/saleTimestamps": typeof shared_saleTimestamps;
   "shared/salesRange": typeof shared_salesRange;
   "shared/storageSessions": typeof shared_storageSessions;
   "shared/subscriptions": typeof shared_subscriptions;

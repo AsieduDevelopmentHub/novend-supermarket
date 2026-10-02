@@ -1,7 +1,7 @@
 import { query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireBranchId, canViewCostPrice, isAdmin } from "./shared/permissions";
-import { loadPrintSnapshot, loadBusinessConfiguration, loadProductImagesPolicy, loadResolvedBusinessTerms } from "./settings";
+import { loadPrintSnapshot, loadBusinessConfiguration, loadProductImagesPolicy, loadExpiryPolicy, loadResolvedBusinessTerms } from "./settings";
 import { stockMapForBranch } from "./shared/branchStock";
 import {
   deriveExpiryListFields,
@@ -68,8 +68,10 @@ export const getSnapshot = query({
         .collect(),
     ]);
 
+    const expiryPolicy = await loadExpiryPolicy(ctx, profile.organizationId);
+    const orgAlertDays = expiryPolicy.defaultAlertDays;
     const alertDaysByProduct = new Map(
-      activeProducts.map((p) => [String(p._id), productExpiryAlertDays(p)]),
+      activeProducts.map((p) => [String(p._id), productExpiryAlertDays(p, orgAlertDays)]),
     );
     const summaries = await lotSummaries(ctx, branchId, undefined, alertDaysByProduct);
 
@@ -103,6 +105,7 @@ export const getSnapshot = query({
           product,
           quantity,
           branchLotSummaries.get(product._id),
+          orgAlertDays,
         );
         branchStockRows.push({
           id: `${stockBranchId}:${product._id}`,
@@ -121,7 +124,12 @@ export const getSnapshot = query({
     const mirroredProducts = await Promise.all(
       activeProducts.map(async (product) => {
         const stockQuantity = stockByProduct.get(product._id) ?? 0;
-        const expiry = deriveExpiryListFields(product, stockQuantity, summaries.get(product._id));
+        const expiry = deriveExpiryListFields(
+          product,
+          stockQuantity,
+          summaries.get(product._id),
+          orgAlertDays,
+        );
         return {
           id: product._id as string,
           name: product.name,
@@ -147,7 +155,9 @@ export const getSnapshot = query({
             : null,
           tracksExpiry: expiry.tracksExpiry,
           tracksInventory: product.tracksInventory !== false,
-          expiryAlertDays: expiry.expiryAlertDays,
+          // Raw override only — resolve against snapshot.expiryPolicy offline.
+          expiryAlertDays:
+            typeof product.expiryAlertDays === "number" ? product.expiryAlertDays : null,
           nearestExpiry: expiry.nearestExpiry,
           isExpired: expiry.isExpired,
           isExpiring: expiry.isExpiring,
@@ -266,6 +276,8 @@ export const getSnapshot = query({
       businessCapabilities.industryProfile,
     );
     const productImagesPolicy = await loadProductImagesPolicy(ctx, profile.organizationId);
+    // Reuse the policy loaded earlier for lot alert resolution.
+    const expiryPolicyForSnapshot = expiryPolicy;
     const branch = await ctx.db.get(branchId);
 
     let diningTables: Array<{
@@ -937,6 +949,7 @@ export const getSnapshot = query({
       businessCapabilities,
       businessTerminology,
       productImagesPolicy,
+      expiryPolicy: expiryPolicyForSnapshot,
       diningTables,
       diningSessions,
       diningSessionItems,

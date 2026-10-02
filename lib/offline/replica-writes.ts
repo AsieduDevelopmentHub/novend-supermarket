@@ -8,9 +8,10 @@ import { BARCODE_ALREADY_ASSIGNED, barcodesEqual, normalizeBarcodeInput } from "
 import { assertFeatureEnabled, assertLocalCapacity, assertLocalWriteAllowed } from "./license-guard";
 import { loadCloudPolicy } from "./cloud-policy";
 import { loadProductImagesPolicyCache } from "./product-images-policy";
+import { loadExpiryPolicyCache } from "./expiry-policy";
 import { assertProductImageUploadsEnabled } from "@/convex/shared/productImagesPolicy";
 import { nextCatalogPrices } from "@/lib/wholesale/purchase-prices";
-import { DEFAULT_EXPIRY_ALERT_DAYS, lotStatus } from "@/lib/expiry";
+import { resolveExpiryAlertDays, lotStatus } from "@/lib/expiry";
 import type {
   AdjustStockPayload,
   CreateCategoryPayload,
@@ -299,7 +300,8 @@ export async function queueUpdateLotExpiry(payload: UpdateLotExpiryPayload) {
     const product = await db.products.get(lot.productId);
     if (product) {
       const nearest = [...remaining.map((row) => row.expiryDate)].sort()[0] ?? null;
-      const alertDays = product.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS;
+      const policy = await loadExpiryPolicyCache();
+      const alertDays = resolveExpiryAlertDays(product, policy.defaultAlertDays);
       const status = nearest ? lotStatus(nearest, alertDays) : "ok";
       await db.products.put({
         ...product,
@@ -547,7 +549,11 @@ export async function queueUpsertProduct(
       ? nextStock
       : (existing?.stockQuantity ?? 0);
   const openingQty = Math.max(0, Math.floor(isCreate ? stockQuantity : 0));
-  const alertDays = payload.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS;
+  const expiryPolicy = await loadExpiryPolicyCache();
+  const alertDays = resolveExpiryAlertDays(
+    { expiryAlertDays: payload.expiryAlertDays },
+    expiryPolicy.defaultAlertDays,
+  );
   const { imageBlob, ...rest } = payload;
   const clearImage = payload.clearImage === true;
   if (imageBlob && !clearImage) {

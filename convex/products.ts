@@ -52,15 +52,26 @@ import {
 import {
   applyInventoryMovement,
   convertOnHandToOpeningLots,
-  DEFAULT_EXPIRY_ALERT_DAYS,
   deriveExpiryListFields,
   increaseLot,
   lotSummaries,
+  productExpiryAlertDays,
   remainingLotQuantity,
 } from "./shared/lots";
-import { loadProductImagesPolicy, loadBusinessConfiguration } from "./settings";
+import { loadProductImagesPolicy, loadBusinessConfiguration, loadExpiryPolicy } from "./settings";
 import { assertProductImageUploadsEnabled } from "./shared/productImagesPolicy";
 import { hasBusinessCapability } from "./shared/businessCapabilities";
+import { isValidExpiryAlertDays } from "./shared/expiryPolicy";
+
+/** null/undefined → org default (field unset). Number → product override. */
+function parseExpiryAlertOverride(value: number | null | undefined): number | undefined {
+  if (value === null || value === undefined) return undefined;
+  const days = Math.floor(value);
+  if (!isValidExpiryAlertDays(days)) {
+    throw new Error("Invalid expiry alert days");
+  }
+  return days;
+}
 
 export const listProducts = query({
   args: {
@@ -115,7 +126,12 @@ export const listProducts = query({
     const stockByProduct = branchId
       ? await stockMapForBranch(ctx, branchId)
       : await stockMapOrgWide(ctx, organizationId);
-    const summaries = await lotSummaries(ctx, branchId, organizationId);
+    const expiryPolicy = await loadExpiryPolicy(ctx, organizationId);
+    const orgAlertDays = expiryPolicy.defaultAlertDays;
+    const alertDaysByProduct = new Map(
+      pageRows.map((p) => [String(p._id), productExpiryAlertDays(p, orgAlertDays)]),
+    );
+    const summaries = await lotSummaries(ctx, branchId, organizationId, alertDaysByProduct);
 
     const showCost = canViewCostPrice(profile);
     const items = await Promise.all(
@@ -124,7 +140,12 @@ export const listProducts = query({
           ? await ctx.storage.getUrl(product.imageStorageId)
           : null;
         const stockQuantity = stockByProduct.get(product._id) ?? 0;
-        const expiry = deriveExpiryListFields(product, stockQuantity, summaries.get(product._id));
+        const expiry = deriveExpiryListFields(
+          product,
+          stockQuantity,
+          summaries.get(product._id),
+          orgAlertDays,
+        );
         return {
           id: product._id,
           name: product.name,
@@ -177,8 +198,18 @@ export const getProduct = query({
     const stockQuantity = branchId
       ? ((await stockMapForBranch(ctx, branchId)).get(product._id) ?? 0)
       : ((await stockMapOrgWide(ctx, organizationId)).get(product._id) ?? 0);
-    const summaries = await lotSummaries(ctx, branchId, organizationId);
-    const expiry = deriveExpiryListFields(product, stockQuantity, summaries.get(product._id));
+    const expiryPolicy = await loadExpiryPolicy(ctx, organizationId);
+    const orgAlertDays = expiryPolicy.defaultAlertDays;
+    const alertDaysByProduct = new Map([
+      [String(product._id), productExpiryAlertDays(product, orgAlertDays)],
+    ]);
+    const summaries = await lotSummaries(ctx, branchId, organizationId, alertDaysByProduct);
+    const expiry = deriveExpiryListFields(
+      product,
+      stockQuantity,
+      summaries.get(product._id),
+      orgAlertDays,
+    );
     return {
       ...product,
       id: product._id,
@@ -189,7 +220,11 @@ export const getProduct = query({
       branchId,
       tracksExpiry: expiry.tracksExpiry,
       tracksInventory: product.tracksInventory !== false,
-      expiryAlertDays: expiry.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS,
+      /** Effective alert window (org default or product override). */
+      expiryAlertDays: expiry.expiryAlertDays ?? orgAlertDays,
+      /** Stored product override; null means use organization default. */
+      expiryAlertDaysOverride:
+        typeof product.expiryAlertDays === "number" ? product.expiryAlertDays : null,
       sellableQuantity: expiry.sellableQuantity,
       expiredQuantity: expiry.expiredQuantity,
       nearestExpiry: expiry.nearestExpiry,
@@ -247,7 +282,8 @@ export const createProduct = mutation({
     imageStorageId: v.optional(v.id("_storage")),
     branchId: v.optional(v.id("branches")),
     tracksExpiry: v.optional(v.boolean()),
-    expiryAlertDays: v.optional(v.number()),
+    /** null = use organization default; number = product override. */
+    expiryAlertDays: v.optional(v.union(v.number(), v.null())),
     expiryDate: v.optional(v.string()),
     tracksInventory: v.optional(v.boolean()),
   },
@@ -281,10 +317,7 @@ export const createProduct = mutation({
     const tracksExpiry = tracksInventory && args.tracksExpiry === true;
     let expiryAlertDays: number | undefined;
     if (tracksExpiry) {
-      expiryAlertDays = Math.floor(args.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS);
-      if (!Number.isFinite(expiryAlertDays) || expiryAlertDays < 0 || expiryAlertDays > 3650) {
-        throw new Error("Invalid expiry alert days");
-      }
+      expiryAlertDays = parseExpiryAlertOverride(args.expiryAlertDays);
     }
     const initial = Math.floor(args.stockQuantity);
     if (tracksExpiry && initial > 0 && !args.expiryDate) {
@@ -423,7 +456,8 @@ export const updateProduct = mutation({
     imageStorageId: v.optional(v.id("_storage")),
     clearImage: v.optional(v.boolean()),
     tracksExpiry: v.optional(v.boolean()),
-    expiryAlertDays: v.optional(v.number()),
+    /** null = use organization default; number = product override. */
+    expiryAlertDays: v.optional(v.union(v.number(), v.null())),
     openingExpiryDate: v.optional(v.string()),
     tracksInventory: v.optional(v.boolean()),
     /** Absolute branch stock — only when products.editStock entitlement is on. */
@@ -476,10 +510,7 @@ export const updateProduct = mutation({
     const tracksExpiry = tracksInventory && args.tracksExpiry === true;
     let expiryAlertDays: number | undefined;
     if (tracksExpiry) {
-      expiryAlertDays = Math.floor(args.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS);
-      if (!Number.isFinite(expiryAlertDays) || expiryAlertDays < 0 || expiryAlertDays > 3650) {
-        throw new Error("Invalid expiry alert days");
-      }
+      expiryAlertDays = parseExpiryAlertOverride(args.expiryAlertDays);
     }
 
     const wasTracking = product.tracksExpiry === true;

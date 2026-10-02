@@ -324,7 +324,7 @@ export type QueuedMutators = {
     description?: string;
     imageStorageId?: Id<"_storage">;
     tracksExpiry?: boolean;
-    expiryAlertDays?: number;
+    expiryAlertDays?: number | null;
     expiryDate?: string;
     tracksInventory?: boolean;
     branchId?: Id<"branches">;
@@ -352,7 +352,7 @@ export type QueuedMutators = {
     description?: string;
     imageStorageId?: Id<"_storage">;
     tracksExpiry?: boolean;
-    expiryAlertDays?: number;
+    expiryAlertDays?: number | null;
     openingExpiryDate?: string;
     tracksInventory?: boolean;
     stockQuantity?: number;

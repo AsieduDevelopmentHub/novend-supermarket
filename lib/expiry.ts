@@ -1,7 +1,12 @@
 import { format } from "date-fns";
 import { toLocalDateInput } from "@/lib/date";
 
-export const DEFAULT_EXPIRY_ALERT_DAYS = 30;
+export {
+  DEFAULT_EXPIRY_ALERT_DAYS,
+  resolveExpiryAlertDays,
+  type ExpiryPolicy,
+  DEFAULT_EXPIRY_POLICY,
+} from "@/convex/shared/expiryPolicy";
 
 export type LotStatus = "expired" | "expiring" | "ok";
 

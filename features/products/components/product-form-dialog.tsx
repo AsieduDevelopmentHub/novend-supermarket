@@ -22,7 +22,6 @@ import {
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { generateSkuFromName } from "@/lib/sku";
-import { DEFAULT_EXPIRY_ALERT_DAYS } from "@/lib/expiry";
 import { assertValidImageFile, compressProductImage, IMAGE_ACCEPT } from "@/lib/uploads/image";
 import { Camera, ImagePlus, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
@@ -42,6 +41,7 @@ import { UnitPresetField } from "@/features/products/components/unit-preset-fiel
 import { ProductImage } from "@/components/media/product-image";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import { useProductImagesPolicy } from "@/hooks/use-product-images-policy";
+import { useExpiryPolicy } from "@/hooks/use-expiry-policy";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
 import { featureEnabled } from "@/convex/shared/licensing";
@@ -87,7 +87,10 @@ type ProductDetails = {
   lowStockThreshold: number;
   tracksExpiry?: boolean;
   tracksInventory?: boolean;
+  /** Effective alert days (resolved). */
   expiryAlertDays?: number;
+  /** Stored override; null/undefined = use organization default. */
+  expiryAlertDaysOverride?: number | null;
   nearestExpiry?: string | null;
   status: "active" | "inactive" | "archived";
   description?: string;
@@ -140,6 +143,7 @@ export function ProductFormDialog({
             tracksExpiry: mirroredRow.tracksExpiry,
             tracksInventory: mirroredRow.tracksInventory,
             expiryAlertDays: mirroredRow.expiryAlertDays ?? undefined,
+            expiryAlertDaysOverride: mirroredRow.expiryAlertDays ?? null,
             nearestExpiry: mirroredRow.nearestExpiry ?? null,
             status: mirroredRow.status === "inactive" ? "inactive" : "active",
             imageUrl: mirroredRow.imageUrl,
@@ -218,7 +222,9 @@ function ProductFormBody({
   const { features } = useLicense();
   const { hasCapability, industryProfile } = useBusinessCapabilities();
   const productImagesPolicy = useProductImagesPolicy();
+  const expiryPolicy = useExpiryPolicy();
   const imagesUploadEnabled = productImagesPolicy.enabled;
+  const orgDefaultAlertDays = expiryPolicy.defaultAlertDays;
   const showPacks = hasCapability("multi_unit_pricing");
   const showWeight = hasCapability("sell_by_weight");
   const showSellUnits = showPacks || showWeight;
@@ -279,9 +285,18 @@ function ProductFormBody({
     tracksInventory &&
     tracksExpiry !== true &&
     initialProduct?.tracksExpiry !== true;
-  const [expiryAlertDays, setExpiryAlertDays] = useState(
-    String(initialProduct?.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS),
-  );
+  const [expiryAlertUseOrgDefault, setExpiryAlertUseOrgDefault] = useState(() => {
+    if (!initialProduct?.tracksExpiry) return true;
+    return (
+      initialProduct.expiryAlertDaysOverride === null ||
+      initialProduct.expiryAlertDaysOverride === undefined
+    );
+  });
+  const [expiryAlertDays, setExpiryAlertDays] = useState(() => {
+    const override = initialProduct?.expiryAlertDaysOverride;
+    if (typeof override === "number") return String(override);
+    return String(orgDefaultAlertDays);
+  });
   /** Native date input value — ISO `YYYY-MM-DD` (same as inventory receive). */
   const [expiryInput, setExpiryInput] = useState(
     () => initialProduct?.nearestExpiry ?? "",
@@ -465,7 +480,11 @@ function ProductFormBody({
                 description,
                 tracksInventory: resolvedTracksInventory,
                 tracksExpiry: resolvedTracksExpiry,
-                expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
+                expiryAlertDays: resolvedTracksExpiry
+                  ? expiryAlertUseOrgDefault
+                    ? null
+                    : Number(expiryAlertDays)
+                  : undefined,
                 openingExpiryDate: shouldSendOpeningExpiry ? resolvedOpeningExpiry : undefined,
                 ...(canEditStock
                   ? {
@@ -493,7 +512,11 @@ function ProductFormBody({
                 description,
                 tracksInventory: resolvedTracksInventory,
                 tracksExpiry: resolvedTracksExpiry,
-                expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
+                expiryAlertDays: resolvedTracksExpiry
+                  ? expiryAlertUseOrgDefault
+                    ? null
+                    : Number(expiryAlertDays)
+                  : undefined,
                 expiryDate: shouldSendOpeningExpiry ? resolvedOpeningExpiry : undefined,
               }),
         local: async () => {
@@ -533,7 +556,11 @@ function ProductFormBody({
             description,
             tracksInventory: resolvedTracksInventory,
             tracksExpiry: resolvedTracksExpiry,
-            expiryAlertDays: resolvedTracksExpiry ? Number(expiryAlertDays) : undefined,
+            expiryAlertDays: resolvedTracksExpiry
+              ? expiryAlertUseOrgDefault
+                ? null
+                : Number(expiryAlertDays)
+              : undefined,
             expiryDate: shouldSendOpeningExpiry ? resolvedOpeningExpiry : undefined,
             branchId: profileBranchId ?? undefined,
             imageBlob: removeImage ? undefined : (file ?? undefined),
@@ -843,18 +870,39 @@ function ProductFormBody({
               </div>
               {tracksExpiry ? (
                 <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="min-w-0 space-y-2">
-                    <Label htmlFor="alert-days">Alert days before expiry</Label>
-                    <Input
-                      id="alert-days"
-                      type="number"
-                      min="0"
-                      step="1"
-                      className="min-h-11 w-full min-w-0"
-                      value={expiryAlertDays}
-                      onChange={(e) => setExpiryAlertDays(e.target.value)}
-                      required
-                    />
+                  <div className="min-w-0 space-y-3 sm:col-span-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <Label htmlFor="alert-use-org-default">Use organization default</Label>
+                        <p className="text-muted-foreground text-xs">
+                          Currently {orgDefaultAlertDays} day
+                          {orgDefaultAlertDays === 1 ? "" : "s"} (Settings → Business)
+                        </p>
+                      </div>
+                      <Switch
+                        id="alert-use-org-default"
+                        checked={expiryAlertUseOrgDefault}
+                        onCheckedChange={(checked) => {
+                          setExpiryAlertUseOrgDefault(checked);
+                          if (checked) setExpiryAlertDays(String(orgDefaultAlertDays));
+                        }}
+                      />
+                    </div>
+                    {!expiryAlertUseOrgDefault ? (
+                      <div className="min-w-0 space-y-2">
+                        <Label htmlFor="alert-days">Custom alert days before expiry</Label>
+                        <Input
+                          id="alert-days"
+                          type="number"
+                          min="0"
+                          step="1"
+                          className="min-h-11 w-full min-w-0"
+                          value={expiryAlertDays}
+                          onChange={(e) => setExpiryAlertDays(e.target.value)}
+                          required
+                        />
+                      </div>
+                    ) : null}
                   </div>
                   {/*
                     Show a date when creating, or when turning expiry on for the first time.

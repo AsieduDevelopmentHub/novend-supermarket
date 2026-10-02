@@ -8,7 +8,8 @@ import {
   filterCashierDashboardSales,
 } from "@/lib/dashboard/cashier-scope";
 import { availableStockQuantity, isBelowLowStockThreshold } from "@/lib/stock-status";
-import { DEFAULT_EXPIRY_ALERT_DAYS, lotStatus } from "@/lib/expiry";
+import { resolveExpiryAlertDays, lotStatus } from "@/lib/expiry";
+import { loadExpiryPolicyCache } from "./expiry-policy";
 
 export type DashboardAlertRow = {
   id: string;
@@ -169,6 +170,8 @@ export async function buildLocalDashboardSummary(
   const activeProducts = products.filter((p) => p.status === "active");
   const branchNameById = new Map(branches.map((b) => [b.id, b.name]));
   const productById = new Map(activeProducts.map((p) => [p.id, p]));
+  const expiryPolicy = await loadExpiryPolicyCache();
+  const orgAlertDays = expiryPolicy.defaultAlertDays;
 
   // Stock / expiry alerts are always org-wide for admin/manager (every branch
   // with a tag). Sales KPIs below still honour `branchId`. Cashiers only see
@@ -227,7 +230,7 @@ export async function buildLocalDashboardSummary(
     if (lot.quantity <= 0) continue;
     const product = productById.get(lot.productId);
     if (!product?.tracksExpiry) continue;
-    const alertDays = product.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS;
+    const alertDays = resolveExpiryAlertDays(product, orgAlertDays);
     const status = lotStatus(lot.expiryDate, alertDays);
     if (status === "ok") continue;
     const key = `${lot.productId}:${lot.branchId}`;

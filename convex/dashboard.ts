@@ -14,7 +14,7 @@ import { deriveExpiryListFields, lotSummaries, productExpiryAlertDays } from "./
 import { cogsForLines, completedReturnsInRange, loadItemsForReturns } from "./shared/returns";
 import { collectSaleItemsForSales, collectSalesInCompletedAtRange } from "./shared/salesRange";
 import { roundMoney } from "./shared/validation";
-import { loadBusinessConfiguration } from "./settings";
+import { loadBusinessConfiguration, loadExpiryPolicy } from "./settings";
 import { hasBusinessCapability } from "./shared/businessCapabilities";
 
 /** Keep in sync with `lib/dashboard/window.ts` (dashboard UI copy). */
@@ -132,15 +132,23 @@ export const summary = query({
       branchName: string | null;
     }> = [];
 
+    const expiryPolicy = await loadExpiryPolicy(ctx, organizationId);
+    const orgAlertDays = expiryPolicy.defaultAlertDays;
+
     for (const branchId of alertBranchIds) {
       const stockByProduct = await stockMapForBranch(ctx, branchId);
       const alertDaysByProduct = new Map(
-        activeProducts.map((p) => [String(p._id), productExpiryAlertDays(p)]),
+        activeProducts.map((p) => [String(p._id), productExpiryAlertDays(p, orgAlertDays)]),
       );
       const summaries = await lotSummaries(ctx, branchId, organizationId, alertDaysByProduct);
       for (const p of activeProducts) {
         const stockQuantity = stockByProduct.get(p._id) ?? 0;
-        const expiry = deriveExpiryListFields(p, stockQuantity, summaries.get(p._id));
+        const expiry = deriveExpiryListFields(
+          p,
+          stockQuantity,
+          summaries.get(p._id),
+          orgAlertDays,
+        );
         if (expiry.isLowStock) {
           lowStock.push({
             id: `${p._id}:${branchId}`,

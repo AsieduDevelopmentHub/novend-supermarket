@@ -32,6 +32,8 @@ import { productTracksInventory } from "@/convex/shared/productInventory";
 import { loadBusinessCapabilitiesCache } from "./business-capabilities";
 import type { ProductImagesPolicy } from "@/convex/shared/productImagesPolicy";
 import { DEFAULT_PRODUCT_IMAGES_POLICY } from "@/convex/shared/productImagesPolicy";
+import type { ExpiryPolicy } from "@/convex/shared/expiryPolicy";
+import { DEFAULT_EXPIRY_POLICY } from "@/convex/shared/expiryPolicy";
 import {
   mergeTourProgress,
   parseTourProgress,
@@ -212,6 +214,7 @@ export async function applySnapshot(
       terms: BusinessTermsMap;
     };
     productImagesPolicy?: ProductImagesPolicy;
+    expiryPolicy?: ExpiryPolicy;
     profile: {
       userId: string;
       name: string;
@@ -366,6 +369,11 @@ export async function applySnapshot(
       db,
       META_KEYS.productImagesPolicy,
       JSON.stringify(snapshot.productImagesPolicy ?? DEFAULT_PRODUCT_IMAGES_POLICY),
+    );
+    await setMeta(
+      db,
+      META_KEYS.expiryPolicy,
+      JSON.stringify(snapshot.expiryPolicy ?? DEFAULT_EXPIRY_POLICY),
     );
     await setMeta(db, META_KEYS.profileUserId, snapshot.profile.userId);
     await setMeta(db, META_KEYS.profileName, snapshot.profile.name);

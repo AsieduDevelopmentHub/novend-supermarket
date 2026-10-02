@@ -528,6 +528,7 @@ export const META_KEYS = {
   /** Resolved industry terminology (+ overrides) for offline nav / headers. */
   businessTerminology: "businessTerminology",
   productImagesPolicy: "productImagesPolicy",
+  expiryPolicy: "expiryPolicy",
   lastCleanupAt: "lastCleanupAt",
   lastSyncAt: "lastSyncAt",
   lastSyncProcessed: "lastSyncProcessed",
