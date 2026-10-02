@@ -31,6 +31,13 @@ import {
   type ProductImagesPolicy,
 } from "./shared/productImagesPolicy";
 import {
+  EXPIRY_POLICY_SETTINGS_KEY,
+  parseExpiryPolicy,
+  clampExpiryAlertDays,
+  isValidExpiryAlertDays,
+  type ExpiryPolicy,
+} from "./shared/expiryPolicy";
+import {
   sanitizeEmail,
   sanitizeOptionalText,
   sanitizePhone,
@@ -287,6 +294,28 @@ export async function writeProductImagesPolicy(
 ): Promise<ProductImagesPolicy> {
   const policy: ProductImagesPolicy = { enabled };
   await upsertSetting(ctx, organizationId, PRODUCT_IMAGES_SETTINGS_KEY, JSON.stringify(policy));
+  return policy;
+}
+
+/** Org default expiry alert window for Convex list/dashboard + offline snapshot. */
+export async function loadExpiryPolicy(
+  ctx: DbCtx,
+  organizationId: Id<"organizations">,
+): Promise<ExpiryPolicy> {
+  return parseExpiryPolicy(await getSettingValue(ctx, organizationId, EXPIRY_POLICY_SETTINGS_KEY));
+}
+
+/** Persist org expiry alert default (administrator). */
+export async function writeExpiryPolicy(
+  ctx: MutationCtx,
+  organizationId: Id<"organizations">,
+  defaultAlertDays: number,
+): Promise<ExpiryPolicy> {
+  if (!isValidExpiryAlertDays(defaultAlertDays)) {
+    throw new Error("Expiry alert days must be between 0 and 3650");
+  }
+  const policy: ExpiryPolicy = { defaultAlertDays: clampExpiryAlertDays(defaultAlertDays) };
+  await upsertSetting(ctx, organizationId, EXPIRY_POLICY_SETTINGS_KEY, JSON.stringify(policy));
   return policy;
 }
 
@@ -567,6 +596,36 @@ export const updateProductImages = mutation({
       entityType: "settings",
       entityId: PRODUCT_IMAGES_SETTINGS_KEY,
       metadata: { enabled: policy.enabled, previousEnabled: previous.enabled },
+    });
+    return policy;
+  },
+});
+
+export const getExpiryPolicy = query({
+  args: {},
+  handler: async (ctx) => {
+    const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
+    return loadExpiryPolicy(ctx, organizationId);
+  },
+});
+
+export const updateExpiryPolicy = mutation({
+  args: {
+    defaultAlertDays: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const { userId, organizationId } = await requireRole(ctx, ["administrator"]);
+    const previous = await loadExpiryPolicy(ctx, organizationId);
+    const policy = await writeExpiryPolicy(ctx, organizationId, args.defaultAlertDays);
+    await writeAuditLog(ctx, {
+      actorId: userId,
+      action: "update_expiry_policy",
+      entityType: "settings",
+      entityId: EXPIRY_POLICY_SETTINGS_KEY,
+      metadata: {
+        defaultAlertDays: policy.defaultAlertDays,
+        previousDefaultAlertDays: previous.defaultAlertDays,
+      },
     });
     return policy;
   },

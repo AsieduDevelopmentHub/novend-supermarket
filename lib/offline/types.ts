@@ -700,7 +700,7 @@ export type UpsertProductPayload = {
   description?: string;
   tracksExpiry?: boolean;
   tracksInventory?: boolean;
-  expiryAlertDays?: number;
+  expiryAlertDays?: number | null;
   expiryDate?: string;
   imageStorageId?: string;
   hasLocalImage?: boolean;

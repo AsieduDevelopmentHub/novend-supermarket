@@ -2,10 +2,14 @@ import { MutationCtx, QueryCtx } from "../_generated/server";
 import { Doc, Id } from "../_generated/dataModel";
 import { applyBranchStockChange } from "./branchStock";
 import { sanitizeOptionalText, TEXT_LIMITS } from "./validation";
+import {
+  DEFAULT_EXPIRY_ALERT_DAYS,
+  resolveExpiryAlertDays,
+} from "./expiryPolicy";
 
 type Ctx = QueryCtx | MutationCtx;
 
-export const DEFAULT_EXPIRY_ALERT_DAYS = 30;
+export { DEFAULT_EXPIRY_ALERT_DAYS } from "./expiryPolicy";
 const EXPIRY_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export type InventoryReason =
@@ -68,12 +72,11 @@ export function productTracksExpiry(product: { tracksExpiry?: boolean }): boolea
   return product.tracksExpiry === true;
 }
 
-export function productExpiryAlertDays(product: { expiryAlertDays?: number }): number {
-  const days = product.expiryAlertDays;
-  if (typeof days === "number" && Number.isFinite(days) && days >= 0) {
-    return Math.floor(days);
-  }
-  return DEFAULT_EXPIRY_ALERT_DAYS;
+export function productExpiryAlertDays(
+  product: { expiryAlertDays?: number | null },
+  orgDefault: number = DEFAULT_EXPIRY_ALERT_DAYS,
+): number {
+  return resolveExpiryAlertDays(product, orgDefault);
 }
 
 export function daysUntilExpiry(expiryDate: string, today = todayDateString()): number {
@@ -118,12 +121,15 @@ export type ExpiryListFields = {
 };
 
 export function deriveExpiryListFields(
-  product: { tracksExpiry?: boolean; expiryAlertDays?: number; lowStockThreshold: number },
+  product: { tracksExpiry?: boolean; expiryAlertDays?: number | null; lowStockThreshold: number },
   onHand: number,
   summary?: LotSummary,
+  orgDefaultAlertDays: number = DEFAULT_EXPIRY_ALERT_DAYS,
 ): ExpiryListFields {
   const tracksExpiry = productTracksExpiry(product);
-  const expiryAlertDays = tracksExpiry ? productExpiryAlertDays(product) : null;
+  const expiryAlertDays = tracksExpiry
+    ? productExpiryAlertDays(product, orgDefaultAlertDays)
+    : null;
   const sellableQuantity = tracksExpiry ? (summary?.sellableQuantity ?? 0) : onHand;
   const expiredQuantity = tracksExpiry ? (summary?.expiredQuantity ?? 0) : 0;
   const expiringQuantity = tracksExpiry ? (summary?.expiringQuantity ?? 0) : 0;
@@ -132,7 +138,7 @@ export function deriveExpiryListFields(
   const isExpired = expiredQuantity > 0;
   const isExpiring = isExpiringSoon(
     nearestSellableExpiry,
-    expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS,
+    expiryAlertDays ?? orgDefaultAlertDays,
   );
   const isLowStock = sellableQuantity <= product.lowStockThreshold;
   const statusLabel: ExpiryListFields["statusLabel"] = isExpired

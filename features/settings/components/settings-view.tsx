@@ -41,6 +41,7 @@ import { BranchReceiptPanel } from "./branch-receipt-panel";
 import { ProfilePanel } from "./profile-panel";
 import { BusinessCapabilitiesPanel } from "./business-capabilities-panel";
 import { ProductImagesSettingsCard } from "./product-images-settings-card";
+import { ExpiryAlertSettingsCard } from "./expiry-alert-settings-card";
 import { PrinterPanel } from "./printer-panel";
 import { CustomerDisplayPanel } from "./customer-display-panel";
 import { ScannerPanel } from "./scanner-panel";
@@ -223,6 +224,7 @@ export function SettingsView() {
                     readOnly={!online}
                   />
                   <ProductImagesSettingsCard />
+                  <ExpiryAlertSettingsCard />
                   <BusinessCapabilitiesPanel />
                 </TabsContent>
 
@@ -245,6 +247,7 @@ export function SettingsView() {
                     </CardContent>
                   </Card>
                   <ProductImagesSettingsCard />
+                  <ExpiryAlertSettingsCard />
                 </TabsContent>
                 <TabsContent value="receipt" className="mt-0">
                   <Card>

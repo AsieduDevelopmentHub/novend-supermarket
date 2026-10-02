@@ -21,7 +21,9 @@ import {
 import type { MirroredCategory, MirroredCustomer, MirroredProduct } from "./types";
 import { presenceFromLastSeenAt, sortUsersByPresence } from "@/lib/presence";
 import { ownedSaleIdsForCashier } from "@/lib/dashboard/cashier-scope";
-import { DEFAULT_EXPIRY_ALERT_DAYS, summarizeLots } from "@/convex/shared/lots";
+import { summarizeLots } from "@/convex/shared/lots";
+import { resolveExpiryAlertDays } from "@/convex/shared/expiryPolicy";
+import { loadExpiryPolicyCache } from "./expiry-policy";
 
 export type MirroredInventoryAlertBranch = {
   branchId: string;
@@ -64,6 +66,8 @@ async function mapMirroredProductRows(
   const allBranchStock = branchFilter == null ? await db.branchStock.toArray() : [];
   const branches = branchFilter == null ? await db.branches.toArray() : [];
   const branchNameById = new Map(branches.map((b) => [b.id, b.name]));
+  const expiryPolicy = await loadExpiryPolicyCache();
+  const orgAlertDays = expiryPolicy.defaultAlertDays;
 
   return Promise.all(
     products.map(async (product) => {
@@ -77,6 +81,7 @@ async function mapMirroredProductRows(
         resolved.sellableQuantity,
         pending,
       );
+      const alertDays = resolveExpiryAlertDays(product, orgAlertDays);
       const productLots = lots.filter(
         (lot) =>
           lot.productId === product.id &&
@@ -85,7 +90,7 @@ async function mapMirroredProductRows(
       );
       const lotSummary =
         product.tracksExpiry && productLots.length > 0
-          ? summarizeLots(productLots, product.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS)
+          ? summarizeLots(productLots, alertDays)
           : null;
 
       const alertBranches =
@@ -101,10 +106,7 @@ async function mapMirroredProductRows(
                 );
                 const summary =
                   product.tracksExpiry && branchLots.length > 0
-                    ? summarizeLots(
-                        branchLots,
-                        product.expiryAlertDays ?? DEFAULT_EXPIRY_ALERT_DAYS,
-                      )
+                    ? summarizeLots(branchLots, alertDays)
                     : null;
                 const sellable = product.tracksExpiry
                   ? (summary?.sellableQuantity ?? row.sellableQuantity ?? 0)
