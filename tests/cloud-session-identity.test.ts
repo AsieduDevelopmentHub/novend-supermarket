@@ -73,10 +73,15 @@ describe("cloud session identity guard", () => {
     );
 
     expect(layout).toContain("cloudIdentityUnsafe");
+    expect(layout).toContain("switchingCloudAccount");
     expect(layout).toContain("<CloudSessionMismatchGate");
+    expect(layout.indexOf("if (cloudIdentityBlocked)")).toBeLessThan(
+      layout.indexOf("if (cloudIdentityChecking)"),
+    );
     expect(layout.indexOf("if (cloudIdentityBlocked)")).toBeLessThan(
       layout.indexOf("// Keep Dexie bound"),
     );
+    expect(layout).toContain("Do not clear the latch on a connectivity flap");
     expect(gate).toContain("await withTimeout(");
     expect(gate).toContain("signOut()");
     expect(gate).toContain("expectedUserId: session.userId");
