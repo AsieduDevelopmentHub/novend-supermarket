@@ -62,11 +62,28 @@ describe("offline sign-out persistence", () => {
       "utf8",
     );
     expect(login).toContain("staleCloudLogoutRef");
-    expect(login).toContain("!signedOut || authLoading || !isAuthenticated");
+    expect(login).toContain("hasExplicitLogout()");
     expect(login).toContain("void signOut().catch");
-    const revokeStart = login.indexOf("staleCloudLogoutRef.current = true");
-    const revokeEnd = login.indexOf("}, [signedOut, online", revokeStart);
-    expect(login.slice(revokeStart, revokeEnd)).not.toContain("consumeExplicitLogout()");
+    // Must not key revoke off URL ?signedOut=1 — that survives a successful login.
+    const revokeBlock = login.slice(
+      login.indexOf("Offline sign-out cannot immediately revoke"),
+      login.indexOf("const timer = window.setTimeout(() => {", login.indexOf("staleCloudLogoutRef")),
+    );
+    expect(revokeBlock).toContain("!hasExplicitLogout()");
+    expect(revokeBlock).not.toContain("!signedOut");
+    expect(revokeBlock).not.toContain("consumeExplicitLogout()");
+    expect(revokeBlock).toContain("pending || openingWorkspace || redirectingRef.current");
+  });
+
+  it("documents why first login must not bounce after signedOut URL login", () => {
+    const login = readFileSync(
+      resolve(process.cwd(), "features/auth/components/login-form.tsx"),
+      "utf8",
+    );
+    expect(login).toContain("never `?signedOut=1`");
+    expect(login).toContain("first login bounces");
+    expect(login).toContain("clearLogoutBarrierAfterCredentialUnlock");
+    expect(login).toContain("clearSignedOutQueryParam");
   });
 
   it("keeps the requested login route during Electron recovery", () => {
