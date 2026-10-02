@@ -1,4 +1,6 @@
 const LOGOUT_FLAG = "novend.auth.signedOut";
+/** Session-only — drives the “Signing out…” splash for this leave, not reloads. */
+const SIGNING_OUT_UI = "novend.auth.signingOutUi";
 
 function availableStorages(): Storage[] {
   const stores: Storage[] = [];
@@ -29,6 +31,40 @@ export function markExplicitLogout(): void {
       /* private browsing */
     }
   }
+  markSigningOutUi();
+}
+
+/**
+ * True only for the in-flight leave that set the barrier in this tab.
+ * Hard reloads / later app-shell mounts keep the security flag but must not
+ * paint “Signing out…” on every Preparing workspace splash.
+ */
+export function markSigningOutUi(): void {
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(SIGNING_OUT_UI, "1");
+    }
+  } catch {
+    /* private browsing */
+  }
+}
+
+export function clearSigningOutUi(): void {
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(SIGNING_OUT_UI);
+    }
+  } catch {
+    /* private browsing */
+  }
+}
+
+export function isSigningOutUi(): boolean {
+  try {
+    return typeof sessionStorage !== "undefined" && sessionStorage.getItem(SIGNING_OUT_UI) === "1";
+  } catch {
+    return false;
+  }
 }
 
 export function hasExplicitLogout(): boolean {
@@ -52,5 +88,6 @@ export function consumeExplicitLogout(): boolean {
       /* private browsing */
     }
   }
+  clearSigningOutUi();
   return flagged;
 }
