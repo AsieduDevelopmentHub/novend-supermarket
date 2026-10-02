@@ -10,7 +10,7 @@ import { isCapacitor, isElectron } from "@novend/hardware";
 const SKIP_SPLASH_KEY = "novend.auth.skipSplash";
 const RESOLVE_RETRIES = 3;
 const RESOLVE_RETRY_MS = 150;
-/** Cap/Electron: soft nav on /login never remounts the app shell — always hard-replace. */
+/** Browser soft-navigation fallback only; native hard navigation is single-shot. */
 const HARD_NAV_FALLBACK_MS = 800;
 /** Don't let a hung `users.me` trap the login form for minutes. */
 const ME_QUERY_BUDGET_MS = 2500;
@@ -293,25 +293,12 @@ export function navigateAfterLogin(
   const target = forceHard ? withPostLoginShellMarker(path) : path;
 
   if (typeof window !== "undefined" && forceHard) {
-    // Avoid a second leave-site prompt from the hung-nav fallback.
-    if (hardNavigationPending) {
-      prepareHardNavigation();
-      window.location.replace(target);
-      return;
-    }
+    // The first hard leave owns the native handoff. Re-running replace while
+    // the service worker is resolving the document causes visible reloads.
+    if (hardNavigationPending) return;
     hardNavigationPending = true;
     prepareHardNavigation();
     window.location.replace(target);
-    // Belt: if the document never unloads (hung SW), force again once.
-    window.setTimeout(() => {
-      const here = window.location.pathname;
-      if (here === "/login" || here === "/signup") {
-        prepareHardNavigation();
-        window.location.replace(target);
-      } else {
-        hardNavigationPending = false;
-      }
-    }, HARD_NAV_FALLBACK_MS);
     return;
   }
 
