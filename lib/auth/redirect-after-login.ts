@@ -178,10 +178,18 @@ export async function resolvePostLoginPath(
 }
 
 /**
- * Tag hard leaves so the service worker serves the cached app shell immediately
- * (same as Electron/Cap cold boot). Without this, network-first /dashboard can
- * hang for minutes after “Welcome” while the login skeleton stays painted.
+ * Tag hard leaves so the service worker serves the cached app shell immediately.
+ * Uses `fromLogin=1` (not `fromBoot=1`) so RestoreLastRoute does not remount the
+ * last in-app path after credential unlock — that stacked a second shell paint.
+ * Cold boot / offline-boot trampolines still use `fromBoot` elsewhere.
  */
+export function withPostLoginShellMarker(path: string): string {
+  if (!path.startsWith("/")) return path;
+  if (path.includes("fromLogin=") || path.includes("fromBoot=")) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}fromLogin=1`;
+}
+
+/** @deprecated Prefer withPostLoginShellMarker for credential leave; keep for cold-boot helpers. */
 export function withShellBootMarker(path: string): string {
   if (!path.startsWith("/")) return path;
   if (path.includes("fromBoot=")) return path;
@@ -259,7 +267,7 @@ export function navigateAfterLogin(
     options?.hard === true ||
     (typeof window !== "undefined" && (isCapacitor() || isElectron() || !navigator.onLine));
 
-  const target = forceHard ? withShellBootMarker(path) : path;
+  const target = forceHard ? withPostLoginShellMarker(path) : path;
 
   if (typeof window !== "undefined" && forceHard) {
     // Avoid a second leave-site prompt from the hung-nav fallback.
@@ -294,7 +302,7 @@ export function navigateAfterLogin(
       if (hardNavigationPending) return;
       hardNavigationPending = true;
       prepareHardNavigation();
-      window.location.replace(withShellBootMarker(path));
+      window.location.replace(withPostLoginShellMarker(path));
     }
   }, HARD_NAV_FALLBACK_MS);
 }

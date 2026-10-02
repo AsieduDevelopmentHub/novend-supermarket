@@ -88,10 +88,13 @@ describe("redirect-after-login", () => {
     expect(view).toContain("if (!role || loading || !data)");
   });
 
-  it("startup splash does not consume the skip flag during render", () => {
+  it("startup splash skips on fromLogin without consuming sessionStorage during render", () => {
     const source = readFileSync(resolve(process.cwd(), "providers/startup-splash.tsx"), "utf8");
     expect(source).not.toContain('typeof window !== "undefined" ? consumeSkipStartupSplash()');
     expect(source).toContain("if (!consumeSkipStartupSplash()) return;");
+    expect(source).toContain('FROM_LOGIN_PARAM');
+    expect(source).toContain("fromLogin");
+    expect(source).toContain("stripFromLoginParam");
   });
 
   it("hard Cap login nav clears unload state before location.replace", () => {
@@ -103,21 +106,23 @@ describe("redirect-after-login", () => {
     expect(source).toContain("prepareHardNavigation()");
     expect(source).toContain("window.location.replace(target)");
     expect(source).not.toContain("window.location.href = target");
-    expect(source).toContain("withShellBootMarker");
+    expect(source).toContain("withPostLoginShellMarker");
+    expect(source).toContain("fromLogin=1");
     expect(source).toContain("saveShellProfile({");
     expect(source).toContain("SHELL_PROFILE_BUDGET_MS");
   });
 
-  it("login form hard-navigates before swapping to the opening splash", () => {
+  it("login form shows opening cover before hard-navigate while keeping inputs mounted", () => {
     const source = readFileSync(
       resolve(process.cwd(), "features/auth/components/login-form.tsx"),
       "utf8",
     );
     expect(source).toContain("navigateAfterLogin");
-    // Avoid await between prepare and replace — that caused Leave site?
-    expect(source).toMatch(
-      /navigateAfterLogin\([\s\S]*?\{ hard: true \}\);\s*setOpeningWorkspace\(true\);/,
-    );
+    expect(source).toContain("setOpeningWorkspace(true)");
+    expect(source).toMatch(/setOpeningWorkspace\(true\);[\s\S]*?navigateAfterLogin/);
+    expect(source).toContain("Opening workspace…");
+    // Inputs stay in the DOM so prepareHardNavigation can clear leave-site dirt.
+    expect(source).toContain('aria-hidden={openingWorkspace}');
   });
 
   it("prepareHardNavigation clears leave-site dirt without detaching React DOM", () => {

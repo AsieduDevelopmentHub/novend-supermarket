@@ -1,8 +1,8 @@
 "use client";
 
 import { useConvexAuth } from "convex/react";
-import { usePathname } from "next/navigation";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { ReactNode, Suspense, useEffect, useRef, useState } from "react";
 import { AppSplash } from "@/features/auth/components/app-splash";
 import { consumeSkipStartupSplash } from "@/lib/auth/redirect-after-login";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -17,6 +17,8 @@ const MAX_SPLASH_MS = 3200;
 /** Don't wait on Convex when offline (or when a prior session exists). */
 const OFFLINE_AUTH_BUDGET_MS = 800;
 
+const FROM_LOGIN_PARAM = "fromLogin";
+
 /**
  * Shows the branded splash until Convex auth has resolved and a short
  * minimum display time has elapsed, then fades out over the app.
@@ -24,7 +26,8 @@ const OFFLINE_AUTH_BUDGET_MS = 800;
  *
  * Never read sessionStorage during render — that hydrates as splash-on vs
  * splash-off after login `location.replace`, and React 19 leaves the
- * server splash stuck.
+ * server splash stuck. Post-login uses `?fromLogin=1` so the first paint
+ * can skip without touching sessionStorage.
  */
 export function StartupSplash({ children }: { children: ReactNode }) {
   const configured = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
@@ -33,32 +36,61 @@ export function StartupSplash({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  return <AuthStartupSplash>{children}</AuthStartupSplash>;
+  return (
+    <Suspense fallback={<>{children}</>}>
+      <AuthStartupSplash>{children}</AuthStartupSplash>
+    </Suspense>
+  );
+}
+
+function stripFromLoginParam(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has(FROM_LOGIN_PARAM)) return;
+    url.searchParams.delete(FROM_LOGIN_PARAM);
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    window.history.replaceState(window.history.state, "", next);
+  } catch {
+    /* ignore */
+  }
 }
 
 function AuthStartupSplash({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const fromLogin = searchParams.get(FROM_LOGIN_PARAM) === "1";
   const { isLoading } = useConvexAuth();
   const online = useConnectivity();
   const startedAt = useRef(0);
-  const [skipFromLogin, setSkipFromLogin] = useState(false);
+  const [skipFromLogin, setSkipFromLogin] = useState(fromLogin);
   const [exiting, setExiting] = useState(false);
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(!fromLogin);
   const [offlineReady, setOfflineReady] = useState(false);
   const [forcedReady, setForcedReady] = useState(false);
   const isAuthRoute =
     pathname === "/login" || pathname === "/signup" || pathname.startsWith("/onboarding");
-  const skipSplash = skipFromLogin || isAuthRoute || isMarketingPath(pathname);
+  const skipSplash = skipFromLogin || fromLogin || isAuthRoute || isMarketingPath(pathname);
 
   useEffect(() => {
-    if (isAuthRoute) return;
+    if (!fromLogin) return;
+    queueMicrotask(() => {
+      setSkipFromLogin(true);
+      setVisible(false);
+      setExiting(false);
+      stripFromLoginParam();
+    });
+  }, [fromLogin]);
+
+  useEffect(() => {
+    if (isAuthRoute || fromLogin) return;
     if (!consumeSkipStartupSplash()) return;
     queueMicrotask(() => {
       setSkipFromLogin(true);
       setVisible(false);
       setExiting(false);
     });
-  }, [pathname, isAuthRoute]);
+  }, [pathname, isAuthRoute, fromLogin]);
 
   useEffect(() => {
     startedAt.current = performance.now();
@@ -83,7 +115,7 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
   const authSettled = !isLoading || offlineReady || forcedReady;
 
   useEffect(() => {
-    if (skipFromLogin || !authSettled || !visible) return;
+    if (skipFromLogin || fromLogin || !authSettled || !visible) return;
 
     const wait = Math.max(0, MIN_SPLASH_MS - (performance.now() - startedAt.current));
     let exitTimer = 0;
@@ -97,7 +129,7 @@ function AuthStartupSplash({ children }: { children: ReactNode }) {
       window.clearTimeout(showTimer);
       window.clearTimeout(exitTimer);
     };
-  }, [authSettled, visible, skipFromLogin]);
+  }, [authSettled, visible, skipFromLogin, fromLogin]);
 
   return (
     <>
