@@ -5,7 +5,6 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvex, useConvexAuth } from "convex/react";
 import { Cloud, X } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +17,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { showError } from "@/lib/errors";
+import { resolvePostLoginSession } from "@/lib/auth/redirect-after-login";
 import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { storeLocalAuthVerifier } from "@/lib/offline/local-auth";
 import {
@@ -131,6 +131,10 @@ export function CloudReconnectBanner() {
   const autoOpenedRef = useRef(false);
 
   const email = resolveReconnectEmail(sessionHint);
+  const reconnectSession =
+    sessionHint ??
+    listOfflineSessions().find((row) => row.email?.trim().toLowerCase() === email) ??
+    null;
   const hasShell = Boolean(sessionHint) || hasOfflineSession();
   // Keep reconnect UI across Convex isLoading flicker — gating on !isLoading
   // briefly unmounted the password dialog and dropped forceClientShell → /login.
@@ -213,12 +217,14 @@ export function CloudReconnectBanner() {
       formData.set("flow", "signIn");
       formData.set("deviceKey", getLoginDeviceKey());
       await signIn("password", formData);
+      const liveSession = await resolvePostLoginSession(convex, undefined, {
+        expectedEmail: email,
+        expectedUserId: reconnectSession?.userId,
+        expectedOrganizationId: reconnectSession?.organizationId,
+      });
       consumeExplicitLogout();
       try {
-        const me = await convex.query(api.users.me, {});
-        if (me?.userId) {
-          await storeLocalAuthVerifier(email, rawPassword, String(me.userId));
-        }
+        await storeLocalAuthVerifier(email, rawPassword, liveSession.userId);
       } catch {
         /* verifier refresh is best-effort */
       }

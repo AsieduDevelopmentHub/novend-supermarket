@@ -22,6 +22,12 @@ describe("cloud reconnect in place", () => {
     expect(banner).toContain('toast.success("Connected to cloud")');
   });
 
+  it("verifies the reconnected cloud identity before accepting the session", () => {
+    expect(banner).toContain("resolvePostLoginSession");
+    expect(banner).toContain("expectedUserId: reconnectSession?.userId");
+    expect(banner).toContain("expectedOrganizationId: reconnectSession?.organizationId");
+  });
+
   it("keeps reconnect UI across Convex isLoading flicker", () => {
     expect(banner).toContain("shellEligible");
     expect(banner).toContain("canAutoOpen");
