@@ -105,8 +105,14 @@
         var entry = params.get("entry") || "/dashboard";
         if (entry.charAt(0) !== "/") entry = "/" + entry;
         // fromBoot=1 lets the hosted app restore novend.lastRoute after load.
-        var sep = entry.indexOf("?") >= 0 ? "&" : "?";
-        var target = appUrl + entry + sep + "fromBoot=1";
+        // Never append it onto signed-out leave — that forced SW cache-first of
+        // a poisoned /login→dashboard body and trapped “Signing out…”.
+        var signedOutLeave = entry.indexOf("signedOut=1") >= 0;
+        var target = appUrl + entry;
+        if (!signedOutLeave && entry.indexOf("fromBoot=") < 0) {
+          var sep = entry.indexOf("?") >= 0 ? "&" : "?";
+          target = appUrl + entry + sep + "fromBoot=1";
+        }
 
         var stayOnBoot = params.get("stay") === "1";
         var booting = document.getElementById("booting");

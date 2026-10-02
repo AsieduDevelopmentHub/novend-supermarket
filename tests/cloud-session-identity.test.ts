@@ -93,6 +93,11 @@ describe("cloud session identity guard", () => {
     expect(layout).toContain("localOnlyReady");
     expect(layout).toContain("setLocalOnlyUserId");
     expect(gate).toContain("signOut()");
+    expect(gate).toContain("void signOut().catch(() => undefined)");
+    expect(gate).toContain('setPendingAction("local")');
+    expect(gate).toContain("Could not close the previous cloud session in time.");
+    expect(layout).toContain("ONLINE_AUTH_BUDGET_MS");
+    expect(layout).toContain("cloudIdentityChecking && onlineAuthBudgetElapsed && expectedCloudSession");
     expect(gate).toContain("expectedUserId: session.userId");
     expect(gate).toContain("expectedOrganizationId: session.organizationId");
     expect(reconnect).toContain("expectedUserId: reconnectSession?.userId");

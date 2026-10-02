@@ -43,6 +43,10 @@ describe("offline email+password resume", () => {
     expect(loginForm).toContain("resolvePostLoginSession");
     expect(loginForm).toContain("storeLocalAuthVerifier(");
     expect(loginForm).toContain("activateOfflineSessionWithFallback");
+    // Clear offline session only after cloud identity is confirmed.
+    expect(loginForm.indexOf("resolvePostLoginSession")).toBeLessThan(
+      loginForm.indexOf("clearOfflineSession()"),
+    );
     expect(layout).toContain("hydrateOfflineSessionsFromDeviceStore");
     expect(layout).toContain("hasExplicitLogout()");
   });

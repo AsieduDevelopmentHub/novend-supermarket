@@ -309,7 +309,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       }
 
       clearLogoutBarrierAfterCredentialUnlock();
-      clearOfflineSession();
 
       redirectingRef.current = true;
       setOpeningWorkspace(true);
@@ -322,6 +321,9 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       const session = await resolvePostLoginSession(convex, undefined, {
         expectedEmail: normalizedEmail,
       });
+      // Only drop the prior offline shell after cloud identity is confirmed —
+      // clearing earlier left cashiers with no local fallback if resolve hung.
+      clearOfflineSession();
       try {
         const prepared = await storeLocalAuthVerifier(
           normalizedEmail,
