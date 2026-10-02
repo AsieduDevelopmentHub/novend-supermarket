@@ -439,8 +439,15 @@ async function matchNavigation(request, url) {
   return undefined;
 }
 
-function isColdBootNavigation(url) {
-  return url.searchParams.get("fromBoot") === "1";
+/**
+ * Cap/Electron cold start (`fromBoot`) or post-login shell warm (`fromLogin`):
+ * prefer the cached shell immediately so the WebView does not wait on a dead
+ * radio / network-first hang after Welcome.
+ */
+function isShellWarmNavigation(url) {
+  return (
+    url.searchParams.get("fromBoot") === "1" || url.searchParams.get("fromLogin") === "1"
+  );
 }
 
 /**
@@ -635,7 +642,7 @@ self.addEventListener("fetch", (event) => {
 
   if (isAppShellRequest(request, url)) {
     event.respondWith(
-      isColdBootNavigation(url)
+      isShellWarmNavigation(url)
         ? cacheFirstDocument(request, url)
         : networkFirstDocument(request, url),
     );

@@ -75,6 +75,16 @@ const ONLINE_AUTH_BUDGET_MS = 4500;
 /** Show Try again / Close app if sign-out navigation never leaves the splash. */
 const SIGN_OUT_ESCAPE_MS = 3000;
 
+/** Post-credential hard leave — keep one splash label until the shell paints. */
+function isPostLoginWarm(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return new URLSearchParams(window.location.search).get("fromLogin") === "1";
+  } catch {
+    return false;
+  }
+}
+
 /** Visible signing-out splash with escape actions when leave hangs offline. */
 function SigningOutSplash() {
   const [showEscape, setShowEscape] = useState(false);
@@ -545,7 +555,12 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       (!online && isLoading && !offlineAuthBudgetElapsed));
 
   if (waitingForUser) {
-    return <AppSplash label="Preparing workspace…" />;
+    return (
+      <AppSplash
+        label={isPostLoginWarm() ? "Opening workspace…" : "Preparing workspace…"}
+        showLabel={isPostLoginWarm()}
+      />
+    );
   }
 
   if (signingOut) {
@@ -645,7 +660,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     // Offline shell without JWT: stay off /login — effect + registry hint should
     // already have produced resolvedCache; only splash briefly if storage is empty.
     if (awaitingCloudReconnect) {
-      return <AppSplash label="Opening workspace…" />;
+      return <AppSplash label="Opening workspace…" showLabel={isPostLoginWarm()} />;
     }
     if (profileError) {
       return (
@@ -672,7 +687,12 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       return <AppSplash label="Redirecting to login…" />;
     }
 
-    return <AppSplash label="Setting up your account…" />;
+    return (
+      <AppSplash
+        label={isPostLoginWarm() ? "Opening workspace…" : "Setting up your account…"}
+        showLabel={isPostLoginWarm()}
+      />
+    );
   }
 
   const shellUser = liveReady

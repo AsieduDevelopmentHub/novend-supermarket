@@ -1,24 +1,19 @@
 "use client";
 
-import { type ReactNode, Suspense, useEffect, useState, useSyncExternalStore } from "react";
+import { type ReactNode, Suspense, useEffect, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import { useConvexAuth } from "convex/react";
-import { AppSplash } from "@/features/auth/components/app-splash";
 import { useIsClient } from "@/hooks/use-is-client";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { prepareHardNavigation } from "@/lib/auth/redirect-after-login";
 
-/** Cap/emulator Convex can stay isAuthenticated briefly after sign-out. */
-const AUTH_COVER_BUDGET_MS = 4000;
-/** If still on /login after cover, hard-leave so "Welcome" cannot strand the form. */
+/**
+ * If still on /login with a live session, hard-leave so "Welcome" cannot
+ * strand the form. Does **not** paint AppSplash — the login form owns
+ * “Opening workspace…” so credential unlock does not stack brand covers.
+ */
 const FORCE_LEAVE_BUDGET_MS = 6000;
 
-/**
- * Covers login chrome only after mount, and only while a live session is
- * about to leave /login. Never cover because Convex `isLoading` — that
- * stays true on Cap/emulator and remounts reset the budget, trapping the
- * splash. SSR always paints the form so hydration cannot leave a stuck cover.
- */
 export function LoginSessionGate({ children }: { children: ReactNode }) {
   return (
     <Suspense fallback={children}>
@@ -37,15 +32,8 @@ function LoginSessionGateInner({ children }: { children: ReactNode }) {
   const signedOutParam = searchParams.get("signedOut") === "1";
   const mounted = useIsClient();
   const sessionLogout = useSyncExternalStore(subscribeNoop, hasExplicitLogout, () => false);
-  const [coverBudgetElapsed, setCoverBudgetElapsed] = useState(false);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setCoverBudgetElapsed(true), AUTH_COVER_BUDGET_MS);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   const explicitLogout = signedOutParam || sessionLogout;
-  const cover = mounted && !explicitLogout && isAuthenticated && !coverBudgetElapsed;
 
   useEffect(() => {
     if (!mounted || explicitLogout || !isAuthenticated) return;
@@ -54,17 +42,11 @@ function LoginSessionGateInner({ children }: { children: ReactNode }) {
         return;
       }
       prepareHardNavigation();
-      window.location.replace("/dashboard?fromBoot=1");
+      // fromLogin: SW cache-first without RestoreLastRoute remount.
+      window.location.replace("/dashboard?fromLogin=1");
     }, FORCE_LEAVE_BUDGET_MS);
     return () => window.clearTimeout(timer);
   }, [mounted, explicitLogout, isAuthenticated]);
 
-  return (
-    <>
-      <div className={cover ? "invisible h-0 overflow-hidden" : undefined} aria-hidden={cover}>
-        {children}
-      </div>
-      {cover ? <AppSplash label="Opening workspace…" /> : null}
-    </>
-  );
+  return <>{children}</>;
 }

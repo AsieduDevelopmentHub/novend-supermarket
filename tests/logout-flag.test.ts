@@ -52,13 +52,16 @@ describe("explicit logout flag", () => {
     expect(db).toContain("Never delete another tenant");
   });
 
-  it("does not cover login with Convex isLoading", () => {
+  it("does not cover login with AppSplash or Convex isLoading", () => {
     const source = readFileSync(
       resolve(process.cwd(), "features/auth/components/login-session-gate.tsx"),
       "utf8",
     );
     expect(source).not.toContain("coverWhileLoading");
-    expect(source).toContain("mounted && !explicitLogout && isAuthenticated");
+    expect(source).not.toContain('from "@/features/auth/components/app-splash"');
+    expect(source).not.toContain("<AppSplash");
+    expect(source).toContain("fromLogin=1");
+    expect(source).toContain("FORCE_LEAVE_BUDGET_MS");
   });
 
   it("does not query billing or users.me without a Convex session", () => {

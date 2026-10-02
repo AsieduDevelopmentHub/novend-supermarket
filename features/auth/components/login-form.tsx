@@ -203,19 +203,18 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     }
     clearLogoutBarrierAfterCredentialUnlock();
     redirectingRef.current = true;
+    setOpeningWorkspace(true);
     // Keep the form mounted until replace — prepare + navigate must be sync.
+    // fromLogin (via navigateAfterLogin) warms the shell without RestoreLastRoute.
     navigateAfterLogin(
-      withBootMarker(
-        resolvePostAuthPath({
-          isPlatformAdmin: false,
-          needsOnboarding: false,
-          needsProfile: false,
-        }),
-      ),
+      resolvePostAuthPath({
+        isPlatformAdmin: false,
+        needsOnboarding: false,
+        needsProfile: false,
+      }),
       router,
       { hard: true },
     );
-    setOpeningWorkspace(true);
     return true;
   }
 
@@ -242,13 +241,13 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     if (signedOut) return;
     if (!isAuthenticated || authLoading || redirectingRef.current || pending) return;
     redirectingRef.current = true;
+    setOpeningWorkspace(true);
     void (async () => {
       try {
-        // Resolve destination while the login form is still mounted, then
-        // hard-navigate in one sync turn (prepareHardNavigation + replace).
+        // Resolve destination while LoadingState is painted, then hard-navigate
+        // in one sync turn (prepareHardNavigation + replace).
         const path = await resolvePostLoginPath(convex);
         navigateAfterLogin(withBootMarker(path), router, { hard: true });
-        setOpeningWorkspace(true);
       } catch {
         redirectingRef.current = false;
         setOpeningWorkspace(false);
@@ -313,10 +312,11 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       clearOfflineSession();
 
       redirectingRef.current = true;
+      setOpeningWorkspace(true);
       // Barrier + URL marker cleared before session resolve so the stale-cloud
       // revoke effect cannot treat this fresh sign-in as a leftover cookie.
       staleCloudLogoutRef.current = false;
-      // Resolve session while inputs are still mounted. prepareHardNavigation
+      // Resolve session while LoadingState is painted. prepareHardNavigation
       // + location.replace must run together — awaiting after a splash unmount
       // is what resurfaced “Leave site?” on Electron/Chrome.
       const session = await resolvePostLoginSession(convex, undefined, {
@@ -336,7 +336,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       }
       toast.success("Welcome");
       navigateAfterLogin(session.path, router, { hard: true });
-      setOpeningWorkspace(true);
     } catch (error) {
       redirectingRef.current = false;
       setOpeningWorkspace(false);
@@ -368,113 +367,116 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     }
   }
 
-  if (openingWorkspace) {
-    return (
-      <div className="mx-auto w-full max-w-[360px] py-10">
-        <LoadingState label="Opening workspace…" variant="form" />
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto w-full max-w-[360px]">
-      {!hideWebsiteLink ? (
-        <Link
-          href={websiteHref}
-          className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-          Back to website
-        </Link>
+    <div className="relative mx-auto w-full max-w-[360px]">
+      {openingWorkspace ? (
+        <div className="bg-background absolute inset-0 z-10 flex items-start justify-center py-10">
+          <LoadingState label="Opening workspace…" variant="form" />
+        </div>
       ) : null}
 
-      <FormHeader compact={compact} />
+      <div
+        className={openingWorkspace ? "invisible h-0 overflow-hidden" : undefined}
+        aria-hidden={openingWorkspace}
+      >
+        {!hideWebsiteLink ? (
+          <Link
+            href={websiteHref}
+            className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+            Back to website
+          </Link>
+        ) : null}
 
-      <form className="space-y-4" onSubmit={onSubmit} noValidate>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <div className="relative">
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              inputMode="email"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@business.com"
-              className="bg-muted/50 h-11 pr-10"
+        <FormHeader compact={compact} />
+
+        <form className="space-y-4" onSubmit={onSubmit} noValidate>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <div className="relative">
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@business.com"
+                className="bg-muted/50 h-11 pr-10"
+                required
+              />
+              <Mail
+                className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2"
+                aria-hidden
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="password">Password</Label>
+              <Link
+                href={ROUTES.forgotPassword}
+                className={cn(
+                  "text-primary text-sm font-medium hover:underline",
+                  !online && "pointer-events-none opacity-50",
+                )}
+                tabIndex={!online ? -1 : undefined}
+                aria-disabled={!online}
+              >
+                Forgot password?
+              </Link>
+            </div>
+            <PasswordInput
+              id="password"
+              name="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="bg-muted/50 h-11"
               required
             />
-            <Mail
-              className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2"
-              aria-hidden
+          </div>
+
+          <div className="flex items-center gap-2 pt-0.5">
+            <Checkbox
+              id="login-remember-me"
+              checked={rememberMe}
+              onCheckedChange={(value) => setRememberMe(value === true)}
             />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-3">
-            <Label htmlFor="password">Password</Label>
-            <Link
-              href={ROUTES.forgotPassword}
-              className={cn(
-                "text-primary text-sm font-medium hover:underline",
-                !online && "pointer-events-none opacity-50",
-              )}
-              tabIndex={!online ? -1 : undefined}
-              aria-disabled={!online}
+            <Label
+              htmlFor="login-remember-me"
+              className="text-foreground/90 cursor-pointer text-sm font-normal"
             >
-              Forgot password?
-            </Link>
+              Remember me
+            </Label>
           </div>
-          <PasswordInput
-            id="password"
-            name="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="bg-muted/50 h-11"
-            required
-          />
-        </div>
 
-        <div className="flex items-center gap-2 pt-0.5">
-          <Checkbox
-            id="login-remember-me"
-            checked={rememberMe}
-            onCheckedChange={(value) => setRememberMe(value === true)}
-          />
-          <Label
-            htmlFor="login-remember-me"
-            className="text-foreground/90 cursor-pointer text-sm font-normal"
+          <Button
+            type="submit"
+            className="h-11 w-full text-[15px] font-semibold"
+            disabled={pending || openingWorkspace}
+            aria-busy={pending || openingWorkspace}
           >
-            Remember me
-          </Label>
-        </div>
+            {pending ? "Signing in…" : "Sign in"}
+          </Button>
+        </form>
 
-        <Button
-          type="submit"
-          className="h-11 w-full text-[15px] font-semibold"
-          disabled={pending}
-          aria-busy={pending}
-        >
-          {pending ? "Signing in…" : "Sign in"}
-        </Button>
-      </form>
-
-      <p className="text-muted-foreground mt-6 text-center text-sm">
-        New business?{" "}
-        <Link href="/signup" className="text-primary font-medium hover:underline">
-          Start a 14-day free trial
-        </Link>
-      </p>
-      <p className="text-muted-foreground mt-3 text-center text-xs leading-relaxed">
-        Staff accounts are created by your administrator.
-      </p>
+        <p className="text-muted-foreground mt-6 text-center text-sm">
+          New business?{" "}
+          <Link href="/signup" className="text-primary font-medium hover:underline">
+            Start a 14-day free trial
+          </Link>
+        </p>
+        <p className="text-muted-foreground mt-3 text-center text-xs leading-relaxed">
+          Staff accounts are created by your administrator.
+        </p>
+      </div>
     </div>
   );
 }

@@ -44,10 +44,11 @@ describe("service worker navigation safety", () => {
     expect(sw).toContain('url.pathname !== "/api/boot"');
   });
 
-  it("uses network-first for documents, cache-first only on fromBoot cold start", () => {
+  it("uses network-first for documents, cache-first on fromBoot or fromLogin shell warm", () => {
     expect(sw).toContain("function networkFirstDocument");
     expect(sw).toContain("function cacheFirstDocument");
-    expect(sw).toContain("function isColdBootNavigation");
+    expect(sw).toContain("function isShellWarmNavigation");
+    expect(sw).toContain('url.searchParams.get("fromLogin") === "1"');
     expect(sw).not.toContain("staleWhileRevalidate");
   });
 
