@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import type { ReactNode } from "react";
 import { BRANDING } from "@/constants/branding";
 import { APP_BRAND } from "@/constants/app";
 import { cn } from "@/lib/utils";
@@ -8,8 +9,12 @@ import { cn } from "@/lib/utils";
 type Props = {
   /** Optional status line under the logo (screen-reader friendly). */
   label?: string;
+  /** Show `label` visibly under the tagline (not sr-only). */
+  showLabel?: boolean;
   /** Fade-out state while transitioning away. */
   exiting?: boolean;
+  /** Escape / recovery actions under the splash (e.g. stuck sign-out). */
+  footer?: ReactNode;
   className?: string;
 };
 
@@ -30,7 +35,13 @@ const PARTICLES = [
 ] as const;
 
 /** Full-viewport branded splash used during app startup / auth bootstrap. */
-export function AppSplash({ label = "Loading…", exiting = false, className }: Props) {
+export function AppSplash({
+  label = "Loading…",
+  showLabel = false,
+  exiting = false,
+  footer,
+  className,
+}: Props) {
   return (
     <div
       className={cn(
@@ -81,7 +92,12 @@ export function AppSplash({ label = "Loading…", exiting = false, className }: 
         <p className="animate-splash-caption mt-8 text-sm tracking-[0.18em] text-white/70 uppercase">
           Smart POS. Strong business.
         </p>
-        <p className="sr-only">{label}</p>
+        {showLabel ? (
+          <p className="mt-4 text-sm font-medium text-white/90">{label}</p>
+        ) : (
+          <p className="sr-only">{label}</p>
+        )}
+        {footer ? <div className="mt-8 flex flex-wrap items-center justify-center gap-3">{footer}</div> : null}
       </div>
     </div>
   );

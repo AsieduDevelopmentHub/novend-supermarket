@@ -1,6 +1,7 @@
 "use client";
 
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { Hardware } from "@novend/hardware";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
@@ -71,6 +72,51 @@ import { useWorkspaceIdleLock } from "@/hooks/use-workspace-idle-lock";
 const OFFLINE_AUTH_BUDGET_MS = 1200;
 /** Cap/Web often look "online" while Convex never settles — fail soft into cache/login. */
 const ONLINE_AUTH_BUDGET_MS = 4500;
+/** Show Try again / Close app if sign-out navigation never leaves the splash. */
+const SIGN_OUT_ESCAPE_MS = 3000;
+
+/** Visible signing-out splash with escape actions when leave hangs offline. */
+function SigningOutSplash() {
+  const [showEscape, setShowEscape] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowEscape(true), SIGN_OUT_ESCAPE_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  return (
+    <AppSplash
+      label="Signing out…"
+      showLabel
+      footer={
+        showEscape ? (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11"
+              onClick={() => {
+                void navigateToLoginAfterSignOut();
+              }}
+            >
+              Try again
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+              onClick={() => {
+                void Hardware.app.exitApp();
+              }}
+            >
+              Close app
+            </Button>
+          </>
+        ) : null
+      }
+    />
+  );
+}
 
 /** Idle lock only after the authenticated tenant/platform shell is ready to paint. */
 function AppShellWithIdleLock({
@@ -503,7 +549,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (signingOut) {
-    return <AppSplash label="Signing out…" />;
+    return <SigningOutSplash />;
   }
 
   if (
