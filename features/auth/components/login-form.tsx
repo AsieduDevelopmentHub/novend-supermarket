@@ -46,6 +46,25 @@ const LOGIN_DEVICE_KEY = "novend.login.deviceKey";
 const CLOUD_SIGN_IN_BUDGET_MS = 8_000;
 let volatileLoginDeviceKey: string | null = null;
 
+/** Drop ?signedOut=1 without a React navigation — keeps LoginSessionGate in sync. */
+function clearSignedOutQueryParam(): void {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("signedOut")) return;
+    url.searchParams.delete("signedOut");
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    window.history.replaceState(window.history.state, "", next);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Clear the persistent barrier and the login URL marker after credentials succeed. */
+function clearLogoutBarrierAfterCredentialUnlock(): void {
+  consumeExplicitLogout();
+  clearSignedOutQueryParam();
+}
+
 function isTimeoutError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
   return (
@@ -112,27 +131,37 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     setHideWebsiteLink(isCapacitor() || isElectron());
   }, []);
 
-  // Offline sign-out cannot immediately revoke the cloud token. Keep the
-  // persistent local barrier in place, and revoke that stale token once the
-  // device can reach Convex again.
-  useEffect(() => {
-    if (!online) {
-      staleCloudLogoutRef.current = false;
-      return;
-    }
-    if (!signedOut || authLoading || !isAuthenticated) return;
-    if (staleCloudLogoutRef.current) return;
-    staleCloudLogoutRef.current = true;
-    void signOut().catch(() => {
-      // Retry only after the connectivity state changes again.
-    });
-  }, [signedOut, online, authLoading, isAuthenticated, signOut]);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [pending, setPending] = useState(false);
   const [openingWorkspace, setOpeningWorkspace] = useState(false);
+
+  // Offline sign-out cannot immediately revoke the cloud token. Keep the
+  // persistent local barrier in place, and revoke that stale token once the
+  // device can reach Convex again.
+  //
+  // Key off hasExplicitLogout() only — never `?signedOut=1`. After a successful
+  // password sign-in the URL still says signedOut while isAuthenticated flips
+  // true; treating the query param as the barrier immediately signs out the
+  // fresh session (first login bounces, second works via staleCloudLogoutRef).
+  useEffect(() => {
+    if (!online) {
+      staleCloudLogoutRef.current = false;
+      return;
+    }
+    if (!hasExplicitLogout()) {
+      staleCloudLogoutRef.current = false;
+      return;
+    }
+    if (authLoading || !isAuthenticated) return;
+    if (pending || openingWorkspace || redirectingRef.current) return;
+    if (staleCloudLogoutRef.current) return;
+    staleCloudLogoutRef.current = true;
+    void signOut().catch(() => {
+      // Retry only after the connectivity state changes again.
+    });
+  }, [online, authLoading, isAuthenticated, signOut, pending, openingWorkspace]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -172,7 +201,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     if (profile) {
       void saveShellProfile(profile).catch(() => undefined);
     }
-    consumeExplicitLogout();
+    clearLogoutBarrierAfterCredentialUnlock();
     redirectingRef.current = true;
     // Keep the form mounted until replace — prepare + navigate must be sync.
     navigateAfterLogin(
@@ -280,10 +309,13 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         throw cloudError;
       }
 
-      consumeExplicitLogout();
+      clearLogoutBarrierAfterCredentialUnlock();
       clearOfflineSession();
 
       redirectingRef.current = true;
+      // Barrier + URL marker cleared before session resolve so the stale-cloud
+      // revoke effect cannot treat this fresh sign-in as a leftover cookie.
+      staleCloudLogoutRef.current = false;
       // Resolve session while inputs are still mounted. prepareHardNavigation
       // + location.replace must run together — awaiting after a splash unmount
       // is what resurfaced “Leave site?” on Electron/Chrome.
