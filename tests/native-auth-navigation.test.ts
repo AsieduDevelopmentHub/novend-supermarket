@@ -20,13 +20,18 @@ describe("native auth navigation", () => {
       "utf8",
     );
     expect(source).toContain("LOGIN_AFTER_SIGN_OUT_PATH");
-    expect(source).toContain("LOGIN_AFTER_SIGN_OUT_NATIVE");
+    expect(source).toContain("LOGIN_AFTER_SIGN_OUT_CAPACITOR");
     expect(source).toContain("loginAfterSignOutHref");
     expect(source).toContain("reloadAuthShell");
     expect(source).toContain("CAPACITOR_BOOT_ORIGIN");
     expect(source).toContain("HARD_LEAVE_FALLBACK_MS");
     expect(source).toContain("hardLeaveToLogin");
-    expect(source).toContain("isCapacitor() || isElectron()");
+    expect(source).toContain("isBrowserOffline");
+    expect(source).toContain("scheduleHardLeaveFallback");
+    expect(source).toContain("isCapacitor()");
+    expect(source).toContain("isElectron()");
+    // Electron signed-out leave must not append fromBoot (poisoned login cache).
+    expect(source).not.toContain("isCapacitor() || isElectron()");
     expect(source).not.toContain("await bridge.reloadAuthShell");
   });
 
@@ -38,16 +43,35 @@ describe("native auth navigation", () => {
     expect(source).not.toContain('window.location.replace("/login?signedOut=1")');
   });
 
-  it("app shell watchdogs a stuck Signing out splash", () => {
+  it("app shell watchdogs a stuck Signing out splash with escape actions", () => {
     const layout = readFileSync(resolve(process.cwd(), "app/(app)/app-layout-client.tsx"), "utf8");
     expect(layout).toContain('label="Signing out…"');
+    expect(layout).toContain("SigningOutSplash");
     expect(layout).toContain("navigateToLoginAfterSignOut");
     expect(layout).toContain("hasExplicitLogout()");
+    expect(layout).toContain("Hardware.app.exitApp");
+    expect(layout).toContain("Try again");
+    expect(layout).toContain("Close app");
+    expect(layout).toContain("SIGN_OUT_ESCAPE_MS");
+  });
+
+  it("Electron quitApp is wired for Close app on desktop", () => {
+    const ipc = readFileSync(resolve(process.cwd(), "apps/desktop/src/ipc.ts"), "utf8");
+    const preload = readFileSync(resolve(process.cwd(), "apps/desktop/src/preload.ts"), "utf8");
+    const hardware = readFileSync(
+      resolve(process.cwd(), "packages/hardware/src/native-services.ts"),
+      "utf8",
+    );
+    expect(ipc).toContain('quitApp: "desktop:app:quit"');
+    expect(ipc).toContain("app.quit()");
+    expect(preload).toContain("quitApp:");
+    expect(hardware).toContain("quitApp");
+    expect(hardware).toContain("isElectron()");
   });
 
   it("service worker validates auth cache and does not poison login via cache.add", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
-    expect(sw).toContain('caches.match(expected)');
+    expect(sw).toContain("caches.match(expected)");
     expect(sw).toContain("isAuthDocument(url)");
     expect(sw).toContain("precacheAuthDocument");
     expect(sw).toContain("isUsableAuthCache");

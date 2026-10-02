@@ -71,6 +71,7 @@ function InventoryViewInner() {
     isAdmin,
     canManageProducts,
     canTransferStock,
+    canViewCost,
     branchId: myBranchId,
     branchName,
   } = usePermissions();
@@ -180,9 +181,10 @@ function InventoryViewInner() {
       : undefined
     : undefined;
 
+  /** Cost/sell/profit KPIs are admin/manager + online only — never cashiers or offline. */
   const valuation = useQuery(
     api.inventory.valuationSummary,
-    online ? { branchId: listBranchId } : "skip",
+    online && canViewCost ? { branchId: listBranchId } : "skip",
   );
 
   const { rows } = useInventoryList({

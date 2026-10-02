@@ -1,4 +1,4 @@
-import { Notification, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
+import { Notification, app, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
@@ -38,6 +38,7 @@ const CHANNELS = {
   reloadAuthShell: "desktop:shell:reloadAuth",
   showNotification: "desktop:notifications:show",
   openDateTimeSettings: "desktop:shell:openDateTimeSettings",
+  quitApp: "desktop:app:quit",
 } as const;
 
 const execFileAsync = promisify(execFile);
@@ -204,6 +205,15 @@ export function registerDesktopIpc() {
   ipcMain.handle(CHANNELS.openDateTimeSettings, async (event) => {
     requireTrustedSender(event);
     return openOsDateTimeSettings();
+  });
+
+  ipcMain.handle(CHANNELS.quitApp, (event) => {
+    requireTrustedSender(event);
+    // Defer so the invoke reply can flush before the process exits.
+    setImmediate(() => {
+      app.quit();
+    });
+    return { ok: true as const };
   });
 }
 

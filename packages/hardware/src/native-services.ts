@@ -248,6 +248,29 @@ export const appServices = {
     return mod.createCapacitorAppServicesAdapter().addBackButtonListener(callback);
   },
   exitApp: async () => {
+    if (isElectron()) {
+      type QuitBridge = {
+        quitApp?: () => Promise<{ ok: boolean; message?: string }>;
+      };
+      const bridge = getElectronBridge<QuitBridge>();
+      if (!bridge?.quitApp) {
+        return {
+          ok: false as const,
+          message: "Close the Novend window from the title bar, or press Alt+F4.",
+        };
+      }
+      try {
+        const result = await bridge.quitApp();
+        return result.ok
+          ? { ok: true as const, message: result.message }
+          : { ok: false as const, message: result.message ?? "Could not close the app." };
+      } catch (error) {
+        return {
+          ok: false as const,
+          message: error instanceof Error ? error.message : "Could not close the app.",
+        };
+      }
+    }
     if (!isCapacitor()) return unsupported();
     const mod = await capServices();
     return mod.createCapacitorAppServicesAdapter().exitApp();

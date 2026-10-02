@@ -124,6 +124,7 @@ export type NovendDesktopBridge = {
   ) => () => void;
   reloadAuthShell: (entry?: string) => Promise<{ ok: boolean; message?: string }>;
   openDateTimeSettings: () => Promise<{ ok: boolean; message?: string }>;
+  quitApp: () => Promise<{ ok: boolean; message?: string }>;
 };
 
 declare global {

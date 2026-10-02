@@ -215,7 +215,6 @@ export const valuationSummary = query({
     const { profile, organizationId } = await requireRole(ctx, [
       "administrator",
       "manager",
-      "cashier",
     ]);
     const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
     const businessConfig = await loadBusinessConfiguration(ctx, organizationId);

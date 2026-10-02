@@ -68,6 +68,8 @@ describe("explicit logout flag", () => {
     expect(permissions).toContain('isAuthenticated && online ? {} : "skip"');
     const layout = readFileSync(resolve(process.cwd(), "app/(app)/app-layout-client.tsx"), "utf8");
     expect(layout).toContain("hasExplicitLogout");
-    expect(layout).toContain('return <AppSplash label="Signing out…" />');
+    expect(layout).toContain("SigningOutSplash");
+    expect(layout).toContain('label="Signing out…"');
+    expect(layout).toContain("return <SigningOutSplash />");
   });
 });
