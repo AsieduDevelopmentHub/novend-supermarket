@@ -83,6 +83,15 @@ describe("cloud session identity guard", () => {
     );
     expect(layout).toContain("Do not clear the latch on a connectivity flap");
     expect(gate).toContain("await withTimeout(");
+    expect(gate).toContain("verifyLocalAuth");
+    expect(gate.indexOf("verifyLocalAuth(email, rawPassword)")).toBeLessThan(
+      gate.indexOf("signOut()"),
+    );
+    expect(gate).toContain("Incorrect password. Try again.");
+    expect(gate).toContain("Continue locally");
+    expect(gate).toContain("onContinueLocally");
+    expect(layout).toContain("localOnlyReady");
+    expect(layout).toContain("setLocalOnlyUserId");
     expect(gate).toContain("signOut()");
     expect(gate).toContain("expectedUserId: session.userId");
     expect(gate).toContain("expectedOrganizationId: session.organizationId");

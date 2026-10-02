@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v26";
+const CACHE_NAME = "novend-pos-v27";
 const FINAL_URL_HEADER = "X-Novend-Final-URL";
 
 /**
@@ -184,12 +184,13 @@ function unwrapRedirect(response) {
 }
 
 function fetchFollowRedirects(request) {
+  const target = new URL(request.url);
   return fetch(request.url, {
     method: "GET",
     headers: request.headers,
     credentials: request.credentials === "omit" ? "omit" : "same-origin",
     redirect: "follow",
-    cache: "no-cache",
+    cache: target.searchParams.has("novendFresh") ? "reload" : "no-cache",
   }).then(unwrapRedirect);
 }
 
@@ -641,8 +642,10 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isAppShellRequest(request, url)) {
+    const confirmedOffline =
+      typeof self.navigator !== "undefined" && self.navigator.onLine === false;
     event.respondWith(
-      isShellWarmNavigation(url)
+      isShellWarmNavigation(url) && confirmedOffline
         ? cacheFirstDocument(request, url)
         : networkFirstDocument(request, url),
     );

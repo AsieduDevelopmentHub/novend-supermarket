@@ -14,6 +14,13 @@ describe("offline sign-out recovery", () => {
         new Error("Failed to load chunk /_next/static/immutable/chunks/36mr0ubq12f4c.js"),
       ),
     ).toBe(true);
+    expect(
+      isChunkLoadError(
+        new Error(
+          "Module 579542 was instantiated because it was required from module 789034, but the module factory is not available.",
+        ),
+      ),
+    ).toBe(true);
     expect(isChunkLoadError(new Error("boom"))).toBe(false);
   });
 
@@ -35,7 +42,7 @@ describe("offline sign-out recovery", () => {
 
   it("SW prefers cached login for Cap fromBoot / true-offline signedOut only", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v26"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v27"');
     expect(sw).toContain('url.searchParams.get("signedOut") === "1"');
     expect(sw).toContain('url.searchParams.get("fromBoot") === "1"');
     expect(sw).toContain("preferCache = fromBoot || (signedOut && offline)");
@@ -53,9 +60,11 @@ describe("offline sign-out recovery", () => {
   it("app error boundary recovers to sign-in instead of dashboard", () => {
     const source = readFileSync(resolve(process.cwd(), "app/(app)/error.tsx"), "utf8");
     expect(source).toContain("recoverToLoginAfterFailure");
-    expect(source).toContain("Open sign-in");
     expect(source).toContain("Opening sign-in…");
     expect(source).toContain("resumeOfflineShellToDashboard");
+    expect(source).toContain("shouldAutoRecoverChunkFailure");
+    expect(source).toContain("recoverFromChunkLoadFailure");
+    expect(source).toContain("Refresh Novend");
     expect(source).not.toMatch(/asChild[\s\S]*Link href=["']\/dashboard["']/);
   });
 });

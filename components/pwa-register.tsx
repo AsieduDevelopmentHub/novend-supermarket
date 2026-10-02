@@ -92,15 +92,23 @@ export function PwaRegister() {
       return;
     }
 
+    let activeRegistration: ServiceWorkerRegistration | null = null;
     const onControllerChange = () => {
       // New SW claimed after a CACHE_NAME bump — re-warm shells into the new bucket.
       warmShellRoutes();
     };
+    const onOnline = () => {
+      const registration = activeRegistration;
+      if (!registration) return;
+      void registration.update().catch(() => undefined).then(() => warmShellRoutes());
+    };
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    window.addEventListener("online", onOnline);
 
     void navigator.serviceWorker
       .register("/sw.js")
       .then(async (registration) => {
+        activeRegistration = registration;
         await registration.update().catch(() => undefined);
         await navigator.serviceWorker.ready;
         warmShellRoutes();
@@ -112,6 +120,8 @@ export function PwaRegister() {
 
     return () => {
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+      window.removeEventListener("online", onOnline);
+      activeRegistration = null;
     };
   }, []);
 
