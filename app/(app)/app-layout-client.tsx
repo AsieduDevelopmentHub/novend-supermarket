@@ -207,6 +207,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const [localOnlyUserId, setLocalOnlyUserId] = useState<string | null>(null);
   const bootstrapping = useRef(false);
   const multiBranchReady = useRef(false);
+  const loginRedirectStarted = useRef(false);
 
   const activeLocalUserId = sessionHint?.userId ?? cachedProfile?.userId ?? null;
   const activeLocalOrganizationId =
@@ -286,33 +287,39 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     ensureActiveOfflineSession();
   }, [isAuthenticated, sessionHint]);
 
-  // Radio returned without a Convex JWT: keep the local shell. Never kick to
-  // /login while any remembered offline account exists on this device.
+  // One owner for the app-shell → login handoff. The previous flow issued a
+  // soft redirect, a timed hard redirect, and another hard redirect during
+  // render, which made Cap/Electron visibly reload two or three times.
   useEffect(() => {
-    if (!online || isAuthenticated) return;
-    if (hasExplicitLogout()) return;
-    if (isAwaitingCloudReconnect({ isAuthenticated, sessionHint })) return;
-    if (hasOfflineSession() || readOfflineSession() || sessionHint) return;
+    if (loginRedirectStarted.current || hasExplicitLogout()) return;
+    if (!cacheReady || isAuthenticated) return;
+    if (sessionHint || cachedProfile || platformSession) return;
+    if (hasOfflineSession() || readOfflineSession()) return;
     if (ensureActiveOfflineSession()) return;
-    if (isLoading && !onlineAuthBudgetElapsed) return;
 
-    router.replace("/login");
+    const authBudgetElapsed = online ? onlineAuthBudgetElapsed : offlineAuthBudgetElapsed;
+    if (isLoading && !authBudgetElapsed) return;
+
+    loginRedirectStarted.current = true;
     multiBranchReady.current = false;
 
-    const hardNav = window.setTimeout(() => {
-      if (window.location.pathname.startsWith("/login")) return;
-      if (isAwaitingCloudReconnect({ isAuthenticated: false, sessionHint })) return;
-      if (hasOfflineSession() || readOfflineSession() || sessionHint) return;
-      if (ensureActiveOfflineSession()) return;
-      const next = new URL("/login", window.location.origin);
-      if (new URLSearchParams(window.location.search).get("fromBoot") === "1") {
-        next.searchParams.set("fromBoot", "1");
-      }
-      window.location.assign(`${next.pathname}${next.search}`);
-    }, 1600);
-
-    return () => window.clearTimeout(hardNav);
-  }, [isAuthenticated, isLoading, online, onlineAuthBudgetElapsed, router, sessionHint]);
+    const next = new URL("/login", window.location.origin);
+    const fromBoot = new URLSearchParams(window.location.search).get("fromBoot") === "1";
+    if (!online || fromBoot) {
+      next.searchParams.set("fromBoot", "1");
+    }
+    window.location.replace(`${next.pathname}${next.search}`);
+  }, [
+    cacheReady,
+    cachedProfile,
+    isAuthenticated,
+    isLoading,
+    offlineAuthBudgetElapsed,
+    online,
+    onlineAuthBudgetElapsed,
+    platformSession,
+    sessionHint,
+  ]);
 
   useEffect(() => {
     if (online || (!isLoading && isAuthenticated)) {
@@ -727,19 +734,14 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return <AppSplash label="Redirecting to login…" />;
   }
 
-  // No local shell while offline → send cashiers to email/password login
-  // (device digest unlock), never a dead-end "Can't start while offline" card.
+  // The effect above owns this root-layout handoff. Rendering stays pure so
+  // React retries cannot schedule additional document navigations.
   if (
     cacheReady &&
     (!online || cachedShellWhileOnlineHung) &&
     !resolvedCache &&
     !resolvedPlatformSession
   ) {
-    if (typeof window !== "undefined" && !pathname.startsWith("/login")) {
-      const next = new URL("/login", window.location.origin);
-      next.searchParams.set("fromBoot", "1");
-      window.location.replace(`${next.pathname}${next.search}`);
-    }
     return <AppSplash label="Opening sign-in…" />;
   }
 
