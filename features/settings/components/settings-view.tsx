@@ -26,6 +26,7 @@ import { usePosPreferences } from "@/hooks/use-pos-preferences";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useDesktopRuntime } from "@/hooks/use-desktop-runtime";
 import { useNativeShell } from "@/hooks/use-native-shell";
+import { replaceClientShellUrl } from "@/lib/navigation/client-shell-url";
 import { ReceiptDocument } from "@/features/receipts/components/receipt-document";
 import { SAMPLE_RECEIPT_PAYLOAD } from "@/features/receipts/types";
 import type { ReceiptBusiness, ReceiptTemplateConfig } from "@/features/receipts/types";
@@ -105,7 +106,9 @@ export function SettingsView() {
 
   function selectSettingsTab(value: SettingsTab) {
     setTab(value);
-    router.replace(`/settings?section=${value}`, { scroll: false });
+    const href = `/settings?section=${encodeURIComponent(value)}`;
+    if (replaceClientShellUrl(href)) return;
+    router.replace(href, { scroll: false });
   }
 
   useEffect(() => {

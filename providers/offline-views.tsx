@@ -62,7 +62,11 @@ const SHELL_VIEWS: Record<string, () => ReactNode> = {
   "/products": () => <ProductsView />,
   "/customers": () => <CustomersView />,
   "/reports": () => <ReportsView />,
-  "/settings": () => <SettingsView />,
+  "/settings": () => (
+    <Suspense fallback={null}>
+      <SettingsView />
+    </Suspense>
+  ),
   "/customer-display": () => <CustomerDisplayView />,
   "/more": () => <MoreView />,
   "/about": () => <AboutNovendView />,

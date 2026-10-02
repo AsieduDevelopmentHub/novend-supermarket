@@ -54,6 +54,7 @@ import { cn } from "@/lib/utils";
 import { ProductImage } from "@/components/media/product-image";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { useClientPagedRows } from "@/hooks/use-ui";
+import { replaceClientShellUrl } from "@/lib/navigation/client-shell-url";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
 import { listMirroredProducts } from "@/lib/offline/mirror-queries";
@@ -166,7 +167,9 @@ function InventoryViewInner() {
       params.delete("branch");
     }
     const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    const href = qs ? `${pathname}?${qs}` : pathname;
+    if (replaceClientShellUrl(href)) return;
+    router.replace(href, { scroll: false });
   }
 
   const branches = useBranchesList(false);
