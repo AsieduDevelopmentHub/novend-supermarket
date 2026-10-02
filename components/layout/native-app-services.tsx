@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Hardware,
   isCapacitor,
@@ -17,10 +17,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Fingerprint } from "lucide-react";
+import { toast } from "sonner";
 import { sanitizeReleaseNoteLines } from "@/lib/sanitize-release-notes";
 import { parseMobileDeepLink } from "@/lib/auth/mobile-deep-link";
 
 type Gate = "checking" | "locked" | "open";
+
+/** Second Android back within this window closes the app. */
+const EXIT_DOUBLE_BACK_MS = 2200;
 
 /**
  * Capacitor-only: biometric launch gate + deep link routing + soft update check + back button.
@@ -34,7 +38,7 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
   const [updateVersion, setUpdateVersion] = useState("");
   const [updateMandatory, setUpdateMandatory] = useState(false);
   const [installedVersion, setInstalledVersion] = useState("");
-  const [exitOpen, setExitOpen] = useState(false);
+  const rootBackArmedUntil = useRef(0);
 
   useEffect(() => {
     if (!isCapacitor()) return;
@@ -111,11 +115,21 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
 
     void Hardware.app
       .addBackButtonListener(({ canGoBack }) => {
-        if (canGoBack || window.history.length > 1) {
+        // Prefer Cap's canGoBack — history.length stays > 1 after SPA pushState
+        // and never shrinks on back(), so it blocked the exit path forever.
+        if (canGoBack) {
+          rootBackArmedUntil.current = 0;
           window.history.back();
           return;
         }
-        setExitOpen(true);
+        const now = Date.now();
+        if (now < rootBackArmedUntil.current) {
+          rootBackArmedUntil.current = 0;
+          void Hardware.app.exitApp();
+          return;
+        }
+        rootBackArmedUntil.current = now + EXIT_DOUBLE_BACK_MS;
+        toast.message("Press back again to close Novend");
       })
       .then((handle) => {
         if (listenersDisposed) void handle.remove();
@@ -219,30 +233,6 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
               }}
             >
               Update now
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={exitOpen} onOpenChange={setExitOpen}>
-        <DialogContent className="max-w-sm rounded-[22px]">
-          <DialogHeader>
-            <DialogTitle>Leave Novend?</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground text-sm">
-            You are at the start of this session. Close the app, or stay and keep working.
-          </p>
-          <DialogFooter className="gap-2 sm:justify-between">
-            <Button type="button" variant="outline" onClick={() => setExitOpen(false)}>
-              Stay
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                void Hardware.app.exitApp();
-                setExitOpen(false);
-              }}
-            >
-              Close app
             </Button>
           </DialogFooter>
         </DialogContent>
