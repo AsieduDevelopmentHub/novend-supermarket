@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v27";
+const CACHE_NAME = "novend-pos-v28";
 const FINAL_URL_HEADER = "X-Novend-Final-URL";
 
 /**
@@ -296,7 +296,11 @@ function withAuthDocHeader(response) {
 /** Precache login/signup without storing a session 302 body under the auth key. */
 async function precacheAuthDocument(cache, pathname) {
   try {
-    const response = await fetch(pathname, {
+    // A normal /login request redirects to /dashboard while a cloud cookie is
+    // active. The signedOut marker intentionally renders the login page even
+    // then, so every cache generation can prepare offline sign-out safely.
+    const authShellUrl = `${pathname}?signedOut=1&novendPrecache=1`;
+    const response = await fetch(authShellUrl, {
       credentials: "same-origin",
       cache: "no-cache",
       redirect: "manual",
@@ -305,7 +309,14 @@ async function precacheAuthDocument(cache, pathname) {
     if (response.status >= 300 && response.status < 400) return;
     if (!response.ok) return;
     if (response.redirected && response.url && !isLoginDocumentUrl(response.url)) return;
-    await cache.put(pathname, withAuthDocHeader(unwrapRedirect(response)));
+
+    const normalized = unwrapRedirect(response.clone());
+    // Fail closed: never mark or store dashboard/session HTML as an auth shell.
+    if (!(await isLikelyAuthHtml(normalized))) return;
+    const html = await response.clone().text();
+    await cache.put(pathname, withAuthDocHeader(normalized));
+    // The HTML is useless offline unless its matching hashed Next assets survive.
+    await warmDocumentStaticAssets(html);
   } catch {
     /* ignore — offline install still warms other PRECACHE assets */
   }
