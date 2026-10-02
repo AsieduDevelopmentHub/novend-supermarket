@@ -233,10 +233,9 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
           : null,
   });
   const cloudIdentityUnsafe =
-    online &&
-    isAuthenticated &&
     Boolean(activeLocalUserId) &&
-    cloudIdentityState !== "matched";
+    (cloudSwitchUserId === activeLocalUserId ||
+      (online && isAuthenticated && cloudIdentityState !== "matched"));
 
   // Open Dexie + restore shell identity before auth/network settle.
   // Never resurrect a signed-out user's Dexie profile (that re-marks
@@ -347,18 +346,28 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   // Keep the identity gate mounted while it replaces a stale cloud account.
   // signOut briefly flips Convex to unauthenticated; clearing the gate at that
   // point would mount sync providers before the intended local user signs in.
+  // Do not clear the latch on a connectivity flap — that remounts OfflineProvider
+  // while a stale JWT can still be present.
   useEffect(() => {
-    const nextUserId =
-      !online || !activeLocalUserId
-        ? null
-        : cloudIdentityState === "mismatch"
-          ? activeLocalUserId
-          : cloudIdentityState === "matched"
-            ? null
-            : cloudSwitchUserId;
-    if (nextUserId === cloudSwitchUserId) return;
-    queueMicrotask(() => setCloudSwitchUserId(nextUserId));
-  }, [online, activeLocalUserId, cloudIdentityState, cloudSwitchUserId]);
+    if (!activeLocalUserId || hasExplicitLogout()) {
+      if (cloudSwitchUserId !== null) {
+        queueMicrotask(() => setCloudSwitchUserId(null));
+      }
+      return;
+    }
+    if (cloudIdentityState === "mismatch") {
+      if (cloudSwitchUserId !== activeLocalUserId) {
+        queueMicrotask(() => setCloudSwitchUserId(activeLocalUserId));
+      }
+      return;
+    }
+    if (cloudIdentityState === "matched") {
+      if (cloudSwitchUserId !== null) {
+        queueMicrotask(() => setCloudSwitchUserId(null));
+      }
+    }
+    // checking / not-required: keep an existing latch sticky across flaps.
+  }, [activeLocalUserId, cloudIdentityState, cloudSwitchUserId]);
 
   useEffect(() => {
     if (
@@ -529,25 +538,29 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
           organizationId: cachedProfile.organizationId ?? undefined,
         }
       : null);
+  const switchingCloudAccount =
+    Boolean(activeLocalUserId) && cloudSwitchUserId === activeLocalUserId;
+  // Prefer the password gate over the verifying splash once a switch is latched —
+  // signOut→signIn briefly puts users.me in "checking" and must not unmount the form.
+  const cloudIdentityBlocked =
+    Boolean(activeLocalUserId) &&
+    (cloudIdentityState === "mismatch" || switchingCloudAccount);
   const cloudIdentityChecking =
     online &&
     isAuthenticated &&
     Boolean(activeLocalUserId) &&
-    cloudIdentityState === "checking";
-  const cloudIdentityBlocked =
-    online &&
-    Boolean(activeLocalUserId) &&
-    (cloudIdentityState === "mismatch" || cloudSwitchUserId === activeLocalUserId);
-
-  if (cloudIdentityChecking) {
-    return <AppSplash label="Verifying account…" showLabel />;
-  }
+    cloudIdentityState === "checking" &&
+    !switchingCloudAccount;
 
   if (cloudIdentityBlocked) {
     if (expectedCloudSession) {
       return <CloudSessionMismatchGate session={expectedCloudSession} />;
     }
     return <AppSplash label="Securing account…" showLabel />;
+  }
+
+  if (cloudIdentityChecking) {
+    return <AppSplash label="Verifying account…" showLabel />;
   }
 
   if (!cloudIdentityUnsafe && user?.isPlatformAdmin && user.userId) {
