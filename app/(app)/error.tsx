@@ -5,6 +5,7 @@ import { isConnectivityError, toUserMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import {
   isChunkLoadError,
+  isReactDomDetachError,
   recoverToLoginAfterFailure,
   shouldRecoverToLogin,
 } from "@/lib/auth/recover-auth-navigation";
@@ -29,6 +30,13 @@ export default function AppError({
     setRecovering(true);
     void recoverToLoginAfterFailure();
   }, [recoverLogin, recovering]);
+
+  // Hard-nav leave-site cleanup used to detach forms React still owned; that
+  // throws removeChild and paints this sheet after Welcome. Soft-recover.
+  useEffect(() => {
+    if (!isReactDomDetachError(error) || recovering) return;
+    reset();
+  }, [error, recovering, reset]);
 
   if (recovering || recoverLogin) {
     return (

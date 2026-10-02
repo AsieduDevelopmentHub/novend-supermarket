@@ -120,10 +120,11 @@ describe("redirect-after-login", () => {
     );
   });
 
-  it("prepareHardNavigation detaches forms so Chromium cannot warn on replace", () => {
+  it("prepareHardNavigation clears leave-site dirt without detaching React DOM", () => {
     const source = readFileSync(resolve(process.cwd(), "lib/auth/redirect-after-login.ts"), "utf8");
-    expect(source).toContain("form.remove()");
     expect(source).toContain("form.reset()");
+    expect(source).not.toContain("form.remove()");
+    expect(source).toContain("removeChild");
   });
 
   it("resolvePostLoginSession returns userId for offline digest storage", async () => {
