@@ -23,6 +23,21 @@ export function isChunkLoadError(error: unknown): boolean {
   );
 }
 
+/** True when React threw because something else already removed a DOM node. */
+export function isReactDomDetachError(error: unknown): boolean {
+  const text =
+    error instanceof Error
+      ? `${error.name} ${error.message}`
+      : String(error ?? "");
+  const lower = text.toLowerCase();
+  return (
+    lower.includes("removechild") ||
+    lower.includes("insertbefore") ||
+    (lower.includes("notfounderror") && lower.includes("node")) ||
+    lower.includes("the node to be removed is not a child")
+  );
+}
+
 /** True when the till should leave the error sheet for a clean sign-in screen. */
 export function shouldRecoverToLogin(error: unknown): boolean {
   if (typeof window === "undefined") return false;

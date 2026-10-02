@@ -192,10 +192,14 @@ export function withShellBootMarker(path: string): string {
  * Chrome / Electron / Cap WebView treat a typed login form as unsaved edits.
  * A following `location.replace` then shows “Leave site?”. Sync each field's
  * default to its current value and reset the form while inputs are still in
- * the DOM, then detach forms so Chromium has nothing left to warn about.
+ * the DOM so Chromium clears that dirty bit.
  *
  * Must run in the **same synchronous turn** as `location.replace` — any
  * `await` in between lets React unmount the form and the clean is wasted.
+ *
+ * Do **not** detach React-owned form nodes from the document here. That races
+ * the reconciler and surfaces as `Failed to execute 'removeChild'` with the
+ * app error “Try again / Go to dashboard” sheet after Welcome.
  */
 export function prepareHardNavigation(): void {
   if (typeof window === "undefined" || typeof document === "undefined") return;
@@ -226,12 +230,6 @@ export function prepareHardNavigation(): void {
   for (const form of Array.from(document.forms)) {
     try {
       form.reset();
-    } catch {
-      /* ignore */
-    }
-    // Detach so a later replace cannot still see an interacted form.
-    try {
-      form.remove();
     } catch {
       /* ignore */
     }
