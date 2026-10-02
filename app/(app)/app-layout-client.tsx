@@ -204,12 +204,17 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const [offlineAuthBudgetElapsed, setOfflineAuthBudgetElapsed] = useState(false);
   const [onlineAuthBudgetElapsed, setOnlineAuthBudgetElapsed] = useState(false);
   const [cloudSwitchUserId, setCloudSwitchUserId] = useState<string | null>(null);
+  const [localOnlyUserId, setLocalOnlyUserId] = useState<string | null>(null);
   const bootstrapping = useRef(false);
   const multiBranchReady = useRef(false);
 
   const activeLocalUserId = sessionHint?.userId ?? cachedProfile?.userId ?? null;
   const activeLocalOrganizationId =
     sessionHint?.organizationId ?? cachedProfile?.organizationId ?? null;
+  const localOnlyReady =
+    Boolean(activeLocalUserId) &&
+    localOnlyUserId === activeLocalUserId &&
+    !isAuthenticated;
   const cloudIdentityState = getCloudSessionIdentityState({
     online,
     isAuthenticated,
@@ -234,6 +239,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   });
   const cloudIdentityUnsafe =
     Boolean(activeLocalUserId) &&
+    !localOnlyReady &&
     (cloudSwitchUserId === activeLocalUserId ||
       (online && isAuthenticated && cloudIdentityState !== "matched"));
 
@@ -353,9 +359,21 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       if (cloudSwitchUserId !== null) {
         queueMicrotask(() => setCloudSwitchUserId(null));
       }
+      if (localOnlyUserId !== null) {
+        queueMicrotask(() => setLocalOnlyUserId(null));
+      }
+      return;
+    }
+    if (localOnlyReady) {
+      if (cloudSwitchUserId !== null) {
+        queueMicrotask(() => setCloudSwitchUserId(null));
+      }
       return;
     }
     if (cloudIdentityState === "mismatch") {
+      if (localOnlyUserId === activeLocalUserId) {
+        queueMicrotask(() => setLocalOnlyUserId(null));
+      }
       if (cloudSwitchUserId !== activeLocalUserId) {
         queueMicrotask(() => setCloudSwitchUserId(activeLocalUserId));
       }
@@ -365,9 +383,18 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       if (cloudSwitchUserId !== null) {
         queueMicrotask(() => setCloudSwitchUserId(null));
       }
+      if (localOnlyUserId !== null) {
+        queueMicrotask(() => setLocalOnlyUserId(null));
+      }
     }
     // checking / not-required: keep an existing latch sticky across flaps.
-  }, [activeLocalUserId, cloudIdentityState, cloudSwitchUserId]);
+  }, [
+    activeLocalUserId,
+    cloudIdentityState,
+    cloudSwitchUserId,
+    localOnlyReady,
+    localOnlyUserId,
+  ]);
 
   useEffect(() => {
     if (
@@ -539,7 +566,9 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         }
       : null);
   const switchingCloudAccount =
-    Boolean(activeLocalUserId) && cloudSwitchUserId === activeLocalUserId;
+    Boolean(activeLocalUserId) &&
+    !localOnlyReady &&
+    cloudSwitchUserId === activeLocalUserId;
   // Prefer the password gate over the verifying splash once a switch is latched —
   // signOut→signIn briefly puts users.me in "checking" and must not unmount the form.
   const cloudIdentityBlocked =
@@ -554,7 +583,12 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
   if (cloudIdentityBlocked) {
     if (expectedCloudSession) {
-      return <CloudSessionMismatchGate session={expectedCloudSession} />;
+      return (
+        <CloudSessionMismatchGate
+          session={expectedCloudSession}
+          onContinueLocally={() => setLocalOnlyUserId(activeLocalUserId)}
+        />
+      );
     }
     return <AppSplash label="Securing account…" showLabel />;
   }

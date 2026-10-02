@@ -8,16 +8,16 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
-import { APP_BRAND } from "@/constants/app";
 import { toUserMessage } from "@/lib/errors";
 import { markExplicitLogout } from "@/lib/auth/logout-flag";
 import { navigateToLoginAfterSignOut } from "@/lib/auth/native-auth-navigation";
 import { resolvePostLoginSession } from "@/lib/auth/redirect-after-login";
 import { withTimeout } from "@/lib/async/with-timeout";
-import { storeLocalAuthVerifier } from "@/lib/offline/local-auth";
+import { storeLocalAuthVerifier, verifyLocalAuth } from "@/lib/offline/local-auth";
 
 const LOGIN_DEVICE_KEY = "novend.login.deviceKey";
 const CLOUD_SWITCH_BUDGET_MS = 8_000;
+const RECONNECT_DISMISS_KEY = "novend.cloudReconnect.dismissedAt";
 let volatileLoginDeviceKey: string | null = null;
 
 export type ExpectedCloudSession = {
@@ -52,24 +52,34 @@ function getLoginDeviceKey(): string {
  */
 export function CloudSessionMismatchGate({
   session,
+  onContinueLocally,
 }: {
   session: ExpectedCloudSession;
+  onContinueLocally: () => void;
 }) {
   const { signIn, signOut } = useAuthActions();
   const convex = useConvex();
   const [password, setPassword] = useState("");
-  const [pending, setPending] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"connect" | "local" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const pending = pendingAction !== null;
   const email = session.email?.trim().toLowerCase() ?? "";
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (pending || !email || !password) return;
-    setPending(true);
+    setPendingAction("connect");
     setError(null);
     const rawPassword = password;
 
     try {
+      const localMatch = await verifyLocalAuth(email, rawPassword);
+      if (!localMatch || localMatch.userId !== session.userId) {
+        setPassword("");
+        setError("Incorrect password. Try again.");
+        return;
+      }
+
       await withTimeout(
         signOut(),
         CLOUD_SWITCH_BUDGET_MS,
@@ -99,6 +109,7 @@ export function CloudSessionMismatchGate({
       setPassword("");
       toast.success(`${session.name} connected to cloud`);
     } catch (cause) {
+      setPassword("");
       setError(
         toUserMessage(
           cause,
@@ -106,7 +117,30 @@ export function CloudSessionMismatchGate({
         ),
       );
     } finally {
-      setPending(false);
+      setPendingAction(null);
+    }
+  }
+
+  async function continueLocally() {
+    if (pending) return;
+    setPendingAction("local");
+    setError(null);
+    try {
+      await withTimeout(
+        signOut(),
+        CLOUD_SWITCH_BUDGET_MS,
+        "Could not open the local workspace. Check the connection and try again.",
+      );
+      try {
+        window.sessionStorage.setItem(RECONNECT_DISMISS_KEY, String(Date.now()));
+      } catch {
+        /* private mode */
+      }
+      onContinueLocally();
+    } catch {
+      setError("Could not open the local workspace. Check the connection and try again.");
+    } finally {
+      setPendingAction(null);
     }
   }
 
@@ -130,14 +164,18 @@ export function CloudSessionMismatchGate({
             <ShieldAlert className="size-5" aria-hidden />
           </div>
           <h1 id="cloud-session-title" className="text-lg font-semibold tracking-tight">
-            Verify {session.name}
+            Continue as {session.name}
           </h1>
           <p id="cloud-session-description" className="text-muted-foreground mt-1 text-sm">
-            Internet is back, but another cloud session is still active. {APP_BRAND} has blocked
-            the workspace to protect both accounts. Enter the password for {email || session.name}
-            to reconnect safely.
+            Enter your password to reconnect and sync your work, or continue locally.
           </p>
         </div>
+
+        {error ? (
+          <p id="cloud-session-error" className="text-destructive mb-4 text-sm" role="alert">
+            {error}
+          </p>
+        ) : null}
 
         {email ? (
           <form className="space-y-4" onSubmit={(event) => void onSubmit(event)}>
@@ -147,7 +185,10 @@ export function CloudSessionMismatchGate({
                 id="cloud-session-password"
                 autoComplete="current-password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  if (error) setError(null);
+                }}
                 disabled={pending}
                 required
                 autoFocus
@@ -155,22 +196,36 @@ export function CloudSessionMismatchGate({
                 aria-describedby={error ? "cloud-session-error" : undefined}
               />
             </div>
-            {error ? (
-              <p id="cloud-session-error" className="text-destructive text-sm" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <Button type="submit" className="w-full" disabled={pending || !password}>
-              {pending ? "Verifying…" : "Connect to cloud"}
-            </Button>
+            <div className="grid gap-2">
+              <Button type="submit" className="w-full" disabled={pending || !password}>
+                {pendingAction === "connect" ? "Checking…" : "Reconnect and sync"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={pending}
+                onClick={() => void continueLocally()}
+              >
+                {pendingAction === "local" ? "Opening local workspace…" : "Continue locally"}
+              </Button>
+            </div>
           </form>
         ) : (
           <div className="space-y-3">
-            <p className="text-destructive text-sm" role="alert">
-              This cached account has no email address. Open sign-in and authenticate online.
+            <p className="text-muted-foreground text-sm">
+              This saved account must sign in again before it can sync.
             </p>
-            <Button type="button" className="w-full" onClick={openSignIn}>
-              Open sign-in
+            <Button
+              type="button"
+              className="w-full"
+              disabled={pending}
+              onClick={() => void continueLocally()}
+            >
+              {pendingAction === "local" ? "Opening local workspace…" : "Continue locally"}
+            </Button>
+            <Button type="button" variant="outline" className="w-full" onClick={openSignIn}>
+              Sign in online
             </Button>
           </div>
         )}

@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import {
   isChunkLoadError,
   isReactDomDetachError,
+  recoverFromChunkLoadFailure,
   recoverToLoginAfterFailure,
+  shouldAutoRecoverChunkFailure,
   shouldRecoverToLogin,
 } from "@/lib/auth/recover-auth-navigation";
 import { resumeOfflineShellToDashboard } from "@/lib/auth/awaiting-cloud-reconnect";
@@ -23,6 +25,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   const [recovering, setRecovering] = useState(false);
+  const [refreshingClient, setRefreshingClient] = useState(false);
   const offline = isConnectivityError(error);
   const chunkMiss = isChunkLoadError(error);
   const recoverLogin = shouldRecoverToLogin(error);
@@ -33,6 +36,13 @@ export default function GlobalError({
     setRecovering(true);
     void recoverToLoginAfterFailure();
   }, [recoverLogin, recovering]);
+
+  useEffect(() => {
+    if (!chunkMiss || recoverLogin || recovering || refreshingClient) return;
+    if (!shouldAutoRecoverChunkFailure(error)) return;
+    setRefreshingClient(true);
+    recoverFromChunkLoadFailure();
+  }, [chunkMiss, error, recoverLogin, recovering, refreshingClient, reset]);
 
   useEffect(() => {
     if (!isReactDomDetachError(error) || recovering) return;
@@ -54,17 +64,41 @@ export default function GlobalError({
     );
   }
 
-  const title = offline ? "You're working offline" : "Something went wrong";
-  const message = toUserMessage(
-    error,
-    offline
-      ? "Novend will keep using data saved on this device when the connection returns."
-      : chunkMiss
-        ? "This screen could not load while offline. Open sign-in or reconnect and try again."
-        : "We hit an unexpected problem. You can try again or go back to the dashboard.",
-  );
+  if (refreshingClient) {
+    return (
+      <html lang="en">
+        <body className="bg-background text-foreground antialiased">
+          <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
+            <h1 className="text-xl font-semibold">Refreshing Novend…</h1>
+            <p className="text-muted-foreground max-w-md text-sm">
+              Loading the latest version. Your saved work is safe.
+            </p>
+          </div>
+        </body>
+      </html>
+    );
+  }
+
+  const title = chunkMiss
+    ? "Novend needs a refresh"
+    : offline
+      ? "You're working offline"
+      : "Something went wrong";
+  const message = chunkMiss
+    ? "Refresh Novend to load the latest version. Your saved work is safe on this device."
+    : toUserMessage(
+        error,
+        offline
+          ? "Novend will keep using data saved on this device when the connection returns."
+          : "We hit an unexpected problem. You can try again or go back to the dashboard.",
+      );
 
   function retry() {
+    if (chunkMiss) {
+      setRefreshingClient(true);
+      recoverFromChunkLoadFailure();
+      return;
+    }
     if (hasShell) {
       resumeOfflineShellToDashboard(reset);
       return;
@@ -88,20 +122,9 @@ export default function GlobalError({
           <p className="text-muted-foreground max-w-md text-sm">{message}</p>
           <div className="flex flex-wrap justify-center gap-2">
             <Button type="button" onClick={retry}>
-              {offline ? "Continue" : "Try again"}
+              {chunkMiss ? "Refresh Novend" : offline ? "Continue" : "Try again"}
             </Button>
-            {chunkMiss && !hasShell ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setRecovering(true);
-                  void recoverToLoginAfterFailure();
-                }}
-              >
-                Open sign-in
-              </Button>
-            ) : (
+            {chunkMiss ? null : (
               <Button type="button" variant="outline" onClick={goDashboard}>
                 Go to dashboard
               </Button>

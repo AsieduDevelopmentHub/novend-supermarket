@@ -44,11 +44,13 @@ describe("service worker navigation safety", () => {
     expect(sw).toContain('url.pathname !== "/api/boot"');
   });
 
-  it("uses network-first for documents, cache-first on fromBoot or fromLogin shell warm", () => {
+  it("uses fresh documents online and cache-first warm shells only when confirmed offline", () => {
     expect(sw).toContain("function networkFirstDocument");
     expect(sw).toContain("function cacheFirstDocument");
     expect(sw).toContain("function isShellWarmNavigation");
     expect(sw).toContain('url.searchParams.get("fromLogin") === "1"');
+    expect(sw).toContain('self.navigator.onLine === false');
+    expect(sw).toContain('target.searchParams.has("novendFresh") ? "reload" : "no-cache"');
     expect(sw).not.toContain("staleWhileRevalidate");
   });
 
@@ -60,7 +62,7 @@ describe("service worker navigation safety", () => {
   });
 
   it("does not precache gated app routes that 302 to login", () => {
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v26"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v27"');
     expect(sw).toContain("/branding/logo_horizontal.png");
     expect(sw).toContain("function matchStaticAsset");
     expect(sw).toContain("ignoreSearch: true");
