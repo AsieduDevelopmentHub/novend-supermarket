@@ -40,17 +40,20 @@ describe("offline sign-out recovery", () => {
     expect(shouldRecoverToLogin(new Error("anything"))).toBe(true);
   });
 
-  it("SW prefers cached login for Cap fromBoot / true-offline signedOut only", () => {
+  it("SW prefers validated auth cache for fromBoot and signedOut leaves", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v28"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v29"');
     expect(sw).toContain('url.searchParams.get("signedOut") === "1"');
     expect(sw).toContain('url.searchParams.get("fromBoot") === "1"');
-    expect(sw).toContain("preferCache = fromBoot || (signedOut && offline)");
+    expect(sw).toContain('url.searchParams.get("novendFresh") === "1"');
+    expect(sw).toContain("preferCache = !freshLeave && (fromBoot || signedOut)");
     expect(sw).toContain("precacheAuthDocument");
     expect(sw).toContain("?signedOut=1&novendPrecache=1");
     expect(sw).toContain("await isLikelyAuthHtml(normalized)");
     expect(sw).toContain("await warmDocumentStaticAssets(html)");
     expect(sw).toContain("isUsableAuthCache");
+    expect(sw).toContain("if (!(await isLikelyAuthHtml(copy)))");
+    expect(sw).toContain("if (!(await isUsableAuthCache(hit, expected)))");
   });
 
   it("Electron sign-out does not await a hung Convex signOut", () => {

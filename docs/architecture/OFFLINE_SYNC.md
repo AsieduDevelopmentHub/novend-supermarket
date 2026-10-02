@@ -322,9 +322,15 @@ stays mounted and tab switches are instant. The URL remains the source of naviga
 state; the service worker may serve a cached shell HTML document for an uncached deep
 path without rewriting the browser location — `OfflineNavigationProvider` /
 `resolveOfflineView` honor `location.pathname`. Document navigations are
-**network-first** (`novend-pos-v19`), except Capacitor/Electron `?fromBoot=1`
+**network-first** (`novend-pos-v29`), except Capacitor/Electron `?fromBoot=1`
 navigations which are **cache-first** so a dead radio does not stall cold
-start. App-route fallbacks are `/dashboard`, `/sales`, and `/platform` only —
+start. Auth documents (`/login`, `/signup`) prefer a **validated** cache entry
+when `fromBoot=1` or `signedOut=1` (HTML must look like the login/signup form —
+the `X-Novend-Auth-Doc` header alone is not enough). `novendFresh=1` forces
+network-first so escape hatches can bypass a poisoned shell. Sign-out leave
+never appends `fromBoot` on Electron, and only appends it on Capacitor when
+`navigator.onLine === false`; offline-boot trampolines also skip `fromBoot`
+when the entry already has `signedOut=1`. App-route fallbacks are `/dashboard`, `/sales`, and `/platform` only —
 never the marketing homepage (`/`). The worker does **not** intercept `/`:
 signed-in visits 302 to `/dashboard` in the browser so the POS splash cannot
 paint on the marketing URL. Precache also omits `/` and gated app shells so

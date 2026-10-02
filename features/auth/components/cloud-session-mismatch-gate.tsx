@@ -126,11 +126,16 @@ export function CloudSessionMismatchGate({
     setPendingAction("local");
     setError(null);
     try {
-      await withTimeout(
-        signOut(),
-        CLOUD_SWITCH_BUDGET_MS,
-        "Could not open the local workspace. Check the connection and try again.",
-      );
+      try {
+        await withTimeout(
+          signOut(),
+          CLOUD_SWITCH_BUDGET_MS,
+          "Could not close the previous cloud session in time.",
+        );
+      } catch {
+        // Dead radio: still enter the local workspace; revoke in the background.
+        void signOut().catch(() => undefined);
+      }
       try {
         window.sessionStorage.setItem(RECONNECT_DISMISS_KEY, String(Date.now()));
       } catch {

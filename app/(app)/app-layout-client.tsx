@@ -1,7 +1,7 @@
 "use client";
 
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { Hardware } from "@novend/hardware";
+import { Hardware, isCapacitor, isElectron } from "@novend/hardware";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
@@ -51,7 +51,10 @@ import {
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { isAwaitingCloudReconnect } from "@/lib/auth/awaiting-cloud-reconnect";
 import { getCloudSessionIdentityState } from "@/lib/auth/cloud-session-identity";
-import { navigateToLoginAfterSignOut } from "@/lib/auth/native-auth-navigation";
+import {
+  forceLeaveToLoginAfterSignOut,
+  navigateToLoginAfterSignOut,
+} from "@/lib/auth/native-auth-navigation";
 import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
 import {
   bindPlatformOfflineDb,
@@ -90,6 +93,8 @@ function isPostLoginWarm(): boolean {
 /** Visible signing-out splash with escape actions when leave hangs offline. */
 function SigningOutSplash() {
   const [showEscape, setShowEscape] = useState(false);
+  const [escapeAttempts, setEscapeAttempts] = useState(0);
+  const canQuitNative = isCapacitor() || isElectron();
 
   useEffect(() => {
     const timer = window.setTimeout(() => setShowEscape(true), SIGN_OUT_ESCAPE_MS);
@@ -108,21 +113,40 @@ function SigningOutSplash() {
               variant="secondary"
               className="min-h-11"
               onClick={() => {
+                const next = escapeAttempts + 1;
+                setEscapeAttempts(next);
+                if (next >= 2) {
+                  forceLeaveToLoginAfterSignOut();
+                  return;
+                }
                 void navigateToLoginAfterSignOut();
               }}
             >
               Try again
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11 border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
-              onClick={() => {
-                void Hardware.app.exitApp();
-              }}
-            >
-              Close app
-            </Button>
+            {canQuitNative ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                onClick={() => {
+                  void Hardware.app.exitApp();
+                }}
+              >
+                Close app
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                onClick={() => {
+                  forceLeaveToLoginAfterSignOut();
+                }}
+              >
+                Open login
+              </Button>
+            )}
           </>
         ) : null
       }
@@ -598,6 +622,17 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       );
     }
     return <AppSplash label="Securing account…" showLabel />;
+  }
+
+  // Hung users.me must not trap cashiers on Verifying forever — escalate to the
+  // password gate (or local-only) once the online auth budget elapses.
+  if (cloudIdentityChecking && onlineAuthBudgetElapsed && expectedCloudSession) {
+    return (
+      <CloudSessionMismatchGate
+        session={expectedCloudSession}
+        onContinueLocally={() => setLocalOnlyUserId(activeLocalUserId)}
+      />
+    );
   }
 
   if (cloudIdentityChecking) {

@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v28";
+const CACHE_NAME = "novend-pos-v29";
 const FINAL_URL_HEADER = "X-Novend-Final-URL";
 
 /**
@@ -266,9 +266,12 @@ function isLoginDocumentUrl(urlString) {
 /**
  * True when a cached Response is real auth HTML for this path — not a followed
  * `/login` → `/dashboard` body left under the login cache key.
+ * Header alone is not enough: runtime cachePut used to stamp Auth-Doc on any
+ * /login put, including poisoned dashboard HTML.
  */
-function isUsableAuthCache(response, expectedPathname) {
+async function isUsableAuthCache(response, expectedPathname) {
   if (!response || !response.ok) return false;
+  if (!(await isLikelyAuthHtml(response))) return false;
   if (response.headers.get("X-Novend-Auth-Doc") === "1") return true;
   if (response.url) {
     try {
@@ -278,9 +281,8 @@ function isUsableAuthCache(response, expectedPathname) {
       return false;
     }
   }
-  // Synthetic/unmarked entries (often unwrapRedirect copies) cannot be trusted
-  // after a poisoned install — prefer network.
-  return false;
+  // Validated HTML without a final URL (unwrapRedirect copies) is acceptable.
+  return true;
 }
 
 function withAuthDocHeader(response) {
@@ -385,9 +387,20 @@ function cachePut(request, response) {
   } catch {
     requestedPath = "";
   }
-  const marked =
-    requestedPath === "/login" || requestedPath === "/signup" ? withAuthDocHeader(copy) : copy;
   void caches.open(CACHE_NAME).then(async (cache) => {
+    const isAuthPath = requestedPath === "/login" || requestedPath === "/signup";
+    if (isAuthPath) {
+      if (!(await isLikelyAuthHtml(copy))) {
+        try {
+          await cache.delete(request);
+          await cache.delete(requestedPath);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+    }
+    const marked = isAuthPath ? withAuthDocHeader(copy) : copy;
     await cache.put(request, marked);
     // Keep HTML and its hashed /_next/static chunks in the same cache generation
     // so a mid-deploy offline reopen does not paint a blank shell.
@@ -560,10 +573,10 @@ self.addEventListener("fetch", (event) => {
       (async () => {
         const fromBoot = url.searchParams.get("fromBoot") === "1";
         const signedOut = url.searchParams.get("signedOut") === "1";
-        const offline = self.navigator && self.navigator.onLine === false;
-        // Browser online sign-out uses ?signedOut=1 only (no fromBoot) → network.
-        // Cap/Electron append fromBoot so offline tills still hit cache immediately.
-        const preferCache = fromBoot || (signedOut && offline);
+        const freshLeave = url.searchParams.get("novendFresh") === "1";
+        // Prefer validated auth shell on any signed-out leave (false-online Cap/
+        // Electron would hang on network-first). novendFresh forces network first.
+        const preferCache = !freshLeave && (fromBoot || signedOut);
 
         async function evictPoison(requestOrPath) {
           try {
@@ -587,7 +600,7 @@ self.addEventListener("fetch", (event) => {
           ];
           for (const hit of candidates) {
             if (!hit) continue;
-            if (!isUsableAuthCache(hit, expected)) {
+            if (!(await isUsableAuthCache(hit, expected))) {
               await evictPoison(expected);
               continue;
             }

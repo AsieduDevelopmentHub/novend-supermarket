@@ -1,24 +1,17 @@
 /**
  * Land on `/login?signedOut=1` after sign-out.
  *
- * Capacitor: stay on the hosted origin so the service worker can serve the
- * precached login document while offline. Bouncing through
- * `https://localhost/?entry=…` leaves the SW and reloads the remote URL over
- * the network → Android “webpage not available”. Cap hard-leave keeps
- * `fromBoot=1` for SW cache-first.
+ * Capacitor offline: append `fromBoot=1` so the SW serves the precached login
+ * document immediately. Online Cap/Electron must **not** use fromBoot — that
+ * forced cache-first of a possibly empty/poisoned shell and hung leave.
  *
- * Electron (online): prefer the local offline-boot trampoline (same as cold
- * start). Never await that IPC forever — when the radio drops mid-shift, a hung
- * `reloadAuthShell` used to trap the app on “Signing out…”.
+ * Electron: never use the offline-boot trampoline on sign-out. It re-appends
+ * fromBoot and returns ok before navigation finishes, trapping “Signing out…”.
  *
- * Electron (offline): skip the trampoline and hard-leave immediately. Do **not**
- * append `fromBoot=1` — that flag forces SW cache-first, and a poisoned `/login`
- * cache (followed session 302 → dashboard HTML) painted AppSplash forever.
- *
- * Browser (online): navigate to `?signedOut=1` only — same no-`fromBoot` rule.
+ * Browser: `?signedOut=1` only.
  */
 
-import { getElectronBridge, isCapacitor, isElectron } from "@novend/hardware";
+import { isCapacitor, isElectron } from "@novend/hardware";
 import {
   capacitorBootUrl,
   CAPACITOR_BOOT_ORIGIN,
@@ -27,34 +20,42 @@ import {
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { prepareHardNavigation } from "@/lib/auth/redirect-after-login";
 
-type AuthShellBridge = {
-  reloadAuthShell?: (entry?: string) => Promise<{ ok: boolean; message?: string }>;
-};
+/** Cap offline only — SW cache-first for dead-radio tills. */
+const LOGIN_AFTER_SIGN_OUT_CAP_OFFLINE = `${LOGIN_AFTER_SIGN_OUT_PATH}&fromBoot=1`;
 
-/** Capacitor cold-boot marker — SW cache-first for offline tills. */
-const LOGIN_AFTER_SIGN_OUT_CAPACITOR = `${LOGIN_AFTER_SIGN_OUT_PATH}&fromBoot=1`;
+/** Escape / fresh leave — bypasses sticky SW matches when Try again is pressed. */
+const LOGIN_AFTER_SIGN_OUT_FRESH = `${LOGIN_AFTER_SIGN_OUT_PATH}&novendFresh=1`;
 
-/** If trampoline / replace stalls, force leave so “Signing out…” cannot stick. */
+/** If replace stalls, force leave so “Signing out…” cannot stick. */
 const HARD_LEAVE_FALLBACK_MS = 1600;
 
 function isBrowserOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
 }
 
-function loginAfterSignOutHref(): string {
-  if (typeof window !== "undefined" && isCapacitor()) {
-    return LOGIN_AFTER_SIGN_OUT_CAPACITOR;
+export function loginAfterSignOutHref(options?: { fresh?: boolean }): string {
+  if (options?.fresh) {
+    if (typeof window !== "undefined" && isCapacitor() && isBrowserOffline()) {
+      return `${LOGIN_AFTER_SIGN_OUT_CAP_OFFLINE}&novendFresh=1`;
+    }
+    return LOGIN_AFTER_SIGN_OUT_FRESH;
   }
-  // Electron + browser: never fromBoot on signed-out leave (poisoned login cache).
+  if (typeof window !== "undefined" && isCapacitor() && isBrowserOffline()) {
+    return LOGIN_AFTER_SIGN_OUT_CAP_OFFLINE;
+  }
   return LOGIN_AFTER_SIGN_OUT_PATH;
 }
 
-function hardLeaveToLogin(): void {
+function hardLeaveToLogin(options?: { fresh?: boolean; assign?: boolean }): void {
   if (typeof window === "undefined") return;
   prepareHardNavigation();
-  const href = loginAfterSignOutHref();
+  const href = loginAfterSignOutHref({ fresh: options?.fresh });
   try {
-    window.location.replace(href);
+    if (options?.assign) {
+      window.location.assign(href);
+    } else {
+      window.location.replace(href);
+    }
   } catch {
     window.location.href = href;
   }
@@ -71,43 +72,39 @@ function scheduleHardLeaveFallback(): void {
 /**
  * Kick navigation to login. Resolves quickly — does not wait for the next
  * document to finish loading (that can hang offline and strand the splash).
+ *
+ * Electron never uses reloadAuthShell here — the trampoline re-adds fromBoot
+ * and strands Signing out on dead radio.
  */
 export async function navigateToLoginAfterSignOut(): Promise<void> {
   prepareHardNavigation();
   if (typeof window === "undefined") return;
 
   if (isElectron()) {
-    // Dead radio: trampoline → hosted /login fails and strands Signing out.
-    if (isBrowserOffline()) {
-      hardLeaveToLogin();
-      scheduleHardLeaveFallback();
-      return;
-    }
-
-    const bridge = getElectronBridge<AuthShellBridge>();
-    if (bridge?.reloadAuthShell) {
-      void bridge
-        .reloadAuthShell(LOGIN_AFTER_SIGN_OUT_PATH)
-        .then((result) => {
-          if (!result?.ok) hardLeaveToLogin();
-        })
-        .catch(() => {
-          hardLeaveToLogin();
-        });
-      scheduleHardLeaveFallback();
-      return;
-    }
+    hardLeaveToLogin();
+    scheduleHardLeaveFallback();
+    return;
   }
 
   if (isCapacitor()) {
     const onBootOrigin =
       window.location.origin === CAPACITOR_BOOT_ORIGIN || window.location.hostname === "localhost";
     if (onBootOrigin) {
-      window.location.replace(capacitorBootUrl(LOGIN_AFTER_SIGN_OUT_PATH));
+      // Entry without fromBoot when online; offline boot URL still works — SW
+      // prefers signedOut cache. Cap boot query passes the login entry through.
+      window.location.replace(capacitorBootUrl(loginAfterSignOutHref()));
       scheduleHardLeaveFallback();
       return;
     }
   }
 
   hardLeaveToLogin();
+}
+
+/**
+ * Escape hatch from a stuck Signing out splash — assign (not replace) with a
+ * fresh marker so the SW does not keep serving a poisoned document.
+ */
+export function forceLeaveToLoginAfterSignOut(): void {
+  hardLeaveToLogin({ fresh: true, assign: true });
 }
