@@ -2,15 +2,17 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
+  clearSigningOutUi,
   consumeExplicitLogout,
   hasExplicitLogout,
+  isSigningOutUi,
   markExplicitLogout,
 } from "@/lib/auth/logout-flag";
 
 describe("explicit logout flag", () => {
   it("blocks session resume until consumed", () => {
     const store = new Map<string, string>();
-    vi.stubGlobal("sessionStorage", {
+    const storage = {
       getItem: (key: string) => store.get(key) ?? null,
       setItem: (key: string, value: string) => {
         store.set(key, value);
@@ -18,13 +20,48 @@ describe("explicit logout flag", () => {
       removeItem: (key: string) => {
         store.delete(key);
       },
-    });
+    };
+    vi.stubGlobal("localStorage", storage);
+    vi.stubGlobal("sessionStorage", storage);
 
     expect(hasExplicitLogout()).toBe(false);
+    expect(isSigningOutUi()).toBe(false);
     markExplicitLogout();
     expect(hasExplicitLogout()).toBe(true);
+    expect(isSigningOutUi()).toBe(true);
     expect(consumeExplicitLogout()).toBe(true);
     expect(hasExplicitLogout()).toBe(false);
+    expect(isSigningOutUi()).toBe(false);
+  });
+
+  it("keeps the security barrier after clearing the Signing out UI on reload", () => {
+    const local = new Map<string, string>();
+    const session = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => local.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        local.set(key, value);
+      },
+      removeItem: (key: string) => {
+        local.delete(key);
+      },
+    });
+    vi.stubGlobal("sessionStorage", {
+      getItem: (key: string) => session.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        session.set(key, value);
+      },
+      removeItem: (key: string) => {
+        session.delete(key);
+      },
+    });
+
+    markExplicitLogout();
+    expect(hasExplicitLogout()).toBe(true);
+    expect(isSigningOutUi()).toBe(true);
+    clearSigningOutUi();
+    expect(isSigningOutUi()).toBe(false);
+    expect(hasExplicitLogout()).toBe(true);
   });
 
   it("clears session keys before a hard login navigation (replicas stay for dual-account offline)", () => {
@@ -72,7 +109,8 @@ describe("explicit logout flag", () => {
     const layout = readFileSync(resolve(process.cwd(), "app/(app)/app-layout-client.tsx"), "utf8");
     expect(layout).toContain("hasExplicitLogout");
     expect(layout).toContain("SigningOutSplash");
-    expect(layout).toContain('label="Signing out…"');
-    expect(layout).toContain("return <SigningOutSplash />");
+    expect(layout).toContain('activeLeave ? "Signing out…" : "Opening sign-in…"');
+    expect(layout).toContain("return <SigningOutSplash activeLeave={activeSigningOutUi} />");
+    expect(layout).toContain("isSigningOutUi()");
   });
 });

@@ -26,7 +26,7 @@ import {
   resolvePostLoginPath,
   resolvePostLoginSession,
 } from "@/lib/auth/redirect-after-login";
-import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag";
+import { consumeExplicitLogout, clearSigningOutUi, hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import {
   activateOfflineSession,
@@ -129,6 +129,13 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 
   useEffect(() => {
     setHideWebsiteLink(isCapacitor() || isElectron());
+  }, []);
+
+  // Landed on login — drop the transient “Signing out…” UI so reloads of the
+  // form (or fromBoot) never keep that label. Keep the security barrier until
+  // credentials unlock.
+  useEffect(() => {
+    clearSigningOutUi();
   }, []);
 
   const [email, setEmail] = useState("");

@@ -47,8 +47,9 @@ describe("native auth navigation", () => {
 
   it("app shell watchdogs a stuck Signing out splash with escalating escape", () => {
     const layout = readFileSync(resolve(process.cwd(), "app/(app)/app-layout-client.tsx"), "utf8");
-    expect(layout).toContain('label="Signing out…"');
+    expect(layout).toContain('activeLeave ? "Signing out…" : "Opening sign-in…"');
     expect(layout).toContain("SigningOutSplash");
+    expect(layout).toContain("isSigningOutUi()");
     expect(layout).toContain("navigateToLoginAfterSignOut");
     expect(layout).toContain("forceLeaveToLoginAfterSignOut");
     expect(layout).toContain("hasExplicitLogout()");

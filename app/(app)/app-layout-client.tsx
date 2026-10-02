@@ -48,7 +48,11 @@ import {
   hydrateOfflineSessionsFromDeviceStore,
   listOfflineSessions,
 } from "@/lib/offline/session";
-import { hasExplicitLogout } from "@/lib/auth/logout-flag";
+import {
+  clearSigningOutUi,
+  hasExplicitLogout,
+  isSigningOutUi,
+} from "@/lib/auth/logout-flag";
 import { isAwaitingCloudReconnect } from "@/lib/auth/awaiting-cloud-reconnect";
 import { getCloudSessionIdentityState } from "@/lib/auth/cloud-session-identity";
 import {
@@ -90,8 +94,12 @@ function isPostLoginWarm(): boolean {
   }
 }
 
-/** Visible signing-out splash with escape actions when leave hangs offline. */
-function SigningOutSplash() {
+/**
+ * Leave splash while the logout barrier blocks the shell.
+ * “Signing out…” only for the in-tab leave UI flag — a hard reload / later
+ * remount with the persistent barrier must say Opening sign-in, not Signing out.
+ */
+function SigningOutSplash({ activeLeave }: { activeLeave: boolean }) {
   const [showEscape, setShowEscape] = useState(false);
   const [escapeAttempts, setEscapeAttempts] = useState(0);
   const canQuitNative = isCapacitor() || isElectron();
@@ -101,9 +109,15 @@ function SigningOutSplash() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (activeLeave) return;
+    // Stale barrier on reload: drop the session UI so later paints stay honest.
+    clearSigningOutUi();
+  }, [activeLeave]);
+
   return (
     <AppSplash
-      label="Signing out…"
+      label={activeLeave ? "Signing out…" : "Opening sign-in…"}
       showLabel
       footer={
         showEscape ? (
@@ -706,13 +720,14 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   );
 
   /** Stale-looking online (Convex hung) but we have a local shell — treat like offline session. */
-  const signingOut = hasExplicitLogout();
+  const logoutBarrier = hasExplicitLogout();
+  const activeSigningOutUi = isSigningOutUi();
   const awaitingCloudReconnect = isAwaitingCloudReconnect({
     isAuthenticated,
     sessionHint,
   });
   const allowCachedShell =
-    Boolean(resolvedCache) && !signingOut && (isAuthenticated || awaitingCloudReconnect);
+    Boolean(resolvedCache) && !logoutBarrier && (isAuthenticated || awaitingCloudReconnect);
   const cachedShellWhileOnlineHung =
     online &&
     onlineAuthBudgetElapsed &&
@@ -755,8 +770,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (signingOut) {
-    return <SigningOutSplash />;
+  if (logoutBarrier) {
+    return <SigningOutSplash activeLeave={activeSigningOutUi} />;
   }
 
   if (

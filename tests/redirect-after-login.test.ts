@@ -110,7 +110,7 @@ describe("redirect-after-login", () => {
       .split('if (typeof window !== "undefined" && forceHard) {')[1]
       ?.split("router.replace(target);")[0];
     expect(hardBranch).toBeTruthy();
-    expect(hardBranch?.match(/window\\.location\\.replace\\(target\\)/g)).toHaveLength(1);
+    expect(hardBranch?.match(/window\.location\.replace\(target\)/g)).toHaveLength(1);
     expect(hardBranch).not.toContain("window.setTimeout");
     expect(source).not.toContain("window.location.href = target");
     expect(source).toContain("withPostLoginShellMarker");
@@ -178,7 +178,7 @@ describe("redirect-after-login", () => {
     const source = readFileSync(resolve(process.cwd(), "app/(app)/app-layout-client.tsx"), "utf8");
     expect(source).toContain("loginRedirectStarted");
     expect(source).toContain("if (loginRedirectStarted.current || hasExplicitLogout()) return;");
-    expect(source.match(/window\\.location\\.replace\\(/g)).toHaveLength(1);
+    expect(source.match(/window\.location\.replace\(/g)).toHaveLength(1);
     expect(source).not.toContain('router.replace("/login")');
     expect(source).not.toContain("const hardNav = window.setTimeout");
     expect(source).toContain("Rendering stays pure");
