@@ -128,8 +128,31 @@ describe("redirect-after-login", () => {
     expect(source).toContain("setOpeningWorkspace(true)");
     expect(source).toMatch(/setOpeningWorkspace\(true\);[\s\S]*?navigateAfterLogin/);
     expect(source).toContain("Opening workspace…");
+    expect(source).toContain("markPostLoginLeavePending()");
+    expect(source).not.toContain('toast.success("Welcome")');
     // Inputs stay in the DOM so prepareHardNavigation can clear leave-site dirt.
     expect(source).toContain('aria-hidden={openingWorkspace}');
+  });
+
+  it("post-login leave latch blocks parallel hard leaves", () => {
+    const source = readFileSync(resolve(process.cwd(), "lib/auth/redirect-after-login.ts"), "utf8");
+    expect(source).toContain("export function markPostLoginLeavePending");
+    expect(source).toContain("export function isPostLoginLeavePending");
+    expect(source).toContain("export function clearPostLoginLeavePending");
+    expect(source).toContain("markPostLoginLeavePending()");
+  });
+
+  it("login page mounts a single LoginForm via viewport chrome", () => {
+    const page = readFileSync(resolve(process.cwd(), "app/(auth)/login/page.tsx"), "utf8");
+    const chrome = readFileSync(
+      resolve(process.cwd(), "features/auth/components/login-page-chrome.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("LoginPageChrome");
+    expect(page).not.toContain("<LoginForm");
+    expect(chrome).toContain("<LoginForm");
+    expect(chrome.match(/<LoginForm/g)).toHaveLength(2); // compact + desktop branches, one mount
+    expect(chrome).toContain('matchMedia("(min-width: 768px)")');
   });
 
   it("prepareHardNavigation clears leave-site dirt without detaching React DOM", () => {

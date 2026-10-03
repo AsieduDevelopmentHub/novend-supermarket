@@ -5,18 +5,20 @@ import { useSearchParams } from "next/navigation";
 import { useConvexAuth } from "convex/react";
 import { useIsClient } from "@/hooks/use-is-client";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
-import { prepareHardNavigation } from "@/lib/auth/redirect-after-login";
+import {
+  isPostLoginLeavePending,
+  prepareHardNavigation,
+} from "@/lib/auth/redirect-after-login";
+import { readPlatformOfflineSession } from "@/lib/offline/platform-cache";
 
 /**
- * If still on /login with a live session, hard-leave so "Welcome" cannot
- * strand the form. Does **not** paint AppSplash — the login form owns
- * “Opening workspace…” so credential unlock does not stack brand covers.
+ * Escape hatch only: if still on /login with a live session and the login form
+ * did not own a leave, hard-leave so "Welcome" cannot strand the form.
  *
- * Always leave to dashboard — platform-only admins are redirected to
- * `/platform` by the app shell. Preferring a stale platform offline marker
- * here bounced every tenant login to `/login?next=/platform…`.
+ * Credential unlock marks `postLoginLeave` before resolve — this gate must not
+ * race that path (mid-bind leave caused first-login bounce to /login).
  */
-const FORCE_LEAVE_BUDGET_MS = 6000;
+const FORCE_LEAVE_BUDGET_MS = 10_000;
 
 export function LoginSessionGate({ children }: { children: ReactNode }) {
   return (
@@ -41,13 +43,23 @@ function LoginSessionGateInner({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!mounted || explicitLogout || !isAuthenticated) return;
+    if (isPostLoginLeavePending()) return;
+
     const timer = window.setTimeout(() => {
       if (window.location.pathname !== "/login" && window.location.pathname !== "/signup") {
         return;
       }
+      if (isPostLoginLeavePending()) return;
+
       prepareHardNavigation();
-      // fromLogin: SW cache-first without RestoreLastRoute remount.
-      window.location.replace("/dashboard?fromLogin=1");
+      // Prefer platform console only when a platform marker is already claimed
+      // (tenant bind clears it). Otherwise dashboard — shell redirects platform admins.
+      const platform = readPlatformOfflineSession();
+      const target =
+        platform && !platform.hasTenantRole
+          ? "/platform?fromLogin=1"
+          : "/dashboard?fromLogin=1";
+      window.location.replace(target);
     }, FORCE_LEAVE_BUDGET_MS);
     return () => window.clearTimeout(timer);
   }, [mounted, explicitLogout, isAuthenticated]);
