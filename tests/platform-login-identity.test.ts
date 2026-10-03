@@ -12,6 +12,7 @@ describe("platform admin login identity", () => {
     expect(source).toContain("clearOfflineSession()");
     expect(source).toContain("markPlatformOfflineSession(");
     expect(source).toContain("hasTenantRole: false");
+    expect(source).toContain("clearPlatformOfflineSession()");
   });
 
   it("does not revive tenant registry when a platform session is active", () => {
