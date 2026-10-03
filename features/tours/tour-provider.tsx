@@ -465,6 +465,14 @@ export function ProductTourProvider({
 
   useEffect(() => {
     if (!enabled || !identityKey || !hydrated || attemptedPath.current === pathname) return;
+
+    // Offline shells keep saved progress but must not auto-start onboarding
+    // every time the till opens without a live session (felt like “tours always”).
+    if (!online) return;
+    // Wait for cloud progress before deciding “never seen” — otherwise a slow
+    // listOwn query looks empty and restarts the walkthrough after every login.
+    if (typedLiveProgress === undefined && !initialProgressRef.current?.length) return;
+
     attemptedPath.current = pathname;
 
     const pending = window.sessionStorage.getItem(PENDING_TOUR_KEY) as TourId | null;
@@ -529,9 +537,11 @@ export function ProductTourProvider({
     hydrated,
     identityKey,
     isPlatformAdmin,
+    online,
     pathname,
     role,
     router,
+    typedLiveProgress,
   ]);
 
   useEffect(

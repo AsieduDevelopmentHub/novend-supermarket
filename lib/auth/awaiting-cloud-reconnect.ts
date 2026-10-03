@@ -1,4 +1,5 @@
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
+import { isOnlineSessionWarm } from "@/lib/auth/redirect-after-login";
 import {
   ensureActiveOfflineSession,
   hasOfflineSession,
@@ -13,6 +14,8 @@ import { readPlatformOfflineSession } from "@/lib/offline/platform-cache";
  * Pure check only — never write storage here (layout/banner effects restore
  * the active hint). Gating on Convex `isLoading` briefly opened Connect-to-cloud
  * then kicked cashiers to `/login` on reconnect.
+ *
+ * Online password login sets a warm window — that is not “awaiting reconnect”.
  */
 export function isAwaitingCloudReconnect(input: {
   isAuthenticated: boolean;
@@ -20,6 +23,7 @@ export function isAwaitingCloudReconnect(input: {
 }): boolean {
   if (input.isAuthenticated) return false;
   if (hasExplicitLogout()) return false;
+  if (isOnlineSessionWarm()) return false;
   if (input.sessionHint) return true;
   if (typeof window === "undefined") return false;
   return (

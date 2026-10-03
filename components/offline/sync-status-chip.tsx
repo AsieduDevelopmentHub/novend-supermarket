@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { describeSyncStatus } from "@/lib/offline/sync-status";
 import { useShowsRealtimeSyncUi } from "@/hooks/use-shows-realtime-sync-ui";
+import { isOnlineSessionWarm } from "@/lib/auth/redirect-after-login";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/date";
 
@@ -30,6 +31,7 @@ export function SyncStatusHeaderButton() {
     failedCount,
     syncing,
     cloudConnected: isAuthenticated,
+    cloudSettling: !isAuthenticated && isOnlineSessionWarm(),
   });
 
   if (!showSyncUi) return null;
@@ -61,12 +63,14 @@ export function SyncStatusChip({ collapsed }: { collapsed?: boolean }) {
   const { isAuthenticated } = useConvexAuth();
   const { online, pendingCount, failedCount, syncing, lastSyncAt, lastError, openSyncCenter } =
     useOfflineStatus();
+  const settling = !isAuthenticated && isOnlineSessionWarm();
   const view = describeSyncStatus({
     online,
     pendingCount,
     failedCount,
     syncing,
     cloudConnected: isAuthenticated,
+    cloudSettling: settling,
   });
   const needsReview = isAuthenticated && online && (pendingCount > 0 || failedCount > 0);
 

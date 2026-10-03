@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import {
   clearPostLoginLeavePending,
+  markOnlineSessionWarm,
   markPostLoginLeavePending,
   navigateAfterLogin,
   resolvePostLoginPath,
@@ -433,6 +434,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       } catch {
         toast.warning("Signed in, but offline sign-in could not be prepared on this device.");
       }
+      markOnlineSessionWarm();
       navigateAfterLogin(session.path, router, { hard: true });
     } catch (error) {
       submitGenerationRef.current += 1;
@@ -456,15 +458,30 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   return (
     <div className="relative mx-auto w-full max-w-[360px]">
       {openingWorkspace ? (
-        <div className="bg-background absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
-          <div
-            className="border-primary h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
-            aria-hidden
-          />
-          <p className="text-foreground text-sm font-medium">Signing you in…</p>
-          <p className="text-muted-foreground text-xs">
-            Confirming your cloud account. This can take a few seconds.
-          </p>
+        <div
+          className="bg-background absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 px-4 py-10 text-center"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div className="relative h-14 w-14">
+            <div
+              className="bg-primary/15 absolute inset-0 animate-pulse rounded-full"
+              aria-hidden
+            />
+            <Image
+              src={BRANDING.brandmark}
+              alt=""
+              fill
+              unoptimized
+              sizes="56px"
+              className="object-contain p-1.5"
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-foreground text-sm font-medium">Opening your workspace</p>
+            <p className="text-muted-foreground text-xs">Just a moment</p>
+          </div>
         </div>
       ) : null}
 

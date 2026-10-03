@@ -8,6 +8,11 @@ export type SyncStatusInput = {
    * cloud-connected — never show conflict chrome in that state.
    */
   cloudConnected?: boolean;
+  /**
+   * Fresh online password login — JWT may still be attaching. Prefer calm
+   * “getting ready” copy over “Cloud disconnected / Sign in to sync”.
+   */
+  cloudSettling?: boolean;
 };
 
 export type SyncStatusKind = "offline" | "disconnected" | "queued" | "conflict" | "synced";
@@ -24,7 +29,13 @@ export type SyncStatusView = {
  * Offline / unauthenticated shells stay calm (no conflict chrome).
  */
 export function describeSyncStatus(input: SyncStatusInput): SyncStatusView {
-  const { online, pendingCount, failedCount, cloudConnected = true } = input;
+  const {
+    online,
+    pendingCount,
+    failedCount,
+    cloudConnected = true,
+    cloudSettling = false,
+  } = input;
 
   if (!online) {
     if (pendingCount > 0) {
@@ -38,6 +49,13 @@ export function describeSyncStatus(input: SyncStatusInput): SyncStatusView {
   }
 
   if (!cloudConnected) {
+    if (cloudSettling) {
+      return {
+        label: "Getting ready",
+        detail: "Opening your workspace",
+        kind: "queued",
+      };
+    }
     if (pendingCount > 0 || failedCount > 0) {
       return {
         label: "Cloud disconnected",

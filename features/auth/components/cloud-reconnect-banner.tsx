@@ -17,7 +17,11 @@ import {
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { showError } from "@/lib/errors";
-import { resolvePostLoginSession } from "@/lib/auth/redirect-after-login";
+import {
+  clearOnlineSessionWarm,
+  isOnlineSessionWarm,
+  resolvePostLoginSession,
+} from "@/lib/auth/redirect-after-login";
 import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { storeLocalAuthVerifier } from "@/lib/offline/local-auth";
 import {
@@ -136,10 +140,18 @@ export function CloudReconnectBanner() {
     listOfflineSessions().find((row) => row.email?.trim().toLowerCase() === email) ??
     null;
   const hasShell = Boolean(sessionHint) || hasOfflineSession();
+  // Online password login is authoritative while Convex Auth settles — never
+  // offer Connect / “Checking cloud session” over a fresh credential leave.
+  const onlineLoginWarm = isOnlineSessionWarm();
   // Keep reconnect UI across Convex isLoading flicker — gating on !isLoading
   // briefly unmounted the password dialog and dropped forceClientShell → /login.
   const shellEligible =
-    online && !isAuthenticated && hasShell && Boolean(email) && !hasExplicitLogout();
+    online &&
+    !isAuthenticated &&
+    hasShell &&
+    Boolean(email) &&
+    !hasExplicitLogout() &&
+    !onlineLoginWarm;
   const canAutoOpen = shellEligible && !isLoading;
 
   const [dismissed, setDismissed] = useState(false);
@@ -147,6 +159,12 @@ export function CloudReconnectBanner() {
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const titleId = useId();
+
+  useEffect(() => {
+    if (isAuthenticated && onlineLoginWarm) {
+      clearOnlineSessionWarm();
+    }
+  }, [isAuthenticated, onlineLoginWarm]);
 
   useEffect(() => {
     if (shellEligible) {
