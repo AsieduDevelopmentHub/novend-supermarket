@@ -59,6 +59,7 @@ import {
   forceLeaveToLoginAfterSignOut,
   navigateToLoginAfterSignOut,
 } from "@/lib/auth/native-auth-navigation";
+import { clearPostLoginLeavePending } from "@/lib/auth/redirect-after-login";
 import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
 import {
   bindPlatformOfflineDb,
@@ -286,6 +287,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   // Never resurrect a signed-out user's Dexie profile (that re-marks
   // novend.offlineSession and traps the next login in the splash).
   useEffect(() => {
+    // Credential leave completed — drop the login-page latch.
+    clearPostLoginLeavePending();
     let cancelled = false;
     void (async () => {
       await hydrateOfflineSessionsFromDeviceStore();

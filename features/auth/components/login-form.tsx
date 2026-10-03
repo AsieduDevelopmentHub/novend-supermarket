@@ -22,6 +22,8 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
 import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import {
+  clearPostLoginLeavePending,
+  markPostLoginLeavePending,
   navigateAfterLogin,
   resolvePostLoginPath,
   resolvePostLoginSession,
@@ -31,7 +33,6 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import {
   activateOfflineSession,
   activateOfflineSessionWithFallback,
-  clearOfflineSession,
   listOfflineSessions,
   markOfflineSession,
 } from "@/lib/offline/session";
@@ -210,6 +211,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     }
     clearLogoutBarrierAfterCredentialUnlock();
     redirectingRef.current = true;
+    markPostLoginLeavePending();
     setOpeningWorkspace(true);
     // Keep the form mounted until replace — prepare + navigate must be sync.
     // fromLogin (via navigateAfterLogin) warms the shell without RestoreLastRoute.
@@ -248,6 +250,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     if (signedOut) return;
     if (!isAuthenticated || authLoading || redirectingRef.current || pending) return;
     redirectingRef.current = true;
+    markPostLoginLeavePending();
     setOpeningWorkspace(true);
     void (async () => {
       try {
@@ -256,6 +259,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         const path = await resolvePostLoginPath(convex);
         navigateAfterLogin(withBootMarker(path), router, { hard: true });
       } catch {
+        clearPostLoginLeavePending();
         redirectingRef.current = false;
         setOpeningWorkspace(false);
         toast.error("Could not open your account. Sign in again.");
@@ -316,6 +320,9 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       }
 
       redirectingRef.current = true;
+      // Claim leave ownership before resolve so LoginSessionGate cannot race
+      // mid-bind (first login bounce + Continue-as flicker).
+      markPostLoginLeavePending();
       setOpeningWorkspace(true);
       // Keep the logout barrier until identity is confirmed so LoginSessionGate
       // cannot hard-leave to /dashboard over a prior cashier mid-resolve.
@@ -324,10 +331,8 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         expectedEmail: normalizedEmail,
       });
       clearLogoutBarrierAfterCredentialUnlock();
-      // Only drop the prior offline shell after cloud identity is confirmed —
-      // clearing earlier left cashiers with no local fallback if resolve hung.
-      // Platform-only login already cleared/claimed inside resolvePostLoginSession.
-      clearOfflineSession();
+      // bindReplicaFromMe already marked the correct offline/platform session —
+      // clearing the active hint here wiped warm-paint and bounced first login.
       try {
         const prepared = await storeLocalAuthVerifier(
           normalizedEmail,
@@ -340,9 +345,10 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       } catch {
         toast.warning("Signed in, but offline sign-in could not be prepared on this device.");
       }
-      toast.success("Welcome");
+      // Navigate first — toast before hard leave implied success while stuck on login.
       navigateAfterLogin(session.path, router, { hard: true });
     } catch (error) {
+      clearPostLoginLeavePending();
       redirectingRef.current = false;
       setOpeningWorkspace(false);
 

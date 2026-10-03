@@ -12,6 +12,8 @@ import { saveShellProfile } from "@/lib/offline/shell-profile";
 import { isCapacitor, isElectron } from "@novend/hardware";
 
 const SKIP_SPLASH_KEY = "novend.auth.skipSplash";
+/** Blocks LoginSessionGate / second hard leaves while credentials are resolving. */
+const POST_LOGIN_LEAVE_KEY = "novend.auth.postLoginLeave";
 const RESOLVE_RETRIES = 3;
 const RESOLVE_RETRY_MS = 150;
 /** Browser soft-navigation fallback only; native hard navigation is single-shot. */
@@ -20,6 +22,9 @@ const HARD_NAV_FALLBACK_MS = 800;
 const ME_QUERY_BUDGET_MS = 2500;
 /** Dexie profile write must not block leaving /login. */
 const SHELL_PROFILE_BUDGET_MS = 1_500;
+
+/** In-memory latch for the in-flight hard leave (survives only this JS lifetime). */
+let hardNavigationPending = false;
 
 export type PostLoginSession = {
   path: string;
@@ -51,6 +56,37 @@ export function consumeSkipStartupSplash(): boolean {
     const skip = sessionStorage.getItem(SKIP_SPLASH_KEY) === "1";
     if (skip) sessionStorage.removeItem(SKIP_SPLASH_KEY);
     return skip;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Credential unlock / auto-resume owns the leave. Set as soon as sign-in
+ * succeeds (before `users.me` resolve) so LoginSessionGate cannot hard-leave
+ * to `/dashboard` mid-bind and bounce the first login.
+ */
+export function markPostLoginLeavePending(): void {
+  try {
+    sessionStorage.setItem(POST_LOGIN_LEAVE_KEY, "1");
+  } catch {
+    /* private browsing */
+  }
+}
+
+export function clearPostLoginLeavePending(): void {
+  try {
+    sessionStorage.removeItem(POST_LOGIN_LEAVE_KEY);
+  } catch {
+    /* private browsing */
+  }
+}
+
+/** True while a post-login leave is in flight (resolve, hard nav, or both). */
+export function isPostLoginLeavePending(): boolean {
+  if (hardNavigationPending) return true;
+  try {
+    return sessionStorage.getItem(POST_LOGIN_LEAVE_KEY) === "1";
   } catch {
     return false;
   }
@@ -284,8 +320,6 @@ export function prepareHardNavigation(): void {
   }
 }
 
-let hardNavigationPending = false;
-
 /**
  * Leave auth pages for the app shell.
  *
@@ -301,6 +335,7 @@ export function navigateAfterLogin(
   router: AppRouter,
   options?: { hard?: boolean },
 ): void {
+  markPostLoginLeavePending();
   markSkipStartupSplash();
 
   const forceHard =
