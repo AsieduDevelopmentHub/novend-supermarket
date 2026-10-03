@@ -90,10 +90,17 @@ describe("cloud session identity guard", () => {
     expect(gate).toContain("Incorrect password. Try again.");
     expect(gate).toContain("Continue locally");
     expect(gate).toContain("onContinueLocally");
+    expect(gate).toContain("onCloudConnected");
     expect(layout).toContain("localOnlyReady");
+    expect(layout).toContain("suppressCloudIdentityQuery");
+    expect(layout).toContain("rememberLocalOnlyCloudUser");
     expect(layout).toContain("setLocalOnlyUserId");
     expect(gate).toContain("signOut()");
-    expect(gate).toContain("void signOut().catch(() => undefined)");
+    expect(gate).toContain("const signOutAttempt = signOut()");
+    expect(gate).toContain("void signOutAttempt.catch(() => undefined)");
+    expect(gate.indexOf("onContinueLocally()")).toBeLessThan(
+      gate.indexOf("const signOutAttempt = signOut()"),
+    );
     expect(gate).toContain('setPendingAction("local")');
     expect(gate).toContain("Could not close the previous cloud session in time.");
     expect(layout).toContain("ONLINE_AUTH_BUDGET_MS");
@@ -101,5 +108,28 @@ describe("cloud session identity guard", () => {
     expect(gate).toContain("expectedUserId: session.userId");
     expect(gate).toContain("expectedOrganizationId: session.organizationId");
     expect(reconnect).toContain("expectedUserId: reconnectSession?.userId");
+    expect(reconnect).toContain("clearLocalOnlyCloudUser()");
+    expect(layout).toContain("LOCAL_ONLY_CLOUD_USER_EVENT");
+    expect(layout).toContain("localOnlyReady");
+    expect(layout).toContain("loginRedirectStarted.current = false");
+    expect(layout).toContain("localOnlyUserId || readLocalOnlyCloudUserId()");
+    expect(layout).toContain("localOnlyUserId && !isAuthenticated");
+    expect(layout).toContain("setCloudSwitchUserId(activeLocalUserId)");
+    expect(reconnect).toContain("void pullSnapshot().then");
+    expect(reconnect).not.toContain("pullSnapshot({ force: true })");
+  });
+
+  it("Continue locally sets a middleware-readable cookie before JWT clear", () => {
+    const reconnectLib = readFileSync(
+      resolve(process.cwd(), "lib/auth/awaiting-cloud-reconnect.ts"),
+      "utf8",
+    );
+    const proxy = readFileSync(resolve(process.cwd(), "proxy.ts"), "utf8");
+    expect(reconnectLib).toContain('LOCAL_ONLY_CLOUD_COOKIE = "novend_local_only"');
+    expect(reconnectLib).toContain("writeLocalOnlyCookie(userId)");
+    expect(reconnectLib).toContain("clearLocalOnlyCookie()");
+    expect(proxy).toContain('LOCAL_ONLY_CLOUD_COOKIE = "novend_local_only"');
+    expect(proxy).toContain("hasLocalOnlyShellCookie");
+    expect(proxy).toContain("hasLocalOnlyShellCookie(request) && !isPlatformRoute(request)");
   });
 });

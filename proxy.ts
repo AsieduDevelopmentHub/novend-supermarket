@@ -13,6 +13,12 @@ import {
 import { isLegalPath } from "@/lib/marketing-routes";
 import { applySecurityHeaders } from "@/lib/security/response-headers";
 
+/**
+ * Must match `LOCAL_ONLY_CLOUD_COOKIE` in lib/auth/awaiting-cloud-reconnect.ts.
+ * Duplicated here so the Edge proxy never imports browser/session helpers.
+ */
+const LOCAL_ONLY_CLOUD_COOKIE = "novend_local_only";
+
 const isLoginPage = createRouteMatcher([
   "/login",
   "/signup",
@@ -91,6 +97,20 @@ const isStaticPublicRoute = createRouteMatcher([
  */
 function redirectTo(request: NextRequest, href: string) {
   return NextResponse.redirect(new URL(href, request.nextUrl.origin));
+}
+
+/**
+ * Continue locally clears the Convex JWT but must keep the SPA shell.
+ * sessionStorage is invisible to middleware — a same-site cookie carries the latch.
+ */
+function hasLocalOnlyShellCookie(request: NextRequest): boolean {
+  const raw = request.cookies.get(LOCAL_ONLY_CLOUD_COOKIE)?.value?.trim() ?? "";
+  if (!raw || raw.length > 200) return false;
+  try {
+    return decodeURIComponent(raw).length > 0;
+  } catch {
+    return false;
+  }
 }
 
 /** When this request is on the app host, send the same path to the marketing origin. */
@@ -295,6 +315,14 @@ export default convexAuthNextjsMiddleware(
     }
 
     if (!isPublicRoute(request) && !authenticated) {
+      // Password-modal "Continue locally" signs out the stale cloud session but
+      // keeps the Dexie shell. Allow the app document through (not /platform).
+      if (hasLocalOnlyShellCookie(request) && !isPlatformRoute(request)) {
+        return withNonceSecurityHeaders(
+          NextResponse.next({ request: { headers: requestHeaders } }),
+          nonce,
+        );
+      }
       const loginHref = loginPathWithNext(request.nextUrl.pathname, request.nextUrl.search);
       return withNonceSecurityHeaders(redirectTo(request, loginHref), nonce);
     }

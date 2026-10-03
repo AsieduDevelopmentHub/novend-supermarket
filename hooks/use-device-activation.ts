@@ -10,7 +10,7 @@ import { needsCloudPackageRestore } from "@/lib/offline/needs-cloud-restore";
 import { notifyReplicaChanged } from "@/lib/offline/replica-events";
 import { useLicense } from "@/hooks/use-license";
 
-const TOUCH_INTERVAL_MS = 5 * 60 * 1000;
+const TOUCH_INTERVAL_MS = 30 * 60 * 1000;
 
 export type DeviceActivationStatus = "idle" | "registered" | "blocked";
 

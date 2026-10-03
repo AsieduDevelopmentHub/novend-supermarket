@@ -17,13 +17,13 @@ export const MIRROR_LIST_TTL_MS = 5 * 60 * 1000;
  * Minimum gap between background catalog snapshot pulls (unless forced).
  * Keep aligned with AUTO_SYNC — a 2-minute pull was burning Convex I/O on every till.
  */
-export const SNAPSHOT_PULL_TTL_MS = 20 * 60 * 1000;
+export const SNAPSHOT_PULL_TTL_MS = 60 * 60 * 1000;
 
 /**
  * Background auto-sync cadence while online.
  * Snapshot + outbox run at least this often when connected.
  */
-export const AUTO_SYNC_INTERVAL_MS = 20 * 60 * 1000;
+export const AUTO_SYNC_INTERVAL_MS = 60 * 60 * 1000;
 
 /**
  * Drain the outbox as soon as this many pending/syncing events accumulate,

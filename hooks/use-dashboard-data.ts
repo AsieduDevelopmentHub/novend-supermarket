@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import type { AppRole } from "@/config/navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useBusinessDataGate } from "@/hooks/use-business-data-gate";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
@@ -178,11 +179,11 @@ function toCachePayload(remote: RemoteDashboard): Omit<DashboardSummaryCache, "c
 }
 
 /**
- * Local-first dashboard with live Convex while online.
+ * Local-first dashboard.
  *
- * Analytics / reports already read Convex. Dexie-only KPIs went blank or zero
- * after Electron updates when the mirror lagged or skipped — restore the same
- * hybrid pattern as Orders (remote when online, Dexie when offline).
+ * A warm Dexie mirror serves the normal operational view. Convex is reserved
+ * for cold bootstrap and explicit historical ranges, avoiding an always-on
+ * raw-data subscription while preserving cloud-authoritative reports.
  */
 export function useDashboardData(
   branchFilter: Id<"branches"> | "all",
@@ -191,6 +192,7 @@ export function useDashboardData(
   const online = useConnectivity();
   const { isAuthenticated } = useConvexAuth();
   const { lastSyncAt } = useOfflineStatus();
+  const { serveLocal, ready: businessSourceReady } = useBusinessDataGate();
   const { isAdmin, role } = usePermissions();
   const branchKey = cacheKeyFor(isAdmin, branchFilter);
   const showOps = role === "administrator" || role === "manager";
@@ -200,10 +202,17 @@ export function useDashboardData(
     : `${branchKey}:today`;
   const [localData, setLocalData] = useState<DashboardData | null>(null);
   const [acceptEmptyLocal, setAcceptEmptyLocal] = useState(false);
+  // Cold till only. Admin/manager always pass a periodRange (default last 7 days),
+  // so `|| range` previously kept dashboard.summary subscribed all day on warm
+  // Dexie tills and dominated Convex database bandwidth. Historical UI ranges
+  // rebuild from the mirror; background snapshot is the bulk refresh path.
+  const shouldQueryRemote = Boolean(
+    online && isAuthenticated && businessSourceReady && !serveLocal,
+  );
 
   const remote = useQuery(
     api.dashboard.summary,
-    online && isAuthenticated
+    shouldQueryRemote
       ? {
           branchId: isAdmin && branchFilter !== "all" ? branchFilter : undefined,
           startDate: range?.startDate,
@@ -214,7 +223,7 @@ export function useDashboardData(
 
   const hospitalityRemote = useQuery(
     api.dashboard.hospitalityOps,
-    online && isAuthenticated
+    shouldQueryRemote
       ? {
           branchId: isAdmin && branchFilter !== "all" ? branchFilter : undefined,
         }
@@ -247,16 +256,18 @@ export function useDashboardData(
           // ignored while online so we do not flash false KPIs before Convex.
           if (!online || !isEmptySummary(cached)) {
             setLocalData({ ...cached, source: "cache" });
-            if (online) return;
           }
         }
+        // Always rebuild from Dexie (including after sales / replica events).
+        // Returning early while online froze KPIs for the whole shift once the
+        // warm cache painted — without reopening dashboard.summary.
         const local = await buildLocalDashboardSummary(
           role as AppRole,
           branchKey === "all" ? undefined : branchKey,
           range,
         );
         if (cancelled) return;
-        if (online && isEmptySummary(local) && isAuthenticated) {
+        if (shouldQueryRemote && isEmptySummary(local)) {
           // Keep waiting for remote rather than locking in zeros.
           return;
         }
@@ -290,7 +301,16 @@ export function useDashboardData(
       window.clearTimeout(giveUp);
       unsub();
     };
-  }, [role, branchKey, cacheKey, range, online, isAuthenticated, lastSyncAt]);
+  }, [
+    role,
+    branchKey,
+    cacheKey,
+    range,
+    online,
+    isAuthenticated,
+    lastSyncAt,
+    shouldQueryRemote,
+  ]);
 
   useEffect(() => {
     if (!remote) return;
@@ -308,7 +328,7 @@ export function useDashboardData(
     localData &&
     cacheMatchesScope(localData, branchKey) &&
     (!role || localData.role === role) &&
-    (acceptEmptyLocal || !(online && isAuthenticated && isEmptySummary(localData)))
+    (acceptEmptyLocal || !(shouldQueryRemote && isEmptySummary(localData)))
   ) {
     return { data: localData, loading: false, hospitality };
   }

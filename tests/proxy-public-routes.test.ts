@@ -30,4 +30,10 @@ describe("proxy public routes", () => {
     expect(source).toContain("onLoginPage && authenticated");
     expect(source).toContain('pathname === "/api/boot"');
   });
+
+  it("allows Continue locally app shell through without a JWT", () => {
+    const source = readFileSync(resolve(process.cwd(), "proxy.ts"), "utf8");
+    expect(source).toContain('LOCAL_ONLY_CLOUD_COOKIE = "novend_local_only"');
+    expect(source).toContain("hasLocalOnlyShellCookie(request) && !isPlatformRoute(request)");
+  });
 });
