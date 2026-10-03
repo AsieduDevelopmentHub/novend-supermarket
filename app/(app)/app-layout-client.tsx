@@ -53,7 +53,13 @@ import {
   hasExplicitLogout,
   isSigningOutUi,
 } from "@/lib/auth/logout-flag";
-import { isAwaitingCloudReconnect } from "@/lib/auth/awaiting-cloud-reconnect";
+import {
+  clearLocalOnlyCloudUser,
+  isAwaitingCloudReconnect,
+  LOCAL_ONLY_CLOUD_USER_EVENT,
+  readLocalOnlyCloudUserId,
+  rememberLocalOnlyCloudUser,
+} from "@/lib/auth/awaiting-cloud-reconnect";
 import { getCloudSessionIdentityState } from "@/lib/auth/cloud-session-identity";
 import { forceLeaveToLoginAfterSignOut } from "@/lib/auth/native-auth-navigation";
 import { clearPostLoginLeavePending } from "@/lib/auth/redirect-after-login";
@@ -225,7 +231,6 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const standaloneDisplay = useStandaloneDisplay();
   const needsPwaStatusPad = !nativeShell && standaloneDisplay;
   const sessionHint = useOfflineSessionHint();
-  const user = useQuery(api.users.me, isAuthenticated && online ? {} : "skip");
   const ensureProfile = useMutation(api.profiles.ensureProfile);
   const heartbeat = useMutation(api.users.heartbeat);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -235,9 +240,31 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const [offlineAuthBudgetElapsed, setOfflineAuthBudgetElapsed] = useState(false);
   const [onlineAuthBudgetElapsed, setOnlineAuthBudgetElapsed] = useState(false);
   const [cloudSwitchUserId, setCloudSwitchUserId] = useState<string | null>(null);
-  const [localOnlyUserId, setLocalOnlyUserId] = useState<string | null>(null);
+  const [localOnlyUserId, setLocalOnlyUserId] = useState<string | null>(
+    readLocalOnlyCloudUserId,
+  );
+  // Once the mismatch gate is visible, stop its live users.me subscription.
+  // A stale/expired JWT can otherwise throw after the modal paints and replace
+  // the cashier's decision with the global error screen.
+  // localOnlyUserId alone must not suppress after a successful cloud reconnect —
+  // that deadlocked Verifying forever. Quarantine local-only only while unsigned.
+  const suppressCloudIdentityQuery = Boolean(
+    cloudSwitchUserId || (localOnlyUserId && !isAuthenticated),
+  );
+  const user = useQuery(
+    api.users.me,
+    isAuthenticated && online && !suppressCloudIdentityQuery ? {} : "skip",
+  );
   const bootstrapping = useRef(false);
   const multiBranchReady = useRef(false);
+
+  useEffect(() => {
+    const syncLocalOnlyChoice = () => setLocalOnlyUserId(readLocalOnlyCloudUserId());
+    window.addEventListener(LOCAL_ONLY_CLOUD_USER_EVENT, syncLocalOnlyChoice);
+    return () => {
+      window.removeEventListener(LOCAL_ONLY_CLOUD_USER_EVENT, syncLocalOnlyChoice);
+    };
+  }, []);
   const loginRedirectStarted = useRef(false);
 
   const activeLocalUserId = sessionHint?.userId ?? cachedProfile?.userId ?? null;
@@ -326,6 +353,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loginRedirectStarted.current || hasExplicitLogout()) return;
     if (!cacheReady || isAuthenticated) return;
+    // Continue locally from the password modal — never bounce to /login.
+    if (localOnlyUserId || readLocalOnlyCloudUserId()) return;
     if (sessionHint || cachedProfile || platformSession) return;
     if (hasOfflineSession() || readOfflineSession()) return;
     if (ensureActiveOfflineSession()) return;
@@ -347,6 +376,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     cachedProfile,
     isAuthenticated,
     isLoading,
+    localOnlyUserId,
     offlineAuthBudgetElapsed,
     online,
     onlineAuthBudgetElapsed,
@@ -402,6 +432,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       if (localOnlyUserId !== null) {
         queueMicrotask(() => setLocalOnlyUserId(null));
       }
+      clearLocalOnlyCloudUser();
       return;
     }
     if (localOnlyReady) {
@@ -411,9 +442,6 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       return;
     }
     if (cloudIdentityState === "mismatch") {
-      if (localOnlyUserId === activeLocalUserId) {
-        queueMicrotask(() => setLocalOnlyUserId(null));
-      }
       if (cloudSwitchUserId !== activeLocalUserId) {
         queueMicrotask(() => setCloudSwitchUserId(activeLocalUserId));
       }
@@ -426,6 +454,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       if (localOnlyUserId !== null) {
         queueMicrotask(() => setLocalOnlyUserId(null));
       }
+      clearLocalOnlyCloudUser();
     }
     // checking / not-required: keep an existing latch sticky across flaps.
   }, [
@@ -543,7 +572,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const HEARTBEAT_MS = 2 * 60_000;
+    const HEARTBEAT_MS = 15 * 60_000;
     let cancelled = false;
     let interval: number | undefined;
     let identityPayload:
@@ -622,12 +651,34 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     cloudIdentityState === "checking" &&
     !switchingCloudAccount;
 
+  function continueWithLocalSession() {
+    if (!activeLocalUserId) return;
+    // Persist before signOut starts. Convex auth can flicker or the guarded tree
+    // can remount while the stale cloud token is being closed. Cookie + session
+    // latch must land before JWT clear so middleware does not 302 to /login.
+    rememberLocalOnlyCloudUser(activeLocalUserId);
+    setLocalOnlyUserId(activeLocalUserId);
+    // Keep users.me quarantined until signOut flips isAuthenticated — otherwise
+    // a hung-checking gate (no cloudSwitch latch) can throw over Continue locally.
+    if (cloudSwitchUserId !== activeLocalUserId) {
+      setCloudSwitchUserId(activeLocalUserId);
+    }
+    loginRedirectStarted.current = false;
+  }
+
+  function resumeCloudVerification() {
+    clearLocalOnlyCloudUser();
+    setLocalOnlyUserId(null);
+    setCloudSwitchUserId(null);
+  }
+
   if (cloudIdentityBlocked) {
     if (expectedCloudSession) {
       return (
         <CloudSessionMismatchGate
           session={expectedCloudSession}
-          onContinueLocally={() => setLocalOnlyUserId(activeLocalUserId)}
+          onContinueLocally={continueWithLocalSession}
+          onCloudConnected={resumeCloudVerification}
         />
       );
     }
@@ -640,7 +691,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return (
       <CloudSessionMismatchGate
         session={expectedCloudSession}
-        onContinueLocally={() => setLocalOnlyUserId(activeLocalUserId)}
+        onContinueLocally={continueWithLocalSession}
+        onCloudConnected={resumeCloudVerification}
       />
     );
   }
@@ -711,7 +763,9 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     sessionHint,
   });
   const allowCachedShell =
-    Boolean(resolvedCache) && !logoutBarrier && (isAuthenticated || awaitingCloudReconnect);
+    Boolean(resolvedCache) &&
+    !logoutBarrier &&
+    (isAuthenticated || awaitingCloudReconnect || localOnlyReady);
   const cachedShellWhileOnlineHung =
     online &&
     onlineAuthBudgetElapsed &&
@@ -763,7 +817,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     online &&
     !cachedShellWhileOnlineHung &&
     !resolvedCache &&
-    !awaitingCloudReconnect
+    !awaitingCloudReconnect &&
+    !localOnlyReady
   ) {
     return <AppSplash label="Redirecting to login…" />;
   }

@@ -53,9 +53,11 @@ function getLoginDeviceKey(): string {
 export function CloudSessionMismatchGate({
   session,
   onContinueLocally,
+  onCloudConnected,
 }: {
   session: ExpectedCloudSession;
   onContinueLocally: () => void;
+  onCloudConnected: () => void;
 }) {
   const { signIn, signOut } = useAuthActions();
   const convex = useConvex();
@@ -107,6 +109,7 @@ export function CloudSessionMismatchGate({
         toast.warning("Connected, but this device could not refresh offline sign-in.");
       }
       setPassword("");
+      onCloudConnected();
       toast.success(`${session.name} connected to cloud`);
     } catch (cause) {
       setPassword("");
@@ -126,22 +129,27 @@ export function CloudSessionMismatchGate({
     setPendingAction("local");
     setError(null);
     try {
-      try {
-        await withTimeout(
-          signOut(),
-          CLOUD_SWITCH_BUDGET_MS,
-          "Could not close the previous cloud session in time.",
-        );
-      } catch {
-        // Dead radio: still enter the local workspace; revoke in the background.
-        void signOut().catch(() => undefined);
-      }
+      // Commit the choice before auth changes. This keeps the gate mounted and
+      // cloud queries quarantined until Convex reports the stale session closed.
+      onContinueLocally();
       try {
         window.sessionStorage.setItem(RECONNECT_DISMISS_KEY, String(Date.now()));
       } catch {
         /* private mode */
       }
-      onContinueLocally();
+
+      // withTimeout does not cancel the original promise. Reuse that one attempt
+      // instead of issuing a second signOut that can race the first.
+      const signOutAttempt = signOut();
+      try {
+        await withTimeout(
+          signOutAttempt,
+          CLOUD_SWITCH_BUDGET_MS,
+          "Could not close the previous cloud session in time.",
+        );
+      } catch {
+        void signOutAttempt.catch(() => undefined);
+      }
     } catch {
       setError("Could not open the local workspace. Check the connection and try again.");
     } finally {

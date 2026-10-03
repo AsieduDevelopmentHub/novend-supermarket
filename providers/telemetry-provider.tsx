@@ -10,7 +10,11 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { countOutboxByStatus } from "@/lib/offline/outbox";
 
 const QUEUE_KEY = "novend.telemetry.queue.v1";
+const SYNC_HEALTH_SIGNATURE_KEY = "novend.telemetry.syncHealth.v1";
 const MAX_QUEUED_EVENTS = 200;
+const TELEMETRY_FLUSH_INTERVAL_MS = 5 * 60 * 1000;
+const TELEMETRY_IMMEDIATE_BATCH_SIZE = 20;
+const SYNC_HEALTH_INTERVAL_MS = 30 * 60 * 1000;
 
 export type ClientTelemetryEvent = {
   kind: "feature_used" | "workflow_completed" | "client_error" | "sync_health";
@@ -133,6 +137,13 @@ export function TelemetryProvider({ enabled }: { enabled: boolean }) {
       if (!identity) return;
       const counts = await countOutboxByStatus();
       if (cancelled) return;
+      const signature = `${counts.pending}:${counts.failed}`;
+      try {
+        if (window.localStorage.getItem(SYNC_HEALTH_SIGNATURE_KEY) === signature) return;
+        window.localStorage.setItem(SYNC_HEALTH_SIGNATURE_KEY, signature);
+      } catch {
+        /* telemetry dedupe is best-effort */
+      }
       const runtime = telemetryRuntimeForDevice(identity);
       if (counts.pending > 0) {
         queueTelemetryEvent({
@@ -156,7 +167,10 @@ export function TelemetryProvider({ enabled }: { enabled: boolean }) {
       }
     }
     void reportSyncHealth();
-    const interval = window.setInterval(() => void reportSyncHealth(), 5 * 60 * 1000);
+    const interval = window.setInterval(
+      () => void reportSyncHealth(),
+      SYNC_HEALTH_INTERVAL_MS,
+    );
     return () => {
       cancelled = true;
       window.clearInterval(interval);
@@ -167,10 +181,11 @@ export function TelemetryProvider({ enabled }: { enabled: boolean }) {
     if (!enabled || !online) return;
     let cancelled = false;
 
-    async function flush() {
+    async function flush(force = false) {
       if (cancelled || flushing.current) return;
       const queued = readQueue();
       if (queued.length === 0) return;
+      if (!force && queued.length < TELEMETRY_IMMEDIATE_BATCH_SIZE) return;
       flushing.current = true;
       const batch = queued.slice(0, 40);
       try {
@@ -183,10 +198,13 @@ export function TelemetryProvider({ enabled }: { enabled: boolean }) {
       }
     }
 
-    void flush();
+    void flush(true);
     const onQueued = () => void flush();
     window.addEventListener("novend-telemetry-queued", onQueued);
-    const interval = window.setInterval(() => void flush(), 30_000);
+    const interval = window.setInterval(
+      () => void flush(true),
+      TELEMETRY_FLUSH_INTERVAL_MS,
+    );
     return () => {
       cancelled = true;
       window.removeEventListener("novend-telemetry-queued", onQueued);

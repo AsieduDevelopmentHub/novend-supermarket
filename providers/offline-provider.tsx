@@ -489,7 +489,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         const dueByEvents = pendingWork >= AUTO_SYNC_PENDING_THRESHOLD || counts.failed > 0;
 
         if (dueByTime) {
-          await pullSnapshot({ force: true });
+          await pullSnapshot();
           await flushOutbox();
           return;
         }
@@ -503,7 +503,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onOnline = () => {
-      void pullSnapshot({ force: true }).then(() => flushOutbox());
+      // Reconnect flaps are common on Electron/Capacitor. Respect the snapshot
+      // TTL so each online event does not re-run the 27-table full snapshot.
+      void pullSnapshot().then(() => flushOutbox());
     };
     const onFocus = () => {
       if (!navigator.onLine) return;

@@ -23,6 +23,7 @@ import {
   resolvePostLoginSession,
 } from "@/lib/auth/redirect-after-login";
 import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag";
+import { clearLocalOnlyCloudUser } from "@/lib/auth/awaiting-cloud-reconnect";
 import { storeLocalAuthVerifier } from "@/lib/offline/local-auth";
 import {
   hasOfflineSession,
@@ -241,6 +242,9 @@ export function CloudReconnectBanner() {
         expectedOrganizationId: reconnectSession?.organizationId,
       });
       consumeExplicitLogout();
+      // A prior Continue locally choice is session-scoped. Successful password
+      // reconnect must release the layout's query quarantine immediately.
+      clearLocalOnlyCloudUser();
       try {
         await storeLocalAuthVerifier(email, rawPassword, liveSession.userId);
       } catch {
@@ -250,7 +254,7 @@ export function CloudReconnectBanner() {
       setDialogOpen(false);
       setPassword("");
       toast.success("Connected to cloud");
-      void pullSnapshot({ force: true }).then(() =>
+      void pullSnapshot().then(() =>
         flushOutbox({ force: true, showProgress: true }),
       );
     } catch (error) {

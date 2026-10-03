@@ -8,14 +8,74 @@ describe("Dexie-first business lists", () => {
     expect(source).toContain("mirrorHasCatalog");
     expect(source).toContain("shouldUseRemoteBusinessLists");
     expect(source).toMatch(/if \(await mirrorHasCatalog\(\)\) return false/);
-    expect(source).toContain("SNAPSHOT_PULL_TTL_MS = 20 * 60 * 1000");
+    expect(source).toContain("SNAPSHOT_PULL_TTL_MS = 60 * 60 * 1000");
+    expect(source).toContain("AUTO_SYNC_INTERVAL_MS = 60 * 60 * 1000");
   });
 
-  it("categories list respects the Dexie serveLocal gate", () => {
+  it("all mirrored admin lists respect the Dexie serveLocal gate", () => {
     const source = readFileSync(resolve(process.cwd(), "hooks/use-offline-lists.ts"), "utf8");
     expect(source).toMatch(
       /api\.categories\.list,\s*online && ready && !serveLocal \? \{\} : "skip"/,
     );
+    expect(source).toMatch(
+      /api\.branches\.list,\s*enabled && online && ready && !serveLocal/,
+    );
+    expect(source).toMatch(
+      /api\.users\.list,\s*enabled && online && ready && !serveLocal/,
+    );
+    expect(source).toMatch(
+      /api\.returns\.list,\s*online && ready && !serveLocal/,
+    );
+  });
+
+  it("warm dashboard rebuilds from Dexie without holding dashboard.summary open", () => {
+    const source = readFileSync(resolve(process.cwd(), "hooks/use-dashboard-data.ts"), "utf8");
+    const gate = readFileSync(resolve(process.cwd(), "hooks/use-business-data-gate.ts"), "utf8");
+    // PeriodRange must not force remote — admin default last_7_days always passes range.
+    expect(source).toContain("businessSourceReady && !serveLocal");
+    expect(source).not.toContain("(!serveLocal || range)");
+    expect(source).toContain("subscribeReplicaChanged(loadLocal)");
+    expect(source).toContain("buildLocalDashboardSummary");
+    // hospitalityOps is the same expensive collect path — gate it too.
+    const hospitalityArgs = source
+      .split("api.dashboard.hospitalityOps,")[1]
+      ?.split(");")[0];
+    expect(hospitalityArgs).toContain("shouldQueryRemote");
+    expect(hospitalityArgs).not.toContain("online && isAuthenticated");
+    // Must not freeze on the first warm cache paint while online.
+    expect(source).not.toContain("if (online) return;");
+    // Prefer Dexie until the catalog probe finishes (avoid cold-query flash).
+    expect(gate).toContain("serveLocal: true");
+  });
+
+  it("does not force a full snapshot on ordinary reconnect", () => {
+    const provider = readFileSync(
+      resolve(process.cwd(), "providers/offline-provider.tsx"),
+      "utf8",
+    );
+    const reconnect = provider.split("const onOnline = () => {")[1]?.split("};")[0];
+    expect(reconnect).toContain("pullSnapshot()");
+    expect(reconnect).not.toContain("force: true");
+  });
+
+  it("batches presence and telemetry writes", () => {
+    const layout = readFileSync(
+      resolve(process.cwd(), "app/(app)/app-layout-client.tsx"),
+      "utf8",
+    );
+    const devices = readFileSync(
+      resolve(process.cwd(), "hooks/use-device-activation.ts"),
+      "utf8",
+    );
+    const telemetry = readFileSync(
+      resolve(process.cwd(), "providers/telemetry-provider.tsx"),
+      "utf8",
+    );
+    expect(layout).toContain("HEARTBEAT_MS = 15 * 60_000");
+    expect(devices).toContain("TOUCH_INTERVAL_MS = 30 * 60 * 1000");
+    expect(telemetry).toContain("TELEMETRY_FLUSH_INTERVAL_MS = 5 * 60 * 1000");
+    expect(telemetry).toContain("TELEMETRY_IMMEDIATE_BATCH_SIZE = 20");
+    expect(telemetry).toContain("SYNC_HEALTH_SIGNATURE_KEY");
   });
 
   it("dining and hotel product pickers do not subscribe to listProducts directly", () => {

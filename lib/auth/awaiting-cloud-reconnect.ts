@@ -9,6 +9,62 @@ import {
 } from "@/lib/offline/session";
 import { readPlatformOfflineSession } from "@/lib/offline/platform-cache";
 
+const LOCAL_ONLY_CLOUD_USER_KEY = "novend.cloudReconnect.localOnlyUserId";
+/** Middleware-readable latch so Continue locally survives JWT clear without a /login 302. */
+export const LOCAL_ONLY_CLOUD_COOKIE = "novend_local_only";
+export const LOCAL_ONLY_CLOUD_USER_EVENT = "novend:local-only-cloud-user-changed";
+
+function writeLocalOnlyCookie(userId: string): void {
+  if (typeof document === "undefined" || !userId) return;
+  try {
+    // Path=/ so proxy.ts sees it on /dashboard RSC refetches after signOut.
+    document.cookie = `${LOCAL_ONLY_CLOUD_COOKIE}=${encodeURIComponent(userId)}; path=/; SameSite=Lax; Max-Age=86400`;
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearLocalOnlyCookie(): void {
+  if (typeof document === "undefined") return;
+  try {
+    document.cookie = `${LOCAL_ONLY_CLOUD_COOKIE}=; path=/; SameSite=Lax; Max-Age=0`;
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Session-scoped choice to keep working locally while the radio is online. */
+export function readLocalOnlyCloudUserId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage.getItem(LOCAL_ONLY_CLOUD_USER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function rememberLocalOnlyCloudUser(userId: string): void {
+  if (typeof window === "undefined" || !userId) return;
+  try {
+    window.sessionStorage.setItem(LOCAL_ONLY_CLOUD_USER_KEY, userId);
+  } catch {
+    /* private mode */
+  }
+  writeLocalOnlyCookie(userId);
+  window.dispatchEvent(new Event(LOCAL_ONLY_CLOUD_USER_EVENT));
+}
+
+export function clearLocalOnlyCloudUser(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(LOCAL_ONLY_CLOUD_USER_KEY);
+  } catch {
+    /* private mode */
+  }
+  clearLocalOnlyCookie();
+  window.dispatchEvent(new Event(LOCAL_ONLY_CLOUD_USER_EVENT));
+}
+
 /**
  * True when the till has a local offline shell but no Convex JWT.
  * Pure check only — never write storage here (layout/banner effects restore
@@ -39,7 +95,6 @@ export function isAwaitingCloudReconnect(input: {
  * which made Try again / Go to dashboard look dead.
  */
 export function resumeOfflineShellToDashboard(reset?: () => void): void {
-  void reset;
   if (typeof window === "undefined") return;
   if (hasExplicitLogout()) {
     window.location.replace("/login?signedOut=1");
@@ -54,7 +109,17 @@ export function resumeOfflineShellToDashboard(reset?: () => void): void {
 
   const session = readOfflineSession() ?? ensureActiveOfflineSession();
   if (session) {
-    window.location.replace("/dashboard?fromBoot=1&recover=1");
+    rememberLocalOnlyCloudUser(session.userId);
+    const target = "/dashboard?fromBoot=1&recover=1";
+    if (typeof navigator !== "undefined" && navigator.onLine) {
+      // An online hard navigation without a JWT is correctly redirected by the
+      // server to /login. Reset in-place so the client-only local shell survives.
+      window.history.replaceState({}, "", target);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      reset?.();
+      return;
+    }
+    window.location.replace(target);
     return;
   }
 
