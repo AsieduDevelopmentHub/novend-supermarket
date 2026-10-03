@@ -33,6 +33,23 @@ describe("describeSyncStatus", () => {
     });
   });
 
+  it("stays calm while a fresh online login is still settling", () => {
+    expect(
+      describeSyncStatus({
+        online: true,
+        syncing: false,
+        pendingCount: 0,
+        failedCount: 0,
+        cloudConnected: false,
+        cloudSettling: true,
+      }),
+    ).toMatchObject({
+      label: "Getting ready",
+      detail: "Opening your workspace",
+      kind: "queued",
+    });
+  });
+
   it("shows queued while online with pending work", () => {
     expect(
       describeSyncStatus({

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   getTourDefinition,
@@ -67,6 +69,15 @@ describe("product tour access", () => {
   it("does not treat empty progress as an existing tour record", () => {
     expect(hasTourProgress([], toursForAccess("cashier", false))).toBe(false);
     expect(hasTourProgress([{ tourId: "shell" }], toursForAccess("cashier", false))).toBe(true);
+  });
+
+  it("does not auto-start tours on offline shells or before cloud progress loads", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "features/tours/tour-provider.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("if (!online) return;");
+    expect(source).toContain("typedLiveProgress === undefined");
   });
 
   it("prefers a later visible navigation anchor over a hidden sidebar", () => {

@@ -929,6 +929,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
           <OfflineNavigationProvider>
             <OrganizationExperienceRoot>
               <ProductTourProvider
+                // Auto-start only needs a live session; offline shells still
+                // mount the provider so manual “Restart tour” works later.
                 enabled={Boolean(liveReady || offlineSessionOk)}
                 identityKey={
                   user?.userId

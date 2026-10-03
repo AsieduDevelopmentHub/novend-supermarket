@@ -14,6 +14,12 @@ import { isCapacitor, isElectron } from "@novend/hardware";
 const SKIP_SPLASH_KEY = "novend.auth.skipSplash";
 /** Blocks LoginSessionGate / second hard leaves while credentials are resolving. */
 const POST_LOGIN_LEAVE_KEY = "novend.auth.postLoginLeave";
+/**
+ * Online password login just succeeded — shell should treat cloud as authoritative
+ * and hide Connect / “Cloud disconnected” while Convex Auth settles.
+ */
+const ONLINE_SESSION_WARM_KEY = "novend.auth.onlineSessionWarm";
+const ONLINE_SESSION_WARM_MS = 30_000;
 const RESOLVE_RETRIES = 6;
 const RESOLVE_RETRY_MS = 400;
 /** Browser soft-navigation fallback only; native hard navigation is single-shot. */
@@ -90,6 +96,43 @@ export function isPostLoginLeavePending(): boolean {
   if (hardNavigationPending) return true;
   try {
     return sessionStorage.getItem(POST_LOGIN_LEAVE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Mark a successful online password login before hard-leaving to the shell. */
+export function markOnlineSessionWarm(): void {
+  try {
+    sessionStorage.setItem(ONLINE_SESSION_WARM_KEY, String(Date.now()));
+  } catch {
+    /* private browsing */
+  }
+}
+
+export function clearOnlineSessionWarm(): void {
+  try {
+    sessionStorage.removeItem(ONLINE_SESSION_WARM_KEY);
+  } catch {
+    /* private browsing */
+  }
+}
+
+/** True for a short window after online credential login while Convex Auth attaches. */
+export function isOnlineSessionWarm(maxAgeMs = ONLINE_SESSION_WARM_MS): boolean {
+  try {
+    const raw = sessionStorage.getItem(ONLINE_SESSION_WARM_KEY);
+    if (!raw) return false;
+    const at = Number(raw);
+    if (!Number.isFinite(at)) {
+      sessionStorage.removeItem(ONLINE_SESSION_WARM_KEY);
+      return false;
+    }
+    if (Date.now() - at > maxAgeMs) {
+      sessionStorage.removeItem(ONLINE_SESSION_WARM_KEY);
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }

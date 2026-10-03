@@ -63,8 +63,10 @@ describe("offline email+password resume", () => {
     expect(submitSlice.indexOf("clearLogoutBarrierAfterCredentialUnlock()")).toBeLessThan(
       submitSlice.indexOf("resolvePostLoginSession("),
     );
-    expect(loginForm).toContain("Signing you in…");
+    expect(loginForm).toContain("Opening your workspace");
+    expect(loginForm).toContain("markOnlineSessionWarm()");
     expect(loginForm).not.toContain('variant="form"');
+    expect(loginForm).not.toContain("animate-spin");
     expect(layout).toContain("hydrateOfflineSessionsFromDeviceStore");
     expect(layout).toContain("hasExplicitLogout()");
     expect(layout).toContain("clearPostLoginLeavePending()");

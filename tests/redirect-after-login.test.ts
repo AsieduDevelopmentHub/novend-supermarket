@@ -140,8 +140,12 @@ describe("redirect-after-login", () => {
     expect(source).toContain("navigateAfterLogin");
     expect(source).toContain("setOpeningWorkspace(true)");
     expect(source).toMatch(/setOpeningWorkspace\(true\);[\s\S]*?navigateAfterLogin/);
-    expect(source).toContain("Signing you in…");
-    expect(source).not.toContain("Opening workspace…");
+    expect(source).toContain("Opening your workspace");
+    expect(source).toContain("Just a moment");
+    expect(source).not.toContain("Signing you in…");
+    expect(source).not.toContain("Confirming your cloud");
+    expect(source).not.toContain("animate-spin");
+    expect(source).toContain("markOnlineSessionWarm()");
     expect(source).toContain("markPostLoginLeavePending()");
     expect(source).not.toContain('toast.success("Welcome")');
     // Inputs stay in the DOM so prepareHardNavigation can clear leave-site dirt.
@@ -159,6 +163,8 @@ describe("redirect-after-login", () => {
     expect(source).toContain("export function markPostLoginLeavePending");
     expect(source).toContain("export function isPostLoginLeavePending");
     expect(source).toContain("export function clearPostLoginLeavePending");
+    expect(source).toContain("export function markOnlineSessionWarm");
+    expect(source).toContain("export function isOnlineSessionWarm");
     expect(source).toContain("markPostLoginLeavePending()");
   });
 

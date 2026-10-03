@@ -31,6 +31,8 @@ describe("cloud reconnect in place", () => {
   it("keeps reconnect UI across Convex isLoading flicker", () => {
     expect(banner).toContain("shellEligible");
     expect(banner).toContain("canAutoOpen");
+    expect(banner).toContain("isOnlineSessionWarm");
+    expect(banner).toContain("!onlineLoginWarm");
     expect(banner).not.toMatch(/const eligible = online && !isLoading && !isAuthenticated/);
   });
 
