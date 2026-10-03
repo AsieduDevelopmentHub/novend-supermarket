@@ -4,7 +4,10 @@ import { withTimeout } from "@/lib/async/with-timeout";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 import { bindOfflineOrganization } from "@/lib/offline/db";
 import { clearOfflineSession, markOfflineSession } from "@/lib/offline/session";
-import { markPlatformOfflineSession } from "@/lib/offline/platform-cache";
+import {
+  clearPlatformOfflineSession,
+  markPlatformOfflineSession,
+} from "@/lib/offline/platform-cache";
 import { saveShellProfile } from "@/lib/offline/shell-profile";
 import { isCapacitor, isElectron } from "@novend/hardware";
 
@@ -88,6 +91,9 @@ async function bindReplicaFromMe(
     return;
   }
   if (!me.organizationId || !me.role || !me.branchId) return;
+  // Tenant login must drop any leftover Super Admin offline marker — otherwise
+  // LoginSessionGate / hydrate treat the till as platform and bounce to /platform.
+  clearPlatformOfflineSession();
   bindOfflineOrganization(String(me.organizationId), String(me.userId));
   markOfflineSession({
     userId: String(me.userId),

@@ -6,12 +6,15 @@ import { useConvexAuth } from "convex/react";
 import { useIsClient } from "@/hooks/use-is-client";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { prepareHardNavigation } from "@/lib/auth/redirect-after-login";
-import { readPlatformOfflineSession } from "@/lib/offline/platform-cache";
 
 /**
  * If still on /login with a live session, hard-leave so "Welcome" cannot
  * strand the form. Does **not** paint AppSplash — the login form owns
  * “Opening workspace…” so credential unlock does not stack brand covers.
+ *
+ * Always leave to dashboard — platform-only admins are redirected to
+ * `/platform` by the app shell. Preferring a stale platform offline marker
+ * here bounced every tenant login to `/login?next=/platform…`.
  */
 const FORCE_LEAVE_BUDGET_MS = 6000;
 
@@ -43,13 +46,8 @@ function LoginSessionGateInner({ children }: { children: ReactNode }) {
         return;
       }
       prepareHardNavigation();
-      // Platform-only sessions must not hard-leave into the tenant dashboard
-      // (that revived a prior cashier and painted Continue as…).
-      const platform = readPlatformOfflineSession();
-      const target = platform
-        ? "/platform?fromLogin=1"
-        : "/dashboard?fromLogin=1";
-      window.location.replace(target);
+      // fromLogin: SW cache-first without RestoreLastRoute remount.
+      window.location.replace("/dashboard?fromLogin=1");
     }, FORCE_LEAVE_BUDGET_MS);
     return () => window.clearTimeout(timer);
   }, [mounted, explicitLogout, isAuthenticated]);
