@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v30";
+const CACHE_NAME = "novend-pos-v31";
 const FINAL_URL_HEADER = "X-Novend-Final-URL";
 
 /**
@@ -130,6 +130,12 @@ self.addEventListener("install", (event) => {
       })
       .then(() => self.skipWaiting()),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event?.data?.type === "SKIP_WAITING") {
+    void self.skipWaiting();
+  }
 });
 
 self.addEventListener("activate", (event) => {
@@ -504,16 +510,29 @@ async function cacheFirstDocument(request, url) {
  * offline shell), never paint that login document under the app URL — serve
  * the cached shell so CloudReconnectBanner can ask for the password in place.
  */
+/** Cap false-online hang guard. Keep short — longer waits strand Welcome. */
 const NETWORK_DOCUMENT_BUDGET_MS = 2500;
+/**
+ * When the radio reports online, wait longer before serving a cached document.
+ * Falling back to yesterday's HTML after a deploy mixes chunk maps and throws
+ * “module factory is not available” (especially on reconnect).
+ */
+const NETWORK_DOCUMENT_ONLINE_BUDGET_MS = 8_000;
 
 async function networkFirstDocument(request, url) {
   const cachedFallback = () => matchNavigation(request, url);
+  const reportedOnline =
+    typeof self.navigator === "undefined" || self.navigator.onLine !== false;
+  const budgetMs = reportedOnline
+    ? NETWORK_DOCUMENT_ONLINE_BUDGET_MS
+    : NETWORK_DOCUMENT_BUDGET_MS;
+  const forceNetwork = url.searchParams.has("novendFresh");
 
   try {
     const response = await Promise.race([
       fetchFollowRedirects(request),
       new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("document-network-budget")), NETWORK_DOCUMENT_BUDGET_MS);
+        setTimeout(() => reject(new Error("document-network-budget")), budgetMs);
       }),
     ]);
     const finalResponseUrl = responseFinalUrl(response);
@@ -528,6 +547,22 @@ async function networkFirstDocument(request, url) {
     }
     return response;
   } catch {
+    // Fresh recovery must not paint a stale shell that references deleted chunks.
+    if (!forceNetwork && reportedOnline) {
+      try {
+        const retry = await fetchFollowRedirects(request);
+        const finalResponseUrl = responseFinalUrl(retry);
+        if (!(finalResponseUrl && isLoginDocumentUrl(finalResponseUrl) && !isAuthDocument(url))) {
+          cachePut(request, retry);
+          if (request.mode === "navigate" || request.destination === "document") {
+            cachePut(new Request(url.pathname), retry);
+          }
+          return retry;
+        }
+      } catch {
+        /* fall through to cache */
+      }
+    }
     const isRsc = request.headers.get("RSC") === "1" || url.searchParams.has("_rsc");
     const publicLegal =
       url.pathname === "/privacy" ||
@@ -541,6 +576,12 @@ async function networkFirstDocument(request, url) {
         statusText: "Offline",
         headers: { "Content-Type": "text/plain; charset=utf-8" },
       });
+    }
+    if (forceNetwork) {
+      return new Response(
+        "<!doctype html><title>Refreshing</title><p>Novend is updating. Reconnect and open the app again.</p>",
+        { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } },
+      );
     }
     const fallback = await cachedFallback();
     if (fallback) return fallback;
@@ -573,7 +614,9 @@ self.addEventListener("fetch", (event) => {
       (async () => {
         const fromBoot = url.searchParams.get("fromBoot") === "1";
         const signedOut = url.searchParams.get("signedOut") === "1";
-        const freshLeave = url.searchParams.get("novendFresh") === "1";
+        // Any novendFresh=* forces network (recovery used to set a timestamp, so
+        // `=== "1"` never matched and cache kept serving mixed builds).
+        const freshLeave = url.searchParams.has("novendFresh");
         // Prefer validated auth shell on any signed-out leave (false-online Cap/
         // Electron would hang on network-first). novendFresh forces network first.
         const preferCache = !freshLeave && (fromBoot || signedOut);

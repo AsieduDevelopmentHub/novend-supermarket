@@ -62,8 +62,8 @@ export default function AppError({
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 px-4 text-center">
         <h2 className="text-lg font-semibold">Refreshing Novend…</h2>
         <p className="text-muted-foreground max-w-md text-sm">
-              Loading the latest version. Your saved work is safe.
-            </p>
+          Loading the latest version. Your saved work is safe.
+        </p>
       </div>
     );
   }
@@ -83,16 +83,22 @@ export default function AppError({
       );
 
   function retry() {
-    if (chunkMiss) {
+    // Always hard-refresh chunk/module-factory failures — soft reset re-throws
+    // immediately and looks like dead Try again / Go to dashboard buttons.
+    if (chunkMiss || isChunkLoadError(error)) {
       setRefreshingClient(true);
       recoverFromChunkLoadFailure();
       return;
     }
-    // Always hard-navigate — reset() alone re-throws on poisoned /platform trees.
     resumeOfflineShellToDashboard(reset);
   }
 
   function goDashboard() {
+    if (chunkMiss || isChunkLoadError(error)) {
+      setRefreshingClient(true);
+      recoverFromChunkLoadFailure();
+      return;
+    }
     resumeOfflineShellToDashboard(reset);
   }
 

@@ -21,7 +21,20 @@ describe("offline sign-out recovery", () => {
         ),
       ),
     ).toBe(true);
+    expect(
+      isChunkLoadError({
+        message:
+          "Module 1 was instantiated because it was required from module 2, but the module factory is not available.",
+      }),
+    ).toBe(true);
     expect(isChunkLoadError(new Error("boom"))).toBe(false);
+  });
+
+  it("error CTAs hard-refresh chunk failures instead of soft reset loops", () => {
+    const source = readFileSync(resolve(process.cwd(), "app/(app)/error.tsx"), "utf8");
+    expect(source).toContain("isChunkLoadError(error)");
+    expect(source).toContain("recoverFromChunkLoadFailure()");
+    expect(source).toMatch(/function goDashboard\(\)[\s\S]*recoverFromChunkLoadFailure/);
   });
 
   it("recovers to login after explicit logout even without a chunk error", () => {
@@ -42,11 +55,13 @@ describe("offline sign-out recovery", () => {
 
   it("SW prefers validated auth cache for fromBoot and signedOut leaves", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v30"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v31"');
     expect(sw).toContain('url.searchParams.get("signedOut") === "1"');
     expect(sw).toContain('url.searchParams.get("fromBoot") === "1"');
-    expect(sw).toContain('url.searchParams.get("novendFresh") === "1"');
+    expect(sw).toContain('url.searchParams.has("novendFresh")');
     expect(sw).toContain("preferCache = !freshLeave && (fromBoot || signedOut)");
+    expect(sw).toContain('event?.data?.type === "SKIP_WAITING"');
+    expect(sw).toContain("NETWORK_DOCUMENT_ONLINE_BUDGET_MS");
     expect(sw).toContain("auth-document-network-budget");
     expect(sw).toContain("precacheAuthDocument");
     expect(sw).toContain("?signedOut=1&novendPrecache=1");
