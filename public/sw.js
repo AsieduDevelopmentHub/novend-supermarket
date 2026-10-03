@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v29";
+const CACHE_NAME = "novend-pos-v30";
 const FINAL_URL_HEADER = "X-Novend-Final-URL";
 
 /**
@@ -622,7 +622,17 @@ self.addEventListener("fetch", (event) => {
         }
 
         try {
-          const response = await fetch(request);
+          // Cap/Electron false-online hangs forever without a budget — that
+          // stranded Signing out… on /login?signedOut=1 with an empty cache.
+          const response = await Promise.race([
+            fetch(request),
+            new Promise((_, reject) => {
+              setTimeout(
+                () => reject(new Error("auth-document-network-budget")),
+                NETWORK_DOCUMENT_BUDGET_MS,
+              );
+            }),
+          ]);
           if (response && response.ok) cachePut(request, response);
           return response;
         } catch {

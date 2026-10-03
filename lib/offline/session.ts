@@ -8,6 +8,7 @@
  */
 
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
+import { readPlatformOfflineSession } from "@/lib/offline/platform-cache";
 import { bindOfflineOrganization, unbindOfflineOrganization } from "./db";
 import {
   clearDeviceOfflineSessions,
@@ -232,6 +233,8 @@ export async function hydrateOfflineSessionsFromDeviceStore(): Promise<OfflineSe
   const active = getOfflineSessionSnapshot();
   if (active) return active;
   if (hasExplicitLogout()) return null;
+  // A live platform Super Admin session must not resurrect a tenant cashier.
+  if (readPlatformOfflineSession()) return null;
   const first = rows[0];
   if (!first) return null;
   markOfflineSession(first);
@@ -247,6 +250,7 @@ export function ensureActiveOfflineSession(): OfflineSessionHint | null {
   const active = getOfflineSessionSnapshot();
   if (active) return active;
   if (hasExplicitLogout()) return null;
+  if (readPlatformOfflineSession()) return null;
   const first = listOfflineSessions()[0];
   if (!first) return null;
   return activateOfflineSession(first.userId);

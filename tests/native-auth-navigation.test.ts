@@ -14,7 +14,7 @@ describe("native auth navigation", () => {
     );
   });
 
-  it("Electron hard-leaves without trampoline; Cap fromBoot only when offline", () => {
+  it("Electron uses trampoline when offline; Cap fromBoot only when offline", () => {
     const source = readFileSync(
       resolve(process.cwd(), "lib/auth/native-auth-navigation.ts"),
       "utf8",
@@ -28,13 +28,12 @@ describe("native auth navigation", () => {
     expect(source).toContain("hardLeaveToLogin");
     expect(source).toContain("isBrowserOffline");
     expect(source).toContain("scheduleHardLeaveFallback");
-    expect(source).toContain("isCapacitor()");
-    expect(source).toContain("isElectron()");
-    // Sign-out must never call the Electron trampoline (re-adds fromBoot).
-    expect(source).not.toContain("getElectronBridge");
-    expect(source).not.toMatch(/bridge\.reloadAuthShell/);
+    expect(source).toContain("shouldUseElectronTrampoline");
+    expect(source).toContain("electronTrampolineLeave");
+    expect(source).toContain("reloadAuthShell");
     expect(source).toContain("isCapacitor() && isBrowserOffline()");
-    expect(source).toContain("never uses reloadAuthShell");
+    // Online Electron still hard-leaves; trampoline only when offline.
+    expect(source).toContain("isElectron() && isBrowserOffline()");
   });
 
   it("sign-out kicks navigation without awaiting hung cloud calls", () => {
@@ -81,7 +80,7 @@ describe("native auth navigation", () => {
     expect(boot).toContain("!signedOutLeave && entry.indexOf(\"fromBoot=\") < 0");
   });
 
-  it("service worker validates auth HTML and prefers signedOut cache", () => {
+  it("service worker validates auth HTML and budgets auth fetch", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
     expect(sw).toContain("caches.match(expected)");
     expect(sw).toContain("isAuthDocument(url)");
@@ -91,8 +90,9 @@ describe("native auth navigation", () => {
     expect(sw).toContain("X-Novend-Auth-Doc");
     expect(sw).toContain('url.searchParams.get("signedOut") === "1"');
     expect(sw).toContain("preferCache = !freshLeave && (fromBoot || signedOut)");
+    expect(sw).toContain("auth-document-network-budget");
     expect(sw).toContain('const AUTH_PRECACHE = ["/login", "/signup"]');
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v29"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v30"');
     const precacheBlock = sw.match(/const PRECACHE = \[([\s\S]*?)\];/)?.[1] ?? "";
     expect(precacheBlock).not.toContain('"/login"');
     expect(precacheBlock).not.toContain('"/signup"');
