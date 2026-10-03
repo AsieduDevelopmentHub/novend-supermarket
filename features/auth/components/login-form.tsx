@@ -44,8 +44,17 @@ import { withTimeout } from "@/lib/async/with-timeout";
 const REMEMBER_KEY = "novend.login.rememberEmail";
 const LOGIN_DEVICE_KEY = "novend.login.deviceKey";
 /** Cap/Electron often look online while Convex never answers. */
-const CLOUD_SIGN_IN_BUDGET_MS = 8_000;
+const CLOUD_SIGN_IN_BUDGET_NATIVE_MS = 8_000;
+/** Browser dashboard: allow cold password + token handshake before failing closed. */
+const CLOUD_SIGN_IN_BUDGET_WEB_MS = 20_000;
+/** Revoke a leftover JWT after sign-out before starting a new password sign-in. */
+const STALE_SIGNOUT_BUDGET_MS = 4_000;
 let volatileLoginDeviceKey: string | null = null;
+
+function cloudSignInBudgetMs(): number {
+  if (typeof window === "undefined") return CLOUD_SIGN_IN_BUDGET_WEB_MS;
+  return isCapacitor() || isElectron() ? CLOUD_SIGN_IN_BUDGET_NATIVE_MS : CLOUD_SIGN_IN_BUDGET_WEB_MS;
+}
 
 /** Drop ?signedOut=1 without a React navigation — keeps LoginSessionGate in sync. */
 function clearSignedOutQueryParam(): void {
@@ -125,6 +134,8 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const signedOut = searchParams.get("signedOut") === "1" || hasExplicitLogout();
   const redirectingRef = useRef(false);
   const staleCloudLogoutRef = useRef(false);
+  /** Bumps when a submit is abandoned so a late `signIn` cannot open the wrong shell. */
+  const submitGenerationRef = useRef(0);
   /** Cap / Electron are the product shell — no escape hatch to the marketing site. */
   const [hideWebsiteLink, setHideWebsiteLink] = useState(false);
 
@@ -201,6 +212,15 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       );
       return false;
     }
+    if (email && activated.email) {
+      const activatedEmail = activated.email.trim().toLowerCase();
+      if (activatedEmail && activatedEmail !== email) {
+        toast.error(
+          "Cached workspace does not match that email. Connect online and sign in again.",
+        );
+        return false;
+      }
+    }
     if (email && !activated.email) {
       activated = { ...activated, email, savedAt: Date.now() };
       markOfflineSession(activated);
@@ -246,9 +266,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   // Already signed in without submitting credentials (live Convex cookie).
   // Keep fromBoot so cold start can restore the last in-app route after shell mount.
   // After logout, stay on the form even if the previous cookie has not dropped yet.
+  // Never auto-resume during/after an abandoned credential submit — a late
+  // signIn must not open a prior JWT shell for a different email.
   useEffect(() => {
     if (signedOut) return;
     if (!isAuthenticated || authLoading || redirectingRef.current || pending) return;
+    if (openingWorkspace) return;
     redirectingRef.current = true;
     markPostLoginLeavePending();
     setOpeningWorkspace(true);
@@ -265,7 +288,18 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         toast.error("Could not open your account. Sign in again.");
       }
     })();
-  }, [isAuthenticated, authLoading, convex, router, pending, fromBoot, signedOut]);
+  }, [isAuthenticated, authLoading, convex, router, pending, openingWorkspace, fromBoot, signedOut]);
+
+  async function revokeStaleCloudSessionBeforeSignIn(): Promise<void> {
+    if (!hasExplicitLogout()) return;
+    if (authLoading || !isAuthenticated) return;
+    staleCloudLogoutRef.current = true;
+    try {
+      await withTimeout(signOut(), STALE_SIGNOUT_BUDGET_MS, "sign-out timed out");
+    } catch {
+      /* continue — password sign-in still needs to run */
+    }
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -273,6 +307,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       return;
     }
 
+    const generation = ++submitGenerationRef.current;
     setPending(true);
     const normalizedEmail = email.trim().toLowerCase();
     const rawPassword = password;
@@ -295,6 +330,11 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         return;
       }
 
+      // Serialize revoke of a leftover JWT before password sign-in. Racing
+      // signOut + signIn hung past the budget and then auto-resumed the old shell.
+      await revokeStaleCloudSessionBeforeSignIn();
+      if (generation !== submitGenerationRef.current) return;
+
       try {
         const formData = new FormData();
         formData.set("email", normalizedEmail);
@@ -303,20 +343,34 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         formData.set("deviceKey", getLoginDeviceKey());
         await withTimeout(
           signIn("password", formData),
-          CLOUD_SIGN_IN_BUDGET_MS,
+          cloudSignInBudgetMs(),
           "Couldn't reach Novend in time.",
         );
       } catch (cloudError) {
         // Cap/Electron often report online while Convex never answers.
+        // Browser: one offline attempt for the typed email only — never rethrow
+        // a timeout into a second resume (duplicate toasts) or fall through to
+        // resolve with a late/partial JWT for a different account.
         if (isConnectivityError(cloudError) || isTimeoutError(cloudError)) {
+          submitGenerationRef.current += 1;
           const ok = await resumeWithLocalPassword(normalizedEmail, rawPassword);
           setPending(false);
           if (ok) {
             toast.message("Couldn't reach Novend — opened your cached workspace.");
             return;
           }
+          showError(
+            cloudError,
+            "Couldn't reach Novend. Check the signal and try again. Offline sign-in only works for accounts that have signed in on this device before.",
+          );
+          return;
         }
         throw cloudError;
+      }
+
+      if (generation !== submitGenerationRef.current) {
+        setPending(false);
+        return;
       }
 
       redirectingRef.current = true;
@@ -330,6 +384,13 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       const session = await resolvePostLoginSession(convex, undefined, {
         expectedEmail: normalizedEmail,
       });
+      if (generation !== submitGenerationRef.current) {
+        clearPostLoginLeavePending();
+        redirectingRef.current = false;
+        setOpeningWorkspace(false);
+        setPending(false);
+        return;
+      }
       clearLogoutBarrierAfterCredentialUnlock();
       // bindReplicaFromMe already marked the correct offline/platform session —
       // clearing the active hint here wiped warm-paint and bounced first login.
@@ -345,26 +406,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       } catch {
         toast.warning("Signed in, but offline sign-in could not be prepared on this device.");
       }
-      // Navigate first — toast before hard leave implied success while stuck on login.
       navigateAfterLogin(session.path, router, { hard: true });
     } catch (error) {
+      submitGenerationRef.current += 1;
       clearPostLoginLeavePending();
       redirectingRef.current = false;
       setOpeningWorkspace(false);
-
-      if (isConnectivityError(error) || isTimeoutError(error)) {
-        const ok = await resumeWithLocalPassword(normalizedEmail, rawPassword);
-        setPending(false);
-        if (ok) {
-          toast.message("Couldn't reach Novend — opened your cached workspace.");
-          return;
-        }
-        showError(
-          error,
-          "Couldn't reach Novend. Check the signal, or use an account that has signed in on this device before.",
-        );
-        return;
-      }
 
       const raw = error instanceof Error ? error.message : "";
       const lower = raw.toLowerCase();

@@ -52,6 +52,19 @@ describe("redirect-after-login", () => {
     ).rejects.toThrow(/account mismatch/i);
   });
 
+  it("resolvePostLoginPath rejects when expected email is set but me.email is missing", async () => {
+    const convex = {
+      query: vi.fn().mockResolvedValue({
+        userId: "u1",
+        isPlatformAdmin: false,
+        needsOnboarding: false,
+      }),
+    };
+    await expect(
+      resolvePostLoginPath(convex as never, null, { expectedEmail: "ben@shop.com" }),
+    ).rejects.toThrow(/account mismatch/i);
+  });
+
   it("skip splash flag is one-shot", () => {
     const store = new Map<string, string>();
     vi.stubGlobal("sessionStorage", {
@@ -195,6 +208,11 @@ describe("redirect-after-login", () => {
     const source = readFileSync(resolve(process.cwd(), "app/(app)/app-layout-client.tsx"), "utf8");
     expect(source).toContain("allowCachedShell && resolvedCache && !liveReady");
     expect(source).toContain("resolvedCache?.organizationId && resolvedCache.userId");
+    // Platform session React state must not update during render (crashed /platform).
+    expect(source).toContain("setPlatformSession(next)");
+    expect(source).not.toMatch(
+      /if \(!cloudIdentityUnsafe && user\?\.isPlatformAdmin[\s\S]*?setPlatformSession\(next\)/,
+    );
   });
 
   it("app shell redirects to login through one hard-navigation owner", () => {

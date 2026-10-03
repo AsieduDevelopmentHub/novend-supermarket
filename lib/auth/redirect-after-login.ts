@@ -211,9 +211,14 @@ export async function resolvePostLoginSession(
           "Account mismatch: the cloud session belongs to a different business. Verify this account again.",
         );
       }
-      if (expectedEmail && me.email) {
-        const liveEmail = String(me.email).trim().toLowerCase();
-        if (liveEmail && liveEmail !== expectedEmail) {
+      if (expectedEmail) {
+        const liveEmail = me.email ? String(me.email).trim().toLowerCase() : "";
+        if (!liveEmail) {
+          throw new Error(
+            "Account mismatch: the signed-in profile has no email. Sign out and try again.",
+          );
+        }
+        if (liveEmail !== expectedEmail) {
           throw new Error(
             "Account mismatch: the signed-in profile is not the email you entered. Sign out and try again.",
           );
