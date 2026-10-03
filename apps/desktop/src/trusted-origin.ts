@@ -9,6 +9,8 @@ export type IpcSenderEvent = {
 };
 
 const AUTH_SHELL_PATHS = new Set(["/login", "/signup", "/forgot-password", "/reset-password"]);
+/** Post-password leave targets for Electron trampoline (hung HTTPS replace). */
+const POST_LOGIN_SHELL_PATHS = new Set(["/dashboard", "/platform", "/onboarding"]);
 const SAFE_EXTERNAL_PROTOCOLS = new Set(["https:", "mailto:"]);
 
 function parseAbsoluteUrl(value: string): URL | null {
@@ -118,23 +120,38 @@ export function validateAuthShellEntry(candidate: string): string | null {
 
   const internalBase = "https://novend.invalid";
   const url = new URL(entry, internalBase);
-  if (url.origin !== internalBase || !AUTH_SHELL_PATHS.has(url.pathname) || url.hash) {
+  if (url.origin !== internalBase || url.hash) {
     return null;
   }
 
-  if (url.pathname === "/login") {
-    const parameters = [...url.searchParams.entries()];
-    if (
-      parameters.length > 1 ||
-      (parameters.length === 1 && (parameters[0]![0] !== "signedOut" || parameters[0]![1] !== "1"))
-    ) {
+  if (AUTH_SHELL_PATHS.has(url.pathname)) {
+    if (url.pathname === "/login") {
+      const parameters = [...url.searchParams.entries()];
+      if (
+        parameters.length > 1 ||
+        (parameters.length === 1 && (parameters[0]![0] !== "signedOut" || parameters[0]![1] !== "1"))
+      ) {
+        return null;
+      }
+    } else if (url.search) {
       return null;
     }
-  } else if (url.search) {
+    return `${url.pathname}${url.search}`;
+  }
+
+  // Electron post-login: allow only known shell roots with optional fromLogin=1.
+  if (POST_LOGIN_SHELL_PATHS.has(url.pathname)) {
+    const parameters = [...url.searchParams.entries()];
+    if (
+      parameters.length === 0 ||
+      (parameters.length === 1 && parameters[0]![0] === "fromLogin" && parameters[0]![1] === "1")
+    ) {
+      return `${url.pathname}${url.search}`;
+    }
     return null;
   }
 
-  return `${url.pathname}${url.search}`;
+  return null;
 }
 
 export function isAllowedMediaPermission(

@@ -123,9 +123,12 @@ describe("redirect-after-login", () => {
       .split('if (typeof window !== "undefined" && forceHard) {')[1]
       ?.split("router.replace(target);")[0];
     expect(hardBranch).toBeTruthy();
-    expect(hardBranch?.match(/window\.location\.replace\(target\)/g)).toHaveLength(1);
+    // Direct replace + Electron trampoline fallback.
+    expect(hardBranch?.match(/window\.location\.replace\(target\)/g)?.length).toBeGreaterThanOrEqual(
+      1,
+    );
+    expect(hardBranch).toContain("reloadAuthShell");
     expect(hardBranch).not.toContain("window.setTimeout");
-    expect(source).not.toContain("window.location.href = target");
     expect(source).toContain("withPostLoginShellMarker");
     expect(source).toContain("fromLogin=1");
     expect(source).toContain("saveShellProfile({");
@@ -152,10 +155,12 @@ describe("redirect-after-login", () => {
     expect(source).toContain('aria-hidden={openingWorkspace}');
   });
 
-  it("gives users.me time to settle after password sign-in", () => {
+  it("keeps users.me settle budgets short so the login cover clears quickly", () => {
     const source = readFileSync(resolve(process.cwd(), "lib/auth/redirect-after-login.ts"), "utf8");
-    expect(source).toContain("ME_QUERY_BUDGET_MS = 8_000");
-    expect(source).toContain("RESOLVE_RETRIES = 6");
+    expect(source).toContain("ME_QUERY_BUDGET_MS = 3_500");
+    expect(source).toContain("RESOLVE_RETRIES = 4");
+    expect(source).toContain("reloadAuthShell");
+    expect(source).toContain("isElectron()");
   });
 
   it("post-login leave latch blocks parallel hard leaves", () => {

@@ -10,6 +10,7 @@ import {
 } from "@/lib/offline/platform-cache";
 import { saveShellProfile } from "@/lib/offline/shell-profile";
 import { isCapacitor, isElectron } from "@novend/hardware";
+import { getDesktopBridge } from "@/lib/desktop";
 
 const SKIP_SPLASH_KEY = "novend.auth.skipSplash";
 /** Blocks LoginSessionGate / second hard leaves while credentials are resolving. */
@@ -20,17 +21,19 @@ const POST_LOGIN_LEAVE_KEY = "novend.auth.postLoginLeave";
  */
 const ONLINE_SESSION_WARM_KEY = "novend.auth.onlineSessionWarm";
 const ONLINE_SESSION_WARM_MS = 30_000;
-const RESOLVE_RETRIES = 6;
-const RESOLVE_RETRY_MS = 400;
+/** Keep resolve short — long me budgets stranded “Opening your workspace”. */
+const RESOLVE_RETRIES = 4;
+const RESOLVE_RETRY_MS = 300;
 /** Browser soft-navigation fallback only; native hard navigation is single-shot. */
 const HARD_NAV_FALLBACK_MS = 800;
 /**
  * Per-attempt budget for `users.me` after password sign-in.
- * Auth token / websocket often need several seconds after signOut→signIn.
+ * Auth token / websocket often need a beat after signOut→signIn; do not stack
+ * multi-second hangs that leave the login cover painted.
  */
-const ME_QUERY_BUDGET_MS = 8_000;
+const ME_QUERY_BUDGET_MS = 3_500;
 /** Dexie profile write must not block leaving /login. */
-const SHELL_PROFILE_BUDGET_MS = 1_500;
+const SHELL_PROFILE_BUDGET_MS = 1_200;
 
 /** In-memory latch for the in-flight hard leave (survives only this JS lifetime). */
 let hardNavigationPending = false;
@@ -398,6 +401,24 @@ export function navigateAfterLogin(
     if (hardNavigationPending) return;
     hardNavigationPending = true;
     prepareHardNavigation();
+    // Electron: HTTPS location.replace can hang on flaky radio (same class as
+    // stuck Signing out). Local trampoline loads the cached shell entry.
+    if (isElectron()) {
+      void (async () => {
+        try {
+          const result = await getDesktopBridge()?.reloadAuthShell(target);
+          if (result?.ok) return;
+        } catch {
+          /* fall through to replace */
+        }
+        try {
+          window.location.replace(target);
+        } catch {
+          window.location.href = target;
+        }
+      })();
+      return;
+    }
     window.location.replace(target);
     return;
   }

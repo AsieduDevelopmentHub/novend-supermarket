@@ -65,6 +65,10 @@ describe("offline email+password resume", () => {
     );
     expect(loginForm).toContain("Opening your workspace");
     expect(loginForm).toContain("markOnlineSessionWarm()");
+    // Offline digest must not block the hard leave.
+    expect(submitSlice.indexOf("navigateAfterLogin(")).toBeLessThan(
+      submitSlice.indexOf("void storeLocalAuthVerifier("),
+    );
     expect(loginForm).not.toContain('variant="form"');
     expect(loginForm).not.toContain("animate-spin");
     expect(layout).toContain("hydrateOfflineSessionsFromDeviceStore");

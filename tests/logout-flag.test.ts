@@ -99,7 +99,9 @@ describe("explicit logout flag", () => {
     expect(source).not.toContain("<AppSplash");
     expect(source).toContain("fromLogin=1");
     expect(source).toContain("FORCE_LEAVE_BUDGET_MS");
+    expect(source).toContain("STUCK_LEAVE_BUDGET_MS");
     expect(source).toContain("/dashboard?fromLogin=1");
+    expect(source).toContain("reloadAuthShell");
     expect(source).toContain("isPostLoginLeavePending");
     expect(source).toContain("readPlatformOfflineSession");
   });
