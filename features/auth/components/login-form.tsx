@@ -420,22 +420,19 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         setPending(false);
         return;
       }
-      // bindReplicaFromMe already marked the correct offline/platform session —
-      // clearing the active hint here wiped warm-paint and bounced first login.
-      try {
-        const prepared = await storeLocalAuthVerifier(
-          normalizedEmail,
-          rawPassword,
-          session.userId,
-        );
-        if (!prepared) {
-          toast.warning("Signed in, but this device could not prepare offline sign-in.");
-        }
-      } catch {
-        toast.warning("Signed in, but offline sign-in could not be prepared on this device.");
-      }
+      // Leave immediately — PBKDF2 offline digest must not pad “Opening your
+      // workspace”. Shell already has the offline session hint from bindReplica.
       markOnlineSessionWarm();
       navigateAfterLogin(session.path, router, { hard: true });
+      void storeLocalAuthVerifier(normalizedEmail, rawPassword, session.userId)
+        .then((prepared) => {
+          if (!prepared) {
+            toast.warning("Signed in, but this device could not prepare offline sign-in.");
+          }
+        })
+        .catch(() => {
+          toast.warning("Signed in, but offline sign-in could not be prepared on this device.");
+        });
     } catch (error) {
       submitGenerationRef.current += 1;
       clearPostLoginLeavePending();

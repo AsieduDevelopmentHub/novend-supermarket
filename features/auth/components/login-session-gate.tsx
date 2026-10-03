@@ -3,22 +3,26 @@
 import { type ReactNode, Suspense, useEffect, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import { useConvexAuth } from "convex/react";
+import { isElectron } from "@novend/hardware";
 import { useIsClient } from "@/hooks/use-is-client";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import {
   isPostLoginLeavePending,
   prepareHardNavigation,
 } from "@/lib/auth/redirect-after-login";
+import { getDesktopBridge } from "@/lib/desktop";
 import { readPlatformOfflineSession } from "@/lib/offline/platform-cache";
 
 /**
- * Escape hatch only: if still on /login with a live session and the login form
- * did not own a leave, hard-leave so "Welcome" cannot strand the form.
+ * Escape hatch: if still on /login with a live session, hard-leave so "Welcome"
+ * / “Opening your workspace” cannot strand the form forever.
  *
- * Credential unlock marks `postLoginLeave` before resolve — this gate must not
- * race that path (mid-bind leave caused first-login bounce to /login).
+ * Credential unlock marks `postLoginLeave` before resolve — do not race that
+ * for the first few seconds. After STUCK_LEAVE_BUDGET_MS, force leave even
+ * while leave is pending (hung me resolve or hung Electron HTTPS replace).
  */
-const FORCE_LEAVE_BUDGET_MS = 10_000;
+const FORCE_LEAVE_BUDGET_MS = 6_000;
+const STUCK_LEAVE_BUDGET_MS = 12_000;
 
 export function LoginSessionGate({ children }: { children: ReactNode }) {
   return (
@@ -32,6 +36,34 @@ function subscribeNoop() {
   return () => {};
 }
 
+function postLoginTarget(): string {
+  const platform = readPlatformOfflineSession();
+  return platform && !platform.hasTenantRole
+    ? "/platform?fromLogin=1"
+    : "/dashboard?fromLogin=1";
+}
+
+function hardLeaveToShell(target: string): void {
+  prepareHardNavigation();
+  if (isElectron()) {
+    void (async () => {
+      try {
+        const result = await getDesktopBridge()?.reloadAuthShell(target);
+        if (result?.ok) return;
+      } catch {
+        /* fall through */
+      }
+      try {
+        window.location.replace(target);
+      } catch {
+        window.location.href = target;
+      }
+    })();
+    return;
+  }
+  window.location.replace(target);
+}
+
 function LoginSessionGateInner({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useConvexAuth();
   const searchParams = useSearchParams();
@@ -43,24 +75,20 @@ function LoginSessionGateInner({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!mounted || explicitLogout || !isAuthenticated) return;
-    if (isPostLoginLeavePending()) return;
+
+    const leavePending = isPostLoginLeavePending();
+    const budget = leavePending ? STUCK_LEAVE_BUDGET_MS : FORCE_LEAVE_BUDGET_MS;
 
     const timer = window.setTimeout(() => {
       if (window.location.pathname !== "/login" && window.location.pathname !== "/signup") {
         return;
       }
-      if (isPostLoginLeavePending()) return;
+      // Mid-resolve: only the stuck budget may interrupt. Soft budget still
+      // skips while the login form owns the leave.
+      if (!leavePending && isPostLoginLeavePending()) return;
 
-      prepareHardNavigation();
-      // Prefer platform console only when a platform marker is already claimed
-      // (tenant bind clears it). Otherwise dashboard — shell redirects platform admins.
-      const platform = readPlatformOfflineSession();
-      const target =
-        platform && !platform.hasTenantRole
-          ? "/platform?fromLogin=1"
-          : "/dashboard?fromLogin=1";
-      window.location.replace(target);
-    }, FORCE_LEAVE_BUDGET_MS);
+      hardLeaveToShell(postLoginTarget());
+    }, budget);
     return () => window.clearTimeout(timer);
   }, [mounted, explicitLogout, isAuthenticated]);
 

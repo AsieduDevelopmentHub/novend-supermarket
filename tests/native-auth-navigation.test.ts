@@ -80,10 +80,13 @@ describe("native auth navigation", () => {
     expect(hardware).toContain("isElectron()");
   });
 
-  it("offline-boot does not append fromBoot onto signed-out leave", () => {
+  it("offline-boot does not append fromBoot onto signed-out or fromLogin leave", () => {
     const boot = readFileSync(resolve(process.cwd(), "apps/desktop/offline-boot.html"), "utf8");
     expect(boot).toContain('signedOutLeave = entry.indexOf("signedOut=1") >= 0');
-    expect(boot).toContain("!signedOutLeave && entry.indexOf(\"fromBoot=\") < 0");
+    expect(boot).toContain('fromLoginLeave = entry.indexOf("fromLogin=1") >= 0');
+    expect(boot).toContain(
+      '!signedOutLeave && !fromLoginLeave && entry.indexOf("fromBoot=") < 0',
+    );
   });
 
   it("service worker validates auth HTML and budgets auth fetch", () => {

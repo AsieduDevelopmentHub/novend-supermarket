@@ -85,14 +85,19 @@ describe("desktop external link policy", () => {
 });
 
 describe("desktop authentication shell routes", () => {
-  it("accepts only the internal authentication route allowlist", () => {
+  it("accepts auth routes and post-login shell roots only", () => {
     expect(validateAuthShellEntry("/login")).toBe("/login");
     expect(validateAuthShellEntry("/login?signedOut=1")).toBe("/login?signedOut=1");
     expect(validateAuthShellEntry("/signup")).toBe("/signup");
     expect(validateAuthShellEntry("/forgot-password")).toBe("/forgot-password");
     expect(validateAuthShellEntry("/reset-password")).toBe("/reset-password");
-    expect(validateAuthShellEntry("/dashboard")).toBeNull();
+    expect(validateAuthShellEntry("/dashboard")).toBe("/dashboard");
+    expect(validateAuthShellEntry("/dashboard?fromLogin=1")).toBe("/dashboard?fromLogin=1");
+    expect(validateAuthShellEntry("/platform?fromLogin=1")).toBe("/platform?fromLogin=1");
+    expect(validateAuthShellEntry("/onboarding?fromLogin=1")).toBe("/onboarding?fromLogin=1");
+    expect(validateAuthShellEntry("/dashboard?fromBoot=1")).toBeNull();
     expect(validateAuthShellEntry("/products")).toBeNull();
+    expect(validateAuthShellEntry("/products?fromLogin=1")).toBeNull();
   });
 
   it("rejects external, encoded, malformed, and backslash routes", () => {
