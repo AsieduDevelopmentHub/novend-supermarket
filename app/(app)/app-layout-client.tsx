@@ -601,6 +601,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       savedAt: Date.now(),
     };
     markPlatformOfflineSession(next);
+    setPlatformSession(next);
   }, [user, cloudIdentityUnsafe]);
 
   const expectedCloudSession =
@@ -656,28 +657,16 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return <AppSplash label="Verifying account…" showLabel />;
   }
 
-  if (!cloudIdentityUnsafe && user?.isPlatformAdmin && user.userId) {
-    const next: PlatformOfflineSession = {
-      userId: String(user.userId),
-      name: user.name,
-      email: user.email ?? null,
-      hasTenantRole: Boolean(user.role),
-      savedAt: platformSession?.savedAt ?? 0,
-    };
-    if (
-      platformSession?.userId !== next.userId ||
-      platformSession.name !== next.name ||
-      platformSession.email !== next.email ||
-      platformSession.hasTenantRole !== next.hasTenantRole
-    ) {
-      setPlatformSession(next);
-    }
-  }
-
   // Registry fallback (read-only) so reconnect paints chrome before the
-  // ensureActive effect rewrites the active key.
+  // ensureActive effect rewrites the active key. Never paint a prior cashier
+  // when a platform offline session is claimed.
   const registryHint =
-    !sessionHint && typeof window !== "undefined" ? (listOfflineSessions()[0] ?? null) : null;
+    !sessionHint &&
+    !platformSession &&
+    typeof window !== "undefined" &&
+    !readPlatformOfflineSession()
+      ? (listOfflineSessions()[0] ?? null)
+      : null;
   const hintProfile = sessionHint
     ? shellProfileFromSessionHint(sessionHint)
     : registryHint

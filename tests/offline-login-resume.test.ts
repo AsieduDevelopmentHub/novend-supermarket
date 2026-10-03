@@ -36,7 +36,11 @@ describe("offline email+password resume", () => {
   });
 
   it("bounds cloud sign-in and forces hard navigation after password login", () => {
-    expect(loginForm).toContain("CLOUD_SIGN_IN_BUDGET_MS");
+    expect(loginForm).toContain("CLOUD_SIGN_IN_BUDGET_WEB_MS");
+    expect(loginForm).toContain("CLOUD_SIGN_IN_BUDGET_NATIVE_MS");
+    expect(loginForm).toContain("cloudSignInBudgetMs");
+    expect(loginForm).toContain("revokeStaleCloudSessionBeforeSignIn");
+    expect(loginForm).toContain("submitGenerationRef");
     expect(loginForm).toContain("withTimeout");
     expect(loginForm).toContain("{ hard: true }");
     expect(loginForm).toContain("shellProfileFromSessionHint");
@@ -52,6 +56,8 @@ describe("offline email+password resume", () => {
     expect(submitSlice.indexOf("markPostLoginLeavePending()")).toBeLessThan(
       submitSlice.indexOf("resolvePostLoginSession("),
     );
+    // Timeout path must not rethrow into a second offline resume.
+    expect(submitSlice).toContain("Couldn't reach Novend. Check the signal and try again.");
     expect(layout).toContain("hydrateOfflineSessionsFromDeviceStore");
     expect(layout).toContain("hasExplicitLogout()");
     expect(layout).toContain("clearPostLoginLeavePending()");

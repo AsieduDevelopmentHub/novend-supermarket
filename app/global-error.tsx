@@ -12,7 +12,6 @@ import {
   shouldRecoverToLogin,
 } from "@/lib/auth/recover-auth-navigation";
 import { resumeOfflineShellToDashboard } from "@/lib/auth/awaiting-cloud-reconnect";
-import { hasOfflineSession } from "@/lib/offline/session";
 
 /**
  * Root error boundary — branded Novend UI instead of a blank host error sheet.
@@ -29,7 +28,6 @@ export default function GlobalError({
   const offline = isConnectivityError(error);
   const chunkMiss = isChunkLoadError(error);
   const recoverLogin = shouldRecoverToLogin(error);
-  const hasShell = typeof window !== "undefined" && hasOfflineSession();
 
   useEffect(() => {
     if (!recoverLogin || recovering) return;
@@ -99,19 +97,12 @@ export default function GlobalError({
       recoverFromChunkLoadFailure();
       return;
     }
-    if (hasShell) {
-      resumeOfflineShellToDashboard(reset);
-      return;
-    }
-    reset();
+    // Always hard-navigate — reset() alone re-throws on poisoned /platform trees.
+    resumeOfflineShellToDashboard(reset);
   }
 
   function goDashboard() {
-    if (hasShell) {
-      resumeOfflineShellToDashboard(reset);
-      return;
-    }
-    window.location.assign("/dashboard");
+    resumeOfflineShellToDashboard(reset);
   }
 
   return (

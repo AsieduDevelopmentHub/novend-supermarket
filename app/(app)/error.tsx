@@ -12,7 +12,6 @@ import {
   shouldRecoverToLogin,
 } from "@/lib/auth/recover-auth-navigation";
 import { resumeOfflineShellToDashboard } from "@/lib/auth/awaiting-cloud-reconnect";
-import { hasOfflineSession } from "@/lib/offline/session";
 
 export default function AppError({
   error,
@@ -26,7 +25,6 @@ export default function AppError({
   const offline = isConnectivityError(error);
   const chunkMiss = isChunkLoadError(error);
   const recoverLogin = shouldRecoverToLogin(error);
-  const hasShell = typeof window !== "undefined" && hasOfflineSession();
 
   useEffect(() => {
     if (!recoverLogin || recovering) return;
@@ -90,21 +88,12 @@ export default function AppError({
       recoverFromChunkLoadFailure();
       return;
     }
-    if (hasShell) {
-      resumeOfflineShellToDashboard(reset);
-      return;
-    }
-    reset();
+    // Always hard-navigate — reset() alone re-throws on poisoned /platform trees.
+    resumeOfflineShellToDashboard(reset);
   }
 
   function goDashboard() {
-    // Soft client recover — Next Link to the dashboard route hits middleware
-    // without a Convex JWT and redirects Cap/Electron reconnect shells to login.
-    if (hasShell) {
-      resumeOfflineShellToDashboard(reset);
-      return;
-    }
-    window.location.assign("/dashboard");
+    resumeOfflineShellToDashboard(reset);
   }
 
   return (
