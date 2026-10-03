@@ -6,6 +6,7 @@ import {
   recoverFromChunkLoadFailure,
   shouldReloadForServiceWorkerUpdate,
 } from "@/lib/auth/recover-auth-navigation";
+import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 
 const SHELL_ROUTES = [
   "/dashboard",
@@ -99,6 +100,11 @@ export function PwaRegister() {
     let activeRegistration: ServiceWorkerRegistration | null = null;
     let hadController = Boolean(navigator.serviceWorker.controller);
     const onControllerChange = () => {
+      // Never fight an in-flight sign-out leave with a fresh reload.
+      if (hasExplicitLogout()) {
+        hadController = Boolean(navigator.serviceWorker.controller);
+        return;
+      }
       // After a deploy the new SW claims the page while old JS is still in
       // memory — that mix throws “module factory is not available”. Reload once.
       if (hadController && shouldReloadForServiceWorkerUpdate()) {

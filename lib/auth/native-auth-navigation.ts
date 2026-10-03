@@ -2,13 +2,13 @@
  * Land on `/login?signedOut=1` after sign-out.
  *
  * Capacitor offline: append `fromBoot=1` so the SW serves the precached login
- * document immediately. Online Cap must **not** use fromBoot — that forced
- * cache-first of a possibly empty/poisoned shell and hung leave.
+ * document immediately. Online Cap must **not** use fromBoot on the happy path —
+ * that forced cache-first of a possibly empty/poisoned shell.
  *
- * Electron online: hard `location.replace` (no trampoline).
- * Electron offline / false-online leave: `reloadAuthShell` trampoline — HTTPS
- * loadURL fails offline (electron#35112); offline-boot skips appending
- * `fromBoot` when entry already has `signedOut=1`.
+ * Electron: always use `reloadAuthShell` trampoline. Online→offline flaps still
+ * report `navigator.onLine === true` while HTTPS `location.replace` hangs
+ * (electron#35112), which stranded “Signing out…”. The trampoline loads local
+ * offline-boot then the cached login document.
  *
  * Browser: `?signedOut=1` only.
  */
@@ -23,28 +23,32 @@ import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { prepareHardNavigation } from "@/lib/auth/redirect-after-login";
 import { getDesktopBridge } from "@/lib/desktop";
 
-/** Cap offline only — SW cache-first for dead-radio tills. */
+/** Cap offline / escape — SW cache-first for dead-radio tills. */
 const LOGIN_AFTER_SIGN_OUT_CAP_OFFLINE = `${LOGIN_AFTER_SIGN_OUT_PATH}&fromBoot=1`;
 
-/** Escape / fresh leave — bypasses sticky SW matches when Try again is pressed. */
+/** Browser escape only — bypasses sticky SW matches. Never use offline (hangs). */
 const LOGIN_AFTER_SIGN_OUT_FRESH = `${LOGIN_AFTER_SIGN_OUT_PATH}&novendFresh=1`;
 
 /** If replace stalls, force leave so “Signing out…” cannot stick. */
-const HARD_LEAVE_FALLBACK_MS = 1600;
+const HARD_LEAVE_FALLBACK_MS = 900;
 
 function isBrowserOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
 }
 
-/** Prefer trampoline when Electron cannot load HTTPS (true offline). */
+/**
+ * Electron always leaves through the local trampoline. Relying on
+ * `navigator.onLine === false` missed online→offline sign-out and left the
+ * Signing out splash with dead CTAs.
+ */
 function shouldUseElectronTrampoline(): boolean {
-  return isElectron() && isBrowserOffline();
+  return isElectron();
 }
 
 export function loginAfterSignOutHref(options?: { fresh?: boolean }): string {
   if (options?.fresh) {
-    // Offline: never force novendFresh — network-first hangs on dead radio.
-    if (typeof window !== "undefined" && isBrowserOffline()) {
+    // Native / offline: never force novendFresh — network-first hangs on dead radio.
+    if (typeof window !== "undefined" && (isBrowserOffline() || isElectron() || isCapacitor())) {
       if (isCapacitor()) return LOGIN_AFTER_SIGN_OUT_CAP_OFFLINE;
       return LOGIN_AFTER_SIGN_OUT_PATH;
     }
@@ -93,7 +97,11 @@ function scheduleHardLeaveFallback(options?: { preferTrampoline?: boolean }): vo
       })();
       return;
     }
-    hardLeaveToLogin();
+    if (isCapacitor()) {
+      hardLeaveToLogin({ assign: true, fresh: true });
+      return;
+    }
+    hardLeaveToLogin({ assign: true });
   }, HARD_LEAVE_FALLBACK_MS);
 }
 
@@ -106,15 +114,10 @@ export async function navigateToLoginAfterSignOut(): Promise<void> {
   if (typeof window === "undefined") return;
 
   if (isElectron()) {
-    if (shouldUseElectronTrampoline()) {
-      const ok = await electronTrampolineLeave(loginAfterSignOutHref());
-      scheduleHardLeaveFallback({ preferTrampoline: true });
-      if (!ok) hardLeaveToLogin();
-      return;
-    }
-    hardLeaveToLogin();
-    // If radio dies mid-leave, escalate to trampoline on the fallback tick.
+    const entry = loginAfterSignOutHref();
+    const ok = await electronTrampolineLeave(entry);
     scheduleHardLeaveFallback({ preferTrampoline: true });
+    if (!ok) hardLeaveToLogin({ assign: true });
     return;
   }
 
@@ -126,24 +129,52 @@ export async function navigateToLoginAfterSignOut(): Promise<void> {
       scheduleHardLeaveFallback();
       return;
     }
+    // False-online Cap: prefer cached login (fromBoot) over a hung network leave.
+    if (isBrowserOffline()) {
+      hardLeaveToLogin();
+      scheduleHardLeaveFallback();
+      return;
+    }
   }
 
   hardLeaveToLogin();
+  scheduleHardLeaveFallback();
 }
 
 /**
  * Escape hatch from a stuck Signing out splash.
- * Online: assign with novendFresh. Offline Electron: trampoline (not network-first).
+ * Electron: trampoline only (never novendFresh). Cap offline/false-online: fromBoot.
+ * Browser online: novendFresh assign.
  */
 export function forceLeaveToLoginAfterSignOut(): void {
   if (typeof window === "undefined") return;
   prepareHardNavigation();
-  if (shouldUseElectronTrampoline()) {
+
+  if (isElectron()) {
     void (async () => {
       const ok = await electronTrampolineLeave(loginAfterSignOutHref());
       if (!ok) hardLeaveToLogin({ assign: true });
+      // Second tick if still stranded on the splash document.
+      scheduleHardLeaveFallback({ preferTrampoline: true });
     })();
     return;
   }
+
+  if (isCapacitor()) {
+    const onBootOrigin =
+      window.location.origin === CAPACITOR_BOOT_ORIGIN || window.location.hostname === "localhost";
+    const href = LOGIN_AFTER_SIGN_OUT_CAP_OFFLINE;
+    if (onBootOrigin) {
+      window.location.assign(capacitorBootUrl(href));
+      return;
+    }
+    try {
+      window.location.assign(href);
+    } catch {
+      window.location.href = href;
+    }
+    return;
+  }
+
   hardLeaveToLogin({ fresh: true, assign: true });
 }

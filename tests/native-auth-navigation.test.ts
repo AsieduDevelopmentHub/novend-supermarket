@@ -14,7 +14,7 @@ describe("native auth navigation", () => {
     );
   });
 
-  it("Electron uses trampoline when offline; Cap fromBoot only when offline", () => {
+  it("Electron always trampolines sign-out; Cap fromBoot when offline or force-leave", () => {
     const source = readFileSync(
       resolve(process.cwd(), "lib/auth/native-auth-navigation.ts"),
       "utf8",
@@ -32,8 +32,9 @@ describe("native auth navigation", () => {
     expect(source).toContain("electronTrampolineLeave");
     expect(source).toContain("reloadAuthShell");
     expect(source).toContain("isCapacitor() && isBrowserOffline()");
-    // Online Electron still hard-leaves; trampoline only when offline.
-    expect(source).toContain("isElectron() && isBrowserOffline()");
+    // Electron must trampoline even when navigator still reports online.
+    expect(source).toContain("return isElectron();");
+    expect(source).not.toContain("isElectron() && isBrowserOffline()");
   });
 
   it("sign-out kicks navigation without awaiting hung cloud calls", () => {
@@ -44,12 +45,11 @@ describe("native auth navigation", () => {
     expect(source).not.toContain('window.location.replace("/login?signedOut=1")');
   });
 
-  it("app shell watchdogs a stuck Signing out splash with escalating escape", () => {
+  it("app shell watchdogs a stuck Signing out splash with force-leave escape", () => {
     const layout = readFileSync(resolve(process.cwd(), "app/(app)/app-layout-client.tsx"), "utf8");
     expect(layout).toContain('activeLeave ? "Signing out…" : "Opening sign-in…"');
     expect(layout).toContain("SigningOutSplash");
     expect(layout).toContain("isSigningOutUi()");
-    expect(layout).toContain("navigateToLoginAfterSignOut");
     expect(layout).toContain("forceLeaveToLoginAfterSignOut");
     expect(layout).toContain("hasExplicitLogout()");
     expect(layout).toContain("Hardware.app.exitApp");
@@ -58,6 +58,12 @@ describe("native auth navigation", () => {
     expect(layout).toContain("Open login");
     expect(layout).toContain("SIGN_OUT_ESCAPE_MS");
     expect(layout).toContain("onlineAuthBudgetElapsed && expectedCloudSession");
+    // Try again must not soft-retry the hung HTTPS leave.
+    const splash = layout.slice(layout.indexOf("function SigningOutSplash"));
+    expect(splash).toContain("forceLeaveToLoginAfterSignOut()");
+    expect(splash.indexOf("forceLeaveToLoginAfterSignOut()")).toBeLessThan(
+      splash.indexOf("Try again"),
+    );
   });
 
   it("Electron quitApp is wired for Close app on desktop", () => {

@@ -55,10 +55,7 @@ import {
 } from "@/lib/auth/logout-flag";
 import { isAwaitingCloudReconnect } from "@/lib/auth/awaiting-cloud-reconnect";
 import { getCloudSessionIdentityState } from "@/lib/auth/cloud-session-identity";
-import {
-  forceLeaveToLoginAfterSignOut,
-  navigateToLoginAfterSignOut,
-} from "@/lib/auth/native-auth-navigation";
+import { forceLeaveToLoginAfterSignOut } from "@/lib/auth/native-auth-navigation";
 import { clearPostLoginLeavePending } from "@/lib/auth/redirect-after-login";
 import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
 import {
@@ -83,7 +80,7 @@ const OFFLINE_AUTH_BUDGET_MS = 1200;
 /** Cap/Web often look "online" while Convex never settles — fail soft into cache/login. */
 const ONLINE_AUTH_BUDGET_MS = 4500;
 /** Show Try again / Close app if sign-out navigation never leaves the splash. */
-const SIGN_OUT_ESCAPE_MS = 3000;
+const SIGN_OUT_ESCAPE_MS = 1200;
 
 /** Post-credential hard leave — keep one splash label until the shell paints. */
 function isPostLoginWarm(): boolean {
@@ -102,7 +99,6 @@ function isPostLoginWarm(): boolean {
  */
 function SigningOutSplash({ activeLeave }: { activeLeave: boolean }) {
   const [showEscape, setShowEscape] = useState(false);
-  const [escapeAttempts, setEscapeAttempts] = useState(0);
   const canQuitNative = isCapacitor() || isElectron();
 
   useEffect(() => {
@@ -128,13 +124,9 @@ function SigningOutSplash({ activeLeave }: { activeLeave: boolean }) {
               variant="secondary"
               className="min-h-11"
               onClick={() => {
-                const next = escapeAttempts + 1;
-                setEscapeAttempts(next);
-                if (next >= 2) {
-                  forceLeaveToLoginAfterSignOut();
-                  return;
-                }
-                void navigateToLoginAfterSignOut();
+                // Always force-leave — soft navigateToLogin can hang the same
+                // HTTPS path that stranded this splash (online→offline Electron).
+                forceLeaveToLoginAfterSignOut();
               }}
             >
               Try again
@@ -386,14 +378,14 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [online]);
 
-  // Dead radio / hung Electron trampoline: never leave cashiers on “Signing out…”.
+  // Dead radio / hung leave: never leave cashiers on “Signing out…”.
   useEffect(() => {
     if (!hasExplicitLogout()) return;
     const timer = window.setTimeout(() => {
       if (!hasExplicitLogout()) return;
       if (window.location.pathname.startsWith("/login")) return;
-      void navigateToLoginAfterSignOut();
-    }, 2800);
+      forceLeaveToLoginAfterSignOut();
+    }, 1800);
     return () => window.clearTimeout(timer);
   }, [sessionHint, isAuthenticated, online]);
 
