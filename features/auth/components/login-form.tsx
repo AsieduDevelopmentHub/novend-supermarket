@@ -18,7 +18,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { ROUTES } from "@/config/navigation";
-import { LoadingState } from "@/components/feedback/loading-state";
 import { cn } from "@/lib/utils";
 import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import {
@@ -54,6 +53,18 @@ let volatileLoginDeviceKey: string | null = null;
 function cloudSignInBudgetMs(): number {
   if (typeof window === "undefined") return CLOUD_SIGN_IN_BUDGET_WEB_MS;
   return isCapacitor() || isElectron() ? CLOUD_SIGN_IN_BUDGET_NATIVE_MS : CLOUD_SIGN_IN_BUDGET_WEB_MS;
+}
+
+/** Offline password unlock is for Cap/Electron tills when Convex is unreachable. */
+function allowOfflinePasswordFallback(): boolean {
+  if (typeof window === "undefined") return false;
+  return isCapacitor() || isElectron() || !navigator.onLine;
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 /** Drop ?signedOut=1 without a React navigation — keeps LoginSessionGate in sync. */
@@ -116,7 +127,13 @@ export function LoginForm({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <Suspense fallback={<LoadingState label="Loading…" variant="form" />}>
+    <Suspense
+      fallback={
+        <div className="flex flex-col items-center justify-center gap-2 py-10 text-center" role="status">
+          <p className="text-muted-foreground text-sm">Loading sign-in…</p>
+        </div>
+      }
+    >
       <ConfiguredLoginForm compact={compact} />
     </Suspense>
   );
@@ -277,7 +294,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     setOpeningWorkspace(true);
     void (async () => {
       try {
-        // Resolve destination while LoadingState is painted, then hard-navigate
+        // Resolve destination while the signing-in cover is painted, then hard-navigate
         // in one sync turn (prepareHardNavigation + replace).
         const path = await resolvePostLoginPath(convex);
         navigateAfterLogin(withBootMarker(path), router, { hard: true });
@@ -347,22 +364,23 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
           "Couldn't reach Novend in time.",
         );
       } catch (cloudError) {
-        // Cap/Electron often report online while Convex never answers.
-        // Browser: one offline attempt for the typed email only — never rethrow
-        // a timeout into a second resume (duplicate toasts) or fall through to
-        // resolve with a late/partial JWT for a different account.
+        // Online browser: cloud-only — never open a cached local shell.
+        // Cap/Electron (or true offline): typed-email offline unlock only.
         if (isConnectivityError(cloudError) || isTimeoutError(cloudError)) {
           submitGenerationRef.current += 1;
-          const ok = await resumeWithLocalPassword(normalizedEmail, rawPassword);
-          setPending(false);
-          if (ok) {
-            toast.message("Couldn't reach Novend — opened your cached workspace.");
-            return;
+          if (allowOfflinePasswordFallback()) {
+            const ok = await resumeWithLocalPassword(normalizedEmail, rawPassword);
+            setPending(false);
+            if (ok) {
+              toast.message("Couldn't reach Novend — opened your cached workspace.");
+              return;
+            }
           }
           showError(
             cloudError,
-            "Couldn't reach Novend. Check the signal and try again. Offline sign-in only works for accounts that have signed in on this device before.",
+            "Couldn't reach Novend. Check the signal and try again.",
           );
+          setPending(false);
           return;
         }
         throw cloudError;
@@ -374,13 +392,23 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       }
 
       redirectingRef.current = true;
-      // Claim leave ownership before resolve so LoginSessionGate cannot race
-      // mid-bind (first login bounce + Continue-as flicker).
+      // Password succeeded — drop signedOut barrier now. Leaving it set while
+      // authenticated made the stale-JWT effect call signOut() after a slow
+      // users.me, bouncing every online login back to /login?signedOut=1.
+      // Leave ownership (postLoginLeave) still blocks LoginSessionGate mid-resolve.
+      clearLogoutBarrierAfterCredentialUnlock();
+      staleCloudLogoutRef.current = false;
       markPostLoginLeavePending();
       setOpeningWorkspace(true);
-      // Keep the logout barrier until identity is confirmed so LoginSessionGate
-      // cannot hard-leave to /dashboard over a prior cashier mid-resolve.
-      staleCloudLogoutRef.current = false;
+      // Let Convex Auth attach the new token after signOut→signIn before me.
+      await wait(350);
+      if (generation !== submitGenerationRef.current) {
+        clearPostLoginLeavePending();
+        redirectingRef.current = false;
+        setOpeningWorkspace(false);
+        setPending(false);
+        return;
+      }
       const session = await resolvePostLoginSession(convex, undefined, {
         expectedEmail: normalizedEmail,
       });
@@ -391,7 +419,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         setPending(false);
         return;
       }
-      clearLogoutBarrierAfterCredentialUnlock();
       // bindReplicaFromMe already marked the correct offline/platform session —
       // clearing the active hint here wiped warm-paint and bounced first login.
       try {
@@ -429,8 +456,15 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   return (
     <div className="relative mx-auto w-full max-w-[360px]">
       {openingWorkspace ? (
-        <div className="bg-background absolute inset-0 z-10 flex items-start justify-center py-10">
-          <LoadingState label="Opening workspace…" variant="form" />
+        <div className="bg-background absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
+          <div
+            className="border-primary h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
+            aria-hidden
+          />
+          <p className="text-foreground text-sm font-medium">Signing you in…</p>
+          <p className="text-muted-foreground text-xs">
+            Confirming your cloud account. This can take a few seconds.
+          </p>
         </div>
       ) : null}
 

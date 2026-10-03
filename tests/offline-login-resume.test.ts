@@ -56,8 +56,15 @@ describe("offline email+password resume", () => {
     expect(submitSlice.indexOf("markPostLoginLeavePending()")).toBeLessThan(
       submitSlice.indexOf("resolvePostLoginSession("),
     );
-    // Timeout path must not rethrow into a second offline resume.
+    // Online browser is cloud-first; offline unlock only on Cap/Electron/offline.
+    expect(submitSlice).toContain("allowOfflinePasswordFallback()");
     expect(submitSlice).toContain("Couldn't reach Novend. Check the signal and try again.");
+    expect(submitSlice).toContain("clearLogoutBarrierAfterCredentialUnlock()");
+    expect(submitSlice.indexOf("clearLogoutBarrierAfterCredentialUnlock()")).toBeLessThan(
+      submitSlice.indexOf("resolvePostLoginSession("),
+    );
+    expect(loginForm).toContain("Signing you in…");
+    expect(loginForm).not.toContain('variant="form"');
     expect(layout).toContain("hydrateOfflineSessionsFromDeviceStore");
     expect(layout).toContain("hasExplicitLogout()");
     expect(layout).toContain("clearPostLoginLeavePending()");
