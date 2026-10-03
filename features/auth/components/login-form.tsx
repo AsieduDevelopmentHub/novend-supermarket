@@ -315,21 +315,18 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         throw cloudError;
       }
 
-      clearLogoutBarrierAfterCredentialUnlock();
-
       redirectingRef.current = true;
       setOpeningWorkspace(true);
-      // Barrier + URL marker cleared before session resolve so the stale-cloud
-      // revoke effect cannot treat this fresh sign-in as a leftover cookie.
+      // Keep the logout barrier until identity is confirmed so LoginSessionGate
+      // cannot hard-leave to /dashboard over a prior cashier mid-resolve.
       staleCloudLogoutRef.current = false;
-      // Resolve session while LoadingState is painted. prepareHardNavigation
-      // + location.replace must run together — awaiting after a splash unmount
-      // is what resurfaced “Leave site?” on Electron/Chrome.
       const session = await resolvePostLoginSession(convex, undefined, {
         expectedEmail: normalizedEmail,
       });
+      clearLogoutBarrierAfterCredentialUnlock();
       // Only drop the prior offline shell after cloud identity is confirmed —
       // clearing earlier left cashiers with no local fallback if resolve hung.
+      // Platform-only login already cleared/claimed inside resolvePostLoginSession.
       clearOfflineSession();
       try {
         const prepared = await storeLocalAuthVerifier(

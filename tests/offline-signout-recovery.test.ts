@@ -42,11 +42,12 @@ describe("offline sign-out recovery", () => {
 
   it("SW prefers validated auth cache for fromBoot and signedOut leaves", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v29"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v30"');
     expect(sw).toContain('url.searchParams.get("signedOut") === "1"');
     expect(sw).toContain('url.searchParams.get("fromBoot") === "1"');
     expect(sw).toContain('url.searchParams.get("novendFresh") === "1"');
     expect(sw).toContain("preferCache = !freshLeave && (fromBoot || signedOut)");
+    expect(sw).toContain("auth-document-network-budget");
     expect(sw).toContain("precacheAuthDocument");
     expect(sw).toContain("?signedOut=1&novendPrecache=1");
     expect(sw).toContain("await isLikelyAuthHtml(normalized)");

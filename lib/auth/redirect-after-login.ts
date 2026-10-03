@@ -3,7 +3,8 @@ import { api } from "@/convex/_generated/api";
 import { withTimeout } from "@/lib/async/with-timeout";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 import { bindOfflineOrganization } from "@/lib/offline/db";
-import { markOfflineSession } from "@/lib/offline/session";
+import { clearOfflineSession, markOfflineSession } from "@/lib/offline/session";
+import { markPlatformOfflineSession } from "@/lib/offline/platform-cache";
 import { saveShellProfile } from "@/lib/offline/shell-profile";
 import { isCapacitor, isElectron } from "@novend/hardware";
 
@@ -75,7 +76,17 @@ async function bindReplicaFromMe(
   } | null,
 ): Promise<void> {
   if (!me?.userId) return;
-  if (me.isPlatformAdmin && !me.organizationId) return;
+  if (me.isPlatformAdmin && !me.organizationId) {
+    clearOfflineSession();
+    markPlatformOfflineSession({
+      userId: String(me.userId),
+      name: me.name ?? "Admin",
+      email: me.email ?? null,
+      hasTenantRole: false,
+      savedAt: Date.now(),
+    });
+    return;
+  }
   if (!me.organizationId || !me.role || !me.branchId) return;
   bindOfflineOrganization(String(me.organizationId), String(me.userId));
   markOfflineSession({

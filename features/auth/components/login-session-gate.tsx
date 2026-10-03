@@ -6,6 +6,7 @@ import { useConvexAuth } from "convex/react";
 import { useIsClient } from "@/hooks/use-is-client";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { prepareHardNavigation } from "@/lib/auth/redirect-after-login";
+import { readPlatformOfflineSession } from "@/lib/offline/platform-cache";
 
 /**
  * If still on /login with a live session, hard-leave so "Welcome" cannot
@@ -42,8 +43,13 @@ function LoginSessionGateInner({ children }: { children: ReactNode }) {
         return;
       }
       prepareHardNavigation();
-      // fromLogin: SW cache-first without RestoreLastRoute remount.
-      window.location.replace("/dashboard?fromLogin=1");
+      // Platform-only sessions must not hard-leave into the tenant dashboard
+      // (that revived a prior cashier and painted Continue as…).
+      const platform = readPlatformOfflineSession();
+      const target = platform
+        ? "/platform?fromLogin=1"
+        : "/dashboard?fromLogin=1";
+      window.location.replace(target);
     }, FORCE_LEAVE_BUDGET_MS);
     return () => window.clearTimeout(timer);
   }, [mounted, explicitLogout, isAuthenticated]);
