@@ -14,12 +14,15 @@ import { isCapacitor, isElectron } from "@novend/hardware";
 const SKIP_SPLASH_KEY = "novend.auth.skipSplash";
 /** Blocks LoginSessionGate / second hard leaves while credentials are resolving. */
 const POST_LOGIN_LEAVE_KEY = "novend.auth.postLoginLeave";
-const RESOLVE_RETRIES = 3;
-const RESOLVE_RETRY_MS = 150;
+const RESOLVE_RETRIES = 6;
+const RESOLVE_RETRY_MS = 400;
 /** Browser soft-navigation fallback only; native hard navigation is single-shot. */
 const HARD_NAV_FALLBACK_MS = 800;
-/** Don't let a hung `users.me` trap the login form for minutes. */
-const ME_QUERY_BUDGET_MS = 2500;
+/**
+ * Per-attempt budget for `users.me` after password sign-in.
+ * Auth token / websocket often need several seconds after signOut→signIn.
+ */
+const ME_QUERY_BUDGET_MS = 8_000;
 /** Dexie profile write must not block leaving /login. */
 const SHELL_PROFILE_BUDGET_MS = 1_500;
 
@@ -232,11 +235,8 @@ export async function resolvePostLoginSession(
     } catch (error) {
       lastError = error;
       const message = error instanceof Error ? error.message : "";
-      if (
-        message.toLowerCase().includes("mismatch") ||
-        (message.toLowerCase().includes("could not load your profile") &&
-          attempt === RESOLVE_RETRIES - 1)
-      ) {
+      // Fail closed immediately on identity mismatch; keep retrying profile/auth settle.
+      if (message.toLowerCase().includes("mismatch")) {
         throw error;
       }
       if (attempt === RESOLVE_RETRIES - 1) break;
