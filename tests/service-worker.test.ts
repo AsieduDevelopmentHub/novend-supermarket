@@ -26,9 +26,10 @@ describe("service worker navigation safety", () => {
     expect(sw).toContain("await warmDocumentStaticAssets(html)");
     expect(sw).toContain("async function isUsableAuthCache");
     expect(sw).toContain("preferCache = !freshLeave && (fromBoot || signedOut)");
-    expect(sw).toContain('url.searchParams.get("novendFresh") === "1"');
+    expect(sw).toContain('url.searchParams.has("novendFresh")');
     expect(sw).toContain("if (!(await isLikelyAuthHtml(copy)))");
     expect(sw).toContain("auth-document-network-budget");
+    expect(sw).toContain("NETWORK_DOCUMENT_ONLINE_BUDGET_MS");
   });
 
   it("does not intercept the marketing homepage so a signed-in 302 can change the URL", () => {
@@ -71,7 +72,7 @@ describe("service worker navigation safety", () => {
   });
 
   it("does not precache gated app routes that 302 to login", () => {
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v30"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v31"');
     expect(sw).toContain("/branding/logo_horizontal.png");
     expect(sw).toContain("function matchStaticAsset");
     expect(sw).toContain("ignoreSearch: true");

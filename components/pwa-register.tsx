@@ -2,6 +2,10 @@
 
 import { useEffect } from "react";
 import { isStandaloneWebApp } from "@/lib/device-install";
+import {
+  recoverFromChunkLoadFailure,
+  shouldReloadForServiceWorkerUpdate,
+} from "@/lib/auth/recover-auth-navigation";
 
 const SHELL_ROUTES = [
   "/dashboard",
@@ -93,14 +97,29 @@ export function PwaRegister() {
     }
 
     let activeRegistration: ServiceWorkerRegistration | null = null;
+    let hadController = Boolean(navigator.serviceWorker.controller);
     const onControllerChange = () => {
-      // New SW claimed after a CACHE_NAME bump — re-warm shells into the new bucket.
+      // After a deploy the new SW claims the page while old JS is still in
+      // memory — that mix throws “module factory is not available”. Reload once.
+      if (hadController && shouldReloadForServiceWorkerUpdate()) {
+        recoverFromChunkLoadFailure();
+        return;
+      }
+      hadController = Boolean(navigator.serviceWorker.controller);
       warmShellRoutes();
     };
     const onOnline = () => {
       const registration = activeRegistration;
       if (!registration) return;
-      void registration.update().catch(() => undefined).then(() => warmShellRoutes());
+      void registration
+        .update()
+        .catch(() => undefined)
+        .then(() => {
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: "SKIP_WAITING" });
+          }
+          warmShellRoutes();
+        });
     };
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
     window.addEventListener("online", onOnline);
@@ -109,7 +128,11 @@ export function PwaRegister() {
       .register("/sw.js")
       .then(async (registration) => {
         activeRegistration = registration;
+        hadController = Boolean(navigator.serviceWorker.controller);
         await registration.update().catch(() => undefined);
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
         await navigator.serviceWorker.ready;
         warmShellRoutes();
         return registration;

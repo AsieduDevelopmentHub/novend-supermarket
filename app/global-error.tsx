@@ -92,7 +92,7 @@ export default function GlobalError({
       );
 
   function retry() {
-    if (chunkMiss) {
+    if (chunkMiss || isChunkLoadError(error)) {
       setRefreshingClient(true);
       recoverFromChunkLoadFailure();
       return;
@@ -102,6 +102,11 @@ export default function GlobalError({
   }
 
   function goDashboard() {
+    if (chunkMiss || isChunkLoadError(error)) {
+      setRefreshingClient(true);
+      recoverFromChunkLoadFailure();
+      return;
+    }
     resumeOfflineShellToDashboard(reset);
   }
 

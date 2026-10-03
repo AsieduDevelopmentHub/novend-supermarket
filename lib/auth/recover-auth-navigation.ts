@@ -10,31 +10,49 @@ import { prepareHardNavigation } from "@/lib/auth/redirect-after-login";
 import { hasOfflineSession } from "@/lib/offline/session";
 
 const CHUNK_RECOVERY_KEY = "novend.chunkRecovery.at";
-const CHUNK_RECOVERY_COOLDOWN_MS = 30_000;
+const CHUNK_RECOVERY_COOLDOWN_MS = 12_000;
+const SW_RELOAD_KEY = "novend.swReload.at";
+const SW_RELOAD_COOLDOWN_MS = 15_000;
+
+function collectErrorText(error: unknown): string {
+  if (error == null) return "";
+  if (typeof error === "string") return error;
+  if (error instanceof Error) {
+    const cause =
+      "cause" in error && error.cause != null ? ` ${collectErrorText(error.cause)}` : "";
+    const digest =
+      "digest" in error && typeof (error as { digest?: unknown }).digest === "string"
+        ? ` ${(error as { digest: string }).digest}`
+        : "";
+    const stack = error.stack ? ` ${error.stack}` : "";
+    return `${error.name} ${error.message}${cause}${digest}${stack}`;
+  }
+  if (typeof error === "object") {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error);
+}
 
 export function isChunkLoadError(error: unknown): boolean {
-  const text =
-    error instanceof Error
-      ? `${error.name} ${error.message}`
-      : String(error ?? "");
-  const lower = text.toLowerCase();
+  const lower = collectErrorText(error).toLowerCase();
   return (
     lower.includes("chunkloaderror") ||
     lower.includes("failed to load chunk") ||
     lower.includes("loading chunk") ||
     lower.includes("loading css chunk") ||
     lower.includes("module factory is not available") ||
-    lower.includes("was instantiated because it was required from module")
+    lower.includes("was instantiated because it was required from module") ||
+    lower.includes("deleted in an hmr update")
   );
 }
 
 /** True when React threw because something else already removed a DOM node. */
 export function isReactDomDetachError(error: unknown): boolean {
-  const text =
-    error instanceof Error
-      ? `${error.name} ${error.message}`
-      : String(error ?? "");
-  const lower = text.toLowerCase();
+  const lower = collectErrorText(error).toLowerCase();
   return (
     lower.includes("removechild") ||
     lower.includes("insertbefore") ||
@@ -76,7 +94,7 @@ export async function recoverToLoginAfterFailure(): Promise<void> {
 export function shouldAutoRecoverChunkFailure(error: unknown): boolean {
   if (!isChunkLoadError(error)) return false;
   if (typeof window === "undefined" || typeof navigator === "undefined") return false;
-  if (!navigator.onLine) return false;
+  // Reconnect often flickers offline→online; still refresh once so mixed builds clear.
   const now = Date.now();
   try {
     const previous = Number(window.sessionStorage.getItem(CHUNK_RECOVERY_KEY) ?? "0");
@@ -88,6 +106,20 @@ export function shouldAutoRecoverChunkFailure(error: unknown): boolean {
   return true;
 }
 
+/** One-shot full reload after a new service worker claims the page. */
+export function shouldReloadForServiceWorkerUpdate(): boolean {
+  if (typeof window === "undefined") return false;
+  const now = Date.now();
+  try {
+    const previous = Number(window.sessionStorage.getItem(SW_RELOAD_KEY) ?? "0");
+    if (Number.isFinite(previous) && now - previous < SW_RELOAD_COOLDOWN_MS) return false;
+    window.sessionStorage.setItem(SW_RELOAD_KEY, String(now));
+  } catch {
+    /* continue */
+  }
+  return true;
+}
+
 /** Reload without cache-first boot markers so old and new Next builds cannot mix. */
 export function recoverFromChunkLoadFailure(): void {
   if (typeof window === "undefined") return;
@@ -95,7 +127,17 @@ export function recoverFromChunkLoadFailure(): void {
   target.searchParams.delete("fromBoot");
   target.searchParams.delete("fromLogin");
   target.searchParams.delete("recover");
+  // Presence (any value) is enough for the service worker — see sw.js freshLeave.
   target.searchParams.set("novendFresh", Date.now().toString(36));
   prepareHardNavigation();
+  // Ask waiting workers to activate so the next document is the new generation.
+  try {
+    void navigator.serviceWorker?.getRegistration()?.then((registration) => {
+      void registration?.waiting?.postMessage({ type: "SKIP_WAITING" });
+      void registration?.update();
+    });
+  } catch {
+    /* ignore */
+  }
   window.location.replace(`${target.pathname}${target.search}${target.hash}`);
 }

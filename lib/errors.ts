@@ -73,6 +73,17 @@ export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): strin
   const raw = error instanceof Error ? error.message : String(error ?? "");
   if (!raw.trim()) return fallback;
 
+  const rawLowerEarly = raw.toLowerCase();
+  if (
+    rawLowerEarly.includes("module factory is not available") ||
+    rawLowerEarly.includes("was instantiated because it was required from module") ||
+    rawLowerEarly.includes("chunkloaderror") ||
+    rawLowerEarly.includes("loading chunk") ||
+    rawLowerEarly.includes("failed to load chunk")
+  ) {
+    return "Novend needs a quick refresh to load the latest version. Your saved work is safe on this device.";
+  }
+
   let message = raw
     .replace(/\[CONVEX[^\]]*\]\s*/gi, "")
     .replace(/\[Request ID:[^\]]*\]\s*/gi, "")
