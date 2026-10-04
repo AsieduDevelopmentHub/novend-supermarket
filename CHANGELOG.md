@@ -10,7 +10,7 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### What's new
 
-- Checkout can record Cash (the default), MoMo, Card, or Other. The choice shows as a tag on orders and on the day’s report.
+- Checkout can record Cash (the default), MoMo, or Card. The choice shows as a tag on orders and on the day’s report.
 - Dashboard cards use short period names (for example “Sales · 7d”) so the titles stay on one line.
 - Every receipt now ends with a short Novend contact line (“Powered by Novend - 055 525 7482”).
 - The inactivity lock can be unlocked with your password while offline, on any device where you have signed in online before.

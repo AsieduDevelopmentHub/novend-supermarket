@@ -312,7 +312,7 @@ export type LocalOrderFilters = {
   endDate?: number;
   minTotal?: number;
   maxTotal?: number;
-  paymentMethod?: "cash" | "card" | "mobile_money" | "other";
+  paymentMethod?: "cash" | "card" | "mobile_money";
   returnStatus?: "none" | "returned";
 };
 
@@ -348,7 +348,7 @@ export async function listLocalOrders(filters: LocalOrderFilters = {}) {
     cashierId: string | null;
     cashierName: string;
     itemCount: number;
-    paymentMethod: "cash" | "card" | "mobile_money" | "other";
+    paymentMethod: "cash" | "card" | "mobile_money";
     total: number;
     status: string;
     isLocal: boolean;
