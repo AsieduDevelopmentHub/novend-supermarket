@@ -1,3 +1,4 @@
+import { RECEIPT_VENDOR_FOOTER } from "@/constants/app";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
@@ -92,6 +93,7 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
   write(ESC, 0x61, 0x01);
   if (t.footerText) write(t.footerText, "\n");
   if (t.thankYouLine) write(t.thankYouLine, "\n");
+  write("\n", RECEIPT_VENDOR_FOOTER, "\n");
   write("\n\n");
   write(GS, 0x56, 0x01);
   write("\n");

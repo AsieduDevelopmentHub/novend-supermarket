@@ -2,6 +2,7 @@ import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { featureKeyValidator } from "./shared/features";
+import { paymentMethodValidator } from "./shared/paymentMethod";
 
 export const roleValidator = v.union(
   v.literal("administrator"),
@@ -861,7 +862,7 @@ export default defineSchema({
     subtotal: v.number(),
     discount: v.number(),
     total: v.number(),
-    paymentMethod: v.union(v.literal("cash"), v.literal("card"), v.literal("mobile_money")),
+    paymentMethod: paymentMethodValidator,
     itemCount: v.number(),
     status: v.literal("completed"),
     /** Till wall-clock when the sale completed (CCTV / business time). */
@@ -919,7 +920,7 @@ export default defineSchema({
     reason: v.string(),
     notes: v.optional(v.string()),
     refundAmount: v.number(),
-    refundMethod: v.union(v.literal("cash"), v.literal("card"), v.literal("mobile_money")),
+    refundMethod: paymentMethodValidator,
     itemCount: v.number(),
     kind: v.optional(v.union(v.literal("full"), v.literal("partial"))),
     status: v.union(v.literal("completed"), v.literal("pending")),

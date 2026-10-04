@@ -41,8 +41,9 @@ export const ORDER_DATE_PRESETS: { value: DateRangePreset; label: string }[] = [
 export const PAYMENT_FILTER_OPTIONS = [
   { value: "all", label: "All payments" },
   { value: "cash", label: "Cash" },
+  { value: "mobile_money", label: "MoMo" },
   { value: "card", label: "Card" },
-  { value: "mobile_money", label: "Mobile money" },
+  { value: "other", label: "Other" },
 ] as const;
 
 export const RETURN_STATUS_OPTIONS = [

@@ -241,7 +241,7 @@ export type MirroredOrder = {
   subtotal: number;
   discount: number;
   total: number;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: "cash" | "card" | "mobile_money" | "other";
   status: string;
   completedAt: number;
   branchId: string | null;
@@ -315,7 +315,7 @@ export type LocalSale = {
   subtotal: number;
   discount: number;
   total: number;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: "cash" | "card" | "mobile_money" | "other";
   itemCount: number;
   completedAt: number;
   syncStatus: LocalSaleSyncStatus;
@@ -345,7 +345,7 @@ export type CompleteSaleOutboxPayload = {
     sellUnitKey?: string;
   }>;
   discount: number;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: "cash" | "card" | "mobile_money" | "other";
   /** Working branch for this sale (admin may choose; others use assigned). */
   branchId?: string;
   /** Local held sale id if checkout came from a hold. */

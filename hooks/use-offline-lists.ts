@@ -486,7 +486,7 @@ export type OrdersListOptions = {
   endDate?: number;
   minTotal?: number;
   maxTotal?: number;
-  paymentMethod?: "cash" | "card" | "mobile_money";
+  paymentMethod?: "cash" | "card" | "mobile_money" | "other";
   returnStatus?: "none" | "returned";
 };
 

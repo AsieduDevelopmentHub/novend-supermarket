@@ -8,6 +8,14 @@ export const APP_TAGLINE = "Smart POS. Strong business.";
 export const APP_VERSION = packageVersion;
 export const DEFAULT_BRANCH = "Main Branch";
 
+/** Novend's Ghana phone/WhatsApp line, in local dialling format. */
+export const NOVEND_LOCAL_CONTACT = "055 525 7482";
+/**
+ * Fixed vendor line under every receipt (not tenant-editable). ASCII only and at
+ * most 32 characters so it stays one line on 58mm ESC/POS printers.
+ */
+export const RECEIPT_VENDOR_FOOTER = `Powered by ${APP_BRAND} - ${NOVEND_LOCAL_CONTACT}`;
+
 export const ROLES = {
   administrator: "administrator",
   manager: "manager",

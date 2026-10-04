@@ -1,5 +1,6 @@
 "use client";
 
+import { RECEIPT_VENDOR_FOOTER } from "@/constants/app";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import type { ReceiptPayload, ReceiptTemplateConfig, ReceiptBusiness } from "../types";
@@ -116,6 +117,7 @@ export function ReceiptDocument({
         <div className="border-t border-dashed border-black/40 pt-2 text-center">
           {template.footerText ? <p>{template.footerText}</p> : null}
           {template.thankYouLine ? <p className="mt-1">{template.thankYouLine}</p> : null}
+          <p className="mt-2 text-[10px] text-black/70">{RECEIPT_VENDOR_FOOTER}</p>
         </div>
       </div>
     </div>

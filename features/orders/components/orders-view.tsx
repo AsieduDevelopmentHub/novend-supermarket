@@ -33,6 +33,7 @@ import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { useClientPagedRows } from "@/hooks/use-ui";
 import { formatCurrency } from "@/lib/currency";
+import { paymentMethodLabel } from "@/lib/payments";
 import { formatDateTime, rangeForDatePreset, type DateRangePreset } from "@/lib/date";
 import { listLocalOpenOperations } from "@/lib/offline/mirror-queries";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
@@ -124,8 +125,9 @@ function OrderMobileCard({ order }: { order: OrderListRow }) {
               {order.branchName ? `${order.branchName} · ` : ""}
               Cashier: {order.cashierName}
             </p>
-            <p className="text-muted-foreground text-xs capitalize">
-              {order.paymentMethod.replace("_", " ")} · {order.itemCount} items
+            <p className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-xs">
+              <Badge variant="secondary">{paymentMethodLabel(order.paymentMethod)}</Badge>
+              <span>{order.itemCount} items</span>
             </p>
             <Button asChild size="sm" variant="outline" className="min-h-11 w-full">
               <Link href={`/orders/${order.id}`}>
@@ -756,8 +758,10 @@ export function OrdersView() {
                             </td>
                             <td className="px-4 py-3">{order.cashierName}</td>
                             <td className="px-4 py-3">{order.itemCount}</td>
-                            <td className="px-4 py-3 capitalize">
-                              {order.paymentMethod.replace("_", " ")}
+                            <td className="px-4 py-3">
+                              <Badge variant="secondary">
+                                {paymentMethodLabel(order.paymentMethod)}
+                              </Badge>
                             </td>
                             <td className="px-4 py-3 font-medium">{formatCurrency(order.total)}</td>
                             <td className="px-4 py-3">

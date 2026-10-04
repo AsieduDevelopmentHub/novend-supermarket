@@ -20,6 +20,7 @@ import { useUserFilterPreferences } from "@/hooks/use-user-filter-preferences";
 import {
   isPeriodPreset,
   periodPresetLabel,
+  periodPresetShortLabel,
   resolvePeriodPreset,
   clampPeriodRangeMs,
   localIsoDate,
@@ -244,7 +245,7 @@ function KpiTitle({
   className?: string;
 }) {
   return (
-    <p className={cn("text-muted-foreground text-sm", className)}>
+    <p className={cn("text-muted-foreground truncate text-sm whitespace-nowrap", className)}>
       {title}
       {unit ? <span className="text-muted-foreground/80 font-medium"> · {unit}</span> : null}
     </p>
@@ -293,11 +294,8 @@ function KpiCard({
           {/* Desktop: title above value, icon on the right */}
           <div className="hidden items-start justify-between gap-3 md:flex">
             <div className="min-w-0 flex-1">
-              <KpiTitle title={title} unit={unit} className="leading-snug" />
-              <KpiValue value={value} featured={featured} className="mt-2" />
-              <p className="text-primary mt-2 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                View details →
-              </p>
+              <KpiTitle title={title} unit={unit} />
+              <KpiValue value={value} featured={featured} className="mt-1" />
             </div>
             {iconBox}
           </div>
@@ -659,16 +657,17 @@ export function DashboardView() {
     return `/inventory?${params.toString()}`;
   };
 
+  const kpiPeriod = periodPresetShortLabel(rangeWasLimited ? "custom" : filters.preset);
   const kpis = [
     {
-      title: showOps ? `Sales (${periodLabel})` : "Today's Sales",
+      title: showOps ? `Sales · ${kpiPeriod}` : "Today's Sales",
       value: formatMoneyAmount(data.kpis.revenue),
       unit: CURRENCY_SYMBOL,
       icon: Wallet,
       href: "/orders",
     },
     {
-      title: showOps ? `Orders (${periodLabel})` : "Today's Orders",
+      title: showOps ? `Orders · ${kpiPeriod}` : "Today's Orders",
       value: formatNumber(data.kpis.orders),
       icon: ShoppingBag,
       href: "/orders",

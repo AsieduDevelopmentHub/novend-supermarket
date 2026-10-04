@@ -4,6 +4,7 @@
  */
 
 import { v } from "convex/values";
+import { paymentMethodValidator } from "./shared/paymentMethod";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import {
@@ -924,7 +925,7 @@ export const postRoomNight = mutation({
 export const checkoutPay = mutation({
   args: {
     stayId: v.id("hotelStays"),
-    paymentMethod: v.union(v.literal("cash"), v.literal("card"), v.literal("mobile_money")),
+    paymentMethod: paymentMethodValidator,
     discount: v.optional(v.number()),
     clientOperationId: v.optional(v.string()),
     invoiceNumber: v.optional(v.string()),

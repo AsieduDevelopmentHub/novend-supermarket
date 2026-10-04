@@ -243,6 +243,13 @@ session** (local shell profile + Dexie replica) for up to **30 days**, plus a
 does **not** sign you out. Cold start can resume an already-open shell from
 cache when offline or when Convex is slow.
 
+The inactivity lock (`WorkspaceLockOverlay`) follows the same rule. With a live
+Convex session it verifies the password with `users.verifyPassword`. Offline, or
+online while the till is still waiting for a JWT, it checks the device digest
+for the locked user's email and also requires the digest's `userId` to match
+that user. If the device has no digest for that user, the password cannot be
+checked; the user has to use biometrics or reconnect.
+
 The offline shell is **local custody only** — it does not mint a Convex Auth
 JWT. Cloud mutations (outbox drain) require a JWT. Sync chrome stays calm while
 offline or while the radio is up but the till still has no JWT (“Cloud
@@ -286,7 +293,11 @@ reconnect. Legacy sales may omit `syncedAt`.
 
 Name, phone, catalog, inventory, wholesale, suppliers, customers, expenses,
 sales, returns, reports, analytics, **admin/manager branch switching**, and
-**per-batch expiry edits** all continue on the device. Branch pickers read the
+**per-batch expiry edits** all continue on the device. An administrator can
+complete a sale for any branch already in the device snapshot, including a
+branch that is not their home branch, without a connection. The admin snapshot
+stores stock for every branch, and the sale is tagged with that branch. Branch
+pickers read the
 Dexie `branches` table — they must not wait on `navigator.onLine`. A stuck
 IndexedDB upgrade (missing `meta` / `productImages` / `lots`) rebuilds that
 replica on open, then the next snapshot refill.

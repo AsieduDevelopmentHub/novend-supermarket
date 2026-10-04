@@ -1,3 +1,4 @@
+import { RECEIPT_VENDOR_FOOTER } from "@/constants/app";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
@@ -41,6 +42,8 @@ export function buildReceiptShareText(input: ReceiptPayload | Record<string, unk
     lines.push("");
     lines.push(t.thankYouLine);
   }
+  lines.push("");
+  lines.push(RECEIPT_VENDOR_FOOTER);
   return lines.join("\n");
 }
 
