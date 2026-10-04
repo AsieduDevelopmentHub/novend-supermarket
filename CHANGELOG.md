@@ -11,10 +11,12 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 ### What's new
 
 - Coming back online after working offline shows the Connect to cloud prompt without a “Something went wrong” screen.
+- Dashboard amounts are always shown in full; the currency symbol now sits beside the card title (for example “Today's Sales · GH₵”).
 
 ### Fixed
 
 - Offline → online no longer crashes into the error boundary: tenant and platform Convex reads (`useAuthedQuery`, paged lists, business-data and Sales catalog gates) wait for a Convex JWT instead of subscribing as soon as the radio returns, which made `requireRole` throw `Unauthenticated` over the reconnect prompt.
+- Dashboard KPI values no longer truncate (`GH₵0....`): money KPIs render `formatMoneyAmount` with the symbol as a title `unit`, values scale with container queries and never ellipsize, and the five-KPI desktop row starts at `xl` instead of `lg`.
 
 ## v1.0.2 — 2026-10-01
 
