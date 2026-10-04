@@ -164,10 +164,11 @@ export function ReturnOrderDialog({
           quantity: row.quantity,
         })),
       });
+      const savedOnDevice = !online || saleId.startsWith("lsale_");
       toast.success(
-        online
-          ? `Return ${result.returnNumber} processed`
-          : `Return ${result.returnNumber} saved on this device`,
+        savedOnDevice
+          ? `Return ${result.returnNumber} saved on this device`
+          : `Return ${result.returnNumber} processed`,
       );
       onCompleted({
         returnNumber: result.returnNumber,

@@ -95,9 +95,6 @@ export async function processReturnLocally(input: {
   notes?: string;
   items: LocalReturnLineInput[];
 }): Promise<{ returnNumber: string; receiptPayload: ReceiptPayload; clientOperationId: string }> {
-  if (input.saleId.startsWith("lsale_")) {
-    throw new Error("Sync this sale before returning items.");
-  }
   await assertLocalWriteAllowed();
   const db = await getOfflineDb();
   if (!db) throw new Error("Offline storage is unavailable");
@@ -123,8 +120,17 @@ export async function processReturnLocally(input: {
   const returnNumber = allocateReturnNumber();
   const cashierName = (await getMeta(db, META_KEYS.profileName)) ?? "Cashier";
   const snapshot = await loadPrintSnapshot(db);
-  const order = await db.orders.get(input.saleId);
-  const branchId = order?.branchId ?? (await getMeta(db, META_KEYS.profileBranchId)) ?? undefined;
+  const [order, localSale] = await Promise.all([
+    db.orders.get(input.saleId),
+    input.saleId.startsWith("lsale_")
+      ? db.localSales.get(input.saleId)
+      : Promise.resolve(undefined),
+  ]);
+  const branchId =
+    order?.branchId ??
+    localSale?.branchId ??
+    (await getMeta(db, META_KEYS.profileBranchId)) ??
+    undefined;
 
   const receiptPayload: ReceiptPayload = {
     kind: "return",
@@ -202,6 +208,8 @@ export async function processReturnLocally(input: {
         items: input.items.map((item) => ({
           saleItemId: item.saleItemId,
           quantity: item.quantity,
+          productId: item.productId,
+          soldQuantity: item.soldQty,
         })),
       });
     },
@@ -209,6 +217,37 @@ export async function processReturnLocally(input: {
 
   notifyReplicaChanged({ flush: true });
   return { returnNumber, receiptPayload, clientOperationId };
+}
+
+/** Match device sale lines to the server sale after `lsale_` has a `serverSaleId`. */
+export function mapReturnLinesToServerSaleItems(
+  lines: Array<{
+    saleItemId: string;
+    quantity: number;
+    productId?: string;
+    soldQuantity?: number;
+  }>,
+  localItems: Array<{ id: string; productId: string; quantity: number }>,
+  serverItems: Array<{ id: string; productId: string; quantity: number }>,
+): Array<{ saleItemId: string; quantity: number }> | null {
+  const used = new Set<string>();
+  const mapped: Array<{ saleItemId: string; quantity: number }> = [];
+  for (const line of lines) {
+    const local = localItems.find((item) => item.id === line.saleItemId);
+    const productId = line.productId ?? local?.productId;
+    const soldQuantity = line.soldQuantity ?? local?.quantity;
+    if (!productId) return null;
+    const server = serverItems.find(
+      (item) =>
+        !used.has(item.id) &&
+        item.productId === productId &&
+        (soldQuantity == null || item.quantity === soldQuantity),
+    );
+    if (!server) return null;
+    used.add(server.id);
+    mapped.push({ saleItemId: server.id, quantity: line.quantity });
+  }
+  return mapped;
 }
 
 export async function markLocalReturnSynced(
