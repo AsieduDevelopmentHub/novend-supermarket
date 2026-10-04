@@ -19,6 +19,7 @@ import { APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
 import { ROUTES } from "@/config/navigation";
 import { cn } from "@/lib/utils";
+import { AppSplash } from "@/features/auth/components/app-splash";
 import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import {
   clearPostLoginLeavePending,
@@ -61,6 +62,9 @@ function allowOfflinePasswordFallback(): boolean {
   if (typeof window === "undefined") return false;
   return isCapacitor() || isElectron() || !navigator.onLine;
 }
+
+/** Matches `.animate-splash-fall-linger` in `styles/globals.css`. */
+const SIGN_IN_SPLASH_LAND_MS = 4_200;
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -251,6 +255,8 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     redirectingRef.current = true;
     markPostLoginLeavePending();
     setOpeningWorkspace(true);
+    // Let the logo land before the document swap, or the next page starts at rest mid-fall.
+    await wait(SIGN_IN_SPLASH_LAND_MS);
     // Keep the form mounted until replace — prepare + navigate must be sync.
     // fromLogin (via navigateAfterLogin) warms the shell without RestoreLastRoute.
     navigateAfterLogin(
@@ -293,11 +299,14 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     redirectingRef.current = true;
     markPostLoginLeavePending();
     setOpeningWorkspace(true);
+    const splashOpenedAt = Date.now();
     void (async () => {
       try {
         // Resolve destination while the signing-in cover is painted, then hard-navigate
         // in one sync turn (prepareHardNavigation + replace).
         const path = await resolvePostLoginPath(convex);
+        const landRemaining = SIGN_IN_SPLASH_LAND_MS - (Date.now() - splashOpenedAt);
+        if (landRemaining > 0) await wait(landRemaining);
         navigateAfterLogin(withBootMarker(path), router, { hard: true });
       } catch {
         clearPostLoginLeavePending();
@@ -401,6 +410,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       staleCloudLogoutRef.current = false;
       markPostLoginLeavePending();
       setOpeningWorkspace(true);
+      const splashOpenedAt = Date.now();
       // Let Convex Auth attach the new token after signOut→signIn before me.
       await wait(350);
       if (generation !== submitGenerationRef.current) {
@@ -423,6 +433,15 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       // Leave immediately — PBKDF2 offline digest must not pad “Opening your
       // workspace”. Shell already has the offline session hint from bindReplica.
       markOnlineSessionWarm();
+      const landRemaining = SIGN_IN_SPLASH_LAND_MS - (Date.now() - splashOpenedAt);
+      if (landRemaining > 0) await wait(landRemaining);
+      if (generation !== submitGenerationRef.current) {
+        clearPostLoginLeavePending();
+        redirectingRef.current = false;
+        setOpeningWorkspace(false);
+        setPending(false);
+        return;
+      }
       navigateAfterLogin(session.path, router, { hard: true });
       void storeLocalAuthVerifier(normalizedEmail, rawPassword, session.userId)
         .then((prepared) => {
@@ -455,31 +474,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   return (
     <div className="relative mx-auto w-full max-w-[360px]">
       {openingWorkspace ? (
-        <div
-          className="bg-background absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 px-4 py-10 text-center"
-          role="status"
-          aria-live="polite"
-          aria-busy="true"
-        >
-          <div className="relative h-14 w-14">
-            <div
-              className="bg-primary/15 absolute inset-0 animate-pulse rounded-full"
-              aria-hidden
-            />
-            <Image
-              src={BRANDING.brandmark}
-              alt=""
-              fill
-              unoptimized
-              sizes="56px"
-              className="object-contain p-1.5"
-            />
-          </div>
-          <div className="space-y-1">
-            <p className="text-foreground text-sm font-medium">Opening your workspace</p>
-            <p className="text-muted-foreground text-xs">Just a moment</p>
-          </div>
-        </div>
+        <AppSplash label="Opening your workspace" hint="Just a moment" showLabel linger />
       ) : null}
 
       <div

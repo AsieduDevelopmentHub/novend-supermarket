@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { Id } from "@/convex/_generated/dataModel";
+import { useSignInHandoff } from "@/features/auth/components/sign-in-handoff";
 import { CURRENCY_SYMBOL, formatCurrency, formatMoneyAmount, formatNumber } from "@/lib/currency";
 import { formatTime } from "@/lib/date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -637,6 +638,12 @@ export function DashboardView() {
   const mirroredBranches = useBranchesList(false, Boolean(isAdmin || isManager));
   const branches = isAdmin || isManager ? mirroredBranches : undefined;
   const { data, loading, hospitality } = useDashboardData(branchFilter, periodRange);
+  const signInHandoff = useSignInHandoff();
+
+  useEffect(() => {
+    if (loading || !data) return;
+    signInHandoff?.release();
+  }, [loading, data, signInHandoff]);
 
   useEffect(() => {
     if (!isAdmin || !branches || branchFilter === "all") return;

@@ -105,7 +105,7 @@ describe("redirect-after-login", () => {
     const source = readFileSync(resolve(process.cwd(), "providers/startup-splash.tsx"), "utf8");
     expect(source).not.toContain('typeof window !== "undefined" ? consumeSkipStartupSplash()');
     expect(source).toContain("if (!consumeSkipStartupSplash()) return;");
-    expect(source).toContain('FROM_LOGIN_PARAM');
+    expect(source).toContain("FROM_LOGIN_PARAM");
     expect(source).toContain("fromLogin");
     expect(source).toContain("stripFromLoginParam");
   });
@@ -124,15 +124,32 @@ describe("redirect-after-login", () => {
       ?.split("router.replace(target);")[0];
     expect(hardBranch).toBeTruthy();
     // Direct replace + Electron trampoline fallback.
-    expect(hardBranch?.match(/window\.location\.replace\(target\)/g)?.length).toBeGreaterThanOrEqual(
-      1,
-    );
+    expect(
+      hardBranch?.match(/window\.location\.replace\(target\)/g)?.length,
+    ).toBeGreaterThanOrEqual(1);
     expect(hardBranch).toContain("reloadAuthShell");
     expect(hardBranch).not.toContain("window.setTimeout");
     expect(source).toContain("withPostLoginShellMarker");
     expect(source).toContain("fromLogin=1");
     expect(source).toContain("saveShellProfile({");
     expect(source).toContain("SHELL_PROFILE_BUDGET_MS");
+  });
+
+  it("post-login shell holds one settled splash until the dashboard can show figures", () => {
+    const layout = readFileSync(resolve(process.cwd(), "app/(app)/app-layout-client.tsx"), "utf8");
+    const dashboard = readFileSync(
+      resolve(process.cwd(), "features/dashboard/components/dashboard-view.tsx"),
+      "utf8",
+    );
+    expect(layout).toContain("SignInHandoffProvider");
+    expect(layout).toContain("settled");
+    expect(layout).toContain('label="Opening your workspace"');
+    expect(layout).toContain('hint="Just a moment"');
+    expect(layout).toContain("liveReady");
+    expect(dashboard).toContain("signInHandoff?.release()");
+    expect(layout).toContain("Opening workspace…");
+    expect(layout).toContain("Verifying account…");
+    expect(layout).toContain("Setting up your account…");
   });
 
   it("login form shows opening cover before hard-navigate while keeping inputs mounted", () => {
@@ -145,6 +162,8 @@ describe("redirect-after-login", () => {
     expect(source).toMatch(/setOpeningWorkspace\(true\);[\s\S]*?navigateAfterLogin/);
     expect(source).toContain("Opening your workspace");
     expect(source).toContain("Just a moment");
+    expect(source).toContain("linger");
+    expect(source).toContain("SIGN_IN_SPLASH_LAND_MS = 4_200");
     expect(source).not.toContain("Signing you in…");
     expect(source).not.toContain("Confirming your cloud");
     expect(source).not.toContain("animate-spin");
@@ -152,7 +171,7 @@ describe("redirect-after-login", () => {
     expect(source).toContain("markPostLoginLeavePending()");
     expect(source).not.toContain('toast.success("Welcome")');
     // Inputs stay in the DOM so prepareHardNavigation can clear leave-site dirt.
-    expect(source).toContain('aria-hidden={openingWorkspace}');
+    expect(source).toContain("aria-hidden={openingWorkspace}");
   });
 
   it("keeps users.me settle budgets short so the login cover clears quickly", () => {

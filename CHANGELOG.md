@@ -10,6 +10,7 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### What's new
 
+- Signing in plays a longer logo animation that keeps moving while your account opens, then fades into the dashboard when the figures are ready.
 - Checkout can record Cash (the default), MoMo, or Card. The choice shows as a tag on orders and on the day’s report.
 - Dashboard cards use short period names (for example “Sales · 7d”) so the titles stay on one line.
 - Every receipt now ends with a short Novend contact line (“Powered by Novend - 055 525 7482”).
@@ -20,6 +21,10 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 ### Added
 
 - `RECEIPT_VENDOR_FOOTER` (`constants/app.ts`): a fixed, non-tenant-editable vendor line printed under every receipt. It appears on the on-screen and designer preview, browser print, ESC/POS and share text. ASCII only and at most 32 characters, so it fits one 58mm line.
+
+### Changed
+
+- After sign-in, the logo fall is stretched to 4.2s on the login cover and a slow float continues while account and dashboard checks finish. The dashboard fades in only once its figures are ready.
 
 ### Fixed
 
