@@ -2,8 +2,8 @@
 
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Hardware, isCapacitor, isElectron } from "@novend/hardware";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
 import { AppSidebar, MobileSidebar } from "@/components/layout/app-sidebar";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
@@ -12,6 +12,7 @@ import { RestoreLastRoute } from "@/components/layout/restore-last-route";
 import { PlatformShell } from "@/components/layout/platform-shell";
 import { ErrorState } from "@/components/feedback/error-state";
 import { AppSplash } from "@/features/auth/components/app-splash";
+import { SignInHandoffProvider } from "@/features/auth/components/sign-in-handoff";
 import type { AppRole } from "@/config/navigation";
 import { APP_BRAND } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
@@ -100,6 +101,10 @@ function isPostLoginWarm(): boolean {
     return false;
   }
 }
+
+/** Hold the landed logo until the destination has figures, then fade once. */
+const SIGN_IN_COVER_EXIT_MS = 420;
+const SIGN_IN_COVER_CAP_MS = 8_000;
 
 /**
  * Leave splash while the logout barrier blocks the shell.
@@ -228,6 +233,12 @@ export default function AppLayoutClient({ children }: { children: React.ReactNod
 function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const fromLoginNow = useSearchParams().get("fromLogin") === "1";
+  const [signInPhase, setSignInPhase] = useState<"off" | "exit" | "done">("off");
+  // Captured on the post-login document. Startup splash then strips `fromLogin`
+  // from the URL; this latch keeps the cover up through that cleanup.
+  const [signInHeld, setSignInHeld] = useState(fromLoginNow);
+  if (fromLoginNow && !signInHeld) setSignInHeld(true);
   const { isAuthenticated, isLoading } = useConvexAuth();
   const online = useConnectivity();
   const nativeShell = useNativeShell();
@@ -299,6 +310,35 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             }
           : null,
   });
+  const releaseSignInHandoff = useCallback(() => {
+    setSignInPhase((phase) => (phase === "done" || phase === "exit" ? phase : "exit"));
+  }, []);
+  const signInCover =
+    signInPhase === "exit" || (signInPhase !== "done" && (fromLoginNow || signInHeld));
+
+  useEffect(() => {
+    if (signInPhase !== "exit") return;
+    const timer = window.setTimeout(() => setSignInPhase("done"), SIGN_IN_COVER_EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [signInPhase]);
+
+  useEffect(() => {
+    if (!signInCover || signInPhase === "exit") return;
+    const timer = window.setTimeout(() => releaseSignInHandoff(), SIGN_IN_COVER_CAP_MS);
+    return () => window.clearTimeout(timer);
+  }, [signInCover, signInPhase, releaseSignInHandoff]);
+
+  useEffect(() => {
+    if (pathname === "/dashboard" || !signInCover) return;
+    if (signInPhase === "exit") return;
+    const profileReady = Boolean(
+      user && !user.needsProfile && user.role && (user.branch || user.branchId),
+    );
+    if (!profileReady && !user?.isPlatformAdmin) return;
+    const timer = window.setTimeout(() => releaseSignInHandoff(), 700);
+    return () => window.clearTimeout(timer);
+  }, [signInCover, signInPhase, pathname, user, releaseSignInHandoff]);
+
   const cloudIdentityUnsafe =
     Boolean(activeLocalUserId) &&
     !localOnlyReady &&
@@ -675,6 +715,14 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     setCloudSwitchUserId(null);
   }
 
+  if (
+    signInPhase !== "done" &&
+    signInCover &&
+    (cloudIdentityBlocked || hasExplicitLogout())
+  ) {
+    setSignInPhase("done");
+  }
+
   if (cloudIdentityBlocked) {
     if (expectedCloudSession) {
       return (
@@ -700,7 +748,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (cloudIdentityChecking) {
+  if (cloudIdentityChecking && !signInCover) {
     return <AppSplash label="Verifying account…" showLabel />;
   }
 
@@ -802,7 +850,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
       (!online && !cacheReady) ||
       (!online && isLoading && !offlineAuthBudgetElapsed));
 
-  if (waitingForUser) {
+  if (waitingForUser && !signInCover) {
     return (
       <AppSplash
         label={isPostLoginWarm() ? "Opening workspace…" : "Preparing workspace…"}
@@ -821,7 +869,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     !cachedShellWhileOnlineHung &&
     !resolvedCache &&
     !awaitingCloudReconnect &&
-    !localOnlyReady
+    !localOnlyReady &&
+    !signInCover
   ) {
     return <AppSplash label="Redirecting to login…" />;
   }
@@ -832,7 +881,8 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     cacheReady &&
     (!online || cachedShellWhileOnlineHung) &&
     !resolvedCache &&
-    !resolvedPlatformSession
+    !resolvedPlatformSession &&
+    !signInCover
   ) {
     return <AppSplash label="Opening sign-in…" />;
   }
@@ -864,8 +914,41 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     (Boolean(user?.isPlatformAdmin) && (!user?.role || isPlatformRoute)) ||
     (!online && isPlatformRoute && Boolean(resolvedPlatformSession));
 
-  if (showPlatformShell) {
+  const signInShellReady =
+    liveReady ||
+    showPlatformShell ||
+    (!online && Boolean(shellFromCache || offlineSessionOk || cachedShellWhileOnlineHung));
+
+  if (signInCover && !signInShellReady) {
     return (
+      <AppSplash
+        settled
+        showLabel
+        exiting={signInPhase === "exit"}
+        label="Opening your workspace"
+        hint="Just a moment"
+      />
+    );
+  }
+
+  function paintWithSignInCover(node: ReactNode) {
+    if (!signInCover) return node;
+    return (
+      <SignInHandoffProvider release={releaseSignInHandoff}>
+        {node}
+        <AppSplash
+          settled
+          showLabel
+          exiting={signInPhase === "exit"}
+          label="Opening your workspace"
+          hint="Just a moment"
+        />
+      </SignInHandoffProvider>
+    );
+  }
+
+  if (showPlatformShell) {
+    return paintWithSignInCover(
       <NativeAppServices>
         <AppShellWithIdleLock
           identity={
@@ -906,7 +989,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             </OfflineNavigationProvider>
           </OfflineProvider>
         </AppShellWithIdleLock>
-      </NativeAppServices>
+      </NativeAppServices>,
     );
   }
 
@@ -989,7 +1072,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return (
+  return paintWithSignInCover(
     <NativeAppServices>
       <AppShellWithIdleLock identity={lockIdentity}>
         <OfflineProvider key={replicaKey}>
@@ -1085,6 +1168,6 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
           </OfflineNavigationProvider>
         </OfflineProvider>
       </AppShellWithIdleLock>
-    </NativeAppServices>
+    </NativeAppServices>,
   );
 }

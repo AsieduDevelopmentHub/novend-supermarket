@@ -515,12 +515,46 @@ html.standalone-display {
   }
 }
 
+/* After the fall, a slow float so the cover does not freeze while checks finish. */
+@keyframes splash-hold {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(0, -10px, 0) scale(1.04);
+  }
+}
+
 .animate-splash-out {
   animation: splash-out 0.4s ease-in both;
 }
 
 .animate-splash-fall {
   animation: splash-fall 1.35s cubic-bezier(0.22, 0.9, 0.28, 1) both;
+}
+
+/* Sign-in only. Same fall, stretched so it covers the account checks. */
+.animate-splash-fall-linger {
+  animation: splash-fall 4.2s cubic-bezier(0.22, 0.9, 0.28, 1) both;
+}
+
+.splash-linger .animate-splash-impact {
+  animation-duration: 4.2s;
+}
+
+.splash-linger .animate-splash-particle,
+.splash-linger .animate-splash-caption {
+  animation-duration: 4.5s;
+}
+
+.animate-splash-hold {
+  animation: splash-hold 2.8s ease-in-out infinite;
+}
+
+.splash-linger .animate-splash-hold {
+  animation-delay: 4.2s;
 }
 
 .animate-splash-impact {
@@ -1105,12 +1139,15 @@ html.standalone-display {
   }
 
   .animate-splash-fall,
+  .animate-splash-fall-linger,
   .animate-splash-impact,
   .animate-splash-particle,
   .animate-splash-caption,
+  .animate-splash-hold,
   .animate-splash-out {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
   }
 
   .animate-splash-fall {
