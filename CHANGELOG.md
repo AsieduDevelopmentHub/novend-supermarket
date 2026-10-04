@@ -10,6 +10,7 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### What's new
 
+- An administrator’s branch on Sales stays selected when they leave the page or refresh, until they choose a different branch.
 - You can return items from an order that exists only on this device. Stock goes back and the return receipt is saved with no connection.
 - Signing in plays a longer logo animation that keeps moving while your account opens, then fades into the dashboard when the figures are ready.
 - Checkout can record Cash (the default), MoMo, or Card. The choice shows as a tag on orders and on the day’s report.

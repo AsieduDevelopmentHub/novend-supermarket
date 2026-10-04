@@ -35,8 +35,16 @@ import { listActiveSellUnits, roundQuantity } from "@/convex/shared/units";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import { useBusinessTerms } from "@/hooks/use-business-terms";
 import { salesViewDescription } from "@/convex/shared/businessTerms";
-import { useSalesCatalog, useSalesCustomerSearch, catalogAvailableQuantity, resolveCatalogAvailable, type CatalogStockHint } from "@/hooks/use-offline-catalog";
+import {
+  useSalesCatalog,
+  useSalesCustomerSearch,
+  catalogAvailableQuantity,
+  resolveCatalogAvailable,
+  type CatalogStockHint,
+} from "@/hooks/use-offline-catalog";
 import { useBranchesList } from "@/hooks/use-offline-lists";
+import { usePersistedSalesBranchId } from "@/hooks/use-sales-working-branch";
+import { clearSalesWorkingBranch, writeSalesWorkingBranch } from "@/lib/sales/working-branch";
 import { usePosPreferences } from "@/hooks/use-pos-preferences";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { useOfflineStatus } from "@/providers/offline-provider";
@@ -123,7 +131,7 @@ function formatHoldRef(id: string) {
 }
 
 export function SalesView() {
-  const { isAdmin, branchId: myBranchId, branchName } = usePermissions();
+  const { isAdmin, branchId: myBranchId, branchName, userId } = usePermissions();
   const { access, capabilities, experience } = useLicense();
   const { hasCapability, industryProfile } = useBusinessCapabilities();
   const { terms } = useBusinessTerms();
@@ -132,7 +140,7 @@ export function SalesView() {
   const nativeShell = useNativeShell();
   const isDesktop = useDesktopRuntime();
   const [search, setSearch] = useState("");
-  const [branchOverride, setBranchOverride] = useState<Id<"branches"> | "all" | null>(null);
+  const persistedBranchId = usePersistedSalesBranchId(userId, isAdmin);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customer, setCustomer] = useState<SelectedCustomer>(null);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -171,11 +179,16 @@ export function SalesView() {
 
   const mirroredBranches = useBranchesList();
   const branches = isAdmin ? mirroredBranches : undefined;
-  const workingBranchId = isAdmin
-    ? branchOverride && branchOverride !== "all"
-      ? branchOverride
-      : (myBranchId ?? branches?.[0]?.id ?? null)
-    : myBranchId;
+  const workingBranchId = (
+    isAdmin ? (persistedBranchId ?? myBranchId ?? branches?.[0]?.id ?? null) : myBranchId
+  ) as Id<"branches"> | null;
+
+  useEffect(() => {
+    if (!isAdmin || !userId || !persistedBranchId) return;
+    if (!branches || branches.length === 0) return;
+    if (branches.some((branch) => branch.id === persistedBranchId)) return;
+    clearSalesWorkingBranch(userId);
+  }, [isAdmin, userId, persistedBranchId, branches]);
 
   const { online, dexieAvailable } = useOfflineStatus();
   const {
@@ -583,9 +596,9 @@ export function SalesView() {
   }
 
   function changeBranch(next: Id<"branches"> | "all") {
-    if (next === "all") return;
+    if (next === "all" || !userId) return;
     setStockHints({});
-    setBranchOverride(next);
+    writeSalesWorkingBranch(userId, next);
   }
 
   async function onHold() {
@@ -910,7 +923,7 @@ export function SalesView() {
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <div className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-end gap-2">
-            <div className="flex min-w-0 max-w-lg flex-1 basis-full gap-2 sm:basis-auto">
+            <div className="flex max-w-lg min-w-0 flex-1 basis-full gap-2 sm:basis-auto">
               <Input
                 data-tour="sales-search"
                 value={search}
