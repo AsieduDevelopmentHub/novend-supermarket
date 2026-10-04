@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -69,11 +70,11 @@ export function PlatformExperiencePanel({
   organizationId: Id<"organizations">;
 }) {
   const online = useConnectivity();
-  const config = useQuery(
+  const config = useAuthedQuery(
     api.platform.getOrganizationConfig,
     online ? { organizationId } : "skip",
   );
-  const presets = useQuery(api.experiencePresets.list, online ? {} : "skip");
+  const presets = useAuthedQuery(api.experiencePresets.list, online ? {} : "skip");
   const assign = useMutation(api.experiencePresets.assignToOrganization);
   const seedDefault = useMutation(api.experiencePresets.seedNovendDefault);
   const createPreset = useMutation(api.experiencePresets.create);

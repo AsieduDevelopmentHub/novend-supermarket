@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { PageHeader } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
@@ -94,8 +95,11 @@ export function SettingsView() {
   const isMobileCap = useNativeShell();
   const { features, billingVisibility } = useLicense();
   const billingHidden = isBillingHidden({ features, billingVisibility });
-  const remoteBusiness = useQuery(api.settings.getBusiness, online && isAdmin ? {} : "skip");
-  const remoteTemplate = useQuery(api.settings.getReceiptTemplate, online && isAdmin ? {} : "skip");
+  const remoteBusiness = useAuthedQuery(api.settings.getBusiness, online && isAdmin ? {} : "skip");
+  const remoteTemplate = useAuthedQuery(
+    api.settings.getReceiptTemplate,
+    online && isAdmin ? {} : "skip",
+  );
   const [cachedPrint, setCachedPrint] = useState<{
     business: ReceiptBusiness;
     template: ReceiptTemplateConfig;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { listLocalCatalogProducts, searchLocalCustomers } from "@/lib/offline/snapshot";
@@ -9,6 +9,7 @@ import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { shouldUseRemoteSalesCatalog } from "@/lib/offline/freshness";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 
 export type CatalogProduct = {
   id: string;
@@ -96,6 +97,8 @@ function mapRemoteProducts(
  */
 export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null) {
   const online = useConnectivity();
+  const { isAuthenticated } = useConvexAuth();
+  const liveSession = online && isAuthenticated;
   const { lastSyncAt } = useOfflineStatus();
   const branchKey = branchId ?? undefined;
   const [serveLocal, setServeLocal] = useState(false);
@@ -104,7 +107,7 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const useRemote = await shouldUseRemoteSalesCatalog(online);
+      const useRemote = await shouldUseRemoteSalesCatalog(liveSession);
       if (cancelled) return;
       setServeLocal(!useRemote);
       setGateReady(true);
@@ -112,9 +115,9 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
     return () => {
       cancelled = true;
     };
-  }, [online, lastSyncAt]);
+  }, [liveSession, lastSyncAt]);
 
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.sales.catalog,
     online && gateReady && !serveLocal
       ? { search: search || undefined, branchId: branchKey }
@@ -188,21 +191,23 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
 
 export function useSalesCustomerSearch(query: string) {
   const { online, lastSyncAt } = useOfflineStatus();
+  const { isAuthenticated } = useConvexAuth();
+  const liveSession = online && isAuthenticated;
   const trimmed = query.trim();
   const [serveLocal, setServeLocal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const useRemote = await shouldUseRemoteSalesCatalog(online);
+      const useRemote = await shouldUseRemoteSalesCatalog(liveSession);
       if (!cancelled) setServeLocal(!useRemote);
     })();
     return () => {
       cancelled = true;
     };
-  }, [online, lastSyncAt]);
+  }, [liveSession, lastSyncAt]);
 
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.customers.search,
     online && !serveLocal && trimmed.length >= 2 ? { q: query, limit: 6 } : "skip",
   );

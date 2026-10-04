@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useConvex, useMutation, useQuery } from "convex/react";
+import { useConvex, useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { CloudUpload, Download, HardDrive, Trash2, Upload } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -49,7 +50,7 @@ export function CloudBackupCard({ canProtect, canUnlock, resolveSecret }: CloudB
   const online = useConnectivity();
   const { cloudMode } = useLicense();
   const convex = useConvex();
-  const usage = useQuery(api.cloudBackups.usage, online ? {} : "skip");
+  const usage = useAuthedQuery(api.cloudBackups.usage, online ? {} : "skip");
   const generateUploadUrl = useMutation(api.cloudBackups.generateBackupUploadUrl);
   const claimUpload = useMutation(api.storageUploads.claimBackup);
   const recordBackup = useMutation(api.cloudBackups.recordBackup);

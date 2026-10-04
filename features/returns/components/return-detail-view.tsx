@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -22,7 +22,7 @@ import { getMirroredReturn } from "@/lib/offline/mirror-queries";
 export function ReturnDetailView({ returnId }: { returnId: string }) {
   const online = useConnectivity();
   const [previewOpen, setPreviewOpen] = useState(false);
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.returns.get,
     online && !returnId.startsWith("local_") ? { id: returnId as Id<"saleReturns"> } : "skip",
   );

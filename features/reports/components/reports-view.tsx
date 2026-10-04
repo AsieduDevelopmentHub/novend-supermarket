@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
@@ -135,7 +136,7 @@ export function ReportsView() {
     setFilters((current) => ({ ...current, branchFilter: "all" }));
   }, [isAdmin, branches, branchFilter, setFilters]);
 
-  const remoteReport = useQuery(
+  const remoteReport = useAuthedQuery(
     api.reports.salesSummary,
     online && range
       ? {

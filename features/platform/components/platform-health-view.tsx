@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { Activity, Cloud, MonitorSmartphone, Package, RefreshCw, Server } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -40,7 +41,7 @@ const BOOST_TTL_OPTIONS: { value: CloudSyncBoostTtlMinutes; label: string }[] =
 export function PlatformHealthView() {
   const online = useConnectivity();
   const { data: health, loading } = usePlatformHealthData();
-  const defaults = useQuery(api.platform.getPlatformDefaults, online ? {} : "skip");
+  const defaults = useAuthedQuery(api.platform.getPlatformDefaults, online ? {} : "skip");
   const setGlobalBoostTtl = useMutation(api.platform.setGlobalCloudSyncBoostTtl);
   const [ttlPending, setTtlPending] = useState(false);
 

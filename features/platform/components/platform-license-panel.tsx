@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -162,7 +163,10 @@ export function PlatformLicensePanel({
   closureReason?: string | null;
 }) {
   const online = useConnectivity();
-  const license = useQuery(api.billing.organizationLicense, online ? { organizationId } : "skip");
+  const license = useAuthedQuery(
+    api.billing.organizationLicense,
+    online ? { organizationId } : "skip",
+  );
   const assignPlan = useMutation(api.billing.assignPlan);
   const setSubscriptionAmount = useMutation(api.billing.setSubscriptionAmount);
   const startTrial = useMutation(api.billing.startTrial);

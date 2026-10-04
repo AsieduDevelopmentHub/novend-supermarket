@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
@@ -75,7 +75,7 @@ export function ReportMetricDetailView({ metric }: { metric: string }) {
     return { startDate: startOfDay(startDateObj), endDate: endOfDay(endDateObj) };
   }, [start, end]);
 
-  const details = useQuery(
+  const details = useAuthedQuery(
     api.reports.details,
     online && range && isMetric(metric)
       ? {

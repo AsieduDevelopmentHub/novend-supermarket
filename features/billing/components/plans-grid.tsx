@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { VerifyEmailDialog } from "@/features/auth/components/verify-email-dialog";
 import { buildSalesMailto } from "@/features/marketing/content";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
 import { showError } from "@/lib/errors";
@@ -203,7 +204,7 @@ export function PlansGrid({
   const offerCanPay = customOfferOnly && offerCyclePrice !== null && offerCyclePrice > 0;
 
   const dialogCycle: BillingCycle = dialogPlan?.isLifetime ? "lifetime" : cycle;
-  const preview = useQuery(
+  const preview = useAuthedQuery(
     api.billing.previewPlanChange,
     dialogPlan && online ? { planKey: dialogPlan.key, cycle: dialogCycle } : "skip",
   );

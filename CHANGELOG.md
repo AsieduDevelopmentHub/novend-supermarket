@@ -10,11 +10,11 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### What's new
 
-- No entries yet.
+- Coming back online after working offline shows the Connect to cloud prompt without a “Something went wrong” screen.
 
 ### Fixed
 
-- No entries yet.
+- Offline → online no longer crashes into the error boundary: tenant and platform Convex reads (`useAuthedQuery`, paged lists, business-data and Sales catalog gates) wait for a Convex JWT instead of subscribing as soon as the radio returns, which made `requireRole` throw `Unauthenticated` over the reconnect prompt.
 
 ## v1.0.2 — 2026-10-01
 

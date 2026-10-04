@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import {
   DEFAULT_PRODUCT_IMAGES_POLICY,
@@ -23,7 +23,10 @@ export function useProductImagesPolicy(): ProductImagesPolicy {
   const { online } = useOfflineStatus();
   const skipTenantQuery =
     typeof window !== "undefined" && getBoundOrganizationId() === PLATFORM_OFFLINE_ORG_ID;
-  const remote = useQuery(api.settings.getProductImages, online && !skipTenantQuery ? {} : "skip");
+  const remote = useAuthedQuery(
+    api.settings.getProductImages,
+    online && !skipTenantQuery ? {} : "skip",
+  );
   const [cached, setCached] = useState<ProductImagesPolicy>(DEFAULT_PRODUCT_IMAGES_POLICY);
 
   useEffect(() => {

@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -62,13 +63,13 @@ export function ProductDetailView({ productId }: { productId: Id<"products"> }) 
   const online = useConnectivity();
   const branchScope = isAdmin ? undefined : (myBranchId ?? undefined);
   const [preferDexie, setPreferDexie] = useState(!online);
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.products.getProduct,
     online && !preferDexie && !String(productId).startsWith("local_")
       ? { id: productId, branchId: branchScope }
       : "skip",
   );
-  const remoteLots = useQuery(
+  const remoteLots = useAuthedQuery(
     api.inventory.listLots,
     online && !preferDexie && !String(productId).startsWith("local_")
       ? { productId }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import {
   DEFAULT_BUSINESS_TERMS,
@@ -26,7 +26,7 @@ export function useBusinessTerms() {
   const { industryProfile } = useBusinessCapabilities();
   const skipTenantQuery =
     typeof window !== "undefined" && getBoundOrganizationId() === PLATFORM_OFFLINE_ORG_ID;
-  const remoteOverrides = useQuery(
+  const remoteOverrides = useAuthedQuery(
     api.settings.getBusinessTerminology,
     online && !skipTenantQuery ? {} : "skip",
   );

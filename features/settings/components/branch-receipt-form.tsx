@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -40,8 +41,8 @@ type BranchReceipt = {
 export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
   const online = useConnectivity();
   const updateReceiptProfile = useMutation(api.branches.updateReceiptProfile);
-  const orgTemplate = useQuery(api.settings.getReceiptTemplate, online ? {} : "skip");
-  const orgBusiness = useQuery(api.settings.getBusiness, online ? {} : "skip");
+  const orgTemplate = useAuthedQuery(api.settings.getReceiptTemplate, online ? {} : "skip");
+  const orgBusiness = useAuthedQuery(api.settings.getBusiness, online ? {} : "skip");
 
   const [name, setName] = useState(branch.name);
   const [address, setAddress] = useState(branch.address ?? "");

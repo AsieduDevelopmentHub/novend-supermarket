@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import {
@@ -14,7 +14,7 @@ import {
 /** Receipt print mode — live when online, last cached value when not. */
 export function usePosPreferences(): CachedPosPreferences {
   const online = useConnectivity();
-  const live = useQuery(api.settings.getPosPreferences, online ? {} : "skip");
+  const live = useAuthedQuery(api.settings.getPosPreferences, online ? {} : "skip");
   const [cached, setCached] = useState<CachedPosPreferences>(peekPosPreferences);
 
   useEffect(() => {

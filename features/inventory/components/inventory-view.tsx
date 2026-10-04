@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState, Suspense } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
@@ -185,7 +186,7 @@ function InventoryViewInner() {
     : undefined;
 
   /** Cost/sell/profit KPIs are admin/manager + online only — never cashiers or offline. */
-  const valuation = useQuery(
+  const valuation = useAuthedQuery(
     api.inventory.valuationSummary,
     online && canViewCost ? { branchId: listBranchId } : "skip",
   );
@@ -205,7 +206,7 @@ function InventoryViewInner() {
     }));
   }, [transferSourceRows, rows]);
 
-  const history = useQuery(
+  const history = useAuthedQuery(
     api.inventory.history,
     online && adjustId && canManageProducts
       ? { productId: adjustId, branchId: listBranchId }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -68,9 +69,9 @@ export function RoomsBoardView() {
   const [chargeQty, setChargeQty] = useState("1");
   const [paying, setPaying] = useState(false);
 
-  const remoteRooms = useQuery(api.hotel.listRooms, online && canRooms ? {} : "skip");
-  const remoteOpenStays = useQuery(api.hotel.listOpenStays, online && canRooms ? {} : "skip");
-  const stay = useQuery(
+  const remoteRooms = useAuthedQuery(api.hotel.listRooms, online && canRooms ? {} : "skip");
+  const remoteOpenStays = useAuthedQuery(api.hotel.listOpenStays, online && canRooms ? {} : "skip");
+  const stay = useAuthedQuery(
     api.hotel.getStay,
     online && canRooms && selectedStayId && !String(selectedStayId).startsWith("local_")
       ? { stayId: selectedStayId as Id<"hotelStays"> }

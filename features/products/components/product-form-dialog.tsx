@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -114,7 +115,7 @@ export function ProductFormDialog({
         ? undefined
         : null;
 
-  const remoteProduct = useQuery(
+  const remoteProduct = useAuthedQuery(
     api.products.getProduct,
     open && productId && online && mirroredRow === null && !String(productId).startsWith("local_")
       ? { id: productId }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import {
   DEFAULT_EXPIRY_POLICY,
@@ -20,7 +20,10 @@ export function useExpiryPolicy(): ExpiryPolicy {
   const { online } = useOfflineStatus();
   const skipTenantQuery =
     typeof window !== "undefined" && getBoundOrganizationId() === PLATFORM_OFFLINE_ORG_ID;
-  const remote = useQuery(api.settings.getExpiryPolicy, online && !skipTenantQuery ? {} : "skip");
+  const remote = useAuthedQuery(
+    api.settings.getExpiryPolicy,
+    online && !skipTenantQuery ? {} : "skip",
+  );
   const [cached, setCached] = useState<ExpiryPolicy>(DEFAULT_EXPIRY_POLICY);
 
   useEffect(() => {

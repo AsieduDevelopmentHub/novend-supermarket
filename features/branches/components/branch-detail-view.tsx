@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -23,7 +23,7 @@ import { ArrowLeft } from "lucide-react";
 export function BranchDetailView({ branchId }: { branchId: string }) {
   const { canManageBranches } = usePermissions();
   const online = useConnectivity();
-  const overviewRemote = useQuery(
+  const overviewRemote = useAuthedQuery(
     api.branches.getOverview,
     online && canManageBranches ? { id: branchId as Id<"branches"> } : "skip",
   );

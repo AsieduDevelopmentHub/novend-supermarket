@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
@@ -32,7 +32,7 @@ export function ReportDayDetailView() {
   const rangeStart = params.get("start");
   const rangeEnd = params.get("end");
 
-  const details = useQuery(
+  const details = useAuthedQuery(
     api.reports.dayDetails,
     online && isIsoDate(date)
       ? {

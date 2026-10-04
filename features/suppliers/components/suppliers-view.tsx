@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
@@ -53,7 +54,7 @@ export function SuppliersView() {
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [pending, setPending] = useState(false);
   const [selectedId, setSelectedId] = useState<Id<"suppliers"> | string | null>(null);
-  const remoteDetail = useQuery(
+  const remoteDetail = useAuthedQuery(
     api.suppliers.get,
     online && selectedId && !String(selectedId).startsWith("local_")
       ? { id: selectedId as Id<"suppliers"> }

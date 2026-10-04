@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -407,7 +407,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
   }, [local, orderId, refreshKey]);
 
   const remoteId: Id<"sales"> | null = local ? resolvedServerId : (orderId as Id<"sales">);
-  const remote = useQuery(api.sales.getOrder, online && remoteId ? { id: remoteId } : "skip");
+  const remote = useAuthedQuery(api.sales.getOrder, online && remoteId ? { id: remoteId } : "skip");
 
   useEffect(() => {
     if (!online || !remote) {
