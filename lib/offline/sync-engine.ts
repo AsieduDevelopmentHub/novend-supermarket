@@ -34,12 +34,13 @@ import {
 import { loadLicenseSnapshot } from "./license";
 import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
 import {
+  describeReturnUploadBlock,
   mapReturnLinesToServerSaleItems,
   markLocalReturnFailed,
   markLocalReturnSynced,
 } from "./returns-repository";
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
-import { isSyncBusinessConflict } from "./sync-errors";
+import { isSyncBusinessConflict, syncFailureMessage } from "./sync-errors";
 import { shouldMarkOutboxFailed } from "./outbox-policy";
 import { shouldReopenFailedOutboxWait } from "./outbox-display";
 import { rekeyProductImage } from "./image-cache";
@@ -85,6 +86,8 @@ const OUTBOX_DRAIN_PRIORITY: Partial<Record<OutboxOpType, number>> = {
   upsert_product: 2,
   pay_salary: 3,
   pay_commission: 3,
+  complete_sale: 4,
+  process_return: 6,
 };
 
 export function sortOutboxForDrain(rows: OutboxRow[]): OutboxRow[] {
@@ -393,6 +396,22 @@ type DrainOptions = {
 };
 type DrainResult = { processed: number; failed: number; skipped: boolean };
 
+async function findOpenCompleteSale(db: NovendOfflineDb, localSaleId: string) {
+  const rows = await db.outbox.where("type").equals("complete_sale").toArray();
+  for (const row of rows) {
+    if (row.status === "synced") continue;
+    try {
+      const payload = parseCompleteSalePayload(row);
+      if (payload.localSaleId === localSaleId) {
+        return { status: row.status, lastError: row.lastError };
+      }
+    } catch {
+      /* ignore a damaged sale row */
+    }
+  }
+  return null;
+}
+
 async function resolveProcessReturnUpload(
   db: NovendOfflineDb,
   payload: ReturnType<typeof parseProcessReturnPayload>,
@@ -507,6 +526,25 @@ async function drainOwnedOutbox(
     const licenseSnapshot = await loadLicenseSnapshot();
     for (const row of uploadRows) {
       if (!(await ownsLease())) break;
+      if (row.type === "process_return") {
+        const payload = parseProcessReturnPayload(row);
+        if (payload.saleId.startsWith("lsale_")) {
+          const localSale = await db.localSales.get(payload.saleId);
+          const saleUpload = await findOpenCompleteSale(db, payload.saleId);
+          const block = describeReturnUploadBlock({
+            saleId: payload.saleId,
+            serverSaleId: localSale?.serverSaleId,
+            saleUpload,
+          });
+          if (block) {
+            if (row.lastError !== block || row.status !== "pending") {
+              await markOutboxPending(db, row.id, block);
+            }
+            continue;
+          }
+        }
+      }
+
       const claimed = await claimOutboxRow(db, row.id, syncOwner);
       if (!claimed) continue;
 
@@ -1186,7 +1224,7 @@ async function drainOwnedOutbox(
         }
       } catch (error) {
         const raw = error instanceof Error ? error.message : "Sync failed";
-        const message = toUserMessage(error, "Sync failed");
+        const message = syncFailureMessage(error, toUserMessage(error, "Sync failed"));
         lastError = message;
         if (isSyncBusinessConflict(raw) && shouldMarkOutboxFailed(claimed.attempts, raw)) {
           if (claimed.type === "process_return") {

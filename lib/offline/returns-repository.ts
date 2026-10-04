@@ -219,6 +219,28 @@ export async function processReturnLocally(input: {
   return { returnNumber, receiptPayload, clientOperationId };
 }
 
+/**
+ * While a device sale has no server id, the return must stay queued and must
+ * not be claimed on every sync. Returns a message, or null when the return can upload.
+ */
+export function describeReturnUploadBlock(input: {
+  saleId: string;
+  serverSaleId?: string | null;
+  saleUpload: { status: string; lastError?: string | null } | null;
+}): string | null {
+  if (!input.saleId.startsWith("lsale_")) return null;
+  if (input.serverSaleId) return null;
+  const upload = input.saleUpload;
+  if (upload && (upload.status === "failed" || upload.status === "blocked_by_entitlement")) {
+    const reason = upload.lastError?.trim();
+    if (reason && reason.toLowerCase() !== "sync failed" && !/finish syncing/i.test(reason)) {
+      return `The sale has not uploaded yet. ${reason}`;
+    }
+    return "The sale could not upload. Retry that sale in Sync Center, then this return will follow.";
+  }
+  return "Waiting for the sale to finish syncing.";
+}
+
 /** Match device sale lines to the server sale after `lsale_` has a `serverSaleId`. */
 export function mapReturnLinesToServerSaleItems(
   lines: Array<{
