@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
@@ -172,7 +172,7 @@ function useOpenOperationsList(options: {
   const online = useConnectivity();
   const { industryProfile } = useBusinessCapabilities();
   const [local, setLocal] = useState<OpenOperationRow[] | null>(null);
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.operations.listOpenOperations,
     online && options.enabled
       ? {

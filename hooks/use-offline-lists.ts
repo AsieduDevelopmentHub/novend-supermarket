@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import {
@@ -104,7 +104,7 @@ export function useProductsList(options: {
   const [local, setLocal] = useState<ProductListRow[] | null>(null);
   const [localTotal, setLocalTotal] = useState(0);
   const skipLive = !online || !ready || serveLocal;
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.products.listProducts,
     skipLive
       ? "skip"
@@ -293,7 +293,7 @@ export function useInventoryList(options: {
   branchId?: Id<"branches">;
 }) {
   const { online, serveLocal, ready, lastSyncAt } = useBusinessDataGate();
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.inventory.list,
     online && ready && !serveLocal
       ? {
@@ -340,7 +340,7 @@ export function useInventoryList(options: {
 
 export function useCategoriesList() {
   const { online, serveLocal, ready, lastSyncAt } = useBusinessDataGate();
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.categories.list,
     online && ready && !serveLocal ? {} : "skip",
   );
@@ -424,7 +424,7 @@ export function useMirroredProduct(productId: string | null, branchId?: Id<"bran
 
 export function useCustomersList(options: { search: string; includeInactive: boolean }) {
   const { online, serveLocal, ready, lastSyncAt } = useBusinessDataGate();
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.customers.list,
     online && ready && !serveLocal
       ? {
@@ -494,7 +494,7 @@ export function useOrdersList(options: OrdersListOptions) {
   const { online, serveLocal, ready, lastSyncAt } = useBusinessDataGate();
   const [local, setLocal] = useState<Awaited<ReturnType<typeof listLocalOrders>>>(null);
   const useRemote = online && ready && !serveLocal;
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.sales.listOrders,
     useRemote
       ? {
@@ -639,7 +639,7 @@ function useMirrorRows<T>(loader: () => Promise<T[]>, deps: unknown[]) {
 
 export function useSuppliersList(options: { search: string; includeInactive: boolean }) {
   const { online, serveLocal, ready } = useBusinessDataGate();
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.suppliers.list,
     online && ready && !serveLocal
       ? { search: options.search || undefined, includeInactive: options.includeInactive }
@@ -672,10 +672,10 @@ export function useSuppliersList(options: { search: string; includeInactive: boo
 export function useWholesaleLists(search: string) {
   const { online, serveLocal, ready } = useBusinessDataGate();
   const live = online && ready && !serveLocal;
-  const stock = useQuery(api.wholesale.listStock, live ? { search } : "skip");
-  const summary = useQuery(api.wholesale.summary, live ? {} : "skip");
-  const purchases = useQuery(api.wholesale.listPurchases, live ? {} : "skip");
-  const transfers = useQuery(api.wholesale.listTransfers, live ? {} : "skip");
+  const stock = useAuthedQuery(api.wholesale.listStock, live ? { search } : "skip");
+  const summary = useAuthedQuery(api.wholesale.summary, live ? {} : "skip");
+  const purchases = useAuthedQuery(api.wholesale.listPurchases, live ? {} : "skip");
+  const transfers = useAuthedQuery(api.wholesale.listTransfers, live ? {} : "skip");
   const localStock = useMirrorRows(() => listMirroredWholesaleStock(search), [search]);
   const localPurchases = useMirrorRows(() => listMirroredWholesalePurchases(), []);
   const localTransfers = useMirrorRows(() => listMirroredWholesaleTransfers(), []);
@@ -725,7 +725,7 @@ export function useBranchesList(includeInactive = false, enabled = true) {
     phone: row.phone,
     status: row.status,
   }));
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.branches.list,
     enabled && online && ready && !serveLocal ? { includeInactive } : "skip",
   );
@@ -751,7 +751,7 @@ export function useUsersList(search: string, enabled = true) {
       lastDevice: row.lastDevice ?? null,
     };
   });
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.users.list,
     enabled && online && ready && !serveLocal ? { search: search || undefined } : "skip",
   );
@@ -785,7 +785,7 @@ export function useReturnsList(options: {
       ),
     [options.search, options.kind, options.branchId],
   );
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.returns.list,
     online && ready && !serveLocal
       ? {

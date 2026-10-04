@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { PasswordStrengthMeter } from "@/features/auth/components/password-strength";
 import { PASSWORD_POLICY_MESSAGE, passwordMeetsPolicy } from "@/convex/shared/passwordPolicy";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { showError } from "@/lib/errors";
 import { Plus, Users } from "lucide-react";
@@ -38,7 +39,7 @@ import { toast } from "sonner";
 export function PlatformStaffView() {
   const online = useConnectivity();
   const session = useQuery(api.platform.me, online ? {} : "skip");
-  const staff = useQuery(api.platform.listStaff, online ? {} : "skip");
+  const staff = useAuthedQuery(api.platform.listStaff, online ? {} : "skip");
   const createStaff = useAction(api.platform.createStaffAccount);
   const updateStaff = useMutation(api.platform.updateStaff);
 

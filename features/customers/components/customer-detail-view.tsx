@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -22,8 +22,8 @@ import { getMirroredCustomerDetail } from "@/lib/offline/mirror-queries";
 export function CustomerDetailView({ customerId }: { customerId: Id<"customers"> }) {
   const router = useRouter();
   const online = useConnectivity();
-  const remote = useQuery(api.customers.get, online ? { id: customerId } : "skip");
-  const history = useQuery(
+  const remote = useAuthedQuery(api.customers.get, online ? { id: customerId } : "skip");
+  const history = useAuthedQuery(
     api.customers.purchaseHistory,
     online ? { customerId, limit: 30 } : "skip",
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -10,7 +10,7 @@ import { BranchReceiptForm } from "./branch-receipt-form";
 
 export function BranchReceiptPanel() {
   const online = useConnectivity();
-  const branch = useQuery(api.branches.getMineForReceipt, online ? {} : "skip");
+  const branch = useAuthedQuery(api.branches.getMineForReceipt, online ? {} : "skip");
   const remoteBudgetElapsed = useRemoteBudget(online && branch === undefined);
 
   if (!online || (branch === undefined && remoteBudgetElapsed)) {

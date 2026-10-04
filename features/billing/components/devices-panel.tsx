@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { Laptop, MonitorSmartphone, Pencil, Power, PowerOff, Trash2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -55,7 +56,10 @@ export function DevicesPanel() {
   const online = useConnectivity();
   const { isAdmin } = usePermissions();
   const fingerprint = useDeviceFingerprint();
-  const data = useQuery(api.devices.listDevices, online && fingerprint ? { fingerprint } : "skip");
+  const data = useAuthedQuery(
+    api.devices.listDevices,
+    online && fingerprint ? { fingerprint } : "skip",
+  );
   const remoteBudgetElapsed = useRemoteBudget(online && Boolean(fingerprint) && data === undefined);
   const renameDevice = useMutation(api.devices.renameDevice);
   const deactivateDevice = useMutation(api.devices.deactivateDevice);

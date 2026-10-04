@@ -11,7 +11,8 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { driver, type Driver } from "driver.js";
 import { api } from "@/convex/_generated/api";
 import type { AppRole } from "@/config/navigation";
@@ -151,7 +152,7 @@ export function ProductTourProvider({
   const pathname = usePathname();
   const router = useRouter();
   const online = useConnectivity();
-  const liveProgress = useQuery(api.tours.listOwn, enabled && online ? {} : "skip");
+  const liveProgress = useAuthedQuery(api.tours.listOwn, enabled && online ? {} : "skip");
   const typedLiveProgress = liveProgress as TourProgress[] | undefined;
   const saveOwn = useMutation(api.tours.saveOwn);
   const restartOwn = useMutation(api.tours.restartOwn);

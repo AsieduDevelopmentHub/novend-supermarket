@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import {
   DEFAULT_BUSINESS_CONFIGURATION,
@@ -23,7 +23,7 @@ export function useBusinessCapabilities() {
   const { online } = useOfflineStatus();
   const skipTenantQuery =
     typeof window !== "undefined" && getBoundOrganizationId() === PLATFORM_OFFLINE_ORG_ID;
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.settings.getBusinessCapabilities,
     online && !skipTenantQuery ? {} : "skip",
   );

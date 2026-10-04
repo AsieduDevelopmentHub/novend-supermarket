@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader, Grid } from "@/components/layout/primitives";
@@ -161,7 +162,7 @@ export function AnalyticsView() {
 
   const branchArg = isAdmin && branchFilter !== "all" ? branchFilter : undefined;
 
-  const remoteSummary = useQuery(
+  const remoteSummary = useAuthedQuery(
     api.analytics.summary,
     online && range ? { ...range, granularity, branchId: branchArg } : "skip",
   );
@@ -173,7 +174,7 @@ export function AnalyticsView() {
     branchArg ? String(branchArg) : null,
     Boolean(range),
   );
-  const expensesRemote = useQuery(
+  const expensesRemote = useAuthedQuery(
     api.analytics.listExpenses,
     online && range && !preferLocal
       ? { startDate: range.startDate, endDate: range.endDate, limit: 200, branchId: branchArg }

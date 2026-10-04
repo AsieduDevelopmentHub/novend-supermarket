@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { remainingProductCreates } from "@/lib/export/capabilities";
 import {
@@ -67,9 +68,9 @@ export function ProductImportWizard({
   });
   const catalog = products ?? [];
   const branches = useBranchesList(false, isAdmin) ?? [];
-  const usage = useQuery(api.billing.usageSnapshot, online ? {} : "skip");
-  const remoteJobs = useQuery(api.imports.listJobs, online ? {} : "skip");
-  const remoteMappings = useQuery(api.imports.listMappings, online ? {} : "skip");
+  const usage = useAuthedQuery(api.billing.usageSnapshot, online ? {} : "skip");
+  const remoteJobs = useAuthedQuery(api.imports.listJobs, online ? {} : "skip");
+  const remoteMappings = useAuthedQuery(api.imports.listMappings, online ? {} : "skip");
   const recordJob = useMutation(api.imports.recordJob);
   const saveRemoteMapping = useMutation(api.imports.saveMapping);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePaginatedQuery, type PaginatedQueryReference } from "convex/react";
+import { useConvexAuth, usePaginatedQuery, type PaginatedQueryReference } from "convex/react";
 import {
   clampListPageSize,
   DEFAULT_LIST_PAGE_SIZE,
@@ -20,7 +20,9 @@ export function useConvexPagedList(
   args: Record<string, unknown> | "skip",
   options?: { enabled?: boolean; resetKey?: string },
 ) {
-  const enabled = options?.enabled !== false && args !== "skip";
+  const { isAuthenticated } = useConvexAuth();
+  // Paginated tenant queries throw Unauthenticated on an offline shell that regained the radio.
+  const enabled = isAuthenticated && options?.enabled !== false && args !== "skip";
   const resetKey = options?.resetKey ?? "";
   const [storedPageSize, setStoredPageSize] = useLocalStorage<number>(
     PAGE_SIZE_KEY,

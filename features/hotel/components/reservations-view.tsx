@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -68,11 +69,11 @@ export function ReservationsView() {
     Awaited<ReturnType<typeof listMirroredHotelRooms>>
   >(null);
 
-  const remoteReservations = useQuery(
+  const remoteReservations = useAuthedQuery(
     api.hotel.listReservations,
     online && canReservations ? {} : "skip",
   );
-  const remoteRooms = useQuery(api.hotel.listRooms, online && canReservations ? {} : "skip");
+  const remoteRooms = useAuthedQuery(api.hotel.listRooms, online && canReservations ? {} : "skip");
   const { customers: customerRows } = useCustomersList({
     search: "",
     includeInactive: false,

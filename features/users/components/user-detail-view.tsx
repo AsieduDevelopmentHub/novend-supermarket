@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -56,7 +57,10 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
     userId: actorUserId,
   } = usePermissions();
   const online = useConnectivity();
-  const remote = useQuery(api.users.get, canManageUsers && online ? { id: profileId } : "skip");
+  const remote = useAuthedQuery(
+    api.users.get,
+    canManageUsers && online ? { id: profileId } : "skip",
+  );
   const branches = useBranchesList(false);
   const [localUser, setLocalUser] = useState<
     Awaited<ReturnType<typeof listMirroredUsers>>[number] | null | undefined

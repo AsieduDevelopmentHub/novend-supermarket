@@ -254,6 +254,16 @@ so a document fetch that followed a 302 to `/login` would otherwise dump the til
 mid-shift. The service worker refuses to paint that login document under an app
 URL when a cached shell exists.
 
+Because the shell stays mounted with radio but no JWT, “online” alone never
+opens a Convex subscription. Tenant and platform reads use `useAuthedQuery`
+(`hooks/use-authed-query.ts`), which skips until `useConvexAuth` reports a
+session; `useConvexPagedList`, `useBusinessDataGate`, and the Sales catalog gate
+apply the same rule and serve Dexie meanwhile. A plain `useQuery` on a
+`requireRole` query would throw `Unauthenticated` during render and replace the
+Connect-to-cloud prompt with the error boundary. Plain `useQuery` is reserved for
+public queries and ones that return a safe value when signed out (`users.me`,
+`platform.me`); `tests/authed-query-gate.test.ts` enforces the allowlist.
+
 **Shared tills / multiple staff.** Every account that signs in on the device is
 remembered in `novend.offlineSessions`. **Login always uses the same email +
 password form** — online against Convex Auth, offline against the device digest

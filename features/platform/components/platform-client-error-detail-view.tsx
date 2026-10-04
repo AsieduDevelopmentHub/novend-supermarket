@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { ArrowLeft } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { PageHeader, Grid } from "@/components/layout/primitives";
@@ -84,7 +84,7 @@ export function PlatformClientErrorDetailView({ code }: { code: string }) {
   const online = useConnectivity();
   const [range, setRange] = useState<PlatformRevenueRange>("30d");
   const decoded = decodeURIComponent(code);
-  const data = useQuery(
+  const data = useAuthedQuery(
     api.platformAnalytics.getClientErrorCodeDetail,
     online ? { code: decoded, range } : "skip",
   );

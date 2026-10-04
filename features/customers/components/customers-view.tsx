@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
@@ -67,11 +68,11 @@ export function CustomersView() {
     setPageSize,
     total,
   } = useClientPagedRows(customers, `${search}|${isAdmin}`);
-  const history = useQuery(
+  const history = useAuthedQuery(
     api.customers.purchaseHistory,
     online && detailId ? { customerId: detailId, limit: 20 } : "skip",
   );
-  const detail = useQuery(api.customers.get, online && detailId ? { id: detailId } : "skip");
+  const detail = useAuthedQuery(api.customers.get, online && detailId ? { id: detailId } : "skip");
 
   const createCustomer = useMutation(api.customers.create);
   const updateCustomer = useMutation(api.customers.update);

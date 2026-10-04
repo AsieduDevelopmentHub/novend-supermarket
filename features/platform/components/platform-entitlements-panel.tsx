@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -61,11 +62,14 @@ export function PlatformEntitlementsPanel({
   organizationId: Id<"organizations">;
 }) {
   const online = useConnectivity();
-  const config = useQuery(
+  const config = useAuthedQuery(
     api.platform.getOrganizationConfig,
     online ? { organizationId } : "skip",
   );
-  const templates = useQuery(api.featureTemplates.list, online ? { status: "active" } : "skip");
+  const templates = useAuthedQuery(
+    api.featureTemplates.list,
+    online ? { status: "active" } : "skip",
+  );
   const assignTemplate = useMutation(api.featureTemplates.assignToOrganization);
   const setOverrides = useMutation(api.featureTemplates.setOrganizationFeatureOverrides);
   const setBillingVisibility = useMutation(api.featureTemplates.setOrganizationBillingVisibility);

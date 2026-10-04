@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { currentPayPeriodKey } from "@/convex/shared/payroll";
@@ -42,7 +42,7 @@ export function useStaffPerformance(args: {
   enabled: boolean;
 }) {
   const online = useConnectivity();
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.payroll.performance,
     online && args.enabled && args.startDate !== undefined && args.endDate !== undefined
       ? {
@@ -70,7 +70,10 @@ export function useStaffPerformance(args: {
 
 export function useStaffCompensation(profileId: Id<"profiles">, enabled: boolean) {
   const online = useConnectivity();
-  const remote = useQuery(api.payroll.getCompensation, online && enabled ? { profileId } : "skip");
+  const remote = useAuthedQuery(
+    api.payroll.getCompensation,
+    online && enabled ? { profileId } : "skip",
+  );
   const local = useLocalLoader(async () => {
     if (!enabled) return null;
     const row = await getLocalStaffCompensation(profileId);
@@ -96,7 +99,7 @@ export function useStaffMonthRecord(args: {
   enabled: boolean;
 }) {
   const online = useConnectivity();
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.payroll.monthRecord,
     online && args.enabled
       ? { profileId: args.profileId, payPeriodKey: args.payPeriodKey }
@@ -120,7 +123,7 @@ export function useStaffMonthRecord(args: {
 
 export function useStaffMonthRoster(payPeriodKey: string, enabled: boolean) {
   const online = useConnectivity();
-  const remote = useQuery(
+  const remote = useAuthedQuery(
     api.payroll.monthRoster,
     online && enabled && payPeriodKey ? { payPeriodKey } : "skip",
   );

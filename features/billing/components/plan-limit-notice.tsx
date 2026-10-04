@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { CircleAlert, Info, TrendingUp } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ function formatQuantity(resource: LimitResource, value: number): string {
 export function PlanLimitNotice({ resource }: { resource: LimitResource }) {
   const online = useConnectivity();
   const { isCashier, isAdmin, isLoading } = usePermissions();
-  const data = useQuery(
+  const data = useAuthedQuery(
     api.billing.usageSnapshot,
     online && !isCashier && !isLoading ? {} : "skip",
   );

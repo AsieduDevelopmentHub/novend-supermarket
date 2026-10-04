@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -41,7 +42,7 @@ export function KitchenView() {
     Awaited<ReturnType<typeof listMirroredKitchenTickets>>
   >(null);
 
-  const remoteTickets = useQuery(
+  const remoteTickets = useAuthedQuery(
     api.dining.listKitchenTickets,
     online && canKitchen ? {} : "skip",
   );

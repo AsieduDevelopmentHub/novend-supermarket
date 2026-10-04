@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useConvex, useQuery } from "convex/react";
+import { useConvex } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { HardDrive } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -43,7 +44,7 @@ export function CloudPackageRestoreGate() {
     cloudMode !== "full_sync";
   const boostActive =
     typeof syncBoostUntil === "number" && syncBoostUntil > Date.now() && cloudMode === "full_sync";
-  const usage = useQuery(
+  const usage = useAuthedQuery(
     api.cloudBackups.usage,
     online && isAdmin && packageMode && !boostActive ? {} : "skip",
   );

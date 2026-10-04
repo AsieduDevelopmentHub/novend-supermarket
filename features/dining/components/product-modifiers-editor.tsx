@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { toast } from "sonner";
 
 /** Compact modifier group editor for a product (modifiers capability). */
 export function ProductModifiersEditor({ productId }: { productId: Id<"products"> }) {
-  const groups = useQuery(api.dining.listModifierGroupsForProduct, { productId });
+  const groups = useAuthedQuery(api.dining.listModifierGroupsForProduct, { productId });
   const upsertGroup = useMutation(api.dining.upsertModifierGroup);
   const upsertOption = useMutation(api.dining.upsertModifierOption);
   const [groupName, setGroupName] = useState("");

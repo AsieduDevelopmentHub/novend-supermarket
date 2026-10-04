@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import {
@@ -17,7 +17,7 @@ type CacheSource = "live" | "cache";
 
 export function useBillingOverviewData() {
   const online = useConnectivity();
-  const live = useQuery(api.billing.overview, online ? {} : "skip");
+  const live = useAuthedQuery(api.billing.overview, online ? {} : "skip");
   const [cached, setCached] = useState<CachedBillingOverview | null>(null);
   const [cacheReady, setCacheReady] = useState(false);
 
@@ -49,7 +49,7 @@ export function useBillingOverviewData() {
 
 export function useBillingHistoryData() {
   const online = useConnectivity();
-  const live = useQuery(api.billing.history, online ? { limit: 25 } : "skip");
+  const live = useAuthedQuery(api.billing.history, online ? { limit: 25 } : "skip");
   const [cached, setCached] = useState<CachedBillingHistoryRow[] | null>(null);
   const [cacheReady, setCacheReady] = useState(false);
 

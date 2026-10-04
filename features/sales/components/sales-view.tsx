@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
@@ -247,7 +248,7 @@ export function SalesView() {
     return resolveCatalogAvailable(productId, catalog, stockHints);
   }
 
-  const remoteHeld = useQuery(api.sales.listHeld, online ? {} : "skip");
+  const remoteHeld = useAuthedQuery(api.sales.listHeld, online ? {} : "skip");
   const holdSale = useMutation(api.sales.holdSale);
   const resumeHeld = useMutation(api.sales.resumeHeld);
   const createCustomer = useMutation(api.customers.create);

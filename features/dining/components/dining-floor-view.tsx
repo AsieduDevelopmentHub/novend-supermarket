@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { usePermissions, useCurrentUser } from "@/hooks/use-permissions";
@@ -67,9 +68,12 @@ export function DiningFloorView() {
     Awaited<ReturnType<typeof getMirroredDiningSession>>
   >(null);
 
-  const remoteTables = useQuery(api.dining.listTables, online && canFloor ? {} : "skip");
-  const remoteSessions = useQuery(api.dining.listOpenSessions, online && canFloor ? {} : "skip");
-  const remoteSession = useQuery(
+  const remoteTables = useAuthedQuery(api.dining.listTables, online && canFloor ? {} : "skip");
+  const remoteSessions = useAuthedQuery(
+    api.dining.listOpenSessions,
+    online && canFloor ? {} : "skip",
+  );
+  const remoteSession = useAuthedQuery(
     api.dining.getSession,
     online && canFloor && selectedSessionId && !selectedSessionId.startsWith("local_")
       ? { sessionId: selectedSessionId as Id<"diningSessions"> }
@@ -82,11 +86,11 @@ export function DiningFloorView() {
     branchId: branchId ?? undefined,
   });
   const products = { items: productRows };
-  const branches = useQuery(
+  const branches = useAuthedQuery(
     api.branches.list,
     online && canFloor && (isAdmin || isManager) ? {} : "skip",
   );
-  const modifierGroups = useQuery(
+  const modifierGroups = useAuthedQuery(
     api.dining.listModifierGroupsForProduct,
     online && canFloor && productId ? { productId: productId as Id<"products"> } : "skip",
   );
