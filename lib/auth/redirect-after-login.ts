@@ -38,6 +38,11 @@ const SHELL_PROFILE_BUDGET_MS = 1_200;
 /** In-memory latch for the in-flight hard leave (survives only this JS lifetime). */
 let hardNavigationPending = false;
 
+/** Login document never unloaded — allow another leave instead of no-op forever. */
+export function resetHardNavigationPending(): void {
+  hardNavigationPending = false;
+}
+
 export type PostLoginSession = {
   path: string;
   userId: string;
@@ -350,9 +355,19 @@ export function prepareHardNavigation(): void {
         element.defaultChecked = element.checked;
       } else {
         element.defaultValue = element.value;
+        // Empty the field. A typed password stays "unsaved" through form.reset()
+        // once React writes the controlled value back, which is the Leave site prompt.
+        element.value = "";
+        element.defaultValue = "";
+        const tracker = (
+          element as HTMLInputElement & { _valueTracker?: { setValue: (value: string) => void } }
+        )._valueTracker;
+        tracker?.setValue("");
       }
     } else if (element instanceof HTMLTextAreaElement) {
       element.defaultValue = element.value;
+      element.value = "";
+      element.defaultValue = "";
     } else if (element instanceof HTMLSelectElement) {
       for (const option of Array.from(element.options)) {
         option.defaultSelected = option.selected;

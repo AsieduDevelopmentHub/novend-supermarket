@@ -172,6 +172,8 @@ describe("redirect-after-login", () => {
     expect(source).not.toContain('toast.success("Welcome")');
     // Inputs stay in the DOM so prepareHardNavigation can clear leave-site dirt.
     expect(source).toContain("aria-hidden={openingWorkspace}");
+    expect(source).toContain("resetHardNavigationPending()");
+    expect(source).toContain("LOGIN_COVER_GIVE_UP_MS");
   });
 
   it("keeps users.me settle budgets short so the login cover clears quickly", () => {

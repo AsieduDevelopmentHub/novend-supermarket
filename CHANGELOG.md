@@ -29,6 +29,8 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### Fixed
 
+- Signing in no longer asks “Leave site? Changes you made may not be saved.” The typed password is cleared before the page changes, and the desktop app ignores that dialog on its own sign-in reload.
+- Electron no longer leaves “Opening your workspace” up with no way back. If the desktop reload never actually leaves the login page, the form returns after a short wait so sign-in can be tried again. The shell reload also reports failure when the local boot page does not load, instead of claiming success first.
 - Return no longer waits for a cloud sale. An order saved on this device can be returned immediately, online or offline. Stock and the return receipt are written on the device. A later background upload sends that return after the sale, without asking the cashier to sync first.
 - Administrators can complete a sale for a branch that is not their home branch while offline. The till already has that branch’s stock in the device snapshot, so Pay no longer asks them to connect first. The sale is stored against the branch they selected.
 - Inactivity lock no longer refuses password unlock offline. Without a live Convex session, `WorkspaceLockOverlay` checks the PBKDF2 device verifier from the last online sign-in (`verifyLocalAuth`, matching `userId`), as offline `/login` does. Before, an online till still waiting for a JWT showed “Incorrect password” because `users.verifyPassword` requires auth.
