@@ -10,6 +10,7 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### What's new
 
+- You can return items from an order that exists only on this device. Stock goes back and the return receipt is saved with no connection.
 - Signing in plays a longer logo animation that keeps moving while your account opens, then fades into the dashboard when the figures are ready.
 - Checkout can record Cash (the default), MoMo, or Card. The choice shows as a tag on orders and on the day’s report.
 - Dashboard cards use short period names (for example “Sales · 7d”) so the titles stay on one line.
@@ -28,6 +29,7 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### Fixed
 
+- Return no longer waits for a cloud sale. An order saved on this device can be returned immediately, online or offline. Stock and the return receipt are written on the device. A later background upload sends that return after the sale, without asking the cashier to sync first.
 - Administrators can complete a sale for a branch that is not their home branch while offline. The till already has that branch’s stock in the device snapshot, so Pay no longer asks them to connect first. The sale is stored against the branch they selected.
 - Inactivity lock no longer refuses password unlock offline. Without a live Convex session, `WorkspaceLockOverlay` checks the PBKDF2 device verifier from the last online sign-in (`verifyLocalAuth`, matching `userId`), as offline `/login` does. Before, an online till still waiting for a JWT showed “Incorrect password” because `users.verifyPassword` requires auth.
 - Offline → online no longer crashes into the error boundary: tenant and platform Convex reads (`useAuthedQuery`, paged lists, business-data and Sales catalog gates) wait for a Convex JWT instead of subscribing as soon as the radio returns, which made `requireRole` throw `Unauthenticated` over the reconnect prompt.

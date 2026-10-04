@@ -1,3 +1,4 @@
+import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { toUserMessage } from "@/lib/errors";
 import {
@@ -32,7 +33,11 @@ import {
 } from "./license-guard";
 import { loadLicenseSnapshot } from "./license";
 import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
-import { markLocalReturnFailed, markLocalReturnSynced } from "./returns-repository";
+import {
+  mapReturnLinesToServerSaleItems,
+  markLocalReturnFailed,
+  markLocalReturnSynced,
+} from "./returns-repository";
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
 import { isSyncBusinessConflict } from "./sync-errors";
 import { shouldMarkOutboxFailed } from "./outbox-policy";
@@ -388,6 +393,35 @@ type DrainOptions = {
 };
 type DrainResult = { processed: number; failed: number; skipped: boolean };
 
+async function resolveProcessReturnUpload(
+  db: NovendOfflineDb,
+  payload: ReturnType<typeof parseProcessReturnPayload>,
+  convex: SnapshotSource,
+): Promise<
+  | { status: "ready"; saleId: string; items: Array<{ saleItemId: string; quantity: number }> }
+  | { status: "wait"; message: string }
+> {
+  if (!payload.saleId.startsWith("lsale_")) {
+    return { status: "ready", saleId: payload.saleId, items: payload.items };
+  }
+  const localSale = await db.localSales.get(payload.saleId);
+  if (!localSale?.serverSaleId) {
+    return { status: "wait", message: "Waiting for the sale to finish syncing." };
+  }
+  const localItems = await db.localSaleItems.where("localSaleId").equals(payload.saleId).toArray();
+  const order = await convex.query(api.sales.getOrder, {
+    id: localSale.serverSaleId as Id<"sales">,
+  });
+  if (!order) {
+    throw new Error("Synced sale was not found for this return.");
+  }
+  const items = mapReturnLinesToServerSaleItems(payload.items, localItems, order.items);
+  if (!items) {
+    throw new Error("Could not match return lines to the synced sale.");
+  }
+  return { status: "ready", saleId: localSale.serverSaleId, items };
+}
+
 export async function drainOutbox(options: DrainOptions): Promise<DrainResult> {
   const db = await getOfflineDb();
   if (!db) return { processed: 0, failed: 0, skipped: true };
@@ -522,11 +556,16 @@ async function drainOwnedOutbox(
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "process_return") {
           const payload = parseProcessReturnPayload(claimed);
+          const uploaded = await resolveProcessReturnUpload(db, payload, options.convex);
+          if (uploaded.status === "wait") {
+            await markOutboxPending(db, claimed.id, uploaded.message);
+            continue;
+          }
           const localReturn = await db.localReturns.get(payload.localReturnId);
           const returnNumber = payload.returnNumber ?? localReturn?.returnNumber;
           const result = await options.mutators.processReturn({
-            saleId: payload.saleId as Id<"sales">,
-            items: payload.items.map((item) => ({
+            saleId: uploaded.saleId as Id<"sales">,
+            items: uploaded.items.map((item) => ({
               saleItemId: item.saleItemId as Id<"saleItems">,
               quantity: item.quantity,
             })),

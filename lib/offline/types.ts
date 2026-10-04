@@ -363,6 +363,9 @@ export type ProcessReturnOutboxPayload = {
   items: Array<{
     saleItemId: string;
     quantity: number;
+    /** Kept so a device sale can be matched to server lines after the sale syncs. */
+    productId?: string;
+    soldQuantity?: number;
   }>;
 };
 

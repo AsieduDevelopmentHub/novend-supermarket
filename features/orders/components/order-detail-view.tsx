@@ -18,8 +18,9 @@ import { ReceiptPreviewDialog } from "@/features/receipts/components/receipt-pre
 import { SAMPLE_RECEIPT_PAYLOAD, type ReceiptPayload } from "@/features/receipts/types";
 import { ReturnOrderDialog } from "@/features/orders/components/return-order-dialog";
 import { getOfflineDb } from "@/lib/offline/db";
+import type { LocalReturn } from "@/lib/offline/types";
 import { loadPrintSnapshotMeta } from "@/lib/offline/ui-cache";
-import { listUnsyncedLocalReturns, returnedQtyBySaleItem } from "@/lib/offline/returns-repository";
+import { listUnsyncedLocalReturns } from "@/lib/offline/returns-repository";
 import { ArrowLeft, ChevronRight, Printer, Undo2 } from "lucide-react";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -65,19 +66,70 @@ type OrderDetail = {
   syncHint?: string;
 };
 
-async function overlayPendingReturns(base: OrderDetail): Promise<OrderDetail> {
-  const extraReturned = await returnedQtyBySaleItem(base.id);
-  const pending = await listUnsyncedLocalReturns(base.id);
-  if (extraReturned.size === 0 && pending.length === 0) return base;
+async function saleIdsForPendingReturns(saleId: string): Promise<string[]> {
+  const ids = [saleId];
+  if (saleId.startsWith("lsale_")) return ids;
+  const db = await getOfflineDb();
+  if (!db) return ids;
+  const locals = await db.localSales.filter((sale) => sale.serverSaleId === saleId).toArray();
+  for (const sale of locals) ids.push(sale.id);
+  return ids;
+}
 
-  const items = base.items.map((item) => {
-    const returnedQuantity = item.returnedQuantity + (extraReturned.get(item.id) ?? 0);
+async function overlayPendingReturns(base: OrderDetail): Promise<OrderDetail> {
+  const db = await getOfflineDb();
+  const saleIds = await saleIdsForPendingReturns(base.id);
+  const knownItemIds = new Set(base.items.map((item) => item.id));
+  const extraByItem = new Map<string, number>();
+  const unmatched: Array<{ productId: string; quantity: number }> = [];
+  const pending: LocalReturn[] = [];
+  const seenReturns = new Set<string>();
+  for (const saleId of saleIds) {
+    const rows = await listUnsyncedLocalReturns(saleId);
+    for (const row of rows) {
+      if (seenReturns.has(row.id)) continue;
+      seenReturns.add(row.id);
+      pending.push(row);
+      if (!db) continue;
+      const lines = await db.localReturnItems.where("localReturnId").equals(row.id).toArray();
+      for (const line of lines) {
+        if (knownItemIds.has(line.saleItemId)) {
+          extraByItem.set(line.saleItemId, (extraByItem.get(line.saleItemId) ?? 0) + line.quantity);
+        } else if (line.productId) {
+          unmatched.push({ productId: line.productId, quantity: line.quantity });
+        }
+      }
+    }
+  }
+  if (extraByItem.size === 0 && unmatched.length === 0 && pending.length === 0) return base;
+
+  let items = base.items.map((item) => {
+    const returnedQuantity = item.returnedQuantity + (extraByItem.get(item.id) ?? 0);
     return {
       ...item,
       returnedQuantity,
       remainingQuantity: Math.max(0, item.quantity - returnedQuantity),
     };
   });
+  for (const extra of unmatched) {
+    const index = items.findIndex(
+      (item) => item.productId === extra.productId && item.remainingQuantity > 0,
+    );
+    if (index < 0) continue;
+    const item = items[index];
+    if (!item) continue;
+    const taken = Math.min(extra.quantity, item.remainingQuantity);
+    const returnedQuantity = item.returnedQuantity + taken;
+    items = items.map((row, rowIndex) =>
+      rowIndex === index
+        ? {
+            ...row,
+            returnedQuantity,
+            remainingQuantity: Math.max(0, row.quantity - returnedQuantity),
+          }
+        : row,
+    );
+  }
   const extraRefund = pending.reduce((sum, row) => sum + row.refundAmount, 0);
   const refundedAmount = base.refundedAmount + extraRefund;
   const pendingIds = new Set(pending.map((row) => row.id));
@@ -188,7 +240,7 @@ async function loadLocalOrder(localSaleId: string): Promise<OrderDetail | null> 
           : "Sync failed"
         : undefined;
 
-  return {
+  const detail: OrderDetail = {
     id: sale.id,
     invoiceNumber: sale.invoiceNumber,
     customerId: sale.customerId ?? null,
@@ -212,11 +264,12 @@ async function loadLocalOrder(localSaleId: string): Promise<OrderDetail | null> 
     })),
     refundedAmount: 0,
     remainingRefundable: sale.total,
-    canReturn: false,
+    canReturn: items.some((item) => item.quantity > 0),
     returns: [],
     receiptPayload,
     syncHint,
   };
+  return overlayPendingReturns(detail);
 }
 
 async function loadLocalReceiptForSale(args: {
@@ -292,17 +345,20 @@ async function loadMirroredOrder(saleId: string): Promise<OrderDetail | null> {
     db.orderItems.where("orderId").equals(saleId).toArray(),
     db.returns.where("saleId").equals(saleId).toArray(),
   ]);
-  const mappedItems = items.map((item) => ({
-    id: item.id,
-    productId: item.productId,
-    productName: item.productName,
-    quantity: item.quantity,
-    unitPrice: item.unitPrice,
-    discount: item.discount,
-    lineTotal: item.lineTotal,
-    returnedQuantity: item.returnedQuantity,
-    remainingQuantity: Math.max(0, item.quantity - item.returnedQuantity),
-  }));
+  const mappedItems = items.map((item) => {
+    const returnedQuantity = item.returnedQuantity ?? 0;
+    return {
+      id: item.id,
+      productId: item.productId,
+      productName: item.productName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discount,
+      lineTotal: item.lineTotal,
+      returnedQuantity,
+      remainingQuantity: Math.max(0, item.quantity - returnedQuantity),
+    };
+  });
   const localReceipt = await loadLocalReceiptForSale({
     saleId,
     invoiceNumber: sale.invoiceNumber,
@@ -336,7 +392,7 @@ async function loadMirroredOrder(saleId: string): Promise<OrderDetail | null> {
     items: mappedItems,
     refundedAmount: sale.refundedAmount ?? 0,
     remainingRefundable: Math.max(0, sale.total - (sale.refundedAmount ?? 0)),
-    canReturn: items.some((item) => item.quantity - item.returnedQuantity > 0),
+    canReturn: mappedItems.some((item) => item.remainingQuantity > 0),
     returns: mirroredReturns
       .map((row) => ({
         id: row.id,
@@ -467,8 +523,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
   }
 
   const syncedDiverged =
-    typeof order.syncedAt === "number" &&
-    Math.abs(order.syncedAt - order.completedAt) > 60_000;
+    typeof order.syncedAt === "number" && Math.abs(order.syncedAt - order.completedAt) > 60_000;
   const orderWhenLabel = syncedDiverged
     ? `${formatDateTime(order.completedAt)} · Synced ${formatDateTime(order.syncedAt!)}`
     : formatDateTime(order.completedAt);
@@ -626,10 +681,6 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
             ))}
           </CardContent>
         </Card>
-      ) : null}
-
-      {canProcessReturns && !order.canReturn && isLocalSaleId(order.id) ? (
-        <p className="text-muted-foreground text-sm">Sync this sale before returning items.</p>
       ) : null}
 
       <ReceiptPreviewDialog
