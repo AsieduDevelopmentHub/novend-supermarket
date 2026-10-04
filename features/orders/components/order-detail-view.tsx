@@ -31,7 +31,7 @@ type OrderDetail = {
   customerId: string | null;
   customerName: string;
   cashierName: string;
-  paymentMethod: "cash" | "card" | "mobile_money" | "other";
+  paymentMethod: "cash" | "card" | "mobile_money";
   subtotal: number;
   discount: number;
   total: number;
@@ -114,7 +114,7 @@ function mapRemoteOrder(remote: {
   customerId: string | null;
   customerName: string;
   cashierName: string;
-  paymentMethod: "cash" | "card" | "mobile_money" | "other";
+  paymentMethod: "cash" | "card" | "mobile_money";
   subtotal: number;
   discount: number;
   total: number;

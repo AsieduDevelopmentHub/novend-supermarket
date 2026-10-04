@@ -217,7 +217,7 @@ export const getSnapshot = query({
       discount: sale.discount,
       total: sale.total,
       refundedAmount: refundedBySale.get(sale._id) ?? 0,
-      paymentMethod: sale.paymentMethod as "cash" | "card" | "mobile_money" | "other",
+      paymentMethod: sale.paymentMethod as "cash" | "card" | "mobile_money",
       status: sale.status,
       completedAt: sale.completedAt,
       branchId: (sale.branchId as string | undefined) ?? null,

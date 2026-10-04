@@ -43,7 +43,6 @@ export const PAYMENT_FILTER_OPTIONS = [
   { value: "cash", label: "Cash" },
   { value: "mobile_money", label: "MoMo" },
   { value: "card", label: "Card" },
-  { value: "other", label: "Other" },
 ] as const;
 
 export const RETURN_STATUS_OPTIONS = [

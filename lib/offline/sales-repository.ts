@@ -83,7 +83,7 @@ async function loadPrintSnapshot(db: NovendOfflineDb): Promise<PrintSnapshot> {
 export async function completeSaleLocally(input: {
   items: CartLineInput[];
   discount: number;
-  paymentMethod: "cash" | "card" | "mobile_money" | "other";
+  paymentMethod: "cash" | "card" | "mobile_money";
   customerId?: string;
   customerName?: string;
   customerPhone?: string | null;
@@ -515,7 +515,7 @@ export async function mirrorCompletedSale(input: {
   subtotal: number;
   discount: number;
   total: number;
-  paymentMethod: "cash" | "card" | "mobile_money" | "other";
+  paymentMethod: "cash" | "card" | "mobile_money";
   completedAt: number;
   branchId?: string | null;
   branchName?: string | null;

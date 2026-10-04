@@ -5,5 +5,4 @@ export const paymentMethodValidator = v.union(
   v.literal("cash"),
   v.literal("card"),
   v.literal("mobile_money"),
-  v.literal("other"),
 );

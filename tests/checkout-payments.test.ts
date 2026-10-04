@@ -10,15 +10,10 @@ const sales = readFileSync(
 );
 
 describe("checkout payments", () => {
-  it("offers cash first, then MoMo, card, and other", () => {
-    expect(PAYMENT_METHOD_OPTIONS.map((option) => option.label)).toEqual([
-      "Cash",
-      "MoMo",
-      "Card",
-      "Other",
-    ]);
+  it("offers cash first, then MoMo and card", () => {
+    expect(PAYMENT_METHOD_OPTIONS.map((option) => option.label)).toEqual(["Cash", "MoMo", "Card"]);
     expect(paymentMethodLabel("mobile_money")).toBe("MoMo");
-    expect(paymentMethodLabel("other")).toBe("Other");
+    expect(PAYMENT_METHOD_OPTIONS).toHaveLength(3);
   });
 
   it("defaults the till to cash and no longer blocks another branch offline", () => {
