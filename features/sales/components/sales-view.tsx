@@ -21,6 +21,7 @@ import {
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { formatCurrency, roundMoney } from "@/lib/currency";
+import { PAYMENT_METHOD_OPTIONS, type PaymentMethod } from "@/lib/payments";
 import { Minus, Plus, ScanBarcode, ShoppingCart, Trash2, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -146,6 +147,7 @@ export function SalesView() {
   const [printFailureMessage, setPrintFailureMessage] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const payingRef = useRef(false);
   const [holding, setHolding] = useState(false);
   const holdingRef = useRef(false);
@@ -755,10 +757,6 @@ export function SalesView() {
       toast.error(`Not enough stock for ${oversold.name}. Available: ${available}.`);
       return;
     }
-    if (isAdmin && myBranchId && saleBranchId !== myBranchId && !online) {
-      toast.error("Connect to the internet to sell from another branch.");
-      return;
-    }
     if (!dexieAvailable) {
       toast.error("Local storage unavailable — cannot complete sale offline");
       return;
@@ -770,7 +768,7 @@ export function SalesView() {
       const result = await completeSaleLocally({
         items: cart,
         discount: cartDiscount,
-        paymentMethod: "cash",
+        paymentMethod,
         customerId: customer?.id,
         customerName: customer?.name,
         customerPhone: customer?.phone,
@@ -780,6 +778,7 @@ export function SalesView() {
       clearCartDiscount();
       setCustomer(null);
       setCustomerQuery("");
+      setPaymentMethod("cash");
       setCheckoutOpen(false);
       await refreshLocal();
       notifyReplicaChanged({ flush: true });
@@ -1022,6 +1021,8 @@ export function SalesView() {
               onCommitCartQuantity={commitCartQuantity}
               onDiscountMode={setDiscountModeAndConvert}
               onDiscountField={setDiscountField}
+              paymentMethod={paymentMethod}
+              onPaymentMethod={setPaymentMethod}
               onHold={() => void onHold()}
               onPay={() => void onPay()}
               onReprint={openLastReceipt}
@@ -1092,6 +1093,8 @@ export function SalesView() {
               onCommitCartQuantity={commitCartQuantity}
               onDiscountMode={setDiscountModeAndConvert}
               onDiscountField={setDiscountField}
+              paymentMethod={paymentMethod}
+              onPaymentMethod={setPaymentMethod}
               onHold={() => void onHold()}
               onPay={() => void onPay()}
               onReprint={openLastReceipt}
@@ -1209,6 +1212,8 @@ type SalesCheckoutFieldsProps = {
   onCommitCartQuantity: (productId: string) => void;
   onDiscountMode: (mode: DiscountMode) => void;
   onDiscountField: (value: number) => void;
+  paymentMethod: PaymentMethod;
+  onPaymentMethod: (method: PaymentMethod) => void;
   onHold: () => void;
   onPay: () => void;
   onReprint: () => void;
@@ -1242,6 +1247,8 @@ function SalesCheckoutFields({
   onSetCart,
   onSetCartQuantity,
   onCommitCartQuantity,
+  paymentMethod,
+  onPaymentMethod,
   onDiscountMode,
   onDiscountField,
   onHold,
@@ -1511,6 +1518,30 @@ function SalesCheckoutFields({
                 : `Discount cannot exceed the subtotal (${formatCurrency(subtotal)})`}
             </p>
           ) : null}
+        </div>
+        <div className="space-y-1.5">
+          <span className="text-muted-foreground text-sm">Payment</span>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Payment method">
+            {PAYMENT_METHOD_OPTIONS.map((option) => {
+              const selected = paymentMethod === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={selected}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                    selected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => onPaymentMethod(option.value)}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div className="flex justify-between text-base font-semibold">
           <span>Total</span>

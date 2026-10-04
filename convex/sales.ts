@@ -13,6 +13,7 @@ import { writeAuditLog } from "./shared/audit";
 import { Doc, Id } from "./_generated/dataModel";
 import { loadPrintSnapshot, loadBusinessConfiguration } from "./settings";
 import { applyBranchStockChange, getBranchQuantity, stockMapForBranch } from "./shared/branchStock";
+import { paymentMethodValidator } from "./shared/paymentMethod";
 import {
   decreaseLots,
   deriveExpiryListFields,
@@ -336,7 +337,7 @@ export const completeSale = mutation({
       }),
     ),
     discount: v.number(),
-    paymentMethod: v.union(v.literal("cash"), v.literal("card"), v.literal("mobile_money")),
+    paymentMethod: paymentMethodValidator,
     /** Working branch for this sale (admin may choose; others use assigned). */
     branchId: v.optional(v.id("branches")),
     heldSaleId: v.optional(v.id("heldSales")),
@@ -639,12 +640,6 @@ export const completeSale = mutation({
     return { saleId, invoiceNumber, total, receiptPayload: payload };
   },
 });
-
-const paymentMethodValidator = v.union(
-  v.literal("cash"),
-  v.literal("card"),
-  v.literal("mobile_money"),
-);
 
 export const listOrders = query({
   args: {

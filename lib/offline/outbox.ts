@@ -93,7 +93,7 @@ export async function enqueueDiningPaySession(
   clientOperationId: string,
   payload: {
     sessionId: string;
-    paymentMethod: "cash" | "card" | "mobile_money";
+    paymentMethod: "cash" | "card" | "mobile_money" | "other";
     discount?: number;
     customerName?: string;
   },
@@ -145,7 +145,7 @@ export async function enqueueHotelCheckoutPay(
   clientOperationId: string,
   payload: {
     stayId: string;
-    paymentMethod: "cash" | "card" | "mobile_money";
+    paymentMethod: "cash" | "card" | "mobile_money" | "other";
     discount?: number;
   },
 ): Promise<OutboxRow> {

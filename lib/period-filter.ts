@@ -29,6 +29,28 @@ export function periodPresetLabel(value: PeriodPreset): string {
   return PERIOD_PRESET_OPTIONS.find((option) => option.value === value)?.label ?? "Custom dates";
 }
 
+/** One-word window for tight KPI titles. The page header keeps the full label. */
+export function periodPresetShortLabel(value: PeriodPreset): string {
+  switch (value) {
+    case "today":
+      return "Today";
+    case "this_week":
+      return "Week";
+    case "last_7_days":
+      return "7d";
+    case "last_30_days":
+      return "30d";
+    case "this_month":
+      return "Month";
+    case "this_quarter":
+      return "Quarter";
+    case "this_year":
+      return "Year";
+    case "custom":
+      return "Custom";
+  }
+}
+
 export function localIsoDate(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
     date.getDate(),

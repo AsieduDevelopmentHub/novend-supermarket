@@ -12,7 +12,9 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/currency";
+import { paymentMethodLabel } from "@/lib/payments";
 import { formatDate, formatDateTime } from "@/lib/date";
 import { ArrowLeft } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -107,6 +109,7 @@ export function ReportDayDetailView() {
                       <th className="px-4 py-3 font-medium">Customer</th>
                       <th className="px-4 py-3 font-medium">Cashier</th>
                       <th className="px-4 py-3 font-medium">Branch</th>
+                      <th className="px-4 py-3 font-medium">Payment</th>
                       <th className="px-4 py-3 font-medium">Items</th>
                       <th className="px-4 py-3 font-medium">Total</th>
                     </tr>
@@ -119,6 +122,11 @@ export function ReportDayDetailView() {
                         <td className="px-4 py-3">{order.customerName}</td>
                         <td className="px-4 py-3">{order.cashierName}</td>
                         <td className="px-4 py-3">{order.branchName ?? "—"}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant="secondary">
+                            {paymentMethodLabel(order.paymentMethod)}
+                          </Badge>
+                        </td>
                         <td className="px-4 py-3">{order.itemCount}</td>
                         <td className="px-4 py-3 font-medium">{formatCurrency(order.total)}</td>
                       </ClickableTableRow>
@@ -227,6 +235,7 @@ function LocalDayFallback({ date, backHref }: { date: string; backHref: string }
                 <tr>
                   <th className="px-4 py-3 font-medium">Invoice</th>
                   <th className="px-4 py-3 font-medium">Customer</th>
+                  <th className="px-4 py-3 font-medium">Payment</th>
                   <th className="px-4 py-3 font-medium">Total</th>
                 </tr>
               </thead>
@@ -235,6 +244,9 @@ function LocalDayFallback({ date, backHref }: { date: string; backHref: string }
                   <ClickableTableRow key={order.id} href={`/orders/${order.id}`}>
                     <td className="px-4 py-3 font-medium">{order.invoiceNumber}</td>
                     <td className="px-4 py-3">{order.customerName}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant="secondary">{paymentMethodLabel(order.paymentMethod)}</Badge>
+                    </td>
                     <td className="px-4 py-3">{formatCurrency(order.total)}</td>
                   </ClickableTableRow>
                 ))}

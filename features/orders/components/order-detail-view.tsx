@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { formatCurrency } from "@/lib/currency";
+import { paymentMethodLabel } from "@/lib/payments";
 import { formatDateTime } from "@/lib/date";
 import { ReceiptPreviewDialog } from "@/features/receipts/components/receipt-preview-dialog";
 import { SAMPLE_RECEIPT_PAYLOAD, type ReceiptPayload } from "@/features/receipts/types";
@@ -30,7 +31,7 @@ type OrderDetail = {
   customerId: string | null;
   customerName: string;
   cashierName: string;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: "cash" | "card" | "mobile_money" | "other";
   subtotal: number;
   discount: number;
   total: number;
@@ -113,7 +114,7 @@ function mapRemoteOrder(remote: {
   customerId: string | null;
   customerName: string;
   cashierName: string;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: "cash" | "card" | "mobile_money" | "other";
   subtotal: number;
   discount: number;
   total: number;
@@ -533,7 +534,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetaCard label="Customer" value={order.customerName} />
         <MetaCard label="Cashier" value={order.cashierName} />
-        <MetaCard label="Payment" value={order.paymentMethod.replace("_", " ")} capitalize />
+        <MetaCard label="Payment" value={paymentMethodLabel(order.paymentMethod)} />
         <div className="border-border bg-card rounded-xl border p-4 shadow-sm">
           <p className="text-muted-foreground text-sm">Status</p>
           <div className="mt-2 flex flex-wrap gap-2">

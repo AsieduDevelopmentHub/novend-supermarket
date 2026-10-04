@@ -79,7 +79,10 @@ import { PushRegistrationHost } from "@/providers/push-registration";
 import { PushRegistrationErrorBoundary } from "@/providers/push-registration-boundary";
 import { ProductTourProvider } from "@/features/tours/tour-provider";
 import { CustomerDisplayServices } from "@/features/customer-display/components/customer-display-services";
-import { WorkspaceLockOverlay } from "@/features/auth/components/workspace-lock-overlay";
+import {
+  WorkspaceLockOverlay,
+  type WorkspaceLockIdentity,
+} from "@/features/auth/components/workspace-lock-overlay";
 import { useWorkspaceIdleLock } from "@/hooks/use-workspace-idle-lock";
 
 const OFFLINE_AUTH_BUDGET_MS = 1200;
@@ -169,10 +172,10 @@ function SigningOutSplash({ activeLeave }: { activeLeave: boolean }) {
 
 /** Idle lock only after the authenticated tenant/platform shell is ready to paint. */
 function AppShellWithIdleLock({
-  userName,
+  identity,
   children,
 }: {
-  userName: string | null;
+  identity: WorkspaceLockIdentity | null;
   children: ReactNode;
 }) {
   const { locked, unlock } = useWorkspaceIdleLock({ enabled: true });
@@ -196,7 +199,7 @@ function AppShellWithIdleLock({
   return (
     <>
       {children}
-      {locked ? <WorkspaceLockOverlay userName={userName} onUnlocked={handleUnlocked} /> : null}
+      {locked ? <WorkspaceLockOverlay identity={identity} onUnlocked={handleUnlocked} /> : null}
     </>
   );
 }
@@ -864,7 +867,17 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   if (showPlatformShell) {
     return (
       <NativeAppServices>
-        <AppShellWithIdleLock userName={user?.name ?? resolvedPlatformSession?.name ?? null}>
+        <AppShellWithIdleLock
+          identity={
+            resolvedPlatformSession
+              ? {
+                  userId: resolvedPlatformSession.userId,
+                  name: resolvedPlatformSession.name,
+                  email: resolvedPlatformSession.email,
+                }
+              : null
+          }
+        >
           <OfflineProvider key={replicaKey}>
             <OfflineNavigationProvider>
               <ProductTourProvider
@@ -950,6 +963,13 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         organizationName: shellFromCache!.organizationName,
       };
 
+  const lockIdentity: WorkspaceLockIdentity | null =
+    liveReady && user?.userId
+      ? { userId: String(user.userId), name: user.name, email: user.email ?? null }
+      : resolvedCache
+        ? { userId: resolvedCache.userId, name: resolvedCache.name, email: resolvedCache.email }
+        : null;
+
   const isCustomerDisplayRoute = pathname === "/customer-display";
 
   if (isCustomerDisplayRoute) {
@@ -971,7 +991,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <NativeAppServices>
-      <AppShellWithIdleLock userName={shellUser.name ?? null}>
+      <AppShellWithIdleLock identity={lockIdentity}>
         <OfflineProvider key={replicaKey}>
           <OfflineNavigationProvider>
             <OrganizationExperienceRoot>

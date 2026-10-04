@@ -13,6 +13,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { formatCurrency } from "@/lib/currency";
+import { paymentMethodLabel } from "@/lib/payments";
 import { formatDateTime } from "@/lib/date";
 import { ArrowLeft, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -131,7 +132,7 @@ export function CustomerDetailView({ customerId }: { customerId: Id<"customers">
                       <p className="font-medium">{sale.invoiceNumber}</p>
                       <p className="text-muted-foreground text-xs">
                         {formatDateTime(sale.completedAt)} · {sale.itemCount} items ·{" "}
-                        <span className="capitalize">{sale.paymentMethod.replace("_", " ")}</span>
+                        <Badge variant="secondary">{paymentMethodLabel(sale.paymentMethod)}</Badge>
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

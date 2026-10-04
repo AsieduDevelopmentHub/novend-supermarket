@@ -132,7 +132,7 @@ export type CompleteSaleMutator = (args: {
   customerName?: string;
   items: Array<{ productId: Id<"products">; quantity: number; discount: number }>;
   discount: number;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: "cash" | "card" | "mobile_money" | "other";
   heldSaleId?: Id<"heldSales">;
   clientOperationId?: string;
   branchId?: Id<"branches">;
@@ -198,7 +198,7 @@ export type QueuedMutators = {
   }) => Promise<{ ticketId: Id<"kitchenTickets"> }>;
   payDiningSession: (args: {
     sessionId: Id<"diningSessions">;
-    paymentMethod: "cash" | "card" | "mobile_money";
+    paymentMethod: "cash" | "card" | "mobile_money" | "other";
     discount?: number;
     customerName?: string;
     clientOperationId?: string;
@@ -232,7 +232,7 @@ export type QueuedMutators = {
   }) => Promise<{ chargeId: Id<"hotelFolioCharges"> }>;
   hotelCheckoutPay: (args: {
     stayId: Id<"hotelStays">;
-    paymentMethod: "cash" | "card" | "mobile_money";
+    paymentMethod: "cash" | "card" | "mobile_money" | "other";
     discount?: number;
     clientOperationId?: string;
   }) => Promise<{ saleId: Id<"sales">; invoiceNumber: string; total: number }>;
@@ -616,7 +616,7 @@ async function drainOwnedOutbox(
         } else if (claimed.type === "dining_pay_session") {
           const payload = JSON.parse(claimed.payloadJson) as {
             sessionId: string;
-            paymentMethod: "cash" | "card" | "mobile_money";
+            paymentMethod: "cash" | "card" | "mobile_money" | "other";
             discount?: number;
             customerName?: string;
           };
@@ -714,7 +714,7 @@ async function drainOwnedOutbox(
         } else if (claimed.type === "hotel_checkout_pay") {
           const payload = JSON.parse(claimed.payloadJson) as {
             stayId: string;
-            paymentMethod: "cash" | "card" | "mobile_money";
+            paymentMethod: "cash" | "card" | "mobile_money" | "other";
             discount?: number;
           };
           await options.mutators.hotelCheckoutPay({

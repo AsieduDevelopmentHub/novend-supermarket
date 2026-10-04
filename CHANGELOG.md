@@ -10,11 +10,21 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### What's new
 
+- Checkout can record Cash (the default), MoMo, Card, or Other. The choice shows as a tag on orders and on the day’s report.
+- Dashboard cards use short period names (for example “Sales · 7d”) so the titles stay on one line.
+- Every receipt now ends with a short Novend contact line (“Powered by Novend - 055 525 7482”).
+- The inactivity lock can be unlocked with your password while offline, on any device where you have signed in online before.
 - Coming back online after working offline shows the Connect to cloud prompt without a “Something went wrong” screen.
 - Dashboard amounts are always shown in full; the currency symbol now sits beside the card title (for example “Today's Sales · GH₵”).
 
+### Added
+
+- `RECEIPT_VENDOR_FOOTER` (`constants/app.ts`): a fixed, non-tenant-editable vendor line printed under every receipt. It appears on the on-screen and designer preview, browser print, ESC/POS and share text. ASCII only and at most 32 characters, so it fits one 58mm line.
+
 ### Fixed
 
+- Administrators can complete a sale for a branch that is not their home branch while offline. The till already has that branch’s stock in the device snapshot, so Pay no longer asks them to connect first. The sale is stored against the branch they selected.
+- Inactivity lock no longer refuses password unlock offline. Without a live Convex session, `WorkspaceLockOverlay` checks the PBKDF2 device verifier from the last online sign-in (`verifyLocalAuth`, matching `userId`), as offline `/login` does. Before, an online till still waiting for a JWT showed “Incorrect password” because `users.verifyPassword` requires auth.
 - Offline → online no longer crashes into the error boundary: tenant and platform Convex reads (`useAuthedQuery`, paged lists, business-data and Sales catalog gates) wait for a Convex JWT instead of subscribing as soon as the radio returns, which made `requireRole` throw `Unauthenticated` over the reconnect prompt.
 - Dashboard KPI values no longer truncate (`GH₵0....`): money KPIs render `formatMoneyAmount` with the symbol as a title `unit`, values scale with container queries and never ellipsize, and the five-KPI desktop row starts at `xl` instead of `lg`.
 

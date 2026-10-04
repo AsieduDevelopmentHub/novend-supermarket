@@ -83,7 +83,7 @@ async function loadPrintSnapshot(db: NovendOfflineDb): Promise<PrintSnapshot> {
 export async function completeSaleLocally(input: {
   items: CartLineInput[];
   discount: number;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: "cash" | "card" | "mobile_money" | "other";
   customerId?: string;
   customerName?: string;
   customerPhone?: string | null;
@@ -110,7 +110,9 @@ export async function completeSaleLocally(input: {
   const cashierName = (await getMeta(db, META_KEYS.profileName)) ?? "Cashier";
   const assignedBranchId = (await getMeta(db, META_KEYS.profileBranchId)) ?? undefined;
   const branchId = input.branchId ?? assignedBranchId;
-  const branchName = (await getMeta(db, META_KEYS.profileBranchName)) ?? null;
+  const mirroredBranch = branchId ? await db.branches.get(branchId) : undefined;
+  const branchName =
+    mirroredBranch?.name ?? (await getMeta(db, META_KEYS.profileBranchName)) ?? null;
   const print = await loadPrintSnapshot(db);
   const businessConfig = await loadBusinessCapabilitiesCache();
   const multiUnitOn = hasBusinessCapability(businessConfig, "multi_unit_pricing");
@@ -513,7 +515,7 @@ export async function mirrorCompletedSale(input: {
   subtotal: number;
   discount: number;
   total: number;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: "cash" | "card" | "mobile_money" | "other";
   completedAt: number;
   branchId?: string | null;
   branchName?: string | null;

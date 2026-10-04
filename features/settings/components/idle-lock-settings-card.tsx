@@ -27,7 +27,8 @@ type IdleLockSettingsCardProps = {
 /**
  * Shared-till inactivity lock. Device-local preference (survives logout).
  * Matches Security panel Card density — no new chrome.
- * Password unlock needs a connection; Cap biometrics can unlock offline when enrolled.
+ * Offline password unlock uses the device verifier from the last online sign-in;
+ * Cap biometrics can also unlock offline when enrolled.
  */
 export function IdleLockSettingsCard({ onTimeoutChange }: IdleLockSettingsCardProps) {
   const [timeoutMinutes, setTimeoutMinutes] = useState<IdleLockTimeoutMinutes>(() =>
@@ -49,8 +50,8 @@ export function IdleLockSettingsCard({ onTimeoutChange }: IdleLockSettingsCardPr
           Inactivity lock
         </CardTitle>
         <CardDescription>
-          Password unlock needs a connection. On Android, biometrics can unlock while offline when
-          enabled.
+          Unlock with your password, even offline, after you have signed in online once on this
+          device. On Android, biometrics can also unlock when enabled.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">

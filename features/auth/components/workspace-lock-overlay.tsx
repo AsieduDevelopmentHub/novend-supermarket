@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useId, useRef, useState } from "react";
-import { useAction } from "convex/react";
+import { useAction, useConvexAuth } from "convex/react";
 import { Fingerprint, Lock } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -11,19 +11,32 @@ import { APP_BRAND } from "@/constants/app";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { Hardware, hasNovendNativeSecurity } from "@novend/hardware";
 import { showError } from "@/lib/errors";
+import { hasLocalAuthVerifier, verifyLocalAuth } from "@/lib/offline/local-auth";
+
+/** Signed-in user the till is locked for. */
+export type WorkspaceLockIdentity = {
+  userId: string;
+  name: string;
+  email: string | null;
+};
 
 type WorkspaceLockOverlayProps = {
-  userName: string | null;
+  identity: WorkspaceLockIdentity | null;
   onUnlocked: () => void;
 };
 
 /**
  * Full-screen till lock. Mount only while locked so form state remounts clean.
  * Focus stays inside the overlay; Escape does not dismiss.
- * Password unlock uses Convex Auth (`users.verifyPassword`). Biometrics are optional.
+ * With a live Convex session, password unlock uses Convex Auth (`users.verifyPassword`).
+ * Offline (or awaiting cloud reconnect) it checks the device verifier saved at the last
+ * online sign-in — the same check offline `/login` uses. Biometrics are optional.
  */
-export function WorkspaceLockOverlay({ userName, onUnlocked }: WorkspaceLockOverlayProps) {
+export function WorkspaceLockOverlay({ identity, onUnlocked }: WorkspaceLockOverlayProps) {
   const online = useConnectivity();
+  const { isAuthenticated } = useConvexAuth();
+  const liveSession = online && isAuthenticated;
+  const userName = identity?.name ?? null;
   const verifyPassword = useAction(api.users.verifyPassword);
   const titleId = useId();
   const descId = useId();
@@ -98,16 +111,12 @@ export function WorkspaceLockOverlay({ userName, onUnlocked }: WorkspaceLockOver
     event.preventDefault();
     event.stopPropagation();
     if (pending) return;
-    if (!online) {
-      setError(
-        biometricAvailable
-          ? "Password unlock needs a connection. Use biometrics, or reconnect."
-          : "Password unlock needs a connection. Reconnect to continue.",
-      );
-      return;
-    }
     setPending(true);
     setError(null);
+    if (!liveSession) {
+      await unlockWithDevicePassword();
+      return;
+    }
     try {
       await verifyPassword({ password });
       finishUnlock();
@@ -116,6 +125,26 @@ export function WorkspaceLockOverlay({ userName, onUnlocked }: WorkspaceLockOver
       showError(err, "Incorrect password");
       setPending(false);
     }
+  }
+
+  async function unlockWithDevicePassword() {
+    const email = identity?.email;
+    const match = email ? await verifyLocalAuth(email, password).catch(() => null) : null;
+    if (match && match.userId === identity?.userId) {
+      finishUnlock();
+      return;
+    }
+    setPending(false);
+    if (!email || !hasLocalAuthVerifier(email)) {
+      setError(
+        biometricAvailable
+          ? "This device has no offline sign-in for this account yet. Use biometrics, or reconnect."
+          : "This device has no offline sign-in for this account yet. Reconnect to unlock.",
+      );
+      return;
+    }
+    setPassword("");
+    setError("Incorrect password");
   }
 
   async function onBiometricUnlock() {
@@ -184,8 +213,7 @@ export function WorkspaceLockOverlay({ userName, onUnlocked }: WorkspaceLockOver
           ) : null}
           {!online ? (
             <p className="text-muted-foreground text-xs">
-              Offline: password unlock needs a connection
-              {biometricAvailable ? "; biometrics still work on this device." : "."}
+              Offline: checking the password saved on this device at your last sign-in.
             </p>
           ) : null}
           <Button type="submit" className="w-full" disabled={pending || !password}>

@@ -1,3 +1,4 @@
+import { RECEIPT_VENDOR_FOOTER } from "@/constants/app";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import {
   SAMPLE_RECEIPT_PAYLOAD,
@@ -136,6 +137,7 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
     .row { display: flex; justify-content: space-between; gap: 8px; }
     .meta { opacity: 0.75; margin-bottom: 6px; }
     .total { font-size: 14px; font-weight: 700; }
+    .vendor { margin-top: 6px; font-size: 10px; opacity: 0.75; }
   </style>
 </head>
 <body>
@@ -166,6 +168,7 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
     <div class="sep center">
       ${t.footerText ? `<div>${escapeHtml(t.footerText)}</div>` : ""}
       ${t.thankYouLine ? `<div>${escapeHtml(t.thankYouLine)}</div>` : ""}
+      <div class="vendor">${escapeHtml(RECEIPT_VENDOR_FOOTER)}</div>
     </div>
   </div>
 </body>
