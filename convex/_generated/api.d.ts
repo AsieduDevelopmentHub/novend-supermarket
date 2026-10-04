@@ -91,6 +91,7 @@ import type * as shared_organizationConfig from "../shared/organizationConfig.js
 import type * as shared_organizationStats from "../shared/organizationStats.js";
 import type * as shared_passwordPolicy from "../shared/passwordPolicy.js";
 import type * as shared_passwordResetCrypto from "../shared/passwordResetCrypto.js";
+import type * as shared_paymentMethod from "../shared/paymentMethod.js";
 import type * as shared_payroll from "../shared/payroll.js";
 import type * as shared_paystack from "../shared/paystack.js";
 import type * as shared_permissions from "../shared/permissions.js";
@@ -214,6 +215,7 @@ declare const fullApi: ApiFromModules<{
   "shared/organizationStats": typeof shared_organizationStats;
   "shared/passwordPolicy": typeof shared_passwordPolicy;
   "shared/passwordResetCrypto": typeof shared_passwordResetCrypto;
+  "shared/paymentMethod": typeof shared_paymentMethod;
   "shared/payroll": typeof shared_payroll;
   "shared/paystack": typeof shared_paystack;
   "shared/permissions": typeof shared_permissions;
