@@ -3,6 +3,7 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvex, useConvexAuth } from "convex/react";
 import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -26,6 +27,7 @@ import {
   markOnlineSessionWarm,
   markPostLoginLeavePending,
   navigateAfterLogin,
+  resetHardNavigationPending,
   resolvePostLoginPath,
   resolvePostLoginSession,
 } from "@/lib/auth/redirect-after-login";
@@ -65,6 +67,11 @@ function allowOfflinePasswordFallback(): boolean {
 
 /** Matches `.animate-splash-fall-linger` in `styles/globals.css`. */
 const SIGN_IN_SPLASH_LAND_MS = 4_200;
+/**
+ * Electron can report the shell reload as started and then never leave /login
+ * (hung HTTPS replace). Give the form back so sign-in is not a dead cover.
+ */
+const LOGIN_COVER_GIVE_UP_MS = 22_000;
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -178,6 +185,22 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const [pending, setPending] = useState(false);
   const [openingWorkspace, setOpeningWorkspace] = useState(false);
 
+  useEffect(() => {
+    if (!openingWorkspace) return;
+    const timer = window.setTimeout(() => {
+      const path = window.location.pathname;
+      if (path !== "/login" && path !== "/signup") return;
+      resetHardNavigationPending();
+      clearPostLoginLeavePending();
+      redirectingRef.current = false;
+      submitGenerationRef.current += 1;
+      setOpeningWorkspace(false);
+      setPending(false);
+      toast.error("Couldn't open your workspace. Check the connection and try again.");
+    }, LOGIN_COVER_GIVE_UP_MS);
+    return () => window.clearTimeout(timer);
+  }, [openingWorkspace]);
+
   // Offline sign-out cannot immediately revoke the cloud token. Keep the
   // persistent local barrier in place, and revoke that stale token once the
   // device can reach Convex again.
@@ -219,6 +242,15 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     return () => window.clearTimeout(timer);
   }, []);
 
+  function releaseTypedLoginFields(): void {
+    // Commit empty fields before the document swap. Otherwise React puts the
+    // password back while Electron reloads, and the browser asks Leave site?
+    flushSync(() => {
+      setEmail("");
+      setPassword("");
+    });
+  }
+
   function withBootMarker(path: string): string {
     if (!fromBoot || path.includes("fromBoot=")) return path;
     return `${path}${path.includes("?") ? "&" : "?"}fromBoot=1`;
@@ -259,6 +291,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     await wait(SIGN_IN_SPLASH_LAND_MS);
     // Keep the form mounted until replace — prepare + navigate must be sync.
     // fromLogin (via navigateAfterLogin) warms the shell without RestoreLastRoute.
+    releaseTypedLoginFields();
     navigateAfterLogin(
       resolvePostAuthPath({
         isPlatformAdmin: false,
@@ -307,6 +340,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         const path = await resolvePostLoginPath(convex);
         const landRemaining = SIGN_IN_SPLASH_LAND_MS - (Date.now() - splashOpenedAt);
         if (landRemaining > 0) await wait(landRemaining);
+        releaseTypedLoginFields();
         navigateAfterLogin(withBootMarker(path), router, { hard: true });
       } catch {
         clearPostLoginLeavePending();
@@ -442,6 +476,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         setPending(false);
         return;
       }
+      releaseTypedLoginFields();
       navigateAfterLogin(session.path, router, { hard: true });
       void storeLocalAuthVerifier(normalizedEmail, rawPassword, session.userId)
         .then((prepared) => {

@@ -128,6 +128,8 @@ async function loadAppShell(
 
 let mainBrowserWindow: BrowserWindow | null = null;
 let mainShellEntry = OFFLINE_ENTRY_PATH;
+/** Login leave is ours — don't let Chromium's dirty-form dialog block it. */
+let suppressUnloadPrompt = false;
 
 export function setMainBrowserWindow(win: BrowserWindow | null) {
   mainBrowserWindow = win;
@@ -141,7 +143,17 @@ export async function reloadMainWindowShell(
     return { ok: false };
   }
   mainShellEntry = entry;
-  void loadAppShell(mainBrowserWindow, appUrl, entry);
+  suppressUnloadPrompt = true;
+  try {
+    // Local boot file only. Do not wait for the hosted page after that — a
+    // hung HTTPS load must not keep the login cover waiting on this reply.
+    await loadAppShell(mainBrowserWindow, appUrl, entry);
+  } catch {
+    return { ok: false };
+  } finally {
+    suppressUnloadPrompt = false;
+  }
+  if (mainBrowserWindow.isDestroyed()) return { ok: false };
   return { ok: true };
 }
 
@@ -185,6 +197,10 @@ export function createMainWindow(appUrl: string): BrowserWindow {
     if (!isTrustedRendererUrl(trustedOrigin, url)) {
       event.preventDefault();
     }
+  });
+
+  win.webContents.on("will-prevent-unload", (event) => {
+    if (suppressUnloadPrompt) event.preventDefault();
   });
 
   /**
