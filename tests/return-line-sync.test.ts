@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { mapReturnLinesToServerSaleItems } from "@/lib/offline/returns-repository";
+import {
+  describeReturnUploadBlock,
+  mapReturnLinesToServerSaleItems,
+} from "@/lib/offline/returns-repository";
+import { syncFailureMessage } from "@/lib/offline/sync-errors";
 
 describe("mapReturnLinesToServerSaleItems", () => {
   const localItems = [
@@ -36,6 +40,39 @@ describe("mapReturnLinesToServerSaleItems", () => {
       serverItems,
     );
     expect(mapped).toEqual([{ saleItemId: "sitem_b", quantity: 1 }]);
+  });
+
+  it("does not upload a return until the device sale has a server id", () => {
+    expect(
+      describeReturnUploadBlock({
+        saleId: "lsale_1",
+        serverSaleId: null,
+        saleUpload: { status: "pending", lastError: null },
+      }),
+    ).toBe("Waiting for the sale to finish syncing.");
+    expect(
+      describeReturnUploadBlock({
+        saleId: "lsale_1",
+        serverSaleId: "sale_server",
+        saleUpload: { status: "synced" },
+      }),
+    ).toBeNull();
+  });
+
+  it("tells the cashier when the sale upload itself failed", () => {
+    expect(
+      describeReturnUploadBlock({
+        saleId: "lsale_1",
+        saleUpload: { status: "failed", lastError: "Not enough stock for Rice. Available: 0." },
+      }),
+    ).toContain("Not enough stock for Rice");
+  });
+
+  it("keeps a usable server reason instead of Sync failed", () => {
+    const error = new Error(
+      "[CONVEX M(sales:completeSale)] [Request ID: abc] Server Error\nUncaught Error: This invoice number is already used\n    at handler (convex/sales.ts:1:1)",
+    );
+    expect(syncFailureMessage(error, "Sync failed")).toContain("already used");
   });
 
   it("returns null when a line cannot be matched", () => {

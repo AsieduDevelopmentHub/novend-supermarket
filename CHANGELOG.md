@@ -29,6 +29,7 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### Fixed
 
+- A sale that already exists in the cloud is no longer stuck as “Upload interrupted” when the till retries it. The same printed invoice is accepted again and linked to that sale. A return of a device sale waits for that upload without counting a new failed attempt on every sync.
 - Signing in no longer asks “Leave site? Changes you made may not be saved.” The typed password is cleared before the page changes, and the desktop app ignores that dialog on its own sign-in reload.
 - Electron no longer leaves “Opening your workspace” up with no way back. If the desktop reload never actually leaves the login page, the form returns after a short wait so sign-in can be tried again. The shell reload also reports failure when the local boot page does not load, instead of claiming success first.
 - Return no longer waits for a cloud sale. An order saved on this device can be returned immediately, online or offline. Stock and the return receipt are written on the device. A later background upload sends that return after the sale, without asking the cashier to sync first.

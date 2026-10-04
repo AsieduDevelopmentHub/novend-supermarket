@@ -41,18 +41,54 @@ type CartLine = {
   sellUnitKey?: string;
 };
 
-async function invoiceNumberTaken(
+async function findSaleByInvoice(
   ctx: MutationCtx,
   organizationId: import("./_generated/dataModel").Id<"organizations">,
   invoiceNumber: string,
 ) {
-  const existing = await ctx.db
+  return await ctx.db
     .query("sales")
     .withIndex("by_organization_invoice", (q) =>
       q.eq("organizationId", organizationId).eq("invoiceNumber", invoiceNumber),
     )
+    .first();
+}
+
+async function replayExistingSale(
+  ctx: MutationCtx,
+  organizationId: import("./_generated/dataModel").Id<"organizations">,
+  saleId: import("./_generated/dataModel").Id<"sales">,
+) {
+  const sale = await ctx.db.get(saleId);
+  if (!sale || sale.organizationId !== organizationId) {
+    throw new Error("This sale was already submitted and cannot be created again");
+  }
+  const receipt = await ctx.db
+    .query("receipts")
+    .withIndex("by_sale", (q) => q.eq("saleId", saleId))
     .unique();
-  return existing !== null;
+  let receiptPayload: unknown = {
+    invoiceNumber: sale.invoiceNumber,
+    saleId: sale._id,
+    total: sale.total,
+  };
+  if (receipt) {
+    try {
+      receiptPayload = JSON.parse(receipt.payload) as unknown;
+    } catch {
+      receiptPayload = {
+        invoiceNumber: sale.invoiceNumber,
+        saleId: sale._id,
+        total: sale.total,
+      };
+    }
+  }
+  return {
+    saleId: sale._id,
+    invoiceNumber: sale.invoiceNumber,
+    total: sale.total,
+    receiptPayload,
+  };
 }
 
 async function nextInvoiceNumber(
@@ -62,7 +98,7 @@ async function nextInvoiceNumber(
 ) {
   if (requested?.trim()) {
     const invoiceNumber = sanitizeInvoiceNumber(requested);
-    if (await invoiceNumberTaken(ctx, organizationId, invoiceNumber)) {
+    if (await findSaleByInvoice(ctx, organizationId, invoiceNumber)) {
       throw new Error("This invoice number is already used");
     }
     return invoiceNumber;
@@ -71,7 +107,7 @@ async function nextInvoiceNumber(
   // offline devices never mint the same printed number.
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const reference = allocateInvoiceNumber();
-    if (!(await invoiceNumberTaken(ctx, organizationId, reference))) return reference;
+    if (!(await findSaleByInvoice(ctx, organizationId, reference))) return reference;
   }
   throw new Error("Could not allocate a unique invoice reference");
 }
@@ -371,22 +407,20 @@ export const completeSale = mutation({
         )
         .unique();
       if (existing) {
-        const sale = await ctx.db.get(existing.saleId);
-        if (!sale || sale.organizationId !== profile.organizationId) {
-          throw new Error("This sale was already submitted and cannot be created again");
+        return await replayExistingSale(ctx, profile.organizationId, existing.saleId);
+      }
+    }
+
+    // The till already printed this invoice. A lost response must not create a
+    // second sale or leave the outbox failing forever.
+    if (args.invoiceNumber?.trim()) {
+      const printed = sanitizeInvoiceNumber(args.invoiceNumber);
+      const already = await findSaleByInvoice(ctx, profile.organizationId, printed);
+      if (already) {
+        if (already.cashierId !== userId) {
+          throw new Error("This invoice number is already used");
         }
-        const receipt = await ctx.db
-          .query("receipts")
-          .withIndex("by_sale", (q) => q.eq("saleId", existing.saleId))
-          .unique();
-        return {
-          saleId: sale._id,
-          invoiceNumber: sale.invoiceNumber,
-          total: sale.total,
-          receiptPayload: receipt
-            ? (JSON.parse(receipt.payload) as unknown)
-            : { invoiceNumber: sale.invoiceNumber, saleId: sale._id, total: sale.total },
-        };
+        return await replayExistingSale(ctx, profile.organizationId, already._id);
       }
     }
 

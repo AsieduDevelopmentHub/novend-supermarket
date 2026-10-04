@@ -32,6 +32,28 @@ export function isTransientSyncPlaceholder(message: string) {
 }
 
 /**
+ * Keep the server's reason for Sync Center. `toUserMessage` collapses unknown
+ * Convex dumps to "Sync failed", which hides why a sale will not upload.
+ */
+export function syncFailureMessage(error: unknown, friendly: string): string {
+  if (friendly.trim() && friendly.trim().toLowerCase() !== "sync failed") return friendly.trim();
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  const cleaned = raw
+    .replace(/\[CONVEX[^\]]*\]\s*/gi, "")
+    .replace(/\[Request ID:[^\]]*\]\s*/gi, "")
+    .replace(/Server Error\s*/gi, "")
+    .replace(/Called by client\s*/gi, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("at "))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return "Sync failed";
+  return cleaned.length > 180 ? `${cleaned.slice(0, 177)}...` : cleaned;
+}
+
+/**
  * Server rejections the cashier must review. Network / rate-limit / auth
  * failures stay pending and retry. Validation errors (expiry, SKU, stock, …)
  * must not sit in Waiting and must not stop the rest of the queue.
