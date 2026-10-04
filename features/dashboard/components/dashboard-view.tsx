@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { Id } from "@/convex/_generated/dataModel";
-import { formatCurrency, formatNumber } from "@/lib/currency";
+import { CURRENCY_SYMBOL, formatCurrency, formatMoneyAmount, formatNumber } from "@/lib/currency";
 import { formatTime } from "@/lib/date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -185,6 +185,8 @@ function RecentSalesTable({
 type KpiItem = {
   title: string;
   value: string;
+  /** Unit shown beside the title (e.g. `GH₵`) so the value keeps the space. */
+  unit?: string;
   icon: React.ComponentType<{ className?: string }>;
   href: string;
 };
@@ -204,15 +206,62 @@ function KpiBentoGrid({ kpis }: { kpis: readonly KpiItem[] }) {
   );
 }
 
+/**
+ * Never truncated: the value is the reason the card exists. Sized from the
+ * width its own column leaves (container query), so long totals step down a
+ * font size instead of turning into "GH₵0....".
+ */
+function KpiValue({
+  value,
+  featured,
+  className,
+}: {
+  value: string;
+  featured: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={cn("@container min-w-0 flex-1", className)}>
+      <p
+        className={cn(
+          "font-semibold tracking-tight whitespace-nowrap tabular-nums",
+          featured ? "text-2xl @[14rem]:text-3xl" : "text-lg @[8rem]:text-xl @[10rem]:text-2xl",
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function KpiTitle({
+  title,
+  unit,
+  className,
+}: {
+  title: string;
+  unit?: string;
+  className?: string;
+}) {
+  return (
+    <p className={cn("text-muted-foreground text-sm", className)}>
+      {title}
+      {unit ? <span className="text-muted-foreground/80 font-medium"> · {unit}</span> : null}
+    </p>
+  );
+}
+
 function KpiCard({
   title,
   value,
+  unit,
   icon: Icon,
   href,
   featured = false,
 }: {
   title: string;
   value: string;
+  unit?: string;
   icon: React.ComponentType<{ className?: string }>;
   href: string;
   featured?: boolean;
@@ -235,43 +284,22 @@ function KpiCard({
           {/* Mobile: value + icon on top, full title at bottom (no truncate) */}
           <div className="flex h-full flex-col gap-3 md:hidden">
             <div className="flex items-start justify-between gap-3">
-              <p
-                className={cn(
-                  "min-w-0 truncate font-semibold tracking-tight",
-                  featured ? "text-3xl" : "text-2xl",
-                )}
-              >
-                {value}
-              </p>
+              <KpiValue value={value} featured={featured} />
               {iconBox}
             </div>
-            <p className="text-muted-foreground mt-auto text-sm leading-snug">{title}</p>
+            <KpiTitle title={title} unit={unit} className="mt-auto leading-snug" />
           </div>
 
           {/* Desktop: title above value, icon on the right */}
           <div className="hidden items-start justify-between gap-3 md:flex">
-            <div className="min-w-0">
-              <p className="text-muted-foreground truncate text-sm">{title}</p>
-              <p
-                className={cn(
-                  "mt-2 truncate font-semibold tracking-tight",
-                  featured ? "text-3xl" : "text-2xl",
-                )}
-              >
-                {value}
-              </p>
-              <p className="text-primary mt-2 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="min-w-0 flex-1">
+              <KpiTitle title={title} unit={unit} className="leading-snug" />
+              <KpiValue value={value} featured={featured} className="mt-2" />
+              <p className="text-primary mt-2 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
                 View details →
               </p>
             </div>
-            <div
-              className={cn(
-                "bg-accent text-accent-foreground flex shrink-0 items-center justify-center rounded-lg",
-                featured ? "h-12 w-12" : "h-10 w-10",
-              )}
-            >
-              <Icon className={featured ? "h-6 w-6" : "h-5 w-5"} />
-            </div>
+            {iconBox}
           </div>
         </CardContent>
       </Card>
@@ -509,7 +537,8 @@ function HospitalityOpsCards({
             {hotel.outstandingFolioBalance !== null ? (
               <KpiCard
                 title="Outstanding folios"
-                value={formatCurrency(hotel.outstandingFolioBalance)}
+                value={formatMoneyAmount(hotel.outstandingFolioBalance)}
+                unit={CURRENCY_SYMBOL}
                 icon={Wallet}
                 href="/rooms"
               />
@@ -633,7 +662,8 @@ export function DashboardView() {
   const kpis = [
     {
       title: showOps ? `Sales (${periodLabel})` : "Today's Sales",
-      value: formatCurrency(data.kpis.revenue),
+      value: formatMoneyAmount(data.kpis.revenue),
+      unit: CURRENCY_SYMBOL,
       icon: Wallet,
       href: "/orders",
     },
@@ -754,7 +784,11 @@ export function DashboardView() {
         <KpiBentoGrid kpis={kpis} />
       </div>
       <div className="hidden md:block">
-        <Grid cols={showStockOps ? 5 : 3}>
+        {/* Five KPIs in one row only from xl — at lg each value had ~95px. */}
+        <Grid
+          cols={showStockOps ? 5 : 3}
+          className={showStockOps ? "lg:grid-cols-3 xl:grid-cols-5" : undefined}
+        >
           {kpis.map((kpi) => (
             <KpiCard key={kpi.title} {...kpi} />
           ))}
