@@ -39,7 +39,25 @@ type CartLine = {
   quantity: number;
   discount: number;
   sellUnitKey?: string;
+  /** Receipt price. Set when the till already completed the sale. */
+  unitPrice?: number;
+  /** Base units the till already removed. */
+  baseQuantity?: number;
+  sellUnitLabel?: string;
+  factorToBase?: number;
+  pricingMode?: "fixed" | "per_weight";
 };
+
+function isSoldSnapshot(item: CartLine) {
+  return (
+    typeof item.unitPrice === "number" &&
+    Number.isFinite(item.unitPrice) &&
+    item.unitPrice >= 0 &&
+    typeof item.baseQuantity === "number" &&
+    Number.isFinite(item.baseQuantity) &&
+    item.baseQuantity > 0
+  );
+}
 
 async function findSaleByInvoice(
   ctx: MutationCtx,
@@ -370,6 +388,11 @@ export const completeSale = mutation({
         quantity: v.number(),
         discount: v.number(),
         sellUnitKey: v.optional(v.string()),
+        unitPrice: v.optional(v.number()),
+        baseQuantity: v.optional(v.number()),
+        sellUnitLabel: v.optional(v.string()),
+        factorToBase: v.optional(v.number()),
+        pricingMode: v.optional(v.union(v.literal("fixed"), v.literal("per_weight"))),
       }),
     ),
     discount: v.number(),
@@ -467,16 +490,18 @@ export const completeSale = mutation({
 
     for (const item of args.items as CartLine[]) {
       assertPositiveMoney(item.discount, "line discount");
+      const replay = isSoldSnapshot(item);
       const product = await ctx.db.get(item.productId);
-      if (
-        !product ||
-        product.status !== "active" ||
-        product.organizationId !== profile.organizationId
-      ) {
+      if (!product || product.organizationId !== profile.organizationId) {
+        throw new Error(`Product unavailable`);
+      }
+      if (!replay && product.status !== "active") {
         throw new Error(`Product unavailable`);
       }
 
-      const allowFractional = weightOn && product.pricingMode === "per_weight";
+      const allowFractional =
+        (weightOn && product.pricingMode === "per_weight") ||
+        (replay && item.pricingMode === "per_weight");
       const displayedQuantity = roundQuantity(item.quantity);
       if (!Number.isFinite(displayedQuantity) || displayedQuantity <= 0) {
         throw new Error("Invalid quantity");
@@ -485,21 +510,75 @@ export const completeSale = mutation({
         throw new Error("Invalid quantity");
       }
 
-      const unit = resolveSellUnit(product, multiUnitOn || weightOn ? item.sellUnitKey : undefined);
-      if (!multiUnitOn && !weightOn && item.sellUnitKey && item.sellUnitKey !== "default") {
+      let unit;
+      try {
+        unit = resolveSellUnit(
+          product,
+          multiUnitOn || weightOn || replay ? item.sellUnitKey : undefined,
+        );
+      } catch (error) {
+        if (!replay) throw error;
+        unit = {
+          key: item.sellUnitKey || "default",
+          label: item.sellUnitLabel || product.unit || "unit",
+          factorToBase:
+            typeof item.factorToBase === "number" && item.factorToBase > 0 ? item.factorToBase : 1,
+          unitPrice: item.unitPrice!,
+          costPerBase: product.costPrice,
+          pricingMode: item.pricingMode === "per_weight" ? "per_weight" : "fixed",
+          synthesized: true,
+        } as const;
+      }
+      if (
+        !replay &&
+        !multiUnitOn &&
+        !weightOn &&
+        item.sellUnitKey &&
+        item.sellUnitKey !== "default"
+      ) {
         throw new Error("Multi-unit pricing is not enabled for this organization");
       }
-      if (unit.pricingMode === "per_weight" && !weightOn) {
+      if (!replay && unit.pricingMode === "per_weight" && !weightOn) {
         throw new Error("Sell by weight is not enabled for this organization");
       }
+      if (replay) {
+        const factor =
+          typeof item.factorToBase === "number" && item.factorToBase > 0
+            ? item.factorToBase
+            : unit.factorToBase;
+        unit = {
+          ...unit,
+          key: item.sellUnitKey || unit.key,
+          label: item.sellUnitLabel || unit.label,
+          factorToBase: factor,
+          unitPrice: item.unitPrice!,
+          pricingMode: item.pricingMode ?? unit.pricingMode,
+        };
+      }
 
-      const snapshot = buildSaleLineUnitSnapshot(unit, displayedQuantity);
+      const snapshot = replay
+        ? {
+            sellUnitKey: unit.key,
+            sellUnitLabel: unit.label,
+            displayedQuantity,
+            baseQuantity: item.baseQuantity!,
+            factorToBase: unit.factorToBase,
+            pricingMode: unit.pricingMode,
+          }
+        : buildSaleLineUnitSnapshot(unit, displayedQuantity);
       if (productTracksInventory(product, businessConfig)) {
-        const available = productTracksExpiry(product)
-          ? await getSellableQuantity(ctx, branchId, product._id)
-          : await getBranchQuantity(ctx, branchId, product._id);
+        // The receipt already printed. A lot that expires before upload must not
+        // reject it. Physical stock at this branch still cannot go negative.
+        const available =
+          replay || !productTracksExpiry(product)
+            ? await getBranchQuantity(ctx, branchId, product._id)
+            : await getSellableQuantity(ctx, branchId, product._id);
         if (available < snapshot.baseQuantity) {
-          throw new Error(`Not enough stock for ${product.name}. Available: ${available}.`);
+          throw new Error(
+            replay
+              ? `Not enough stock for ${product.name}. Available: ${available}. Another till sold these units before this sale uploaded.`
+              : `Not enough stock for ${product.name}. Available: ${available}.`,
+          );
         }
       }
       const gross = lineGrossForSellUnit(unit, snapshot.displayedQuantity);

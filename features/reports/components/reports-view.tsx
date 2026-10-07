@@ -26,6 +26,7 @@ import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { buildLocalSalesReport, type LocalSalesReport } from "@/lib/offline/ui-cache";
 import { salesReportExportTable } from "@/lib/export/sales-report";
 import { formatCurrency, formatNumber } from "@/lib/currency";
+import { InventoryValuePanel } from "@/features/inventory/components/inventory-value-panel";
 import { useNarrowScreen } from "@/hooks/use-narrow-screen";
 import { useUserFilterPreferences } from "@/hooks/use-user-filter-preferences";
 import {
@@ -304,6 +305,14 @@ export function ReportsView() {
               href={metricHref("averageOrder")}
             />
           </Grid>
+
+          {isAdmin || isManager ? (
+            <InventoryValuePanel
+              range={range}
+              branchId={isAdmin && branchFilter !== "all" ? branchFilter : undefined}
+              enabled
+            />
+          ) : null}
 
           <Card className="min-w-0 overflow-hidden">
             <CardHeader>

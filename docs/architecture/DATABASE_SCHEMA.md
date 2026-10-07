@@ -33,7 +33,7 @@ or drive hot queries **start with** `organizationId`.
 - `categories` — name, slug unique per org
 - `products` — catalog (pricing, unit, low-stock, optional expiry tracking, optional `tracksInventory` for non-stock sales)
 - `branchStock` — per-branch on-hand quantity
-- `suppliers` / `supplierPurchases` / `supplierPurchaseItems` — warehouse buys; line `unitCost` and optional `unitSellingPrice` snapshot the catalog prices applied on receive
+- `suppliers` / `supplierPurchases` / `supplierPurchaseItems` / `supplierPayments` — warehouse buys; a purchase can have many products. `amountPaid` is what was paid to the supplier (`0` means the delivery is still owed). Rows from before balances have no `amountPaid` and count as paid. `supplierPayments` is the payment ledger.
 - `wholesaleStock` / `wholesaleLots` — supplier stock before issue to a branch
 - `branchStock` — per-branch on-hand quantity
 - `inventoryLots` — dated batches; FEFO for dated SKUs

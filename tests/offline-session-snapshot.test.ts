@@ -8,6 +8,7 @@ import {
   listOfflineSessions,
   markOfflineSession,
   readOfflineSession,
+  rememberOfflineSession,
 } from "@/lib/offline/session";
 import { markExplicitLogout, consumeExplicitLogout } from "@/lib/auth/logout-flag";
 
@@ -156,5 +157,32 @@ describe("offline session snapshot", () => {
 
     consumeExplicitLogout();
     expect(ensureActiveOfflineSession()?.userId).toBe("u1");
+  });
+
+  it("remembers a created account without switching the signed-in user", () => {
+    installStorage();
+    markOfflineSession({
+      userId: "admin",
+      name: "Ada",
+      role: "administrator",
+      branchId: "b1",
+      branchName: "Main",
+      organizationId: "o1",
+      email: "ada@shop.test",
+      savedAt: Date.now(),
+    });
+    rememberOfflineSession({
+      userId: "cashier",
+      name: "Kojo",
+      role: "cashier",
+      branchId: "b1",
+      branchName: "Main",
+      organizationId: "o1",
+      email: "kojo@shop.test",
+      savedAt: Date.now(),
+    });
+    expect(getOfflineSessionSnapshot()?.userId).toBe("admin");
+    expect(listOfflineSessions().map((row) => row.userId).sort()).toEqual(["admin", "cashier"]);
+    expect(activateOfflineSession("cashier")?.email).toBe("kojo@shop.test");
   });
 });

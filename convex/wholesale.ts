@@ -6,6 +6,8 @@ import { applyBranchStockChange } from "./shared/branchStock";
 import { increaseLot, productTracksExpiry } from "./shared/lots";
 import { writeAuditLog } from "./shared/audit";
 import { rememberClientOp, replayClientOp } from "./shared/clientOps";
+import { paymentMethodValidator } from "./shared/paymentMethod";
+import { purchaseBalance } from "./shared/supplierFinance";
 import { allocatePurchaseReference } from "./shared/documentReferences";
 import {
   productMatchesLookup,
@@ -218,6 +220,8 @@ export const listPurchases = query({
       purchasedAt: row.purchasedAt,
       itemCount: row.itemCount,
       totalCost: row.totalCost,
+      amountPaid: row.amountPaid ?? null,
+      balance: purchaseBalance(row),
       notes: row.notes ?? null,
       status: row.status,
       items: (itemGroups[index] ?? []).map((item) => ({
@@ -237,6 +241,9 @@ export const recordPurchase = mutation({
     supplierId: v.id("suppliers"),
     invoiceNumber: v.optional(v.string()),
     purchasedAt: v.number(),
+    /** Omit to record the delivery as paid in full. Send 0 when the supplier is still owed. */
+    amountPaid: v.optional(v.number()),
+    paymentMethod: v.optional(paymentMethodValidator),
     notes: v.optional(v.string()),
     clientOperationId: v.optional(v.string()),
     items: v.array(
@@ -318,6 +325,15 @@ export const recordPurchase = mutation({
       }
     }
     if (!reference) throw new Error("Could not allocate a unique purchase reference");
+    const total = roundMoney(totalCost);
+    let amountPaid = total;
+    if (args.amountPaid !== undefined) {
+      assertPositiveMoney(args.amountPaid, "amount paid");
+      amountPaid = roundMoney(args.amountPaid);
+      if (amountPaid - total > 0.001) {
+        throw new Error("Amount paid cannot exceed the purchase total");
+      }
+    }
     const purchaseId = await ctx.db.insert("supplierPurchases", {
       organizationId,
       supplierId: args.supplierId,
@@ -328,9 +344,24 @@ export const recordPurchase = mutation({
       itemCount,
       totalCost: roundMoney(totalCost),
       status: "completed",
+      amountPaid,
       createdBy: userId,
       createdAt: Date.now(),
     });
+
+    if (amountPaid > 0) {
+      await ctx.db.insert("supplierPayments", {
+        organizationId,
+        supplierId: args.supplierId,
+        purchaseId,
+        amount: amountPaid,
+        paidAt: args.purchasedAt,
+        method: args.paymentMethod ?? "cash",
+        note: "Paid when the delivery was recorded",
+        recordedBy: userId,
+        createdAt: Date.now(),
+      });
+    }
 
     for (const item of prepared) {
       await ctx.db.insert("supplierPurchaseItems", {

@@ -4,9 +4,9 @@ import { FormEvent, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { purchaseBalance } from "@/convex/shared/supplierFinance";
 import { PageHeader } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { UnsignedQuantityInput } from "@/components/ui/unsigned-quantity-input";
 import { BarcodeSearchField } from "@/components/hardware/barcode-search-field";
 import { Label } from "@/components/ui/label";
@@ -14,13 +14,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ProductBarcodePicker } from "@/components/hardware/product-barcode-picker";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { RecordPurchaseDialog } from "@/features/wholesale/components/record-purchase-dialog";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -34,8 +33,6 @@ import {
 import {
   persistBusinessWrite,
   queuedSaveMessage,
-  queueUpsertSupplier,
-  queueWholesalePurchase,
   queueWholesaleTransfer,
 } from "@/lib/offline/replica-writes";
 import { formatCurrency } from "@/lib/currency";
@@ -43,7 +40,6 @@ import { formatDateTime } from "@/lib/date";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { ArrowRightLeft, Plus, Truck, Warehouse } from "lucide-react";
-import { ProductFormDialog } from "@/features/products/components/product-form-dialog";
 import Link from "next/link";
 
 export function WholesaleView() {
@@ -59,21 +55,10 @@ export function WholesaleView() {
     preferLocal: true,
   });
   const branches = useBranchesList(false);
-  const recordPurchase = useMutation(api.wholesale.recordPurchase);
   const transferToBranch = useMutation(api.wholesale.transferToBranch);
-  const createSupplier = useMutation(api.suppliers.create);
 
   const [buyOpen, setBuyOpen] = useState(false);
   const [issueOpen, setIssueOpen] = useState(false);
-  const [supplierId, setSupplierId] = useState<string>("");
-  const [newSupplier, setNewSupplier] = useState("");
-  const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [productId, setProductId] = useState<string>("");
-  const [quantity, setQuantity] = useState("1");
-  const [unitCost, setUnitCost] = useState("");
-  const [sellingPrice, setSellingPrice] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [productFormOpen, setProductFormOpen] = useState(false);
   const [issueProductId, setIssueProductId] = useState<string>("");
   const [issueQty, setIssueQty] = useState("1");
   const [issueBranchId, setIssueBranchId] = useState<string>("");
@@ -86,69 +71,6 @@ export function WholesaleView() {
         description="Wholesale inventory is limited to administrators and managers."
       />
     );
-  }
-
-  async function onPurchase(event: FormEvent) {
-    event.preventDefault();
-    setPending(true);
-    try {
-      let sid = supplierId;
-      if (!sid && newSupplier.trim()) {
-        const kind = await persistBusinessWrite({
-          online,
-          remote: async () => {
-            sid = await createSupplier({ name: newSupplier.trim() });
-          },
-          local: async () => {
-            sid = await queueUpsertSupplier({ name: newSupplier.trim() });
-          },
-        });
-        void kind;
-      }
-      if (!sid) throw new Error("Select or create a supplier");
-      if (!productId) throw new Error("Select or add a product");
-      const cost = Number(unitCost);
-      const sell = Number(sellingPrice);
-      if (!Number.isFinite(cost) || cost < 0) throw new Error("Enter a valid cost price");
-      if (!Number.isFinite(sell) || sell < 0) throw new Error("Enter a valid selling price");
-      const purchaseArgs = {
-        supplierId: sid as Id<"suppliers">,
-        invoiceNumber: invoiceNumber || undefined,
-        purchasedAt: Date.now(),
-        items: [
-          {
-            productId: productId as Id<"products">,
-            quantity: Number(quantity),
-            unitCost: cost,
-            sellingPrice: sell,
-            expiryDate: expiryDate || undefined,
-          },
-        ],
-      };
-      const kind = await persistBusinessWrite({
-        online,
-        remote: () => recordPurchase(purchaseArgs),
-        local: () =>
-          queueWholesalePurchase({
-            supplierId: sid,
-            invoiceNumber: invoiceNumber || undefined,
-            purchasedAt: purchaseArgs.purchasedAt,
-            items: purchaseArgs.items,
-          }),
-      });
-      toast.success(queuedSaveMessage(kind, "Purchase recorded in wholesale"));
-      setBuyOpen(false);
-      setQuantity("1");
-      setUnitCost("");
-      setSellingPrice("");
-      setInvoiceNumber("");
-      setExpiryDate("");
-      setProductId("");
-    } catch (error) {
-      showError(error, "Could not record purchase");
-    } finally {
-      setPending(false);
-    }
   }
 
   async function onIssue(event: FormEvent) {
@@ -248,7 +170,7 @@ export function WholesaleView() {
         value={search}
         onChange={setSearch}
         placeholder="Search warehouse stock or scan barcode…"
-        listenHid={!buyOpen && !issueOpen && !productFormOpen}
+        listenHid={!buyOpen && !issueOpen}
       />
 
       <Card>
@@ -314,7 +236,10 @@ export function WholesaleView() {
                         {row.reference} · {row.supplierName}
                       </span>
                       <span className="text-muted-foreground shrink-0">
-                        {formatCurrency(row.totalCost)} · {formatDateTime(row.purchasedAt)}
+                        {formatCurrency(row.totalCost)}
+                        {purchaseBalance(row) > 0 ? ` · owed ${formatCurrency(purchaseBalance(row))}` : ""}
+                        {" · "}
+                        {formatDateTime(row.purchasedAt)}
                       </span>
                     </div>
                     {row.items?.length ? (
@@ -363,130 +288,12 @@ export function WholesaleView() {
         </Card>
       </div>
 
-      <Dialog open={buyOpen} onOpenChange={setBuyOpen}>
-        <DialogContent className="max-w-lg">
-          <form onSubmit={(e) => void onPurchase(e)}>
-            <DialogHeader>
-              <DialogTitle>Record supplier purchase</DialogTitle>
-              <DialogDescription>
-                Cost and selling become the catalog prices used when this stock is issued to
-                branches.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-3 py-4">
-              <div className="space-y-2">
-                <Label>Supplier</Label>
-                <SearchableSelect
-                  options={(suppliers ?? []).map((s) => ({ value: s.id, label: s.name }))}
-                  value={supplierId}
-                  onValueChange={setSupplierId}
-                  placeholder="Select supplier"
-                />
-                <Input
-                  value={newSupplier}
-                  onChange={(e) => setNewSupplier(e.target.value)}
-                  placeholder="Or type a new supplier name"
-                />
-              </div>
-              <div className="flex items-end justify-between gap-2">
-                <p className="text-sm font-medium">Product</p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-primary h-auto px-0"
-                  onClick={() => {
-                    setBuyOpen(false);
-                    setProductFormOpen(true);
-                  }}
-                >
-                  New product
-                </Button>
-              </div>
-              <ProductBarcodePicker
-                products={(products ?? []).map((product) => ({
-                  id: product.id,
-                  name: product.name,
-                  sku: product.sku,
-                  barcode: product.barcode,
-                  costPrice: product.costPrice,
-                  sellingPrice: product.sellingPrice,
-                }))}
-                value={productId}
-                onValueChange={setProductId}
-                onProductResolved={(product) => {
-                  if (product.costPrice != null) setUnitCost(String(product.costPrice));
-                  if (product.sellingPrice != null) setSellingPrice(String(product.sellingPrice));
-                }}
-                enabled={buyOpen}
-                label="Select existing product"
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Quantity</Label>
-                  <UnsignedQuantityInput value={quantity} onValueChange={setQuantity} required />
-                </div>
-                <div className="space-y-2">
-                  <Label>Cost price</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={unitCost}
-                    onChange={(e) => setUnitCost(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Selling price</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={sellingPrice}
-                  onChange={(e) => setSellingPrice(e.target.value)}
-                  required
-                />
-                <p className="text-muted-foreground text-xs">
-                  Branches sell at this price after you issue the stock.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label>Invoice / reference</Label>
-                <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Expiry (dated products)</Label>
-                <Input
-                  type="date"
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={pending}>
-                Save purchase
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <ProductFormDialog
-        open={productFormOpen}
-        onOpenChange={(open) => {
-          setProductFormOpen(open);
-          if (!open) setBuyOpen(true);
-        }}
-        productId={null}
-        warehouseIntake
-        onCreated={(created) => {
-          setProductId(created.id);
-          setUnitCost(String(created.costPrice));
-          setSellingPrice(String(created.sellingPrice));
-        }}
+      <RecordPurchaseDialog
+        key={buyOpen ? "purchase-open" : "purchase-closed"}
+        open={buyOpen}
+        onOpenChange={setBuyOpen}
+        suppliers={suppliers ?? []}
+        products={products ?? []}
       />
 
       <Dialog open={issueOpen} onOpenChange={setIssueOpen}>

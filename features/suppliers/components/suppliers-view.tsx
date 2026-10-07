@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import {
   Dialog,
   DialogContent,
@@ -24,14 +25,15 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useSuppliersList } from "@/hooks/use-offline-lists";
-import { getMirroredSupplier } from "@/lib/offline/mirror-queries";
+import { getOfflineDb } from "@/lib/offline/db";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
+import { purchaseBalance } from "@/convex/shared/supplierFinance";
 import {
   persistBusinessWrite,
   queuedSaveMessage,
   queueUpsertSupplier,
 } from "@/lib/offline/replica-writes";
 import { formatCurrency } from "@/lib/currency";
-import { formatDateTime } from "@/lib/date";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { Pencil, Plus, Truck } from "lucide-react";
@@ -53,26 +55,31 @@ export function SuppliersView() {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [pending, setPending] = useState(false);
-  const [selectedId, setSelectedId] = useState<Id<"suppliers"> | string | null>(null);
-  const remoteDetail = useAuthedQuery(
-    api.suppliers.get,
-    online && selectedId && !String(selectedId).startsWith("local_")
-      ? { id: selectedId as Id<"suppliers"> }
-      : "skip",
-  );
-  const [localDetail, setLocalDetail] =
-    useState<Awaited<ReturnType<typeof getMirroredSupplier>>>(null);
+  const balances = useAuthedQuery(api.suppliers.balances, online ? {} : "skip");
+  const [localOwed, setLocalOwed] = useState<Record<string, number>>({});
   useEffect(() => {
-    if (!selectedId) return;
     let cancelled = false;
-    void getMirroredSupplier(String(selectedId)).then((row) => {
-      if (!cancelled) setLocalDetail(row);
+    async function loadOwed() {
+      const db = await getOfflineDb();
+      if (!db || cancelled) return;
+      const purchases = await db.wholesalePurchases.toArray();
+      const owed: Record<string, number> = {};
+      for (const row of purchases) {
+        if (row.status === "void") continue;
+        owed[row.supplierId] = (owed[row.supplierId] ?? 0) + purchaseBalance(row);
+      }
+      if (!cancelled) setLocalOwed(owed);
+    }
+    void loadOwed();
+    const unsubscribe = subscribeReplicaChanged(() => {
+      void loadOwed();
     });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
-  }, [selectedId]);
-  const detail = selectedId ? (remoteDetail ?? localDetail) : null;
+  }, []);
+  const owedById = new Map((balances ?? []).map((row) => [String(row.supplierId), row.owed]));
 
   if (!canManageProducts) {
     return (
@@ -174,103 +181,72 @@ export function SuppliersView() {
         placeholder="Search suppliers…"
         className="max-w-md"
       />
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
-        <Card>
-          <CardContent className="overflow-x-auto p-0">
-            {loading ? (
-              <div className="p-6">
-                <LoadingState label="Loading suppliers…" />
-              </div>
-            ) : suppliers.length === 0 ? (
-              <div className="p-6">
-                <EmptyState icon={Truck} title="No suppliers yet" />
-              </div>
-            ) : (
-              <table className="w-full text-left text-sm">
-                <thead className="bg-muted/50 text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Supplier</th>
-                    <th className="px-4 py-3 font-medium">Contact</th>
-                    <th className="px-4 py-3 font-medium">Phone</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {suppliers.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-border hover:bg-muted/40 cursor-pointer border-t"
-                      onClick={() => setSelectedId(row.id as Id<"suppliers">)}
-                    >
-                      <td className="px-4 py-3 font-medium">{row.name}</td>
-                      <td className="px-4 py-3">{row.contactName ?? "—"}</td>
-                      <td className="px-4 py-3">{row.phone ?? "—"}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={row.status === "active" ? "success" : "secondary"}>
-                          {row.status}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setEditingId(row.id as Id<"suppliers">);
-                            setName(row.name);
-                            setContactName(row.contactName ?? "");
-                            setPhone(row.phone ?? "");
-                            setEmail(row.email ?? "");
-                            setAddress(row.address ?? "");
-                            setNotes(row.notes ?? "");
-                            setStatus(row.status);
-                            setOpen(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="mb-3 font-semibold">Purchase history</h2>
-            {!detail ? (
-              <p className="text-muted-foreground text-sm">Select a supplier to see purchases.</p>
-            ) : (
-              <div className="space-y-3 text-sm">
-                <p>
-                  {detail.purchaseCount} purchases · {formatCurrency(detail.purchaseTotal)}
-                </p>
-                {detail.purchases.length === 0 ? (
-                  <p className="text-muted-foreground">No purchases recorded.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {detail.purchases.map((row) => (
-                      <li key={row.id} className="flex justify-between gap-2">
-                        <span>
-                          {row.reference}
-                          {row.invoiceNumber ? ` · ${row.invoiceNumber}` : ""}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {formatCurrency(row.totalCost)} · {formatDateTime(row.purchasedAt)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="overflow-x-auto p-0">
+          {loading ? (
+            <div className="p-6">
+              <LoadingState label="Loading suppliers…" />
+            </div>
+          ) : suppliers.length === 0 ? (
+            <div className="p-6">
+              <EmptyState icon={Truck} title="No suppliers yet" />
+            </div>
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Supplier</th>
+                  <th className="px-4 py-3 font-medium">Contact</th>
+                  <th className="px-4 py-3 font-medium">Phone</th>
+                  <th className="px-4 py-3 font-medium">Owed</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium" />
+                </tr>
+              </thead>
+              <tbody>
+                {suppliers.map((row) => (
+                  <ClickableTableRow key={row.id} href={`/suppliers/${row.id}`}>
+                    <td className="px-4 py-3 font-medium">{row.name}</td>
+                    <td className="px-4 py-3">{row.contactName ?? "—"}</td>
+                    <td className="px-4 py-3">{row.phone ?? "—"}</td>
+                    <td className="px-4 py-3">
+                        {formatCurrency(
+                          localOwed[row.id] ?? owedById.get(row.id) ?? 0,
+                        )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={row.status === "active" ? "success" : "secondary"}>
+                        {row.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        aria-label={`Edit ${row.name}`}
+                        onClick={() => {
+                          setEditingId(row.id as Id<"suppliers">);
+                          setName(row.name);
+                          setContactName(row.contactName ?? "");
+                          setPhone(row.phone ?? "");
+                          setEmail(row.email ?? "");
+                          setAddress(row.address ?? "");
+                          setNotes(row.notes ?? "");
+                          setStatus(row.status);
+                          setOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </ClickableTableRow>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

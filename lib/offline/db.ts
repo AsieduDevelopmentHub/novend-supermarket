@@ -17,6 +17,7 @@ import type {
   MirroredReturn,
   MirroredStaffCompensation,
   MirroredSupplier,
+  MirroredSupplierPayment,
   MirroredUser,
   MirroredWholesalePurchase,
   MirroredWholesaleStock,
@@ -53,6 +54,7 @@ export type NovendOfflineDb = Dexie & {
   suppliers: EntityTable<MirroredSupplier, "id">;
   wholesaleStock: EntityTable<MirroredWholesaleStock, "id">;
   wholesalePurchases: EntityTable<MirroredWholesalePurchase, "id">;
+  supplierPayments: EntityTable<MirroredSupplierPayment, "id">;
   wholesaleTransfers: EntityTable<MirroredWholesaleTransfer, "id">;
   branches: EntityTable<MirroredBranch, "id">;
   users: EntityTable<MirroredUser, "id">;
@@ -418,6 +420,23 @@ export function createOfflineDb(organizationId?: string, userId?: string): Noven
     hotelStays: "id, branchId, roomId, status, checkInAt, customerId",
     hotelFolioCharges: "id, stayId, status, createdAt",
   });
+  // v14: supplier payment ledger. Purchase amountPaid is a field on the existing purchase store.
+  db.version(14).stores({
+    ...storesV8,
+    lots: "id, productId, branchId, expiryDate, [productId+branchId]",
+    staffCompensation: "id",
+    expenses:
+      "id, occurredAt, branchId, category, beneficiaryProfileId, payPeriodKey, sourceKind, recordedByUserId",
+    diningTables: "id, branchId, status, name",
+    diningSessions: "id, branchId, tableId, status, openedAt",
+    diningSessionItems: "id, sessionId, productId, kitchenStatus",
+    kitchenTickets: "id, branchId, sessionId, status, firedAt",
+    hotelRooms: "id, branchId, status, name",
+    hotelReservations: "id, branchId, roomId, status, arrivalDate, customerId",
+    hotelStays: "id, branchId, roomId, status, checkInAt, customerId",
+    hotelFolioCharges: "id, stayId, status, createdAt",
+    supplierPayments: "id, supplierId, purchaseId, paidAt",
+  });
   return db;
 }
 
@@ -563,7 +582,7 @@ export const META_KEYS = {
 } as const;
 
 /** Bump when Dexie adds replica tables so TTL snapshot skips cannot leave new stores empty. */
-export const REPLICA_SCHEMA_VERSION = "13";
+export const REPLICA_SCHEMA_VERSION = "14";
 
 export async function getMeta(db: NovendOfflineDb, key: string): Promise<string | null> {
   try {

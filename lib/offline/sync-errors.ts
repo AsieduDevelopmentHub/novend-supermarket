@@ -54,6 +54,20 @@ export function syncFailureMessage(error: unknown, friendly: string): string {
 }
 
 /**
+ * Convex retries these itself when it can. When one reaches the outbox, the row
+ * must stay pending. Several tills uploading the same branch at close produce
+ * this, and it is not a stock or validation conflict.
+ */
+export function isRetryableServerConflict(message: string) {
+  const m = message.toLowerCase();
+  return (
+    m.includes("changed while this mutation") ||
+    m.includes("optimistic concurrency") ||
+    m.includes("optimisticconcurrency")
+  );
+}
+
+/**
  * Server rejections the cashier must review. Network / rate-limit / auth
  * failures stay pending and retry. Validation errors (expiry, SKU, stock, …)
  * must not sit in Waiting and must not stop the rest of the queue.
@@ -61,6 +75,7 @@ export function syncFailureMessage(error: unknown, friendly: string): string {
 export function isSyncBusinessConflict(message: string) {
   if (!message.trim()) return false;
   if (isConnectivityError(new Error(message))) return false;
+  if (isRetryableServerConflict(message)) return false;
   if (isSyncDependencyWait(message)) return false;
   if (isAuthRequiredError(message)) return false;
   if (isTransientSyncPlaceholder(message)) return false;

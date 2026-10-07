@@ -44,6 +44,7 @@ import {
   mergeServerAndLocalById,
   mergeWholesaleStock,
   overlayPendingBranchStock,
+  overlayPendingSupplierPayments,
   overlayPendingWholesaleStock,
   pendingLocalIdsFromOutbox,
   sameExpense,
@@ -51,6 +52,7 @@ import {
   sameWholesalePurchase,
   sameWholesaleTransfer,
 } from "./replica-dedupe";
+import { withReceiptQuantities } from "./sale-upload-lines";
 import type {
   MirroredBranch,
   MirroredBranchStock,
@@ -72,6 +74,7 @@ import type {
   MirroredReturn,
   MirroredStaffCompensation,
   MirroredSupplier,
+  MirroredSupplierPayment,
   MirroredUser,
   MirroredWholesalePurchase,
   MirroredWholesaleStock,
@@ -191,6 +194,7 @@ export async function applySnapshot(
     suppliers?: MirroredSupplier[];
     wholesaleStock?: MirroredWholesaleStock[];
     wholesalePurchases?: MirroredWholesalePurchase[];
+    supplierPayments?: MirroredSupplierPayment[];
     wholesaleTransfers?: MirroredWholesaleTransfer[];
     branches?: MirroredBranch[];
     users?: MirroredUser[];
@@ -226,6 +230,9 @@ export async function applySnapshot(
 ) {
   const now = Date.now();
   const openOutbox = await db.outbox.toArray();
+  const stockOutbox = await withReceiptQuantities(openOutbox, (localSaleId) =>
+    db.localSaleItems.where("localSaleId").equals(localSaleId).toArray(),
+  );
   const pendingLocalIds = pendingLocalIdsFromOutbox(openOutbox);
   const tables = [
     db.products,
@@ -237,6 +244,7 @@ export async function applySnapshot(
     db.suppliers,
     db.wholesaleStock,
     db.wholesalePurchases,
+    db.supplierPayments,
     db.wholesaleTransfers,
     db.branches,
     db.users,
@@ -262,7 +270,7 @@ export async function applySnapshot(
     );
     await replaceServerRows(
       db.branchStock,
-      overlayPendingBranchStock(snapshot.branchStock ?? [], openOutbox),
+      overlayPendingBranchStock(snapshot.branchStock ?? [], stockOutbox),
       pendingLocalIds,
     );
     await replaceServerRows(db.categories, snapshot.categories, pendingLocalIds);
@@ -292,9 +300,14 @@ export async function applySnapshot(
     );
     await replaceServerRows(
       db.wholesalePurchases,
-      snapshot.wholesalePurchases ?? [],
+      overlayPendingSupplierPayments(snapshot.wholesalePurchases ?? [], openOutbox),
       pendingLocalIds,
       sameWholesalePurchase,
+    );
+    await replaceServerRows(
+      db.supplierPayments,
+      snapshot.supplierPayments ?? [],
+      pendingLocalIds,
     );
     await replaceServerRows(
       db.wholesaleTransfers,

@@ -1,9 +1,16 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import { requireRole, resolveBranchFilter, isAdmin, isManager } from "./shared/permissions";
+import {
+  canViewCostPrice,
+  isAdmin,
+  isManager,
+  requireRole,
+  resolveBranchFilter,
+} from "./shared/permissions";
 import { completedReturnsInRange } from "./shared/returns";
 import { collectSalesInCompletedAtRange } from "./shared/salesRange";
 import { roundMoney } from "./shared/validation";
+import { buildInventoryValueSeries } from "./shared/inventoryValueSeries";
 
 export const salesSummary = query({
   args: {
@@ -304,6 +311,106 @@ export const dayDetails = query({
             completedAt: row.completedAt,
           };
         }),
+    };
+  },
+});
+
+const INVENTORY_HISTORY_CAP = 4_000;
+
+/** End-of-day inventory value for Reports and Analytics. Administrators and managers. */
+export const inventoryValue = query({
+  args: {
+    startDate: v.number(),
+    endDate: v.number(),
+    branchId: v.optional(v.id("branches")),
+  },
+  handler: async (ctx, args) => {
+    const { profile, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    if (args.endDate < args.startDate) throw new Error("Invalid date range");
+    const branchFilter = resolveBranchFilter(profile, args.branchId ?? null);
+    const showCost = canViewCostPrice(profile);
+
+    const [products, stockRows, history] = await Promise.all([
+      ctx.db
+        .query("products")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect(),
+      branchFilter
+        ? ctx.db
+            .query("branchStock")
+            .withIndex("by_branch", (q) => q.eq("branchId", branchFilter))
+            .collect()
+        : ctx.db
+            .query("branchStock")
+            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+            .collect(),
+      ctx.db
+        .query("inventoryHistory")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .order("desc")
+        .take(INVENTORY_HISTORY_CAP),
+    ]);
+
+    const productById = new Map(products.map((product) => [product._id, product]));
+    const stock = stockRows
+      .filter((row) => row.organizationId === organizationId)
+      .filter((row) => !branchFilter || row.branchId === branchFilter)
+      .flatMap((row) => {
+        const product = productById.get(row.productId);
+        if (!product || product.status === "archived") return [];
+        return [
+          {
+            key: `${row.branchId}:${row.productId}`,
+            quantity: row.quantity,
+            costPrice: product.costPrice,
+            sellingPrice: product.sellingPrice,
+            tracksInventory: product.tracksInventory !== false,
+          },
+        ];
+      });
+
+    const oldest = history[history.length - 1];
+    const historyPartial =
+      history.length === INVENTORY_HISTORY_CAP &&
+      oldest !== undefined &&
+      oldest._creationTime >= args.startDate;
+
+    const movements = history.flatMap((row) => {
+      if (!row.branchId) return [];
+      if (branchFilter && row.branchId !== branchFilter) return [];
+      if (row.organizationId !== organizationId) return [];
+      return [
+        {
+          key: `${row.branchId}:${row.productId}`,
+          quantityChange: row.quantityChange,
+          at: row._creationTime,
+        },
+      ];
+    });
+
+    const valued = buildInventoryValueSeries({
+      stock,
+      movements,
+      startDate: args.startDate,
+      endDate: args.endDate,
+    });
+
+    return {
+      showCost,
+      partial: historyPartial || valued.truncated,
+      opening: {
+        cost: showCost ? valued.opening.cost : null,
+        sell: valued.opening.sell,
+      },
+      closing: {
+        cost: showCost ? valued.closing.cost : null,
+        sell: valued.closing.sell,
+      },
+      points: valued.points.map((point) => ({
+        date: point.date,
+        cost: showCost ? point.cost : null,
+        sell: point.sell,
+      })),
     };
   },
 });

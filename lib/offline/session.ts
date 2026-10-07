@@ -174,6 +174,19 @@ export function listOfflineSessions(): OfflineSessionHint[] {
   return rows;
 }
 
+/**
+ * Remember a staff account on this till without switching the person who is
+ * signed in. Used when an administrator or manager creates that account here:
+ * the new person can sign in offline on this device before they have signed in
+ * online themselves.
+ */
+export function rememberOfflineSession(hint: OfflineSessionHint): void {
+  if (!isFreshHint(hint)) return;
+  upsertRegistry(hint);
+  void saveDeviceOfflineSession(hint);
+  notifyOfflineSession();
+}
+
 export function markOfflineSession(hint: OfflineSessionHint): void {
   let raw: string | null = null;
   try {

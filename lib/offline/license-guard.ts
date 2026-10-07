@@ -80,6 +80,7 @@ export async function assertFeatureEnabled(feature: FeatureKey): Promise<void> {
 /** Outbox op → required feature (if any). Ops without a mapping are always allowed. */
 export const OUTBOX_FEATURE_REQUIREMENTS: Partial<Record<OutboxOpType, FeatureKey>> = {
   record_wholesale_purchase: "inventory.wholesale",
+  record_supplier_payment: "inventory.wholesale",
   wholesale_transfer: "inventory.wholesale",
   upsert_branch: "branches.multiBranch",
   upsert_staff_compensation: "staff.compensation",

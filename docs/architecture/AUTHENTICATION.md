@@ -17,6 +17,8 @@ There is a single identity provider. Do not add a parallel auth system.
          → dashboard / POS
 /login   → password session → cached shell → POS
 Staff    → created in-org by an administrator or manager (no self-signup)
+         → that till stores a device password digest and workspace hint so the
+           new person can sign in offline on the same device
 Recovery → /forgot-password → hashed, single-use, 1-hour token → /reset-password
 Verify   → 6-digit hashed OTP on the signed-in user (soft)
 ```

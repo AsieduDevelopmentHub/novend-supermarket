@@ -76,6 +76,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const createSupplier = useMutation(api.suppliers.create);
   const updateSupplier = useMutation(api.suppliers.update);
   const recordPurchase = useMutation(api.wholesale.recordPurchase);
+  const recordSupplierPayment = useMutation(api.suppliers.recordPayment);
   const transferToBranch = useMutation(api.wholesale.transferToBranch);
   const adjustStock = useMutation(api.inventory.adjustStock);
   const updateLotExpiry = useMutation(api.inventory.updateLotExpiry);
@@ -287,14 +288,18 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
                 invoiceNumber: payload.invoiceNumber,
                 purchasedAt: payload.purchasedAt,
                 notes: payload.notes,
+                amountPaid: payload.amountPaid,
+                paymentMethod: payload.paymentMethod,
                 clientOperationId: payload.clientOperationId,
                 items: payload.items.map((item) => ({
                   productId: item.productId as never,
                   quantity: item.quantity,
                   unitCost: item.unitCost,
+                  sellingPrice: item.sellingPrice,
                   expiryDate: item.expiryDate,
                 })),
               }),
+            recordSupplierPayment: (args) => recordSupplierPayment(args),
             transferToBranch: (args) =>
               transferToBranch({
                 productId: args.productId,
@@ -414,6 +419,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       createSupplier,
       updateSupplier,
       recordPurchase,
+      recordSupplierPayment,
       transferToBranch,
       adjustStock,
       updateLotExpiry,

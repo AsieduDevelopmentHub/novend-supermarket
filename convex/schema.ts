@@ -805,6 +805,11 @@ export default defineSchema({
     notes: v.optional(v.string()),
     itemCount: v.number(),
     totalCost: v.number(),
+    /**
+     * Cash already given to the supplier for this delivery.
+     * Absent on rows recorded before balances: those are treated as paid in full.
+     */
+    amountPaid: v.optional(v.number()),
     status: v.union(v.literal("completed"), v.literal("void")),
     createdBy: v.id("users"),
     createdAt: v.number(),
@@ -828,6 +833,21 @@ export default defineSchema({
   })
     .index("by_purchase", ["purchaseId"])
     .index("by_product", ["productId"]),
+
+  supplierPayments: defineTable({
+    organizationId: v.id("organizations"),
+    supplierId: v.id("suppliers"),
+    purchaseId: v.optional(v.id("supplierPurchases")),
+    amount: v.number(),
+    paidAt: v.number(),
+    method: paymentMethodValidator,
+    note: v.optional(v.string()),
+    recordedBy: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_supplier", ["supplierId"])
+    .index("by_purchase", ["purchaseId"]),
 
   wholesaleStock: defineTable({
     organizationId: v.id("organizations"),

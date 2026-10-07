@@ -138,7 +138,7 @@ Convex (when online)
    administrators and managers; writes queue to the outbox and sync when online.
    Audit **activity** for a user still requires a network connection.
 3. Writes apply locally, then enqueue an outbox event (`upsert_supplier`,
-   `record_wholesale_purchase`, `complete_sale`, `upsert_product`,
+   `record_wholesale_purchase`, `record_supplier_payment`, `complete_sale`, `upsert_product`,
    `update_lot_expiry`, …). Product
    **imports** use the same outbox: Dexie first, then Convex `createProduct` /
    `updateProduct`. Catalog CSV/Excel exports read the local list and work offline.
@@ -276,7 +276,11 @@ remembered in `novend.offlineSessions`. **Login always uses the same email +
 password form** — online against Convex Auth, offline against the device digest
 then the remembered shell. There is no passwordless account picker. Wrong
 offline passwords are rejected. The first login on a new device (or after the
-digest/session expires) still requires the network so the digest can be stored.
+digest or session expires) still requires the network so the digest can be stored.
+When an administrator or manager creates a staff account on this till, the till
+stores that person's password digest and a workspace hint immediately. The
+password is not written to the outbox. That person can sign in offline on this
+same till. A different device still needs one online sign-in for them.
 Online never auto-resumes a cached shell (Electron reconnect included). After
 password sign-in, the live Convex `me` profile rebinds Dexie so the previous
 offline cashier cannot stay active. Lifetime (and local-only) licence snapshots
@@ -293,7 +297,12 @@ reconnect. Legacy sales may omit `syncedAt`.
 
 Name, phone, catalog, inventory, wholesale, suppliers, customers, expenses,
 sales, returns, reports, analytics, **admin/manager branch switching**, and
-**per-batch expiry edits** all continue on the device. An administrator can
+**per-batch expiry edits** all continue on the device. Inventory value on
+Reports and Analytics is a cloud query: it replays branch stock movements and
+prices them at today's cost and selling price. The card shows the value at the start
+of the selected period and at the end, then an administrator or manager can look
+up the day that value matched an amount. It is not in the Dexie replica,
+so the card asks for a connection when the till is offline. An administrator can
 complete a sale for any branch already in the device snapshot, including a
 branch that is not their home branch, without a connection. The admin snapshot
 stores stock for every branch, and the sale is tagged with that branch. Branch
@@ -319,6 +328,39 @@ invoice (or return number) printed at checkout is sent on the outbox event and
 stored as the Convex invoice — sync must not mint a second number. A wholesale
 purchase that creates a product waits for the product outbox row to sync (local
 ids are remapped) before the purchase mutation runs.
+
+A cloud refresh replaces device stock with the server’s quantities. Pending
+sales and returns are applied back onto that snapshot (`overlayPendingBranchStock`),
+including rows already marked failed. Without that, a reconnect during an
+offline day restored the morning count, the till sold those units again, and
+close-of-day upload then rejected the extras as “Not enough stock”.
+
+These uploads are still conflicts, and they should be:
+
+- **Two tills, one branch, same units.** Each device sold from the morning
+  snapshot. The first upload reduces branch stock. A later upload that would
+  take stock below zero is rejected. The receipt already exists on the second
+  till; a manager adjusts stock or accepts the short line. Sync does not invent
+  units.
+- **The catalog changed after the sale.** A price, pack size, or deactivated
+  product used to be re-checked against the live catalog, so a discount that
+  fitted the printed price failed, or “Sell unit not found” / “Product
+  unavailable” failed a sale that had already been paid. The upload now sends
+  the printed price and the base quantity the till removed. Live checkout still
+  uses the current catalog.
+- **Product edit rewrote stock.** Saving a name or price also sent the stock
+  figure on the form. On a dated product that throws “Use Inventory or Expiry
+  lots…”. On any product it could set the branch back to a stale count before
+  the day’s sales uploaded, and those sales then failed stock. A save now sends
+  stock only when that number was changed. If the queued number already matches
+  the branch, the server leaves stock alone.
+- **One bad row stopped the queue.** A non-final rejection used to stop the
+  drain, so the rest of the day’s sales never uploaded in that pass and later
+  showed up as conflicts. A business rejection is recorded on that row and the
+  drain continues. A network failure still stops the pass. Convex
+  “changed while this mutation was being run” stays pending and is not a conflict.
+- **SKU already exists, forbidden, and a real stock edit on a dated product**
+  are still conflicts. The message in Sync Center is the server reason.
 
 The sidebar chip is the only always-on offline indicator. The top banner
 appears only when sync items need attention (failed / exhausted retries). **Sync

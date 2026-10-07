@@ -459,6 +459,9 @@ function ProductFormBody({
         (!productId ||
           productId.startsWith("local_") ||
           initialProduct?.tracksExpiry !== true);
+      const nextStock = Math.max(0, Math.floor(Number(stockQuantity) || 0));
+      const openingStock = Math.max(0, Math.floor(initialProduct?.stockQuantity ?? 0));
+      const stockWasEdited = Boolean(productId && canEditStock && nextStock !== openingStock);
       let savedId = productId ?? "";
       let resolvedCategoryId = categoryId;
       const kind = await persistBusinessWrite({
@@ -487,9 +490,9 @@ function ProductFormBody({
                     : Number(expiryAlertDays)
                   : undefined,
                 openingExpiryDate: shouldSendOpeningExpiry ? resolvedOpeningExpiry : undefined,
-                ...(canEditStock
+                ...(stockWasEdited
                   ? {
-                      stockQuantity: Math.max(0, Math.floor(Number(stockQuantity) || 0)),
+                      stockQuantity: nextStock,
                       ...(profileBranchId
                         ? { stockBranchId: profileBranchId as Id<"branches"> }
                         : {}),
@@ -548,7 +551,7 @@ function ProductFormBody({
             sellingPrice: Number(sellingPrice),
             stockQuantity:
               warehouseIntake || !resolvedTracksInventory ? 0 : Number(stockQuantity),
-            applyStockQuantity: Boolean(productId && canEditStock),
+            applyStockQuantity: stockWasEdited || undefined,
             unit: resolvedUnit,
             sellUnits,
             pricingMode: resolvedPricingMode,
