@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { businessDateKey } from "@/convex/shared/businessDate";
+import { businessDateKey, resolveReportedClockIn } from "@/convex/shared/businessDate";
 import { phonesForBroadcast, phonesForClockInAlert } from "@/convex/shared/smsAudience";
 
 const profiles = [
@@ -39,6 +39,32 @@ describe("phonesForClockInAlert", () => {
         profiles,
       }),
     ).toEqual(["+233244000001", "+233244000002"]);
+  });
+});
+
+describe("resolveReportedClockIn", () => {
+  const now = Date.parse("2026-10-07T09:30:00.000Z");
+
+  it("keeps the till's earlier login instead of the reconnect time", () => {
+    const loggedIn = Date.parse("2026-10-07T07:00:00.000Z");
+    const result = resolveReportedClockIn({
+      now,
+      reportedAt: loggedIn,
+      timeZone: "Africa/Accra",
+    });
+    expect(result.record).toBe(true);
+    expect(result.at).toBe(loggedIn);
+    expect(result.on).toBe("2026-10-07");
+  });
+
+  it("does not replace a clock-in already stored for a later day", () => {
+    const result = resolveReportedClockIn({
+      now,
+      reportedAt: Date.parse("2026-10-06T18:00:00.000Z"),
+      existingOn: "2026-10-07",
+      timeZone: "Africa/Accra",
+    });
+    expect(result.record).toBe(false);
   });
 });
 

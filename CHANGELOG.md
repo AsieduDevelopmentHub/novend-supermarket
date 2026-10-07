@@ -10,6 +10,7 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### What's new
 
+- A cashier who signs in offline keeps that login time on the till. When the connection returns, clock-in, the text, and the bell use that time.
 - The bell lists important alerts (stock, transfers, billing, cashier clock-in) with mute, mark all read, and clear all. Completed sales are not notifications. The same alerts still use browser, Android, and desktop push.
 - Platform owners and operators can send one SMS to business owners, administrators, or managers. Cashiers are not on that list.
 - The first time a cashier signs in on a business day, administrators with a phone number get one clock-in text. Later sign-ins that day do not send another. Users shows that clock-in time next to last seen.

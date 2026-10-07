@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { SyncStatusBanner } from "@/components/offline/sync-status-banner";
 import { SyncStatusHeaderButton } from "@/components/offline/sync-status-chip";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
+import { clearPendingClockIn, readPendingClockIn } from "@/lib/offline/pending-clock-in";
 import { SyncCenterDialog } from "@/components/offline/sync-center-dialog";
 import { LicenseBanner } from "@/features/billing/components/license-banner";
 import { EmailVerificationBanner } from "@/features/auth/components/email-verification-banner";
@@ -627,10 +628,21 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         }
       | undefined;
 
-    function tick() {
+    async function tick() {
       if (cancelled || !identityPayload) return;
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      void heartbeat(identityPayload);
+      const userId = user?.userId ? String(user.userId) : null;
+      const reported = userId ? await readPendingClockIn(userId) : null;
+      if (cancelled) return;
+      try {
+        await heartbeat({
+          ...identityPayload,
+          ...(reported != null ? { clockedInAt: reported } : {}),
+        });
+        if (userId && reported != null) await clearPendingClockIn(userId);
+      } catch {
+        /* Keep the saved login time until a heartbeat succeeds. */
+      }
     }
 
     void describeClientDevice().then((identity) => {

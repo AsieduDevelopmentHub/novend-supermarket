@@ -41,6 +41,7 @@ import {
   markOfflineSession,
 } from "@/lib/offline/session";
 import { storeLocalAuthVerifier, verifyLocalAuth } from "@/lib/offline/local-auth";
+import { rememberClockIn } from "@/lib/offline/pending-clock-in";
 import { shellProfileFromSessionHint, saveShellProfile } from "@/lib/offline/shell-profile";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 import { withTimeout } from "@/lib/async/with-timeout";
@@ -319,6 +320,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       return false;
     }
     trackGaEvent("login", { method: "offline" });
+    await rememberClockIn(verified.userId, Date.now());
     return await openOfflineWorkspace(verified.userId, verified.email);
   }
 
@@ -398,6 +400,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       await revokeStaleCloudSessionBeforeSignIn();
       if (generation !== submitGenerationRef.current) return;
 
+      let cloudLoggedInAt: number | null = null;
       try {
         const formData = new FormData();
         formData.set("email", normalizedEmail);
@@ -409,6 +412,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
           cloudSignInBudgetMs(),
           "Couldn't reach Novend in time.",
         );
+        cloudLoggedInAt = Date.now();
         trackGaEvent("login", { method: "password" });
       } catch (cloudError) {
         // Online browser: cloud-only — never open a cached local shell.
@@ -480,6 +484,9 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         return;
       }
       releaseTypedLoginFields();
+      if (cloudLoggedInAt != null) {
+        await rememberClockIn(String(session.userId), cloudLoggedInAt);
+      }
       navigateAfterLogin(session.path, router, { hard: true });
       void storeLocalAuthVerifier(normalizedEmail, rawPassword, session.userId)
         .then((prepared) => {
