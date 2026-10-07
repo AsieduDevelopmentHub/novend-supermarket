@@ -9,6 +9,8 @@ describe("CSP nonce wiring", () => {
     expect(source).toContain('requestHeaders.set("Content-Security-Policy", buildNonceCsp(nonce))');
     expect(source).toContain("buildStaticMarketingCsp");
     expect(source).toContain("isStaticPublicRoute");
+    expect(source).toContain("https://*.ingest.sentry.io");
+    expect(source).toContain("https://www.googletagmanager.com");
   });
 
   it("keeps root layout free of headers()/nonce so marketing can stay static-friendly", () => {
@@ -27,11 +29,12 @@ describe("CSP nonce wiring", () => {
     const providers = readFileSync(resolve(process.cwd(), "providers/app-providers.tsx"), "utf8");
 
     for (const layout of [appLayout, authLayout]) {
-      expect(layout).toContain('(await headers()).get("x-nonce")');
+      expect(layout).toMatch(/get\("x-nonce"\)/);
       expect(layout).toContain("NonceProvider");
       expect(layout).toContain("ThemeBootScript");
     }
     expect(siteLayout).not.toMatch(/from "next\/headers"/);
+    expect(siteLayout).toContain("GoogleAnalytics");
     expect(providers).toContain("nonce={resolvedNonce}");
   });
 

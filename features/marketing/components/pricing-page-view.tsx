@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TrackPricingView } from "@/lib/analytics/track-pricing-view";
 import { LandingPricing } from "@/features/marketing/components/landing-pricing";
 import { LandingCta } from "@/features/marketing/components/landing-cta";
 import { LandingFaq } from "@/features/marketing/components/landing-faq";
@@ -12,6 +13,7 @@ import { appEntryHref } from "@/lib/hosting/hosts";
 export function PricingPageView() {
   return (
     <div className="bg-[#F8FAFC]">
+      <TrackPricingView />
       <section className="border-b border-[rgba(11,18,32,0.08)] bg-gradient-to-b from-[#EFF8FF] to-[#F8FAFC]">
         <div
           data-reveal

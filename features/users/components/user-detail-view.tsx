@@ -33,6 +33,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { formatDateTime, formatPresence } from "@/lib/date";
+import { ClockInLabel } from "@/features/users/components/clock-in-label";
 import { deactivateAccountBlockReason } from "@/convex/shared/accountStatus";
 import { showError } from "@/lib/errors";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -324,6 +325,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
               {presence.online ? "Online" : "Offline"}
             </Badge>
             <p className="text-muted-foreground mt-1 text-xs">{presence.label}</p>
+            <ClockInLabel clockedInAt={profile.clockedInAt} clockedInOn={profile.clockedInOn} />
           </div>
           <Field
             label="Last seen"

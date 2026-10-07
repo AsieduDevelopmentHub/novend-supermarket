@@ -15,6 +15,9 @@ describe("platformRoles", () => {
   it("gives owners staff.manage and analysts read-only org access", () => {
     expect(permissionsForRole("owner").has("staff.manage")).toBe(true);
     expect(permissionsForRole("operator").has("staff.manage")).toBe(false);
+    expect(permissionsForRole("owner").has("sms.broadcast")).toBe(true);
+    expect(permissionsForRole("operator").has("sms.broadcast")).toBe(true);
+    expect(permissionsForRole("support").has("sms.broadcast")).toBe(false);
     expect(permissionsForRole("analyst").has("orgs.read")).toBe(true);
     expect(permissionsForRole("analyst").has("orgs.write")).toBe(false);
     expect(platformAdminHasPermission({ role: "support", status: "active" }, "billing.write")).toBe(

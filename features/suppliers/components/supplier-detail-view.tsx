@@ -26,10 +26,16 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useProductsList } from "@/hooks/use-offline-lists";
 import { getMirroredSupplier } from "@/lib/offline/mirror-queries";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
+import {
+  purchaseBalance,
+  purchasePaymentStatus,
+  settledAmount,
+} from "@/convex/shared/supplierFinance";
 import {
   persistBusinessWrite,
   queuedSaveMessage,
@@ -79,6 +85,7 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
     api.suppliers.get,
     online && !isLocal ? { id: supplierId as Id<"suppliers"> } : "skip",
   );
+  const preferLocal = usePreferLocalData(remote !== undefined);
   const { products } = useProductsList({
     search: "",
     includeInactive: false,
@@ -89,6 +96,7 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
   const [local, setLocal] = useState<Awaited<ReturnType<typeof getMirroredSupplier>> | undefined>(
     undefined,
   );
+  const [localReady, setLocalReady] = useState(false);
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [amount, setAmount] = useState("");
@@ -100,9 +108,17 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
   useEffect(() => {
     let cancelled = false;
     function load() {
-      void getMirroredSupplier(supplierId).then((row) => {
-        if (!cancelled) setLocal(row);
-      });
+      void getMirroredSupplier(supplierId)
+        .then((row) => {
+          if (cancelled) return;
+          setLocal(row);
+          setLocalReady(true);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setLocal(null);
+          setLocalReady(true);
+        });
     }
     load();
     const unsubscribe = subscribeReplicaChanged(load);
@@ -122,42 +138,91 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
   }
 
   const pendingOnDevice =
-    local?.payments.some((row) => row.id.startsWith("local_")) ||
-    local?.purchases.some((row) => row.id.startsWith("local_")) ||
-    false;
-  const source = remote && !pendingOnDevice ? remote : (local ?? remote);
-  if (source === undefined) {
+    Boolean(local?.payments.some((row) => row.id.startsWith("local_"))) ||
+    Boolean(local?.purchases.some((row) => row.id.startsWith("local_")));
+  // Dexie while offline / Cap false-online / local-only id / pending device writes.
+  const forceLocal = !online || preferLocal || isLocal || pendingOnDevice;
+  const source = forceLocal ? local : (remote ?? local);
+
+  if (forceLocal && !localReady) {
+    return <LoadingState label="Loading supplier…" />;
+  }
+  if (!forceLocal && source === undefined && !localReady) {
     return <LoadingState label="Loading supplier…" />;
   }
   if (!source) {
-    return <ErrorState message="Supplier not found." />;
+    return (
+      <ErrorState message="Supplier not found on this device. Connect once to refresh suppliers, then open again offline." />
+    );
   }
 
-  const deliveries: Delivery[] = (source.purchases ?? []).map((row) => ({
-    id: String(row.id),
-    reference: row.reference,
-    invoiceNumber: row.invoiceNumber,
-    purchasedAt: row.purchasedAt,
-    totalCost: row.totalCost,
-    balance: "balance" in row ? row.balance : 0,
-    paymentStatus: "paymentStatus" in row ? row.paymentStatus : "paid",
-    legacy: "legacy" in row ? row.legacy : false,
-    items: "items" in row && row.items ? row.items : [],
-  }));
+  const purchaseRows = source.purchases ?? [];
+  const deliveries: Delivery[] = purchaseRows.map((row) => {
+    const amountPaid =
+      "amountPaid" in row ? (row.amountPaid as number | null | undefined) : undefined;
+    const balance =
+      "balance" in row && typeof row.balance === "number"
+        ? row.balance
+        : purchaseBalance({ totalCost: row.totalCost, amountPaid });
+    const rawStatus =
+      "paymentStatus" in row && row.paymentStatus
+        ? row.paymentStatus
+        : purchasePaymentStatus({ totalCost: row.totalCost, amountPaid });
+    const paymentStatus: Delivery["paymentStatus"] =
+      rawStatus === "paid" || rawStatus === "partial" || rawStatus === "owed"
+        ? rawStatus
+        : purchasePaymentStatus({ totalCost: row.totalCost, amountPaid });
+    return {
+      id: String(row.id),
+      reference: row.reference,
+      invoiceNumber: row.invoiceNumber,
+      purchasedAt: row.purchasedAt,
+      totalCost: row.totalCost,
+      balance,
+      paymentStatus,
+      legacy: "legacy" in row ? Boolean(row.legacy) : amountPaid === undefined,
+      items: "items" in row && Array.isArray(row.items) ? row.items : [],
+    };
+  });
   const payments: PaymentRow[] =
-    "payments" in source && source.payments
+    "payments" in source && Array.isArray(source.payments)
       ? source.payments.map((row) => ({
           id: String(row.id),
-          purchaseReference: row.purchaseReference,
+          purchaseReference: row.purchaseReference ?? null,
           amount: row.amount,
           paidAt: row.paidAt,
           method: row.method,
-          note: row.note,
+          note: row.note ?? null,
         }))
       : [];
-  const purchased = source.purchased;
-  const paid = source.paid;
-  const owed = source.owed;
+  const purchased =
+    typeof source.purchased === "number"
+      ? source.purchased
+      : purchaseRows.reduce((sum, row) => sum + row.totalCost, 0);
+  const paid =
+    typeof source.paid === "number"
+      ? source.paid
+      : purchaseRows.reduce(
+          (sum, row) =>
+            sum +
+            settledAmount({
+              totalCost: row.totalCost,
+              amountPaid: "amountPaid" in row ? (row.amountPaid as number | null) : undefined,
+            }),
+          0,
+        );
+  const owed =
+    typeof source.owed === "number"
+      ? source.owed
+      : purchaseRows.reduce(
+          (sum, row) =>
+            sum +
+            purchaseBalance({
+              totalCost: row.totalCost,
+              amountPaid: "amountPaid" in row ? (row.amountPaid as number | null) : undefined,
+            }),
+          0,
+        );
   const openDeliveries = deliveries.filter((row) => row.balance > 0);
 
   async function onPayment(event: FormEvent) {

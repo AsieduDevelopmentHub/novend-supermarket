@@ -21,8 +21,9 @@ objection rights are **BLOCKED** pending legal review.
 | Resend (or current transactional email vendor)                        | Transactional email (verification, resets)                  | Email addresses, message metadata                            | Confirm                          | DRAFT                                   |
 | Paystack (Paystack Payments Limited / Stripe affiliate as applicable) | Subscription billing                                        | Billing identifiers, amounts, limited customer metadata      | Confirm                          | DRAFT                                   |
 | GitHub (Microsoft)                                                    | Source control, CI, desktop/mobile release assets           | Source, build logs, release binaries                         | Confirm                          | DRAFT                                   |
-| Error monitoring (e.g. Sentry)                                        | Application error reporting                                 | Stack traces, device/app metadata — **must scrub PII**       | Confirm                          | **NOT ENABLED** — no production DSN yet |
-| Analytics / support tools                                             | Product analytics or support inbox (if/when used)           | TBD                                                          | TBD                              | DRAFT / unused until named              |
+| Sentry (Functional Software, Inc.)                                    | Application error reporting                                 | Stack traces, device/app metadata — **must scrub PII**       | Confirm                          | Wired; enabled only when `NEXT_PUBLIC_SENTRY_DSN` is set |
+| Google Analytics (Google LLC)                                         | Marketing-site traffic analytics                            | Anonymized page views on www only — not POS till activity    | Confirm                          | Wired; enabled only when `NEXT_PUBLIC_GA_MEASUREMENT_ID` is set |
+| Arkesel                                                               | Transactional / alert SMS (Ghana & Africa)                  | Phone numbers, message content for opted-in notify flows     | Confirm                          | Wired; enabled only when Convex `ARKESEL_API_KEY` is set |
 
 ## Data categories reminder
 

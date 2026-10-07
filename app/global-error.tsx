@@ -30,6 +30,12 @@ export default function GlobalError({
   const recoverLogin = shouldRecoverToLogin(error);
 
   useEffect(() => {
+    void import("@/lib/monitoring/sentry").then(({ captureException }) => {
+      captureException(error, { digest: error.digest, source: "global-error" });
+    });
+  }, [error]);
+
+  useEffect(() => {
     if (!recoverLogin || recovering) return;
     setRecovering(true);
     void recoverToLoginAfterFailure();

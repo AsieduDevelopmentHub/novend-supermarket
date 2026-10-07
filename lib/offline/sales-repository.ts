@@ -582,3 +582,61 @@ export async function mirrorCompletedSale(input: {
   });
   notifyReplicaChanged();
 }
+
+type HospitalityReceiptPayload = {
+  branchId?: string | null;
+  subtotal: number;
+  discount: number;
+  total: number;
+  itemCount: number;
+  paymentMethod: "cash" | "card" | "mobile_money";
+  completedAt: number;
+  customerName: string;
+  customerId?: string | null;
+  cashierName?: string;
+  cashierId?: string;
+  lines: Array<{
+    productId: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    discount: number;
+    lineTotal: number;
+  }>;
+};
+
+/**
+ * Room checkout and table pay commit the sale in Convex only. Orders reads Dexie
+ * on a warm till, so write the completed sale into the mirror immediately.
+ */
+export async function mirrorServerSaleReceipt(result: {
+  saleId: string;
+  invoiceNumber: string;
+  receiptPayload?: HospitalityReceiptPayload | null;
+}): Promise<void> {
+  const payload = result.receiptPayload;
+  if (!payload) return;
+  await mirrorCompletedSale({
+    saleId: String(result.saleId),
+    invoiceNumber: result.invoiceNumber,
+    customerId: payload.customerId ? String(payload.customerId) : null,
+    customerName: payload.customerName,
+    cashierId: payload.cashierId ? String(payload.cashierId) : null,
+    cashierName: payload.cashierName,
+    itemCount: payload.itemCount,
+    subtotal: payload.subtotal,
+    discount: payload.discount,
+    total: payload.total,
+    paymentMethod: payload.paymentMethod,
+    completedAt: payload.completedAt,
+    branchId: payload.branchId ? String(payload.branchId) : null,
+    items: payload.lines.map((line) => ({
+      productId: String(line.productId),
+      productName: line.productName,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      discount: line.discount,
+      lineTotal: line.lineTotal,
+    })),
+  });
+}

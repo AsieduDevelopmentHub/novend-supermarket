@@ -33,6 +33,7 @@ import {
 } from "@/lib/auth/redirect-after-login";
 import { consumeExplicitLogout, clearSigningOutUi, hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { trackGaEvent } from "@/lib/analytics/ga-events";
 import {
   activateOfflineSession,
   activateOfflineSessionWithFallback,
@@ -317,6 +318,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       );
       return false;
     }
+    trackGaEvent("login", { method: "offline" });
     return await openOfflineWorkspace(verified.userId, verified.email);
   }
 
@@ -407,6 +409,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
           cloudSignInBudgetMs(),
           "Couldn't reach Novend in time.",
         );
+        trackGaEvent("login", { method: "password" });
       } catch (cloudError) {
         // Online browser: cloud-only — never open a cached local shell.
         // Cap/Electron (or true offline): typed-email offline unlock only.

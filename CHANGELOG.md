@@ -10,6 +10,10 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### What's new
 
+- Platform owners and operators can send one SMS to business owners, administrators, or managers. Cashiers are not on that list.
+- The first time a cashier signs in on a business day, administrators with a phone number get one clock-in text. Later sign-ins that day do not send another. Users shows that clock-in time next to last seen.
+- Supplier detail works offline from the device cache (Dexie): contact, balances, deliveries, and payments stay available after a connection drop. Deliveries and payments still queue for upload.
+- Optional ops integrations: Arkesel SMS (Convex), Sentry error monitoring, and Google Analytics on the marketing site. Each stays off until its env key is set.
 - Reports and Analytics include sales that are still uploading on this device, so Daily Orders matches Orders even after a short connection blip. Sync Center keeps a generic “Sync failed” upload in Waiting and retries it in the background instead of filing it as a conflict.
 - Suppliers have their own page with deliveries, payments, and what is still owed. A delivery can include several products, and you can record it as paid, part paid, or on credit.
 - A staff account created on this till can sign in offline here with the password that was set. The till keeps a password check and a workspace hint; the password is not stored in the sync queue.

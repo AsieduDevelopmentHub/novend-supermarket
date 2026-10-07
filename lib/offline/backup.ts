@@ -21,6 +21,7 @@ const TABLE_NAMES = [
   "suppliers",
   "wholesaleStock",
   "wholesalePurchases",
+  "supplierPayments",
   "wholesaleTransfers",
   "branches",
   "users",

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { DemoVideoFrame } from "@/features/marketing/components/demo-video-frame";
 import { landingCopy } from "@/features/marketing/content";
 import { appEntryHref } from "@/lib/hosting/hosts";
+import { trackGaEvent } from "@/lib/analytics/ga-events";
 import { cn } from "@/lib/utils";
 
 type Episode = (typeof landingCopy.demoPage.episodes)[number];
@@ -171,7 +172,12 @@ export function DemoPageView() {
               variant="outline"
               className="h-11 rounded-full border-slate-300 bg-white px-6 text-[15px] font-semibold sm:h-12 sm:px-7"
             >
-              <Link href={demoPage.secondaryHref}>{demoPage.secondaryCta}</Link>
+              <Link
+                href={demoPage.secondaryHref}
+                onClick={() => trackGaEvent("demo_request", { source: "demo_page" })}
+              >
+                {demoPage.secondaryCta}
+              </Link>
             </Button>
           </div>
         </div>
@@ -242,7 +248,12 @@ export function DemoPageView() {
                 variant="outline"
                 className="h-11 rounded-full border-slate-300 bg-white px-6 text-[15px] font-semibold sm:h-12 sm:px-7"
               >
-                <Link href={demoPage.secondaryHref}>{demoPage.secondaryCta}</Link>
+                <Link
+                href={demoPage.secondaryHref}
+                onClick={() => trackGaEvent("demo_request", { source: "demo_page" })}
+              >
+                {demoPage.secondaryCta}
+              </Link>
               </Button>
               <Button
                 asChild

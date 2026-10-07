@@ -123,6 +123,26 @@ export function formatTime(value: number | Date) {
   return format(value, "HH:mm");
 }
 
+function localDateKey(value: number) {
+  const date = new Date(value);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/** First sign-in of the business day, beside last-seen. */
+export function formatClockIn(args: {
+  clockedInAt?: number | null;
+  clockedInOn?: string | null;
+}) {
+  if (!args.clockedInAt || args.clockedInAt <= 0) return null;
+  const day = args.clockedInOn ?? localDateKey(args.clockedInAt);
+  if (day === localDateKey(Date.now())) {
+    return `Clocked in ${formatTime(args.clockedInAt)}`;
+  }
+  return `Last clock-in ${formatDateTime(args.clockedInAt)}`;
+}
+
 export function formatRelative(value: number | Date) {
   return formatDistanceToNow(value, { addSuffix: true });
 }

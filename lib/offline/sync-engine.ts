@@ -1,6 +1,7 @@
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { toUserMessage } from "@/lib/errors";
+import { mirrorServerSaleReceipt } from "./sales-repository";
 import {
   cleanupStaleOfflineRecords,
   recoverInterruptedSync,
@@ -224,7 +225,12 @@ export type QueuedMutators = {
     discount?: number;
     customerName?: string;
     clientOperationId?: string;
-  }) => Promise<{ saleId: Id<"sales">; invoiceNumber: string; total: number }>;
+  }) => Promise<{
+    saleId: Id<"sales">;
+    invoiceNumber: string;
+    total: number;
+    receiptPayload?: Parameters<typeof mirrorServerSaleReceipt>[0]["receiptPayload"];
+  }>;
   createHotelReservation: (args: {
     branchId: Id<"branches">;
     customerId: Id<"customers">;
@@ -257,7 +263,12 @@ export type QueuedMutators = {
     paymentMethod: "cash" | "card" | "mobile_money";
     discount?: number;
     clientOperationId?: string;
-  }) => Promise<{ saleId: Id<"sales">; invoiceNumber: string; total: number }>;
+  }) => Promise<{
+    saleId: Id<"sales">;
+    invoiceNumber: string;
+    total: number;
+    receiptPayload?: Parameters<typeof mirrorServerSaleReceipt>[0]["receiptPayload"];
+  }>;
   createSupplier: (args: {
     name: string;
     contactName?: string;
@@ -729,13 +740,14 @@ async function drainOwnedOutbox(
             discount?: number;
             customerName?: string;
           };
-          await options.mutators.payDiningSession({
+          const paid = await options.mutators.payDiningSession({
             sessionId: payload.sessionId as Id<"diningSessions">,
             paymentMethod: payload.paymentMethod,
             discount: payload.discount,
             customerName: payload.customerName,
             clientOperationId: claimed.clientOperationId,
           });
+          await mirrorServerSaleReceipt(paid);
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;
@@ -826,12 +838,13 @@ async function drainOwnedOutbox(
             paymentMethod: "cash" | "card" | "mobile_money";
             discount?: number;
           };
-          await options.mutators.hotelCheckoutPay({
+          const checkedOut = await options.mutators.hotelCheckoutPay({
             stayId: payload.stayId as Id<"hotelStays">,
             paymentMethod: payload.paymentMethod,
             discount: payload.discount,
             clientOperationId: claimed.clientOperationId,
           });
+          await mirrorServerSaleReceipt(checkedOut);
           await markOutboxSynced(db, claimed.id);
           processed += 1;
           consecutiveTransientFailures = 0;

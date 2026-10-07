@@ -43,6 +43,7 @@ import {
   offlineOpenDiningSession,
   offlinePayDiningSession,
 } from "@/lib/offline/hospitality-actions";
+import { mirrorServerSaleReceipt } from "@/lib/offline/sales-repository";
 
 export function DiningFloorView() {
   const online = useConnectivity();
@@ -335,6 +336,7 @@ export function DiningFloorView() {
         sessionId: selectedSessionId as Id<"diningSessions">,
         paymentMethod: method,
       });
+      await mirrorServerSaleReceipt(result);
       toast.success(`Paid — ${result.invoiceNumber}`);
       setSelectedSessionId(null);
     } catch (error) {

@@ -657,12 +657,30 @@ export default defineSchema({
     salesProductDisplay: v.optional(v.string()),
     /** Compact denormalized copy of userTourProgress for session + snapshot bootstrap. */
     tourProgress: v.optional(v.array(tourProgressEntryValidator)),
+    /** First sign-in of the business day. Later logins the same day do not move this. */
+    clockedInAt: v.optional(v.number()),
+    /** Business-timezone day (`YYYY-MM-DD`) for `clockedInAt`. */
+    clockedInOn: v.optional(v.string()),
   })
     .index("by_userId", ["userId"])
     .index("by_organization", ["organizationId"])
     .index("by_role", ["role"])
     .index("by_status", ["status"])
     .index("by_branchId", ["branchId"]),
+
+  /** Platform SMS broadcasts. Phones are not stored — only the audience and count. */
+  smsBroadcasts: defineTable({
+    createdAt: v.number(),
+    actorId: v.id("users"),
+    organizationId: v.optional(v.id("organizations")),
+    audiences: v.array(
+      v.union(v.literal("owners"), v.literal("administrators"), v.literal("managers")),
+    ),
+    message: v.string(),
+    recipientCount: v.number(),
+    status: v.union(v.literal("sent"), v.literal("skipped"), v.literal("failed")),
+    detail: v.optional(v.string()),
+  }).index("by_createdAt", ["createdAt"]),
 
   categories: defineTable({
     organizationId: v.id("organizations"),

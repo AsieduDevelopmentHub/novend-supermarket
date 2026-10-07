@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import { navigateAfterLogin, resolvePostLoginPath } from "@/lib/auth/redirect-after-login";
+import { trackGaEvent } from "@/lib/analytics/ga-events";
 import type { IndustryProfile } from "@/convex/shared/businessCapabilities";
 
 const ONBOARDING_INDUSTRY_OPTIONS: Array<{ value: IndustryProfile | "other"; label: string }> = [
@@ -47,6 +48,14 @@ export function OnboardingForm() {
   const [address, setAddress] = useState("");
   const [industry, setIndustry] = useState<string>("retail");
   const [pending, setPending] = useState(false);
+  const onboardingTracked = useRef(false);
+
+  useEffect(() => {
+    if (onboardingTracked.current || !user) return;
+    if (!user.needsOnboarding && !user.needsProfile) return;
+    onboardingTracked.current = true;
+    trackGaEvent("onboarding_started");
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;

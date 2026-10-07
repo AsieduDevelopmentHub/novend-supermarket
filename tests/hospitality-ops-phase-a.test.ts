@@ -104,3 +104,21 @@ describe("searchable select migration (hospitality)", () => {
     expect(reservations).toContain("Search rooms");
   });
 });
+
+describe("hospitality checkout appears in orders", () => {
+  it("writes the Convex sale into the Dexie orders mirror", () => {
+    const rooms = readFileSync(
+      resolve(process.cwd(), "features/hotel/components/rooms-board-view.tsx"),
+      "utf8",
+    );
+    const dining = readFileSync(
+      resolve(process.cwd(), "features/dining/components/dining-floor-view.tsx"),
+      "utf8",
+    );
+    const sync = readFileSync(resolve(process.cwd(), "lib/offline/sync-engine.ts"), "utf8");
+    expect(rooms).toContain("mirrorServerSaleReceipt(result)");
+    expect(dining).toContain("mirrorServerSaleReceipt(result)");
+    expect(sync).toContain("mirrorServerSaleReceipt(paid)");
+    expect(sync).toContain("mirrorServerSaleReceipt(checkedOut)");
+  });
+});

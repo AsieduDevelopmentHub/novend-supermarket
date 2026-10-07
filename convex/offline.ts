@@ -660,6 +660,8 @@ export const getSnapshot = query({
       lastSeenAt: number | null;
       lastLoginAt: number | null;
       lastDevice: string | null;
+      clockedInAt: number | null;
+      clockedInOn: string | null;
     }> = [];
     let expenses: Array<{
       id: string;
@@ -868,6 +870,8 @@ export const getSnapshot = query({
             lastSeenAt,
             lastLoginAt: p.lastLoginAt ?? null,
             lastDevice: p.lastDevice ?? null,
+            clockedInAt: p.clockedInAt ?? null,
+            clockedInOn: p.clockedInOn ?? null,
           };
         }),
       );
