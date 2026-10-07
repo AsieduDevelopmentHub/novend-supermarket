@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { businessDateKey, resolveReportedClockIn } from "@/convex/shared/businessDate";
-import { phonesForBroadcast, phonesForClockInAlert } from "@/convex/shared/smsAudience";
+import {
+  phonesForBroadcast,
+  phonesForClockInAlert,
+  recipientsForNotice,
+} from "@/convex/shared/smsAudience";
 
 const profiles = [
   { userId: "owner", role: "administrator", status: "active", phone: "0244000001" },
@@ -27,6 +31,21 @@ describe("phonesForBroadcast", () => {
       ownerUserIds: ["owner"],
     });
     expect(phones.filter((phone) => phone === "+233244000001")).toHaveLength(1);
+  });
+});
+
+describe("recipientsForNotice", () => {
+  it("reaches the same people as SMS and skips cashiers and muted staff", () => {
+    const recipients = recipientsForNotice({
+      audiences: ["owners", "administrators", "managers"],
+      ownerUserIds: ["owner"],
+      profiles: profiles.map((profile) => ({
+        ...profile,
+        organizationId: "org-1",
+        muted: profile.userId === "manager",
+      })),
+    });
+    expect(recipients.map((row) => row.userId)).toEqual(["owner", "admin"]);
   });
 });
 

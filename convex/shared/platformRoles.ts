@@ -97,6 +97,7 @@ export const PLATFORM_ROUTE_PERMISSION: Record<string, PlatformPermission> = {
   "/platform/costs": "costs.read",
   "/platform/staff": "staff.manage",
   "/platform/sms": "sms.broadcast",
+  "/platform/notifications": "sms.broadcast",
 };
 
 export function permissionForPlatformPath(pathname: string): PlatformPermission | null {
@@ -106,6 +107,7 @@ export function permissionForPlatformPath(pathname: string): PlatformPermission 
   if (pathname.startsWith("/platform/costs")) return "costs.read";
   if (pathname.startsWith("/platform/staff")) return "staff.manage";
   if (pathname.startsWith("/platform/sms")) return "sms.broadcast";
+  if (pathname.startsWith("/platform/notifications")) return "sms.broadcast";
   if (pathname.startsWith("/platform/organizations")) return "orgs.read";
   if (pathname === "/platform" || pathname === "/platform/") return "overview.read";
 
@@ -123,6 +125,7 @@ export function permissionForPlatformPath(pathname: string): PlatformPermission 
     "help",
     "staff",
     "sms",
+    "notifications",
   ]);
   const orgMatch = pathname.match(/^\/platform\/([^/]+)/);
   if (orgMatch && !reserved.has(orgMatch[1])) return "orgs.read";

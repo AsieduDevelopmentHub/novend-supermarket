@@ -42,6 +42,7 @@ import type * as platform from "../platform.js";
 import type * as platformAnalytics from "../platformAnalytics.js";
 import type * as platformFinanceRepair from "../platformFinanceRepair.js";
 import type * as platformMonitoring from "../platformMonitoring.js";
+import type * as platformNotices from "../platformNotices.js";
 import type * as platformSms from "../platformSms.js";
 import type * as platformStats from "../platformStats.js";
 import type * as products from "../products.js";
@@ -175,6 +176,7 @@ declare const fullApi: ApiFromModules<{
   platformAnalytics: typeof platformAnalytics;
   platformFinanceRepair: typeof platformFinanceRepair;
   platformMonitoring: typeof platformMonitoring;
+  platformNotices: typeof platformNotices;
   platformSms: typeof platformSms;
   platformStats: typeof platformStats;
   products: typeof products;

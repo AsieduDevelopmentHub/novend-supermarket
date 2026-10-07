@@ -18,12 +18,33 @@ export function isSmsAudience(value: string): value is SmsAudience {
   return (SMS_AUDIENCES as readonly string[]).includes(value);
 }
 
+export const NOTICE_TITLE_MAX = 80;
+export const NOTICE_BODY_MAX = 280;
+export const NOTICE_BROADCAST_MAX_RECIPIENTS = 200;
+
 type AudienceProfile = {
   userId: string;
+  organizationId?: string;
   role: string;
   status: string;
   phone?: string | null;
+  muted?: boolean;
 };
+
+export function matchesBroadcastAudience(
+  profile: AudienceProfile,
+  audiences: readonly SmsAudience[],
+  ownerUserIds: readonly string[],
+): boolean {
+  if (profile.status !== "active") return false;
+  const wanted = new Set(audiences);
+  const isOwner = ownerUserIds.includes(profile.userId);
+  return (
+    (wanted.has("owners") && isOwner) ||
+    (wanted.has("administrators") && profile.role === "administrator") ||
+    (wanted.has("managers") && profile.role === "manager")
+  );
+}
 
 function pushPhone(phones: string[], seen: Set<string>, raw: string | null | undefined) {
   const phone = raw ? normalizeSmsRecipient(raw) : null;
@@ -41,21 +62,34 @@ export function phonesForBroadcast(args: {
   profiles: AudienceProfile[];
   ownerUserIds: readonly string[];
 }): string[] {
-  const wanted = new Set(args.audiences);
-  const owners = new Set(args.ownerUserIds);
   const phones: string[] = [];
   const seen = new Set<string>();
   for (const profile of args.profiles) {
-    if (profile.status !== "active") continue;
-    const isOwner = owners.has(profile.userId);
-    const match =
-      (wanted.has("owners") && isOwner) ||
-      (wanted.has("administrators") && profile.role === "administrator") ||
-      (wanted.has("managers") && profile.role === "manager");
-    if (!match) continue;
+    if (!matchesBroadcastAudience(profile, args.audiences, args.ownerUserIds)) continue;
     pushPhone(phones, seen, profile.phone);
   }
   return phones;
+}
+
+export type NoticeRecipient = { userId: string; organizationId: string };
+
+/** People who will see a platform notice. Muted staff and cashiers are left out. */
+export function recipientsForNotice(args: {
+  audiences: readonly SmsAudience[];
+  profiles: AudienceProfile[];
+  ownerUserIds: readonly string[];
+}): NoticeRecipient[] {
+  const recipients: NoticeRecipient[] = [];
+  const seen = new Set<string>();
+  for (const profile of args.profiles) {
+    if (profile.muted) continue;
+    if (!profile.organizationId) continue;
+    if (!matchesBroadcastAudience(profile, args.audiences, args.ownerUserIds)) continue;
+    if (seen.has(profile.userId)) continue;
+    seen.add(profile.userId);
+    recipients.push({ userId: profile.userId, organizationId: profile.organizationId });
+  }
+  return recipients;
 }
 
 /** Administrator and owner phones for one cashier's first clock-in of the day. */

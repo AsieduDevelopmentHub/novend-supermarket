@@ -684,6 +684,19 @@ export default defineSchema({
     detail: v.optional(v.string()),
   }).index("by_createdAt", ["createdAt"]),
 
+  /** Platform in-app notices. Recipient ids are not stored — only the audience and count. */
+  platformNotices: defineTable({
+    createdAt: v.number(),
+    actorId: v.id("users"),
+    organizationId: v.optional(v.id("organizations")),
+    audiences: v.array(
+      v.union(v.literal("owners"), v.literal("administrators"), v.literal("managers")),
+    ),
+    title: v.string(),
+    body: v.string(),
+    recipientCount: v.number(),
+  }).index("by_createdAt", ["createdAt"]),
+
   categories: defineTable({
     organizationId: v.id("organizations"),
     name: v.string(),
@@ -1533,6 +1546,7 @@ export default defineSchema({
       v.literal("branch_transfers"),
       v.literal("subscription_alerts"),
       v.literal("staff_clock_in"),
+      v.literal("platform_notice"),
     ),
     title: v.string(),
     body: v.string(),
