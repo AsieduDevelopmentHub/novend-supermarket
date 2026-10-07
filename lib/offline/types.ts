@@ -13,6 +13,7 @@ export type OutboxOpType =
   | "process_return"
   | "upsert_supplier"
   | "record_wholesale_purchase"
+  | "record_supplier_payment"
   | "wholesale_transfer"
   | "adjust_stock"
   | "update_lot_expiry"
@@ -340,9 +341,17 @@ export type CompleteSaleOutboxPayload = {
   customerName?: string;
   items: Array<{
     productId: string;
+    /** Displayed sell-unit quantity, as entered on the till. */
     quantity: number;
     discount: number;
     sellUnitKey?: string;
+    /** Price printed on the receipt. Uploads must not reprice from the live catalog. */
+    unitPrice?: number;
+    /** Base units already taken off the till. */
+    baseQuantity?: number;
+    sellUnitLabel?: string;
+    factorToBase?: number;
+    pricingMode?: "fixed" | "per_weight";
   }>;
   discount: number;
   paymentMethod: "cash" | "card" | "mobile_money";
@@ -360,6 +369,8 @@ export type ProcessReturnOutboxPayload = {
   returnNumber?: string;
   reason: string;
   notes?: string;
+  /** Branch the return put stock back on. */
+  branchId?: string;
   items: Array<{
     saleItemId: string;
     quantity: number;
@@ -439,9 +450,21 @@ export type MirroredWholesalePurchase = {
   purchasedAt: number;
   itemCount: number;
   totalCost: number;
+  /** Missing on older mirrored rows: those deliveries count as paid. */
+  amountPaid?: number | null;
   notes: string | null;
   status: string;
   items?: MirroredWholesalePurchaseItem[];
+};
+
+export type MirroredSupplierPayment = {
+  id: string;
+  supplierId: string;
+  purchaseId: string | null;
+  amount: number;
+  paidAt: number;
+  method: "cash" | "card" | "mobile_money";
+  note: string | null;
 };
 
 export type MirroredWholesaleTransfer = {
@@ -552,6 +575,9 @@ export type RecordWholesalePurchasePayload = {
   invoiceNumber?: string;
   purchasedAt: number;
   notes?: string;
+  /** Omit on older queued purchases. The server records those as paid in full. */
+  amountPaid?: number;
+  paymentMethod?: "cash" | "card" | "mobile_money";
   clientOperationId?: string;
   items: Array<{
     productId: string;
@@ -560,6 +586,17 @@ export type RecordWholesalePurchasePayload = {
     sellingPrice?: number;
     expiryDate?: string;
   }>;
+};
+
+export type RecordSupplierPaymentPayload = {
+  localId: string;
+  supplierId: string;
+  purchaseId?: string;
+  amount: number;
+  paidAt: number;
+  method: "cash" | "card" | "mobile_money";
+  note?: string;
+  clientOperationId?: string;
 };
 
 export type WholesaleTransferPayload = {

@@ -542,10 +542,6 @@ export const updateProduct = mutation({
     }
 
     if (args.stockQuantity !== undefined) {
-      await assertOrganizationFeature(ctx, organization, "products.editStock");
-      if (tracksExpiry || product.tracksExpiry === true) {
-        throw new Error("Use Inventory or Expiry lots to change stock on dated products");
-      }
       if (!Number.isFinite(args.stockQuantity) || args.stockQuantity < 0) {
         throw new Error("Invalid stock quantity");
       }
@@ -555,6 +551,10 @@ export const updateProduct = mutation({
       const current = await getBranchQuantity(ctx, branchId, args.id);
       const delta = target - current;
       if (delta !== 0) {
+        await assertOrganizationFeature(ctx, organization, "products.editStock");
+        if (tracksExpiry || product.tracksExpiry === true) {
+          throw new Error("Use Inventory or Expiry lots to change stock on dated products");
+        }
         await applyInventoryMovement(ctx, {
           product,
           branchId,
@@ -563,10 +563,9 @@ export const updateProduct = mutation({
           note: "Set from product edit",
           performedBy: userId,
         });
+        const nextOnHand = await getBranchQuantity(ctx, branchId, args.id);
+        await ctx.db.patch(args.id, { stockQuantity: nextOnHand });
       }
-      // Keep denormalized catalog qty in sync for readers that still use the product row.
-      const nextOnHand = await getBranchQuantity(ctx, branchId, args.id);
-      await ctx.db.patch(args.id, { stockQuantity: nextOnHand });
     }
 
     let imageStorageId = product.imageStorageId;

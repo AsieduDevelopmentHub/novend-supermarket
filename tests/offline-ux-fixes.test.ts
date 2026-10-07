@@ -40,4 +40,53 @@ describe("overlayPendingBranchStock adjust_stock", () => {
     expect(overlaid[0]?.quantity).toBe(10);
     expect(overlaid[0]?.sellableQuantity).toBe(10);
   });
+
+  it("keeps unsynced sales deducted after a cloud refresh", () => {
+    const overlaid = overlayPendingBranchStock(
+      [
+        {
+          branchId: "br_1",
+          productId: "prod_1",
+          quantity: 10,
+          sellableQuantity: 10,
+        },
+      ],
+      [
+        {
+          status: "pending",
+          type: "complete_sale",
+          payloadJson: JSON.stringify({
+            branchId: "br_1",
+            items: [{ productId: "prod_1", quantity: 1, baseQuantity: 6 }],
+          }),
+        },
+        {
+          status: "failed",
+          type: "complete_sale",
+          payloadJson: JSON.stringify({
+            branchId: "br_1",
+            items: [{ productId: "prod_1", quantity: 2 }],
+          }),
+        },
+        {
+          status: "synced",
+          type: "complete_sale",
+          payloadJson: JSON.stringify({
+            branchId: "br_1",
+            items: [{ productId: "prod_1", baseQuantity: 9 }],
+          }),
+        },
+        {
+          status: "pending",
+          type: "process_return",
+          payloadJson: JSON.stringify({
+            branchId: "br_1",
+            items: [{ productId: "prod_1", quantity: 1 }],
+          }),
+        },
+      ],
+    );
+    expect(overlaid[0]?.quantity).toBe(3);
+    expect(overlaid[0]?.sellableQuantity).toBe(3);
+  });
 });

@@ -22,6 +22,14 @@ describe("isSyncBusinessConflict", () => {
     expect(isSyncBusinessConflict("Sync failed")).toBe(false);
   });
 
+  it("leaves an optimistic concurrency failure as retryable", () => {
+    expect(
+      isSyncBusinessConflict(
+        "Documents read from or written to the branchStock table changed while this mutation was being run",
+      ),
+    ).toBe(false);
+  });
+
   it("does not treat bare Sync failed as an auth-required error", async () => {
     const { isAuthRequiredError } = await import("@/lib/offline/sync-errors");
     expect(isAuthRequiredError("Sync failed")).toBe(false);

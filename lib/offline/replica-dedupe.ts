@@ -1,3 +1,5 @@
+import { applySupplierPayment } from "@/convex/shared/supplierFinance";
+
 const OPEN_OUTBOX_STATUSES = new Set(["pending", "syncing", "failed"]);
 
 const LOCAL_ID_KEYS = ["localId", "localSaleId", "localReturnId"] as const;
@@ -207,6 +209,32 @@ export function overlayPendingBranchStock<
         next = bumpBranchStock(next, payload.branchId, payload.productId, delta);
         continue;
       }
+      if (row.type === "complete_sale") {
+        const payload = JSON.parse(row.payloadJson) as {
+          branchId?: string;
+          items?: Array<{ productId?: string; quantity?: number; baseQuantity?: number }>;
+        };
+        if (!payload.branchId) continue;
+        for (const item of payload.items ?? []) {
+          const qty = Number(item.baseQuantity ?? item.quantity) || 0;
+          if (!item.productId || qty === 0) continue;
+          next = bumpBranchStock(next, payload.branchId, item.productId, -qty);
+        }
+        continue;
+      }
+      if (row.type === "process_return") {
+        const payload = JSON.parse(row.payloadJson) as {
+          branchId?: string;
+          items?: Array<{ productId?: string; quantity?: number }>;
+        };
+        if (!payload.branchId) continue;
+        for (const item of payload.items ?? []) {
+          const qty = Number(item.quantity) || 0;
+          if (!item.productId || qty === 0) continue;
+          next = bumpBranchStock(next, payload.branchId, item.productId, qty);
+        }
+        continue;
+      }
       if (row.type !== "wholesale_transfer") continue;
       const payload = JSON.parse(row.payloadJson) as {
         productId?: string;
@@ -236,4 +264,45 @@ export function dedupeByProductId<T extends { id: string; productId: string }>(r
     if (preferIncoming) byProduct.set(row.productId, row);
   }
   return [...byProduct.values()];
+}
+
+type PurchaseBalanceRow = {
+  id: string;
+  supplierId: string;
+  purchasedAt: number;
+  totalCost: number;
+  amountPaid?: number | null;
+  status: string;
+};
+
+/**
+ * A snapshot replaces purchase rows with the server's amount paid. Payments still
+ * in the outbox have not landed there yet, so add them back or the supplier looks
+ * unpaid again until the next refresh.
+ */
+export function overlayPendingSupplierPayments<T extends PurchaseBalanceRow>(
+  purchases: T[],
+  outbox: OpenOutboxRow[],
+): T[] {
+  let next = purchases;
+  for (const row of outbox) {
+    if (row.type !== "record_supplier_payment" || !isOpenOutbox(row)) continue;
+    try {
+      const payload = JSON.parse(row.payloadJson) as {
+        supplierId?: string;
+        purchaseId?: string;
+        amount?: number;
+      };
+      const amount = Number(payload.amount);
+      if (!payload.supplierId || !Number.isFinite(amount) || amount <= 0) continue;
+      const supplierRows = next.filter((purchase) => purchase.supplierId === payload.supplierId);
+      const applied = applySupplierPayment(supplierRows, amount, payload.purchaseId);
+      if (applied.unapplied > 0.001) continue;
+      const byId = new Map(applied.purchases.map((purchase) => [purchase.id, purchase]));
+      next = next.map((purchase) => byId.get(purchase.id) ?? purchase);
+    } catch {
+      /* ignore a damaged payment row */
+    }
+  }
+  return next;
 }

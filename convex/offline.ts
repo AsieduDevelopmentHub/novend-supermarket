@@ -11,6 +11,7 @@ import {
 import { presenceFromLastSeenAt } from "./shared/presence";
 import { loadTourProgressForUser } from "./shared/tourProgress";
 import { hasBusinessCapability } from "./shared/businessCapabilities";
+import { purchaseBalance } from "./shared/supplierFinance";
 
 /**
  * Compact catalog snapshot for Dexie offline mirror.
@@ -615,6 +616,7 @@ export const getSnapshot = query({
       purchasedAt: number;
       itemCount: number;
       totalCost: number;
+      amountPaid: number | null;
       notes: string | null;
       status: string;
       items: Array<{
@@ -625,6 +627,15 @@ export const getSnapshot = query({
         unitSellingPrice: number | null;
         lineTotal: number;
       }>;
+    }> = [];
+    let supplierPayments: Array<{
+      id: string;
+      supplierId: string;
+      purchaseId: string | null;
+      amount: number;
+      paidAt: number;
+      method: "cash" | "card" | "mobile_money";
+      note: string | null;
     }> = [];
     let wholesaleTransfers: Array<{
       id: string;
@@ -739,15 +750,23 @@ export const getSnapshot = query({
       const recentPurchases = purchaseRows
         .sort((a, b) => b.purchasedAt - a.purchasedAt)
         .slice(0, 80);
+      const recentPurchaseIds = new Set(recentPurchases.map((row) => row._id));
+      const openDebt = purchaseRows.filter(
+        (row) =>
+          row.status === "completed" &&
+          !recentPurchaseIds.has(row._id) &&
+          purchaseBalance(row) > 0,
+      );
+      const purchasesForMirror = [...recentPurchases, ...openDebt];
       const purchaseItemGroups = await Promise.all(
-        recentPurchases.map((row) =>
+        purchasesForMirror.map((row) =>
           ctx.db
             .query("supplierPurchaseItems")
             .withIndex("by_purchase", (q) => q.eq("purchaseId", row._id))
             .collect(),
         ),
       );
-      wholesalePurchases = recentPurchases.map((row, index) => ({
+      wholesalePurchases = purchasesForMirror.map((row, index) => ({
         id: row._id as string,
         reference: row.reference,
         invoiceNumber: row.invoiceNumber ?? null,
@@ -756,6 +775,7 @@ export const getSnapshot = query({
         purchasedAt: row.purchasedAt,
         itemCount: row.itemCount,
         totalCost: row.totalCost,
+        amountPaid: row.amountPaid ?? null,
         notes: row.notes ?? null,
         status: row.status,
         items: (purchaseItemGroups[index] ?? []).map((item) => ({
@@ -767,6 +787,22 @@ export const getSnapshot = query({
           lineTotal: item.lineTotal,
         })),
       }));
+      const paymentRows = await ctx.db
+        .query("supplierPayments")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect();
+      supplierPayments = paymentRows
+        .sort((a, b) => b.paidAt - a.paidAt)
+        .slice(0, 400)
+        .map((row) => ({
+          id: row._id as string,
+          supplierId: row.supplierId as string,
+          purchaseId: (row.purchaseId as string | undefined) ?? null,
+          amount: row.amount,
+          paidAt: row.paidAt,
+          method: row.method,
+          note: row.note ?? null,
+        }));
       wholesaleTransfers = transferRows
         .filter((row) => (row.kind ?? "branch") === "wholesale")
         .sort((a, b) => b.createdAt - a.createdAt)
@@ -926,6 +962,7 @@ export const getSnapshot = query({
       suppliers,
       wholesaleStock,
       wholesalePurchases,
+      supplierPayments,
       wholesaleTransfers,
       branches: branches
         .filter((b) => (profile.role === "administrator" ? true : b._id === branchId))

@@ -30,11 +30,15 @@ Version: 1.2.2
 
 ## Wholesale receive
 
-Administrators and managers record supplier purchases on Wholesale. Each line
-stores quantity, **cost**, and **selling** price; those prices become the
-product catalog so issue-to-branch uses the new sell price. A new SKU can be
-created from the purchase dialog (zero branch stock); warehouse quantity is
-added when the purchase is saved.
+Administrators and managers record supplier purchases on Wholesale or on the
+supplier’s page. One delivery can include several products. Each line stores
+quantity, **cost**, and **selling** price; those prices become the product
+catalog so issue-to-branch uses the new sell price. Record the delivery as paid
+in full, part paid, or still owed. Later payments are recorded on the supplier
+page and apply to the oldest open delivery unless a delivery is chosen. A new
+SKU can be created from the purchase dialog (zero branch stock); warehouse
+quantity is added when the purchase is saved. Deliveries saved before balances
+existed stay treated as paid.
 
 ![Transfer stock between branches](../design/ui/inventory-transfer-stock-modal.png)
 

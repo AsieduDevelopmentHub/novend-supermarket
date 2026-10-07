@@ -11,6 +11,7 @@ import { loadProductImagesPolicyCache } from "./product-images-policy";
 import { loadExpiryPolicyCache } from "./expiry-policy";
 import { assertProductImageUploadsEnabled } from "@/convex/shared/productImagesPolicy";
 import { nextCatalogPrices } from "@/lib/wholesale/purchase-prices";
+import { applySupplierPayment } from "@/convex/shared/supplierFinance";
 import { resolveExpiryAlertDays, lotStatus } from "@/lib/expiry";
 import type {
   AdjustStockPayload,
@@ -19,6 +20,7 @@ import type {
   CreateUserPayload,
   PayCommissionPayload,
   PaySalaryPayload,
+  RecordSupplierPaymentPayload,
   RecordWholesalePurchasePayload,
   RemoveExpensePayload,
   TransferStockPayload,
@@ -159,12 +161,56 @@ export async function queueWholesalePurchase(
     totalCost,
     notes: payload.notes ?? null,
     status: "completed",
+    amountPaid: payload.amountPaid ?? totalCost,
     items: lineItems,
   });
   await enqueueOutbox(db, "record_wholesale_purchase", {
     ...payload,
     localId,
   } satisfies RecordWholesalePurchasePayload);
+}
+
+export async function queueSupplierPayment(
+  payload: Omit<RecordSupplierPaymentPayload, "localId">,
+) {
+  await assertLocalWriteAllowed();
+  await assertFeatureEnabled("inventory.wholesale");
+  const db = await getOfflineDb();
+  if (!db) throw new Error("Local storage is not available on this device.");
+  const purchases = await db.wholesalePurchases
+    .where("supplierId")
+    .equals(payload.supplierId)
+    .toArray();
+  const applied = applySupplierPayment(purchases, payload.amount, payload.purchaseId);
+  if (applied.unapplied > 0.001) {
+    throw new Error("That payment is more than this supplier is owed");
+  }
+  const updates = applied.purchases.filter((row) => {
+    const previous = purchases.find((item) => item.id === row.id);
+    return (previous?.amountPaid ?? null) !== (row.amountPaid ?? null);
+  });
+  if (updates.length === 0) {
+    throw new Error("That payment is more than this supplier is owed");
+  }
+  for (const row of updates) {
+    const previous = purchases.find((item) => item.id === row.id);
+    if (!previous) continue;
+    await db.wholesalePurchases.put({ ...previous, amountPaid: row.amountPaid });
+  }
+  const localId = newClientId("local");
+  await db.supplierPayments.put({
+    id: localId,
+    supplierId: payload.supplierId,
+    purchaseId: payload.purchaseId ?? null,
+    amount: payload.amount,
+    paidAt: payload.paidAt,
+    method: payload.method,
+    note: payload.note ?? null,
+  });
+  await enqueueOutbox(db, "record_supplier_payment", {
+    ...payload,
+    localId,
+  } satisfies RecordSupplierPaymentPayload);
 }
 
 export async function queueWholesaleTransfer(payload: Omit<WholesaleTransferPayload, "localId">) {

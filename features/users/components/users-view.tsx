@@ -45,6 +45,10 @@ import {
 import { PasswordStrengthMeter } from "@/features/auth/components/password-strength";
 import { formatPresence } from "@/lib/date";
 import { notifyReplicaChanged } from "@/lib/offline/replica-events";
+import { storeLocalAuthVerifier } from "@/lib/offline/local-auth";
+import { rememberOfflineSession } from "@/lib/offline/session";
+import { getBoundOrganizationId } from "@/lib/offline/db";
+import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
 import { deactivateAccountBlockReason } from "@/convex/shared/accountStatus";
 import type { AppRole } from "@/config/navigation";
 import { StaffMonthRoster } from "./staff-month-roster";
@@ -74,6 +78,7 @@ export function UsersView() {
   const branches = useBranchesList(false);
   const updateProfile = useMutation(api.users.updateProfile);
   const createUserAccount = useAction(api.users.createUserAccount);
+  const sessionHint = useOfflineSessionHint();
 
   const [name, setName] = useState("");
   const [role, setRole] = useState<AppRole>("cashier");
@@ -180,7 +185,7 @@ export function UsersView() {
     setPending(true);
     try {
       // Online-only: never queue plaintext passwords into the Dexie outbox.
-      await createUserAccount({
+      const created = await createUserAccount({
         email,
         password,
         name,
@@ -188,8 +193,32 @@ export function UsersView() {
         branchId: formBranchId as Id<"branches">,
         phone: phone || undefined,
       });
+      const createdRole = isManager ? "cashier" : role;
+      const organizationId = getBoundOrganizationId() ?? sessionHint?.organizationId ?? null;
+      const branchName =
+        branches?.find((branch) => branch.id === formBranchId)?.name ?? "Branch";
+      const verifierSaved = Boolean(
+        created?.userId && (await storeLocalAuthVerifier(email, password, created.userId)),
+      );
+      const offlineReady = Boolean(verifierSaved && created?.userId && organizationId);
+      if (offlineReady && created?.userId && organizationId) {
+        rememberOfflineSession({
+          userId: created.userId,
+          name: name.trim(),
+          role: createdRole,
+          branchId: String(formBranchId),
+          branchName,
+          organizationId,
+          email: email.trim().toLowerCase(),
+          savedAt: Date.now(),
+        });
+      }
       notifyReplicaChanged({ pull: true });
-      toast.success("User created. Share the login credentials securely.");
+      toast.success(
+        offlineReady
+          ? "User created. They can sign in on this till offline with that password."
+          : "User created. Share the login credentials securely.",
+      );
       setCreating(false);
       setPassword("");
     } catch (error) {

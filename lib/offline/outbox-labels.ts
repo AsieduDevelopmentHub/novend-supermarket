@@ -21,6 +21,7 @@ const OP_LABELS: Record<OutboxOpType, string> = {
   process_return: "Return",
   upsert_supplier: "Supplier",
   record_wholesale_purchase: "Wholesale purchase",
+  record_supplier_payment: "Supplier payment",
   wholesale_transfer: "Wholesale transfer",
   adjust_stock: "Stock adjustment",
   update_lot_expiry: "Lot expiry",
@@ -118,6 +119,10 @@ export function describeOutboxEvent(row: OutboxRow): { title: string; detail: st
   }
   if (row.type === "record_wholesale_purchase") {
     return { title, detail: text(payload.invoiceNumber) ?? "Purchase waiting to upload" };
+  }
+  if (row.type === "record_supplier_payment") {
+    const amount = number(payload.amount);
+    return { title, detail: amount === null ? "Supplier payment" : `GHS ${amount.toFixed(2)}` };
   }
   if (row.type === "adjust_stock") {
     const change = number(payload.quantityChange);

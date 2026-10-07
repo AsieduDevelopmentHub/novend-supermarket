@@ -10,6 +10,9 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### What's new
 
+- Suppliers have their own page with deliveries, payments, and what is still owed. A delivery can include several products, and you can record it as paid, part paid, or on credit.
+- A staff account created on this till can sign in offline here with the password that was set. The till keeps a password check and a workspace hint; the password is not stored in the sync queue.
+- Reports and Analytics show stock value before and after the selected period, plus the change. An administrator or manager can search for the day stock was worth a given amount. Values use today's prices.
 - An administrator’s branch on Sales stays selected when they leave the page or refresh, until they choose a different branch.
 - You can return items from an order that exists only on this device. Stock goes back and the return receipt is saved with no connection.
 - Signing in plays a longer logo animation that keeps moving while your account opens, then fades into the dashboard when the figures are ready.
@@ -30,6 +33,7 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### Fixed
 
+- End-of-day sync no longer turns a normal offline day into Conflicts. A cloud refresh was putting the morning stock back and ignoring sales still in the queue, so the till could sell those units again and the upload then failed “Not enough stock”. Pending and failed sales are subtracted from the refreshed snapshot (returns are added back). A sale upload sends the printed price and the base quantity already taken, so a later price, pack, or deactivation change does not reject a paid sale. A product save sends stock only when that number changed, and an unchanged count does not hit the dated-stock rule. One rejected row no longer stops the rest of the day’s uploads. Two tills that sold the same units from one branch still conflict: the later upload would take stock below zero, and that rejection is kept.
 - A sale that already exists in the cloud is no longer stuck as “Upload interrupted” when the till retries it. The same printed invoice is accepted again and linked to that sale. A return of a device sale waits for that upload without counting a new failed attempt on every sync.
 - Signing in no longer asks “Leave site? Changes you made may not be saved.” The typed password is cleared before the page changes, and the desktop app ignores that dialog on its own sign-in reload.
 - Electron no longer leaves “Opening your workspace” up with no way back. If the desktop reload never actually leaves the login page, the form returns after a short wait so sign-in can be tried again. The shell reload also reports failure when the local boot page does not load, instead of claiming success first.

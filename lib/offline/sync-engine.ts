@@ -32,6 +32,7 @@ import {
   requiredFeatureForOutbox,
 } from "./license-guard";
 import { loadLicenseSnapshot } from "./license";
+import { attachSoldLineSnapshots } from "./sale-upload-lines";
 import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
 import {
   describeReturnUploadBlock,
@@ -57,6 +58,7 @@ import type {
   OutboxRow,
   PayCommissionPayload,
   PaySalaryPayload,
+  RecordSupplierPaymentPayload,
   RecordWholesalePurchasePayload,
   RemoveExpensePayload,
   TransferStockPayload,
@@ -87,7 +89,9 @@ const OUTBOX_DRAIN_PRIORITY: Partial<Record<OutboxOpType, number>> = {
   pay_salary: 3,
   pay_commission: 3,
   complete_sale: 4,
+  record_wholesale_purchase: 5,
   process_return: 6,
+  record_supplier_payment: 7,
 };
 
 export function sortOutboxForDrain(rows: OutboxRow[]): OutboxRow[] {
@@ -138,7 +142,17 @@ async function hydrateUpsertProductPayload(
 export type CompleteSaleMutator = (args: {
   customerId?: Id<"customers">;
   customerName?: string;
-  items: Array<{ productId: Id<"products">; quantity: number; discount: number }>;
+  items: Array<{
+    productId: Id<"products">;
+    quantity: number;
+    discount: number;
+    sellUnitKey?: string;
+    unitPrice?: number;
+    baseQuantity?: number;
+    sellUnitLabel?: string;
+    factorToBase?: number;
+    pricingMode?: "fixed" | "per_weight";
+  }>;
   discount: number;
   paymentMethod: "cash" | "card" | "mobile_money";
   heldSaleId?: Id<"heldSales">;
@@ -264,7 +278,16 @@ export type QueuedMutators = {
   }) => Promise<Id<"suppliers">>;
   recordPurchase: (
     args: RecordWholesalePurchasePayload & { clientOperationId?: string },
-  ) => Promise<unknown>;
+  ) => Promise<{ purchaseId: string; reference: string }>;
+  recordSupplierPayment: (args: {
+    supplierId: Id<"suppliers">;
+    purchaseId?: Id<"supplierPurchases">;
+    amount: number;
+    paidAt: number;
+    method: "cash" | "card" | "mobile_money";
+    note?: string;
+    clientOperationId?: string;
+  }) => Promise<{ paymentIds: string[] }>;
   transferToBranch: (args: {
     productId: Id<"products">;
     branchId: Id<"branches">;
@@ -563,15 +586,24 @@ async function drainOwnedOutbox(
             continue;
           }
           const localSale = await db.localSales.get(payload.localSaleId);
+          const savedLines = await db.localSaleItems
+            .where("localSaleId")
+            .equals(payload.localSaleId)
+            .toArray();
           const invoiceNumber = payload.invoiceNumber ?? localSale?.invoiceNumber;
           const result = await options.mutators.completeSale({
             customerId: payload.customerId as Id<"customers"> | undefined,
             customerName: payload.customerName,
-            items: payload.items.map((i) => ({
+            items: attachSoldLineSnapshots(payload.items, savedLines).map((i) => ({
               productId: i.productId as Id<"products">,
               quantity: i.quantity,
               discount: i.discount,
               sellUnitKey: i.sellUnitKey,
+              unitPrice: i.unitPrice,
+              baseQuantity: i.baseQuantity,
+              sellUnitLabel: i.sellUnitLabel,
+              factorToBase: i.factorToBase,
+              pricingMode: i.pricingMode,
             })),
             discount: payload.discount,
             paymentMethod: payload.paymentMethod,
@@ -846,13 +878,53 @@ async function drainOwnedOutbox(
             );
             continue;
           }
-          await options.mutators.recordPurchase({
+          const recorded = await options.mutators.recordPurchase({
             ...payload,
             supplierId: payload.supplierId,
             clientOperationId: claimed.clientOperationId,
           });
+          if (recorded.purchaseId) {
+            await replaceIdInPendingOutbox(db, payload.localId, recorded.purchaseId);
+            const linked = await db.supplierPayments
+              .where("purchaseId")
+              .equals(payload.localId)
+              .toArray();
+            for (const payment of linked) {
+              await db.supplierPayments.put({ ...payment, purchaseId: recorded.purchaseId });
+            }
+          }
           if (payload.localId.startsWith("local_")) {
             await db.wholesalePurchases.delete(payload.localId);
+          }
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "record_supplier_payment") {
+          const payload = JSON.parse(claimed.payloadJson) as RecordSupplierPaymentPayload;
+          if (
+            isLocalId(payload.supplierId) ||
+            (payload.purchaseId ? isLocalId(payload.purchaseId) : false)
+          ) {
+            await markOutboxPending(
+              db,
+              claimed.id,
+              "Waiting for the supplier or delivery to finish syncing.",
+            );
+            continue;
+          }
+          await options.mutators.recordSupplierPayment({
+            supplierId: payload.supplierId as Id<"suppliers">,
+            purchaseId: payload.purchaseId
+              ? (payload.purchaseId as Id<"supplierPurchases">)
+              : undefined,
+            amount: payload.amount,
+            paidAt: payload.paidAt,
+            method: payload.method,
+            note: payload.note,
+            clientOperationId: claimed.clientOperationId,
+          });
+          if (payload.localId.startsWith("local_")) {
+            await db.supplierPayments.delete(payload.localId);
           }
           await markOutboxSynced(db, claimed.id);
           processed += 1;
@@ -1240,11 +1312,8 @@ async function drainOwnedOutbox(
           }
           failed += 1;
         } else if (isSyncBusinessConflict(raw)) {
+          // One rejected sale must not hold the rest of the day's uploads.
           await markOutboxPending(db, claimed.id, message);
-          consecutiveTransientFailures += 1;
-          backoffUntil =
-            Date.now() + nextBackoffMs(Math.max(claimed.attempts, consecutiveTransientFailures));
-          break;
         } else {
           // Network / transient — leave pending with exponential backoff
           await markOutboxPending(db, claimed.id, message);

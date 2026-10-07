@@ -49,6 +49,7 @@ import { ExpenseFormDialog, type ExpenseRow } from "./expense-form-dialog";
 import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { analyticsExportTable } from "@/lib/export/analytics";
+import { InventoryValuePanel } from "@/features/inventory/components/inventory-value-panel";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import {
@@ -486,6 +487,9 @@ export function AnalyticsView() {
                 href={metricHref("expenseCount")}
               />
             </Grid>
+            {isAdmin || isManager ? (
+              <InventoryValuePanel range={range} branchId={branchArg} enabled />
+            ) : null}
             <div className="flex flex-wrap gap-3 text-sm">
               <Link href={metricHref("products")} className="text-primary hover:underline">
                 Best-selling products →

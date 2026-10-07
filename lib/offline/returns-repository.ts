@@ -205,6 +205,7 @@ export async function processReturnLocally(input: {
         returnNumber,
         reason: input.reason,
         notes: input.notes,
+        branchId,
         items: input.items.map((item) => ({
           saleItemId: item.saleItemId,
           quantity: item.quantity,
