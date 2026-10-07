@@ -20,10 +20,46 @@ import { ArrowLeft } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { listLocalOrders } from "@/lib/offline/mirror-queries";
+import { mergeDayOrdersWithLocal } from "@/lib/offline/report-merge";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { useEffect, useState } from "react";
 
 function isIsoDate(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+/** Match cloud report day keys (UTC) used by salesSummary / buildLocalSalesReport. */
+function utcDayBounds(date: string) {
+  const start = Date.parse(`${date}T00:00:00.000Z`);
+  const end = Date.parse(`${date}T23:59:59.999Z`);
+  return { start, end };
+}
+
+type LocalOrderRow = NonNullable<Awaited<ReturnType<typeof listLocalOrders>>>[number];
+
+function useLocalDayOrders(date: string, branchId?: string | null) {
+  const [orders, setOrders] = useState<LocalOrderRow[] | null>(null);
+  useEffect(() => {
+    if (!isIsoDate(date)) return;
+    let cancelled = false;
+    const { start, end } = utcDayBounds(date);
+    function load() {
+      void listLocalOrders({
+        startDate: start,
+        endDate: end,
+        branchId: branchId || undefined,
+      }).then((rows) => {
+        if (!cancelled) setOrders(rows ?? []);
+      });
+    }
+    load();
+    const unsubscribe = subscribeReplicaChanged(load);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [date, branchId]);
+  return orders;
 }
 
 export function ReportDayDetailView() {
@@ -44,6 +80,7 @@ export function ReportDayDetailView() {
       : "skip",
   );
   const preferLocal = usePreferLocalData(details !== undefined);
+  const localOrders = useLocalDayOrders(date, branch);
 
   const backHref = (() => {
     const q = new URLSearchParams();
@@ -59,9 +96,53 @@ export function ReportDayDetailView() {
   }
 
   if (!online || preferLocal) {
-    return <LocalDayFallback date={date} backHref={backHref} />;
+    return (
+      <LocalDayFallback
+        date={date}
+        backHref={backHref}
+        orders={localOrders}
+        offlineNotice
+      />
+    );
   }
 
+  if (details === undefined) {
+    return <LoadingState label="Loading day…" variant="cards" />;
+  }
+
+  const mergedOrders = mergeDayOrdersWithLocal(
+    details.orders.map((order) => ({
+      id: order.id,
+      invoiceNumber: order.invoiceNumber,
+      completedAt: order.completedAt,
+      customerName: order.customerName,
+      cashierName: order.cashierName,
+      branchName: order.branchName,
+      paymentMethod: order.paymentMethod,
+      itemCount: order.itemCount,
+      total: order.total,
+      pendingUpload: false,
+    })),
+    (localOrders ?? []).map((order) => ({
+      id: order.id,
+      invoiceNumber: order.invoiceNumber,
+      completedAt: order.completedAt,
+      customerName: order.customerName,
+      cashierName: order.cashierName,
+      branchName: order.branchName,
+      paymentMethod: order.paymentMethod,
+      itemCount: order.itemCount,
+      total: order.total,
+      pendingUpload: order.isLocal,
+    })),
+  );
+  const pendingCount = mergedOrders.filter((order) => order.pendingUpload).length;
+  const grossSales = mergedOrders.reduce((sum, order) => sum + order.total, 0);
+  const itemsReturned = details.returns.reduce((sum, row) => sum + row.itemCount, 0);
+  const itemsSold = Math.max(
+    0,
+    mergedOrders.reduce((sum, order) => sum + order.itemCount, 0) - itemsReturned,
+  );
   const titleDate = formatDate(new Date(`${date}T00:00:00Z`));
 
   return (
@@ -79,107 +160,115 @@ export function ReportDayDetailView() {
         }
       />
 
-      {details === undefined ? (
-        <LoadingState label="Loading day…" variant="cards" />
-      ) : (
-        <>
-          <Grid cols={5}>
-            <Kpi title="Orders" value={String(details.kpis.orders)} />
-            <Kpi title="Items sold" value={String(details.kpis.itemsSold)} />
-            <Kpi title="Gross sales" value={formatCurrency(details.kpis.grossSales)} />
-            <Kpi title="Refunds" value={formatCurrency(details.kpis.refunds)} />
-            <Kpi title="Net sales" value={formatCurrency(details.kpis.netSales)} />
-          </Grid>
+      <Grid cols={5}>
+        <Kpi title="Orders" value={String(mergedOrders.length)} />
+        <Kpi title="Items sold" value={String(itemsSold)} />
+        <Kpi title="Gross sales" value={formatCurrency(grossSales)} />
+        <Kpi title="Refunds" value={formatCurrency(details.kpis.refunds)} />
+        <Kpi title="Net sales" value={formatCurrency(grossSales - details.kpis.refunds)} />
+      </Grid>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Orders</CardTitle>
-            </CardHeader>
-            <CardContent className="max-w-full min-w-0 overflow-x-auto p-0">
-              {details.orders.length === 0 ? (
-                <div className="p-6">
-                  <EmptyState title="No orders this day" />
-                </div>
-              ) : (
-                <table className="w-full min-w-[720px] text-left text-sm">
-                  <thead className="bg-muted/50 text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3 font-medium">Invoice</th>
-                      <th className="px-4 py-3 font-medium">Time</th>
-                      <th className="px-4 py-3 font-medium">Customer</th>
-                      <th className="px-4 py-3 font-medium">Cashier</th>
-                      <th className="px-4 py-3 font-medium">Branch</th>
-                      <th className="px-4 py-3 font-medium">Payment</th>
-                      <th className="px-4 py-3 font-medium">Items</th>
-                      <th className="px-4 py-3 font-medium">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {details.orders.map((order) => (
-                      <ClickableTableRow key={order.id} href={`/orders/${order.id}`}>
-                        <td className="px-4 py-3 font-medium">{order.invoiceNumber}</td>
-                        <td className="px-4 py-3">{formatDateTime(order.completedAt)}</td>
-                        <td className="px-4 py-3">{order.customerName}</td>
-                        <td className="px-4 py-3">{order.cashierName}</td>
-                        <td className="px-4 py-3">{order.branchName ?? "—"}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant="secondary">
-                            {paymentMethodLabel(order.paymentMethod)}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3">{order.itemCount}</td>
-                        <td className="px-4 py-3 font-medium">{formatCurrency(order.total)}</td>
-                      </ClickableTableRow>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </CardContent>
-          </Card>
+      {pendingCount > 0 ? (
+        <p className="text-muted-foreground text-sm">
+          {pendingCount} sale{pendingCount === 1 ? "" : "s"} on this day are still uploading from
+          this device. They already count here and in Orders.
+        </p>
+      ) : null}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Returns</CardTitle>
-            </CardHeader>
-            <CardContent className="max-w-full min-w-0 overflow-x-auto p-0">
-              {details.returns.length === 0 ? (
-                <div className="p-6">
-                  <EmptyState title="No returns this day" />
-                </div>
-              ) : (
-                <table className="w-full min-w-[720px] text-left text-sm">
-                  <thead className="bg-muted/50 text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3 font-medium">Return</th>
-                      <th className="px-4 py-3 font-medium">Time</th>
-                      <th className="px-4 py-3 font-medium">Order</th>
-                      <th className="px-4 py-3 font-medium">Customer</th>
-                      <th className="px-4 py-3 font-medium">Reason</th>
-                      <th className="px-4 py-3 font-medium">Items</th>
-                      <th className="px-4 py-3 font-medium">Refund</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {details.returns.map((row) => (
-                      <ClickableTableRow key={row.id} href={`/returns/${row.id}`}>
-                        <td className="px-4 py-3 font-medium">{row.returnNumber}</td>
-                        <td className="px-4 py-3">{formatDateTime(row.completedAt)}</td>
-                        <td className="px-4 py-3">{row.invoiceNumber}</td>
-                        <td className="px-4 py-3">{row.customerName}</td>
-                        <td className="max-w-[180px] truncate px-4 py-3">{row.reason}</td>
-                        <td className="px-4 py-3">{row.itemCount}</td>
-                        <td className="px-4 py-3 font-medium">
-                          {formatCurrency(row.refundAmount)}
-                        </td>
-                      </ClickableTableRow>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </CardContent>
-          </Card>
-        </>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Orders</CardTitle>
+        </CardHeader>
+        <CardContent className="max-w-full min-w-0 overflow-x-auto p-0">
+          {mergedOrders.length === 0 ? (
+            <div className="p-6">
+              <EmptyState title="No orders this day" />
+            </div>
+          ) : (
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Invoice</th>
+                  <th className="px-4 py-3 font-medium">Time</th>
+                  <th className="px-4 py-3 font-medium">Customer</th>
+                  <th className="px-4 py-3 font-medium">Cashier</th>
+                  <th className="px-4 py-3 font-medium">Branch</th>
+                  <th className="px-4 py-3 font-medium">Payment</th>
+                  <th className="px-4 py-3 font-medium">Items</th>
+                  <th className="px-4 py-3 font-medium">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mergedOrders.map((order) => (
+                  <ClickableTableRow key={order.id} href={`/orders/${order.id}`}>
+                    <td className="px-4 py-3 font-medium">
+                      {order.invoiceNumber}
+                      {order.pendingUpload ? (
+                        <Badge variant="warning" className="ml-2">
+                          Uploading
+                        </Badge>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3">{formatDateTime(order.completedAt)}</td>
+                    <td className="px-4 py-3">{order.customerName}</td>
+                    <td className="px-4 py-3">{order.cashierName}</td>
+                    <td className="px-4 py-3">{order.branchName ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant="secondary">
+                        {paymentMethodLabel(order.paymentMethod)}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">{order.itemCount}</td>
+                    <td className="px-4 py-3 font-medium">{formatCurrency(order.total)}</td>
+                  </ClickableTableRow>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Returns</CardTitle>
+        </CardHeader>
+        <CardContent className="max-w-full min-w-0 overflow-x-auto p-0">
+          {details.returns.length === 0 ? (
+            <div className="p-6">
+              <EmptyState title="No returns this day" />
+            </div>
+          ) : (
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Return</th>
+                  <th className="px-4 py-3 font-medium">Time</th>
+                  <th className="px-4 py-3 font-medium">Order</th>
+                  <th className="px-4 py-3 font-medium">Customer</th>
+                  <th className="px-4 py-3 font-medium">Reason</th>
+                  <th className="px-4 py-3 font-medium">Items</th>
+                  <th className="px-4 py-3 font-medium">Refund</th>
+                </tr>
+              </thead>
+              <tbody>
+                {details.returns.map((row) => (
+                  <ClickableTableRow key={row.id} href={`/returns/${row.id}`}>
+                    <td className="px-4 py-3 font-medium">{row.returnNumber}</td>
+                    <td className="px-4 py-3">{formatDateTime(row.completedAt)}</td>
+                    <td className="px-4 py-3">{row.invoiceNumber}</td>
+                    <td className="px-4 py-3">{row.customerName}</td>
+                    <td className="max-w-[180px] truncate px-4 py-3">{row.reason}</td>
+                    <td className="px-4 py-3">{row.itemCount}</td>
+                    <td className="px-4 py-3 font-medium">
+                      {formatCurrency(row.refundAmount)}
+                    </td>
+                  </ClickableTableRow>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -195,25 +284,29 @@ function Kpi({ title, value }: { title: string; value: string }) {
   );
 }
 
-function LocalDayFallback({ date, backHref }: { date: string; backHref: string }) {
-  const [orders, setOrders] = useState<Awaited<ReturnType<typeof listLocalOrders>>>(null);
-  useEffect(() => {
-    const start = new Date(`${date}T00:00:00`).getTime();
-    const end = start + 24 * 60 * 60 * 1000 - 1;
-    let cancelled = false;
-    void listLocalOrders({ startDate: start, endDate: end }).then((rows) => {
-      if (!cancelled) setOrders(rows);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [date]);
+function LocalDayFallback({
+  date,
+  backHref,
+  orders,
+  offlineNotice,
+}: {
+  date: string;
+  backHref: string;
+  orders: LocalOrderRow[] | null;
+  offlineNotice: boolean;
+}) {
+  const gross = orders?.reduce((sum, order) => sum + order.total, 0) ?? 0;
+  const items = orders?.reduce((sum, order) => sum + order.itemCount, 0) ?? 0;
 
   return (
     <div className="max-w-full min-w-0 space-y-6 overflow-x-hidden">
       <PageHeader
-        title={formatDate(new Date(`${date}T00:00:00`))}
-        description="Orders saved on this device"
+        title={formatDate(new Date(`${date}T00:00:00Z`))}
+        description={
+          offlineNotice
+            ? "Orders saved on this device for this day. Figures update from the cloud when you reconnect."
+            : "Orders saved on this device"
+        }
         actions={
           <Button asChild variant="outline">
             <Link href={backHref}>
@@ -228,32 +321,52 @@ function LocalDayFallback({ date, backHref }: { date: string; backHref: string }
       ) : orders.length === 0 ? (
         <EmptyState title="No local orders for this day" />
       ) : (
-        <Card>
-          <CardContent className="max-w-full min-w-0 overflow-x-auto p-0">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-muted/50 text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Invoice</th>
-                  <th className="px-4 py-3 font-medium">Customer</th>
-                  <th className="px-4 py-3 font-medium">Payment</th>
-                  <th className="px-4 py-3 font-medium">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => (
-                  <ClickableTableRow key={order.id} href={`/orders/${order.id}`}>
-                    <td className="px-4 py-3 font-medium">{order.invoiceNumber}</td>
-                    <td className="px-4 py-3">{order.customerName}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant="secondary">{paymentMethodLabel(order.paymentMethod)}</Badge>
-                    </td>
-                    <td className="px-4 py-3">{formatCurrency(order.total)}</td>
-                  </ClickableTableRow>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+        <>
+          <Grid cols={3}>
+            <Kpi title="Orders" value={String(orders.length)} />
+            <Kpi title="Items sold" value={String(items)} />
+            <Kpi title="Gross sales" value={formatCurrency(gross)} />
+          </Grid>
+          <Card>
+            <CardContent className="max-w-full min-w-0 overflow-x-auto p-0">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead className="bg-muted/50 text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Invoice</th>
+                    <th className="px-4 py-3 font-medium">Time</th>
+                    <th className="px-4 py-3 font-medium">Customer</th>
+                    <th className="px-4 py-3 font-medium">Cashier</th>
+                    <th className="px-4 py-3 font-medium">Payment</th>
+                    <th className="px-4 py-3 font-medium">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((order) => (
+                    <ClickableTableRow key={order.id} href={`/orders/${order.id}`}>
+                      <td className="px-4 py-3 font-medium">
+                        {order.invoiceNumber}
+                        {order.isLocal ? (
+                          <Badge variant="warning" className="ml-2">
+                            On device
+                          </Badge>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3">{formatDateTime(order.completedAt)}</td>
+                      <td className="px-4 py-3">{order.customerName}</td>
+                      <td className="px-4 py-3">{order.cashierName}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant="secondary">
+                          {paymentMethodLabel(order.paymentMethod)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">{formatCurrency(order.total)}</td>
+                    </ClickableTableRow>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );

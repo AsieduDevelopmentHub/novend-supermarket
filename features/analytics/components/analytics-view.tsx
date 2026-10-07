@@ -184,8 +184,16 @@ export function AnalyticsView() {
   const expensesLocal = useLocalExpenses(range);
   const removeExpense = useMutation(api.analytics.removeExpense);
 
+  // Prefer the local summary when this till still has unsynced sales that make
+  // the order count higher than the cloud — same gap the Daily Orders report had.
   const summary =
-    preferLocal || !online ? (localSummary ?? remoteSummary) : (remoteSummary ?? localSummary);
+    preferLocal || !online
+      ? (localSummary ?? remoteSummary)
+      : localSummary &&
+          remoteSummary &&
+          localSummary.kpis.totalOrders > remoteSummary.kpis.totalOrders
+        ? localSummary
+        : (remoteSummary ?? localSummary);
   const recordExport = useMutation(api.imports.recordExport);
   const exportTable = summary
     ? analyticsExportTable({

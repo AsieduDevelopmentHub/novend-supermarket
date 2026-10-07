@@ -32,6 +32,25 @@ export function isTransientSyncPlaceholder(message: string) {
 }
 
 /**
+ * Convex / browser dumps with no usable business reason. Treating these as
+ * conflicts marks the row failed, Sync Center reopens it every poll, and the
+ * till burns attempts (e.g. 21 in a few minutes) while the sale already sits
+ * in Orders on this device.
+ */
+export function isOpaqueServerDump(message: string) {
+  const m = message.trim();
+  if (!m) return true;
+  if (isTransientSyncPlaceholder(m)) return true;
+  const lower = m.toLowerCase();
+  if (lower.includes("[convex") || lower.includes("request id")) return true;
+  if (/at\s+\S+\s+\(/.test(m)) return true;
+  if (m.length > 160 && !/\b(stock|sku|forbidden|exist|invalid|required)\b/i.test(m)) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Keep the server's reason for Sync Center. `toUserMessage` collapses unknown
  * Convex dumps to "Sync failed", which hides why a sale will not upload.
  */
@@ -79,13 +98,17 @@ export function isSyncBusinessConflict(message: string) {
   if (isSyncDependencyWait(message)) return false;
   if (isAuthRequiredError(message)) return false;
   if (isTransientSyncPlaceholder(message)) return false;
+  if (isOpaqueServerDump(message)) return false;
   const m = message.toLowerCase();
   if (
     m.includes("too many requests") ||
     m.includes("rate limit") ||
     m.includes("try again later") ||
     m.includes("server overloaded") ||
-    m.includes("temporarily unavailable")
+    m.includes("temporarily unavailable") ||
+    m.includes("we couldn't load") ||
+    m.includes("unable to reach the server") ||
+    m.includes("you're offline")
   ) {
     return false;
   }

@@ -1,11 +1,20 @@
 import { describeOutboxConflict } from "./outbox-labels";
 import { shouldMarkOutboxFailed } from "./outbox-policy";
-import { isAuthRequiredError, isSyncDependencyWait, isTransientSyncPlaceholder } from "./sync-errors";
+import {
+  isAuthRequiredError,
+  isOpaqueServerDump,
+  isSyncDependencyWait,
+  isTransientSyncPlaceholder,
+} from "./sync-errors";
 import type { OutboxRow } from "./types";
 
 /**
  * True when this row needs cashier attention as a conflict (business / entitlement /
- * exhausted retries) — not auth or dependency waits.
+ * exhausted retries) — not auth, network blips, or dependency waits.
+ *
+ * "Upload interrupted" / Sync failed must stay in Waiting so background drain can
+ * finish the upload after a short distraction, without looking like a permanent
+ * rejection.
  */
 export function isDisplayedConflict(row: OutboxRow): boolean {
   if (row.status === "blocked_by_entitlement") return true;
@@ -15,8 +24,7 @@ export function isDisplayedConflict(row: OutboxRow): boolean {
     Boolean(row.lastError && shouldMarkOutboxFailed(row.attempts, row.lastError));
   if (!looksFailed) return false;
 
-  // Auth / dependency waits can sit as `failed` from older builds — still Waiting.
-  return describeOutboxConflict(row).kind !== "waiting";
+  return describeOutboxConflict(row).kind === "business";
 }
 
 /** Failed (or pending) rows blocked only on cloud sign-in. */
@@ -30,6 +38,7 @@ export function shouldReopenFailedOutboxWait(lastError: string | null | undefine
   return (
     isSyncDependencyWait(lastError) ||
     isAuthRequiredError(lastError) ||
-    isTransientSyncPlaceholder(lastError)
+    isTransientSyncPlaceholder(lastError) ||
+    isOpaqueServerDump(lastError)
   );
 }

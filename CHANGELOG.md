@@ -10,6 +10,7 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### What's new
 
+- Reports and Analytics include sales that are still uploading on this device, so Daily Orders matches Orders even after a short connection blip. Sync Center keeps a generic “Sync failed” upload in Waiting and retries it in the background instead of filing it as a conflict.
 - Suppliers have their own page with deliveries, payments, and what is still owed. A delivery can include several products, and you can record it as paid, part paid, or on credit.
 - A staff account created on this till can sign in offline here with the password that was set. The till keeps a password check and a workspace hint; the password is not stored in the sync queue.
 - Reports and Analytics show stock value before and after the selected period, plus the change. An administrator or manager can search for the day stock was worth a given amount. Values use today's prices.
@@ -33,6 +34,7 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### Fixed
 
+- A brief network blip no longer parks a sale in Conflicts as “Upload interrupted / Sync failed” while it already shows in Orders. Opaque server dumps stay pending with backoff, and Reports Daily Orders merges those device sales so the day list is not missing them.
 - End-of-day sync no longer turns a normal offline day into Conflicts. A cloud refresh was putting the morning stock back and ignoring sales still in the queue, so the till could sell those units again and the upload then failed “Not enough stock”. Pending and failed sales are subtracted from the refreshed snapshot (returns are added back). A sale upload sends the printed price and the base quantity already taken, so a later price, pack, or deactivation change does not reject a paid sale. A product save sends stock only when that number changed, and an unchanged count does not hit the dated-stock rule. One rejected row no longer stops the rest of the day’s uploads. Two tills that sold the same units from one branch still conflict: the later upload would take stock below zero, and that rejection is kept.
 - A sale that already exists in the cloud is no longer stuck as “Upload interrupted” when the till retries it. The same printed invoice is accepted again and linked to that sale. A return of a device sale waits for that upload without counting a new failed attempt on every sync.
 - Signing in no longer asks “Leave site? Changes you made may not be saved.” The typed password is cleared before the page changes, and the desktop app ignores that dialog on its own sign-in reload.

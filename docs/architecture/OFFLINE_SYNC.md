@@ -297,7 +297,10 @@ reconnect. Legacy sales may omit `syncedAt`.
 
 Name, phone, catalog, inventory, wholesale, suppliers, customers, expenses,
 sales, returns, reports, analytics, **admin/manager branch switching**, and
-**per-batch expiry edits** all continue on the device. Inventory value on
+**per-batch expiry edits** all continue on the device. Reports and Analytics
+summaries build from Dexie when offline (or when Cap reports online but Convex
+does not answer). While online they still fold in unsynced local sales so Daily
+Orders is not missing a checkout that Orders already shows. Inventory value on
 Reports and Analytics is a cloud query: it replays branch stock movements and
 prices them at today's cost and selling price. The card shows the value at the start
 of the selected period and at the end, then an administrator or manager can look
@@ -359,6 +362,12 @@ These uploads are still conflicts, and they should be:
   showed up as conflicts. A business rejection is recorded on that row and the
   drain continues. A network failure still stops the pass. Convex
   “changed while this mutation was being run” stays pending and is not a conflict.
+- **Opaque “Sync failed” dumps.** A brief disconnect can return a Convex wrapper
+  with no business reason. Classifying that dump as a conflict marked the row
+  failed; Sync Center reopened it every poll and burned attempts while the sale
+  already sat in Orders. Those placeholders stay pending with backoff and show
+  under Waiting, not Conflicts. Reports Daily Orders merge device-only sales so
+  the day list matches Orders until the upload finishes.
 - **SKU already exists, forbidden, and a real stock edit on a dated product**
   are still conflicts. The message in Sync Center is the server reason.
 

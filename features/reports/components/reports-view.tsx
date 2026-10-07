@@ -24,6 +24,8 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { buildLocalSalesReport, type LocalSalesReport } from "@/lib/offline/ui-cache";
+import { mergeSalesReportWithLocal } from "@/lib/offline/report-merge";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { salesReportExportTable } from "@/lib/export/sales-report";
 import { formatCurrency, formatNumber } from "@/lib/currency";
 import { InventoryValuePanel } from "@/features/inventory/components/inventory-value-panel";
@@ -148,25 +150,32 @@ export function ReportsView() {
   );
   const preferLocal = usePreferLocalData(remoteReport !== undefined);
 
-  // Always hydrate Dexie so Cap false-online never waits on a hung Convex query.
+  // Always hydrate Dexie so Cap false-online never waits on a hung Convex query,
+  // and so sales still uploading on this device appear in Daily Orders.
   useEffect(() => {
     if (!range) return;
-    setLocalReport(null);
     let cancelled = false;
-    const timer = window.setTimeout(() => {
-      void buildLocalSalesReport(range.startDate, range.endDate, reportBranchId).then((next) => {
+    function load() {
+      void buildLocalSalesReport(range!.startDate, range!.endDate, reportBranchId).then((next) => {
         if (cancelled) return;
         setLocalReport(next);
       });
-    }, 0);
+    }
+    const timer = window.setTimeout(load, 0);
+    const unsubscribe = subscribeReplicaChanged(load);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      unsubscribe();
     };
   }, [range, reportBranchId]);
 
   const report =
-    preferLocal || !online ? (localReport ?? remoteReport) : (remoteReport ?? localReport);
+    preferLocal || !online
+      ? (localReport ?? remoteReport ?? null)
+      : mergeSalesReportWithLocal(remoteReport ?? null, localReport) ??
+        remoteReport ??
+        localReport;
   const recordExport = useMutation(api.imports.recordExport);
   const exportTable = report
     ? salesReportExportTable({
