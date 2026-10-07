@@ -1,5 +1,6 @@
 import {
   isAuthRequiredError,
+  isOpaqueServerDump,
   isSyncBusinessConflict,
   isSyncDependencyWait,
   isTransientSyncPlaceholder,
@@ -37,6 +38,7 @@ export function shouldMarkOutboxFailed(attempts: number, message: string) {
   if (isSyncDependencyWait(message)) return false;
   if (isAuthRequiredError(message)) return false;
   if (isTransientSyncPlaceholder(message)) return false;
+  if (isOpaqueServerDump(message)) return false;
   if (isDefinitiveBusinessConflict(message)) return true;
   if (isSyncBusinessConflict(message) && attempts >= 3) return true;
   return attempts >= MAX_OUTBOX_UPLOAD_ATTEMPTS;

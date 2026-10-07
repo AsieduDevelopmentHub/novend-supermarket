@@ -32,6 +32,11 @@ describe("outbox display classification", () => {
     expect(isOutboxAuthWait(syncFailed)).toBe(false);
   });
 
+  it("keeps Sync failed / Upload interrupted out of Conflicts", () => {
+    const syncFailed = row({ status: "failed", lastError: "Sync failed", attempts: 21 });
+    expect(isDisplayedConflict(syncFailed)).toBe(false);
+  });
+
   it("keeps dependency waits out of Conflicts", () => {
     const wait = row({
       status: "failed",

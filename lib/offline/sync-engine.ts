@@ -1295,10 +1295,14 @@ async function drainOwnedOutbox(
           failed += 1;
         }
       } catch (error) {
-        const raw = error instanceof Error ? error.message : "Sync failed";
         const message = syncFailureMessage(error, toUserMessage(error, "Sync failed"));
         lastError = message;
-        if (isSyncBusinessConflict(raw) && shouldMarkOutboxFailed(claimed.attempts, raw)) {
+        // Classify on the message we store. Classifying the raw Convex dump made
+        // opaque errors look like business conflicts, mark failed, then reopen
+        // every 15s — that burned attempts while Sync Center only showed
+        // "Sync failed".
+        const conflict = isSyncBusinessConflict(message);
+        if (conflict && shouldMarkOutboxFailed(claimed.attempts, message)) {
           if (claimed.type === "process_return") {
             const payload = parseProcessReturnPayload(claimed);
             await markOutboxFailed(db, claimed.id, message);
@@ -1311,7 +1315,7 @@ async function drainOwnedOutbox(
             await markOutboxFailed(db, claimed.id, message);
           }
           failed += 1;
-        } else if (isSyncBusinessConflict(raw)) {
+        } else if (conflict) {
           // One rejected sale must not hold the rest of the day's uploads.
           await markOutboxPending(db, claimed.id, message);
         } else {

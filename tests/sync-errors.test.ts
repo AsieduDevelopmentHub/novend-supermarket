@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSyncBusinessConflict } from "@/lib/offline/sync-errors";
+import { isOpaqueServerDump, isSyncBusinessConflict } from "@/lib/offline/sync-errors";
 
 describe("isSyncBusinessConflict", () => {
   it("treats stock and forbidden rejections as conflicts", () => {
@@ -20,6 +20,13 @@ describe("isSyncBusinessConflict", () => {
     expect(isSyncBusinessConflict("Not authenticated")).toBe(false);
     expect(isSyncBusinessConflict("Unauthenticated")).toBe(false);
     expect(isSyncBusinessConflict("Sync failed")).toBe(false);
+  });
+
+  it("leaves opaque Convex dumps as transient so drain can backoff", () => {
+    const dump =
+      "[CONVEX M(sales:completeSale)] [Request ID: abc] Server Error Uncaught Error at handler (../sales.ts:1:1)";
+    expect(isOpaqueServerDump(dump)).toBe(true);
+    expect(isSyncBusinessConflict(dump)).toBe(false);
   });
 
   it("leaves an optimistic concurrency failure as retryable", () => {
