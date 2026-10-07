@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
-import { requireSessionIgnoringLicense } from "./shared/permissions";
+import { getProfileByUserId, requireSessionIgnoringLicense } from "./shared/permissions";
 import {
   DEFAULT_NOTIFICATION_TOPICS,
   mergeTopicPrefs,
@@ -180,7 +180,20 @@ export const devicesForDispatch = internalQuery({
     } else {
       return [];
     }
-    return devices.filter((device) => device.topics[args.topic as NotificationTopic] === true);
+    const muted = new Set<string>();
+    const seen = new Set<string>();
+    for (const device of devices) {
+      const userKey = String(device.userId);
+      if (seen.has(userKey)) continue;
+      seen.add(userKey);
+      const profile = await getProfileByUserId(ctx, device.userId);
+      if (profile?.notificationsMuted === true) muted.add(userKey);
+    }
+    return devices.filter(
+      (device) =>
+        device.topics[args.topic as NotificationTopic] === true &&
+        !muted.has(String(device.userId)),
+    );
   },
 });
 

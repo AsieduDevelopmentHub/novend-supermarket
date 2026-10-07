@@ -48,6 +48,25 @@ iOS. Do not commit private VAPID or FCM credentials.
 Mutations: `registerDevice`, `unregisterDevice`, `updateTopicPrefs`, outbox
 `listMyOutbox` / `ackOutbox`. Dispatch: `internal.pushDispatch.dispatchPush`.
 
+The same dispatch also writes `appNotifications` for the in-app bell
+(`api.appNotifications.mine`). Device topics and VAPID / FCM / Electron
+delivery are unchanged. A missing inbox write does not stop the push.
+
+Mute (`profiles.notificationsMuted`) holds both the inbox and device delivery
+for that person. Existing devices without the field stay unmuted.
+
+## In-app inbox
+
+Bell in the POS header (phone and desktop) and the desktop sidebar.
+
+- Mark all read, clear all, mute
+- Topics: stock, transfers, daily summary, subscription, cashier clock-in
+- Cashiers see stock and transfers. Administrators see billing. Managers and
+  administrators see clock-in. Completed sales are not notifications.
+
+`staff_clock_in` exists only on the inbox. It is not a device topic, so older
+`pushDevices` rows stay valid.
+
 ## Triggers (this slice)
 
 - Daily cron `push alert digests` (`internal.pushDispatch.runDailyAlertDigests`)

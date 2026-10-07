@@ -9,6 +9,7 @@
  */
 
 import type * as accountClosure from "../accountClosure.js";
+import type * as appNotifications from "../appNotifications.js";
 import type * as analytics from "../analytics.js";
 import type * as auth from "../auth.js";
 import type * as billing from "../billing.js";
@@ -54,9 +55,9 @@ import type * as reports from "../reports.js";
 import type * as returns from "../returns.js";
 import type * as sales from "../sales.js";
 import type * as settings from "../settings.js";
-import type * as sms from "../sms.js";
 import type * as shared_accountClosure from "../shared/accountClosure.js";
 import type * as shared_accountStatus from "../shared/accountStatus.js";
+import type * as shared_arkeselSms from "../shared/arkeselSms.js";
 import type * as shared_audit from "../shared/audit.js";
 import type * as shared_auditDisplay from "../shared/auditDisplay.js";
 import type * as shared_auditEnrichment from "../shared/auditEnrichment.js";
@@ -90,6 +91,7 @@ import type * as shared_licensing from "../shared/licensing.js";
 import type * as shared_loginRateLimit from "../shared/loginRateLimit.js";
 import type * as shared_lots from "../shared/lots.js";
 import type * as shared_multiBranchBootstrap from "../shared/multiBranchBootstrap.js";
+import type * as shared_notificationAudience from "../shared/notificationAudience.js";
 import type * as shared_notificationTopics from "../shared/notificationTopics.js";
 import type * as shared_organizationConfig from "../shared/organizationConfig.js";
 import type * as shared_organizationStats from "../shared/organizationStats.js";
@@ -115,16 +117,16 @@ import type * as shared_randomId from "../shared/randomId.js";
 import type * as shared_returns from "../shared/returns.js";
 import type * as shared_saleTimestamps from "../shared/saleTimestamps.js";
 import type * as shared_salesRange from "../shared/salesRange.js";
+import type * as shared_smsAudience from "../shared/smsAudience.js";
 import type * as shared_storageSessions from "../shared/storageSessions.js";
 import type * as shared_subscriptions from "../shared/subscriptions.js";
-import type * as shared_arkeselSms from "../shared/arkeselSms.js";
-import type * as shared_smsAudience from "../shared/smsAudience.js";
 import type * as shared_supplierFinance from "../shared/supplierFinance.js";
 import type * as shared_tenancy from "../shared/tenancy.js";
 import type * as shared_tourProgress from "../shared/tourProgress.js";
 import type * as shared_transactionalEmail from "../shared/transactionalEmail.js";
 import type * as shared_units from "../shared/units.js";
 import type * as shared_validation from "../shared/validation.js";
+import type * as sms from "../sms.js";
 import type * as storageUploads from "../storageUploads.js";
 import type * as suppliers from "../suppliers.js";
 import type * as telemetry from "../telemetry.js";
@@ -140,6 +142,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   accountClosure: typeof accountClosure;
+  appNotifications: typeof appNotifications;
   analytics: typeof analytics;
   auth: typeof auth;
   billing: typeof billing;
@@ -185,9 +188,9 @@ declare const fullApi: ApiFromModules<{
   returns: typeof returns;
   sales: typeof sales;
   settings: typeof settings;
-  sms: typeof sms;
   "shared/accountClosure": typeof shared_accountClosure;
   "shared/accountStatus": typeof shared_accountStatus;
+  "shared/arkeselSms": typeof shared_arkeselSms;
   "shared/audit": typeof shared_audit;
   "shared/auditDisplay": typeof shared_auditDisplay;
   "shared/auditEnrichment": typeof shared_auditEnrichment;
@@ -221,6 +224,7 @@ declare const fullApi: ApiFromModules<{
   "shared/loginRateLimit": typeof shared_loginRateLimit;
   "shared/lots": typeof shared_lots;
   "shared/multiBranchBootstrap": typeof shared_multiBranchBootstrap;
+  "shared/notificationAudience": typeof shared_notificationAudience;
   "shared/notificationTopics": typeof shared_notificationTopics;
   "shared/organizationConfig": typeof shared_organizationConfig;
   "shared/organizationStats": typeof shared_organizationStats;
@@ -246,16 +250,16 @@ declare const fullApi: ApiFromModules<{
   "shared/returns": typeof shared_returns;
   "shared/saleTimestamps": typeof shared_saleTimestamps;
   "shared/salesRange": typeof shared_salesRange;
+  "shared/smsAudience": typeof shared_smsAudience;
   "shared/storageSessions": typeof shared_storageSessions;
   "shared/subscriptions": typeof shared_subscriptions;
-  "shared/arkeselSms": typeof shared_arkeselSms;
-  "shared/smsAudience": typeof shared_smsAudience;
   "shared/supplierFinance": typeof shared_supplierFinance;
   "shared/tenancy": typeof shared_tenancy;
   "shared/tourProgress": typeof shared_tourProgress;
   "shared/transactionalEmail": typeof shared_transactionalEmail;
   "shared/units": typeof shared_units;
   "shared/validation": typeof shared_validation;
+  sms: typeof sms;
   storageUploads: typeof storageUploads;
   suppliers: typeof suppliers;
   telemetry: typeof telemetry;

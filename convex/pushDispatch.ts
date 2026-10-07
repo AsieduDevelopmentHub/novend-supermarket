@@ -142,6 +142,19 @@ export const dispatchPush = internalAction({
       return { sent: 0, skipped: 0, failed: 0 };
     }
 
+    try {
+      await ctx.runMutation(internal.appNotifications.recordFromDispatch, {
+        organizationId: args.organizationId,
+        userId: args.userId,
+        topic: args.topic,
+        title: args.title,
+        body: args.body,
+        href: args.data?.href,
+      });
+    } catch (error) {
+      console.warn("[notifications] Inbox write skipped.", error);
+    }
+
     const devices = await ctx.runQuery(internal.pushNotifications.devicesForDispatch, {
       organizationId: args.organizationId,
       userId: args.userId,

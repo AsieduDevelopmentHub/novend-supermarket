@@ -26,6 +26,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SyncStatusChip } from "@/components/offline/sync-status-chip";
+import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
 
@@ -138,6 +139,7 @@ function SidebarBrand({
           </p>
         </div>
       )}
+      <NotificationBell tone="sidebar" />
       {onToggle ? (
         <button
           type="button"

@@ -33,7 +33,7 @@ import { presenceFromLastSeenAt } from "./shared/presence";
 import { deactivateAccountBlockReason } from "./shared/accountStatus";
 import { loadEmailVerification } from "./shared/emailVerificationLookup";
 import { recordDailyActiveUser } from "./shared/platformTelemetry";
-import { businessDateKey } from "./shared/businessDate";
+import { businessDateKey, formatBusinessTime } from "./shared/businessDate";
 import { loadTourProgressForUser } from "./shared/tourProgress";
 
 export const me = query({
@@ -615,6 +615,13 @@ export const heartbeat = mutation({
         cashierName: profile.name,
         branchName,
         clockedInAt: now,
+      });
+      const clockTime = formatBusinessTime(now, organization?.timezone);
+      await ctx.scheduler.runAfter(0, internal.appNotifications.recordClockIn, {
+        organizationId,
+        cashierUserId: userId,
+        title: "Cashier clocked in",
+        body: `${profile.name} clocked in at ${clockTime}${branchName ? ` (${branchName})` : ""}.`,
       });
     }
     if (args.runtime) {

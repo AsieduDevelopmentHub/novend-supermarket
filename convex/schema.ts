@@ -657,6 +657,8 @@ export default defineSchema({
     salesProductDisplay: v.optional(v.string()),
     /** Compact denormalized copy of userTourProgress for session + snapshot bootstrap. */
     tourProgress: v.optional(v.array(tourProgressEntryValidator)),
+    /** When true, in-app and device alerts for this person are held. Missing means not muted. */
+    notificationsMuted: v.optional(v.boolean()),
     /** First sign-in of the business day. Later logins the same day do not move this. */
     clockedInAt: v.optional(v.number()),
     /** Business-timezone day (`YYYY-MM-DD`) for `clockedInAt`. */
@@ -1517,6 +1519,28 @@ export default defineSchema({
   })
     .index("by_user_createdAt", ["userId", "createdAt"])
     .index("by_user_unconsumed", ["userId", "consumedAt"]),
+
+  /**
+   * In-app inbox. Written beside device push for operational alerts only.
+   * Cleared rows stay in the table so older clients are unaffected.
+   */
+  appNotifications: defineTable({
+    organizationId: v.id("organizations"),
+    userId: v.id("users"),
+    topic: v.union(
+      v.literal("stock_alerts"),
+      v.literal("daily_summary"),
+      v.literal("branch_transfers"),
+      v.literal("subscription_alerts"),
+      v.literal("staff_clock_in"),
+    ),
+    title: v.string(),
+    body: v.string(),
+    href: v.optional(v.string()),
+    createdAt: v.number(),
+    readAt: v.optional(v.number()),
+    clearedAt: v.optional(v.number()),
+  }).index("by_user_createdAt", ["userId", "createdAt"]),
 
   // --- Phase B dining (restaurant / bar) — settles into sales on pay ---
 

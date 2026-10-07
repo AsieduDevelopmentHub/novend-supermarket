@@ -21,6 +21,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SyncStatusBanner } from "@/components/offline/sync-status-banner";
 import { SyncStatusHeaderButton } from "@/components/offline/sync-status-chip";
+import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { SyncCenterDialog } from "@/components/offline/sync-center-dialog";
 import { LicenseBanner } from "@/features/billing/components/license-banner";
 import { EmailVerificationBanner } from "@/features/auth/components/email-verification-banner";
@@ -1128,6 +1129,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                         <p className="min-w-0 flex-1 truncate text-base font-semibold">
                           {shellUser.organizationName?.trim() || APP_BRAND}
                         </p>
+                        <NotificationBell />
                         <SyncStatusHeaderButton />
                       </header>
                     )}
@@ -1141,6 +1143,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                           id="native-page-header-host"
                           className="native-page-header-host min-w-0 flex-1"
                         />
+                        <NotificationBell />
                         <SyncStatusHeaderButton />
                       </div>
                     ) : null}
