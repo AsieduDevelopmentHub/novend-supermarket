@@ -76,7 +76,7 @@ export function LandingFooter() {
               Contact page
             </Link>
           </div>
-          <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <ContactItem
               icon={Users}
               label={contact.community.label}
@@ -88,6 +88,12 @@ export function LandingFooter() {
               label={contact.email.label}
               value={contact.email.value}
               href={contact.email.href}
+            />
+            <ContactItem
+              icon={Mail}
+              label={contact.sales.label}
+              value={contact.sales.value}
+              href={contact.sales.href}
             />
             <ContactItem
               icon={MessageCircle}

@@ -1,8 +1,12 @@
 import { APP_BRAND, APP_TAGLINE } from "@/constants/app";
 
-export const LANDING_CONTACT_EMAIL = "asiedudev.hub@gmail.com";
-/** Public-facing address shown in marketing UI; mailto still uses LANDING_CONTACT_EMAIL. */
-export const LANDING_CONTACT_EMAIL_DISPLAY = "hello@novendpos.app";
+/** General contact. Routed on novendpos.app. */
+export const LANDING_CONTACT_EMAIL = "hello@novendpos.app";
+export const LANDING_CONTACT_EMAIL_DISPLAY = LANDING_CONTACT_EMAIL;
+/** Pricing, enterprise, and partnership. Routed on novendpos.app. */
+export const LANDING_SALES_EMAIL = "sales@novendpos.app";
+/** Help, privacy, billing, and abuse. Routed on novendpos.app. */
+export const LANDING_SUPPORT_EMAIL = "support@novendpos.app";
 
 export const LANDING_WHATSAPP_UK = {
   display: "+44 7868 178108",
@@ -40,15 +44,19 @@ export const LANDING_SOCIAL_LINKS = [
   },
 ] as const;
 
-/** Build a mailto URL with subject + body for sales outreach.
+/** Build a mailto URL with subject + body.
  * Uses encodeURIComponent (%20) — URLSearchParams uses +, which many mail clients show literally.
  */
-export function buildSalesMailto(options: { subject: string; body: string }): string {
+function buildMailto(address: string, options: { subject: string; body: string }): string {
   return (
-    `mailto:${LANDING_CONTACT_EMAIL}` +
+    `mailto:${address}` +
     `?subject=${encodeURIComponent(options.subject)}` +
     `&body=${encodeURIComponent(options.body)}`
   );
+}
+
+export function buildSalesMailto(options: { subject: string; body: string }): string {
+  return buildMailto(LANDING_SALES_EMAIL, options);
 }
 
 export function buildContactMailto(options: {
@@ -59,7 +67,14 @@ export function buildContactMailto(options: {
   message: string;
 }): string {
   const topicLabel = options.topic.trim() || "General";
-  return buildSalesMailto({
+  const salesTopic = topicLabel === "Sales" || topicLabel === "Partnership";
+  const supportTopic = topicLabel === "Support";
+  const address = salesTopic
+    ? LANDING_SALES_EMAIL
+    : supportTopic
+      ? LANDING_SUPPORT_EMAIL
+      : LANDING_CONTACT_EMAIL;
+  return buildMailto(address, {
     subject: `Novend contact — ${topicLabel}`,
     body: [
       "Hello Novend team,",
@@ -104,6 +119,8 @@ export const ENTERPRISE_SALES_MAILTO = buildSalesMailto({
     "Email:",
   ].join("\n"),
 });
+
+export const SUPPORT_MAILTO = `mailto:${LANDING_SUPPORT_EMAIL}?subject=${encodeURIComponent("Novend support")}`;
 
 /** General Contact Sales — not plan-specific (final CTA / general outreach). */
 export const GENERAL_SALES_MAILTO = buildSalesMailto({
@@ -939,6 +956,11 @@ export const landingCopy = {
         value: LANDING_CONTACT_EMAIL_DISPLAY,
         href: `mailto:${LANDING_CONTACT_EMAIL}`,
       },
+      sales: {
+        label: "Sales",
+        value: LANDING_SALES_EMAIL,
+        href: GENERAL_SALES_MAILTO,
+      },
       international: {
         label: "WhatsApp",
         value: LANDING_WHATSAPP_UK.display,
@@ -986,6 +1008,14 @@ export const landingCopy = {
           detail: LANDING_CONTACT_EMAIL_DISPLAY,
           cta: "Send email",
           href: `mailto:${LANDING_CONTACT_EMAIL}`,
+          accent: "email" as const,
+        },
+        {
+          id: "sales",
+          label: "Sales",
+          detail: LANDING_SALES_EMAIL,
+          cta: "Email sales",
+          href: GENERAL_SALES_MAILTO,
           accent: "email" as const,
         },
         {

@@ -17,6 +17,7 @@ const CHANNEL_ICONS = {
   community: Users,
   whatsapp: MessageCircle,
   email: Mail,
+  sales: Mail,
   phone: Phone,
 } as const;
 
@@ -77,7 +78,7 @@ export function ContactPageView() {
 
         <ul
           data-reveal
-          className="mt-8 grid gap-3 sm:mt-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4"
+          className="mt-8 grid gap-3 sm:mt-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4"
         >
           {contactPage.channels.items.map((channel) => {
             const Icon = CHANNEL_ICONS[channel.id as keyof typeof CHANNEL_ICONS] ?? MessageCircle;

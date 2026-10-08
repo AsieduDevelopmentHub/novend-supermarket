@@ -1,4 +1,5 @@
 import { APP_BRAND, APP_NAME, APP_TAGLINE } from "@/constants/app";
+import { LANDING_CONTACT_EMAIL } from "@/features/marketing/content";
 import { absoluteUrl, getSiteOrigin } from "./site-url";
 
 export type FaqItem = { q: string; a: string };
@@ -14,7 +15,7 @@ export function organizationJsonLd(): JsonLd {
     brand: { "@type": "Brand", name: APP_BRAND },
     url: origin,
     logo: absoluteUrl("/branding/logo_horizontal.png"),
-    email: "asiedudev.hub@gmail.com",
+    email: LANDING_CONTACT_EMAIL,
     sameAs: [],
     description: `${APP_NAME} — ${APP_TAGLINE}. Commercial offline-first Point of Sale.`,
   };

@@ -46,7 +46,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
 import { formatDateTime } from "@/lib/date";
 import { showError } from "@/lib/errors";
-import { LANDING_CONTACT_EMAIL } from "@/features/marketing/content";
+import { LANDING_SUPPORT_EMAIL } from "@/features/marketing/content";
 import { toast } from "sonner";
 
 const CLOSURE_REASONS = [
@@ -231,7 +231,7 @@ export function PrivacyDataPanel() {
             icon={HeartHandshake}
             title="Talk to us first"
             description="Many closure requests are billing or training issues we can fix in one conversation."
-            href={`mailto:${LANDING_CONTACT_EMAIL}`}
+            href={`mailto:${LANDING_SUPPORT_EMAIL}`}
             actionLabel="Email support"
             external
           />

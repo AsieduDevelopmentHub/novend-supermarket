@@ -1,4 +1,7 @@
-import { GENERAL_SALES_MAILTO, LANDING_CONTACT_EMAIL } from "@/features/marketing/content";
+import {
+  LANDING_SUPPORT_EMAIL,
+  SUPPORT_MAILTO,
+} from "@/features/marketing/content";
 
 /** Public marketing site pages linked from the footer. */
 export const sitePages = {
@@ -269,8 +272,8 @@ export const sitePages = {
       title: "Still need help?",
       detail:
         "Reach the Novend team by email or WhatsApp. Include your organization name, branch, and a short description of what you were doing when the issue occurred.",
-      email: LANDING_CONTACT_EMAIL,
-      mailto: GENERAL_SALES_MAILTO,
+      email: LANDING_SUPPORT_EMAIL,
+      mailto: SUPPORT_MAILTO,
       pageHref: "/contact",
       pageLabel: "Open contact page",
     },
@@ -298,7 +301,7 @@ export const sitePages = {
         title: "1. Who we are and how to contact us",
         paragraphs: [
           "Novend is a commercial Point of Sale and business management platform operated by Asiedu Development Hub.",
-          `Privacy questions, data access requests, and complaints can be sent to ${LANDING_CONTACT_EMAIL}. You can also reach us on WhatsApp at +44 7868 178108 or by phone/WhatsApp at +233 55 525 7482.`,
+          `Privacy questions, data access requests, and complaints can be sent to ${LANDING_SUPPORT_EMAIL}. You can also reach us on WhatsApp at +44 7868 178108 or by phone/WhatsApp at +233 55 525 7482.`,
           "If you use Novend on behalf of a business, that organization is typically the controller of its operational business records (products, sales, customers). We process that data to provide the Service under our agreement with the organization.",
         ],
       },
@@ -530,7 +533,7 @@ export const sitePages = {
       {
         title: "16. Contact",
         paragraphs: [
-          `For questions about these Terms, contact ${LANDING_CONTACT_EMAIL}, WhatsApp +44 7868 178108, or phone/WhatsApp +233 55 525 7482.`,
+          `For questions about these Terms, contact ${LANDING_SUPPORT_EMAIL}, WhatsApp +44 7868 178108, or phone/WhatsApp +233 55 525 7482.`,
           "Related policies: Privacy Policy (/privacy), Refund & Cancellation Policy (/refund), Cookie Policy (/cookies), Acceptable Use Policy (/aup), and Data Processing Addendum (/dpa).",
           "Asiedu Development Hub.",
         ],
@@ -611,7 +614,7 @@ export const sitePages = {
       {
         title: "10. Contact",
         paragraphs: [
-          `Refund and billing questions: ${LANDING_CONTACT_EMAIL}. WhatsApp +44 7868 178108, or phone/WhatsApp +233 55 525 7482.`,
+          `Refund and billing questions: ${LANDING_SUPPORT_EMAIL}. WhatsApp +44 7868 178108, or phone/WhatsApp +233 55 525 7482.`,
           "Asiedu Development Hub. Governing law aligns with the Terms of Service, subject to any non-waivable consumer rights.",
         ],
       },
@@ -677,7 +680,7 @@ export const sitePages = {
       {
         title: "8. Contact",
         paragraphs: [
-          `Questions about cookies or privacy: ${LANDING_CONTACT_EMAIL}.`,
+          `Questions about cookies or privacy: ${LANDING_SUPPORT_EMAIL}.`,
           "See also Privacy Policy (/privacy) and Terms of Service (/terms).",
         ],
       },
@@ -736,7 +739,7 @@ export const sitePages = {
       {
         title: "7. Reporting",
         paragraphs: [
-          `Report abuse or security concerns to ${LANDING_CONTACT_EMAIL} with details and, if possible, organization identifiers and timestamps.`,
+          `Report abuse or security concerns to ${LANDING_SUPPORT_EMAIL} with details and, if possible, organization identifiers and timestamps.`,
         ],
       },
       {
@@ -847,7 +850,7 @@ export const sitePages = {
       {
         title: "14. Contact",
         paragraphs: [
-          `Privacy and DPA contact: ${LANDING_CONTACT_EMAIL}.`,
+          `Privacy and DPA contact: ${LANDING_SUPPORT_EMAIL}.`,
           "Asiedu Development Hub.",
         ],
       },

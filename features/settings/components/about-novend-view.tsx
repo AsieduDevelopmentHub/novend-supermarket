@@ -13,6 +13,7 @@ import { loadShellProfile } from "@/lib/offline/shell-profile";
 import { estimateBackupSize } from "@/lib/offline/backup";
 import { APP_BRAND, APP_NAME, APP_VERSION } from "@/constants/app";
 import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
+import { SUPPORT_MAILTO } from "@/features/marketing/content";
 import { Info } from "lucide-react";
 
 const LAST_UPDATE_KEY = "novend.mobileUpdate.last";
@@ -187,7 +188,7 @@ export function AboutNovendView() {
             type="button"
             variant="outline"
             className="min-h-11 justify-start"
-            onClick={() => void Hardware.app.openExternalUrl("mailto:asiedudev.hub@gmail.com")}
+            onClick={() => void Hardware.app.openExternalUrl(SUPPORT_MAILTO)}
           >
             Contact support
           </Button>
