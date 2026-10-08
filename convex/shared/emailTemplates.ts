@@ -39,6 +39,12 @@ export type EmailOtpMessageInput = {
   expiresInMinutes: number;
 };
 
+export type WelcomeEmailInput = {
+  name: string;
+  organizationName: string;
+  signInUrl: string;
+};
+
 export type OrganizationClosureAlertInput = {
   kind: "requested" | "finalized";
   organizationName: string;
@@ -211,6 +217,45 @@ export function renderEmailOtpEmail(input: EmailOtpMessageInput): RenderedEmail 
   });
 
   return { subject, preheader, text, html };
+}
+
+export function renderWelcomeEmail(input: WelcomeEmailInput): RenderedEmail {
+  const name = input.name.trim() || "there";
+  const organization = input.organizationName.trim() || "your business";
+  const subject = `Welcome to ${EMAIL_BRAND.product}`;
+  const preheader = `${organization} is ready on ${EMAIL_BRAND.productFull}.`;
+  const text = [
+    `Hi ${name},`,
+    "",
+    `Welcome to ${EMAIL_BRAND.productFull}. ${organization} is set up and ready.`,
+    "You can sell from the till, and work continues if the connection drops.",
+    "",
+    "Sign in:",
+    input.signInUrl,
+    "",
+    `— ${EMAIL_BRAND.product}`,
+  ].join("\n");
+
+  const html = wrapLayout({
+    title: subject,
+    preheader,
+    bodyHtml: `
+      <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;letter-spacing:-0.02em;">Welcome to ${EMAIL_BRAND.product}</h1>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">
+        Hi ${escapeHtml(name)}, <strong>${escapeHtml(organization)}</strong> is ready.
+        You can sell from the till, and work continues if the connection drops.
+      </p>
+      ${ctaButton(input.signInUrl, "Open Novend")}
+    `,
+  });
+
+  return { subject, preheader, text, html };
+}
+
+export function welcomeSms(name: string, organizationName: string): string {
+  const who = name.trim() || "there";
+  const organization = organizationName.trim() || "Your business";
+  return `Welcome to Novend, ${who}. ${organization} is ready. Sign in to start selling.`.slice(0, 320);
 }
 
 const CLOSURE_REASON_LABELS: Record<string, string> = {

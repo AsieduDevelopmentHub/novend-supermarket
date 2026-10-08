@@ -28,6 +28,8 @@ Login does not enforce that length so legacy passwords still type.
 
 Email is the account identifier and the recovery channel. Transactional mail
 goes through Resend (`AUTH_RESEND_KEY`, `AUTH_EMAIL_FROM`) from Convex actions.
+Joining sends a separate welcome email (name and business, not the verification
+code), plus an in-app notice and an SMS when a phone is on the profile.
 Logos are **CID-inline PNG attachments**, not remote `/branding` URLs.
 
 ## Email verification — soft, server-owned

@@ -742,6 +742,8 @@ export const insertProfileForUser = internalMutation({
       metadata: { role: args.role, branchId: args.branchId },
     });
 
+    await ctx.scheduler.runAfter(0, internal.welcome.deliver, { userId: args.userId });
+
     return profileId;
   },
 });

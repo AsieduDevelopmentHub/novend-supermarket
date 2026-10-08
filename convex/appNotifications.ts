@@ -136,6 +136,33 @@ export const recordFromDispatch = internalMutation({
   },
 });
 
+/** One welcome row for the person who just joined. */
+export const recordWelcome = internalMutation({
+  args: {
+    organizationId: v.id("organizations"),
+    userId: v.id("users"),
+    organizationName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .unique();
+    if (!profile || profile.organizationId !== args.organizationId) return;
+    if (profile.notificationsMuted === true || profile.status !== "active") return;
+    const organization = args.organizationName.trim() || "Your business";
+    await ctx.db.insert("appNotifications", {
+      organizationId: args.organizationId,
+      userId: args.userId,
+      topic: "welcome",
+      title: "Welcome to Novend",
+      body: `${organization} is ready. You can sell from this till, online or offline.`.slice(0, 280),
+      href: "/dashboard",
+      createdAt: Date.now(),
+    });
+  },
+});
+
 /** One inbox row per supervising admin/manager. Not sent to the cashier. */
 export const recordClockIn = internalMutation({
   args: {

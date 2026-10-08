@@ -133,6 +133,7 @@ import type * as suppliers from "../suppliers.js";
 import type * as telemetry from "../telemetry.js";
 import type * as tours from "../tours.js";
 import type * as users from "../users.js";
+import type * as welcome from "../welcome.js";
 import type * as wholesale from "../wholesale.js";
 
 import type {
@@ -267,6 +268,7 @@ declare const fullApi: ApiFromModules<{
   telemetry: typeof telemetry;
   tours: typeof tours;
   users: typeof users;
+  welcome: typeof welcome;
   wholesale: typeof wholesale;
 }>;
 
