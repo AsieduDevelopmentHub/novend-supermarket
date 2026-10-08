@@ -228,7 +228,7 @@ function stockConflictExplanation(message: string, payload: Record<string, unkno
   const invoice = text(payload.invoiceNumber);
   const clean = sanitizeSyncErrorMessage(message) || message;
   const receipt = invoice ? `Receipt ${invoice}. ` : "";
-  return `${receipt}${clean} This receipt already left the till, so you cannot remove that product or return it until the sale is posted. A manager can post the receipt: Novend saves the sale and only removes stock that is still there. Stock does not go below zero.`;
+  return `${receipt}${clean} This receipt already left the till. The next sync saves the sale and only removes stock that is still there. Stock does not go below zero.`;
 }
 
 /**

@@ -17,7 +17,8 @@ npx convex env set ARKESEL_SENDER_ID "Novend"
 ```
 
 - `api.sms.broadcast` — platform owner/operator message to business owners, administrators, or managers. Cashiers are excluded. One organization or all businesses.
-- `internal.sms.notifyCashierClockIn` — one SMS to that business's administrators the first time a cashier signs in on a business day. Later logins the same day do not send again.
+- `internal.sms.notifyCashierClockIn` — one SMS to that business's administrators the first time a cashier signs in on a business day. Later logins the same day do not send again. Copy ends with the app link, the same way email does: clock-in to `/users`, welcome to `/login`, daily sales to `/reports`.
+- `internal.dailySalesDigest.runDailySalesReports` — daily at 21:00 UTC. Each active business gets one report for the closed business day (today after 8pm local, otherwise yesterday). Active administrators who have not muted notifications get an in-app inbox item. The same text is sent by SMS to those administrators who have a phone number. A `dailySalesDigests` row stops a second send for that date. Cashiers and managers are not recipients. Device push for this topic stays opt-in on the notifications settings card.
 - `internal.sms.sendBestEffort` — for other digests (no throw).
 - Without `ARKESEL_API_KEY`, sends return `{ status: "skipped" }`.
 

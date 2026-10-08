@@ -12,6 +12,17 @@ export const smsAudienceValidator = v.union(
 );
 
 export const SMS_MESSAGE_MAX = 320;
+
+/** Keep the link at the end so a long message is shortened before the URL. */
+export function appendSmsLink(message: string, url?: string | null) {
+  const link = url?.trim() ?? "";
+  const body = message.replace(/\s+/g, " ").trim();
+  if (!link) return body.slice(0, SMS_MESSAGE_MAX);
+  const suffix = ` ${link}`;
+  const room = SMS_MESSAGE_MAX - suffix.length;
+  if (room <= 0) return link.slice(0, SMS_MESSAGE_MAX);
+  return `${body.slice(0, room).trimEnd()}${suffix}`;
+}
 export const SMS_BROADCAST_MAX_RECIPIENTS = 200;
 
 export function isSmsAudience(value: string): value is SmsAudience {

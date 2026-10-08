@@ -28,7 +28,10 @@ export function mergeSalesReportWithLocal(
       byDate.set(row.date, next);
       continue;
     }
-    if (next.orders > current.orders || next.totalSales > current.totalSales) {
+    // Replace the cloud day only when this device has every cloud sale plus
+    // extras. More orders with less money means the local mirror is missing
+    // other tills, and swapping it in would shrink the report.
+    if (next.orders > current.orders && next.totalSales >= current.totalSales) {
       byDate.set(row.date, next);
     }
   }

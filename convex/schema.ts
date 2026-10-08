@@ -1761,4 +1761,11 @@ export default defineSchema({
   })
     .index("by_stay", ["stayId"])
     .index("by_organization", ["organizationId"]),
+
+  /** One end-of-day sales report per organization, so the cron does not send twice. */
+  dailySalesDigests: defineTable({
+    organizationId: v.id("organizations"),
+    dateKey: v.string(),
+    sentAt: v.number(),
+  }).index("by_organization_date", ["organizationId", "dateKey"]),
 });

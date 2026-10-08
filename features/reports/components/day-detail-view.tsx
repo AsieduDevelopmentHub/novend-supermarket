@@ -137,12 +137,8 @@ export function ReportDayDetailView() {
     })),
   );
   const pendingCount = mergedOrders.filter((order) => order.pendingUpload).length;
-  const grossSales = mergedOrders.reduce((sum, order) => sum + order.total, 0);
-  const itemsReturned = details.returns.reduce((sum, row) => sum + row.itemCount, 0);
-  const itemsSold = Math.max(
-    0,
-    mergedOrders.reduce((sum, order) => sum + order.itemCount, 0) - itemsReturned,
-  );
+  const grossSales = details.kpis.grossSales;
+  const itemsSold = details.kpis.itemsSold;
   const titleDate = formatDate(new Date(`${date}T00:00:00Z`));
 
   return (
@@ -161,17 +157,17 @@ export function ReportDayDetailView() {
       />
 
       <Grid cols={5}>
-        <Kpi title="Orders" value={String(mergedOrders.length)} />
+        <Kpi title="Orders" value={String(details.kpis.orders)} />
         <Kpi title="Items sold" value={String(itemsSold)} />
         <Kpi title="Gross sales" value={formatCurrency(grossSales)} />
         <Kpi title="Refunds" value={formatCurrency(details.kpis.refunds)} />
-        <Kpi title="Net sales" value={formatCurrency(grossSales - details.kpis.refunds)} />
+        <Kpi title="Net sales" value={formatCurrency(details.kpis.netSales)} />
       </Grid>
 
       {pendingCount > 0 ? (
         <p className="text-muted-foreground text-sm">
-          {pendingCount} sale{pendingCount === 1 ? "" : "s"} on this day are still uploading from
-          this device. They already count here and in Orders.
+          {pendingCount} sale{pendingCount === 1 ? "" : "s"} on this day are still only on this
+          till. They are listed below and are not included in these totals until they upload.
         </p>
       ) : null}
 

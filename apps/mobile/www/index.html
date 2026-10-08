@@ -133,9 +133,18 @@
         // Open the hosted shell directly. /api/boot is network-only (SW skips
         // /api/*) so it can never succeed offline. After one online open the
         // hosted service worker serves Cache Storage; Dexie restores the session.
-        var dest = appUrl
-          ? appUrl + entry + (entry.indexOf("?") >= 0 ? "&" : "?") + "fromBoot=1"
-          : "";
+        // Never append fromBoot onto a signed-out or just-signed-in leave.
+        // fromBoot made the service worker serve a cached dashboard for /login,
+        // so sign-out bounced back into Opening sign-in.
+        var signedOutLeave = entry.indexOf("signedOut=1") >= 0;
+        var fromLoginLeave = entry.indexOf("fromLogin=1") >= 0;
+        var dest = "";
+        if (appUrl) {
+          dest = appUrl + entry;
+          if (!signedOutLeave && !fromLoginLeave && entry.indexOf("fromBoot=") < 0) {
+            dest += (entry.indexOf("?") >= 0 ? "&" : "?") + "fromBoot=1";
+          }
+        }
 
         var booting = document.getElementById("booting");
         var failed = document.getElementById("failed");

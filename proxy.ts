@@ -322,7 +322,14 @@ export default convexAuthNextjsMiddleware(
 
     // Signed-out navigation must be able to paint /login even if the auth
     // cookie has not been cleared yet (Cap/WebView session race).
-    if (onLoginPage && request.nextUrl.searchParams.get("signedOut") === "1") {
+    // signedOut: the till just left. shellBack: the app shell sent the
+    // browser here because client auth had not settled. Redirecting either
+    // straight back to the dashboard reloads login in a loop.
+    if (
+      onLoginPage &&
+      (request.nextUrl.searchParams.get("signedOut") === "1" ||
+        request.nextUrl.searchParams.get("shellBack") === "1")
+    ) {
       return withNonceSecurityHeaders(
         NextResponse.next({ request: { headers: requestHeaders } }),
         nonce,

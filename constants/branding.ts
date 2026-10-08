@@ -17,6 +17,8 @@ export const BRANDING = {
   logoHorizontalLight: brandAsset("/branding/logo_horizontal_light.png"),
   logoVertical: brandAsset("/branding/logo_vertical.png"),
   loginHero: brandAsset("/branding/login_hero.png"),
+  /** 1200×630 link-preview image. The mark sits in the center so crops keep it whole. */
+  ogImage: "/branding/og.png",
   /** Real product dashboard — landing hero & analytics showcase. */
   dashboardHero: marketingAsset("/marketing/dashboard.png"),
   /** V3 landing device / diagram marketing assets (from ui_reference). */

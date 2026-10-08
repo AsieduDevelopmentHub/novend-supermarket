@@ -5,7 +5,9 @@ import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { arkeselConfigured, sendArkeselSms } from "./shared/arkeselSms";
 import { formatBusinessTime } from "./shared/businessDate";
+import { clockInSms } from "./shared/emailTemplates";
 import { SMS_MESSAGE_MAX, smsAudienceValidator } from "./shared/smsAudience";
+import { publicAppUrl } from "./shared/transactionalEmail";
 
 /**
  * Platform broadcast. Owners and operators only, and only to owners,
@@ -85,7 +87,12 @@ export const notifyCashierClockIn = internalAction({
     }
     const time = formatBusinessTime(args.clockedInAt, target.timeZone);
     const branch = args.branchName.trim();
-    const message = `${args.cashierName.trim()} clocked in at ${time}${branch ? ` (${branch})` : ""}.`;
+    const message = clockInSms({
+      cashierName: args.cashierName,
+      time,
+      branchName: branch,
+      staffUrl: `${publicAppUrl()}/users`,
+    });
     try {
       return await sendArkeselSms({
         to: target.phones,

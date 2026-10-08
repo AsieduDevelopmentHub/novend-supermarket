@@ -54,7 +54,11 @@ export const deliver = internalAction({
     if (target.phone) {
       await sendArkeselSmsBestEffort({
         to: target.phone,
-        message: welcomeSms(target.name, target.organizationName),
+        message: welcomeSms(
+          target.name,
+          target.organizationName,
+          `${publicAppUrl()}/login`,
+        ),
       });
     }
   },

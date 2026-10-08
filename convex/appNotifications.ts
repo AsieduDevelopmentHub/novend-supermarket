@@ -156,7 +156,10 @@ export const recordWelcome = internalMutation({
       userId: args.userId,
       topic: "welcome",
       title: "Welcome to Novend",
-      body: `${organization} is ready. You can sell from this till, online or offline.`.slice(0, 280),
+      body: `${organization} is ready on Novend POS. Sign in on any till to start selling.`.slice(
+        0,
+        280,
+      ),
       href: "/dashboard",
       createdAt: Date.now(),
     });

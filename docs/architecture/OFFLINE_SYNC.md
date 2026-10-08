@@ -338,17 +338,17 @@ including rows already marked failed. Without that, a reconnect during an
 offline day restored the morning count, the till sold those units again, and
 close-of-day upload then rejected the extras as “Not enough stock”.
 
-These uploads are still conflicts, and they should be:
+These uploads are still recorded:
 
 - **Two tills, one branch, same units.** Each device sold from the morning
-  snapshot. The first upload reduces branch stock. A later upload that would
-  take stock below zero is rejected. The receipt already exists on the second
-  till; a manager posts the receipt from Sync Center. Novend saves the sale
-  and removes only the stock still on that branch. Stock does not go below
-  zero, and the missing units stay on the sale so a return can be recorded
-  after it posts. The same path covers a receipt sold while the product was
-  non-stock, then uploaded after stock tracking was turned on. Sync does not
-  invent units.
+  snapshot. The first upload reduces branch stock. A later printed receipt
+  that would take stock below zero is still saved. Novend removes only the
+  units still on that branch, records the shortage, and does not invent stock.
+  The sale then appears in Orders and Reports. The same path covers a receipt
+  sold while the product was non-stock, then uploaded after stock tracking was
+  turned on. A failed stock row is reopened on the next sync so it does not
+  stay on the till. Live checkout, before a receipt exists, still refuses the
+  sale when the branch does not have the units.
 - **The catalog changed after the sale.** A price, pack size, or deactivated
   product used to be re-checked against the live catalog, so a discount that
   fitted the printed price failed, or “Sell unit not found” / “Product

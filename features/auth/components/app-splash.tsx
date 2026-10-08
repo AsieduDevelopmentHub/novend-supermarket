@@ -181,12 +181,21 @@ export function AppSplash({
 
 /** Same fall the login page started, still running while the shell finishes checks. */
 export function PostLoginCover({ exiting = false }: { exiting?: boolean }) {
-  const [elapsedMs, setElapsedMs] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState<number | null>(null);
   useLayoutEffect(() => {
     const started = readSignInMotionStart();
-    if (started == null) return;
-    setElapsedMs(Math.max(0, Date.now() - started));
+    setElapsedMs(started == null ? 0 : Math.max(0, Date.now() - started));
   }, []);
+
+  // A first paint at elapsed 0 restarts the fall, then the seek jumps it.
+  // Hold a still frame until the delay matches the login page.
+  if (elapsedMs == null) {
+    return (
+      <div className="bg-sidebar fixed inset-0 z-[100]" role="status" aria-live="polite" aria-busy="true">
+        <p className="sr-only">Opening your workspace</p>
+      </div>
+    );
+  }
 
   return (
     <AppSplash
