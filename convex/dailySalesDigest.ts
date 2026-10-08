@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { businessTimeZone } from "./shared/businessDate";
 import {
@@ -15,6 +16,18 @@ import {
 import { normalizeSmsRecipient, sendArkeselSms } from "./shared/arkeselSms";
 import { publicAppUrl } from "./shared/transactionalEmail";
 import { collectSalesInCompletedAtRange } from "./shared/salesRange";
+
+type PreparedDailySales = {
+  organizationId: Id<"organizations">;
+  organizationName: string;
+  currency: string;
+  dateKey: string;
+  figures: DailySalesFigures;
+  userIds: Array<Id<"users">>;
+  phones: string[];
+};
+
+type DailySalesSendResult = { sent: false } | { sent: true; dateKey: string };
 
 export const prepare = internalQuery({
   args: { organizationId: v.id("organizations"), now: v.number() },
@@ -131,19 +144,24 @@ export const publishInbox = internalMutation({
 
 export const sendForOrganization = internalAction({
   args: { organizationId: v.id("organizations"), now: v.optional(v.number()) },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<DailySalesSendResult> => {
     const now = args.now ?? Date.now();
-    const prepared = await ctx.runQuery(internal.dailySalesDigest.prepare, {
-      organizationId: args.organizationId,
-      now,
-    });
-    if (!prepared) return { sent: false as const };
+    // Explicit types break a cycle: this action calls other functions in the
+    // same module, and Convex's generated `internal` types point back here.
+    const prepared: PreparedDailySales | null = await ctx.runQuery(
+      internal.dailySalesDigest.prepare,
+      {
+        organizationId: args.organizationId,
+        now,
+      },
+    );
+    if (!prepared) return { sent: false };
 
-    const claimed = await ctx.runMutation(internal.dailySalesDigest.claim, {
+    const claimed: boolean = await ctx.runMutation(internal.dailySalesDigest.claim, {
       organizationId: prepared.organizationId,
       dateKey: prepared.dateKey,
     });
-    if (!claimed) return { sent: false as const };
+    if (!claimed) return { sent: false };
 
     const copy = {
       organizationName: prepared.organizationName,
@@ -178,13 +196,13 @@ export const sendForOrganization = internalAction({
         skipInbox: true,
       });
     }
-    return { sent: true as const, dateKey: prepared.dateKey };
+    return { sent: true, dateKey: prepared.dateKey };
   },
 });
 
 export const runDailySalesReports = internalAction({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<void> => {
     const orgs = await ctx.runQuery(internal.pushAlerts.listActiveOrganizations, {});
     const now = Date.now();
     for (const org of orgs) {
