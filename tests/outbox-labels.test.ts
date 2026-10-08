@@ -41,6 +41,22 @@ describe("describeOutboxEvent", () => {
     expect(outboxOpLabel("not_a_real_op")).toBe("Sync event");
   });
 
+  it("labels a stock adjustment with product, quantity, and reason", () => {
+    const copy = describeOutboxEvent(
+      row({
+        type: "adjust_stock",
+        payloadJson: JSON.stringify({
+          productName: "Rice 5kg",
+          quantityChange: -2,
+          reason: "damage",
+          note: "Broken bag",
+        }),
+      }),
+    );
+    expect(copy.title).toBe("Stock adjustment");
+    expect(copy.detail).toBe("Rice 5kg · -2 · Damage · Broken bag");
+  });
+
   it("labels a branch", () => {
     expect(outboxOpLabel("upsert_branch")).toBe("Branch");
   });
@@ -92,6 +108,26 @@ describe("describeOutboxConflict", () => {
     );
     expect(view.kind).toBe("network");
     expect(view.permanent).toBe(false);
-    expect(view.explanation).toMatch(/not a permanent rejection/i);
+    expect(view.explanation).toMatch(/Failed to fetch/);
+    expect(view.explanation).toMatch(/not a product conflict/i);
+  });
+
+  it("shows the Convex dump when the upload failed without a business reason", () => {
+    const view = describeOutboxConflict(
+      row({
+        type: "adjust_stock",
+        status: "pending",
+        lastError: "[CONVEX M(inventory:adjustStock)] [Request ID: req_123] Server Error",
+        payloadJson: JSON.stringify({
+          productName: "Rice 5kg",
+          quantityChange: 4,
+          reason: "receive",
+        }),
+      }),
+    );
+    expect(view.headline).toBe("Upload failed");
+    expect(view.explanation).toMatch(/Request ID: req_123/);
+    expect(view.explanation).toMatch(/Rice 5kg/);
+    expect(view.permanent).toBe(false);
   });
 });

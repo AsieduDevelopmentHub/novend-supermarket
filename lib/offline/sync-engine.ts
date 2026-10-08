@@ -1,6 +1,7 @@
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { toUserMessage } from "@/lib/errors";
+import { withTimeout } from "@/lib/async/with-timeout";
 import { mirrorServerSaleReceipt } from "./sales-repository";
 import {
   cleanupStaleOfflineRecords,
@@ -44,6 +45,7 @@ import {
 import { pullOfflineSnapshot, type SnapshotSource } from "./snapshot";
 import { isSyncBusinessConflict, syncFailureMessage } from "./sync-errors";
 import { shouldMarkOutboxFailed } from "./outbox-policy";
+import { transientFailureStopsDrain } from "./sync-errors";
 import { shouldReopenFailedOutboxWait } from "./outbox-display";
 import { rekeyProductImage } from "./image-cache";
 import { loadCloudPolicy } from "./cloud-policy";
@@ -186,6 +188,8 @@ let draining = false;
 let backoffUntil = 0;
 let consecutiveTransientFailures = 0;
 
+/** A hung completeSale must not hold the outbox lease until the tab is killed. */
+const UPLOAD_ATTEMPT_MS = 20_000;
 const BASE_BACKOFF_MS = 2_000;
 const MAX_BACKOFF_MS = 60_000;
 const CLEANUP_EVERY_N_DRAINS = 8;
@@ -557,9 +561,11 @@ async function drainOwnedOutbox(
 
     const pending = await listPendingOutbox(db);
     const uploadRows = sortOutboxForDrain(pending);
+    const deferredThisCycle = new Set<string>();
     const licenseSnapshot = await loadLicenseSnapshot();
     for (const row of uploadRows) {
       if (!(await ownsLease())) break;
+      if (deferredThisCycle.has(row.id)) continue;
       if (row.type === "process_return") {
         const payload = parseProcessReturnPayload(row);
         if (payload.saleId.startsWith("lsale_")) {
@@ -602,7 +608,8 @@ async function drainOwnedOutbox(
             .equals(payload.localSaleId)
             .toArray();
           const invoiceNumber = payload.invoiceNumber ?? localSale?.invoiceNumber;
-          const result = await options.mutators.completeSale({
+          const result = await withTimeout(
+            options.mutators.completeSale({
             customerId: payload.customerId as Id<"customers"> | undefined,
             customerName: payload.customerName,
             items: attachSoldLineSnapshots(payload.items, savedLines).map((i) => ({
@@ -623,7 +630,10 @@ async function drainOwnedOutbox(
             branchId: payload.branchId as Id<"branches"> | undefined,
             invoiceNumber,
             clientCompletedAt: payload.completedAt ?? localSale?.completedAt,
-          });
+          }),
+            UPLOAD_ATTEMPT_MS,
+            "Upload timed out",
+          );
           await markLocalSaleSynced(
             payload.localSaleId,
             {
@@ -1332,12 +1342,17 @@ async function drainOwnedOutbox(
           // One rejected sale must not hold the rest of the day's uploads.
           await markOutboxPending(db, claimed.id, message);
         } else {
-          // Network / transient — leave pending with exponential backoff
+          // Leave this row pending. Only a dead radio stops the rest of the queue.
+          // "Sync failed" / a timed-out sale used to `break` here, so every later
+          // sale stayed Waiting and Retry looked dead.
           await markOutboxPending(db, claimed.id, message);
-          consecutiveTransientFailures += 1;
-          backoffUntil =
-            Date.now() + nextBackoffMs(Math.max(claimed.attempts, consecutiveTransientFailures));
-          break;
+          deferredThisCycle.add(claimed.id);
+          if (transientFailureStopsDrain(message)) {
+            consecutiveTransientFailures += 1;
+            backoffUntil =
+              Date.now() + nextBackoffMs(Math.max(claimed.attempts, consecutiveTransientFailures));
+            break;
+          }
         }
       }
     }

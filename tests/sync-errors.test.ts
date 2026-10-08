@@ -20,6 +20,14 @@ describe("isSyncBusinessConflict", () => {
     expect(isSyncBusinessConflict("Not authenticated")).toBe(false);
     expect(isSyncBusinessConflict("Unauthenticated")).toBe(false);
     expect(isSyncBusinessConflict("Sync failed")).toBe(false);
+    expect(isSyncBusinessConflict("Upload timed out")).toBe(false);
+  });
+
+  it("stops the queue only when the device cannot reach the server", async () => {
+    const { transientFailureStopsDrain } = await import("@/lib/offline/sync-errors");
+    expect(transientFailureStopsDrain("Failed to fetch")).toBe(true);
+    expect(transientFailureStopsDrain("Sync failed")).toBe(false);
+    expect(transientFailureStopsDrain("Upload timed out")).toBe(false);
   });
 
   it("leaves opaque Convex dumps as transient so drain can backoff", () => {

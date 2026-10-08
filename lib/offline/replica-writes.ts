@@ -308,6 +308,7 @@ export async function queueAdjustStock(payload: AdjustStockPayload) {
   await enqueueOutbox(db, "adjust_stock", {
     ...payload,
     branchId,
+    productName: product?.name ?? payload.productName,
     clientOperationId: payload.clientOperationId ?? newClientId("op"),
   });
 }
@@ -359,8 +360,10 @@ export async function queueUpdateLotExpiry(payload: UpdateLotExpiryPayload) {
     }
   }
 
+  const lotProduct = lot ? await db.products.get(lot.productId) : undefined;
   await enqueueOutbox(db, "update_lot_expiry", {
     ...payload,
+    productName: lotProduct?.name ?? payload.productName,
     clientOperationId: payload.clientOperationId ?? newClientId(),
   });
 }
@@ -383,8 +386,10 @@ export async function queueTransferStock(payload: TransferStockPayload) {
     throw new Error("Insufficient stock at source branch");
   }
 
+  const transferProduct = await db.products.get(payload.productId);
   await enqueueOutbox(db, "transfer_stock", {
     ...payload,
+    productName: transferProduct?.name ?? payload.productName,
     sourceStockSnapshot: available,
     clientOperationId: payload.clientOperationId ?? newClientId("op"),
   });
