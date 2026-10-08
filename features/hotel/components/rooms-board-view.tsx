@@ -32,6 +32,7 @@ import {
   offlineHotelCheckIn,
   offlineHotelCheckoutPay,
 } from "@/lib/offline/hospitality-actions";
+import { mirrorServerSaleReceipt } from "@/lib/offline/sales-repository";
 
 type RoomStatus = "available" | "occupied" | "dirty" | "maintenance" | "inactive";
 
@@ -269,6 +270,7 @@ export function RoomsBoardView() {
         stayId: selectedStayId as Id<"hotelStays">,
         paymentMethod: method,
       });
+      await mirrorServerSaleReceipt(result);
       toast.success(`Checked out — ${result.invoiceNumber}`);
       setSelectedStayId(null);
       setSelectedRoomId(null);

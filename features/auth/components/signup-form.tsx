@@ -22,6 +22,7 @@ import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import { PasswordStrengthMeter } from "@/features/auth/components/password-strength";
 import { PASSWORD_MIN_LENGTH, passwordMeetsPolicy } from "@/convex/shared/passwordPolicy";
 import { navigateAfterLogin } from "@/lib/auth/redirect-after-login";
+import { trackGaEvent } from "@/lib/analytics/ga-events";
 import { cn } from "@/lib/utils";
 
 export function SignupForm({ compact = false }: { compact?: boolean }) {
@@ -86,6 +87,7 @@ function ConfiguredSignupForm({ compact }: { compact: boolean }) {
       formData.set("name", name.trim());
       formData.set("flow", "signUp");
       await signIn("password", formData);
+      trackGaEvent("sign_up", { method: "password" });
       toast.success("Account created");
       void requestVerification().catch(() => {
         /* Banner can send the code later. Do not fail signup. */

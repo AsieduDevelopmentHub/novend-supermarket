@@ -33,6 +33,7 @@ import { presenceFromLastSeenAt } from "./shared/presence";
 import { deactivateAccountBlockReason } from "./shared/accountStatus";
 import { loadEmailVerification } from "./shared/emailVerificationLookup";
 import { recordDailyActiveUser } from "./shared/platformTelemetry";
+import { formatBusinessTime, resolveReportedClockIn } from "./shared/businessDate";
 import { loadTourProgressForUser } from "./shared/tourProgress";
 
 export const me = query({
@@ -195,6 +196,8 @@ export const list = query({
           lastSeenAt,
           lastLoginAt: profile.lastLoginAt ?? null,
           lastDevice: profile.lastDevice ?? null,
+          clockedInAt: profile.clockedInAt ?? null,
+          clockedInOn: profile.clockedInOn ?? null,
           presence,
           isOwner: organization?.ownerUserId === profile.userId,
           isSelf: profile.userId === actorUserId,
@@ -254,6 +257,8 @@ export const get = query({
       lastSeenAt,
       lastLoginAt: profile.lastLoginAt ?? null,
       lastDevice: profile.lastDevice ?? null,
+      clockedInAt: profile.clockedInAt ?? null,
+      clockedInOn: profile.clockedInOn ?? null,
       presence,
       isOwner: organization?.ownerUserId === profile.userId,
       isSelf: profile.userId === actorUserId,
@@ -586,16 +591,45 @@ export const heartbeat = mutation({
     device: v.optional(v.string()),
     runtime: v.optional(telemetryRuntimeValidator),
     appVersion: v.optional(v.string()),
+    /** Login instant saved on the till. Used for clock-in, not for last seen. */
+    clockedInAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { profile, userId, organizationId } = await requireSessionIgnoringLicense(ctx);
     const now = Date.now();
     const sessionFresh = !profile.lastLoginAt || now - profile.lastLoginAt > 8 * 60 * 60 * 1000;
+    const organization = await ctx.db.get(organizationId);
+    const clockIn = resolveReportedClockIn({
+      now,
+      reportedAt: args.clockedInAt,
+      existingOn: profile.clockedInOn,
+      timeZone: organization?.timezone,
+    });
     await ctx.db.patch(profile._id, {
       lastSeenAt: now,
       ...(args.device ? { lastDevice: args.device.slice(0, 120) } : {}),
-      ...(sessionFresh ? { lastLoginAt: now } : {}),
+      ...(sessionFresh ? { lastLoginAt: clockIn.record ? clockIn.at : now } : {}),
+      ...(clockIn.record ? { clockedInAt: clockIn.at, clockedInOn: clockIn.on } : {}),
     });
+    if (clockIn.record && profile.role === "cashier" && profile.status === "active") {
+      const branchName = profile.branchId
+        ? ((await ctx.db.get(profile.branchId))?.name ?? profile.branch ?? "")
+        : (profile.branch ?? "");
+      await ctx.scheduler.runAfter(0, internal.sms.notifyCashierClockIn, {
+        organizationId,
+        cashierUserId: userId,
+        cashierName: profile.name,
+        branchName,
+        clockedInAt: clockIn.at,
+      });
+      const clockTime = formatBusinessTime(clockIn.at, organization?.timezone);
+      await ctx.scheduler.runAfter(0, internal.appNotifications.recordClockIn, {
+        organizationId,
+        cashierUserId: userId,
+        title: "Cashier clocked in",
+        body: `${profile.name} clocked in at ${clockTime}${branchName ? ` (${branchName})` : ""}.`,
+      });
+    }
     if (args.runtime) {
       await recordDailyActiveUser(ctx, {
         userId,

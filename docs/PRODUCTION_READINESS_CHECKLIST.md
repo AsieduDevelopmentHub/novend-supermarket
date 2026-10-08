@@ -72,18 +72,16 @@ Related: `docs/architecture/NOVEND_AUDIT_GAPS_AND_FIXES.md`, `SECURITY.md`.
 
 | Item                                                   | Status      | Notes                                                                                                 |
 | ------------------------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------- |
-| Centralized PII-scrubbed error reporting (e.g. Sentry) | **BLOCKED** | Next step documented below; **do not** add SDK without a production DSN/API key and scrubbing policy. |
+| Centralized PII-scrubbed error reporting (e.g. Sentry) | **WIRED**   | `@sentry/nextjs` opt-in via `NEXT_PUBLIC_SENTRY_DSN`; auth headers stripped. See `docs/architecture/OPS_INTEGRATIONS.md`. Production evidence still needs a live DSN. |
 | Uptime checks, status page, incident runbook           | **BLOCKED** | Operational.                                                                                          |
 | Outbox / webhook failure dashboards                    | DRAFT       | Metrics design only.                                                                                  |
 
-### Observability next step (not implemented)
+### Observability next step (production evidence)
 
-1. Create a Sentry (or equivalent) project with a server-side DSN stored only in
-   host/Convex secrets — never in the client bundle unless scrubbed and scoped.
-2. Define PII scrubbing: no passwords, tokens, full receipts, customer PII, or
-   local replica dumps.
+1. Create a Sentry project and set `NEXT_PUBLIC_SENTRY_DSN` on Vercel (SDK is already wired; unset = dormant).
+2. Confirm PII scrubbing in practice: no passwords, tokens, full receipts, customer PII, or local replica dumps.
 3. Attach release version + correlation IDs for sync batches and billing events.
-4. Only then wire the SDK and document the project URL here as evidence.
+4. Document the project URL here once a production DSN is live.
 
 ## Legal & compliance (P2)
 

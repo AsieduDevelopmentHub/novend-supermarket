@@ -579,6 +579,8 @@ export const META_KEYS = {
   scheduledCloudBackupAttemptAt: "scheduledCloudBackupAttemptAt",
   /** "1" when an org recovery key is sealed on this device. */
   recoveryKeySealed: "recoveryKeySealed",
+  /** JSON { userId, at } — login instant waiting to upload as the clock-in. */
+  pendingClockIn: "pendingClockIn",
 } as const;
 
 /** Bump when Dexie adds replica tables so TTL snapshot skips cannot leave new stores empty. */

@@ -44,6 +44,7 @@ import {
 } from "@/convex/shared/passwordPolicy";
 import { PasswordStrengthMeter } from "@/features/auth/components/password-strength";
 import { formatPresence } from "@/lib/date";
+import { ClockInLabel } from "@/features/users/components/clock-in-label";
 import { notifyReplicaChanged } from "@/lib/offline/replica-events";
 import { storeLocalAuthVerifier } from "@/lib/offline/local-auth";
 import { rememberOfflineSession } from "@/lib/offline/session";
@@ -313,6 +314,10 @@ export function UsersView() {
                                 <p className="text-muted-foreground mt-1 text-xs">
                                   {presence.label}
                                 </p>
+                                <ClockInLabel
+                                  clockedInAt={user.clockedInAt}
+                                  clockedInOn={user.clockedInOn}
+                                />
                                 {user.lastDevice ? (
                                   <p className="text-muted-foreground text-xs">{user.lastDevice}</p>
                                 ) : null}
@@ -385,6 +390,10 @@ export function UsersView() {
                                 {presence.online ? "Online" : "Offline"}
                               </Badge>
                               <p className="text-muted-foreground text-xs">{presence.label}</p>
+                              <ClockInLabel
+                                clockedInAt={user.clockedInAt}
+                                clockedInOn={user.clockedInOn}
+                              />
                             </>
                           );
                         })()}

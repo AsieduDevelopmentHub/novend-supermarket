@@ -24,6 +24,7 @@ const ALWAYS_TABLES = [
   "suppliers",
   "wholesaleStock",
   "wholesalePurchases",
+  "supplierPayments",
   "wholesaleTransfers",
   "branches",
   "users",

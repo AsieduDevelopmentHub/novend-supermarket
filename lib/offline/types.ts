@@ -500,6 +500,8 @@ export type MirroredUser = {
   lastSeenAt?: number | null;
   lastLoginAt?: number | null;
   lastDevice?: string | null;
+  clockedInAt?: number | null;
+  clockedInOn?: string | null;
   isOwner?: boolean;
   isSelf?: boolean;
 };

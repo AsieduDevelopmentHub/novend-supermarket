@@ -143,7 +143,32 @@ function redirectAuthToApp(request: NextRequest) {
   return withStaticSecurityHeaders(NextResponse.redirect(destination));
 }
 
-function cspDirectives(scriptSrc: string) {
+function cspDirectives(scriptSrc: string, extraConnect: string[] = [], extraImg: string[] = []) {
+  const connectSrc = [
+    "'self'",
+    "https://*.convex.cloud",
+    "wss://*.convex.cloud",
+    "https://*.convex.site",
+    // Sentry (opt-in via NEXT_PUBLIC_SENTRY_DSN)
+    "https://*.ingest.sentry.io",
+    "https://*.ingest.us.sentry.io",
+    // GA4 collect (page views on marketing; funnel events from auth / install)
+    "https://www.google-analytics.com",
+    "https://analytics.google.com",
+    "https://*.google-analytics.com",
+    "https://*.analytics.google.com",
+    "https://*.googletagmanager.com",
+    ...extraConnect,
+  ].join(" ");
+  const imgSrc = [
+    "'self'",
+    "data:",
+    "blob:",
+    "https://*.convex.cloud",
+    "https://www.google-analytics.com",
+    "https://www.googletagmanager.com",
+    ...extraImg,
+  ].join(" ");
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -155,9 +180,9 @@ function cspDirectives(scriptSrc: string) {
     "child-src 'self' blob:",
     scriptSrc,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://*.convex.cloud",
+    `img-src ${imgSrc}`,
     "font-src 'self' data:",
-    "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://*.convex.site",
+    `connect-src ${connectSrc}`,
     "worker-src 'self' blob:",
   ].join("; ");
 }
@@ -176,12 +201,16 @@ function buildNonceCsp(nonce: string) {
 /**
  * Static CSP for public marketing — no per-request nonce (pages stay cacheable).
  * `'unsafe-inline'` covers next-themes boot without forcing dynamic rendering.
+ * GA4 script hosts are allowlisted here. Auth/app use nonce + strict-dynamic
+ * and only send explicit funnel events (no POS page views).
  */
 function buildStaticMarketingCsp() {
   const isDev = process.env.NODE_ENV === "development";
+  const gaHosts =
+    "https://www.googletagmanager.com https://www.google-analytics.com";
   const scriptSrc = isDev
-    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval'`
-    : `script-src 'self' 'unsafe-inline'`;
+    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${gaHosts}`
+    : `script-src 'self' 'unsafe-inline' ${gaHosts}`;
   return cspDirectives(scriptSrc);
 }
 

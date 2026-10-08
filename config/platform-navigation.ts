@@ -4,6 +4,8 @@ import {
   Building2,
   FileDown,
   LayoutDashboard,
+  Bell,
+  MessageSquare,
   Package,
   Receipt,
   Users,
@@ -109,6 +111,18 @@ export const PLATFORM_NAV_GROUPS: PlatformNavGroup[] = [
         icon: Users,
         permission: "staff.manage",
       },
+      {
+        title: "SMS",
+        href: "/platform/sms",
+        icon: MessageSquare,
+        permission: "sms.broadcast",
+      },
+      {
+        title: "Notifications",
+        href: "/platform/notifications",
+        icon: Bell,
+        permission: "sms.broadcast",
+      },
     ],
   },
 ];
@@ -131,6 +145,9 @@ export function platformNavItemActive(pathname: string, item: PlatformNavItem): 
 export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | null {
   if (path.startsWith("/platform/payments/")) return "analytics";
   if (path.startsWith("/platform/staff")) return "tenants";
+  if (path.startsWith("/platform/sms") || path.startsWith("/platform/notifications")) {
+    return "tenants";
+  }
   if (path.startsWith("/platform/releases") || path.startsWith("/platform/costs")) {
     return "tenants";
   }
@@ -157,6 +174,8 @@ export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | 
     "exports",
     "help",
     "staff",
+    "sms",
+    "notifications",
   ]);
   const orgMatch = path.match(/^\/platform\/([^/]+)\/?$/);
   if (orgMatch && !reserved.has(orgMatch[1])) {

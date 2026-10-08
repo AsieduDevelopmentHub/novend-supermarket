@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { buildContactMailto, landingCopy } from "@/features/marketing/content";
+import { trackGaEvent } from "@/lib/analytics/ga-events";
 
 /** Client contact form — opens a drafted mailto (no server mailbox required). */
 export function ContactForm() {
@@ -33,6 +34,9 @@ export function ContactForm() {
     }
 
     setError(null);
+    if (topic === "Sales") {
+      trackGaEvent("contact_sales", { topic: "sales", source: "contact_form" });
+    }
     window.location.href = buildContactMailto({
       name: trimmedName,
       email: trimmedEmail,

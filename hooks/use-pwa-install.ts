@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { installGaClickTracking, trackGaEvent } from "@/lib/analytics/ga-events";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -29,8 +30,10 @@ export function usePwaInstall() {
     function onInstalled() {
       setInstalled(true);
       setDeferred(null);
+      trackGaEvent("install_pwa", { source: "appinstalled" });
     }
 
+    installGaClickTracking();
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
     window.addEventListener("appinstalled", onInstalled);
     return () => {
@@ -44,6 +47,9 @@ export function usePwaInstall() {
     await deferred.prompt();
     const choice = await deferred.userChoice;
     setDeferred(null);
+    if (choice.outcome === "accepted") {
+      trackGaEvent("install_pwa", { source: "prompt" });
+    }
     return {
       ok: choice.outcome === "accepted",
       reason: choice.outcome === "accepted" ? ("accepted" as const) : ("dismissed" as const),

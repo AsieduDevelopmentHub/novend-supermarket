@@ -657,12 +657,45 @@ export default defineSchema({
     salesProductDisplay: v.optional(v.string()),
     /** Compact denormalized copy of userTourProgress for session + snapshot bootstrap. */
     tourProgress: v.optional(v.array(tourProgressEntryValidator)),
+    /** When true, in-app and device alerts for this person are held. Missing means not muted. */
+    notificationsMuted: v.optional(v.boolean()),
+    /** First sign-in of the business day. Later logins the same day do not move this. */
+    clockedInAt: v.optional(v.number()),
+    /** Business-timezone day (`YYYY-MM-DD`) for `clockedInAt`. */
+    clockedInOn: v.optional(v.string()),
   })
     .index("by_userId", ["userId"])
     .index("by_organization", ["organizationId"])
     .index("by_role", ["role"])
     .index("by_status", ["status"])
     .index("by_branchId", ["branchId"]),
+
+  /** Platform SMS broadcasts. Phones are not stored — only the audience and count. */
+  smsBroadcasts: defineTable({
+    createdAt: v.number(),
+    actorId: v.id("users"),
+    organizationId: v.optional(v.id("organizations")),
+    audiences: v.array(
+      v.union(v.literal("owners"), v.literal("administrators"), v.literal("managers")),
+    ),
+    message: v.string(),
+    recipientCount: v.number(),
+    status: v.union(v.literal("sent"), v.literal("skipped"), v.literal("failed")),
+    detail: v.optional(v.string()),
+  }).index("by_createdAt", ["createdAt"]),
+
+  /** Platform in-app notices. Recipient ids are not stored — only the audience and count. */
+  platformNotices: defineTable({
+    createdAt: v.number(),
+    actorId: v.id("users"),
+    organizationId: v.optional(v.id("organizations")),
+    audiences: v.array(
+      v.union(v.literal("owners"), v.literal("administrators"), v.literal("managers")),
+    ),
+    title: v.string(),
+    body: v.string(),
+    recipientCount: v.number(),
+  }).index("by_createdAt", ["createdAt"]),
 
   categories: defineTable({
     organizationId: v.id("organizations"),
@@ -1499,6 +1532,29 @@ export default defineSchema({
   })
     .index("by_user_createdAt", ["userId", "createdAt"])
     .index("by_user_unconsumed", ["userId", "consumedAt"]),
+
+  /**
+   * In-app inbox. Written beside device push for operational alerts only.
+   * Cleared rows stay in the table so older clients are unaffected.
+   */
+  appNotifications: defineTable({
+    organizationId: v.id("organizations"),
+    userId: v.id("users"),
+    topic: v.union(
+      v.literal("stock_alerts"),
+      v.literal("daily_summary"),
+      v.literal("branch_transfers"),
+      v.literal("subscription_alerts"),
+      v.literal("staff_clock_in"),
+      v.literal("platform_notice"),
+    ),
+    title: v.string(),
+    body: v.string(),
+    href: v.optional(v.string()),
+    createdAt: v.number(),
+    readAt: v.optional(v.number()),
+    clearedAt: v.optional(v.number()),
+  }).index("by_user_createdAt", ["userId", "createdAt"]),
 
   // --- Phase B dining (restaurant / bar) — settles into sales on pay ---
 
