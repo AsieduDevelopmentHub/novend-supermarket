@@ -611,6 +611,7 @@ export type WholesaleTransferPayload = {
 
 export type AdjustStockPayload = {
   productId: string;
+  productName?: string;
   branchId?: string;
   quantityChange: number;
   reason: "receive" | "adjustment" | "damage" | "return";
@@ -622,12 +623,14 @@ export type AdjustStockPayload = {
 export type UpdateLotExpiryPayload = {
   lotId: string;
   productId: string;
+  productName?: string;
   expiryDate: string;
   clientOperationId?: string;
 };
 
 export type TransferStockPayload = {
   productId: string;
+  productName?: string;
   fromBranchId: string;
   toBranchId: string;
   quantity: number;

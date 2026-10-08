@@ -71,6 +71,17 @@ function number(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+const STOCK_REASON_LABELS: Record<string, string> = {
+  receive: "Receive stock",
+  adjustment: "Count adjustment",
+  damage: "Damage",
+  return: "Return to stock",
+};
+
+function signedQuantity(value: number) {
+  return value > 0 ? `+${value}` : String(value);
+}
+
 export function outboxFixPath(row: OutboxRow): string | null {
   const payload = payloadRecord(row);
   if (row.type === "upsert_product") {
@@ -126,17 +137,68 @@ export function describeOutboxEvent(row: OutboxRow): { title: string; detail: st
   }
   if (row.type === "adjust_stock") {
     const change = number(payload.quantityChange);
+    const reason = text(payload.reason);
     return {
       title,
-      detail: change === null ? "Quantity change" : change > 0 ? `+${change}` : String(change),
+      detail:
+        [
+          text(payload.productName),
+          change === null ? null : signedQuantity(change),
+          reason ? (STOCK_REASON_LABELS[reason] ?? reason) : null,
+          text(payload.note),
+        ]
+          .filter(Boolean)
+          .join(" · ") || "Quantity change",
     };
   }
   if (row.type === "update_lot_expiry") {
-    return { title, detail: text(payload.expiryDate) ?? "Lot expiry" };
+    return {
+      title,
+      detail:
+        [text(payload.productName), text(payload.expiryDate)].filter(Boolean).join(" · ") ||
+        "Lot expiry",
+    };
   }
   if (row.type === "transfer_stock" || row.type === "wholesale_transfer") {
     const qty = number(payload.quantity);
-    return { title, detail: qty === null ? "Transfer" : `${qty} units` };
+    return {
+      title,
+      detail:
+        [text(payload.productName), qty === null ? null : `${qty} units`, text(payload.note)]
+          .filter(Boolean)
+          .join(" · ") || "Transfer",
+    };
+  }
+  if (row.type === "dining_open_session" || row.type === "dining_pay_session") {
+    return { title, detail: text(payload.tableName) ?? text(payload.customerName) ?? title };
+  }
+  if (row.type === "dining_add_session_item") {
+    const qty = number(payload.quantity);
+    return {
+      title,
+      detail:
+        [text(payload.productName), qty === null ? null : `×${qty}`].filter(Boolean).join(" · ") ||
+        title,
+    };
+  }
+  if (row.type === "hotel_check_in" || row.type === "hotel_checkout_pay") {
+    return { title, detail: text(payload.roomName) ?? text(payload.customerName) ?? title };
+  }
+  if (row.type === "hotel_add_folio_charge") {
+    const qty = number(payload.quantity);
+    return {
+      title,
+      detail:
+        [text(payload.description) ?? text(payload.productName), qty === null ? null : `×${qty}`]
+          .filter(Boolean)
+          .join(" · ") || title,
+    };
+  }
+  if (row.type === "pay_salary" || row.type === "pay_commission") {
+    return { title, detail: text(payload.payPeriodKey) ?? text(payload.profileName) ?? title };
+  }
+  if (row.type === "remove_expense") {
+    return { title, detail: text(payload.category) ?? text(payload.note) ?? "Expense removal" };
   }
   if (row.type === "create_expense") {
     const amount = number(payload.amount);
@@ -237,14 +299,17 @@ export function describeOutboxConflict(
     isConnectivityError(new Error(message)) ||
     !isSyncBusinessConflict(message)
   ) {
+    const reachable = !isConnectivityError(new Error(message));
     return {
       kind: "network",
       headline: isTransientSyncPlaceholder(message)
         ? "Upload interrupted"
-        : "Could not reach the server",
+        : reachable
+          ? "Upload failed"
+          : "Could not reach the server",
       explanation: isTransientSyncPlaceholder(message)
-        ? `${base.title} (${base.detail}) did not finish uploading. Tap Retry or Sync now. If it already appears in Orders, Discard this queue row.`
-        : `${base.title} (${base.detail}) will retry when you are online. This is not a permanent rejection.`,
+        ? `${base.title} (${base.detail}) did not finish uploading. This is not a product or stock conflict — the server sent no reason. Tap Retry. Discard only if this exact record is already saved in Novend.`
+        : `${base.title} (${base.detail}) did not upload. ${message} This is not a product conflict — it will retry.`,
       permanent: false,
     };
   }

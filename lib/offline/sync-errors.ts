@@ -32,6 +32,23 @@ export function isTransientSyncPlaceholder(message: string) {
 }
 
 /**
+ * The radio itself is down, so further uploads in this pass will fail the same way.
+ * A single sale that returned "Sync failed" or timed out must not use this — the
+ * rest of the queue can still upload.
+ */
+export function transientFailureStopsDrain(message: string) {
+  const lower = message.trim().toLowerCase();
+  if (
+    lower === "upload timed out" ||
+    isTransientSyncPlaceholder(message) ||
+    isOpaqueServerDump(message)
+  ) {
+    return false;
+  }
+  return isConnectivityError(new Error(message));
+}
+
+/**
  * Convex / browser dumps with no usable business reason. Treating these as
  * conflicts marks the row failed, Sync Center reopens it every poll, and the
  * till burns attempts (e.g. 21 in a few minutes) while the sale already sits
@@ -54,22 +71,48 @@ export function isOpaqueServerDump(message: string) {
  * Keep the server's reason for Sync Center. `toUserMessage` collapses unknown
  * Convex dumps to "Sync failed", which hides why a sale will not upload.
  */
+function clipSyncReason(message: string): string {
+  const cleaned = message.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "";
+  return cleaned.length > 180 ? `${cleaned.slice(0, 177)}...` : cleaned;
+}
+
+/** Convex often puts the cashier-facing reason on `data`, not `Error.message`. */
+function convexDataMessage(error: unknown): string {
+  if (!error || typeof error !== "object") return "";
+  const data = (error as { data?: unknown }).data;
+  if (typeof data === "string") return data.trim();
+  if (data && typeof data === "object" && "message" in data) {
+    const message = (data as { message?: unknown }).message;
+    if (typeof message === "string") return message.trim();
+  }
+  return "";
+}
+
 export function syncFailureMessage(error: unknown, friendly: string): string {
+  const fromData = clipSyncReason(convexDataMessage(error));
+  if (fromData && fromData.toLowerCase() !== "sync failed") return fromData;
+
   if (friendly.trim() && friendly.trim().toLowerCase() !== "sync failed") return friendly.trim();
   const raw = error instanceof Error ? error.message : String(error ?? "");
-  const cleaned = raw
-    .replace(/\[CONVEX[^\]]*\]\s*/gi, "")
-    .replace(/\[Request ID:[^\]]*\]\s*/gi, "")
-    .replace(/Server Error\s*/gi, "")
-    .replace(/Called by client\s*/gi, "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.startsWith("at "))
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!cleaned) return "Sync failed";
-  return cleaned.length > 180 ? `${cleaned.slice(0, 177)}...` : cleaned;
+  const uncaught = raw.match(/Uncaught (?:ConvexError|Error):\s*([^\n]+)/i)?.[1]?.trim() ?? "";
+  const cleaned = clipSyncReason(
+    (uncaught || raw)
+      .replace(/\[CONVEX[^\]]*\]\s*/gi, "")
+      .replace(/\[Request ID:[^\]]*\]\s*/gi, "")
+      .replace(/Server Error\s*/gi, "")
+      .replace(/Called by client\s*/gi, "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith("at "))
+      .join(" "),
+  );
+  if (cleaned && cleaned.toLowerCase() !== "sync failed") return cleaned;
+  const rawClip = clipSyncReason(raw);
+  if (rawClip && rawClip.toLowerCase() !== "sync failed") return rawClip;
+  const name = error instanceof Error ? error.name : "";
+  if (name && name !== "Error") return name;
+  return "Sync failed";
 }
 
 /**
@@ -108,7 +151,9 @@ export function isSyncBusinessConflict(message: string) {
     m.includes("temporarily unavailable") ||
     m.includes("we couldn't load") ||
     m.includes("unable to reach the server") ||
-    m.includes("you're offline")
+    m.includes("you're offline") ||
+    m.includes("timed out") ||
+    m.includes("timeout")
   ) {
     return false;
   }
