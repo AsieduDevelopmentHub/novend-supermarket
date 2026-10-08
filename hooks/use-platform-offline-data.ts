@@ -174,13 +174,17 @@ export function usePlatformReleasesData(channel: "stable" | "beta" = "stable") {
   return { data, loading, source };
 }
 
+function looksLikeOrganizationId(value: string) {
+  return /^[a-z0-9]{16,}$/i.test(value);
+}
+
 export function usePlatformOrgDetailData(organizationId: string) {
   const online = useConnectivity();
   const liveArgs = usePlatformAdminLiveArgs(online);
   const id = organizationId as Id<"organizations">;
   const live = useQuery(
     api.platform.getOrganization,
-    liveArgs === "skip" || !organizationId ? "skip" : { organizationId: id },
+    liveArgs === "skip" || !looksLikeOrganizationId(organizationId) ? "skip" : { organizationId: id },
   );
   const { data, loading, source } = useLiveWithDiskCache(
     live,

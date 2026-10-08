@@ -44,6 +44,8 @@ import { PlatformRevenueView } from "@/features/platform/components/platform-rev
 import { PlatformSubscriptionsView } from "@/features/platform/components/platform-subscriptions-view";
 import { PlatformHealthView } from "@/features/platform/components/platform-health-view";
 import { PlatformStaffView } from "@/features/platform/components/platform-staff-view";
+import { PlatformSmsView } from "@/features/platform/components/platform-sms-view";
+import { PlatformNoticesView } from "@/features/platform/components/platform-notices-view";
 import { PlatformPaymentDetailView } from "@/features/platform/components/platform-payment-detail-view";
 import { PlatformReleaseDetailView } from "@/features/platform/components/platform-release-detail-view";
 import { PlatformInsightDetailView } from "@/features/platform/components/platform-insight-detail-view";
@@ -91,6 +93,8 @@ const SHELL_VIEWS: Record<string, () => ReactNode> = {
   "/platform/subscriptions": () => <PlatformSubscriptionsView />,
   "/platform/health": () => <PlatformHealthView />,
   "/platform/staff": () => <PlatformStaffView />,
+  "/platform/sms": () => <PlatformSmsView />,
+  "/platform/notifications": () => <PlatformNoticesView />,
 };
 
 /** Resolve a client-side feature view for offline shell navigation. */
@@ -203,6 +207,13 @@ export function resolveOfflineView(path: string): ReactNode {
         "subscriptions",
         "health",
         "payments",
+        "analytics",
+        "activity",
+        "exports",
+        "help",
+        "staff",
+        "sms",
+        "notifications",
       ].includes(rest)
     ) {
       return <PlatformOrgDetailView organizationId={rest} />;

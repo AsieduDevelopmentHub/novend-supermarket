@@ -9,8 +9,8 @@
  */
 
 import type * as accountClosure from "../accountClosure.js";
-import type * as appNotifications from "../appNotifications.js";
 import type * as analytics from "../analytics.js";
+import type * as appNotifications from "../appNotifications.js";
 import type * as auth from "../auth.js";
 import type * as billing from "../billing.js";
 import type * as billingHttp from "../billingHttp.js";
@@ -143,8 +143,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   accountClosure: typeof accountClosure;
-  appNotifications: typeof appNotifications;
   analytics: typeof analytics;
+  appNotifications: typeof appNotifications;
   auth: typeof auth;
   billing: typeof billing;
   billingHttp: typeof billingHttp;

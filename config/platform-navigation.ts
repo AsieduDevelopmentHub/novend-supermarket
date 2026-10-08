@@ -175,6 +175,7 @@ export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | 
     "help",
     "staff",
     "sms",
+    "notifications",
   ]);
   const orgMatch = path.match(/^\/platform\/([^/]+)\/?$/);
   if (orgMatch && !reserved.has(orgMatch[1])) {
