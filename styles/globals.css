@@ -553,8 +553,9 @@ html.standalone-display {
   animation: splash-hold 2.8s ease-in-out infinite;
 }
 
+/* Delay lives in the shorthand so a later `animation` reset cannot drop it. */
 .splash-linger .animate-splash-hold {
-  animation-delay: 4.2s;
+  animation: splash-hold 2.8s ease-in-out 4.2s infinite;
 }
 
 .animate-splash-impact {
@@ -1139,11 +1140,6 @@ html.standalone-display {
   }
 
   .animate-splash-fall,
-  .animate-splash-fall-linger,
-  .animate-splash-impact,
-  .animate-splash-particle,
-  .animate-splash-caption,
-  .animate-splash-hold,
   .animate-splash-out {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
@@ -1155,9 +1151,31 @@ html.standalone-display {
     transform: none;
   }
 
-  .animate-splash-impact,
-  .animate-splash-particle {
-    opacity: 0 !important;
+  /*
+   * Sign-in linger is the handoff that stays up while account checks finish.
+   * Crushing it left the logo at the 0% keyframe (invisible, above the screen)
+   * on web, PWA, Capacitor, and Electron whenever the OS reports reduced motion.
+   */
+  .splash-linger .animate-splash-fall-linger {
+    animation-duration: 4.2s !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .splash-linger .animate-splash-impact {
+    animation-duration: 4.2s !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .splash-linger .animate-splash-particle,
+  .splash-linger .animate-splash-caption {
+    animation-duration: 4.5s !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .splash-linger .animate-splash-hold,
+  .animate-splash-hold {
+    animation-duration: 2.8s !important;
+    animation-iteration-count: infinite !important;
   }
 
   .animate-splash-caption {

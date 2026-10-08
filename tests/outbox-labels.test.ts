@@ -93,7 +93,8 @@ describe("describeOutboxConflict", () => {
     expect(view.permanent).toBe(true);
     expect(view.headline).toMatch(/not enough stock/i);
     expect(view.explanation).toMatch(/INV-STOCK01/);
-    expect(view.explanation).toMatch(/did not finish on the server/i);
+    expect(view.explanation).toMatch(/post the receipt/i);
+    expect(view.canPostShortage).toBe(true);
     expect(view.explanation).not.toMatch(/something went wrong/i);
   });
 
@@ -110,6 +111,22 @@ describe("describeOutboxConflict", () => {
     expect(view.permanent).toBe(false);
     expect(view.explanation).toMatch(/Failed to fetch/);
     expect(view.explanation).toMatch(/not a product conflict/i);
+  });
+
+  it("shows a stock rejection without the Convex wrapper", () => {
+    const view = describeOutboxConflict(
+      row({
+        type: "complete_sale",
+        status: "failed",
+        lastError:
+          "[CONVEX M(sales:completeSale)] [Request ID: 09643f3a123d1a6e] Server Error\nUncaught Error: Not enough stock for Mahama Ibrahim. Available: 0. Another till sold these units before this sale uploaded.\n    at handler (../convex/sales.ts:578:16)",
+        payloadJson: JSON.stringify({ invoiceNumber: "INV-5DA017981D8B44B4" }),
+      }),
+    );
+    expect(view.headline).toBe("Not enough stock");
+    expect(view.explanation).toMatch(/Mahama Ibrahim/);
+    expect(view.explanation).not.toMatch(/CONVEX|Request ID|at handler/i);
+    expect(view.canPostShortage).toBe(true);
   });
 
   it("shows the Convex dump when the upload failed without a business reason", () => {

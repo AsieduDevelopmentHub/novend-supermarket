@@ -343,8 +343,12 @@ These uploads are still conflicts, and they should be:
 - **Two tills, one branch, same units.** Each device sold from the morning
   snapshot. The first upload reduces branch stock. A later upload that would
   take stock below zero is rejected. The receipt already exists on the second
-  till; a manager adjusts stock or accepts the short line. Sync does not invent
-  units.
+  till; a manager posts the receipt from Sync Center. Novend saves the sale
+  and removes only the stock still on that branch. Stock does not go below
+  zero, and the missing units stay on the sale so a return can be recorded
+  after it posts. The same path covers a receipt sold while the product was
+  non-stock, then uploaded after stock tracking was turned on. Sync does not
+  invent units.
 - **The catalog changed after the sale.** A price, pack size, or deactivated
   product used to be re-checked against the live catalog, so a discount that
   fitted the printed price failed, or “Sell unit not found” / “Product

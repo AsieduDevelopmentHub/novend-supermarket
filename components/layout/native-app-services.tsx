@@ -111,7 +111,8 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
       .then((handle) => {
         if (listenersDisposed) void handle.remove();
         else removeUrlListener = handle.remove;
-      });
+      })
+      .catch(() => undefined);
 
     void Hardware.app
       .addBackButtonListener(({ canGoBack }) => {
@@ -134,7 +135,8 @@ export function NativeAppServices({ children }: { children: ReactNode }) {
       .then((handle) => {
         if (listenersDisposed) void handle.remove();
         else removeBackListener = handle.remove;
-      });
+      })
+      .catch(() => undefined);
 
     return () => {
       cancelled = true;

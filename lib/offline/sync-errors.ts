@@ -31,6 +31,21 @@ export function isTransientSyncPlaceholder(message: string) {
   return message.trim().toLowerCase() === "sync failed";
 }
 
+/** Drop Convex wrappers, request ids, and stack lines. Keep the cashier sentence. */
+export function sanitizeSyncErrorMessage(raw: string): string {
+  const uncaught = raw.match(/Uncaught (?:ConvexError|Error):\s*([^\n]+)/i)?.[1]?.trim() ?? "";
+  return (uncaught || raw)
+    .replace(/\[CONVEX[^\]]*\]\s*/gi, "")
+    .replace(/\[Request ID:[^\]]*\]\s*/gi, "")
+    .replace(/\bServer Error\b/gi, "")
+    .replace(/Called by client/gi, "")
+    .replace(/\s+at\s+handler\b[\s\S]*$/i, "")
+    .replace(/\s+at\s+\S+\s+\([^)]*\)/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/^Uncaught (?:ConvexError|Error)\s*$/i, "")
+    .trim();
+}
+
 /**
  * The radio itself is down, so further uploads in this pass will fail the same way.
  * A single sale that returned "Sync failed" or timed out must not use this — the
@@ -55,9 +70,12 @@ export function transientFailureStopsDrain(message: string) {
  * in Orders on this device.
  */
 export function isOpaqueServerDump(message: string) {
-  const m = message.trim();
+  const m = sanitizeSyncErrorMessage(message);
   if (!m) return true;
   if (isTransientSyncPlaceholder(m)) return true;
+  if (/^uncaught (?:convexerror|error)\b/i.test(m) && !/\b(stock|sku|forbidden|exist|invalid|required)\b/i.test(m)) {
+    return true;
+  }
   const lower = m.toLowerCase();
   if (lower.includes("[convex") || lower.includes("request id")) return true;
   if (/at\s+\S+\s+\(/.test(m)) return true;
@@ -90,28 +108,14 @@ function convexDataMessage(error: unknown): string {
 }
 
 export function syncFailureMessage(error: unknown, friendly: string): string {
-  const fromData = clipSyncReason(convexDataMessage(error));
-  if (fromData && fromData.toLowerCase() !== "sync failed") return fromData;
-
-  if (friendly.trim() && friendly.trim().toLowerCase() !== "sync failed") return friendly.trim();
   const raw = error instanceof Error ? error.message : String(error ?? "");
-  const uncaught = raw.match(/Uncaught (?:ConvexError|Error):\s*([^\n]+)/i)?.[1]?.trim() ?? "";
-  const cleaned = clipSyncReason(
-    (uncaught || raw)
-      .replace(/\[CONVEX[^\]]*\]\s*/gi, "")
-      .replace(/\[Request ID:[^\]]*\]\s*/gi, "")
-      .replace(/Server Error\s*/gi, "")
-      .replace(/Called by client\s*/gi, "")
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0 && !line.startsWith("at "))
-      .join(" "),
-  );
-  if (cleaned && cleaned.toLowerCase() !== "sync failed") return cleaned;
-  const rawClip = clipSyncReason(raw);
-  if (rawClip && rawClip.toLowerCase() !== "sync failed") return rawClip;
+  const candidates = [convexDataMessage(error), friendly, raw];
+  for (const candidate of candidates) {
+    const cleaned = clipSyncReason(sanitizeSyncErrorMessage(candidate));
+    if (cleaned && cleaned.toLowerCase() !== "sync failed") return cleaned;
+  }
   const name = error instanceof Error ? error.name : "";
-  if (name && name !== "Error") return name;
+  if (name && name !== "Error" && name !== "ConvexError") return name;
   return "Sync failed";
 }
 

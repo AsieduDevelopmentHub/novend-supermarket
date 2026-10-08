@@ -142,9 +142,8 @@ describe("redirect-after-login", () => {
       "utf8",
     );
     expect(layout).toContain("SignInHandoffProvider");
-    expect(layout).toContain("settled");
-    expect(layout).toContain('label="Opening your workspace"');
-    expect(layout).toContain('hint="Just a moment"');
+    expect(layout).toContain("PostLoginCover");
+    expect(layout).toContain("SIGN_IN_SPLASH_LAND_MS");
     expect(layout).toContain("liveReady");
     expect(dashboard).toContain("signInHandoff?.release()");
     expect(layout).toContain("Opening workspace…");
@@ -163,7 +162,10 @@ describe("redirect-after-login", () => {
     expect(source).toContain("Opening your workspace");
     expect(source).toContain("Just a moment");
     expect(source).toContain("linger");
-    expect(source).toContain("SIGN_IN_SPLASH_LAND_MS = 4_200");
+    expect(source).toContain("portal");
+    expect(source).toContain("markSignInMotionStart");
+    const motion = readFileSync(resolve(process.cwd(), "lib/auth/sign-in-motion.ts"), "utf8");
+    expect(motion).toContain("SIGN_IN_SPLASH_LAND_MS = 4_200");
     expect(source).not.toContain("Signing you in…");
     expect(source).not.toContain("Confirming your cloud");
     expect(source).not.toContain("animate-spin");

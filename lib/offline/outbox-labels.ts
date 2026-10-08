@@ -6,6 +6,7 @@ import {
   isSyncBusinessConflict,
   isSyncDependencyWait,
   isTransientSyncPlaceholder,
+  sanitizeSyncErrorMessage,
 } from "./sync-errors";
 
 const OP_LABELS: Record<OutboxOpType, string> = {
@@ -219,21 +220,15 @@ export type OutboxConflictView = {
   explanation: string;
   /** True when Retry is unlikely to help without a data change. */
   permanent: boolean;
+  /** Printed sale the server rejected for stock. A manager can post it. */
+  canPostShortage?: boolean;
 };
 
 function stockConflictExplanation(message: string, payload: Record<string, unknown>) {
   const invoice = text(payload.invoiceNumber);
-  const product = text(payload.productName) ?? text(payload.name) ?? text(payload.sku);
-  const requested = number(payload.quantity) ?? number(payload.requestedQuantity);
-  const available = number(payload.availableQuantity) ?? number(payload.currentStock);
-  const parts = [
-    invoice ? `Receipt ${invoice}` : null,
-    product ? `product ${product}` : null,
-    requested !== null ? `requested ${requested}` : null,
-    available !== null ? `server has ${available}` : null,
-  ].filter(Boolean);
-  const subject = parts.length > 0 ? `${parts.join(" · ")}. ` : "";
-  return `${subject}${message} This sale did not finish on the server — fix stock or discard the local event, then retry.`;
+  const clean = sanitizeSyncErrorMessage(message) || message;
+  const receipt = invoice ? `Receipt ${invoice}. ` : "";
+  return `${receipt}${clean} This receipt already left the till, so you cannot remove that product or return it until the sale is posted. A manager can post the receipt: Novend saves the sale and only removes stock that is still there. Stock does not go below zero.`;
 }
 
 /**
@@ -244,7 +239,8 @@ export function describeOutboxConflict(
   row: OutboxRow,
   options?: { cloudConnected?: boolean },
 ): OutboxConflictView {
-  const message = (row.lastError ?? "").trim();
+  const rawMessage = (row.lastError ?? "").trim();
+  const message = sanitizeSyncErrorMessage(rawMessage) || rawMessage;
   const base = describeOutboxEvent(row);
   const payload = payloadRecord(row);
 
@@ -323,9 +319,10 @@ export function describeOutboxConflict(
   if (row.type === "complete_sale" && stockRelated) {
     return {
       kind: "business",
-      headline: "Sale rejected — not enough stock",
+      headline: "Not enough stock",
       explanation: stockConflictExplanation(message, payload),
       permanent: true,
+      canPostShortage: true,
     };
   }
 

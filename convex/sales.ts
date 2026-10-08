@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query, MutationCtx } from "./_generated/server";
 import {
   requireRole,
@@ -46,6 +46,7 @@ type CartLine = {
   sellUnitLabel?: string;
   factorToBase?: number;
   pricingMode?: "fixed" | "per_weight";
+  trackedInventory?: boolean;
 };
 
 function isSoldSnapshot(item: CartLine) {
@@ -79,7 +80,7 @@ async function replayExistingSale(
 ) {
   const sale = await ctx.db.get(saleId);
   if (!sale || sale.organizationId !== organizationId) {
-    throw new Error("This sale was already submitted and cannot be created again");
+    throw new ConvexError("This sale was already submitted and cannot be created again");
   }
   const receipt = await ctx.db
     .query("receipts")
@@ -117,7 +118,7 @@ async function nextInvoiceNumber(
   if (requested?.trim()) {
     const invoiceNumber = sanitizeInvoiceNumber(requested);
     if (await findSaleByInvoice(ctx, organizationId, invoiceNumber)) {
-      throw new Error("This invoice number is already used");
+      throw new ConvexError("This invoice number is already used");
     }
     return invoiceNumber;
   }
@@ -127,7 +128,7 @@ async function nextInvoiceNumber(
     const reference = allocateInvoiceNumber();
     if (!(await findSaleByInvoice(ctx, organizationId, reference))) return reference;
   }
-  throw new Error("Could not allocate a unique invoice reference");
+  throw new ConvexError("Could not allocate a unique invoice reference");
 }
 
 export const catalog = query({
@@ -245,7 +246,7 @@ export const holdSale = mutation({
         branch: branch?.name ?? "Main Branch",
       });
     }
-    if (args.items.length === 0) throw new Error("Cart is empty");
+    if (args.items.length === 0) throw new ConvexError("Cart is empty");
 
     const customerId = args.customerId;
     let customerName = args.customerName?.trim() || "Walk-in Customer";
@@ -256,7 +257,7 @@ export const holdSale = mutation({
         customer.organizationId !== profile.organizationId ||
         customer.status !== "active"
       ) {
-        throw new Error("Customer not found");
+        throw new ConvexError("Customer not found");
       }
       customerName = customer.name;
     }
@@ -265,7 +266,7 @@ export const holdSale = mutation({
     let subtotal = 0;
     for (const item of args.items) {
       if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-        throw new Error("Invalid quantity");
+        throw new ConvexError("Invalid quantity");
       }
       assertPositiveMoney(item.discount, "line discount");
       const product = await ctx.db.get(item.productId);
@@ -274,11 +275,11 @@ export const holdSale = mutation({
         product.status !== "active" ||
         product.organizationId !== profile.organizationId
       ) {
-        throw new Error("Product unavailable");
+        throw new ConvexError("Product unavailable");
       }
       const gross = roundMoney(product.sellingPrice * item.quantity);
       if (item.discount > gross) {
-        throw new Error(`Discount exceeds line total for ${product.name}`);
+        throw new ConvexError(`Discount exceeds line total for ${product.name}`);
       }
       const lineSub = roundMoney(gross - item.discount);
       subtotal += lineSub;
@@ -293,7 +294,7 @@ export const holdSale = mutation({
 
     assertPositiveMoney(args.discount, "cart discount");
     if (roundMoney(args.discount) - roundMoney(subtotal) > 0.001) {
-      throw new Error("Discount cannot exceed the sale subtotal");
+      throw new ConvexError("Discount cannot exceed the sale subtotal");
     }
     const cartDiscount = roundMoney(args.discount);
     const total = Math.max(0, roundMoney(subtotal - cartDiscount));
@@ -323,13 +324,13 @@ export const resumeHeld = mutation({
       "cashier",
     ]);
     const held = await ctx.db.get(args.id);
-    if (!held || held.organizationId !== organizationId) throw new Error("Held sale not found");
+    if (!held || held.organizationId !== organizationId) throw new ConvexError("Held sale not found");
     if (isAdmin(profile)) {
       /* ok */
     } else if (profile.role === "manager") {
-      if (held.branchId && held.branchId !== profile.branchId) throw new Error("Forbidden");
+      if (held.branchId && held.branchId !== profile.branchId) throw new ConvexError("Forbidden");
     } else if (held.cashierId !== userId) {
-      throw new Error("Forbidden");
+      throw new ConvexError("Forbidden");
     }
     await ctx.db.delete(args.id);
     return held;
@@ -347,7 +348,7 @@ export const getReceipt = query({
     const sale = await ctx.db.get(args.saleId);
     if (!sale || sale.organizationId !== organizationId) return null;
     if (profile.role === "cashier") {
-      if (sale.cashierId !== userId) throw new Error("Forbidden");
+      if (sale.cashierId !== userId) throw new ConvexError("Forbidden");
     } else if (sale.branchId) {
       assertBranchAccess(profile, sale.branchId);
     }
@@ -393,6 +394,8 @@ export const completeSale = mutation({
         sellUnitLabel: v.optional(v.string()),
         factorToBase: v.optional(v.number()),
         pricingMode: v.optional(v.union(v.literal("fixed"), v.literal("per_weight"))),
+        /** False when the till sold this line without stock tracking. */
+        trackedInventory: v.optional(v.boolean()),
       }),
     ),
     discount: v.number(),
@@ -406,11 +409,16 @@ export const completeSale = mutation({
     invoiceNumber: v.optional(v.string()),
     /** Till wall-clock when Pay succeeded (Dexie-first / offline outbox). */
     clientCompletedAt: v.optional(v.number()),
+    /**
+     * Manager posts a receipt that already left the till. Stock is reduced only
+     * by what this branch still has, and never below zero.
+     */
+    acceptStockShortage: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { userId, profile, branchId } = await requireBranchId(ctx, args.branchId);
     if (!["administrator", "manager", "cashier"].includes(profile.role)) {
-      throw new Error("Forbidden");
+      throw new ConvexError("Forbidden");
     }
     if (!profile.branchId) {
       const branch = await ctx.db.get(branchId);
@@ -441,13 +449,13 @@ export const completeSale = mutation({
       const already = await findSaleByInvoice(ctx, profile.organizationId, printed);
       if (already) {
         if (already.cashierId !== userId) {
-          throw new Error("This invoice number is already used");
+          throw new ConvexError("This invoice number is already used");
         }
         return await replayExistingSale(ctx, profile.organizationId, already._id);
       }
     }
 
-    if (args.items.length === 0) throw new Error("Cart is empty");
+    if (args.items.length === 0) throw new ConvexError("Cart is empty");
 
     const customerId = args.customerId;
     let customerName = args.customerName?.trim() || "Walk-in Customer";
@@ -459,7 +467,7 @@ export const completeSale = mutation({
         customer.organizationId !== profile.organizationId ||
         customer.status !== "active"
       ) {
-        throw new Error("Customer not found");
+        throw new ConvexError("Customer not found");
       }
       customerName = customer.name;
       customerPhone = customer.phone ?? null;
@@ -479,10 +487,19 @@ export const completeSale = mutation({
       displayedQuantity: number;
       factorToBase: number;
       pricingMode: "fixed" | "per_weight";
+      /** Units this upload may remove. Less than quantity when a manager posts a shortage. */
+      stockQuantity: number;
     }> = [];
 
     let subtotal = 0;
     let itemCount = 0;
+    const stockShortages: Array<{ productName: string; requested: number; removed: number }> = [];
+    const canPostShortage =
+      args.acceptStockShortage === true &&
+      (profile.role === "administrator" || profile.role === "manager");
+    if (args.acceptStockShortage === true && !canPostShortage) {
+      throw new ConvexError("A manager has to post this receipt.");
+    }
 
     const businessConfig = await loadBusinessConfiguration(ctx, profile.organizationId);
     const multiUnitOn = hasBusinessCapability(businessConfig, "multi_unit_pricing");
@@ -493,10 +510,10 @@ export const completeSale = mutation({
       const replay = isSoldSnapshot(item);
       const product = await ctx.db.get(item.productId);
       if (!product || product.organizationId !== profile.organizationId) {
-        throw new Error(`Product unavailable`);
+        throw new ConvexError(`Product unavailable`);
       }
       if (!replay && product.status !== "active") {
-        throw new Error(`Product unavailable`);
+        throw new ConvexError(`Product unavailable`);
       }
 
       const allowFractional =
@@ -504,10 +521,10 @@ export const completeSale = mutation({
         (replay && item.pricingMode === "per_weight");
       const displayedQuantity = roundQuantity(item.quantity);
       if (!Number.isFinite(displayedQuantity) || displayedQuantity <= 0) {
-        throw new Error("Invalid quantity");
+        throw new ConvexError("Invalid quantity");
       }
       if (!allowFractional && !Number.isInteger(displayedQuantity)) {
-        throw new Error("Invalid quantity");
+        throw new ConvexError("Invalid quantity");
       }
 
       let unit;
@@ -536,10 +553,10 @@ export const completeSale = mutation({
         item.sellUnitKey &&
         item.sellUnitKey !== "default"
       ) {
-        throw new Error("Multi-unit pricing is not enabled for this organization");
+        throw new ConvexError("Multi-unit pricing is not enabled for this organization");
       }
       if (!replay && unit.pricingMode === "per_weight" && !weightOn) {
-        throw new Error("Sell by weight is not enabled for this organization");
+        throw new ConvexError("Sell by weight is not enabled for this organization");
       }
       if (replay) {
         const factor =
@@ -566,7 +583,9 @@ export const completeSale = mutation({
             pricingMode: unit.pricingMode,
           }
         : buildSaleLineUnitSnapshot(unit, displayedQuantity);
-      if (productTracksInventory(product, businessConfig)) {
+      let stockQuantity = 0;
+      const soldWithoutStock = item.trackedInventory === false;
+      if (!soldWithoutStock && productTracksInventory(product, businessConfig)) {
         // The receipt already printed. A lot that expires before upload must not
         // reject it. Physical stock at this branch still cannot go negative.
         const available =
@@ -574,19 +593,30 @@ export const completeSale = mutation({
             ? await getBranchQuantity(ctx, branchId, product._id)
             : await getSellableQuantity(ctx, branchId, product._id);
         if (available < snapshot.baseQuantity) {
-          throw new Error(
-            replay
-              ? `Not enough stock for ${product.name}. Available: ${available}. Another till sold these units before this sale uploaded.`
-              : `Not enough stock for ${product.name}. Available: ${available}.`,
-          );
+          if (canPostShortage && replay) {
+            stockQuantity = Math.max(0, available);
+            stockShortages.push({
+              productName: product.name,
+              requested: snapshot.baseQuantity,
+              removed: stockQuantity,
+            });
+          } else {
+            throw new ConvexError(
+              replay
+                ? `Not enough stock for ${product.name}. Available: ${available}. Another till sold these units before this sale uploaded.`
+                : `Not enough stock for ${product.name}. Available: ${available}.`,
+            );
+          }
+        } else {
+          stockQuantity = snapshot.baseQuantity;
         }
       }
       const gross = lineGrossForSellUnit(unit, snapshot.displayedQuantity);
       if (item.discount > gross) {
-        throw new Error(`Discount exceeds line total for ${product.name}`);
+        throw new ConvexError(`Discount exceeds line total for ${product.name}`);
       }
       const lineTotal = roundMoney(gross - item.discount);
-      if (lineTotal < 0) throw new Error("Invalid line discount");
+      if (lineTotal < 0) throw new ConvexError("Invalid line discount");
       subtotal += lineTotal;
       itemCount += snapshot.baseQuantity;
       lines.push({
@@ -603,12 +633,13 @@ export const completeSale = mutation({
         displayedQuantity: snapshot.displayedQuantity,
         factorToBase: snapshot.factorToBase,
         pricingMode: snapshot.pricingMode,
+        stockQuantity,
       });
     }
 
     assertPositiveMoney(args.discount, "cart discount");
     if (roundMoney(args.discount) - roundMoney(subtotal) > 0.001) {
-      throw new Error("Discount cannot exceed the sale subtotal");
+      throw new ConvexError("Discount cannot exceed the sale subtotal");
     }
     const cartDiscount = roundMoney(args.discount);
     const total = Math.max(0, roundMoney(subtotal - cartDiscount));
@@ -655,16 +686,16 @@ export const completeSale = mutation({
       });
       const product = await ctx.db.get(line.productId);
       if (!product || product.status !== "active") {
-        throw new Error("Product unavailable");
+        throw new ConvexError("Product unavailable");
       }
-      if (!productTracksInventory(product, businessConfig)) {
+      if (!productTracksInventory(product, businessConfig) || line.stockQuantity <= 0) {
         continue;
       }
       if (productTracksExpiry(product)) {
         const allocations = await decreaseLots(ctx, {
           branchId,
           productId: line.productId,
-          quantity: line.quantity,
+          quantity: line.stockQuantity,
           reason: "sale",
           sellableOnly: true,
           productName: line.productName,
@@ -684,7 +715,7 @@ export const completeSale = mutation({
         await applyBranchStockChange(ctx, {
           branchId,
           productId: line.productId,
-          quantityChange: -line.quantity,
+          quantityChange: -line.stockQuantity,
           reason: "sale",
           performedBy: userId,
           relatedSaleId: saleId,
@@ -700,7 +731,7 @@ export const completeSale = mutation({
       discount: cartDiscount,
       total,
       itemCount,
-      lines,
+      lines: lines.map(({ stockQuantity: _stockQuantity, ...line }) => line),
       paymentMethod: args.paymentMethod,
       completedAt,
       customerName,
@@ -742,7 +773,14 @@ export const completeSale = mutation({
       action: "complete_sale",
       entityType: "sales",
       entityId: saleId,
-      metadata: { invoiceNumber, total, branchId, completedAt, syncedAt },
+      metadata: {
+        invoiceNumber,
+        total,
+        branchId,
+        completedAt,
+        syncedAt,
+        stockShortages: stockShortages.length > 0 ? stockShortages : undefined,
+      },
     });
 
     await bumpOrgSaleStats(ctx, profile.organizationId, {
@@ -774,7 +812,7 @@ export const listOrders = query({
       "cashier",
     ]);
     if (profile.role === "cashier" && args.branchId && args.branchId !== profile.branchId) {
-      throw new Error("Forbidden: branch access denied");
+      throw new ConvexError("Forbidden: branch access denied");
     }
     // Cashiers see their own sales even if an older checkout stored the wrong branch.
     const branchFilter =
@@ -786,7 +824,7 @@ export const listOrders = query({
       args.endDate !== undefined &&
       args.endDate < args.startDate
     ) {
-      throw new Error("End date must be on or after the start date");
+      throw new ConvexError("End date must be on or after the start date");
     }
     if (args.minTotal !== undefined) {
       assertPositiveMoney(args.minTotal, "minimum amount");
@@ -799,7 +837,7 @@ export const listOrders = query({
       args.maxTotal !== undefined &&
       args.maxTotal < args.minTotal
     ) {
-      throw new Error("Maximum amount must be at least the minimum");
+      throw new ConvexError("Maximum amount must be at least the minimum");
     }
 
     let cashierFilter: Id<"users"> | undefined =
@@ -807,10 +845,10 @@ export const listOrders = query({
     if (profile.role !== "cashier" && args.cashierId) {
       const target = await getProfileByUserId(ctx, args.cashierId);
       if (!target || target.organizationId !== organizationId) {
-        throw new Error("Cashier not found");
+        throw new ConvexError("Cashier not found");
       }
       if (profile.role === "manager" && target.branchId !== profile.branchId) {
-        throw new Error("Forbidden");
+        throw new ConvexError("Forbidden");
       }
       cashierFilter = args.cashierId;
     }
@@ -990,7 +1028,7 @@ export const getOrder = query({
     const sale = await ctx.db.get(args.id);
     if (!sale || sale.organizationId !== organizationId) return null;
     if (profile.role === "cashier") {
-      if (sale.cashierId !== userId) throw new Error("Forbidden");
+      if (sale.cashierId !== userId) throw new ConvexError("Forbidden");
     } else if (sale.branchId) {
       assertBranchAccess(profile, sale.branchId);
     }

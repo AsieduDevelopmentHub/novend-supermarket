@@ -22,6 +22,8 @@ export async function initSentryBrowser() {
           delete event.request.headers["authorization"];
           delete event.request.headers["cookie"];
         }
+        const text = `${event.message ?? ""} ${event.exception?.values?.map((value) => value.value).join(" ") ?? ""}`;
+        if (/plugin is not implemented/i.test(text)) return null;
         return event;
       },
     });

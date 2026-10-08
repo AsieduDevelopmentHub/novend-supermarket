@@ -16,6 +16,24 @@ export async function retryOutboxEvent(id: string) {
   notifyReplicaChanged();
 }
 
+/** Post a printed sale when the branch no longer has every unit. */
+export async function postSaleDespiteStockShortage(id: string) {
+  const db = await getOfflineDb();
+  if (!db) return;
+  const row = await db.outbox.get(id);
+  if (!row || row.type !== "complete_sale") return;
+  const payload = parseCompleteSalePayload(row);
+  await db.outbox.put({
+    ...row,
+    payloadJson: JSON.stringify({ ...payload, acceptStockShortage: true }),
+    status: "pending",
+    syncOwner: undefined,
+    lastError: undefined,
+    updatedAt: Date.now(),
+  });
+  notifyReplicaChanged();
+}
+
 /** Drop a queued event so it will not upload. Sales restore local stock first. */
 export async function discardOutboxEvent(id: string) {
   const db = await getOfflineDb();

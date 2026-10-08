@@ -155,6 +155,7 @@ export type CompleteSaleMutator = (args: {
     sellUnitLabel?: string;
     factorToBase?: number;
     pricingMode?: "fixed" | "per_weight";
+    trackedInventory?: boolean;
   }>;
   discount: number;
   paymentMethod: "cash" | "card" | "mobile_money";
@@ -163,6 +164,7 @@ export type CompleteSaleMutator = (args: {
   branchId?: Id<"branches">;
   invoiceNumber?: string;
   clientCompletedAt?: number;
+  acceptStockShortage?: boolean;
 }) => Promise<{
   saleId: Id<"sales">;
   invoiceNumber: string;
@@ -622,6 +624,7 @@ async function drainOwnedOutbox(
               sellUnitLabel: i.sellUnitLabel,
               factorToBase: i.factorToBase,
               pricingMode: i.pricingMode,
+              trackedInventory: i.trackedInventory,
             })),
             discount: payload.discount,
             paymentMethod: payload.paymentMethod,
@@ -630,6 +633,7 @@ async function drainOwnedOutbox(
             branchId: payload.branchId as Id<"branches"> | undefined,
             invoiceNumber,
             clientCompletedAt: payload.completedAt ?? localSale?.completedAt,
+            acceptStockShortage: payload.acceptStockShortage,
           }),
             UPLOAD_ATTEMPT_MS,
             "Upload timed out",

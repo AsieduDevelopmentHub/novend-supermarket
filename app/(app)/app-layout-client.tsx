@@ -11,7 +11,12 @@ import { NativeAppServices } from "@/components/layout/native-app-services";
 import { RestoreLastRoute } from "@/components/layout/restore-last-route";
 import { PlatformShell } from "@/components/layout/platform-shell";
 import { ErrorState } from "@/components/feedback/error-state";
-import { AppSplash } from "@/features/auth/components/app-splash";
+import { AppSplash, PostLoginCover } from "@/features/auth/components/app-splash";
+import {
+  clearSignInMotionStart,
+  readSignInMotionStart,
+  SIGN_IN_SPLASH_LAND_MS,
+} from "@/lib/auth/sign-in-motion";
 import { SignInHandoffProvider } from "@/features/auth/components/sign-in-handoff";
 import type { AppRole } from "@/config/navigation";
 import { APP_BRAND } from "@/constants/app";
@@ -312,15 +317,24 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
             }
           : null,
   });
+  const releaseTimer = useRef(0);
   const releaseSignInHandoff = useCallback(() => {
-    setSignInPhase((phase) => (phase === "done" || phase === "exit" ? phase : "exit"));
+    const started = readSignInMotionStart() ?? Date.now();
+    const wait = Math.max(0, SIGN_IN_SPLASH_LAND_MS - (Date.now() - started));
+    window.clearTimeout(releaseTimer.current);
+    releaseTimer.current = window.setTimeout(() => {
+      setSignInPhase((phase) => (phase === "done" || phase === "exit" ? phase : "exit"));
+    }, wait);
   }, []);
   const signInCover =
     signInPhase === "exit" || (signInPhase !== "done" && (fromLoginNow || signInHeld));
 
   useEffect(() => {
     if (signInPhase !== "exit") return;
-    const timer = window.setTimeout(() => setSignInPhase("done"), SIGN_IN_COVER_EXIT_MS);
+    const timer = window.setTimeout(() => {
+      clearSignInMotionStart();
+      setSignInPhase("done");
+    }, SIGN_IN_COVER_EXIT_MS);
     return () => window.clearTimeout(timer);
   }, [signInPhase]);
 
@@ -933,15 +947,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     (!online && Boolean(shellFromCache || offlineSessionOk || cachedShellWhileOnlineHung));
 
   if (signInCover && !signInShellReady) {
-    return (
-      <AppSplash
-        settled
-        showLabel
-        exiting={signInPhase === "exit"}
-        label="Opening your workspace"
-        hint="Just a moment"
-      />
-    );
+    return <PostLoginCover exiting={signInPhase === "exit"} />;
   }
 
   function paintWithSignInCover(node: ReactNode) {
@@ -949,13 +955,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     return (
       <SignInHandoffProvider release={releaseSignInHandoff}>
         {node}
-        <AppSplash
-          settled
-          showLabel
-          exiting={signInPhase === "exit"}
-          label="Opening your workspace"
-          hint="Just a moment"
-        />
+        <PostLoginCover exiting={signInPhase === "exit"} />
       </SignInHandoffProvider>
     );
   }

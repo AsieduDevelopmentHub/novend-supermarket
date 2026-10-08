@@ -119,7 +119,17 @@
         // never paint the login brand chrome first.
         var requestedEntry = params.get("entry");
         var entry = window.NOVEND_APP_ENTRY || "/dashboard";
-        if (requestedEntry === "/login?signedOut=1") entry = requestedEntry;
+        // Extra query params (fromBoot) must still count as sign-out. Otherwise
+        // boot ignores the entry and opens /dashboard, which paints Opening sign-in
+        // and sends the WebView back here.
+        if (
+          requestedEntry === "/login?signedOut=1" ||
+          (requestedEntry &&
+            requestedEntry.indexOf("/login") === 0 &&
+            requestedEntry.indexOf("signedOut=1") >= 0)
+        ) {
+          entry = "/login?signedOut=1";
+        }
         // Open the hosted shell directly. /api/boot is network-only (SW skips
         // /api/*) so it can never succeed offline. After one online open the
         // hosted service worker serves Cache Storage; Dexie restores the session.

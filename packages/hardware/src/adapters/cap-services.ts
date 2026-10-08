@@ -27,6 +27,7 @@ import {
   writeTopicPrefsToStorage,
 } from "./notification-prefs";
 import { friendlyHardwareMessage } from "../permissions";
+import { isNativePluginAvailable } from "../plugin-available";
 import { NATIVE_AVAILABILITY_TIMEOUT_MS, NATIVE_CALL_TIMEOUT_MS, withTimeout } from "../timeout";
 import { compareAppVersions, normalizeAppVersion } from "../version";
 import { shouldSkipMobileUpdateCheck } from "../update-origin";
@@ -176,6 +177,12 @@ export function createCapacitorNotificationsAdapter(): NotificationsAdapter {
       return { ok: true };
     },
     async registerRemote() {
+      if (!isNativePluginAvailable("PushNotifications")) {
+        return {
+          ok: false,
+          message: "Remote alerts need a newer Novend app. Notices in the bell still work.",
+        };
+      }
       try {
         const { PushNotifications } = await import("@capacitor/push-notifications");
         let tokenValue: string | null = null;
@@ -252,6 +259,9 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
     async getInfo() {
       const native = readNativeAppInfo();
       if (native) return { ok: true, data: native };
+      if (!isNativePluginAvailable("App")) {
+        return { ok: false, message: "Could not read app version." };
+      }
       try {
         const info = await withTimeout(App.getInfo(), NATIVE_CALL_TIMEOUT_MS);
         return {
@@ -272,6 +282,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
       }
     },
     async getLaunchUrl() {
+      if (!isNativePluginAvailable("App")) return { ok: true, data: null };
       try {
         const result = await withTimeout(App.getLaunchUrl(), NATIVE_CALL_TIMEOUT_MS);
         return { ok: true, data: result?.url ?? null };
@@ -467,26 +478,43 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
       return this.openExternalUrl(url);
     },
     async addUrlOpenListener(callback) {
-      const handle = await App.addListener("appUrlOpen", (event) => {
-        if (event.url) callback(event.url);
-      });
-      return {
-        remove: async () => {
-          await handle.remove();
-        },
-      };
+      if (!isNativePluginAvailable("App")) {
+        return { remove: async () => undefined };
+      }
+      try {
+        const handle = await App.addListener("appUrlOpen", (event) => {
+          if (event.url) callback(event.url);
+        });
+        return {
+          remove: async () => {
+            await handle.remove();
+          },
+        };
+      } catch {
+        return { remove: async () => undefined };
+      }
     },
     async addBackButtonListener(callback) {
-      const handle = await App.addListener("backButton", (event) => {
-        callback({ canGoBack: Boolean(event.canGoBack) });
-      });
-      return {
-        remove: async () => {
-          await handle.remove();
-        },
-      };
+      if (!isNativePluginAvailable("App")) {
+        return { remove: async () => undefined };
+      }
+      try {
+        const handle = await App.addListener("backButton", (event) => {
+          callback({ canGoBack: Boolean(event.canGoBack) });
+        });
+        return {
+          remove: async () => {
+            await handle.remove();
+          },
+        };
+      } catch {
+        return { remove: async () => undefined };
+      }
     },
     async exitApp() {
+      if (!isNativePluginAvailable("App")) {
+        return { ok: false as const, message: "Close Novend from the app switcher." };
+      }
       try {
         await App.exitApp();
         return { ok: true as const };
@@ -542,14 +570,21 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
       }
     },
     async addAppStateListener(callback) {
-      const handle = await App.addListener("appStateChange", (state) => {
-        callback(Boolean(state.isActive));
-      });
-      return {
-        remove: async () => {
-          await handle.remove();
-        },
-      };
+      if (!isNativePluginAvailable("App")) {
+        return { remove: async () => undefined };
+      }
+      try {
+        const handle = await App.addListener("appStateChange", (state) => {
+          callback(Boolean(state.isActive));
+        });
+        return {
+          remove: async () => {
+            await handle.remove();
+          },
+        };
+      } catch {
+        return { remove: async () => undefined };
+      }
     },
   };
 }
