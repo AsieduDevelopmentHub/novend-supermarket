@@ -60,7 +60,7 @@ for that person. Existing devices without the field stay unmuted.
 Bell in the POS header (phone and desktop) and the desktop sidebar.
 
 - Mark all read, clear all, mute
-- Topics: stock, transfers, daily summary, subscription, cashier clock-in
+- Topics: stock, transfers, daily summary, subscription, cashier clock-in, welcome
 - Cashiers see stock and transfers. Administrators see billing. Managers and
   administrators see clock-in. Completed sales are not notifications.
 

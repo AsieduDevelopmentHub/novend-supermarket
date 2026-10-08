@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import {
   getPlatformAdmin,
@@ -9,7 +10,7 @@ import {
 } from "./shared/permissions";
 import { provisionOrganization } from "./shared/provisionOrganization";
 import { DEFAULT_BRANCH_NAME } from "./shared/defaultBranch";
-import { sanitizeText, TEXT_LIMITS } from "./shared/validation";
+import { sanitizePhone, sanitizeText, TEXT_LIMITS } from "./shared/validation";
 import { bumpOrgUserCount } from "./shared/organizationStats";
 
 export const mine = query({
@@ -86,10 +87,12 @@ export const create = mutation({
       role: "administrator",
       branch: DEFAULT_BRANCH_NAME,
       branchId,
+      phone: sanitizePhone(args.phone),
       status: "active",
       lastSeenAt: 0,
     });
     await bumpOrgUserCount(ctx, organizationId, 1);
+    await ctx.scheduler.runAfter(0, internal.welcome.deliver, { userId });
 
     return { organizationId, branchId };
   },

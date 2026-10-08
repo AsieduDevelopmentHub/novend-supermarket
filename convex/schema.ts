@@ -663,6 +663,8 @@ export default defineSchema({
     clockedInAt: v.optional(v.number()),
     /** Business-timezone day (`YYYY-MM-DD`) for `clockedInAt`. */
     clockedInOn: v.optional(v.string()),
+    /** Set once when the join welcome is claimed, so it is not sent again. */
+    welcomedAt: v.optional(v.number()),
   })
     .index("by_userId", ["userId"])
     .index("by_organization", ["organizationId"])
@@ -1547,6 +1549,7 @@ export default defineSchema({
       v.literal("subscription_alerts"),
       v.literal("staff_clock_in"),
       v.literal("platform_notice"),
+      v.literal("welcome"),
     ),
     title: v.string(),
     body: v.string(),

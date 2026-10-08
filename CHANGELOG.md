@@ -10,6 +10,7 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ### What's new
 
+- A person who joins gets one welcome in the bell, by email, and by SMS when a phone number is on file. The email uses their name and business, not the verification code.
 - Platform owners and operators can send an in-app notice to business owners, administrators, or managers. It shows in the bell. Cashiers are not included.
 - A cashier who signs in offline keeps that login time on the till. When the connection returns, clock-in, the text, and the bell use that time.
 - The bell lists important alerts (stock, transfers, billing, cashier clock-in) with mute, mark all read, and clear all. Completed sales are not notifications. The same alerts still use browser, Android, and desktop push.
