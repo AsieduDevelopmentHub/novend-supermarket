@@ -1,9 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { useLayoutEffect, useState, type ReactNode } from "react";
 import { BRANDING } from "@/constants/branding";
 import { APP_BRAND } from "@/constants/app";
+import { readSignInMotionStart, signInCoverDelays } from "@/lib/auth/sign-in-motion";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -23,6 +25,13 @@ type Props = {
    * checks run, then floats until the next screen takes over.
    */
   linger?: boolean;
+  /**
+   * How far the sign-in fall has already progressed. A hard leave remounts
+   * this splash; a negative delay keeps the same frame instead of replaying.
+   */
+  elapsedMs?: number;
+  /** Paint on document.body so a clipping login card cannot trap the fall. */
+  portal?: boolean;
   /** Fade-out state while transitioning away. */
   exiting?: boolean;
   /** Escape / recovery actions under the splash (e.g. stuck sign-out). */
@@ -53,11 +62,18 @@ export function AppSplash({
   showLabel = false,
   settled = false,
   linger = false,
+  elapsedMs = 0,
+  portal = false,
   exiting = false,
   footer,
   className,
 }: Props) {
-  return (
+  const elapsed = linger ? Math.max(0, elapsedMs) : 0;
+  const { fallDelayMs, holdDelayMs } = signInCoverDelays(elapsed);
+  const fallStyle = linger && elapsed > 0 ? { animationDelay: `${fallDelayMs}ms` } : undefined;
+  const holdStyle = linger ? { animationDelay: `${holdDelayMs}ms` } : undefined;
+
+  const splash = (
     <div
       className={cn(
         "bg-sidebar fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden",
@@ -76,6 +92,7 @@ export function AppSplash({
               "absolute inset-0 rounded-full",
               settled ? "opacity-0" : "animate-splash-impact",
             )}
+            style={fallStyle}
             aria-hidden
           />
 
@@ -84,12 +101,14 @@ export function AppSplash({
               "relative z-10 h-full w-full",
               settled ? null : linger ? "animate-splash-fall-linger" : "animate-splash-fall",
             )}
+            style={fallStyle}
           >
             <div
               className={cn(
                 "relative h-full w-full",
                 settled || linger ? "animate-splash-hold" : null,
               )}
+              style={linger ? holdStyle : undefined}
             >
               <Image
                 src={BRANDING.brandmark}
@@ -116,7 +135,10 @@ export function AppSplash({
                     // Custom properties drive the scatter keyframes
                     ["--px" as string]: `${particle.x}px`,
                     ["--py" as string]: `${particle.y}px`,
-                    animationDelay: particle.delay,
+                    animationDelay:
+                      linger && elapsed > 0
+                        ? `calc(${particle.delay} - ${elapsed}ms)`
+                        : particle.delay,
                     opacity: 0.85,
                   }}
                 />
@@ -130,6 +152,7 @@ export function AppSplash({
             "mt-8 text-sm tracking-[0.18em] text-white/70 uppercase",
             settled ? null : "animate-splash-caption",
           )}
+          style={fallStyle}
         >
           Smart POS. Strong business.
         </p>
@@ -144,5 +167,35 @@ export function AppSplash({
         ) : null}
       </div>
     </div>
+  );
+
+  // Login card uses overflow clipping. A fixed splash inside it only covers the
+  // form column on web, PWA, Capacitor, and Electron. The sign-in fall is
+  // client-only, so portaling it does not hydrate against server HTML.
+  if (portal && typeof document !== "undefined") {
+    return createPortal(splash, document.body);
+  }
+
+  return splash;
+}
+
+/** Same fall the login page started, still running while the shell finishes checks. */
+export function PostLoginCover({ exiting = false }: { exiting?: boolean }) {
+  const [elapsedMs, setElapsedMs] = useState(0);
+  useLayoutEffect(() => {
+    const started = readSignInMotionStart();
+    if (started == null) return;
+    setElapsedMs(Math.max(0, Date.now() - started));
+  }, []);
+
+  return (
+    <AppSplash
+      linger
+      elapsedMs={elapsedMs}
+      exiting={exiting}
+      showLabel
+      label="Opening your workspace"
+      hint="Just a moment"
+    />
   );
 }

@@ -19,6 +19,7 @@ import { formatDateTime, formatRelative } from "@/lib/date";
 import { listOpenOutbox, listRecentSyncedOutbox } from "@/lib/offline/outbox";
 import {
   discardOutboxEvent,
+  postSaleDespiteStockShortage,
   retryOutboxEvent,
 } from "@/lib/offline/outbox-actions";
 import {
@@ -33,6 +34,7 @@ import { useOfflineStatus } from "@/providers/offline-provider";
 import { useShowsRealtimeSyncUi } from "@/hooks/use-shows-realtime-sync-ui";
 import { requestCloudReconnectPrompt } from "@/features/auth/components/cloud-reconnect-banner";
 import { hasOfflineSession } from "@/lib/offline/session";
+import { getMeta, getOfflineDb, META_KEYS } from "@/lib/offline/db";
 import { ROUTES } from "@/config/navigation";
 import type { OutboxRow } from "@/lib/offline/types";
 
@@ -49,14 +51,18 @@ function EventRow({
   cloudConnected,
   onRetry,
   onDiscard,
+  onPostReceipt,
   onFix,
   onSignIn,
+  canPostShortage,
 }: {
   row: OutboxRow;
   busy: boolean;
   cloudConnected: boolean;
+  canPostShortage: boolean;
   onRetry?: (row: OutboxRow) => void;
   onDiscard?: (row: OutboxRow) => void;
+  onPostReceipt?: (row: OutboxRow) => void;
   onFix?: (href: string) => void;
   onSignIn?: () => void;
 }) {
@@ -80,6 +86,9 @@ function EventRow({
       (conflict.kind === "network" && cloudConnected));
   const showSignIn = authWait && Boolean(onSignIn);
   const showRetry = Boolean(onRetry) && !showSignIn;
+  const showPostReceipt = Boolean(
+    onPostReceipt && canPostShortage && conflict?.canPostShortage,
+  );
 
   return (
     <li className="border-border flex flex-col gap-2 rounded-lg border px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between">
@@ -107,7 +116,7 @@ function EventRow({
           {row.attempts > 0 ? ` · ${row.attempts} attempt${row.attempts === 1 ? "" : "s"}` : ""}
         </p>
       </div>
-      {showRetry || showDiscard || showSignIn || (fixHref && onFix) ? (
+      {showRetry || showPostReceipt || showDiscard || showSignIn || (fixHref && onFix) ? (
         <div className="flex shrink-0 flex-wrap gap-2">
           {fixHref && onFix && !showSignIn ? (
             <Button
@@ -129,6 +138,16 @@ function EventRow({
             >
               <LogIn className="size-3.5" aria-hidden />
               Sign in
+            </Button>
+          ) : null}
+          {showPostReceipt && onPostReceipt ? (
+            <Button
+              type="button"
+              size="sm"
+              disabled={busy || row.status === "syncing"}
+              onClick={() => onPostReceipt(row)}
+            >
+              Post receipt
             </Button>
           ) : null}
           {showRetry && onRetry ? (
@@ -196,6 +215,7 @@ export function SyncCenterDialog() {
   const [discardTarget, setDiscardTarget] = useState<OutboxRow | null>(null);
   const [discardPending, setDiscardPending] = useState(false);
   const [tab, setTab] = useState("waiting");
+  const [canPostShortage, setCanPostShortage] = useState(false);
   const [tabSessionOpen, setTabSessionOpen] = useState(false);
 
   if (syncCenterOpen !== tabSessionOpen) {
@@ -226,6 +246,13 @@ export function SyncCenterDialog() {
     queueMicrotask(() => {
       if (!cancelled) void reload();
     });
+    void (async () => {
+      const db = await getOfflineDb();
+      const role = db ? await getMeta(db, META_KEYS.profileRole) : null;
+      if (!cancelled) {
+        setCanPostShortage(role === "administrator" || role === "manager");
+      }
+    })();
     const unsub = subscribeReplicaChanged(() => {
       void reload();
     });
@@ -256,6 +283,17 @@ export function SyncCenterDialog() {
       return;
     }
     await pullSnapshot({ force: true });
+    await flushOutbox({ force: true, showProgress: true });
+    await reload();
+  }
+
+  async function onPostReceipt(row: OutboxRow) {
+    if (!isAuthenticated) {
+      onSignIn();
+      return;
+    }
+    await postSaleDespiteStockShortage(row.id);
+    toast.message("Posting the receipt");
     await flushOutbox({ force: true, showProgress: true });
     await reload();
   }
@@ -367,7 +405,9 @@ export function SyncCenterDialog() {
                       row={row}
                       busy={syncing}
                       cloudConnected={isAuthenticated}
+                      canPostShortage={canPostShortage}
                       onRetry={online ? onRetry : undefined}
+                      onPostReceipt={online && isAuthenticated ? onPostReceipt : undefined}
                       onDiscard={() => setDiscardTarget(row)}
                       onFix={onFix}
                       onSignIn={onSignIn}
@@ -388,7 +428,9 @@ export function SyncCenterDialog() {
                         row={row}
                         busy={syncing}
                         cloudConnected={isAuthenticated}
+                        canPostShortage={canPostShortage}
                         onRetry={online && isAuthenticated ? onRetry : undefined}
+                        onPostReceipt={online && isAuthenticated ? onPostReceipt : undefined}
                         onDiscard={() => setDiscardTarget(row)}
                         onFix={onFix}
                         onSignIn={onSignIn}
@@ -408,6 +450,7 @@ export function SyncCenterDialog() {
                       key={row.id}
                       row={row}
                       busy={false}
+                      canPostShortage={false}
                       cloudConnected={isAuthenticated}
                     />
                   ))}

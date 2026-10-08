@@ -163,11 +163,13 @@ export function forceLeaveToLoginAfterSignOut(): void {
   if (isCapacitor()) {
     const onBootOrigin =
       window.location.origin === CAPACITOR_BOOT_ORIGIN || window.location.hostname === "localhost";
-    const href = LOGIN_AFTER_SIGN_OUT_CAP_OFFLINE;
     if (onBootOrigin) {
-      window.location.assign(capacitorBootUrl(href));
+      // Boot appends fromBoot itself. Passing it in the entry made boot
+      // treat the leave as a normal open and load the dashboard again.
+      window.location.assign(capacitorBootUrl(LOGIN_AFTER_SIGN_OUT_PATH));
       return;
     }
+    const href = LOGIN_AFTER_SIGN_OUT_CAP_OFFLINE;
     try {
       window.location.assign(href);
     } catch {

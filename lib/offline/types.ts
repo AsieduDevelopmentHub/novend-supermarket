@@ -299,6 +299,8 @@ export type LocalSaleItem = {
   displayedQuantity?: number;
   factorToBase?: number;
   pricingMode?: "fixed" | "per_weight";
+  /** False when the line was sold without stock tracking. */
+  trackedInventory?: boolean;
 };
 
 export type LocalSale = {
@@ -352,9 +354,13 @@ export type CompleteSaleOutboxPayload = {
     sellUnitLabel?: string;
     factorToBase?: number;
     pricingMode?: "fixed" | "per_weight";
+    /** False when this line was sold without stock tracking. */
+    trackedInventory?: boolean;
   }>;
   discount: number;
   paymentMethod: "cash" | "card" | "mobile_money";
+  /** Manager posts the receipt even when the branch no longer has the units. */
+  acceptStockShortage?: boolean;
   /** Working branch for this sale (admin may choose; others use assigned). */
   branchId?: string;
   /** Local held sale id if checkout came from a hold. */

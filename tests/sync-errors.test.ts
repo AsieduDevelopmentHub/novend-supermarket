@@ -30,6 +30,17 @@ describe("isSyncBusinessConflict", () => {
     expect(transientFailureStopsDrain("Upload timed out")).toBe(false);
   });
 
+  it("keeps a stock sentence and drops the Convex wrapper", async () => {
+    const { syncFailureMessage } = await import("@/lib/offline/sync-errors");
+    const error = new Error(
+      "[CONVEX M(sales:completeSale)] [Request ID: 09643f3a123d1a6e] Server Error\nUncaught Error: Not enough stock for Mahama Ibrahim. Available: 0. Another till sold these units before this sale uploaded.\n    at handler (../convex/sales.ts:578:16)",
+    );
+    const message = syncFailureMessage(error, "Sync failed");
+    expect(message).toContain("Not enough stock for Mahama Ibrahim");
+    expect(message).not.toMatch(/CONVEX|Request ID|at handler/i);
+    expect(isSyncBusinessConflict(message)).toBe(true);
+  });
+
   it("leaves opaque Convex dumps as transient so drain can backoff", () => {
     const dump =
       "[CONVEX M(sales:completeSale)] [Request ID: abc] Server Error Uncaught Error at handler (../sales.ts:1:1)";

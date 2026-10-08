@@ -44,6 +44,11 @@ import { storeLocalAuthVerifier, verifyLocalAuth } from "@/lib/offline/local-aut
 import { rememberClockIn } from "@/lib/offline/pending-clock-in";
 import { shellProfileFromSessionHint, saveShellProfile } from "@/lib/offline/shell-profile";
 import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
+import {
+  clearSignInMotionStart,
+  markSignInMotionStart,
+  SIGN_IN_SPLASH_LAND_MS,
+} from "@/lib/auth/sign-in-motion";
 import { withTimeout } from "@/lib/async/with-timeout";
 
 const REMEMBER_KEY = "novend.login.rememberEmail";
@@ -67,8 +72,6 @@ function allowOfflinePasswordFallback(): boolean {
   return isCapacitor() || isElectron() || !navigator.onLine;
 }
 
-/** Matches `.animate-splash-fall-linger` in `styles/globals.css`. */
-const SIGN_IN_SPLASH_LAND_MS = 4_200;
 /**
  * Electron can report the shell reload as started and then never leave /login
  * (hung HTTPS replace). Give the form back so sign-in is not a dead cover.
@@ -194,6 +197,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       if (path !== "/login" && path !== "/signup") return;
       resetHardNavigationPending();
       clearPostLoginLeavePending();
+      clearSignInMotionStart();
       redirectingRef.current = false;
       submitGenerationRef.current += 1;
       setOpeningWorkspace(false);
@@ -288,6 +292,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     clearLogoutBarrierAfterCredentialUnlock();
     redirectingRef.current = true;
     markPostLoginLeavePending();
+    markSignInMotionStart();
     setOpeningWorkspace(true);
     // Let the logo land before the document swap, or the next page starts at rest mid-fall.
     await wait(SIGN_IN_SPLASH_LAND_MS);
@@ -335,6 +340,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     if (openingWorkspace) return;
     redirectingRef.current = true;
     markPostLoginLeavePending();
+    markSignInMotionStart();
     setOpeningWorkspace(true);
     const splashOpenedAt = Date.now();
     void (async () => {
@@ -348,6 +354,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         navigateAfterLogin(withBootMarker(path), router, { hard: true });
       } catch {
         clearPostLoginLeavePending();
+        clearSignInMotionStart();
         redirectingRef.current = false;
         setOpeningWorkspace(false);
         toast.error("Could not open your account. Sign in again.");
@@ -450,12 +457,14 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       clearLogoutBarrierAfterCredentialUnlock();
       staleCloudLogoutRef.current = false;
       markPostLoginLeavePending();
+      markSignInMotionStart();
       setOpeningWorkspace(true);
       const splashOpenedAt = Date.now();
       // Let Convex Auth attach the new token after signOut→signIn before me.
       await wait(350);
       if (generation !== submitGenerationRef.current) {
         clearPostLoginLeavePending();
+        clearSignInMotionStart();
         redirectingRef.current = false;
         setOpeningWorkspace(false);
         setPending(false);
@@ -466,6 +475,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       });
       if (generation !== submitGenerationRef.current) {
         clearPostLoginLeavePending();
+        clearSignInMotionStart();
         redirectingRef.current = false;
         setOpeningWorkspace(false);
         setPending(false);
@@ -478,6 +488,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       if (landRemaining > 0) await wait(landRemaining);
       if (generation !== submitGenerationRef.current) {
         clearPostLoginLeavePending();
+        clearSignInMotionStart();
         redirectingRef.current = false;
         setOpeningWorkspace(false);
         setPending(false);
@@ -500,6 +511,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     } catch (error) {
       submitGenerationRef.current += 1;
       clearPostLoginLeavePending();
+      clearSignInMotionStart();
       redirectingRef.current = false;
       setOpeningWorkspace(false);
 
@@ -519,7 +531,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   return (
     <div className="relative mx-auto w-full max-w-[360px]">
       {openingWorkspace ? (
-        <AppSplash label="Opening your workspace" hint="Just a moment" showLabel linger />
+        <AppSplash label="Opening your workspace" hint="Just a moment" showLabel linger portal />
       ) : null}
 
       <div

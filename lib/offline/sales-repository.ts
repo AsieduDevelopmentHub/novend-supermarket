@@ -203,6 +203,7 @@ export async function completeSaleLocally(input: {
           displayedQuantity: unitSnapshot.displayedQuantity,
           factorToBase: unitSnapshot.factorToBase,
           pricingMode: unitSnapshot.pricingMode,
+          trackedInventory: productTracksInventory(product, businessConfig),
         });
         if (productTracksInventory(product, businessConfig)) {
           await applyLocalBranchStockChange(
@@ -299,6 +300,7 @@ export async function completeSaleLocally(input: {
           sellUnitLabel: line.sellUnitLabel,
           factorToBase: line.factorToBase,
           pricingMode: line.pricingMode,
+          trackedInventory: line.trackedInventory,
         })),
         discount: cartDiscount,
         paymentMethod: input.paymentMethod,

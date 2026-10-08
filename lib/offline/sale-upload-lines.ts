@@ -37,6 +37,7 @@ export function attachSoldLineSnapshots(
       sellUnitLabel: match.sellUnitLabel,
       factorToBase: match.factorToBase,
       pricingMode: match.pricingMode,
+      trackedInventory: item.trackedInventory ?? match.trackedInventory,
     };
   });
 }

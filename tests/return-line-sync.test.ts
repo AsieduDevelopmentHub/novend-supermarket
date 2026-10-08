@@ -81,9 +81,9 @@ describe("mapReturnLinesToServerSaleItems", () => {
     expect(syncFailureMessage(error, "Sync failed")).toBe("Inventory cannot become negative");
   });
 
-  it("keeps the Convex wrapper when no business sentence was returned", () => {
+  it("drops a Convex wrapper when the server sent no business sentence", () => {
     const error = new Error("[CONVEX M(inventory:adjustStock)] [Request ID: req_9] Server Error");
-    expect(syncFailureMessage(error, "Sync failed")).toContain("Request ID: req_9");
+    expect(syncFailureMessage(error, "Sync failed")).toBe("Sync failed");
   });
 
   it("returns null when a line cannot be matched", () => {
