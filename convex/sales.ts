@@ -593,7 +593,10 @@ export const completeSale = mutation({
             ? await getBranchQuantity(ctx, branchId, product._id)
             : await getSellableQuantity(ctx, branchId, product._id);
         if (available < snapshot.baseQuantity) {
-          if (canPostShortage && replay) {
+          // The receipt is already in the customer's hand. Save the sale and
+          // remove only the units still on the branch. A rejected upload used
+          // to leave that sale on the till, so Orders and Reports diverged.
+          if (replay) {
             stockQuantity = Math.max(0, available);
             stockShortages.push({
               productName: product.name,
@@ -602,9 +605,7 @@ export const completeSale = mutation({
             });
           } else {
             throw new ConvexError(
-              replay
-                ? `Not enough stock for ${product.name}. Available: ${available}. Another till sold these units before this sale uploaded.`
-                : `Not enough stock for ${product.name}. Available: ${available}.`,
+              `Not enough stock for ${product.name}. Available: ${available}.`,
             );
           }
         } else {

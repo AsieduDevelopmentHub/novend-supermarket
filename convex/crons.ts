@@ -42,4 +42,12 @@ crons.daily(
   {},
 );
 
+/** 21:00 UTC is 9pm in Africa/Accra, after the till day has closed. */
+crons.daily(
+  "daily sales reports",
+  { hourUTC: 21, minuteUTC: 0 },
+  internal.dailySalesDigest.runDailySalesReports,
+  {},
+);
+
 export default crons;

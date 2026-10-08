@@ -76,6 +76,10 @@ receive it. The notice appears in the bell; it does not send SMS or device push.
 
 - Daily cron `push alert digests` (`internal.pushDispatch.runDailyAlertDigests`)
   — low stock / expiry + trial/subscription reminders
+- Daily cron `daily sales reports` (`internal.dailySalesDigest.runDailySalesReports`)
+  at 21:00 UTC — one closed-day sales report per business. Active administrators
+  get it in the bell and by SMS even when this device's Daily summary switch is
+  off. The switch only adds a device alert.
 - `inventory.transferStock` — `branch_transfers` topic
 
-Topic prefs gate every send.
+Device topic prefs gate device alerts. The daily sales bell and SMS do not.

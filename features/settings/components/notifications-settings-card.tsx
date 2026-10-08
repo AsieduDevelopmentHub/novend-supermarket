@@ -29,7 +29,7 @@ const TOPICS: Array<{ id: NotificationTopic; label: string; description: string 
   {
     id: "daily_summary",
     label: "Daily summary",
-    description: "End-of-day sales snapshot",
+    description: "End-of-day sales report. Administrators get it in the app and by SMS. Turn this on to alert this device too.",
   },
   {
     id: "branch_transfers",

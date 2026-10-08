@@ -93,7 +93,7 @@ describe("describeOutboxConflict", () => {
     expect(view.permanent).toBe(true);
     expect(view.headline).toMatch(/not enough stock/i);
     expect(view.explanation).toMatch(/INV-STOCK01/);
-    expect(view.explanation).toMatch(/post the receipt/i);
+    expect(view.explanation).toMatch(/next sync saves the sale/i);
     expect(view.canPostShortage).toBe(true);
     expect(view.explanation).not.toMatch(/something went wrong/i);
   });

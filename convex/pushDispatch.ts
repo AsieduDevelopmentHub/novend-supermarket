@@ -136,23 +136,26 @@ export const dispatchPush = internalAction({
     title: v.string(),
     body: v.string(),
     data: v.optional(v.record(v.string(), v.string())),
+    skipInbox: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     if (!args.organizationId && !args.userId) {
       return { sent: 0, skipped: 0, failed: 0 };
     }
 
-    try {
-      await ctx.runMutation(internal.appNotifications.recordFromDispatch, {
-        organizationId: args.organizationId,
-        userId: args.userId,
-        topic: args.topic,
-        title: args.title,
-        body: args.body,
-        href: args.data?.href,
-      });
-    } catch (error) {
-      console.warn("[notifications] Inbox write skipped.", error);
+    if (!args.skipInbox) {
+      try {
+        await ctx.runMutation(internal.appNotifications.recordFromDispatch, {
+          organizationId: args.organizationId,
+          userId: args.userId,
+          topic: args.topic,
+          title: args.title,
+          body: args.body,
+          href: args.data?.href,
+        });
+      } catch (error) {
+        console.warn("[notifications] Inbox write skipped.", error);
+      }
     }
 
     const devices = await ctx.runQuery(internal.pushNotifications.devicesForDispatch, {

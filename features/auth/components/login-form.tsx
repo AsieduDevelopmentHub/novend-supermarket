@@ -47,6 +47,7 @@ import { resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 import {
   clearSignInMotionStart,
   markSignInMotionStart,
+  readSignInMotionStart,
   SIGN_IN_SPLASH_LAND_MS,
 } from "@/lib/auth/sign-in-motion";
 import { withTimeout } from "@/lib/async/with-timeout";
@@ -166,6 +167,9 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const searchParams = useSearchParams();
   const fromBoot = searchParams.get("fromBoot") === "1";
   const signedOut = searchParams.get("signedOut") === "1" || hasExplicitLogout();
+  // The shell already tried to open the workspace and came back. Do not
+  // auto-leave again — that is the login ↔ dashboard reload.
+  const shellBack = searchParams.get("shellBack") === "1";
   const redirectingRef = useRef(false);
   const staleCloudLogoutRef = useRef(false);
   /** Bumps when a submit is abandoned so a late `signIn` cannot open the wrong shell. */
@@ -335,7 +339,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   // Never auto-resume during/after an abandoned credential submit — a late
   // signIn must not open a prior JWT shell for a different email.
   useEffect(() => {
-    if (signedOut) return;
+    if (signedOut || shellBack) return;
     if (!isAuthenticated || authLoading || redirectingRef.current || pending) return;
     if (openingWorkspace) return;
     redirectingRef.current = true;
@@ -360,7 +364,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         toast.error("Could not open your account. Sign in again.");
       }
     })();
-  }, [isAuthenticated, authLoading, convex, router, pending, openingWorkspace, fromBoot, signedOut]);
+  }, [isAuthenticated, authLoading, convex, router, pending, openingWorkspace, fromBoot, signedOut, shellBack]);
 
   async function revokeStaleCloudSessionBeforeSignIn(): Promise<void> {
     if (!hasExplicitLogout()) return;
@@ -531,7 +535,14 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   return (
     <div className="relative mx-auto w-full max-w-[360px]">
       {openingWorkspace ? (
-        <AppSplash label="Opening your workspace" hint="Just a moment" showLabel linger portal />
+        <AppSplash
+          label="Opening your workspace"
+          hint="Just a moment"
+          showLabel
+          linger
+          portal
+          elapsedMs={Math.max(0, Date.now() - (readSignInMotionStart() ?? Date.now()))}
+        />
       ) : null}
 
       <div

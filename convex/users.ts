@@ -34,6 +34,7 @@ import { deactivateAccountBlockReason } from "./shared/accountStatus";
 import { loadEmailVerification } from "./shared/emailVerificationLookup";
 import { recordDailyActiveUser } from "./shared/platformTelemetry";
 import { formatBusinessTime, resolveReportedClockIn } from "./shared/businessDate";
+import { clockInSms } from "./shared/emailTemplates";
 import { loadTourProgressForUser } from "./shared/tourProgress";
 
 export const me = query({
@@ -626,8 +627,12 @@ export const heartbeat = mutation({
       await ctx.scheduler.runAfter(0, internal.appNotifications.recordClockIn, {
         organizationId,
         cashierUserId: userId,
-        title: "Cashier clocked in",
-        body: `${profile.name} clocked in at ${clockTime}${branchName ? ` (${branchName})` : ""}.`,
+        title: "Staff clocked in",
+        body: clockInSms({
+          cashierName: profile.name,
+          time: clockTime,
+          branchName,
+        }),
       });
     }
     if (args.runtime) {

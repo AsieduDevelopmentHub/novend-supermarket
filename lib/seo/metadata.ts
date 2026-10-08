@@ -34,7 +34,7 @@ export type PageMetadataInput = {
 
 export function buildPageMetadata(input: PageMetadataInput): Metadata {
   const url = absoluteUrl(input.path);
-  const imagePath = input.imagePath ?? BRANDING.loginHero;
+  const imagePath = input.imagePath ?? BRANDING.ogImage;
   const imageUrl = absoluteUrl(imagePath.split("?")[0] ?? imagePath);
   const index = input.index !== false;
   const follow = input.follow !== false;
@@ -55,6 +55,8 @@ export function buildPageMetadata(input: PageMetadataInput): Metadata {
       images: [
         {
           url: imageUrl,
+          width: 1200,
+          height: 630,
           alt: `${APP_BRAND} — ${APP_TAGLINE}`,
         },
       ],
@@ -76,7 +78,7 @@ export function buildPageMetadata(input: PageMetadataInput): Metadata {
 /** Root layout defaults — pages override title/description via buildPageMetadata. */
 export function buildRootMetadata(): Metadata {
   const origin = getSiteOrigin();
-  const imageUrl = absoluteUrl(BRANDING.loginHero);
+  const imageUrl = absoluteUrl(BRANDING.ogImage);
 
   return {
     metadataBase: new URL(origin),
@@ -112,7 +114,7 @@ export function buildRootMetadata(): Metadata {
       title: `${APP_NAME} — ${APP_TAGLINE}`,
       description: DEFAULT_DESCRIPTION,
       url: absoluteUrl("/"),
-      images: [{ url: imageUrl, alt: `${APP_BRAND} — ${APP_TAGLINE}` }],
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: `${APP_BRAND} — ${APP_TAGLINE}` }],
     },
     twitter: {
       card: "summary_large_image",

@@ -33,6 +33,14 @@ describe("report merge", () => {
     expect(merged?.kpis.totalSales).toBe(55);
   });
 
+  it("keeps the cloud day when the local copy has more orders but less money", () => {
+    const remote = report([{ date: "2026-10-07", orders: 4, itemsSold: 8, totalSales: 200, refunds: 0 }]);
+    const local = report([{ date: "2026-10-07", orders: 5, itemsSold: 6, totalSales: 70, refunds: 0 }]);
+    const merged = mergeSalesReportWithLocal(remote, local);
+    expect(merged?.daily[0]?.orders).toBe(4);
+    expect(merged?.daily[0]?.totalSales).toBe(200);
+  });
+
   it("does not drop a cloud day that is absent from the local mirror", () => {
     const remote = report([
       { date: "2026-10-06", orders: 1, itemsSold: 1, totalSales: 10, refunds: 0 },

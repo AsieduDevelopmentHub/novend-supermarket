@@ -1,6 +1,7 @@
 /** HTML-safe transactional copy. Keep interpolation escaped — never trust URLs from callers blindly. */
 
 import { EMAIL_LOGO_CONTENT_ID } from "./emailLogoBase64";
+import { appendSmsLink } from "./smsAudience";
 
 export const EMAIL_BRAND = {
   product: "Novend",
@@ -252,10 +253,25 @@ export function renderWelcomeEmail(input: WelcomeEmailInput): RenderedEmail {
   return { subject, preheader, text, html };
 }
 
-export function welcomeSms(name: string, organizationName: string): string {
+export function welcomeSms(name: string, organizationName: string, signInUrl?: string): string {
   const who = name.trim() || "there";
   const organization = organizationName.trim() || "Your business";
-  return `Welcome to Novend, ${who}. ${organization} is ready. Sign in to start selling.`.slice(0, 320);
+  return appendSmsLink(
+    `Novend: Welcome, ${who}. ${organization} is ready. Sign in to start selling.`,
+    signInUrl,
+  );
+}
+
+export function clockInSms(input: {
+  cashierName: string;
+  time: string;
+  branchName: string;
+  staffUrl?: string;
+}): string {
+  const name = input.cashierName.trim() || "A cashier";
+  const branch = input.branchName.trim();
+  const place = branch ? `, ${branch}` : "";
+  return appendSmsLink(`Novend: ${name} clocked in at ${input.time}${place}.`, input.staffUrl);
 }
 
 const CLOSURE_REASON_LABELS: Record<string, string> = {

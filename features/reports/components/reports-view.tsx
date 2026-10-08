@@ -24,7 +24,6 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { buildLocalSalesReport, type LocalSalesReport } from "@/lib/offline/ui-cache";
-import { mergeSalesReportWithLocal } from "@/lib/offline/report-merge";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { salesReportExportTable } from "@/lib/export/sales-report";
 import { formatCurrency, formatNumber } from "@/lib/currency";
@@ -173,9 +172,7 @@ export function ReportsView() {
   const report =
     preferLocal || !online
       ? (localReport ?? remoteReport ?? null)
-      : mergeSalesReportWithLocal(remoteReport ?? null, localReport) ??
-        remoteReport ??
-        localReport;
+      : (remoteReport ?? null);
   const recordExport = useMutation(api.imports.recordExport);
   const exportTable = report
     ? salesReportExportTable({
@@ -381,7 +378,7 @@ export function ReportsView() {
                           <th className="px-4 pt-1 pb-2 font-medium">Date</th>
                           <th className="px-4 pt-1 pb-2 font-medium">Orders</th>
                           <th className="px-4 pt-1 pb-2 font-medium">Items Sold</th>
-                          <th className="px-4 pt-1 pb-2 font-medium">Total Sales</th>
+                          <th className="px-4 pt-1 pb-2 font-medium">Net sales</th>
                           <th className="px-4 pt-1 pb-2 font-medium">Refunds</th>
                           <th className="px-4 pt-1 pb-2 font-medium">
                             <span className="sr-only">Open</span>
@@ -413,6 +410,7 @@ export function ReportsView() {
                           <p className="min-w-0 truncate font-medium">{row.date}</p>
                           <p className="shrink-0 font-semibold whitespace-nowrap">
                             {formatCurrency(row.totalSales)}
+                            <span className="text-muted-foreground ml-1 text-xs font-medium">net</span>
                           </p>
                         </div>
                         <p className="text-muted-foreground mt-1 text-xs">

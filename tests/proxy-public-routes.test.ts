@@ -28,6 +28,7 @@ describe("proxy public routes", () => {
     expect(source).toContain("withStaticSecurityHeaders");
     expect(source).toContain("shouldRedirectAuthenticatedHome");
     expect(source).toContain("onLoginPage && authenticated");
+    expect(source).toContain('searchParams.get("shellBack") === "1"');
     expect(source).toContain('pathname === "/api/boot"');
   });
 

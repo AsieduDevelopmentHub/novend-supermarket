@@ -66,6 +66,11 @@ describe("outbox display classification", () => {
     expect(shouldReopenFailedOutboxWait("Not authenticated")).toBe(true);
     expect(shouldReopenFailedOutboxWait("Waiting for the customer to finish syncing.")).toBe(true);
     expect(shouldReopenFailedOutboxWait("Sync failed")).toBe(true);
-    expect(shouldReopenFailedOutboxWait("Insufficient stock")).toBe(false);
+    expect(shouldReopenFailedOutboxWait("Insufficient stock")).toBe(true);
+    expect(
+      shouldReopenFailedOutboxWait(
+        "Not enough stock for Mahama Ibrahim. Available: 0. Another till sold these units before this sale uploaded.",
+      ),
+    ).toBe(true);
   });
 });

@@ -32,6 +32,12 @@ export function isOutboxAuthWait(row: OutboxRow): boolean {
   return Boolean(row.lastError && isAuthRequiredError(row.lastError));
 }
 
+/** A printed receipt the server parked for stock. The next drain uploads it. */
+export function isStockShortageRejection(message: string) {
+  const m = message.toLowerCase();
+  return m.includes("not enough stock") || m.includes("insufficient stock");
+}
+
 /** Failed rows that should reopen to pending on the next drain. */
 export function shouldReopenFailedOutboxWait(lastError: string | null | undefined): boolean {
   if (!lastError) return false;
@@ -39,6 +45,7 @@ export function shouldReopenFailedOutboxWait(lastError: string | null | undefine
     isSyncDependencyWait(lastError) ||
     isAuthRequiredError(lastError) ||
     isTransientSyncPlaceholder(lastError) ||
-    isOpaqueServerDump(lastError)
+    isOpaqueServerDump(lastError) ||
+    isStockShortageRejection(lastError)
   );
 }

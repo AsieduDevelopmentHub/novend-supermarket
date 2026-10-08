@@ -412,6 +412,9 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loginRedirectStarted.current || hasExplicitLogout()) return;
     if (!cacheReady || isAuthenticated) return;
+    // One splash is still waiting on the workspace checks. Leaving now restarts
+    // the fall on /login and, online, proxy sends that document back here.
+    if (signInCover) return;
     // Continue locally from the password modal — never bounce to /login.
     if (localOnlyUserId || readLocalOnlyCloudUserId()) return;
     if (sessionHint || cachedProfile || platformSession) return;
@@ -425,6 +428,9 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     multiBranchReady.current = false;
 
     const next = new URL("/login", window.location.origin);
+    // Keep this document on the form. A cookie that proxy still accepts would
+    // otherwise 302 straight back to the dashboard and reload login forever.
+    next.searchParams.set("shellBack", "1");
     const fromBoot = new URLSearchParams(window.location.search).get("fromBoot") === "1";
     if (!online || fromBoot) {
       next.searchParams.set("fromBoot", "1");
@@ -441,6 +447,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     onlineAuthBudgetElapsed,
     platformSession,
     sessionHint,
+    signInCover,
   ]);
 
   useEffect(() => {

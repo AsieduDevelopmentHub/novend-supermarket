@@ -79,6 +79,7 @@ describe("offline email+password resume", () => {
   it("sends offline empty shell to login instead of Can't start while offline", () => {
     expect(layout).toContain('label="Opening sign-in…"');
     expect(layout).toContain('next.searchParams.set("fromBoot", "1")');
+    expect(layout).toContain('next.searchParams.set("shellBack", "1")');
     expect(layout).not.toContain('title="Can\'t start while offline"');
   });
 

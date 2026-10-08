@@ -22,6 +22,8 @@ describe("Capacitor local boot page", () => {
     expect(source).not.toContain('params.get("appUrl")');
     expect(source).toContain("window.NOVEND_ALLOWED_HOSTS");
     expect(source).toContain('requestedEntry === "/login?signedOut=1"');
+    expect(source).toContain('signedOutLeave = entry.indexOf("signedOut=1") >= 0');
+    expect(source).toContain("!signedOutLeave && !fromLoginLeave");
     expect(config).toContain("NOVEND_ALLOWED_HOSTS");
     expect(config).toContain("dashboard.novendpos.app");
   });
