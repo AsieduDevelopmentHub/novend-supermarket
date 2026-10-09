@@ -1538,6 +1538,41 @@ html.standalone-display {
     0 6px 14px -8px rgba(56, 189, 248, 0.16);
 }
 
+/* Neumorphic plan cards (marketing + pricing) — soft dual shadows on slate wash. */
+.plan-card-neu {
+  border-radius: 1.25rem;
+  background: #eef2f7;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    10px 10px 24px rgba(15, 23, 42, 0.08),
+    -8px -8px 20px rgba(255, 255, 255, 0.95);
+  transition:
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+}
+
+.plan-card-neu:hover {
+  box-shadow:
+    12px 12px 28px rgba(15, 23, 42, 0.1),
+    -10px -10px 22px rgba(255, 255, 255, 1);
+}
+
+.plan-card-neu-featured {
+  background: linear-gradient(180deg, #f8fbff 0%, #eef2f7 100%);
+  box-shadow:
+    12px 12px 28px rgba(14, 165, 233, 0.14),
+    -8px -8px 20px rgba(255, 255, 255, 0.98),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-card-neu,
+  .plan-card-neu:hover {
+    transition: none;
+    transform: none;
+  }
+}
+
 .landing-shadow-card {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.75) inset,

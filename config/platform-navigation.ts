@@ -4,6 +4,7 @@ import {
   Building2,
   FileDown,
   LayoutDashboard,
+  Layers,
   Bell,
   MessageSquare,
   Package,
@@ -100,6 +101,12 @@ export const PLATFORM_NAV_GROUPS: PlatformNavGroup[] = [
         permission: "releases.read",
       },
       {
+        title: "Plans catalog",
+        href: "/platform/plans",
+        icon: Layers,
+        permission: "orgs.read",
+      },
+      {
         title: "Operating costs",
         href: "/platform/costs",
         icon: Receipt,
@@ -148,7 +155,11 @@ export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | 
   if (path.startsWith("/platform/sms") || path.startsWith("/platform/notifications")) {
     return "tenants";
   }
-  if (path.startsWith("/platform/releases") || path.startsWith("/platform/costs")) {
+  if (
+    path.startsWith("/platform/releases") ||
+    path.startsWith("/platform/costs") ||
+    path.startsWith("/platform/plans")
+  ) {
     return "tenants";
   }
   if (
@@ -166,6 +177,7 @@ export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | 
     "releases",
     "revenue",
     "costs",
+    "plans",
     "subscriptions",
     "health",
     "payments",

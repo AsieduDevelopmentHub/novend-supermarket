@@ -27,6 +27,7 @@ import {
   SELLABLE_PLAN_LIST,
   planChangeKind,
   planLimitLines,
+  resolvePlan,
   type BillingCycle,
   type PlanDefinition,
   type PlanKey,
@@ -88,8 +89,7 @@ function offerPriceForCycle(
 }
 
 function offerAsPlanDefinition(offer: CommercialOfferSnapshot): PlanDefinition {
-  const base =
-    SELLABLE_PLAN_LIST.find((p) => p.key === offer.basePlanKey) ?? SELLABLE_PLAN_LIST[0]!;
+  const base = resolvePlan(offer.basePlanKey);
   const lifetimeOnly =
     offer.allowedCycles.includes("lifetime") &&
     !offer.allowedCycles.includes("monthly") &&
@@ -105,6 +105,8 @@ function offerAsPlanDefinition(offer: CommercialOfferSnapshot): PlanDefinition {
     isLifetime: lifetimeOnly,
     selfServe: !lifetimeOnly,
     featured: true,
+    marketingVisible: false,
+    homepageHighlight: false,
     features: [
       ...(offer.customerMessage ? [offer.customerMessage] : []),
       ...base.features.slice(0, 4),
@@ -187,11 +189,42 @@ export function PlansGrid({
   const scheduleDowngrade = useAction(api.billing.scheduleDowngrade);
   const acceptOffer = useMutation(api.commercialOffers.acceptOffer);
   const me = useQuery(api.users.me, online ? {} : "skip");
+  const catalog = useQuery(api.billing.catalog, online ? {} : "skip");
+
+  const catalogPlans: PlanDefinition[] =
+    catalog?.plans.map((plan) => {
+      const seed = resolvePlan(plan.key);
+      return {
+        ...seed,
+        key: plan.key,
+        name: plan.name,
+        tagline: plan.tagline,
+        audience: plan.audience,
+        monthlyPrice: plan.monthlyPrice,
+        yearlyPrice: plan.yearlyPrice,
+        oneTimePrice: plan.oneTimePrice,
+        priceFrom: plan.priceFrom,
+        isLifetime: plan.isLifetime,
+        featured: plan.featured,
+        selfServe: plan.selfServe,
+        marketingVisible: true,
+        homepageHighlight: false,
+        limits: plan.limits,
+        features: plan.features,
+      };
+    }) ?? SELLABLE_PLAN_LIST;
+
+  const listPrices = new Map(
+    (catalog?.plans ?? []).map((plan) => [
+      plan.key,
+      { monthly: plan.listMonthlyPrice, yearly: plan.listYearlyPrice },
+    ]),
+  );
 
   const plans: PlanDefinition[] =
     customOfferOnly && commercialOffer
       ? [offerAsPlanDefinition(commercialOffer)]
-      : SELLABLE_PLAN_LIST;
+      : catalogPlans;
   const cycleOptions: Array<"monthly" | "yearly"> =
     customOfferOnly && commercialOffer
       ? commercialOffer.allowedCycles.filter(
@@ -363,11 +396,19 @@ export function PlansGrid({
             isCurrentPaid ||
             (!canSelfServe && !customOfferOnly);
           const offerDisabled = disabled || pendingPlan !== null;
+          const list = listPrices.get(plan.key);
+          const listAmount =
+            customOfferOnly || !list
+              ? null
+              : cycle === "yearly"
+                ? list.yearly
+                : list.monthly;
           return (
             <PlanCard
               key={customOfferOnly && commercialOffer ? `offer-${commercialOffer.id}` : plan.key}
               plan={plan}
               cycle={cycle}
+              listAmount={listAmount}
               isCurrent={kind === "same"}
               scheduled={scheduledChange?.targetPlanKey === plan.key}
               scheduledDate={
@@ -464,6 +505,7 @@ function planPrice(plan: PlanDefinition, cycle: Exclude<BillingCycle, "lifetime"
 function PlanCard({
   plan,
   cycle,
+  listAmount = null,
   isCurrent,
   scheduled,
   scheduledDate,
@@ -476,6 +518,7 @@ function PlanCard({
 }: {
   plan: PlanDefinition;
   cycle: Exclude<BillingCycle, "lifetime">;
+  listAmount?: number | null;
   isCurrent: boolean;
   scheduled: boolean;
   scheduledDate: number | null;
@@ -487,6 +530,8 @@ function PlanCard({
   secondaryAction?: { label: string; onClick: () => void } | null;
 }) {
   const { amount, suffix } = planPrice(plan, cycle);
+  const showDrop =
+    listAmount != null && amount != null && listAmount > amount && !plan.isLifetime;
 
   return (
     <Card
@@ -514,6 +559,11 @@ function PlanCard({
         </div>
 
         <div>
+          {showDrop ? (
+            <p className="text-muted-foreground text-sm line-through">
+              {formatCurrency(listAmount)}
+            </p>
+          ) : null}
           <p className="text-2xl font-semibold tracking-tight">
             {amount === null ? "Custom" : formatCurrency(amount)}
             {amount !== null && plan.priceFrom ? (
@@ -521,6 +571,9 @@ function PlanCard({
             ) : null}
           </p>
           <p className="text-muted-foreground text-xs">{amount === null ? "Talk to us" : suffix}</p>
+          {showDrop ? (
+            <p className="text-primary mt-1 text-xs font-semibold">Price drop</p>
+          ) : null}
         </div>
 
         <ul className="text-muted-foreground border-border space-y-1 border-t pt-3 text-xs leading-relaxed">

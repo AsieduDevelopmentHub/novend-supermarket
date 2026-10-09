@@ -18,6 +18,7 @@ import {
   type PlanKey,
   type PlanLimits,
 } from "./plans";
+import { loadPlanDefinition } from "./planCatalog";
 import { CLOUD_MODES, type CloudEntitlements, type CloudMode } from "./cloudMode";
 import { loadLiveOfferForOrganization } from "./commercialOffers";
 import { FEATURE_REGISTRY, type FeatureKey } from "./features";
@@ -94,7 +95,7 @@ export async function resolveLicense(
 ): Promise<OrganizationLicense> {
   const subscription = await getActiveSubscription(ctx, organization);
   const planKey = (subscription?.planKey ?? organization.planKey) as PlanKey | undefined;
-  const plan = resolvePlan(planKey);
+  const plan = await loadPlanDefinition(ctx, planKey);
   const access = deriveAccess(
     organization.status as OrganizationStatus,
     toSnapshot(subscription),

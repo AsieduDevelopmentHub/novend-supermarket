@@ -35,13 +35,11 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { showError } from "@/lib/errors";
-import type { SellablePlanKey } from "@/convex/shared/plans";
+import { SELLABLE_PLAN_LIST, type SellablePlanKey } from "@/convex/shared/plans";
 
-const PLAN_OPTIONS: { value: SellablePlanKey; label: string }[] = [
-  { value: "basic", label: "Basic" },
-  { value: "pro", label: "Pro" },
-  { value: "enterprise", label: "Enterprise" },
-];
+const PLAN_OPTIONS: { value: SellablePlanKey; label: string }[] = SELLABLE_PLAN_LIST.map(
+  (plan) => ({ value: plan.key, label: plan.name }),
+);
 
 type OfferFormState = {
   name: string;

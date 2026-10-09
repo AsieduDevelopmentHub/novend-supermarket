@@ -6,7 +6,12 @@
  * `plans.ts`; this module only derives capabilities from that catalog.
  */
 
-import { PLAN_CATALOG, resolvePlan, type PlanKey, type PlanLimits } from "./plans";
+import {
+  PRO_CAPABILITY_MIN_SORT_ORDER,
+  resolvePlan,
+  type PlanKey,
+  type PlanLimits,
+} from "./plans";
 
 /** Hard cap per job so unlimited plans cannot freeze a terminal. */
 export const IMPORT_SAFETY_MAX_ROWS = 10_000;
@@ -34,7 +39,7 @@ export type PlanCapabilities = {
 };
 
 function hasAdvancedReporting(planKey: PlanKey): boolean {
-  return resolvePlan(planKey).sortOrder >= PLAN_CATALOG.pro.sortOrder;
+  return resolvePlan(planKey).sortOrder >= PRO_CAPABILITY_MIN_SORT_ORDER;
 }
 
 /** Import row cap from the (possibly overridden) product limit. */

@@ -1,17 +1,30 @@
 /**
- * Canonical commercial plan catalog.
+ * Commercial plan seed catalog + pure helpers.
  *
- * This module is the single source of truth for entitlements. It is pure data +
- * pure functions so it can be imported by Convex, the Next.js app, and tests
- * without pulling in a database. The `plans` table mirrors this catalog and adds
- * payment-gateway plan codes; it never overrides these limits.
+ * Runtime marketing / entitlements prefer the `plans` table (admin-editable).
+ * This module seeds defaults, falls back when a row is missing, and keeps
+ * price/limit math importable from Convex, Next, and tests without a DB.
  *
  * `null` limit means unlimited.
  */
 
-export const PLAN_KEYS = ["basic", "pro", "enterprise", "lifetime"] as const;
+export const SEED_PLAN_KEYS = [
+  "starter",
+  "shop",
+  "basic",
+  "growth",
+  "pro",
+  "business",
+  "enterprise",
+  "lifetime",
+] as const;
 
-export type PlanKey = (typeof PLAN_KEYS)[number];
+/** @deprecated Prefer SEED_PLAN_KEYS — kept as alias for older imports. */
+export const PLAN_KEYS = SEED_PLAN_KEYS;
+
+export type SeedPlanKey = (typeof SEED_PLAN_KEYS)[number];
+/** Stored plan key (slug). Seed keys plus any Super Admin–created plans. */
+export type PlanKey = string;
 
 export type PlanLimits = {
   products: number | null;
@@ -47,11 +60,16 @@ export type PlanDefinition = {
   featured: boolean;
   /** Self-service checkout is available for this plan. */
   selfServe: boolean;
+  /** Show on public marketing (homepage trio + /pricing). */
+  marketingVisible: boolean;
+  /** Homepage pricing preview (at most three). */
+  homepageHighlight: boolean;
   /**
    * When true, the plan is retained for historical subscriptions only and must
    * not appear in public pricing or new self-serve sales.
    */
   legacy?: boolean;
+  archived?: boolean;
   sortOrder: number;
   limits: PlanLimits;
   features: string[];
@@ -68,6 +86,18 @@ export const LIFETIME_UPDATES_YEARS = 1;
 
 /** Yearly price bills 10 months (two months free). Used by every recurring plan. */
 export const YEARLY_MONTHS_BILLED = 10;
+
+/** Floor for sellable monthly prices (GHS major units). */
+export const MIN_MONTHLY_PRICE_GHS = 99;
+
+/** Floor for sellable product caps (Enterprise unlimited exempt). */
+export const MIN_PRODUCT_LIMIT = 100;
+
+/** Default psychological list-price markup (%). Charged amount stays the real price. */
+export const DEFAULT_LIST_PRICE_MARKUP_PERCENT = 20;
+
+/** Sort order at/above which Pro-tier capabilities unlock (xlsx, customer display, …). */
+export const PRO_CAPABILITY_MIN_SORT_ORDER = 5;
 
 export function yearlyPriceFromMonthly(monthly: number): number {
   return monthly * YEARLY_MONTHS_BILLED;
@@ -87,21 +117,101 @@ export function formatPlanBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
-export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
-  basic: {
-    key: "basic",
-    name: "Basic",
-    tagline: "Everything a single shop needs to sell and track stock.",
-    audience: "Small retail businesses",
-    monthlyPrice: 200,
-    yearlyPrice: yearlyPriceFromMonthly(200),
+/** Psychological “was” price — never below the real charge. */
+export function listPriceFromReal(real: number, markupPercent: number): number {
+  if (!Number.isFinite(real) || real <= 0) return real;
+  const pct = Math.min(90, Math.max(0, markupPercent));
+  return Math.ceil(real * (1 + pct / 100));
+}
+
+export function clampListPriceMarkupPercent(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return DEFAULT_LIST_PRICE_MARKUP_PERCENT;
+  return Math.min(90, Math.max(0, Math.round(n)));
+}
+
+export const PLAN_CATALOG: Record<SeedPlanKey, PlanDefinition> = {
+  starter: {
+    key: "starter",
+    name: "Starter",
+    tagline: "Start selling with a lean catalogue and one till.",
+    audience: "New shops and solo sellers",
+    monthlyPrice: 99,
+    yearlyPrice: yearlyPriceFromMonthly(99),
     oneTimePrice: null,
     priceFrom: false,
     variableBackup: false,
     isLifetime: false,
     featured: false,
     selfServe: true,
+    marketingVisible: true,
+    homepageHighlight: true,
     sortOrder: 1,
+    limits: {
+      products: 100,
+      users: 1,
+      branches: 1,
+      devices: 1,
+      backupBytes: 100 * MEBIBYTE,
+    },
+    features: [
+      "Offline POS",
+      "Inventory",
+      "Products & categories",
+      "Customers",
+      "Barcode (camera)",
+      "Receipt printing",
+      "Returns",
+      "Basic reports",
+    ],
+  },
+  shop: {
+    key: "shop",
+    name: "Shop",
+    tagline: "A second user and more stock for a busy counter.",
+    audience: "Small retail shops",
+    monthlyPrice: 139,
+    yearlyPrice: yearlyPriceFromMonthly(139),
+    oneTimePrice: null,
+    priceFrom: false,
+    variableBackup: false,
+    isLifetime: false,
+    featured: false,
+    selfServe: true,
+    marketingVisible: true,
+    homepageHighlight: false,
+    sortOrder: 2,
+    limits: {
+      products: 250,
+      users: 2,
+      branches: 1,
+      devices: 2,
+      backupBytes: 150 * MEBIBYTE,
+    },
+    features: [
+      "Everything in Starter",
+      "Suppliers",
+      "Expenses",
+      "Hardware barcode",
+      "Analytics lite",
+    ],
+  },
+  basic: {
+    key: "basic",
+    name: "Basic",
+    tagline: "Everything a single shop needs to sell and track stock.",
+    audience: "Small retail businesses",
+    monthlyPrice: 199,
+    yearlyPrice: yearlyPriceFromMonthly(199),
+    oneTimePrice: null,
+    priceFrom: false,
+    variableBackup: false,
+    isLifetime: false,
+    featured: false,
+    selfServe: true,
+    marketingVisible: true,
+    homepageHighlight: false,
+    sortOrder: 3,
     limits: {
       products: 500,
       users: 3,
@@ -110,16 +220,43 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
       backupBytes: 250 * MEBIBYTE,
     },
     features: [
-      "Offline POS",
-      "Inventory",
-      "Products & categories",
+      "Everything in Shop",
       "Customers & suppliers",
       "Barcode (camera & hardware)",
-      "Receipt printing",
       "Returns",
       "Expenses",
       "Reports",
       "Analytics",
+    ],
+  },
+  growth: {
+    key: "growth",
+    name: "Growth",
+    tagline: "Two branches and a larger team as you expand.",
+    audience: "Growing retailers",
+    monthlyPrice: 279,
+    yearlyPrice: yearlyPriceFromMonthly(279),
+    oneTimePrice: null,
+    priceFrom: false,
+    variableBackup: false,
+    isLifetime: false,
+    featured: false,
+    selfServe: true,
+    marketingVisible: true,
+    homepageHighlight: false,
+    sortOrder: 4,
+    limits: {
+      products: 1000,
+      users: 5,
+      branches: 2,
+      devices: 5,
+      backupBytes: 350 * MEBIBYTE,
+    },
+    features: [
+      "Everything in Basic",
+      "Second branch",
+      "Branch transfers",
+      "More staff seats",
     ],
   },
   pro: {
@@ -127,15 +264,17 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     name: "Pro",
     tagline: "Wholesale, branches and analytics for growing businesses.",
     audience: "Supermarkets, pharmacies and wholesalers",
-    monthlyPrice: 450,
-    yearlyPrice: yearlyPriceFromMonthly(450),
+    monthlyPrice: 459,
+    yearlyPrice: yearlyPriceFromMonthly(459),
     oneTimePrice: null,
     priceFrom: false,
     variableBackup: false,
     isLifetime: false,
     featured: true,
     selfServe: true,
-    sortOrder: 2,
+    marketingVisible: true,
+    homepageHighlight: true,
+    sortOrder: 5,
     limits: {
       products: 5000,
       users: 15,
@@ -144,14 +283,44 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
       backupBytes: 500 * MEBIBYTE,
     },
     features: [
-      "Everything in Basic",
+      "Everything in Growth",
       "Wholesale inventory",
-      "Branch transfers",
       "Multi-branch management",
       "Advanced analytics",
       "Staff salary and commission",
       "Customer display",
+      "Excel & PDF export",
       "Priority support",
+    ],
+  },
+  business: {
+    key: "business",
+    name: "Business",
+    tagline: "Higher caps for multi-site operations before Enterprise.",
+    audience: "Regional chains and distributors",
+    monthlyPrice: 659,
+    yearlyPrice: yearlyPriceFromMonthly(659),
+    oneTimePrice: null,
+    priceFrom: false,
+    variableBackup: false,
+    isLifetime: false,
+    featured: false,
+    selfServe: true,
+    marketingVisible: true,
+    homepageHighlight: false,
+    sortOrder: 6,
+    limits: {
+      products: 15000,
+      users: 30,
+      branches: 10,
+      devices: 30,
+      backupBytes: 1 * GIBIBYTE,
+    },
+    features: [
+      "Everything in Pro",
+      "Larger catalogue & team",
+      "More branches and devices",
+      "1 GB cloud backup",
     ],
   },
   enterprise: {
@@ -159,15 +328,17 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     name: "Enterprise",
     tagline: "Unlimited scale with dedicated onboarding and support.",
     audience: "Multi-branch groups and distributors",
-    monthlyPrice: 750,
-    yearlyPrice: yearlyPriceFromMonthly(750),
+    monthlyPrice: 899,
+    yearlyPrice: yearlyPriceFromMonthly(899),
     oneTimePrice: null,
     priceFrom: true,
     variableBackup: true,
     isLifetime: false,
     featured: false,
     selfServe: true,
-    sortOrder: 3,
+    marketingVisible: true,
+    homepageHighlight: true,
+    sortOrder: 7,
     limits: {
       products: null,
       users: null,
@@ -176,7 +347,8 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
       backupBytes: null,
     },
     features: [
-      "Everything in Pro",
+      "Everything in Business",
+      "Unlimited products, users, branches, devices",
       "Custom cloud backup",
       "API ready",
       "Custom integrations",
@@ -198,8 +370,10 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
     featured: false,
     /** Legacy — not sold; kept for historical subscriptions and offline licences. */
     selfServe: false,
+    marketingVisible: false,
+    homepageHighlight: false,
     legacy: true,
-    sortOrder: 4,
+    sortOrder: 8,
     limits: {
       products: null,
       users: null,
@@ -221,14 +395,23 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDefinition> = {
  * Fallback for unknown / legacy plan strings. Must never resolve to the most
  * powerful entitlement set — Basic is the secure default.
  */
-export const DEFAULT_PLAN_KEY: PlanKey = "basic";
+export const DEFAULT_PLAN_KEY: SeedPlanKey = "basic";
 
 /** Plans offered for new sales and public pricing (excludes legacy Lifetime). */
-export const SELLABLE_PLAN_KEYS = ["basic", "pro", "enterprise"] as const;
+export const SELLABLE_PLAN_KEYS = [
+  "starter",
+  "shop",
+  "basic",
+  "growth",
+  "pro",
+  "business",
+  "enterprise",
+] as const;
 
-export type SellablePlanKey = (typeof SELLABLE_PLAN_KEYS)[number];
+/** Sellable plan slug — seed keys plus Super Admin–created plans. */
+export type SellablePlanKey = string;
 
-export const PLAN_LIST: PlanDefinition[] = PLAN_KEYS.map((key) => PLAN_CATALOG[key]).sort(
+export const PLAN_LIST: PlanDefinition[] = SEED_PLAN_KEYS.map((key) => PLAN_CATALOG[key]).sort(
   (a, b) => a.sortOrder - b.sortOrder,
 );
 
@@ -237,24 +420,36 @@ export const SELLABLE_PLAN_LIST: PlanDefinition[] = SELLABLE_PLAN_KEYS.map(
 ).sort((a, b) => a.sortOrder - b.sortOrder);
 
 export function isSellablePlanKey(value: unknown): value is SellablePlanKey {
-  return typeof value === "string" && (SELLABLE_PLAN_KEYS as readonly string[]).includes(value);
+  if (typeof value !== "string" || !value) return false;
+  if (value === "lifetime") return false;
+  // Seed sellable keys plus any Super Admin–created slug.
+  return (SELLABLE_PLAN_KEYS as readonly string[]).includes(value) || isValidPlanKeySlug(value);
 }
 
-export function isPlanKey(value: unknown): value is PlanKey {
-  return typeof value === "string" && (PLAN_KEYS as readonly string[]).includes(value);
+export function isSeedPlanKey(value: unknown): value is SeedPlanKey {
+  return typeof value === "string" && (SEED_PLAN_KEYS as readonly string[]).includes(value);
+}
+
+/** @deprecated Use isSeedPlanKey — historical name. */
+export function isPlanKey(value: unknown): value is SeedPlanKey {
+  return isSeedPlanKey(value);
+}
+
+export function isValidPlanKeySlug(value: unknown): value is string {
+  return typeof value === "string" && /^[a-z][a-z0-9_]{1,47}$/.test(value);
 }
 
 /**
- * Resolves a stored plan value to a definition. Unknown values (for example the
- * pre-billing `"standard"` string) fall back to Basic — never Lifetime/Enterprise.
- * Known historical keys such as `lifetime` still resolve to their catalog entry.
+ * Resolves a stored plan value to a seed definition. Unknown values fall back
+ * to Basic — never Lifetime/Enterprise. Prefer DB rows at entitlement time.
  */
 export function resolvePlan(value: unknown): PlanDefinition {
-  return isPlanKey(value) ? PLAN_CATALOG[value] : PLAN_CATALOG[DEFAULT_PLAN_KEY];
+  if (isSeedPlanKey(value)) return PLAN_CATALOG[value];
+  return PLAN_CATALOG[DEFAULT_PLAN_KEY];
 }
 
 export function planLimit(planKey: PlanKey, resource: LimitResource): number | null {
-  return PLAN_CATALOG[planKey].limits[resource];
+  return resolvePlan(planKey).limits[resource];
 }
 
 export const MIN_CUSTOM_BACKUP_GB = 1;
@@ -375,7 +570,7 @@ export function limitReachedMessage(
   resource: LimitResource,
   limit: number,
 ): string {
-  const plan = PLAN_CATALOG[planKey];
+  const plan = resolvePlan(planKey);
   switch (resource) {
     case "products":
       return `Cannot create Product #${limit + 1} on ${plan.name}. Upgrade to add more.`;
@@ -395,8 +590,8 @@ export type PlanChangeKind = "upgrade" | "downgrade" | "same";
 /** Compare catalog rank. Lifetime is above paid tiers; same key is `same`. */
 export function planChangeKind(from: PlanKey, to: PlanKey): PlanChangeKind {
   if (from === to) return "same";
-  const fromOrder = PLAN_CATALOG[from].sortOrder;
-  const toOrder = PLAN_CATALOG[to].sortOrder;
+  const fromOrder = resolvePlan(from).sortOrder;
+  const toOrder = resolvePlan(to).sortOrder;
   return toOrder > fromOrder ? "upgrade" : "downgrade";
 }
 
@@ -422,4 +617,61 @@ export function usageExceedsLimits(
     }
   }
   return excess;
+}
+
+/** Map a DB `plans` document into the shared PlanDefinition shape. */
+export function planDefinitionFromRow(row: {
+  key: string;
+  name: string;
+  description?: string;
+  tagline?: string;
+  audience?: string;
+  monthlyPrice: number | null;
+  yearlyPrice: number | null;
+  oneTimePrice: number | null;
+  productLimit: number | null;
+  userLimit: number | null;
+  branchLimit: number | null;
+  deviceLimit: number | null;
+  backupLimitBytes: number | null;
+  features: string[];
+  isLifetime: boolean;
+  sortOrder: number;
+  priceFrom?: boolean;
+  variableBackup?: boolean;
+  featured?: boolean;
+  selfServe?: boolean;
+  marketingVisible?: boolean;
+  homepageHighlight?: boolean;
+  legacy?: boolean;
+  archived?: boolean;
+}): PlanDefinition {
+  const seed = isSeedPlanKey(row.key) ? PLAN_CATALOG[row.key] : null;
+  return {
+    key: row.key,
+    name: row.name,
+    tagline: row.tagline ?? row.description ?? seed?.tagline ?? "",
+    audience: row.audience ?? seed?.audience ?? "",
+    monthlyPrice: row.monthlyPrice,
+    yearlyPrice: row.yearlyPrice,
+    oneTimePrice: row.oneTimePrice,
+    priceFrom: row.priceFrom ?? seed?.priceFrom ?? false,
+    variableBackup: row.variableBackup ?? seed?.variableBackup ?? false,
+    isLifetime: row.isLifetime,
+    featured: row.featured ?? seed?.featured ?? false,
+    selfServe: row.selfServe ?? seed?.selfServe ?? !row.isLifetime,
+    marketingVisible: row.marketingVisible ?? seed?.marketingVisible ?? false,
+    homepageHighlight: row.homepageHighlight ?? seed?.homepageHighlight ?? false,
+    legacy: row.legacy ?? seed?.legacy,
+    archived: row.archived ?? false,
+    sortOrder: row.sortOrder,
+    limits: {
+      products: row.productLimit,
+      users: row.userLimit,
+      branches: row.branchLimit,
+      devices: row.deviceLimit,
+      backupBytes: row.backupLimitBytes,
+    },
+    features: row.features,
+  };
 }

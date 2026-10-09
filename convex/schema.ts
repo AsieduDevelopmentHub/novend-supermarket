@@ -44,12 +44,8 @@ export const platformCostCategoryValidator = v.union(
   v.literal("misc"),
 );
 
-export const planKeyValidator = v.union(
-  v.literal("basic"),
-  v.literal("pro"),
-  v.literal("enterprise"),
-  v.literal("lifetime"),
-);
+/** Plan slug — seed keys plus Super Admin–created plans. */
+export const planKeyValidator = v.string();
 
 /** `inactive` is the pre-licensing value and is treated as `disabled`. */
 export const organizationStatusValidator = v.union(
@@ -195,11 +191,8 @@ export const commercialOfferStatusValidator = v.union(
   v.literal("withdrawn"),
 );
 
-export const sellablePlanKeyValidator = v.union(
-  v.literal("basic"),
-  v.literal("pro"),
-  v.literal("enterprise"),
-);
+/** Sellable plan slug (excludes legacy lifetime at runtime). */
+export const sellablePlanKeyValidator = v.string();
 
 /** Same shape as organizations.limitOverrides — reused by commercial offers. */
 export const limitOverridesValidator = v.object({
@@ -447,14 +440,16 @@ export default defineSchema({
     .index("by_organization_status", ["organizationId", "status"]),
 
   /**
-   * Commercial plan catalog. Mirrors `convex/shared/plans.ts`, which stays the
-   * source of truth for limits; this table adds gateway plan codes and gives the
-   * platform dashboard something to join against.
+   * Commercial plan catalog — source of truth for public marketing, self-serve
+   * sellability, and entitlements. Seeded from `convex/shared/plans.ts`; Super
+   * Admin may create/update/archive. Gateway plan codes live here too.
    */
   plans: defineTable({
     key: planKeyValidator,
     name: v.string(),
     description: v.string(),
+    tagline: v.optional(v.string()),
+    audience: v.optional(v.string()),
     monthlyPrice: v.union(v.number(), v.null()),
     yearlyPrice: v.union(v.number(), v.null()),
     oneTimePrice: v.union(v.number(), v.null()),
@@ -466,11 +461,33 @@ export default defineSchema({
     backupLimitBytes: v.union(v.number(), v.null()),
     features: v.array(v.string()),
     isLifetime: v.boolean(),
+    priceFrom: v.optional(v.boolean()),
+    variableBackup: v.optional(v.boolean()),
+    featured: v.optional(v.boolean()),
+    selfServe: v.optional(v.boolean()),
+    marketingVisible: v.optional(v.boolean()),
+    homepageHighlight: v.optional(v.boolean()),
+    legacy: v.optional(v.boolean()),
+    archived: v.optional(v.boolean()),
     sortOrder: v.number(),
     gatewayMonthlyPlanCode: v.optional(v.string()),
     gatewayYearlyPlanCode: v.optional(v.string()),
     updatedAt: v.number(),
-  }).index("by_key", ["key"]),
+  })
+    .index("by_key", ["key"])
+    .index("by_sortOrder", ["sortOrder"]),
+
+  /**
+   * Singleton billing display settings (list-price markup, etc.).
+   * Query with `by_singleton` eq true — at most one row.
+   */
+  billingSettings: defineTable({
+    singleton: v.boolean(),
+    listPriceMarkupPercent: v.number(),
+    currency: v.string(),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.id("users")),
+  }).index("by_singleton", ["singleton"]),
 
   subscriptions: defineTable({
     organizationId: v.id("organizations"),

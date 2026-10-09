@@ -3,13 +3,20 @@ import type { MutationCtx } from "../_generated/server";
 import { writeAuditLog } from "./audit";
 import { getActiveSubscription } from "./entitlements";
 import { GRACE_PERIOD_MS, TRIAL_PERIOD_MS } from "./licensing";
-import { PLAN_CATALOG, PLAN_LIST, priceForCycle, type BillingCycle, type PlanKey } from "./plans";
+import {
+  DEFAULT_LIST_PRICE_MARKUP_PERCENT,
+  PLAN_LIST,
+  priceForCycle,
+  resolvePlan,
+  type BillingCycle,
+  type PlanKey,
+} from "./plans";
 import type { ScheduledChangeSnapshot } from "./planChange";
 import { periodEnd } from "./billingPeriod";
 
 export { periodEnd };
 
-/** Mirrors the code catalog into the `plans` table. Idempotent. */
+/** Seeds / refreshes seed catalog rows into `plans`. Idempotent. Does not overwrite Super Admin–only fields on custom keys. */
 export async function ensurePlanCatalogRows(ctx: MutationCtx): Promise<void> {
   const now = Date.now();
   for (const plan of PLAN_LIST) {
@@ -21,6 +28,8 @@ export async function ensurePlanCatalogRows(ctx: MutationCtx): Promise<void> {
       key: plan.key,
       name: plan.name,
       description: plan.tagline,
+      tagline: plan.tagline,
+      audience: plan.audience,
       monthlyPrice: plan.monthlyPrice,
       yearlyPrice: plan.yearlyPrice,
       oneTimePrice: plan.oneTimePrice,
@@ -32,15 +41,57 @@ export async function ensurePlanCatalogRows(ctx: MutationCtx): Promise<void> {
       backupLimitBytes: plan.limits.backupBytes,
       features: plan.features,
       isLifetime: plan.isLifetime,
+      priceFrom: plan.priceFrom,
+      variableBackup: plan.variableBackup,
+      featured: plan.featured,
+      selfServe: plan.selfServe,
+      marketingVisible: plan.marketingVisible,
+      homepageHighlight: plan.homepageHighlight,
+      legacy: plan.legacy ?? false,
+      archived: plan.archived ?? false,
       sortOrder: plan.sortOrder,
       updatedAt: now,
     };
     if (existing) {
-      await ctx.db.patch(existing._id, row);
+      // Preserve gateway codes; refresh seed commercial/marketing fields.
+      await ctx.db.patch(existing._id, {
+        ...row,
+        gatewayMonthlyPlanCode: existing.gatewayMonthlyPlanCode,
+        gatewayYearlyPlanCode: existing.gatewayYearlyPlanCode,
+      });
     } else {
       await ctx.db.insert("plans", row);
     }
   }
+  await ensureBillingSettingsRow(ctx);
+}
+
+/** Singleton billing display settings (list-price markup). */
+export async function ensureBillingSettingsRow(ctx: MutationCtx): Promise<void> {
+  const existing = await ctx.db
+    .query("billingSettings")
+    .withIndex("by_singleton", (q) => q.eq("singleton", true))
+    .unique();
+  if (existing) return;
+  await ctx.db.insert("billingSettings", {
+    singleton: true,
+    listPriceMarkupPercent: DEFAULT_LIST_PRICE_MARKUP_PERCENT,
+    currency: "GHS",
+    updatedAt: Date.now(),
+  });
+}
+
+export async function getBillingSettings(ctx: MutationCtx | { db: MutationCtx["db"] }) {
+  const row = await ctx.db
+    .query("billingSettings")
+    .withIndex("by_singleton", (q) => q.eq("singleton", true))
+    .unique();
+  return (
+    row ?? {
+      listPriceMarkupPercent: DEFAULT_LIST_PRICE_MARKUP_PERCENT,
+      currency: "GHS",
+    }
+  );
 }
 
 export async function planRowId(
@@ -86,7 +137,19 @@ export async function activateSubscription(
   await ensurePlanCatalogRows(ctx);
 
   const now = args.startsAt ?? Date.now();
-  const plan = PLAN_CATALOG[args.planKey];
+  const planRow = await ctx.db
+    .query("plans")
+    .withIndex("by_key", (q) => q.eq("key", args.planKey))
+    .unique();
+  const plan = planRow
+    ? {
+        ...resolvePlan(args.planKey),
+        isLifetime: planRow.isLifetime,
+        monthlyPrice: planRow.monthlyPrice,
+        yearlyPrice: planRow.yearlyPrice,
+        oneTimePrice: planRow.oneTimePrice,
+      }
+    : resolvePlan(args.planKey);
   const isLifetime = plan.isLifetime || args.cycle === "lifetime";
   const existing = await getActiveSubscription(ctx, organization);
   const keepPeriod = Boolean(args.keepPeriod && existing && !isLifetime && existing.expiresAt);
@@ -191,7 +254,7 @@ export async function applyScheduledDowngrade(
   }
   if (now < change.effectiveAt) return { applied: false };
 
-  const plan = PLAN_CATALOG[change.targetPlanKey];
+  const plan = resolvePlan(change.targetPlanKey);
   const planId = await planRowId(ctx, change.targetPlanKey);
   const amount = priceForCycle(plan, change.targetCycle) ?? subscription.amount;
 
