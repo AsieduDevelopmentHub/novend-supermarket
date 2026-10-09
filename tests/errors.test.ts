@@ -10,8 +10,10 @@ describe("connectivity errors", () => {
   });
 
   it("maps failed fetch without leaking the raw error", () => {
-    expect(toUserMessage(new TypeError("Failed to fetch"))).toMatch(/couldn't load|try again/i);
-    expect(toUserMessage(new TypeError("Failed to fetch"))).not.toMatch(/Failed to fetch/i);
+    const error = new TypeError("Failed to fetch");
+    expect(isConnectivityError(error)).toBe(true);
+    expect(toUserMessage(error)).toMatch(/couldn't load|try again/i);
+    expect(toUserMessage(error)).not.toMatch(/Failed to fetch/i);
   });
 
   it("maps a live network failure to a server message", () => {

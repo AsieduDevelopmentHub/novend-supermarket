@@ -24,6 +24,11 @@ export async function initSentryBrowser() {
         }
         const text = `${event.message ?? ""} ${event.exception?.values?.map((value) => value.value).join(" ") ?? ""}`;
         if (/plugin is not implemented/i.test(text)) return null;
+        // Next prefetch / shell warm on a flaky Electron radio — not actionable.
+        const exceptionType = event.exception?.values?.[0]?.type ?? "";
+        if (/typeerror/i.test(exceptionType) && /failed to fetch/i.test(text)) {
+          return null;
+        }
         return event;
       },
     });

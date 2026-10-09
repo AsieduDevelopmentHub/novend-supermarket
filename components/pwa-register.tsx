@@ -8,6 +8,7 @@ import {
 } from "@/lib/auth/recover-auth-navigation";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 
+/** POS shell only — do not warm marketing /docs on the till (flaky radio → Failed to fetch noise). */
 const SHELL_ROUTES = [
   "/dashboard",
   "/sales",
@@ -32,9 +33,6 @@ const SHELL_ROUTES = [
   "/cookies",
   "/aup",
   "/dpa",
-  "/docs",
-  "/docs/help",
-  "/docs/releases",
 ];
 
 function shouldRegisterServiceWorker() {
