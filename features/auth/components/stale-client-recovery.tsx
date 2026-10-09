@@ -10,6 +10,14 @@ import {
 } from "@/lib/errors";
 
 const STALE_TOAST_ID = "stale-client";
+const FRIENDLY_STALE =
+  "Novend needs a quick refresh to load the latest version. Your saved work is safe on this device.";
+
+function combinedToastText(message: unknown, data?: { description?: unknown }) {
+  const description =
+    data && typeof data === "object" && "description" in data ? data.description : undefined;
+  return `${String(message ?? "")} ${String(description ?? "")}`;
+}
 
 /**
  * Catch browser rejections that must not become Sentry noise or raw toasts:
@@ -24,7 +32,7 @@ export function StaleClientRecovery() {
     const onRejection = (event: PromiseRejectionEvent) => {
       if (isStaleClientError(event.reason)) {
         event.preventDefault();
-        toast.dismiss(STALE_TOAST_ID);
+        toast.dismiss();
         recoverStaleClient(event.reason);
         return;
       }
@@ -35,16 +43,13 @@ export function StaleClientRecovery() {
 
     const originalError = toast.error.bind(toast);
     toast.error = ((message: unknown, data?: Parameters<typeof toast.error>[1]) => {
-      const description =
-        data && typeof data === "object" && "description" in data
-          ? (data as { description?: unknown }).description
-          : undefined;
-      if (isStaleClientError(message) || isStaleClientError(description)) {
-        recoverStaleClient(message);
-        return originalError(
-          "Novend needs a quick refresh to load the latest version. Your saved work is safe on this device.",
-          { id: STALE_TOAST_ID, duration: 6_000 },
-        );
+      const combined = combinedToastText(
+        message,
+        data as { description?: unknown } | undefined,
+      );
+      if (isStaleClientError(message) || isStaleClientError(combined)) {
+        recoverStaleClient(combined);
+        return originalError(FRIENDLY_STALE, { id: STALE_TOAST_ID, duration: 6_000 });
       }
       return originalError(message as never, data);
     }) as typeof toast.error;

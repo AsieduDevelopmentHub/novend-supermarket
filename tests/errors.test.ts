@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isConnectivityError,
   isServiceWorkerRegistrationError,
+  isStaleClientError,
   toUserMessage,
 } from "@/lib/errors";
 
@@ -41,6 +42,17 @@ describe("connectivity errors", () => {
     expect(message).toMatch(/quick refresh/i);
     expect(message).not.toMatch(/00c87a/i);
     expect(message).not.toMatch(/nextjs\.org/i);
+  });
+
+  it("detects Sonner-split Server Action title + hex body", () => {
+    const split =
+      'Server Action "00c87a2790661c26f594a2428f4f2908055b355bb3" was not found on the server';
+    expect(isStaleClientError(split)).toBe(true);
+    expect(
+      isStaleClientError(
+        '"00c87a2790661c26f594a2428f4f2908055b355bb3" was not found on the server',
+      ),
+    ).toBe(true);
   });
 });
 

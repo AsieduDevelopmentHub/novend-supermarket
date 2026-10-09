@@ -34,5 +34,6 @@ describe("stale server-action recovery", () => {
     expect(source).toContain("recoverStaleClient");
     expect(source).toContain("unhandledrejection");
     expect(source).toContain("isServiceWorkerRegistrationError");
+    expect(source).toContain("combinedToastText");
   });
 });

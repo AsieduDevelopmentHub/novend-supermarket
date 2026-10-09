@@ -7,7 +7,13 @@ import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { isConnectivityError, SERVER_UNREACHABLE_MESSAGE, showError } from "@/lib/errors";
+import {
+  isConnectivityError,
+  isStaleClientError,
+  SERVER_UNREACHABLE_MESSAGE,
+  showError,
+} from "@/lib/errors";
+import { recoverStaleClient } from "@/lib/auth/recover-auth-navigation";
 import Image from "next/image";
 import { ArrowLeft, Mail } from "lucide-react";
 import { isCapacitor, isElectron } from "@novend/hardware";
@@ -525,6 +531,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       redirectingRef.current = false;
       setOpeningWorkspace(false);
 
+      if (isStaleClientError(error)) {
+        // Cached login HTML after a deploy still holds a dead Server Action id.
+        recoverStaleClient(error);
+        setPending(false);
+        return;
+      }
       const raw = error instanceof Error ? error.message : "";
       const lower = raw.toLowerCase();
       if (lower.includes("auth provider discovery")) {

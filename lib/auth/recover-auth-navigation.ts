@@ -115,12 +115,44 @@ export function shouldAutoRecoverChunkFailure(error: unknown): boolean {
 /** One refresh when the open page still calls a server action the new deploy removed. */
 export function shouldAutoRecoverStaleClient(error: unknown): boolean {
   if (!isStaleClientError(error)) return false;
+  if (typeof window === "undefined") return false;
+  // Login/signup stuck on a stale action id must refresh even if a chunk recovery
+  // just ran — otherwise the raw Server Action toast blocks the first sign-in.
+  const onAuth =
+    window.location.pathname === "/login" || window.location.pathname === "/signup";
+  if (onAuth) {
+    const now = Date.now();
+    try {
+      const previous = Number(window.sessionStorage.getItem(CHUNK_RECOVERY_KEY) ?? "0");
+      if (Number.isFinite(previous) && now - previous < 3_000) return false;
+      window.sessionStorage.setItem(CHUNK_RECOVERY_KEY, String(now));
+    } catch {
+      /* Reloading is still safer than leaving the raw action id toast. */
+    }
+    return true;
+  }
   return claimClientRecoverySlot();
 }
 
 /** Reload once for a missing server action. Returns false when the cooldown already fired. */
 export function recoverStaleClient(error: unknown): boolean {
   if (!shouldAutoRecoverStaleClient(error)) return false;
+  // Drop cached auth shells so the next load cannot reuse the dead action id.
+  try {
+    void caches?.keys?.().then(async (keys) => {
+      await Promise.all(
+        keys
+          .filter((key) => key.startsWith("novend-pos"))
+          .map(async (key) => {
+            const cache = await caches.open(key);
+            await cache.delete("/login");
+            await cache.delete("/signup");
+          }),
+      );
+    });
+  } catch {
+    /* novendFresh still forces network on the next navigation */
+  }
   recoverFromChunkLoadFailure();
   return true;
 }
