@@ -287,10 +287,10 @@ export async function resolvePostLoginSession(
 
   const hasSocketApi =
     typeof (convex as ConvexConnectionClient).connectionState === "function";
-  const socketReady = await waitForConvexConnection(convex, SOCKET_READY_MS);
-  if (!socketReady) {
-    throw new Error(PROFILE_LOAD_ERROR);
-  }
+  // Cap/Electron often report online before the websocket is ready. Wait, but
+  // still try users.me if the socket is slow — failing closed left tills stuck
+  // on “Could not load your profile” / Opening your workspace.
+  await waitForConvexConnection(convex, SOCKET_READY_MS);
   // Password sign-in returns before the JWT is on the socket. Login and
   // Connect-to-cloud both hit this path; a short pause beats four hung me calls.
   // Thin test stubs have no connectionState — skip the real-time pause there.
@@ -440,6 +440,9 @@ export function prepareHardNavigation(): void {
   }
 }
 
+/** Electron trampoline must not hang the login cover forever. */
+const ELECTRON_SHELL_RELOAD_MS = 6_000;
+
 /**
  * Leave auth pages for the app shell.
  *
@@ -449,12 +452,16 @@ export function prepareHardNavigation(): void {
  * `location.replace`.
  *
  * Web online without `hard`: soft `router.replace`, with a short hard fallback.
+ *
+ * Returns when the leave is handed off (or when Electron’s trampoline finishes).
+ * Callers should await this so “Opening your workspace” is not left painted
+ * over a hung HTTPS replace.
  */
-export function navigateAfterLogin(
+export async function navigateAfterLogin(
   path: string,
   router: AppRouter,
   options?: { hard?: boolean },
-): void {
+): Promise<void> {
   markPostLoginLeavePending();
   markSkipStartupSplash();
 
@@ -465,27 +472,33 @@ export function navigateAfterLogin(
   const target = forceHard ? withPostLoginShellMarker(path) : path;
 
   if (typeof window !== "undefined" && forceHard) {
-    // The first hard leave owns the native handoff. Re-running replace while
-    // the service worker is resolving the document causes visible reloads.
-    if (hardNavigationPending) return;
+    // A prior hung leave must not permanently no-op — that left Electron stuck
+    // on Opening your workspace after password success.
+    if (hardNavigationPending) {
+      resetHardNavigationPending();
+    }
     hardNavigationPending = true;
     prepareHardNavigation();
     // Electron: HTTPS location.replace can hang on flaky radio (same class as
     // stuck Signing out). Local trampoline loads the cached shell entry.
     if (isElectron()) {
-      void (async () => {
-        try {
-          const result = await getDesktopBridge()?.reloadAuthShell(target);
-          if (result?.ok) return;
-        } catch {
-          /* fall through to replace */
-        }
-        try {
-          window.location.replace(target);
-        } catch {
-          window.location.href = target;
-        }
-      })();
+      try {
+        const result = await withTimeout(
+          Promise.resolve(getDesktopBridge()?.reloadAuthShell(target)).then(
+            (value) => value ?? { ok: false as const },
+          ),
+          ELECTRON_SHELL_RELOAD_MS,
+          "shell reload timed out",
+        );
+        if (result?.ok) return;
+      } catch {
+        /* fall through to replace */
+      }
+      try {
+        window.location.replace(target);
+      } catch {
+        window.location.href = target;
+      }
       return;
     }
     window.location.replace(target);
@@ -499,9 +512,10 @@ export function navigateAfterLogin(
   window.setTimeout(() => {
     const here = window.location.pathname;
     if (here === "/login" || here === "/signup" || here === "/onboarding") {
-      if (hardNavigationPending) return;
-      hardNavigationPending = true;
-      prepareHardNavigation();
+      if (!hardNavigationPending) {
+        hardNavigationPending = true;
+        prepareHardNavigation();
+      }
       window.location.replace(withPostLoginShellMarker(path));
     }
   }, HARD_NAV_FALLBACK_MS);

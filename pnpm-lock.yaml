@@ -9,7 +9,7 @@ overrides:
   sharp: '>=0.35.0'
 
 patchedDependencies:
-  '@convex-dev/auth@0.0.87': 16d641faab69c06630478e83fccea6ac90eaae161bbc8ce46100b25577a177ef
+  '@convex-dev/auth@0.0.87': 3bd9fb9a773e405913f0660b217cb03a649777b10c6b8d24811fd253fba654bf
 
 importers:
 
@@ -56,7 +56,7 @@ importers:
         version: 7.0.4(@capacitor/core@7.6.8)
       '@convex-dev/auth':
         specifier: ^0.0.87
-        version: 0.0.87(patch_hash=16d641faab69c06630478e83fccea6ac90eaae161bbc8ce46100b25577a177ef)(@auth/core@0.41.3)(convex@1.46.0(react@19.3.0))(react@19.3.0)
+        version: 0.0.87(patch_hash=3bd9fb9a773e405913f0660b217cb03a649777b10c6b8d24811fd253fba654bf)(@auth/core@0.41.3)(convex@1.46.0(react@19.3.0))(react@19.3.0)
       '@hookform/resolvers':
         specifier: ^5.0.1
         version: 5.9.1(@standard-schema/spec@1.1.0)(react-hook-form@7.89.0(@types/react@19.2.18)(react@19.3.0))(zod@3.25.76)
@@ -6525,7 +6525,7 @@ snapshots:
 
   '@capacitor/synapse@1.0.4': {}
 
-  '@convex-dev/auth@0.0.87(patch_hash=16d641faab69c06630478e83fccea6ac90eaae161bbc8ce46100b25577a177ef)(@auth/core@0.41.3)(convex@1.46.0(react@19.3.0))(react@19.3.0)':
+  '@convex-dev/auth@0.0.87(patch_hash=3bd9fb9a773e405913f0660b217cb03a649777b10c6b8d24811fd253fba654bf)(@auth/core@0.41.3)(convex@1.46.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@auth/core': 0.41.3
       convex: 1.46.0(react@19.3.0)
