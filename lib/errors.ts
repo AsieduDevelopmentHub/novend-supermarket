@@ -69,6 +69,23 @@ export function isConnectivityError(error: unknown): boolean {
 }
 
 /**
+ * Browser refused to install /sw.js — common on Chrome-on-iOS, private mode,
+ * and cross-origin iframes. Not an app security incident; do not toast or Sentry.
+ */
+export function isServiceWorkerRegistrationError(error: unknown): boolean {
+  const lower = rawErrorText(error).toLowerCase();
+  if (!lower.includes("sw.js") && !lower.includes("service worker") && !lower.includes("serviceworker")) {
+    return false;
+  }
+  return (
+    lower.includes("securityerror") ||
+    lower.includes("load failed") ||
+    lower.includes("failed to register") ||
+    lower.includes("script")
+  );
+}
+
+/**
  * Convert backend / Convex errors into short messages safe to show end users.
  * Full details are logged for debugging.
  */

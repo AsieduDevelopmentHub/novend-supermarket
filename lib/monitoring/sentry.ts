@@ -29,6 +29,14 @@ export async function initSentryBrowser() {
         if (/typeerror/i.test(exceptionType) && /failed to fetch/i.test(text)) {
           return null;
         }
+        // Chrome-on-iOS / private mode refusing /sw.js — not an app security bug.
+        if (
+          /securityerror/i.test(exceptionType) &&
+          (/sw\.js/i.test(text) || /service.?worker/i.test(text))
+        ) {
+          return null;
+        }
+        if (/script .+sw\.js load failed/i.test(text)) return null;
         return event;
       },
     });
