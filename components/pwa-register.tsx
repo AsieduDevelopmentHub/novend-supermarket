@@ -41,6 +41,17 @@ function shouldRegisterServiceWorker() {
   return process.env.NEXT_PUBLIC_OFFLINE_SW === "1";
 }
 
+/** Cross-origin iframes cannot own a service worker — WebKit throws SecurityError. */
+function canControlServiceWorker() {
+  if (!("serviceWorker" in navigator)) return false;
+  try {
+    if (window.top !== window.self) return false;
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 function isAuthPath(pathname: string) {
   return pathname === "/login" || pathname === "/signup";
 }
@@ -95,6 +106,11 @@ export function PwaRegister() {
       return;
     }
 
+    if (!canControlServiceWorker()) {
+      console.info("[pwa] service worker skipped (embedded or unavailable)");
+      return;
+    }
+
     let activeRegistration: ServiceWorkerRegistration | null = null;
     let hadController = Boolean(navigator.serviceWorker.controller);
     const onControllerChange = () => {
@@ -128,22 +144,23 @@ export function PwaRegister() {
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
     window.addEventListener("online", onOnline);
 
-    void navigator.serviceWorker
-      .register("/sw.js")
-      .then(async (registration) => {
+    // async IIFE so WebKit SecurityError from script load cannot escape as an
+    // unhandledrejection when register() and the script loader race.
+    void (async () => {
+      try {
+        const registration = await navigator.serviceWorker.register("/sw.js");
         activeRegistration = registration;
         hadController = Boolean(navigator.serviceWorker.controller);
         await registration.update().catch(() => undefined);
         if (registration.waiting) {
           registration.waiting.postMessage({ type: "SKIP_WAITING" });
         }
-        await navigator.serviceWorker.ready;
+        await navigator.serviceWorker.ready.catch(() => undefined);
         warmShellRoutes();
-        return registration;
-      })
-      .catch((error) => {
+      } catch (error) {
         console.info("[pwa] service worker registration skipped", error);
-      });
+      }
+    })();
 
     return () => {
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);

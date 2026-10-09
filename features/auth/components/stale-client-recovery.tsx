@@ -3,7 +3,11 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { recoverStaleClient } from "@/lib/auth/recover-auth-navigation";
-import { isConnectivityError, isStaleClientError } from "@/lib/errors";
+import {
+  isConnectivityError,
+  isServiceWorkerRegistrationError,
+  isStaleClientError,
+} from "@/lib/errors";
 
 const STALE_TOAST_ID = "stale-client";
 
@@ -11,9 +15,9 @@ const STALE_TOAST_ID = "stale-client";
  * Catch browser rejections that must not become Sentry noise or raw toasts:
  *
  * 1. Convex Auth `invalidateCache` Server Action id after a deploy (stale client).
- * 2. `TypeError: Failed to fetch` from Next prefetch / flaky Electron radio —
- *    those are expected when the till is mid-reconnect and must not surface as
- *    unhandledrejection alerts.
+ * 2. `TypeError: Failed to fetch` from Next prefetch / flaky Electron radio.
+ * 3. `SecurityError: Script …/sw.js load failed` — Chrome-on-iOS / private mode
+ *    refusing the service worker (not an app security bug).
  */
 export function StaleClientRecovery() {
   useEffect(() => {
@@ -24,7 +28,7 @@ export function StaleClientRecovery() {
         recoverStaleClient(event.reason);
         return;
       }
-      if (isConnectivityError(event.reason)) {
+      if (isServiceWorkerRegistrationError(event.reason) || isConnectivityError(event.reason)) {
         event.preventDefault();
       }
     };

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isConnectivityError, toUserMessage } from "@/lib/errors";
+import {
+  isConnectivityError,
+  isServiceWorkerRegistrationError,
+  toUserMessage,
+} from "@/lib/errors";
 
 describe("connectivity errors", () => {
   it("maps Chrome disconnect codes to a human message", () => {
@@ -18,6 +22,15 @@ describe("connectivity errors", () => {
 
   it("maps a live network failure to a server message", () => {
     expect(toUserMessage(new Error("NETWORK_ERROR"))).toMatch(/Unable to reach the server/i);
+  });
+
+  it("detects Chrome-on-iOS service worker SecurityError without treating it as auth", () => {
+    const error = new DOMException(
+      "Script https://novend-pos.vercel.app/sw.js load failed",
+      "SecurityError",
+    );
+    expect(isServiceWorkerRegistrationError(error)).toBe(true);
+    expect(isServiceWorkerRegistrationError(new Error("Failed to fetch"))).toBe(false);
   });
 
   it("hides a stale server action id", () => {
