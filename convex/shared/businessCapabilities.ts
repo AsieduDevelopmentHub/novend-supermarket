@@ -44,6 +44,20 @@ export const INDUSTRY_PROFILES = [
 
 export type IndustryProfile = (typeof INDUSTRY_PROFILES)[number];
 
+/** Human labels for industry packs (onboarding, settings, Super Admin). */
+export const INDUSTRY_PROFILE_LABELS: Record<IndustryProfile, string> = {
+  retail: "Retail",
+  wholesale: "Wholesale distribution",
+  supermarket: "Supermarket",
+  cold_store: "Cold store / meat & fish",
+  electronics: "Electronics",
+  pharmacy: "Pharmacy (inventory)",
+  restaurant: "Restaurant / F&B",
+  bar: "Bar / lounge",
+  hotel: "Hotel / lodging",
+  custom: "Custom",
+};
+
 export type BusinessCapabilityDefinition = {
   key: BusinessCapabilityKey;
   version: number;
@@ -203,6 +217,11 @@ export function isBusinessCapabilityKey(value: string): value is BusinessCapabil
 
 export function isIndustryProfile(value: string): value is IndustryProfile {
   return (INDUSTRY_PROFILES as readonly string[]).includes(value);
+}
+
+export function industryProfileLabel(profile: string | null | undefined): string {
+  if (profile && isIndustryProfile(profile)) return INDUSTRY_PROFILE_LABELS[profile];
+  return INDUSTRY_PROFILE_LABELS.retail;
 }
 
 /** Nav / dashboard stock chrome — presentation only (restaurant, bar, hotel packs). */

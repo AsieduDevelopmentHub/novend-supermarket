@@ -53,7 +53,12 @@ import {
   readPlatformStats,
 } from "./shared/platformStatsAggregate";
 import { countOrganizationsByCommercialStatus } from "./shared/platformOrganizations";
-import { loadProductImagesPolicy, writeProductImagesPolicy } from "./settings";
+import {
+  loadBusinessConfiguration,
+  loadProductImagesPolicy,
+  writeProductImagesPolicy,
+} from "./settings";
+import { industryProfileLabel, parseBusinessConfiguration } from "./shared/businessCapabilities";
 import { PRODUCT_IMAGES_SETTINGS_KEY } from "./shared/productImagesPolicy";
 import {
   featureSourceLabel,
@@ -269,12 +274,22 @@ export const listOrganizations = query({
       const q = args.search.trim().toLowerCase();
       orgs = orgs.filter((org) => org.name.toLowerCase().includes(q) || org.slug.includes(q));
     }
-    const [orgStats, commercialOffers] = await Promise.all([
+    const [orgStats, commercialOffers, capabilitySettings] = await Promise.all([
       ctx.db.query("organizationPlatformStats").collect(),
       ctx.db.query("commercialOffers").collect(),
+      ctx.db
+        .query("settings")
+        .withIndex("by_key", (q) => q.eq("key", "business.capabilities"))
+        .collect(),
     ]);
     const statsByOrg = new Map(orgStats.map((row) => [String(row.organizationId), row]));
     const liveOffersByOrg = indexLiveOffersByOrganization(commercialOffers);
+    const industryByOrg = new Map(
+      capabilitySettings.map((row) => {
+        const profile = parseBusinessConfiguration(row.value).industryProfile;
+        return [String(row.organizationId), profile] as const;
+      }),
+    );
     return orgs
       .sort((a, b) => b.createdAt - a.createdAt)
       .map((org) => {
@@ -288,12 +303,15 @@ export const listOrganizations = query({
           offer?.limitOverrides,
         );
         const caps = planCapabilities(plan.key, limits);
+        const industryProfile = industryByOrg.get(String(org._id)) ?? "retail";
         return {
           id: org._id,
           name: org.name,
           slug: org.slug,
           status: org.status,
           isTestOrganization: org.isTestOrganization === true,
+          industryProfile,
+          industryLabel: industryProfileLabel(industryProfile),
           planKey: plan.key,
           plan: plan.name,
           currency: org.currency,
@@ -325,12 +343,15 @@ export const getOrganization = query({
     if (!org) return null;
 
     const owner = await ctx.db.get(org.ownerUserId);
-    const businessRow = await ctx.db
-      .query("settings")
-      .withIndex("by_organization_key", (q) =>
-        q.eq("organizationId", org._id).eq("key", "business.profile"),
-      )
-      .unique();
+    const [businessRow, businessCapabilities] = await Promise.all([
+      ctx.db
+        .query("settings")
+        .withIndex("by_organization_key", (q) =>
+          q.eq("organizationId", org._id).eq("key", "business.profile"),
+        )
+        .unique(),
+      loadBusinessConfiguration(ctx, org._id),
+    ]);
     let business: {
       tradeName?: string;
       legalName?: string;
@@ -346,6 +367,7 @@ export const getOrganization = query({
         business = {};
       }
     }
+    const industryProfile = businessCapabilities.industryProfile;
 
     const [profiles, branches, wholesale, suppliers, customers, devices, backups] =
       await Promise.all([
@@ -465,6 +487,8 @@ export const getOrganization = query({
       closureEffectiveAt: org.closureEffectiveAt ?? null,
       closureReason: org.closureReason ?? null,
       country: org.country ?? null,
+      industryProfile,
+      industryLabel: industryProfileLabel(industryProfile),
       planKey: resolvePlan(org.planKey).key,
       plan: resolvePlan(org.planKey).name,
       currency: org.currency,

@@ -106,10 +106,11 @@ export function PlatformView() {
               <EmptyState icon={Building2} title="No organizations yet" />
             </div>
           ) : (
-            <table className="w-full min-w-[960px] text-left text-sm">
+            <table className="w-full min-w-[1080px] text-left text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-medium">Business</th>
+                  <th className="px-4 py-3 font-medium">Business type</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Plan</th>
                   <th className="px-4 py-3 font-medium">Users</th>
@@ -126,6 +127,9 @@ export function PlatformView() {
                     <td className="px-4 py-3">
                       <p className="font-medium">{org.name}</p>
                       <p className="text-muted-foreground text-xs">{org.slug}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm">{org.industryLabel ?? "Retail"}</span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-1.5">

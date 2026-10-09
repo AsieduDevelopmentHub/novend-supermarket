@@ -154,6 +154,7 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
           <Badge variant="destructive">Closure {formatDateTime(org.closureEffectiveAt)}</Badge>
         ) : null}
         <Badge variant="outline">{org.plan}</Badge>
+        <Badge variant="outline">{org.industryLabel ?? "Retail"}</Badge>
       </div>
 
       {org.pendingClosure && org.closureEffectiveAt ? (
@@ -217,6 +218,7 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
             <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
               <Info label="Business name" value={org.name} />
               <Info label="Organization ID" value={org.id} mono />
+              <Info label="Business type" value={org.industryLabel ?? "Retail"} />
               <Info label="Owner" value={org.owner.name || "—"} />
               <Info label="Email" value={org.business.email || org.owner.email || "—"} />
               <Info label="Phone" value={org.business.phone || "—"} />
@@ -247,6 +249,7 @@ export function PlatformOrgDetailView({ organizationId }: { organizationId: stri
             <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
               <Info label="Trade name" value={org.business.tradeName} />
               <Info label="Legal name" value={org.business.legalName} />
+              <Info label="Business type" value={org.industryLabel ?? "Retail"} />
               <Info label="Address" value={org.business.address || "—"} />
               <Info label="Tax ID" value={org.taxId || org.business.taxId || "—"} />
               <Info

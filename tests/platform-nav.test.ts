@@ -4,6 +4,7 @@ import {
   findPlatformNavGroupForPath,
   isPlatformNavAccordionGroup,
   PLATFORM_NAV_ACCORDION_GROUP_IDS,
+  PLATFORM_STATIC_SEGMENTS,
   platformNavItemActive,
 } from "@/config/platform-navigation";
 
@@ -51,5 +52,12 @@ describe("platform nav accordion", () => {
     expect(findPlatformNavGroupForPath("/platform/costs")).toBe("tenants");
     expect(findPlatformNavGroupForPath("/platform/activity")).toBe("analytics");
     expect(findPlatformNavGroupForPath("/platform/staff")).toBe("tenants");
+    expect(findPlatformNavGroupForPath("/platform/plans")).toBe("tenants");
+  });
+
+  it("keeps plans and other static segments out of the org-id catch-all", () => {
+    expect(PLATFORM_STATIC_SEGMENTS.has("plans")).toBe(true);
+    expect(PLATFORM_STATIC_SEGMENTS.has("organizations")).toBe(true);
+    expect(findPlatformNavGroupForPath("/platform/plans")).toBe("tenants");
   });
 });
