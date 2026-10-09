@@ -33,8 +33,9 @@ describe("redirect-after-login", () => {
       },
     };
     const pending = waitForConvexConnection(convex as never, 5_000);
-    expect(listener).toBeTruthy();
-    listener?.({ isWebSocketConnected: true });
+    // Avoid expect(...).toBeTruthy() — Vitest narrows function | null to never (TS2349).
+    expect(typeof listener).toBe("function");
+    listener!({ isWebSocketConnected: true });
     await expect(pending).resolves.toBe(true);
     vi.useRealTimers();
   });
