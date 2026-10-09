@@ -5,7 +5,14 @@ import { createPortal } from "react-dom";
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { BRANDING } from "@/constants/branding";
 import { APP_BRAND } from "@/constants/app";
-import { readSignInMotionStart, signInCoverDelays } from "@/lib/auth/sign-in-motion";
+import {
+  readBootSplashStart,
+  readSignInMotionStart,
+  resolveSplashMotion,
+  signInCoverDelays,
+  writeBootSplashStart,
+  type SplashMotion,
+} from "@/lib/auth/sign-in-motion";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -68,17 +75,61 @@ export function AppSplash({
   footer,
   className,
 }: Props) {
-  const elapsed = linger ? Math.max(0, elapsedMs) : 0;
+  // Resolved once per mount. A later splash in the same boot seeks this clock
+  // instead of playing the fall from the top again.
+  const [motion, setMotion] = useState<SplashMotion | null>(null);
+  useLayoutEffect(() => {
+    const bootStartedAt = readBootSplashStart();
+    const resolved = resolveSplashMotion({
+      settled,
+      linger,
+      elapsedMs,
+      now: Date.now(),
+      signInStartedAt: readSignInMotionStart(),
+      bootStartedAt,
+    });
+    // Keep the first frame. A parent re-render must not restart the fall.
+    setMotion((current) => {
+      if (current) return current;
+      if (resolved.bootStartedAt != null && resolved.bootStartedAt !== bootStartedAt) {
+        writeBootSplashStart(resolved.bootStartedAt);
+      }
+      return resolved.motion;
+    });
+  }, [elapsedMs, linger, settled]);
+
+  const place = (node: ReactNode) =>
+    portal && typeof document !== "undefined" ? createPortal(node, document.body) : node;
+
+  if (!motion) {
+    return place(
+      <div
+        className={cn(
+          "bg-sidebar fixed inset-0 z-[100]",
+          exiting ? "animate-splash-out pointer-events-none" : null,
+        )}
+        role="status"
+        aria-live="polite"
+        aria-busy={!exiting}
+      >
+        <p className="sr-only">{label}</p>
+      </div>,
+    );
+  }
+
+  const settledNow = motion.settled;
+  const lingerNow = motion.linger;
+  const elapsed = settledNow ? 0 : Math.max(0, motion.elapsedMs);
   const { fallDelayMs, holdDelayMs } = signInCoverDelays(elapsed);
-  const fallStyle = linger && elapsed > 0 ? { animationDelay: `${fallDelayMs}ms` } : undefined;
-  const holdStyle = linger ? { animationDelay: `${holdDelayMs}ms` } : undefined;
+  const fallStyle = elapsed > 0 ? { animationDelay: `${fallDelayMs}ms` } : undefined;
+  const holdStyle = lingerNow ? { animationDelay: `${holdDelayMs}ms` } : undefined;
 
   const splash = (
     <div
       className={cn(
         "bg-sidebar fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden",
         exiting ? "animate-splash-out pointer-events-none" : null,
-        linger && !settled ? "splash-linger" : null,
+        lingerNow && !settledNow ? "splash-linger" : null,
         className,
       )}
       role="status"
@@ -90,7 +141,7 @@ export function AppSplash({
           <div
             className={cn(
               "absolute inset-0 rounded-full",
-              settled ? "opacity-0" : "animate-splash-impact",
+              settledNow ? "opacity-0" : "animate-splash-impact",
             )}
             style={fallStyle}
             aria-hidden
@@ -99,16 +150,16 @@ export function AppSplash({
           <div
             className={cn(
               "relative z-10 h-full w-full",
-              settled ? null : linger ? "animate-splash-fall-linger" : "animate-splash-fall",
+              settledNow ? null : lingerNow ? "animate-splash-fall-linger" : "animate-splash-fall",
             )}
             style={fallStyle}
           >
             <div
               className={cn(
                 "relative h-full w-full",
-                settled || linger ? "animate-splash-hold" : null,
+                settledNow || lingerNow ? "animate-splash-hold" : null,
               )}
-              style={linger ? holdStyle : undefined}
+              style={lingerNow ? holdStyle : undefined}
             >
               <Image
                 src={BRANDING.brandmark}
@@ -121,7 +172,7 @@ export function AppSplash({
             </div>
           </div>
 
-          {settled ? null : (
+          {settledNow ? null : (
             <div className="pointer-events-none absolute inset-0 z-20" aria-hidden>
               {PARTICLES.map((particle, index) => (
                 <span
@@ -136,9 +187,7 @@ export function AppSplash({
                     ["--px" as string]: `${particle.x}px`,
                     ["--py" as string]: `${particle.y}px`,
                     animationDelay:
-                      linger && elapsed > 0
-                        ? `calc(${particle.delay} - ${elapsed}ms)`
-                        : particle.delay,
+                      elapsed > 0 ? `calc(${particle.delay} - ${elapsed}ms)` : particle.delay,
                     opacity: 0.85,
                   }}
                 />
@@ -150,7 +199,7 @@ export function AppSplash({
         <p
           className={cn(
             "mt-8 text-sm tracking-[0.18em] text-white/70 uppercase",
-            settled ? null : "animate-splash-caption",
+            settledNow ? null : "animate-splash-caption",
           )}
           style={fallStyle}
         >
@@ -172,35 +221,14 @@ export function AppSplash({
   // Login card uses overflow clipping. A fixed splash inside it only covers the
   // form column on web, PWA, Capacitor, and Electron. The sign-in fall is
   // client-only, so portaling it does not hydrate against server HTML.
-  if (portal && typeof document !== "undefined") {
-    return createPortal(splash, document.body);
-  }
-
-  return splash;
+  return place(splash);
 }
 
 /** Same fall the login page started, still running while the shell finishes checks. */
 export function PostLoginCover({ exiting = false }: { exiting?: boolean }) {
-  const [elapsedMs, setElapsedMs] = useState<number | null>(null);
-  useLayoutEffect(() => {
-    const started = readSignInMotionStart();
-    setElapsedMs(started == null ? 0 : Math.max(0, Date.now() - started));
-  }, []);
-
-  // A first paint at elapsed 0 restarts the fall, then the seek jumps it.
-  // Hold a still frame until the delay matches the login page.
-  if (elapsedMs == null) {
-    return (
-      <div className="bg-sidebar fixed inset-0 z-[100]" role="status" aria-live="polite" aria-busy="true">
-        <p className="sr-only">Opening your workspace</p>
-      </div>
-    );
-  }
-
   return (
     <AppSplash
       linger
-      elapsedMs={elapsedMs}
       exiting={exiting}
       showLabel
       label="Opening your workspace"

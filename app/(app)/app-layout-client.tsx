@@ -953,10 +953,6 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
     showPlatformShell ||
     (!online && Boolean(shellFromCache || offlineSessionOk || cachedShellWhileOnlineHung));
 
-  if (signInCover && !signInShellReady) {
-    return <PostLoginCover exiting={signInPhase === "exit"} />;
-  }
-
   function paintWithSignInCover(node: ReactNode) {
     if (!signInCover) return node;
     return (
@@ -965,6 +961,12 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
         <PostLoginCover exiting={signInPhase === "exit"} />
       </SignInHandoffProvider>
     );
+  }
+
+  if (signInCover && !signInShellReady) {
+    // Same cover instance as the shell underneath. A second PostLoginCover
+    // remounts the fall and plays it again.
+    return paintWithSignInCover(<div className="bg-sidebar fixed inset-0" aria-hidden />);
   }
 
   if (showPlatformShell) {

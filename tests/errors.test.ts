@@ -17,6 +17,16 @@ describe("connectivity errors", () => {
   it("maps a live network failure to a server message", () => {
     expect(toUserMessage(new Error("NETWORK_ERROR"))).toMatch(/Unable to reach the server/i);
   });
+
+  it("hides a stale server action id", () => {
+    const error = new Error(
+      'Server Action "00c87a2790661c26f594a2428f4f2908055b355bb3" was not found on the server. Read more: https://nextjs.org/docs/messages/failed-to-find-server-action',
+    );
+    const message = toUserMessage(error);
+    expect(message).toMatch(/quick refresh/i);
+    expect(message).not.toMatch(/00c87a/i);
+    expect(message).not.toMatch(/nextjs\.org/i);
+  });
 });
 
 describe("auth errors", () => {

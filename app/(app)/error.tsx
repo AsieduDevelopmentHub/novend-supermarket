@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { isConnectivityError, toUserMessage } from "@/lib/errors";
+import { isConnectivityError, isStaleClientError, toUserMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import {
   isChunkLoadError,
@@ -9,6 +9,7 @@ import {
   recoverFromChunkLoadFailure,
   recoverToLoginAfterFailure,
   shouldAutoRecoverChunkFailure,
+  shouldAutoRecoverStaleClient,
   shouldRecoverToLogin,
 } from "@/lib/auth/recover-auth-navigation";
 import { resumeOfflineShellToDashboard } from "@/lib/auth/awaiting-cloud-reconnect";
@@ -24,6 +25,8 @@ export default function AppError({
   const [refreshingClient, setRefreshingClient] = useState(false);
   const offline = isConnectivityError(error);
   const chunkMiss = isChunkLoadError(error);
+  const staleClient = isStaleClientError(error);
+  const refreshClient = chunkMiss || staleClient;
   const recoverLogin = shouldRecoverToLogin(error);
 
   useEffect(() => {
@@ -33,11 +36,14 @@ export default function AppError({
   }, [recoverLogin, recovering]);
 
   useEffect(() => {
-    if (!chunkMiss || recoverLogin || recovering || refreshingClient) return;
-    if (!shouldAutoRecoverChunkFailure(error)) return;
+    if (!refreshClient || recoverLogin || recovering || refreshingClient) return;
+    const claimed = chunkMiss
+      ? shouldAutoRecoverChunkFailure(error)
+      : shouldAutoRecoverStaleClient(error);
+    if (!claimed) return;
     setRefreshingClient(true);
     recoverFromChunkLoadFailure();
-  }, [chunkMiss, error, recoverLogin, recovering, refreshingClient, reset]);
+  }, [chunkMiss, error, recoverLogin, recovering, refreshClient, refreshingClient, reset]);
 
   // Hard-nav leave-site cleanup used to detach forms React still owned; that
   // throws removeChild and paints this sheet after Welcome. Soft-recover.
@@ -68,12 +74,12 @@ export default function AppError({
     );
   }
 
-  const title = chunkMiss
+  const title = refreshClient
     ? "Novend needs a refresh"
     : offline
       ? "You're working offline"
       : "Something went wrong";
-  const message = chunkMiss
+  const message = refreshClient
     ? "Refresh Novend to load the latest version. Your saved work is safe on this device."
     : toUserMessage(
         error,
@@ -85,7 +91,7 @@ export default function AppError({
   function retry() {
     // Always hard-refresh chunk/module-factory failures — soft reset re-throws
     // immediately and looks like dead Try again / Go to dashboard buttons.
-    if (chunkMiss || isChunkLoadError(error)) {
+    if (refreshClient || isChunkLoadError(error) || isStaleClientError(error)) {
       setRefreshingClient(true);
       recoverFromChunkLoadFailure();
       return;
@@ -94,7 +100,7 @@ export default function AppError({
   }
 
   function goDashboard() {
-    if (chunkMiss || isChunkLoadError(error)) {
+    if (refreshClient || isChunkLoadError(error) || isStaleClientError(error)) {
       setRefreshingClient(true);
       recoverFromChunkLoadFailure();
       return;
@@ -108,9 +114,9 @@ export default function AppError({
       <p className="text-muted-foreground max-w-md text-sm">{message}</p>
       <div className="flex flex-wrap justify-center gap-2">
         <Button type="button" onClick={retry}>
-          {chunkMiss ? "Refresh Novend" : offline ? "Continue" : "Try again"}
+          {refreshClient ? "Refresh Novend" : offline ? "Continue" : "Try again"}
         </Button>
-        {chunkMiss ? null : (
+        {refreshClient ? null : (
           <Button type="button" variant="outline" onClick={goDashboard}>
             Go to dashboard
           </Button>
