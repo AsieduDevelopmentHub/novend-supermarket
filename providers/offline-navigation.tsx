@@ -109,11 +109,9 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
       window.history.pushState({}, "", full);
       setClientPath(path);
       if (online && !forceClientShell) {
-        try {
-          void router.prefetch(href);
-        } catch {
-          /* ignore */
-        }
+        // Prefetch returns a Promise — try/catch alone leaves Failed to fetch
+        // as an unhandledrejection (Sentry noise on flaky Electron radio).
+        void Promise.resolve(router.prefetch(href)).catch(() => undefined);
       }
     },
     [online, forceClientShell, router],
@@ -149,11 +147,7 @@ export function OfflineNavigationProvider({ children }: { children: ReactNode })
 
   useEffect(() => {
     if (!online || !clientPath || forceClientShell) return;
-    try {
-      void router.prefetch(clientPath);
-    } catch {
-      /* ignore */
-    }
+    void Promise.resolve(router.prefetch(clientPath)).catch(() => undefined);
   }, [online, clientPath, forceClientShell, router]);
 
   useEffect(() => {

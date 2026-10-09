@@ -3,26 +3,30 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { recoverStaleClient } from "@/lib/auth/recover-auth-navigation";
-import { isStaleClientError } from "@/lib/errors";
+import { isConnectivityError, isStaleClientError } from "@/lib/errors";
 
 const STALE_TOAST_ID = "stale-client";
 
 /**
- * Convex Auth calls a Next Server Action (`invalidateCache`) on every sign-in.
- * After a deploy, Electron/Cap/SW clients often still hold the previous action
- * id. Next then rejects with “Server Action … was not found”, which used to
- * fail password login and paint the raw hex id in a toast.
+ * Catch browser rejections that must not become Sentry noise or raw toasts:
  *
- * Catch that rejection, rewrite any Sonner toast that leaks the id, and reload
- * once so the open page matches the server.
+ * 1. Convex Auth `invalidateCache` Server Action id after a deploy (stale client).
+ * 2. `TypeError: Failed to fetch` from Next prefetch / flaky Electron radio —
+ *    those are expected when the till is mid-reconnect and must not surface as
+ *    unhandledrejection alerts.
  */
 export function StaleClientRecovery() {
   useEffect(() => {
     const onRejection = (event: PromiseRejectionEvent) => {
-      if (!isStaleClientError(event.reason)) return;
-      event.preventDefault();
-      toast.dismiss(STALE_TOAST_ID);
-      recoverStaleClient(event.reason);
+      if (isStaleClientError(event.reason)) {
+        event.preventDefault();
+        toast.dismiss(STALE_TOAST_ID);
+        recoverStaleClient(event.reason);
+        return;
+      }
+      if (isConnectivityError(event.reason)) {
+        event.preventDefault();
+      }
     };
 
     const originalError = toast.error.bind(toast);
