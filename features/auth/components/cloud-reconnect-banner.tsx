@@ -20,10 +20,12 @@ import { showError } from "@/lib/errors";
 import {
   clearOnlineSessionWarm,
   isOnlineSessionWarm,
+  markOnlineSessionWarm,
   resolvePostLoginSession,
 } from "@/lib/auth/redirect-after-login";
 import { consumeExplicitLogout, hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { clearLocalOnlyCloudUser } from "@/lib/auth/awaiting-cloud-reconnect";
+import { withTimeout } from "@/lib/async/with-timeout";
 import { storeLocalAuthVerifier } from "@/lib/offline/local-auth";
 import {
   hasOfflineSession,
@@ -41,6 +43,8 @@ const DISMISS_KEY = "novend.cloudReconnect.dismissedAt";
 const DISMISS_TTL_MS = 30 * 60 * 1000;
 /** Let Convex auth settle after the radio flips before auto-opening the dialog. */
 const AUTO_OPEN_SETTLE_MS = 900;
+/** Password sign-in must not hang the Connect dialog forever on a flaky radio. */
+const RECONNECT_SIGNIN_BUDGET_MS = 20_000;
 const RECONNECT_REQUEST_EVENT = "novend:request-cloud-reconnect";
 
 let volatileLoginDeviceKey: string | null = null;
@@ -235,13 +239,21 @@ export function CloudReconnectBanner() {
       formData.set("password", rawPassword);
       formData.set("flow", "signIn");
       formData.set("deviceKey", getLoginDeviceKey());
-      await signIn("password", formData);
+      // Drop a leftover signed-out latch before password sign-in so a slow
+      // users.me cannot bounce this till back to unauthenticated mid-connect.
+      consumeExplicitLogout();
+      await withTimeout(
+        signIn("password", formData),
+        RECONNECT_SIGNIN_BUDGET_MS,
+        "Couldn't reach Novend in time. Check the connection and try again.",
+      );
+      // Hide Connect / “Checking cloud session” while the socket and JWT settle.
+      markOnlineSessionWarm();
       const liveSession = await resolvePostLoginSession(convex, undefined, {
         expectedEmail: email,
         expectedUserId: reconnectSession?.userId,
         expectedOrganizationId: reconnectSession?.organizationId,
       });
-      consumeExplicitLogout();
       // A prior Continue locally choice is session-scoped. Successful password
       // reconnect must release the layout's query quarantine immediately.
       clearLocalOnlyCloudUser();
@@ -258,6 +270,7 @@ export function CloudReconnectBanner() {
         flushOutbox({ force: true, showProgress: true }),
       );
     } catch (error) {
+      clearOnlineSessionWarm();
       showError(error, "Could not connect. Check your password and try again.");
     } finally {
       setPending(false);

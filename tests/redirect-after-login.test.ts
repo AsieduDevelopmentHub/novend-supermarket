@@ -7,9 +7,38 @@ import {
   markSkipStartupSplash,
   prepareHardNavigation,
   resolvePostLoginPath,
+  waitForConvexConnection,
 } from "@/lib/auth/redirect-after-login";
 
 describe("redirect-after-login", () => {
+  it("waitForConvexConnection resolves when the socket is already open", async () => {
+    const convex = {
+      connectionState: () => ({ isWebSocketConnected: true }),
+      subscribeToConnectionState: vi.fn(),
+    };
+    await expect(waitForConvexConnection(convex as never, 50)).resolves.toBe(true);
+    expect(convex.subscribeToConnectionState).not.toHaveBeenCalled();
+  });
+
+  it("waitForConvexConnection waits until the socket opens", async () => {
+    vi.useFakeTimers();
+    let listener: ((state: { isWebSocketConnected: boolean }) => void) | null = null;
+    const convex = {
+      connectionState: () => ({ isWebSocketConnected: false }),
+      subscribeToConnectionState: (cb: (state: { isWebSocketConnected: boolean }) => void) => {
+        listener = cb;
+        return () => {
+          listener = null;
+        };
+      },
+    };
+    const pending = waitForConvexConnection(convex as never, 5_000);
+    expect(listener).toBeTruthy();
+    listener?.({ isWebSocketConnected: true });
+    await expect(pending).resolves.toBe(true);
+    vi.useRealTimers();
+  });
+
   it("resolvePostLoginPath uses live me when available", async () => {
     const convex = {
       query: vi.fn().mockResolvedValue({ userId: "u1", isPlatformAdmin: true }),
@@ -182,6 +211,10 @@ describe("redirect-after-login", () => {
     const source = readFileSync(resolve(process.cwd(), "lib/auth/redirect-after-login.ts"), "utf8");
     expect(source).toContain("ME_QUERY_BUDGET_MS = 3_500");
     expect(source).toContain("RESOLVE_RETRIES = 4");
+    expect(source).toContain("SOCKET_READY_MS = 8_000");
+    expect(source).toContain("AUTH_ATTACH_MS = 350");
+    expect(source).toContain("waitForConvexConnection");
+    expect(source).toContain("isWebSocketConnected");
     expect(source).toContain("reloadAuthShell");
     expect(source).toContain("isElectron()");
   });

@@ -26,6 +26,10 @@ describe("cloud reconnect in place", () => {
     expect(banner).toContain("resolvePostLoginSession");
     expect(banner).toContain("expectedUserId: reconnectSession?.userId");
     expect(banner).toContain("expectedOrganizationId: reconnectSession?.organizationId");
+    expect(banner).toContain("markOnlineSessionWarm()");
+    expect(banner).toContain("withTimeout");
+    expect(banner).toContain("RECONNECT_SIGNIN_BUDGET_MS");
+    expect(banner).toMatch(/consumeExplicitLogout\(\);[\s\S]*?signIn\("password"/);
   });
 
   it("keeps reconnect UI across Convex isLoading flicker", () => {

@@ -27,6 +27,14 @@ const RESOLVE_RETRY_MS = 300;
 /** Browser soft-navigation fallback only; native hard navigation is single-shot. */
 const HARD_NAV_FALLBACK_MS = 800;
 /**
+ * Offline→online reconnect often has navigator.onLine before the Convex
+ * websocket is ready. Wait for the socket so `users.me` does not hang and then
+ * surface “Could not load your profile”.
+ */
+const SOCKET_READY_MS = 8_000;
+/** Let Convex Auth attach the new token after password sign-in. */
+const AUTH_ATTACH_MS = 350;
+/**
  * Per-attempt budget for `users.me` after password sign-in.
  * Auth token / websocket often need a beat after signOut→signIn; do not stack
  * multi-second hangs that leave the login cover painted.
@@ -34,6 +42,9 @@ const HARD_NAV_FALLBACK_MS = 800;
 const ME_QUERY_BUDGET_MS = 3_500;
 /** Dexie profile write must not block leaving /login. */
 const SHELL_PROFILE_BUDGET_MS = 1_200;
+
+const PROFILE_LOAD_ERROR =
+  "Could not load your profile after sign-in. Check your connection and try again.";
 
 /** In-memory latch for the in-flight hard leave (survives only this JS lifetime). */
 let hardNavigationPending = false;
@@ -152,6 +163,40 @@ function wait(ms: number): Promise<void> {
   });
 }
 
+type ConvexConnectionClient = Pick<
+  ConvexReactClient,
+  "connectionState" | "subscribeToConnectionState"
+>;
+
+/** True once the Convex client has an open websocket to the backend. */
+export async function waitForConvexConnection(
+  convex: ConvexReactClient,
+  budgetMs = SOCKET_READY_MS,
+): Promise<boolean> {
+  const client = convex as ConvexConnectionClient;
+  // Unit tests pass a thin query stub — skip the socket gate there.
+  if (typeof client.connectionState !== "function") return true;
+  if (client.connectionState().isWebSocketConnected) return true;
+  if (typeof client.subscribeToConnectionState !== "function") return true;
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      unsubscribe();
+      resolve(ok);
+    };
+    const timer = setTimeout(
+      () => finish(client.connectionState().isWebSocketConnected),
+      budgetMs,
+    );
+    const unsubscribe = client.subscribeToConnectionState((state) => {
+      if (state.isWebSocketConnected) finish(true);
+    });
+  });
+}
+
 /**
  * Bind the org-scoped Dexie replica before navigating into the app shell so
  * dashboard hydration does not open `novend-offline-anon` first.
@@ -240,17 +285,28 @@ export async function resolvePostLoginSession(
     : null;
   let lastError: unknown;
 
+  const hasSocketApi =
+    typeof (convex as ConvexConnectionClient).connectionState === "function";
+  const socketReady = await waitForConvexConnection(convex, SOCKET_READY_MS);
+  if (!socketReady) {
+    throw new Error(PROFILE_LOAD_ERROR);
+  }
+  // Password sign-in returns before the JWT is on the socket. Login and
+  // Connect-to-cloud both hit this path; a short pause beats four hung me calls.
+  // Thin test stubs have no connectionState — skip the real-time pause there.
+  if (hasSocketApi) {
+    await wait(AUTH_ATTACH_MS);
+  }
+
   for (let attempt = 0; attempt < RESOLVE_RETRIES; attempt++) {
     try {
       const me = await withTimeout(
         convex.query(api.users.me, {}),
         ME_QUERY_BUDGET_MS,
-        "Could not load your profile after sign-in. Check your connection and try again.",
+        PROFILE_LOAD_ERROR,
       );
       if (!me?.userId) {
-        throw new Error(
-          "Could not load your profile after sign-in. Check your connection and try again.",
-        );
+        throw new Error(PROFILE_LOAD_ERROR);
       }
       if (expectedUserId && String(me.userId) !== expectedUserId) {
         throw new Error(
@@ -295,9 +351,7 @@ export async function resolvePostLoginSession(
     await wait(RESOLVE_RETRY_MS * (attempt + 1));
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("Could not load your profile after sign-in. Check your connection and try again.");
+  throw lastError instanceof Error ? lastError : new Error(PROFILE_LOAD_ERROR);
 }
 
 export async function resolvePostLoginPath(
