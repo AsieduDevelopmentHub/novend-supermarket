@@ -25,7 +25,9 @@ describe("service worker navigation safety", () => {
     expect(sw).toContain("await cache.put(pathname, withAuthDocHeader(normalized))");
     expect(sw).toContain("await warmDocumentStaticAssets(html)");
     expect(sw).toContain("async function isUsableAuthCache");
-    expect(sw).toContain("preferCache = !freshLeave && (fromBoot || signedOut)");
+    expect(sw).toContain("preferCache =");
+    expect(sw).toContain("fromBoot || (signedOut && !reportedOnline)");
+    expect(sw).not.toContain("preferCache = !freshLeave && (fromBoot || signedOut)");
     expect(sw).toContain('url.searchParams.has("novendFresh")');
     expect(sw).toContain("if (!(await isLikelyAuthHtml(copy)))");
     expect(sw).toContain("auth-document-network-budget");
@@ -72,7 +74,7 @@ describe("service worker navigation safety", () => {
   });
 
   it("does not precache gated app routes that 302 to login", () => {
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v31"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v32"');
     expect(sw).toContain("/branding/logo_horizontal.png");
     expect(sw).toContain("function matchStaticAsset");
     expect(sw).toContain("ignoreSearch: true");
@@ -122,7 +124,9 @@ describe("boot health probe", () => {
     expect(boot).toContain("fromBoot=1");
     expect(electronBoot).toContain("fromBoot=1");
     expect(electronBoot).toContain('signedOutLeave = entry.indexOf("signedOut=1") >= 0');
-    expect(electronBoot).toContain("!signedOutLeave && entry.indexOf(\"fromBoot=\") < 0");
+    expect(electronBoot).toContain(
+      '!signedOutLeave && !fromLoginLeave && entry.indexOf("fromBoot=") < 0',
+    );
   });
 
   it("Electron offline-boot defaults to the production POS host", () => {

@@ -98,10 +98,10 @@ describe("native auth navigation", () => {
     expect(sw).toContain("isLikelyAuthHtml");
     expect(sw).toContain("X-Novend-Auth-Doc");
     expect(sw).toContain('url.searchParams.get("signedOut") === "1"');
-    expect(sw).toContain("preferCache = !freshLeave && (fromBoot || signedOut)");
+    expect(sw).toContain("fromBoot || (signedOut && !reportedOnline)");
     expect(sw).toContain("auth-document-network-budget");
     expect(sw).toContain('const AUTH_PRECACHE = ["/login", "/signup"]');
-    expect(sw).toContain('const CACHE_NAME = "novend-pos-v31"');
+    expect(sw).toContain('const CACHE_NAME = "novend-pos-v32"');
     const precacheBlock = sw.match(/const PRECACHE = \[([\s\S]*?)\];/)?.[1] ?? "";
     expect(precacheBlock).not.toContain('"/login"');
     expect(precacheBlock).not.toContain('"/signup"');

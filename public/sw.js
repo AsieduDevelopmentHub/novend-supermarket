@@ -1,5 +1,5 @@
 /* Novend POS — app-shell cache so a hard refresh can survive offline */
-const CACHE_NAME = "novend-pos-v31";
+const CACHE_NAME = "novend-pos-v32";
 const FINAL_URL_HEADER = "X-Novend-Final-URL";
 
 /**
@@ -605,10 +605,12 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/") && url.pathname !== "/api/boot") return;
 
   // /login and /signup: live network when online so a signed-in session can
-  // 302 to /dashboard. Cap/Electron cold boot (`fromBoot`) and true-offline
-  // signedOut must prefer a *validated* precached login document — never a
-  // followed `/login`→`/dashboard` body (that paints AppSplash forever while
-  // the address bar still says /login?signedOut=1).
+  // 302 to /dashboard and so a deploy cannot leave stale Server Action ids in
+  // a cached login document (that toast blocked first-try password sign-in).
+  // Cap/Electron cold boot (`fromBoot`) and true-offline signedOut still prefer
+  // a *validated* precached login document — never a followed `/login`→
+  // `/dashboard` body (that paints AppSplash forever while the address bar
+  // still says /login?signedOut=1).
   if (isAuthDocument(url)) {
     event.respondWith(
       (async () => {
@@ -617,9 +619,12 @@ self.addEventListener("fetch", (event) => {
         // Any novendFresh=* forces network (recovery used to set a timestamp, so
         // `=== "1"` never matched and cache kept serving mixed builds).
         const freshLeave = url.searchParams.has("novendFresh");
-        // Prefer validated auth shell on any signed-out leave (false-online Cap/
-        // Electron would hang on network-first). novendFresh forces network first.
-        const preferCache = !freshLeave && (fromBoot || signedOut);
+        const reportedOnline =
+          typeof self.navigator === "undefined" || self.navigator.onLine !== false;
+        // Online signedOut must be network-first — cache-first kept old action
+        // hashes after deploys. Offline / fromBoot still use the validated shell.
+        const preferCache =
+          !freshLeave && (fromBoot || (signedOut && !reportedOnline));
 
         async function evictPoison(requestOrPath) {
           try {

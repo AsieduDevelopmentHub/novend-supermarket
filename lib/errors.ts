@@ -54,7 +54,9 @@ export function isStaleClientError(error: unknown): boolean {
     lower.includes("was not found on the server") ||
     lower.includes("failed-to-find-server-action") ||
     lower.includes("unrecognizedactionerror") ||
-    (lower.includes("server action") && lower.includes("not found"))
+    (lower.includes("server action") && lower.includes("not found")) ||
+    // Sonner often splits title "Server Action" from the hex body.
+    (/\b[0-9a-f]{40}\b/.test(lower) && lower.includes("not found"))
   );
 }
 
