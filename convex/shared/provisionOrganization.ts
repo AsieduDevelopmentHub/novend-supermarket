@@ -21,7 +21,7 @@ import {
   type IndustryProfile,
 } from "./businessCapabilities";
 import { experiencePresetForIndustry } from "./experience";
-import { PLAN_CATALOG, supportsCycle, type BillingCycle, type PlanKey } from "./plans";
+import { resolvePlan, supportsCycle, type BillingCycle, type PlanKey } from "./plans";
 import { activateSubscription, startTrial } from "./subscriptions";
 import { sanitizeOptionalText, sanitizeText, TEXT_LIMITS } from "./validation";
 import { seedOrgPlatformStats } from "./organizationStats";
@@ -175,7 +175,7 @@ export async function provisionOrganization(
     await startTrial(ctx, organizationId, planKey);
   } else {
     planKey = args.license.planKey;
-    const plan = PLAN_CATALOG[planKey];
+    const plan = resolvePlan(planKey);
     const cycle: BillingCycle =
       args.license.cycle && supportsCycle(plan, args.license.cycle)
         ? args.license.cycle

@@ -1,6 +1,6 @@
 # Billing, Plans & Activation
 
-Version: 1.4.0
+Version: 1.5.1
 
 Novend is sold as a Monthly or Annual subscription. Lifetime remains in the
 catalog only for historical licences — it is not offered for new sales.
@@ -12,16 +12,24 @@ platform entitlements brief.
 
 # Decision
 
-The **plan catalog lives in code**, not in the database.
+The **plan catalog lives in the `plans` table** (Super Admin editable).
+`convex/shared/plans.ts` seeds defaults, provides pure helpers (yearly = 10 ×
+monthly, list-price markup, limit messages), and falls back when a row is
+missing. Gateway plan codes and marketing flags (`marketingVisible`,
+`homepageHighlight`, `featured`, `archived`) live on the row.
 
-`convex/shared/plans.ts` is the single source of truth for prices, limits and
-features. The `plans` table mirrors it and stores only what the code cannot know:
-the payment-gateway plan codes. A limit is therefore never editable by a support
-mistake, and the same catalog is imported by Convex, the app and the tests.
+`billingSettings` holds the global **list-price markup %** (default 20%). Marketing
+and Billing show a strikethrough “was” price; Paystack / MRR always charge the
+**real** monthly/yearly amount. Sellable monthly prices must be **≥ GH₵99**;
+non-unlimited product caps must be **≥ 100**.
 
-`SELLABLE_PLAN_KEYS` (`basic`, `pro`, `enterprise`) drives public pricing and
-self-serve checkout. `lifetime` stays resolvable for existing orgs (`legacy: true`,
-`selfServe: false`). Unknown plan strings fall back to `DEFAULT_PLAN_KEY` (`basic`).
+Homepage marketing shows at most three `homepageHighlight` plans (seed: Starter,
+Pro, Enterprise). `/pricing` lists every `marketingVisible` plan plus a
+comparison table. Platform → **Plans catalog** creates/updates/archives plans and
+toggles marketing.
+
+`lifetime` stays resolvable for existing orgs (`legacy: true`, `selfServe: false`).
+Unknown plan strings fall back to `DEFAULT_PLAN_KEY` (`basic`).
 
 Convex is authoritative for entitlements. The client caches the last confirmed
 licence so a terminal keeps selling offline, but it never decides access.
@@ -31,7 +39,9 @@ licence so a terminal keeps selling offline, but it never decides access.
 | File                                     | Owns                                                                                                                   |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `convex/shared/capabilities.ts`          | Plan-derived capabilities (`canExportXlsx`, `canManageStaffCompensation`, `canUseCustomerDisplay`, `maxImportRows`, …) |
-| `convex/shared/plans.ts`                 | Plan catalog, prices, limits, cycle rules, limit messages                                                              |
+| `convex/shared/plans.ts`                 | Seed catalog, prices, limits, markup helpers, cycle rules                                                              |
+| `convex/shared/planCatalog.ts`           | Load plan definitions from DB + public card projection                                                                 |
+| `convex/platformPlans.ts`                | Super Admin plan CRUD, marketing toggles, billingSettings markup                                                       |
 | `convex/shared/commercialOffers.ts`      | Private offer validity and price helpers (tenant-safe projections)                                                     |
 | `convex/commercialOffers.ts`             | Tenant `myActiveOffer` / `acceptOffer`; offer Paystack plan-code persistence                                           |
 | `convex/shared/licensing.ts`             | Pure access rules: `deriveAccess`, grace, usage levels, offline TTL                                                    |
@@ -50,18 +60,26 @@ licence so a terminal keeps selling offline, but it never decides access.
 
 # Plans
 
-| Plan               | Monthly | Annual (yearly)   | Products | Users | Branches | Devices | Cloud backup | Sellable |
-| ------------------ | ------- | ----------------- | -------- | ----- | -------- | ------- | ------------ | -------- |
-| Basic              | GH₵200  | GH₵2,000          | 500      | 3     | 1        | 3       | 250 MB       | yes      |
-| Pro (Most Popular) | GH₵450  | GH₵4,500          | 5,000    | 15    | 5        | 15      | 500 MB       | yes      |
-| Enterprise         | GH₵750+ | GH₵7,500+         | ∞        | ∞     | ∞        | ∞       | Custom       | yes      |
-| Lifetime (legacy)  | —       | GH₵7,990 one-time | ∞        | ∞     | ∞        | ∞       | 1 GB         | no       |
+Seed ladder (Super Admin may add more; prices/limits editable in Platform → Plans):
+
+| Plan                   | Monthly  | Annual (yearly) | Products | Users | Branches | Devices | Cloud backup | Homepage |
+| ---------------------- | -------- | --------------- | -------- | ----- | -------- | ------- | ------------ | -------- |
+| Starter                | GH₵99    | GH₵990          | 100      | 1     | 1        | 1       | 100 MB       | yes      |
+| Shop                   | GH₵139   | GH₵1,390        | 250      | 2     | 1        | 2       | 150 MB       | no       |
+| Basic                  | GH₵199   | GH₵1,990        | 500      | 3     | 1        | 3       | 250 MB       | no       |
+| Growth                 | GH₵279   | GH₵2,790        | 1,000    | 5     | 2        | 5       | 350 MB       | no       |
+| Pro (Recommended)      | GH₵459   | GH₵4,590        | 5,000    | 15    | 5        | 15      | 500 MB       | yes      |
+| Business               | GH₵659   | GH₵6,590        | 15,000   | 30    | 10       | 30      | 1 GB         | no       |
+| Enterprise             | GH₵899+  | GH₵8,990+       | ∞        | ∞     | ∞        | ∞       | Custom       | yes      |
+| Lifetime (legacy)      | —        | GH₵7,990 once   | ∞        | ∞     | ∞        | ∞       | 1 GB         | no       |
 
 Lifetime is retained so existing customers keep access. Platform admins cannot newly
 assign Lifetime except when an organization is already on Lifetime (view / keep /
 migrate). Recurring plans are never sold on a lifetime cycle. Enterprise is
-self-serve — published as **GH₵750+**. Annual recurring prices are **10 × monthly**
-(two months free). Enterprise cloud backup is **quoted per organization**.
+self-serve — published as **GH₵899+**. Annual recurring prices are **10 × monthly**
+(two months free). Enterprise cloud backup is **quoted per organization**. Pro-tier
+capabilities (xlsx/PDF export, customer display, staff compensation) unlock at
+Pro sort order and above.
 
 # Private commercial offers
 

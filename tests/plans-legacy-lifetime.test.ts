@@ -31,9 +31,13 @@ describe("legacy lifetime and secure plan fallback", () => {
   });
 
   it("excludes lifetime from sellable plan keys while keeping it in the catalog", () => {
-    expect(SELLABLE_PLAN_KEYS).toEqual(["basic", "pro", "enterprise"]);
+    expect(SELLABLE_PLAN_KEYS).toContain("starter");
+    expect(SELLABLE_PLAN_KEYS).toContain("pro");
+    expect(SELLABLE_PLAN_KEYS).toContain("enterprise");
+    expect(SELLABLE_PLAN_KEYS).not.toContain("lifetime");
     expect(isSellablePlanKey("lifetime")).toBe(false);
     expect(isSellablePlanKey("basic")).toBe(true);
+    expect(isSellablePlanKey("starter")).toBe(true);
     expect(PLAN_CATALOG.lifetime.legacy).toBe(true);
     expect(PLAN_CATALOG.basic.legacy).toBeUndefined();
   });

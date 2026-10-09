@@ -58,7 +58,6 @@ import {
   DEFAULT_PLAN_KEY,
   PLAN_CATALOG,
   PLAN_LIST,
-  SELLABLE_PLAN_LIST,
   isSellablePlanKey,
   parseCustomBackupGb,
   planChangeKind,
@@ -69,6 +68,13 @@ import {
   type LimitResource,
   type PlanKey,
 } from "./shared/plans";
+import {
+  loadListPriceMarkupPercent,
+  loadMarketingPlanDefinitions,
+  loadPlanDefinition,
+  loadSellablePlanDefinitions,
+  toPublicPlanCard,
+} from "./shared/planCatalog";
 import {
   loadLiveOfferForOrganization,
   offerAppliesToCheckout,
@@ -433,31 +439,60 @@ export const history = query({
   },
 });
 
-/** Public plan catalog with the gateway codes needed for checkout. */
+/** Tenant plan catalog with gateway codes + list-price psychology for display. */
 export const catalog = query({
   args: {},
   handler: async (ctx) => {
     const rows = await ctx.db.query("plans").collect();
     const codes = new Map(rows.map((row) => [row.key, row]));
+    const markupPercent = await loadListPriceMarkupPercent(ctx);
+    const sellable = await loadSellablePlanDefinitions(ctx);
     return {
       onlinePaymentsEnabled: isPaystackConfigured(),
-      plans: SELLABLE_PLAN_LIST.map((plan) => ({
-        key: plan.key,
-        name: plan.name,
-        tagline: plan.tagline,
-        audience: plan.audience,
-        monthlyPrice: plan.monthlyPrice,
-        yearlyPrice: plan.yearlyPrice,
-        oneTimePrice: plan.oneTimePrice,
-        priceFrom: plan.priceFrom,
-        isLifetime: plan.isLifetime,
-        featured: plan.featured,
-        selfServe: plan.selfServe,
-        limits: plan.limits,
-        features: plan.features,
-        hasMonthlyCode: Boolean(codes.get(plan.key)?.gatewayMonthlyPlanCode),
-        hasYearlyCode: Boolean(codes.get(plan.key)?.gatewayYearlyPlanCode),
-      })),
+      listPriceMarkupPercent: markupPercent,
+      plans: sellable.map((plan) => {
+        const card = toPublicPlanCard(plan, markupPercent);
+        return {
+          key: plan.key,
+          name: plan.name,
+          tagline: plan.tagline,
+          audience: plan.audience,
+          monthlyPrice: plan.monthlyPrice,
+          yearlyPrice: plan.yearlyPrice,
+          listMonthlyPrice: card.listMonthlyPrice,
+          listYearlyPrice: card.listYearlyPrice,
+          oneTimePrice: plan.oneTimePrice,
+          priceFrom: plan.priceFrom,
+          isLifetime: plan.isLifetime,
+          featured: plan.featured,
+          selfServe: plan.selfServe,
+          limits: plan.limits,
+          features: plan.features,
+          hasMonthlyCode: Boolean(codes.get(plan.key)?.gatewayMonthlyPlanCode),
+          hasYearlyCode: Boolean(codes.get(plan.key)?.gatewayYearlyPlanCode),
+        };
+      }),
+    };
+  },
+});
+
+/**
+ * Unauthenticated marketing catalog — only marketingVisible, non-archived plans.
+ * Safe fields only; includes psychological list prices.
+ */
+export const publicCatalog = query({
+  args: {},
+  handler: async (ctx) => {
+    const markupPercent = await loadListPriceMarkupPercent(ctx);
+    const plans = await loadMarketingPlanDefinitions(ctx);
+    const homepage = plans.filter((plan) => plan.homepageHighlight);
+    return {
+      listPriceMarkupPercent: markupPercent,
+      currency: "GHS",
+      plans: plans.map((plan) => toPublicPlanCard(plan, markupPercent)),
+      homepagePlans: (homepage.length > 0 ? homepage : plans.slice(0, 3)).map((plan) =>
+        toPublicPlanCard(plan, markupPercent),
+      ),
     };
   },
 });
@@ -559,7 +594,7 @@ export const previewPlanChange = query({
     if (profile.role !== "administrator") {
       throw new Error("Only administrators can manage billing");
     }
-    const plan = PLAN_CATALOG[args.planKey];
+    const plan = await loadPlanDefinition(ctx, args.planKey);
     if (!supportsCycle(plan, args.cycle)) {
       throw new Error(`The ${plan.name} plan is not sold on a ${args.cycle} cycle.`);
     }
@@ -821,7 +856,7 @@ export const startCheckout = action({
     | { kind: "activated" }
     | { kind: "cancelled_schedule" }
   > => {
-    const plan = PLAN_CATALOG[args.planKey];
+    const plan = resolvePlan(args.planKey);
     if (!supportsCycle(plan, args.cycle)) {
       throw new Error(`The ${plan.name} plan is not sold on a ${args.cycle} cycle.`);
     }
@@ -1149,7 +1184,7 @@ export const scheduleDowngradeRecord = internalMutation({
     if (planChangeKind(license.planKey, args.targetPlanKey) !== "downgrade") {
       throw new Error("That plan is not a downgrade from the current plan.");
     }
-    const target = PLAN_CATALOG[args.targetPlanKey];
+    const target = await loadPlanDefinition(ctx, args.targetPlanKey);
     if (!supportsCycle(target, args.targetCycle)) {
       throw new Error(`The ${target.name} plan is not sold on a ${args.targetCycle} cycle.`);
     }
@@ -1261,7 +1296,7 @@ export const cancelScheduledChangeRecord = internalMutation({
     return {
       cancelled: true as const,
       currentPlanKey: subscription.planKey,
-      currentPlanName: PLAN_CATALOG[subscription.planKey].name,
+      currentPlanName: resolvePlan(subscription.planKey).name,
     };
   },
 });
@@ -1342,7 +1377,7 @@ export const applyDueScheduledChanges = internalMutation({
         reference: buildReference("NVD"),
         status: "success",
         kind: "scheduled_downgrade_applied",
-        description: `${PLAN_CATALOG[result.targetPlanKey!].name} started`,
+        description: `${resolvePlan(result.targetPlanKey!).name} started`,
         createdAt: now,
         updatedAt: now,
       });
@@ -1582,7 +1617,7 @@ export const applyGatewayRenewal = internalMutation({
         reference: args.reference,
         status: "success",
         kind: "renewal",
-        description: `${PLAN_CATALOG[live.planKey].name} renewal`,
+        description: `${resolvePlan(live.planKey).name} renewal`,
         paidAt,
         createdAt: now,
         updatedAt: now,
@@ -1864,7 +1899,7 @@ export const assignPlan = mutation({
     const organization = await ctx.db.get(args.organizationId);
     if (!organization) throw new Error("Organization not found");
     const previousPlanKey = organization.planKey ?? args.planKey;
-    const plan = PLAN_CATALOG[args.planKey];
+    const plan = await loadPlanDefinition(ctx, args.planKey);
     if (plan.legacy && organization.planKey !== "lifetime") {
       throw new Error(
         "Lifetime is a legacy plan and cannot be newly assigned. Migrate existing Lifetime customers deliberately.",

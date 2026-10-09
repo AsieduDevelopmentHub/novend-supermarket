@@ -7,7 +7,7 @@ import { CheckCircle2, CircleAlert, Loader2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PLAN_CATALOG } from "@/convex/shared/plans";
+import { resolvePlan } from "@/convex/shared/plans";
 
 type Phase = "verifying" | "success" | "failed";
 
@@ -38,7 +38,7 @@ export function CheckoutReturnView({ reference }: { reference: string | null }) 
         setPhase("success");
         setMessage(
           result.planKey
-            ? `Your ${PLAN_CATALOG[result.planKey].name} plan is active.`
+            ? `Your ${resolvePlan(result.planKey).name} plan is active.`
             : "This payment was already applied to your account.",
         );
       })

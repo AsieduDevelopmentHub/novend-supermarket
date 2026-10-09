@@ -33,10 +33,10 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import {
   GIBIBYTE,
   MAX_CUSTOM_BACKUP_GB,
-  PLAN_CATALOG,
   PLAN_LIST,
   SELLABLE_PLAN_LIST,
   RESOURCE_LABELS,
+  resolvePlan,
   supportsCycle,
   type BillingCycle,
   type LimitResource,
@@ -125,7 +125,7 @@ const CYCLES: { value: BillingCycle; label: string }[] = [
 
 /** Cycles offered for new assignments. Lifetime is legacy-only. */
 function assignableCycles(planKey: PlanKey): { value: BillingCycle; label: string }[] {
-  const plan = PLAN_CATALOG[planKey];
+  const plan = resolvePlan(planKey);
   if (plan?.isLifetime) {
     return [{ value: "lifetime", label: "Lifetime (legacy)" }];
   }

@@ -20,7 +20,7 @@ import { PlanUsageGrid } from "./plan-usage-grid";
 import { PlansGrid } from "./plans-grid";
 import { BillingHistoryTable } from "./billing-history-table";
 import type { AccessState, UsageMetric } from "@/convex/shared/licensing";
-import { PLAN_CATALOG, type PlanKey } from "@/convex/shared/plans";
+import { resolvePlan, type PlanKey } from "@/convex/shared/plans";
 import type { ScheduledChangeSnapshot } from "@/convex/shared/planChange";
 import { useLicense } from "@/hooks/use-license";
 
@@ -221,7 +221,7 @@ export function BillingPanel() {
             </CardTitle>
             <CardDescription>
               You stay on {overview.plan.name} until the current paid period ends. You are not on{" "}
-              {PLAN_CATALOG[scheduledChange.targetPlanKey].name} yet.
+              {resolvePlan(scheduledChange.targetPlanKey).name} yet.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -231,14 +231,14 @@ export function BillingPanel() {
             />
             <Detail
               label="Upcoming plan"
-              value={`${PLAN_CATALOG[scheduledChange.targetPlanKey].name} · starts ${formatDate(scheduledChange.effectiveAt)}`}
+              value={`${resolvePlan(scheduledChange.targetPlanKey).name} · starts ${formatDate(scheduledChange.effectiveAt)}`}
             />
             <Detail
               label="Next payment"
               value={formatCurrency(
                 scheduledChange.targetCycle === "yearly"
-                  ? (PLAN_CATALOG[scheduledChange.targetPlanKey].yearlyPrice ?? 0)
-                  : (PLAN_CATALOG[scheduledChange.targetPlanKey].monthlyPrice ?? 0),
+                  ? (resolvePlan(scheduledChange.targetPlanKey).yearlyPrice ?? 0)
+                  : (resolvePlan(scheduledChange.targetPlanKey).monthlyPrice ?? 0),
               )}
             />
             <div className="flex items-end">

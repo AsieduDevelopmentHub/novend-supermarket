@@ -1,92 +1,25 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { BadgeCheck, Ban, RefreshCw, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { landingCopy } from "@/features/marketing/content";
-import {
-  formatPlanBytes,
-  formatPlanPriceLabel,
-  PLAN_CATALOG,
-  priceForCycle,
-  SELLABLE_PLAN_KEYS,
-  type PlanDefinition,
-  type SellablePlanKey,
-} from "@/convex/shared/plans";
 import { LandingSection } from "@/features/marketing/components/landing-section";
-import { appEntryHref } from "@/lib/hosting/hosts";
-import { cn } from "@/lib/utils";
-
-type BillingCycle = "monthly" | "yearly";
-
-/** Public sales catalog — excludes legacy Lifetime. */
-const PLAN_ORDER: SellablePlanKey[] = [...SELLABLE_PLAN_KEYS];
-
-/** Yearly is priced as ~10 months — two months free vs paying monthly. */
-function yearlySavings(plan: PlanDefinition): number | null {
-  if (plan.monthlyPrice === null || plan.yearlyPrice === null) return null;
-  const saved = plan.monthlyPrice * 12 - plan.yearlyPrice;
-  return saved > 0 ? saved : null;
-}
-
-function planPriceDisplay(plan: PlanDefinition, cycle: BillingCycle) {
-  const price = priceForCycle(plan, cycle);
-  if (price === null) {
-    return { amount: "Talk to us", suffix: "", savings: null as number | null };
-  }
-
-  return {
-    amount: formatPlanPriceLabel(price, plan.priceFrom),
-    suffix: cycle === "monthly" ? "/ month" : "/ year",
-    savings: cycle === "yearly" ? yearlySavings(plan) : null,
-  };
-}
+import {
+  BillingCycleToggle,
+  PlanComparisonTable,
+  PlanNeuCard,
+  type BillingCycle,
+  usePublicPlanCatalog,
+} from "@/features/marketing/components/plan-pricing-cards";
 
 const TRUST_ICONS = [BadgeCheck, Ban, ShieldCheck, RefreshCw] as const;
 
-function limitLabel(value: number | null, kind: "count" | "bytes"): string {
-  if (value === null) return "Unlimited";
-  if (kind === "bytes") return formatPlanBytes(value);
-  return value.toLocaleString();
-}
-
-function planFeatureLines(key: SellablePlanKey): string[] {
-  const cards = landingCopy.pricing.cards;
-  switch (key) {
-    case "basic":
-      return [...cards.basic.included];
-    case "pro":
-      return [...cards.pro.additional];
-    case "enterprise":
-      return [...PLAN_CATALOG.enterprise.features.slice(0, 5)];
-  }
-}
-
-function planCta(key: SellablePlanKey): { label: string; href: string } {
-  const cards = landingCopy.pricing.cards;
-  switch (key) {
-    case "basic":
-      return { label: cards.basic.cta, href: cards.basic.href };
-    case "pro":
-      return { label: cards.pro.cta, href: cards.pro.href };
-    case "enterprise":
-      return { label: cards.enterprise.cta, href: cards.enterprise.href };
-  }
-}
-
-function planDescription(key: SellablePlanKey): string {
-  return landingCopy.pricing.cards[key].description;
-}
-
-function planBadge(key: SellablePlanKey): string {
-  return landingCopy.pricing.cards[key].badge;
-}
-
-/** V3 pricing — sellable plans only, Pro featured, Monthly default. */
+/** Full pricing — every marketing-visible plan + comparison matrix. */
 export function LandingPricing() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  const catalog = usePublicPlanCatalog();
   const copy = landingCopy.pricing;
+  const plans = catalog.plans;
 
   return (
     <LandingSection
@@ -106,10 +39,37 @@ export function LandingPricing() {
             {copy.subtitle}
           </p>
 
-          <BillingToggle cycle={cycle} onChange={setCycle} />
+          <div className="mt-8 flex flex-col items-center gap-2">
+            <BillingCycleToggle cycle={cycle} onChange={setCycle} />
+            <p className="text-xs text-slate-500">
+              {cycle === "yearly"
+                ? "Billed once a year — two months free versus monthly."
+                : "Switch to Annual anytime to lock in two months free."}
+            </p>
+          </div>
         </header>
 
-        <PricingCards cycle={cycle} />
+        <ul
+          data-reveal
+          className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        >
+          {plans.map((plan) => (
+            <li key={plan.key}>
+              <PlanNeuCard plan={plan} cycle={cycle} />
+            </li>
+          ))}
+        </ul>
+
+        <div data-reveal className="mt-16 space-y-4">
+          <h3 className="text-center text-xl font-semibold tracking-tight text-[#111827]">
+            Compare every plan
+          </h3>
+          <p className="mx-auto max-w-2xl text-center text-sm text-slate-600">
+            Limits and features side by side. Strikethrough prices show the list rate before the
+            current price drop.
+          </p>
+          <PlanComparisonTable plans={plans} cycle={cycle} />
+        </div>
 
         <ul
           data-reveal
@@ -132,165 +92,5 @@ export function LandingPricing() {
         </ul>
       </div>
     </LandingSection>
-  );
-}
-
-function BillingToggle({
-  cycle,
-  onChange,
-}: {
-  cycle: BillingCycle;
-  onChange: (cycle: BillingCycle) => void;
-}) {
-  return (
-    <div className="mt-8 flex flex-col items-center gap-2">
-      <div
-        role="group"
-        aria-label="Billing cycle"
-        className="inline-flex rounded-full border border-slate-200 bg-[#F8FAFC] p-1 shadow-sm"
-      >
-        {(["monthly", "yearly"] as const).map((option) => (
-          <button
-            key={option}
-            type="button"
-            aria-pressed={cycle === option}
-            onClick={() => onChange(option)}
-            className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
-              cycle === option ? "bg-primary text-white" : "text-slate-600 hover:text-[#111827]",
-            )}
-          >
-            {option === "monthly" ? "Monthly" : "Annual"}
-            {option === "yearly" ? (
-              <span
-                className={cn(
-                  "ml-1.5 text-[10px] font-bold tracking-wide uppercase",
-                  cycle === "yearly" ? "text-white/90" : "text-primary",
-                )}
-              >
-                2 months free
-              </span>
-            ) : null}
-          </button>
-        ))}
-      </div>
-      <p className="text-xs text-slate-500">
-        {cycle === "yearly"
-          ? "Billed once a year — two months free versus monthly."
-          : "Switch to Annual anytime to lock in two months free."}
-      </p>
-    </div>
-  );
-}
-
-function PricingCards({ cycle }: { cycle: BillingCycle }) {
-  return (
-    <ul
-      data-reveal
-      className="landing-price-carousel mt-10 sm:mt-14 sm:grid sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-5"
-    >
-      {PLAN_ORDER.map((key) => {
-        const plan = PLAN_CATALOG[key];
-        const isFeatured = plan.featured;
-        const featureLines = planFeatureLines(key);
-        const cta = planCta(key);
-        const external = cta.href.startsWith("mailto:");
-        const price = planPriceDisplay(plan, cycle);
-        const resolvedBase = external ? cta.href : appEntryHref(cta.href);
-        const ctaHref = external
-          ? resolvedBase
-          : `${resolvedBase}${resolvedBase.includes("?") ? "&" : "?"}plan=${key}&cycle=${cycle}`;
-        const offSite = external || /^https?:\/\//i.test(ctaHref);
-
-        const limitLines = [
-          `${limitLabel(plan.limits.products, "count")} Products`,
-          `${limitLabel(plan.limits.users, "count")} Users`,
-          `${limitLabel(plan.limits.branches, "count")} ${plan.limits.branches === 1 ? "Branch" : "Branches"}`,
-          `${limitLabel(plan.limits.devices, "count")} Devices`,
-          plan.variableBackup
-            ? "Custom Cloud Backup"
-            : `${limitLabel(plan.limits.backupBytes, "bytes")} Cloud Backup`,
-        ];
-
-        const mobileOrderClass = {
-          basic: "order-2 sm:order-none",
-          pro: "order-1 sm:order-none",
-          enterprise: "order-3 sm:order-none",
-        }[key];
-
-        return (
-          <li
-            key={key}
-            className={cn(
-              "landing-price-card-v2 group relative flex min-w-[82%] snap-center flex-col rounded-3xl border bg-[#F8FAFC] p-6 transition-[transform,box-shadow,border-color] duration-300 sm:min-w-0 sm:bg-white sm:p-7",
-              mobileOrderClass,
-              isFeatured &&
-                "landing-price-card-featured border-primary/45 bg-white shadow-[0_24px_48px_-28px_rgba(56,189,248,0.55)] sm:z-10 xl:-translate-y-2",
-              !isFeatured && "border-slate-200/90 shadow-sm",
-            )}
-          >
-            <span
-              className={cn(
-                "mb-3 inline-flex self-start rounded-full px-3 py-1 text-[10px] font-bold tracking-[0.12em] uppercase sm:absolute sm:-top-3 sm:left-1/2 sm:mb-0 sm:-translate-x-1/2 sm:self-auto",
-                isFeatured && "bg-primary text-white",
-                !isFeatured && "border border-slate-200 bg-white text-slate-700",
-              )}
-            >
-              {planBadge(key)}
-            </span>
-
-            <h3 className="text-xl font-semibold tracking-tight text-[#111827] sm:mt-2">
-              {plan.name}
-            </h3>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">{planDescription(key)}</p>
-
-            <div className="mt-6 border-t border-slate-100 pt-5">
-              <p className="text-3xl font-semibold tracking-tight text-[#111827]">{price.amount}</p>
-              <p className="mt-1 text-xs text-slate-500">{price.suffix}</p>
-              {price.savings !== null ? (
-                <p className="text-primary mt-2 text-xs font-semibold">
-                  Save GH₵{price.savings.toLocaleString()} / year
-                </p>
-              ) : null}
-            </div>
-
-            <ul className="mt-5 space-y-1.5 text-xs text-slate-600">
-              {limitLines.map((line) => (
-                <li key={line} className="flex items-center gap-2">
-                  <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden />
-                  {line}
-                </li>
-              ))}
-            </ul>
-
-            <ul className="mt-5 flex-1 space-y-2">
-              {featureLines.map((feature) => (
-                <li key={feature} className="flex items-start gap-2 text-sm text-slate-800">
-                  <span className="bg-primary mt-1 h-1.5 w-1.5 shrink-0 rounded-full" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-7">
-              <Button
-                asChild
-                variant={isFeatured ? "default" : "outline"}
-                className={cn(
-                  "h-11 w-full font-semibold",
-                  isFeatured && "landing-shadow-cta-primary",
-                )}
-              >
-                {offSite ? (
-                  <a href={ctaHref}>{cta.label}</a>
-                ) : (
-                  <Link href={ctaHref}>{cta.label}</Link>
-                )}
-              </Button>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
   );
 }

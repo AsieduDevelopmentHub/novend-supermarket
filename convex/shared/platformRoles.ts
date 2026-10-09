@@ -95,6 +95,7 @@ export const PLATFORM_ROUTE_PERMISSION: Record<string, PlatformPermission> = {
   "/platform/organizations": "orgs.read",
   "/platform/releases": "releases.read",
   "/platform/costs": "costs.read",
+  "/platform/plans": "orgs.read",
   "/platform/staff": "staff.manage",
   "/platform/sms": "sms.broadcast",
   "/platform/notifications": "sms.broadcast",
@@ -105,6 +106,7 @@ export function permissionForPlatformPath(pathname: string): PlatformPermission 
   if (pathname.startsWith("/platform/insights/")) return "analytics.read";
   if (pathname.startsWith("/platform/releases")) return "releases.read";
   if (pathname.startsWith("/platform/costs")) return "costs.read";
+  if (pathname.startsWith("/platform/plans")) return "orgs.read";
   if (pathname.startsWith("/platform/staff")) return "staff.manage";
   if (pathname.startsWith("/platform/sms")) return "sms.broadcast";
   if (pathname.startsWith("/platform/notifications")) return "sms.broadcast";
@@ -116,6 +118,7 @@ export function permissionForPlatformPath(pathname: string): PlatformPermission 
     "releases",
     "revenue",
     "costs",
+    "plans",
     "subscriptions",
     "health",
     "payments",

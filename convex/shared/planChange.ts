@@ -6,9 +6,9 @@
 
 import type { AccessState } from "./licensing";
 import {
-  PLAN_CATALOG,
   planChangeKind,
   priceForCycle,
+  resolvePlan,
   usageExceedsLimits,
   type BillingCycle,
   type LimitResource,
@@ -89,7 +89,7 @@ function hasPaidRemainder(input: PlanChangeInput): boolean {
 }
 
 function catalogPrice(planKey: PlanKey, cycle: BillingCycle): number | null {
-  return priceForCycle(PLAN_CATALOG[planKey], cycle);
+  return priceForCycle(resolvePlan(planKey), cycle);
 }
 
 /**
@@ -126,8 +126,8 @@ export function prorateUpgrade(args: {
 }
 
 export function computePlanChangePreview(input: PlanChangeInput): PlanChangePreview {
-  const current = PLAN_CATALOG[input.currentPlanKey];
-  const target = PLAN_CATALOG[input.targetPlanKey];
+  const current = resolvePlan(input.currentPlanKey);
+  const target = resolvePlan(input.targetPlanKey);
   const catalogTarget = catalogPrice(input.targetPlanKey, input.targetCycle);
   const targetPrice =
     input.targetPriceOverride !== undefined && input.targetPriceOverride !== null
