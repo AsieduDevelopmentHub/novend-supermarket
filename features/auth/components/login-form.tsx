@@ -303,7 +303,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
     // Keep the form mounted until replace — prepare + navigate must be sync.
     // fromLogin (via navigateAfterLogin) warms the shell without RestoreLastRoute.
     releaseTypedLoginFields();
-    navigateAfterLogin(
+    await navigateAfterLogin(
       resolvePostAuthPath({
         isPlatformAdmin: false,
         needsOnboarding: false,
@@ -352,10 +352,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         // Resolve destination while the signing-in cover is painted, then hard-navigate
         // in one sync turn (prepareHardNavigation + replace).
         const path = await resolvePostLoginPath(convex);
-        const landRemaining = SIGN_IN_SPLASH_LAND_MS - (Date.now() - splashOpenedAt);
-        if (landRemaining > 0) await wait(landRemaining);
+        if (!isCapacitor() && !isElectron()) {
+          const landRemaining = SIGN_IN_SPLASH_LAND_MS - (Date.now() - splashOpenedAt);
+          if (landRemaining > 0) await wait(landRemaining);
+        }
         releaseTypedLoginFields();
-        navigateAfterLogin(withBootMarker(path), router, { hard: true });
+        await navigateAfterLogin(withBootMarker(path), router, { hard: true });
       } catch {
         clearPostLoginLeavePending();
         clearSignInMotionStart();
@@ -488,8 +490,12 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       // Leave immediately — PBKDF2 offline digest must not pad “Opening your
       // workspace”. Shell already has the offline session hint from bindReplica.
       markOnlineSessionWarm();
-      const landRemaining = SIGN_IN_SPLASH_LAND_MS - (Date.now() - splashOpenedAt);
-      if (landRemaining > 0) await wait(landRemaining);
+      // Native shells must leave immediately — waiting out the full fall left
+      // Electron stuck on Opening your workspace when HTTPS replace hung.
+      if (!isCapacitor() && !isElectron()) {
+        const landRemaining = SIGN_IN_SPLASH_LAND_MS - (Date.now() - splashOpenedAt);
+        if (landRemaining > 0) await wait(landRemaining);
+      }
       if (generation !== submitGenerationRef.current) {
         clearPostLoginLeavePending();
         clearSignInMotionStart();
@@ -502,7 +508,7 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
       if (cloudLoggedInAt != null) {
         await rememberClockIn(String(session.userId), cloudLoggedInAt);
       }
-      navigateAfterLogin(session.path, router, { hard: true });
+      await navigateAfterLogin(session.path, router, { hard: true });
       void storeLocalAuthVerifier(normalizedEmail, rawPassword, session.userId)
         .then((prepared) => {
           if (!prepared) {

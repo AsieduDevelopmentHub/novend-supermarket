@@ -1,5 +1,38 @@
+diff --git a/dist/nextjs/client.js b/dist/nextjs/client.js
+index abb411669cd0b35db9300102a1f9ba39f8abfab4..776666c8ee1dabe8e50630d7d102ae87b8104774 100644
+--- a/dist/nextjs/client.js
++++ b/dist/nextjs/client.js
+@@ -3,6 +3,19 @@ import { jsx as _jsx } from "react/jsx-runtime";
+ import { useCallback, useMemo } from "react";
+ import { AuthProvider } from "../react/client.js";
+ import { invalidateCache } from "./server/invalidateCache.js";
++/**
++ * Router-cache invalidation is best-effort. After a deploy, Electron/Cap/SW
++ * clients may still hold a previous Server Action id. Throwing here fails
++ * sign-in and surfaces Next's raw "Server Action … was not found" toast.
++ */
++async function safeInvalidateCache() {
++    try {
++        await invalidateCache();
++    }
++    catch {
++        /* ignore — sign-in must still succeed */
++    }
++}
+ export function ConvexAuthNextjsClientProvider({ apiRoute, serverState, storage, storageNamespace, shouldHandleCode, verbose, children, }) {
+     const call = useCallback(async (action, args) => {
+         const params = { action, args };
+@@ -21,7 +34,7 @@ export function ConvexAuthNextjsClientProvider({ apiRoute, serverState, storage,
+         unauthenticatedCall: call,
+         verbose,
+     }), [call, verbose]);
+-    return (_jsx(AuthProvider, { client: authClient, serverState: serverState, onChange: invalidateCache, storage: 
++    return (_jsx(AuthProvider, { client: authClient, serverState: serverState, onChange: safeInvalidateCache, storage: 
+         // Handle SSR, Client, etc.
+         // Pretend we always have storage, the component checks
+         // it in first useEffect.
 diff --git a/dist/server/utils.js b/dist/server/utils.js
-index bb05c090a56a368d7e07c490f02fc4af0aaef969..0ccb572648c9124e5092f993587b66e7e14f3b60 100644
+index bb05c090a56a368d7e07c490f02fc4af0aaef969..a2c936c8a168c266ece3b95f78f6a082b05a3209 100644
 --- a/dist/server/utils.js
 +++ b/dist/server/utils.js
 @@ -6,6 +6,15 @@ export function requireEnv(name) {
@@ -19,3 +52,37 @@ index bb05c090a56a368d7e07c490f02fc4af0aaef969..0ccb572648c9124e5092f993587b66e7
 +    return false;
  }
  //# sourceMappingURL=utils.js.map
+\ No newline at end of file
+diff --git a/src/nextjs/client.tsx b/src/nextjs/client.tsx
+index 2e02fa76fae8308bf6468f372299e4673aae4dee..cd4a739e414a1060c18a51df9acb90b8182f771b 100644
+--- a/src/nextjs/client.tsx
++++ b/src/nextjs/client.tsx
+@@ -5,6 +5,19 @@ import { AuthProvider } from "../react/client.js";
+ import { AuthClient } from "../react/clientType.js";
+ import { invalidateCache } from "./server/invalidateCache.js";
+ 
++/**
++ * Router-cache invalidation is best-effort. After a deploy, Electron/Cap/SW
++ * clients may still hold a previous Server Action id. Throwing here fails
++ * sign-in and surfaces Next's raw "Server Action … was not found" toast.
++ */
++async function safeInvalidateCache() {
++  try {
++    await invalidateCache();
++  } catch {
++    /* ignore — sign-in must still succeed */
++  }
++}
++
+ export function ConvexAuthNextjsClientProvider({
+   apiRoute,
+   serverState,
+@@ -49,7 +62,7 @@ export function ConvexAuthNextjsClientProvider({
+     <AuthProvider
+       client={authClient}
+       serverState={serverState}
+-      onChange={invalidateCache}
++      onChange={safeInvalidateCache}
+       storage={
+         // Handle SSR, Client, etc.
+         // Pretend we always have storage, the component checks

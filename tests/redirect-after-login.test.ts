@@ -147,7 +147,9 @@ describe("redirect-after-login", () => {
     expect(source).toContain("form.reset()");
     expect(source).toContain("prepareHardNavigation()");
     expect(source).toContain("window.location.replace(target)");
-    expect(source).toContain("if (hardNavigationPending) return;");
+    // A hung prior leave must retry — silent return stuck Electron on the cover.
+    expect(source).toContain("resetHardNavigationPending()");
+    expect(source).not.toContain("if (hardNavigationPending) return;");
     const hardBranch = source
       .split('if (typeof window !== "undefined" && forceHard) {')[1]
       ?.split("router.replace(target);")[0];
@@ -157,6 +159,7 @@ describe("redirect-after-login", () => {
       hardBranch?.match(/window\.location\.replace\(target\)/g)?.length,
     ).toBeGreaterThanOrEqual(1);
     expect(hardBranch).toContain("reloadAuthShell");
+    expect(hardBranch).toContain("ELECTRON_SHELL_RELOAD_MS");
     expect(hardBranch).not.toContain("window.setTimeout");
     expect(source).toContain("withPostLoginShellMarker");
     expect(source).toContain("fromLogin=1");
@@ -187,12 +190,13 @@ describe("redirect-after-login", () => {
     );
     expect(source).toContain("navigateAfterLogin");
     expect(source).toContain("setOpeningWorkspace(true)");
-    expect(source).toMatch(/setOpeningWorkspace\(true\);[\s\S]*?navigateAfterLogin/);
+    expect(source).toMatch(/setOpeningWorkspace\(true\);[\s\S]*?await navigateAfterLogin/);
     expect(source).toContain("Opening your workspace");
     expect(source).toContain("Just a moment");
     expect(source).toContain("linger");
     expect(source).toContain("portal");
     expect(source).toContain("markSignInMotionStart");
+    expect(source).toContain("!isCapacitor() && !isElectron()");
     const motion = readFileSync(resolve(process.cwd(), "lib/auth/sign-in-motion.ts"), "utf8");
     expect(motion).toContain("SIGN_IN_SPLASH_LAND_MS = 4_200");
     expect(source).not.toContain("Signing you in…");
@@ -215,8 +219,14 @@ describe("redirect-after-login", () => {
     expect(source).toContain("AUTH_ATTACH_MS = 350");
     expect(source).toContain("waitForConvexConnection");
     expect(source).toContain("isWebSocketConnected");
+    expect(source).toContain("ELECTRON_SHELL_RELOAD_MS");
+    expect(source).toContain("resetHardNavigationPending()");
     expect(source).toContain("reloadAuthShell");
     expect(source).toContain("isElectron()");
+    // Slow socket must still attempt users.me — do not fail closed before retries.
+    expect(source).not.toMatch(
+      /waitForConvexConnection[\s\S]{0,120}if \(!socketReady\) \{\s*throw/,
+    );
   });
 
   it("post-login leave latch blocks parallel hard leaves", () => {
