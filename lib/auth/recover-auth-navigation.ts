@@ -3,6 +3,7 @@
  * lands in a Next error boundary instead of `/login`.
  */
 
+import { isStaleClientError } from "@/lib/errors";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { navigateToLoginAfterSignOut } from "@/lib/auth/native-auth-navigation";
 import { LOGIN_AFTER_SIGN_OUT_PATH } from "@/lib/auth/capacitor-boot";
@@ -90,11 +91,8 @@ export async function recoverToLoginAfterFailure(): Promise<void> {
   }
 }
 
-/** Claim a single automatic refresh for a stale Next client build. */
-export function shouldAutoRecoverChunkFailure(error: unknown): boolean {
-  if (!isChunkLoadError(error)) return false;
-  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
-  // Reconnect often flickers offline→online; still refresh once so mixed builds clear.
+function claimClientRecoverySlot(): boolean {
+  if (typeof window === "undefined") return false;
   const now = Date.now();
   try {
     const previous = Number(window.sessionStorage.getItem(CHUNK_RECOVERY_KEY) ?? "0");
@@ -103,6 +101,27 @@ export function shouldAutoRecoverChunkFailure(error: unknown): boolean {
   } catch {
     /* Reloading is still safer than leaving a framework error visible. */
   }
+  return true;
+}
+
+/** Claim a single automatic refresh for a stale Next client build. */
+export function shouldAutoRecoverChunkFailure(error: unknown): boolean {
+  if (!isChunkLoadError(error)) return false;
+  if (typeof navigator === "undefined") return false;
+  // Reconnect often flickers offline→online; still refresh once so mixed builds clear.
+  return claimClientRecoverySlot();
+}
+
+/** One refresh when the open page still calls a server action the new deploy removed. */
+export function shouldAutoRecoverStaleClient(error: unknown): boolean {
+  if (!isStaleClientError(error)) return false;
+  return claimClientRecoverySlot();
+}
+
+/** Reload once for a missing server action. Returns false when the cooldown already fired. */
+export function recoverStaleClient(error: unknown): boolean {
+  if (!shouldAutoRecoverStaleClient(error)) return false;
+  recoverFromChunkLoadFailure();
   return true;
 }
 

@@ -9,6 +9,9 @@ const LOAD_FAILED_MESSAGE = "We couldn't load this data. Please try again.";
 
 const UNKNOWN_MESSAGE = "Something went wrong. Please try again.";
 
+const STALE_CLIENT_MESSAGE =
+  "Novend needs a quick refresh to load the latest version. Your saved work is safe on this device.";
+
 const OFFLINE_PATTERNS = [
   "err_internet_disconnected",
   "err_network_changed",
@@ -44,6 +47,17 @@ function isOfflineError(error: unknown): boolean {
   return lower.includes("you are offline") || lower === "offline";
 }
 
+/** Next.js action id from a page that is older than the server that just deployed. */
+export function isStaleClientError(error: unknown): boolean {
+  const lower = rawErrorText(error).toLowerCase();
+  return (
+    lower.includes("was not found on the server") ||
+    lower.includes("failed-to-find-server-action") ||
+    lower.includes("unrecognizedactionerror") ||
+    (lower.includes("server action") && lower.includes("not found"))
+  );
+}
+
 export function isConnectivityError(error: unknown): boolean {
   if (isOfflineError(error)) return true;
   const lower = rawErrorText(error).toLowerCase();
@@ -75,13 +89,14 @@ export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): strin
 
   const rawLowerEarly = raw.toLowerCase();
   if (
+    isStaleClientError(error) ||
     rawLowerEarly.includes("module factory is not available") ||
     rawLowerEarly.includes("was instantiated because it was required from module") ||
     rawLowerEarly.includes("chunkloaderror") ||
     rawLowerEarly.includes("loading chunk") ||
     rawLowerEarly.includes("failed to load chunk")
   ) {
-    return "Novend needs a quick refresh to load the latest version. Your saved work is safe on this device.";
+    return STALE_CLIENT_MESSAGE;
   }
 
   let message = raw
@@ -219,6 +234,14 @@ export function toUserMessage(error: unknown, fallback = UNKNOWN_MESSAGE): strin
 
 /** Show a sanitized error toast (logs the raw error). Repeats replace instead of stacking. */
 export function showError(error: unknown, fallback?: string) {
+  if (isStaleClientError(error)) {
+    console.error(error);
+    // The id belongs to the previous deployment. Reload once; don't toast the hex.
+    void import("@/lib/auth/recover-auth-navigation").then(({ recoverStaleClient }) => {
+      recoverStaleClient(error);
+    });
+    return;
+  }
   const message = toUserMessage(error, fallback);
   const network = isConnectivityError(error) || isOfflineError(error);
   toast.error(message, {

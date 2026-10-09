@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { isConnectivityError, toUserMessage } from "@/lib/errors";
+import { isConnectivityError, isStaleClientError, toUserMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import {
   isChunkLoadError,
@@ -9,6 +9,7 @@ import {
   recoverFromChunkLoadFailure,
   recoverToLoginAfterFailure,
   shouldAutoRecoverChunkFailure,
+  shouldAutoRecoverStaleClient,
   shouldRecoverToLogin,
 } from "@/lib/auth/recover-auth-navigation";
 import { resumeOfflineShellToDashboard } from "@/lib/auth/awaiting-cloud-reconnect";
@@ -27,6 +28,8 @@ export default function GlobalError({
   const [refreshingClient, setRefreshingClient] = useState(false);
   const offline = isConnectivityError(error);
   const chunkMiss = isChunkLoadError(error);
+  const staleClient = isStaleClientError(error);
+  const refreshClient = chunkMiss || staleClient;
   const recoverLogin = shouldRecoverToLogin(error);
 
   useEffect(() => {
@@ -42,11 +45,14 @@ export default function GlobalError({
   }, [recoverLogin, recovering]);
 
   useEffect(() => {
-    if (!chunkMiss || recoverLogin || recovering || refreshingClient) return;
-    if (!shouldAutoRecoverChunkFailure(error)) return;
+    if (!refreshClient || recoverLogin || recovering || refreshingClient) return;
+    const claimed = chunkMiss
+      ? shouldAutoRecoverChunkFailure(error)
+      : shouldAutoRecoverStaleClient(error);
+    if (!claimed) return;
     setRefreshingClient(true);
     recoverFromChunkLoadFailure();
-  }, [chunkMiss, error, recoverLogin, recovering, refreshingClient, reset]);
+  }, [chunkMiss, error, recoverLogin, recovering, refreshClient, refreshingClient, reset]);
 
   useEffect(() => {
     if (!isReactDomDetachError(error) || recovering) return;
@@ -83,12 +89,12 @@ export default function GlobalError({
     );
   }
 
-  const title = chunkMiss
+  const title = refreshClient
     ? "Novend needs a refresh"
     : offline
       ? "You're working offline"
       : "Something went wrong";
-  const message = chunkMiss
+  const message = refreshClient
     ? "Refresh Novend to load the latest version. Your saved work is safe on this device."
     : toUserMessage(
         error,
@@ -98,7 +104,7 @@ export default function GlobalError({
       );
 
   function retry() {
-    if (chunkMiss || isChunkLoadError(error)) {
+    if (refreshClient || isChunkLoadError(error) || isStaleClientError(error)) {
       setRefreshingClient(true);
       recoverFromChunkLoadFailure();
       return;
@@ -108,7 +114,7 @@ export default function GlobalError({
   }
 
   function goDashboard() {
-    if (chunkMiss || isChunkLoadError(error)) {
+    if (refreshClient || isChunkLoadError(error) || isStaleClientError(error)) {
       setRefreshingClient(true);
       recoverFromChunkLoadFailure();
       return;
@@ -124,9 +130,9 @@ export default function GlobalError({
           <p className="text-muted-foreground max-w-md text-sm">{message}</p>
           <div className="flex flex-wrap justify-center gap-2">
             <Button type="button" onClick={retry}>
-              {chunkMiss ? "Refresh Novend" : offline ? "Continue" : "Try again"}
+              {refreshClient ? "Refresh Novend" : offline ? "Continue" : "Try again"}
             </Button>
-            {chunkMiss ? null : (
+            {refreshClient ? null : (
               <Button type="button" variant="outline" onClick={goDashboard}>
                 Go to dashboard
               </Button>

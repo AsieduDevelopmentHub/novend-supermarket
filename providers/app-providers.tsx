@@ -15,6 +15,7 @@ import {
 import { MarketingCookieConsentHost } from "@/features/marketing/components/marketing-cookie-consent-host";
 import { isMarketingPath } from "@/lib/marketing-routes";
 import { useNonce } from "@/providers/nonce-provider";
+import { StaleClientRecovery } from "@/features/auth/components/stale-client-recovery";
 import { StartupSplash } from "@/providers/startup-splash";
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
@@ -53,6 +54,7 @@ function MissingConvexConfig({ children, nonce }: { children: ReactNode; nonce?:
           {children}
         </div>
         <MarketingCookieConsentHost />
+        <StaleClientRecovery />
         <Toaster />
       </AppearanceBootstrap>
     </AppThemeProvider>
@@ -80,6 +82,7 @@ export function AppProviders({ children, nonce }: { children: ReactNode; nonce?:
           <AppearanceProfileSync />
           <StartupSplash>{children}</StartupSplash>
           <MarketingCookieConsentHost />
+          <StaleClientRecovery />
           <Toaster />
         </AppearanceBootstrap>
       </AppThemeProvider>
