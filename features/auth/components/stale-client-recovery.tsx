@@ -41,6 +41,19 @@ export function StaleClientRecovery() {
       }
     };
 
+    const onWindowError = (event: ErrorEvent) => {
+      const payload = event.error ?? event.message;
+      if (isStaleClientError(payload)) {
+        event.preventDefault();
+        toast.dismiss();
+        recoverStaleClient(payload);
+        return;
+      }
+      if (isServiceWorkerRegistrationError(payload) || isConnectivityError(payload)) {
+        event.preventDefault();
+      }
+    };
+
     const originalError = toast.error.bind(toast);
     toast.error = ((message: unknown, data?: Parameters<typeof toast.error>[1]) => {
       const combined = combinedToastText(
@@ -67,8 +80,10 @@ export function StaleClientRecovery() {
     observer.observe(document.body, { childList: true, subtree: true });
 
     window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener("error", onWindowError);
     return () => {
       window.removeEventListener("unhandledrejection", onRejection);
+      window.removeEventListener("error", onWindowError);
       observer.disconnect();
       toast.error = originalError;
     };

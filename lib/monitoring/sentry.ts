@@ -22,14 +22,23 @@ export async function initSentryBrowser() {
           delete event.request.headers["authorization"];
           delete event.request.headers["cookie"];
         }
-        const text = `${event.message ?? ""} ${event.exception?.values?.map((value) => value.value).join(" ") ?? ""}`;
+        const values = event.exception?.values ?? [];
+        const text = `${event.message ?? ""} ${values.map((value) => `${value.type ?? ""} ${value.value ?? ""}`).join(" ")}`;
         if (/plugin is not implemented/i.test(text)) return null;
-        // Next prefetch / shell warm on a flaky Electron radio — not actionable.
-        const exceptionType = event.exception?.values?.[0]?.type ?? "";
-        if (/typeerror/i.test(exceptionType) && /failed to fetch/i.test(text)) {
+        // Prefetch / Convex reconnect / flaky Electron radio — not actionable.
+        if (/failed to fetch/i.test(text)) return null;
+        // Mid-deploy Server Action id mismatch — client recovers via novendFresh.
+        if (
+          /unrecognizedactionerror/i.test(text) ||
+          /was not found on the server/i.test(text) ||
+          /failed-to-find-server-action/i.test(text)
+        ) {
           return null;
         }
+        // Detached DOM measurement races (tooltips / popovers) — not actionable.
+        if (/offsetparent is null/i.test(text)) return null;
         // Chrome-on-iOS / private mode refusing /sw.js — not an app security bug.
+        const exceptionType = values[0]?.type ?? "";
         if (
           /securityerror/i.test(exceptionType) &&
           (/sw\.js/i.test(text) || /service.?worker/i.test(text))

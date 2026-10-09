@@ -454,19 +454,27 @@ export function SalesView() {
     const unit = units[0]!;
     const allowFractional = weightOn && unit.pricingMode === "per_weight";
     const step = allowFractional ? 0.001 : 1;
+    const existing = cart.find(
+      (item) => item.productId === product.id && (item.sellUnitKey ?? "default") === unit.key,
+    );
+    if (existing) {
+      const nextQty = roundQuantity(existing.quantity + step);
+      const baseNeeded = roundQuantity(nextQty * unit.factorToBase);
+      if (baseNeeded > available) {
+        toast.error(
+          `Not enough stock for ${product.name}. Available: ${Number.isFinite(available) ? available : product.stockQuantity}.`,
+        );
+        return;
+      }
+    }
     setCart((prev) => {
-      const existing = prev.find(
+      const current = prev.find(
         (item) => item.productId === product.id && (item.sellUnitKey ?? "default") === unit.key,
       );
-      if (existing) {
-        const nextQty = roundQuantity(existing.quantity + step);
+      if (current) {
+        const nextQty = roundQuantity(current.quantity + step);
         const baseNeeded = roundQuantity(nextQty * unit.factorToBase);
-        if (baseNeeded > available) {
-          toast.error(
-            `Not enough stock for ${product.name}. Available: ${Number.isFinite(available) ? available : product.stockQuantity}.`,
-          );
-          return prev;
-        }
+        if (baseNeeded > available) return prev;
         return prev.map((item) =>
           item.productId === product.id && (item.sellUnitKey ?? "default") === unit.key
             ? { ...item, quantity: nextQty }
@@ -487,6 +495,8 @@ export function SalesView() {
         },
       ];
     });
+    // Same confirmation as barcode scan — manual taps must be audible on the till.
+    playScanSuccessBeep();
   }
 
   function addScannedProduct(product: {
@@ -501,7 +511,6 @@ export function SalesView() {
       return;
     }
     addToCart(product);
-    playScanSuccessBeep();
     toast.success(`Added ${product.name}`);
   }
 

@@ -69,7 +69,10 @@ export function rememberLastScan(code: string, config = loadTerminalScannerConfi
   });
 }
 
-/** Short POS confirmation beep after a successful scan. */
+/**
+ * Noticeable POS confirmation beep after a successful scan or manual add to cart.
+ * Two short square tones cut through a noisy shop floor better than a soft sine.
+ */
 export function playScanSuccessBeep() {
   if (typeof window === "undefined") return;
   try {
@@ -78,16 +81,24 @@ export function playScanSuccessBeep() {
       (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.value = 880;
-    gain.gain.value = 0.07;
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.09);
-    window.setTimeout(() => void ctx.close(), 200);
+    void ctx.resume?.();
+    const playTone = (frequency: number, startAt: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "square";
+      osc.frequency.value = frequency;
+      const start = ctx.currentTime + startAt;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.22, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration);
+    };
+    playTone(1200, 0, 0.085);
+    playTone(1650, 0.095, 0.11);
+    window.setTimeout(() => void ctx.close(), 450);
   } catch {
     /* ignore autoplay / missing audio */
   }

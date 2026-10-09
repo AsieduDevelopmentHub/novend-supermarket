@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { Layers, Plus, RefreshCw } from "lucide-react";
+import { Copy, Layers, MessageSquare, Plus, RefreshCw } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
@@ -29,7 +30,20 @@ import {
   MEBIBYTE,
   MIN_MONTHLY_PRICE_GHS,
 } from "@/convex/shared/plans";
+import { SMS_MESSAGE_MAX } from "@/convex/shared/smsAudience";
 import { showError } from "@/lib/errors";
+
+const PRICING_PUBLIC_URL = "https://www.novendpos.app/pricing";
+
+/** Ready-to-send broadcast about the published plan ladder (fits Arkesel SMS length). */
+export function buildPlansUpdateSmsDraft(floorGhs = MIN_MONTHLY_PRICE_GHS): string {
+  const body = [
+    "Novend pricing update:",
+    `More plans, Starter from GH₵${floorGhs}/mo, Annual = 10 months (2 free).`,
+    `See all plans: ${PRICING_PUBLIC_URL}`,
+  ].join(" ");
+  return body.slice(0, SMS_MESSAGE_MAX);
+}
 
 type PlanRow = {
   _id: Id<"plans">;
@@ -155,6 +169,8 @@ export function PlatformPlansView() {
           </Button>
         </CardContent>
       </Card>
+
+      <PlansUpdateSmsCard floorGhs={MIN_MONTHLY_PRICE_GHS} />
 
       <Card>
         <CardContent className="overflow-x-auto p-0">
@@ -395,6 +411,55 @@ type FormValues = {
   homepageHighlight: boolean;
   sortOrder: number;
 };
+
+function PlansUpdateSmsCard({ floorGhs }: { floorGhs: number }) {
+  const draft = useMemo(() => buildPlansUpdateSmsDraft(floorGhs), [floorGhs]);
+
+  async function onCopy() {
+    try {
+      await navigator.clipboard.writeText(draft);
+      toast.success("SMS draft copied");
+    } catch {
+      toast.error("Could not copy — select the text manually");
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <MessageSquare className="size-4" aria-hidden />
+          SMS — pricing update
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-muted-foreground text-sm">
+          Copy this message for Platform → SMS (owners / admins / managers), or paste into the
+          community broadcast.
+        </p>
+        <Textarea
+          readOnly
+          value={draft}
+          rows={3}
+          className="font-mono text-sm"
+          aria-label="Pricing update SMS draft"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" onClick={() => void onCopy()}>
+            <Copy className="size-4" />
+            Copy SMS
+          </Button>
+          <Button type="button" variant="outline" asChild>
+            <Link href="/platform/sms">Open SMS</Link>
+          </Button>
+          <span className="text-muted-foreground text-xs">
+            {draft.length}/{SMS_MESSAGE_MAX}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function PlanFormDialog({
   open,
