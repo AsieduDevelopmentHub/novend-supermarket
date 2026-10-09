@@ -137,8 +137,9 @@ export function shouldAutoRecoverStaleClient(error: unknown): boolean {
 /** Reload once for a missing server action. Returns false when the cooldown already fired. */
 export function recoverStaleClient(error: unknown): boolean {
   if (!shouldAutoRecoverStaleClient(error)) return false;
-  // Drop cached auth shells so the next load cannot reuse the dead action id.
+  // Drop cached shells (auth + current route) so the next load cannot reuse a dead action id.
   try {
+    const path = typeof window !== "undefined" ? window.location.pathname : "";
     void caches?.keys?.().then(async (keys) => {
       await Promise.all(
         keys
@@ -147,6 +148,10 @@ export function recoverStaleClient(error: unknown): boolean {
             const cache = await caches.open(key);
             await cache.delete("/login");
             await cache.delete("/signup");
+            if (path && path !== "/login" && path !== "/signup") {
+              await cache.delete(path);
+              await cache.delete(new Request(path));
+            }
           }),
       );
     });
