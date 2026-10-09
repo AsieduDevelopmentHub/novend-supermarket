@@ -130,6 +130,84 @@ export function clampListPriceMarkupPercent(value: unknown): number {
   return Math.min(90, Math.max(0, Math.round(n)));
 }
 
+/** Marketing bullet inheritance: `"Everything in Starter"`. */
+const EVERYTHING_IN_FEATURE = /^Everything in (.+)$/i;
+
+export function parsePlanInheritanceTarget(feature: string): string | null {
+  const match = feature.trim().match(EVERYTHING_IN_FEATURE);
+  const target = match?.[1]?.trim();
+  return target ? target : null;
+}
+
+export type PlanFeatureSource = {
+  key: string;
+  name: string;
+  features: readonly string[];
+};
+
+/**
+ * Expand `"Everything in {PlanName}"` into concrete feature bullets.
+ * Inheritance lines themselves are omitted from the result.
+ */
+export function resolvePlanFeatures(
+  plan: PlanFeatureSource,
+  catalog: readonly PlanFeatureSource[],
+): string[] {
+  const byName = new Map(
+    catalog.map((entry) => [entry.name.trim().toLowerCase(), entry] as const),
+  );
+  const result: string[] = [];
+  const seen = new Set<string>();
+  const visiting = new Set<string>();
+
+  function walk(current: PlanFeatureSource) {
+    if (visiting.has(current.key)) return;
+    visiting.add(current.key);
+    for (const feature of current.features) {
+      const parentName = parsePlanInheritanceTarget(feature);
+      if (parentName) {
+        const parent = byName.get(parentName.toLowerCase());
+        if (parent) walk(parent);
+        continue;
+      }
+      if (!seen.has(feature)) {
+        seen.add(feature);
+        result.push(feature);
+      }
+    }
+    visiting.delete(current.key);
+  }
+
+  walk(plan);
+  return result;
+}
+
+/**
+ * Comparison-matrix rows and per-plan resolved feature sets.
+ * Walks plans in the given order (callers should sort by sortOrder ascending)
+ * so lower-tier bullets appear first.
+ */
+export function collectComparablePlanFeatures(plans: readonly PlanFeatureSource[]): {
+  rows: string[];
+  resolvedByKey: Map<string, ReadonlySet<string>>;
+} {
+  const resolvedByKey = new Map<string, ReadonlySet<string>>();
+  const rows: string[] = [];
+  const rowSeen = new Set<string>();
+
+  for (const plan of plans) {
+    const resolved = resolvePlanFeatures(plan, plans);
+    resolvedByKey.set(plan.key, new Set(resolved));
+    for (const feature of resolved) {
+      if (rowSeen.has(feature)) continue;
+      rowSeen.add(feature);
+      rows.push(feature);
+    }
+  }
+
+  return { rows, resolvedByKey };
+}
+
 export const PLAN_CATALOG: Record<SeedPlanKey, PlanDefinition> = {
   starter: {
     key: "starter",

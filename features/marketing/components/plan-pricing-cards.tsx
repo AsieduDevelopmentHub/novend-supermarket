@@ -6,6 +6,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import {
+  collectComparablePlanFeatures,
   DEFAULT_LIST_PRICE_MARKUP_PERCENT,
   formatPlanBytes,
   formatPlanPriceLabel,
@@ -252,12 +253,9 @@ export function PlanComparisonTable({
     },
   ];
 
-  // Union of feature strings across plans for a simple presence matrix
-  const featureSet = new Set<string>();
-  for (const plan of plans) {
-    for (const feature of plan.features) featureSet.add(feature);
-  }
-  const featureRows = Array.from(featureSet).slice(0, 24);
+  // Expand "Everything in …" so inherited bullets (e.g. Offline POS) mark ✓ on higher tiers.
+  const orderedPlans = [...plans].sort((a, b) => a.sortOrder - b.sortOrder);
+  const { rows: featureRows, resolvedByKey } = collectComparablePlanFeatures(orderedPlans);
 
   return (
     <div className="plan-card-neu overflow-x-auto p-2 sm:p-4">
@@ -299,7 +297,7 @@ export function PlanComparisonTable({
               </th>
               {plans.map((plan) => (
                 <td key={plan.key} className="px-3 py-2 text-center text-slate-700">
-                  {plan.features.includes(feature) ? "✓" : "—"}
+                  {resolvedByKey.get(plan.key)?.has(feature) ? "✓" : "—"}
                 </td>
               ))}
             </tr>

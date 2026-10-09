@@ -8,7 +8,9 @@ import {
   SELLABLE_PLAN_KEYS,
   SELLABLE_PLAN_LIST,
   clampListPriceMarkupPercent,
+  collectComparablePlanFeatures,
   listPriceFromReal,
+  resolvePlanFeatures,
   yearlyPriceFromMonthly,
 } from "@/convex/shared/plans";
 import { planCapabilities } from "@/convex/shared/capabilities";
@@ -56,5 +58,26 @@ describe("list-price markup psychology", () => {
     expect(clampListPriceMarkupPercent(20)).toBe(20);
     expect(clampListPriceMarkupPercent(-5)).toBe(0);
     expect(clampListPriceMarkupPercent(200)).toBe(90);
+  });
+});
+
+describe("plan feature inheritance for comparison", () => {
+  it("expands Everything-in lines so Offline POS is on every sellable tier", () => {
+    for (const plan of SELLABLE_PLAN_LIST) {
+      const resolved = resolvePlanFeatures(plan, SELLABLE_PLAN_LIST);
+      expect(resolved).toContain("Offline POS");
+      expect(resolved.some((feature) => feature.startsWith("Everything in "))).toBe(false);
+    }
+  });
+
+  it("marks inherited features present for higher plans in the matrix", () => {
+    const { rows, resolvedByKey } = collectComparablePlanFeatures(SELLABLE_PLAN_LIST);
+    expect(rows).toContain("Offline POS");
+    expect(rows).not.toContain("Everything in Starter");
+    for (const plan of SELLABLE_PLAN_LIST) {
+      expect(resolvedByKey.get(plan.key)?.has("Offline POS")).toBe(true);
+    }
+    expect(resolvedByKey.get("pro")?.has("Wholesale inventory")).toBe(true);
+    expect(resolvedByKey.get("starter")?.has("Wholesale inventory")).toBe(false);
   });
 });
