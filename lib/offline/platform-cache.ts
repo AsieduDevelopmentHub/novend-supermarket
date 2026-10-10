@@ -77,6 +77,8 @@ export type PlatformOrganizationListItem = {
   slug: string;
   status: string;
   isTestOrganization?: boolean;
+  industryProfile?: string;
+  industryLabel?: string;
   planKey: string;
   plan: string;
   currency: string;
