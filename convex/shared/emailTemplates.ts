@@ -274,6 +274,25 @@ export function clockInSms(input: {
   return appendSmsLink(`Novend: ${name} clocked in at ${input.time}${place}.`, input.staffUrl);
 }
 
+/** Salary or commission payment recorded for a staff member (not order checkout). */
+export function payrollPaymentSms(input: {
+  kind: "salary" | "commission";
+  staffName: string;
+  amountLabel: string;
+  payPeriodKey: string;
+  organizationName?: string;
+  staffUrl?: string;
+}): string {
+  const who = input.staffName.trim() || "Staff";
+  const kind = input.kind === "commission" ? "commission" : "salary";
+  const org = input.organizationName?.trim();
+  const prefix = org ? `Novend (${org})` : "Novend";
+  return appendSmsLink(
+    `${prefix}: ${who}, your ${kind} of ${input.amountLabel} for ${input.payPeriodKey} is recorded.`,
+    input.staffUrl,
+  );
+}
+
 const CLOSURE_REASON_LABELS: Record<string, string> = {
   break: "Taking a break from the business",
   switching: "Switching to another system",

@@ -24,26 +24,22 @@ npx convex env set ARKESEL_SENDER_ID "Novend"
 
 Register the sender ID in the Arkesel dashboard before production traffic.
 
-### Tenant SMS product (planned upgrade — not built yet)
+### Tenant SMS entitlements (plan-scoped)
 
-Marketing plan cards and `/pricing` compare already list SMS capabilities so
-tenants see the roadmap. **Do not put upgrade/status messaging on public pages.**
+Marketing compare bullets match `FEATURE_KEYS` / `planCapabilities`. **Do not put
+upgrade/status messaging on public pages.** Remaining UX (org SMS settings UI,
+customer send flows) can land later without relabeling these keys.
 
-Current production SMS is platform/ops only (broadcast, clock-in, digests). A
-later architecture pass should add org-scoped SMS without changing the published
-plan feature labels unless entitlements change:
+| Feature key | Plans (seed ladder) | Enforced today |
+| ----------- | ------------------- | -------------- |
+| `sms.notifications` | Starter+ | Daily sales digest SMS |
+| `sms.staff` | Shop+ | Cashier clock-in SMS to admins |
+| `sms.customers` | Basic+ | Entitlement only (send flows later) |
+| `sms.salaryAlerts` | Pro+ | SMS when **salary** or **commission** is recorded for staff — never order/checkout payments |
+| `sms.orgConfig` | Business+ | Entitlement only (settings UI later) |
 
-| Area | Intent |
-| ---- | ------ |
-| Organization configuration | Per-org sender, templates, mute rules, who may send |
-| Staff SMS | Cashiers / managers (shift, clock-in, ops alerts) |
-| Customer SMS | Receipts, pickup, balance reminders (opt-in) |
-| Payment & commission alerts | Sale/payment confirmations; staff commission pings |
-| Digests & other | Daily sales and other needed transactional SMS |
-
-Entitlements should stay plan-scoped (Starter → notifications; higher tiers unlock
-staff/customer/payment/commission/config). Implementation lands in a dedicated
-slice after the current Arkesel ops path is stable.
+Platform broadcast SMS (`api.sms.broadcast`) stays Super Admin ops and is not
+gated by tenant plan features.
 
 ## Sentry
 

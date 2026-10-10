@@ -184,6 +184,11 @@ export function featuresFromPlan(planKey: unknown): Record<FeatureKey, boolean> 
     "cloud.remoteMonitoring": FEATURE_REGISTRY["cloud.remoteMonitoring"].defaultEnabled,
     "imports.products": caps.canImportProducts,
     "exports.reports": caps.canExportReports,
+    "sms.notifications": caps.canSmsNotifications,
+    "sms.staff": caps.canSmsStaff,
+    "sms.customers": caps.canSmsCustomers,
+    "sms.salaryAlerts": caps.canSmsSalaryAlerts,
+    "sms.orgConfig": caps.canSmsOrgConfig,
   };
 
   return mapped;

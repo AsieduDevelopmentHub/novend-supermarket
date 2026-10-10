@@ -16,6 +16,9 @@ import {
 import { normalizeSmsRecipient, sendArkeselSms } from "./shared/arkeselSms";
 import { publicAppUrl } from "./shared/transactionalEmail";
 import { collectSalesInCompletedAtRange } from "./shared/salesRange";
+import { featureEnabled } from "./shared/licensing";
+import { resolveOrganizationConfig } from "./shared/organizationConfig";
+import { loadLiveOfferForOrganization } from "./shared/commercialOffers";
 
 type PreparedDailySales = {
   organizationId: Id<"organizations">;
@@ -75,6 +78,14 @@ export const prepare = internalQuery({
         profile.notificationsMuted !== true,
     );
 
+    const liveOffer = await loadLiveOfferForOrganization(ctx, org._id, args.now);
+    const config = resolveOrganizationConfig({
+      organization: org,
+      planKey: org.planKey,
+      offer: liveOffer,
+    });
+    const smsNotifications = featureEnabled(config.features, "sms.notifications");
+
     return {
       organizationId: org._id,
       organizationName: org.name,
@@ -82,15 +93,17 @@ export const prepare = internalQuery({
       dateKey,
       figures,
       userIds: administrators.map((profile) => profile.userId),
-      phones: [
-        ...new Set(
-          administrators
-            .map((profile) =>
-              profile.phone ? normalizeSmsRecipient(profile.phone) : null,
-            )
-            .filter((phone): phone is string => Boolean(phone)),
-        ),
-      ],
+      phones: smsNotifications
+        ? [
+            ...new Set(
+              administrators
+                .map((profile) =>
+                  profile.phone ? normalizeSmsRecipient(profile.phone) : null,
+                )
+                .filter((phone): phone is string => Boolean(phone)),
+            ),
+          ]
+        : [],
     };
   },
 });

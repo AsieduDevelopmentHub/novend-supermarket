@@ -86,13 +86,13 @@ describe("plan feature inheritance for comparison", () => {
     expect(rows).toContain("SMS notifications");
     expect(rows).toContain("SMS to cashiers & staff");
     expect(rows).toContain("Customer SMS");
-    expect(rows).toContain("Payment & commission SMS alerts");
+    expect(rows).toContain("Salary & commission SMS alerts");
     expect(rows).toContain("Organization SMS configuration");
     for (const plan of SELLABLE_PLAN_LIST) {
       expect(resolvedByKey.get(plan.key)?.has("SMS notifications")).toBe(true);
     }
-    expect(resolvedByKey.get("pro")?.has("Payment & commission SMS alerts")).toBe(true);
-    expect(resolvedByKey.get("starter")?.has("Payment & commission SMS alerts")).toBe(false);
+    expect(resolvedByKey.get("pro")?.has("Salary & commission SMS alerts")).toBe(true);
+    expect(resolvedByKey.get("starter")?.has("Salary & commission SMS alerts")).toBe(false);
     expect(resolvedByKey.get("business")?.has("Organization SMS configuration")).toBe(true);
   });
 });

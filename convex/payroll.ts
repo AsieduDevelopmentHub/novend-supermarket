@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import {
   assertOrgDoc,
@@ -12,6 +13,10 @@ import { writeAuditLog } from "./shared/audit";
 import { rememberClientOp, replayClientOp } from "./shared/clientOps";
 import { resolveLicense } from "./shared/entitlements";
 import { planCapabilities, capabilityDeniedMessage } from "./shared/capabilities";
+import { featureEnabled } from "./shared/licensing";
+import { resolveOrganizationConfig } from "./shared/organizationConfig";
+import { loadLiveOfferForOrganization } from "./shared/commercialOffers";
+import { normalizeSmsRecipient } from "./shared/arkeselSms";
 import { assertPositiveMoney, roundMoney, sanitizeText, TEXT_LIMITS } from "./shared/validation";
 import { completedReturnsInRange } from "./shared/returns";
 import {
@@ -29,6 +34,39 @@ import {
 } from "./shared/payroll";
 import { enrichAuditLogRow } from "./shared/auditEnrichment";
 import { commissionBasisValidator, salaryFrequencyValidator } from "./schema";
+import type { MutationCtx } from "./_generated/server";
+
+async function schedulePayrollPaymentSms(
+  ctx: MutationCtx,
+  args: {
+    organization: Doc<"organizations">;
+    planKey: string;
+    target: Doc<"profiles">;
+    kind: "salary" | "commission";
+    amount: number;
+    payPeriodKey: string;
+  },
+) {
+  if (args.target.notificationsMuted === true) return;
+  const phone = args.target.phone ? normalizeSmsRecipient(args.target.phone) : null;
+  if (!phone) return;
+  const liveOffer = await loadLiveOfferForOrganization(ctx, args.organization._id);
+  const config = resolveOrganizationConfig({
+    organization: args.organization,
+    planKey: args.planKey,
+    offer: liveOffer,
+  });
+  if (!featureEnabled(config.features, "sms.salaryAlerts")) return;
+  await ctx.scheduler.runAfter(0, internal.sms.notifyPayrollPayment, {
+    phone,
+    kind: args.kind,
+    staffName: args.target.name,
+    amount: args.amount,
+    currency: args.organization.currency,
+    payPeriodKey: args.payPeriodKey,
+    organizationName: args.organization.name,
+  });
+}
 
 async function requirePayrollAdmin(ctx: Parameters<typeof requireRole>[0]) {
   const session = await requireRole(ctx, ["administrator"]);
@@ -292,6 +330,14 @@ export const paySalary = mutation({
       kind: "pay_salary",
       result: id,
     });
+    await schedulePayrollPaymentSms(ctx, {
+      organization: session.organization,
+      planKey: session.license.planKey,
+      target,
+      kind: "salary",
+      amount: roundMoney(amount),
+      payPeriodKey,
+    });
     return id;
   },
 });
@@ -387,6 +433,14 @@ export const payCommission = mutation({
       clientOperationId: args.clientOperationId,
       kind: "pay_commission",
       result: id,
+    });
+    await schedulePayrollPaymentSms(ctx, {
+      organization: session.organization,
+      planKey: session.license.planKey,
+      target,
+      kind: "commission",
+      amount: outstanding,
+      payPeriodKey,
     });
     return id;
   },

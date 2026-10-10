@@ -31,7 +31,20 @@ describe("resolveOrganizationConfig", () => {
     expect(config.features["staff.compensation"]).toBe(true);
     expect(config.features.customerDisplay).toBe(true);
     expect(config.features["inventory.wholesale"]).toBe(true);
+    expect(config.features["sms.salaryAlerts"]).toBe(true);
+    expect(config.features["sms.orgConfig"]).toBe(true);
     expect(config.commercial.canSelfServe).toBe(false);
+  });
+
+  it("maps SMS entitlements by plan ladder (salary alerts are not order payments)", () => {
+    expect(featuresFromPlan("starter")["sms.notifications"]).toBe(true);
+    expect(featuresFromPlan("starter")["sms.staff"]).toBe(false);
+    expect(featuresFromPlan("shop")["sms.staff"]).toBe(true);
+    expect(featuresFromPlan("basic")["sms.customers"]).toBe(true);
+    expect(featuresFromPlan("basic")["sms.salaryAlerts"]).toBe(false);
+    expect(featuresFromPlan("pro")["sms.salaryAlerts"]).toBe(true);
+    expect(featuresFromPlan("pro")["sms.orgConfig"]).toBe(false);
+    expect(featuresFromPlan("business")["sms.orgConfig"]).toBe(true);
   });
 
   it("lets an organization feature override disable a plan-enabled capability", () => {

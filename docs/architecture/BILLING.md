@@ -79,10 +79,10 @@ migrate). Recurring plans are never sold on a lifetime cycle. Enterprise is
 self-serve — published as **GH₵899+**. Annual recurring prices are **10 × monthly**
 (two months free). Enterprise cloud backup is **quoted per organization**. Pro-tier
 capabilities (xlsx/PDF export, customer display, staff compensation) unlock at
-Pro sort order and above. Seed feature bullets include SMS notifications (and
-higher-tier staff/customer/payment SMS lines) for marketing compare; tenant SMS
-product architecture is tracked in `docs/architecture/OPS_INTEGRATIONS.md` and
-is not yet the self-serve org product.
+Pro sort order and above. SMS entitlements (`sms.notifications` →
+`sms.salaryAlerts` → `sms.orgConfig`) follow the same plan sort ladder; salary
+SMS means payroll salary/commission alerts, not order payments. See
+`docs/architecture/OPS_INTEGRATIONS.md`.
 
 # Private commercial offers
 

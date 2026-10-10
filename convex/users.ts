@@ -36,6 +36,9 @@ import { recordDailyActiveUser } from "./shared/platformTelemetry";
 import { formatBusinessTime, resolveReportedClockIn } from "./shared/businessDate";
 import { clockInSms } from "./shared/emailTemplates";
 import { loadTourProgressForUser } from "./shared/tourProgress";
+import { featureEnabled } from "./shared/licensing";
+import { resolveOrganizationConfig } from "./shared/organizationConfig";
+import { loadLiveOfferForOrganization } from "./shared/commercialOffers";
 
 export const me = query({
   args: {},
@@ -616,13 +619,6 @@ export const heartbeat = mutation({
       const branchName = profile.branchId
         ? ((await ctx.db.get(profile.branchId))?.name ?? profile.branch ?? "")
         : (profile.branch ?? "");
-      await ctx.scheduler.runAfter(0, internal.sms.notifyCashierClockIn, {
-        organizationId,
-        cashierUserId: userId,
-        cashierName: profile.name,
-        branchName,
-        clockedInAt: clockIn.at,
-      });
       const clockTime = formatBusinessTime(clockIn.at, organization?.timezone);
       await ctx.scheduler.runAfter(0, internal.appNotifications.recordClockIn, {
         organizationId,
@@ -634,6 +630,24 @@ export const heartbeat = mutation({
           branchName,
         }),
       });
+      // Staff SMS (Shop+) — clock-in SMS follows plan entitlements.
+      if (organization) {
+        const liveOffer = await loadLiveOfferForOrganization(ctx, organizationId);
+        const config = resolveOrganizationConfig({
+          organization,
+          planKey: organization.planKey,
+          offer: liveOffer,
+        });
+        if (featureEnabled(config.features, "sms.staff")) {
+          await ctx.scheduler.runAfter(0, internal.sms.notifyCashierClockIn, {
+            organizationId,
+            cashierUserId: userId,
+            cashierName: profile.name,
+            branchName,
+            clockedInAt: clockIn.at,
+          });
+        }
+      }
     }
     if (args.runtime) {
       await recordDailyActiveUser(ctx, {
