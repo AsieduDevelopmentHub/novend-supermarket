@@ -723,7 +723,7 @@ export const landingCopy = {
     eyebrow: "Pricing",
     title: "Clear plans for how you grow",
     detail:
-      "Every plan includes offline POS after setup, barcode support, receipts, inventory, and cloud sync. Compare limits and backup entitlements on the full pricing page.",
+      "Every plan includes offline POS after setup, barcode support, receipts, inventory, cloud sync, and SMS notifications. Compare limits and backup entitlements on the full pricing page.",
     summaries: {
       basic: "For single-location shops that need a dependable counter and catalogue.",
       pro: "For pharmacies, supermarkets, and growing wholesalers that need branches and transfers.",
@@ -742,7 +742,7 @@ export const landingCopy = {
     badge: "Pricing",
     title: "Simple, transparent pricing",
     subtitle:
-      "Every plan includes offline POS, barcode support, receipt printing, inventory, and cloud sync. Limits and cloud backup match the published catalog — upgrade only as you grow.",
+      "Every plan includes offline POS, barcode support, receipt printing, inventory, cloud sync, and SMS notifications. Limits and cloud backup match the published catalog — upgrade only as you grow.",
     trialNote: "14-day free trial",
     cards: {
       basic: {

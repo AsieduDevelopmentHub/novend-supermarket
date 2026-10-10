@@ -80,4 +80,19 @@ describe("plan feature inheritance for comparison", () => {
     expect(resolvedByKey.get("pro")?.has("Wholesale inventory")).toBe(true);
     expect(resolvedByKey.get("starter")?.has("Wholesale inventory")).toBe(false);
   });
+
+  it("lists SMS capabilities on the ladder for pricing compare", () => {
+    const { rows, resolvedByKey } = collectComparablePlanFeatures(SELLABLE_PLAN_LIST);
+    expect(rows).toContain("SMS notifications");
+    expect(rows).toContain("SMS to cashiers & staff");
+    expect(rows).toContain("Customer SMS");
+    expect(rows).toContain("Payment & commission SMS alerts");
+    expect(rows).toContain("Organization SMS configuration");
+    for (const plan of SELLABLE_PLAN_LIST) {
+      expect(resolvedByKey.get(plan.key)?.has("SMS notifications")).toBe(true);
+    }
+    expect(resolvedByKey.get("pro")?.has("Payment & commission SMS alerts")).toBe(true);
+    expect(resolvedByKey.get("starter")?.has("Payment & commission SMS alerts")).toBe(false);
+    expect(resolvedByKey.get("business")?.has("Organization SMS configuration")).toBe(true);
+  });
 });

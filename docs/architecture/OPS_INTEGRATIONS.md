@@ -24,6 +24,27 @@ npx convex env set ARKESEL_SENDER_ID "Novend"
 
 Register the sender ID in the Arkesel dashboard before production traffic.
 
+### Tenant SMS product (planned upgrade — not built yet)
+
+Marketing plan cards and `/pricing` compare already list SMS capabilities so
+tenants see the roadmap. **Do not put upgrade/status messaging on public pages.**
+
+Current production SMS is platform/ops only (broadcast, clock-in, digests). A
+later architecture pass should add org-scoped SMS without changing the published
+plan feature labels unless entitlements change:
+
+| Area | Intent |
+| ---- | ------ |
+| Organization configuration | Per-org sender, templates, mute rules, who may send |
+| Staff SMS | Cashiers / managers (shift, clock-in, ops alerts) |
+| Customer SMS | Receipts, pickup, balance reminders (opt-in) |
+| Payment & commission alerts | Sale/payment confirmations; staff commission pings |
+| Digests & other | Daily sales and other needed transactional SMS |
+
+Entitlements should stay plan-scoped (Starter → notifications; higher tiers unlock
+staff/customer/payment/commission/config). Implementation lands in a dedicated
+slice after the current Arkesel ops path is stable.
+
 ## Sentry
 
 | Item | Value |

@@ -241,6 +241,7 @@ export const PLAN_CATALOG: Record<SeedPlanKey, PlanDefinition> = {
       "Receipt printing",
       "Returns",
       "Basic reports",
+      "SMS notifications",
     ],
   },
   shop: {
@@ -272,6 +273,7 @@ export const PLAN_CATALOG: Record<SeedPlanKey, PlanDefinition> = {
       "Expenses",
       "Hardware barcode",
       "Analytics lite",
+      "SMS to cashiers & staff",
     ],
   },
   basic: {
@@ -305,6 +307,7 @@ export const PLAN_CATALOG: Record<SeedPlanKey, PlanDefinition> = {
       "Expenses",
       "Reports",
       "Analytics",
+      "Customer SMS",
     ],
   },
   growth: {
@@ -368,6 +371,7 @@ export const PLAN_CATALOG: Record<SeedPlanKey, PlanDefinition> = {
       "Staff salary and commission",
       "Customer display",
       "Excel & PDF export",
+      "Payment & commission SMS alerts",
       "Priority support",
     ],
   },
@@ -399,6 +403,7 @@ export const PLAN_CATALOG: Record<SeedPlanKey, PlanDefinition> = {
       "Larger catalogue & team",
       "More branches and devices",
       "1 GB cloud backup",
+      "Organization SMS configuration",
     ],
   },
   enterprise: {
