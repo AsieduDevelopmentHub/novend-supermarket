@@ -37,6 +37,24 @@ export const LANDING_SOCIAL_LINKS = [
     href: LANDING_WHATSAPP_UK.href,
   },
   {
+    id: "instagram",
+    label: "Instagram",
+    detail: "@novend_pos",
+    href: "https://www.instagram.com/novend_pos/",
+  },
+  {
+    id: "facebook",
+    label: "Facebook",
+    detail: "Novend POS",
+    href: "https://www.facebook.com/novendpos/",
+  },
+  {
+    id: "x",
+    label: "X",
+    detail: "@asiedudevhub",
+    href: "https://x.com/asiedudevhub",
+  },
+  {
     id: "linkedin",
     label: "LinkedIn",
     detail: "Asiedu Development Hub",
@@ -1049,7 +1067,7 @@ export const landingCopy = {
     },
     socials: {
       title: "Connect with Novend",
-      detail: "Follow Asiedu Development Hub and reach the team on WhatsApp.",
+      detail: "Follow Novend on Instagram, Facebook, and X — or reach the team on WhatsApp and LinkedIn.",
       links: LANDING_SOCIAL_LINKS,
     },
   },

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Linkedin, Mail, MessageCircle, Phone, Users } from "lucide-react";
+import { Facebook, Instagram, Linkedin, Mail, MessageCircle, Phone, Users, X } from "lucide-react";
 import { BRANDING } from "@/constants/branding";
 import { landingCopy } from "@/features/marketing/content";
 import { openCookiePreferences } from "@/lib/cookies/consent";
@@ -12,6 +12,9 @@ import { cn } from "@/lib/utils";
 const SOCIAL_ICONS = {
   community: Users,
   whatsapp: MessageCircle,
+  instagram: Instagram,
+  facebook: Facebook,
+  x: X,
   linkedin: Linkedin,
 } as const;
 

@@ -10,6 +10,13 @@ describe("marketing contact + WhatsApp community", () => {
     expect(ids.includes("website")).toBe(false);
   });
 
+  it("exposes Novend Instagram, Facebook, and X profiles", () => {
+    const byId = Object.fromEntries(LANDING_SOCIAL_LINKS.map((link) => [link.id, link.href]));
+    expect(byId.instagram).toBe("https://www.instagram.com/novend_pos/");
+    expect(byId.facebook).toBe("https://www.facebook.com/novendpos/");
+    expect(byId.x).toBe("https://x.com/asiedudevhub");
+  });
+
   it("exposes a floating WhatsApp community CTA on marketing chrome", () => {
     const shell = readFileSync(
       resolve(process.cwd(), "features/marketing/components/marketing-site-shell.tsx"),

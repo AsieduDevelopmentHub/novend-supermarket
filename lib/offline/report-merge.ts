@@ -1,6 +1,30 @@
 import type { LocalSalesReport } from "./ui-cache";
+import {
+  emptyReportPaymentTotals,
+  sumReportPaymentTotals,
+  type ReportPaymentTotals,
+} from "@/lib/payments";
 
 type DayRow = LocalSalesReport["daily"][number];
+
+function dayPaymentTotals(row: DayRow): ReportPaymentTotals {
+  return {
+    cash: row.cash ?? 0,
+    card: row.card ?? 0,
+    mobileMoney: row.mobileMoney ?? 0,
+  };
+}
+
+function withDayPayments(row: DayRow): DayRow {
+  const payments = dayPaymentTotals(row);
+  return {
+    ...row,
+    refunds: row.refunds ?? 0,
+    cash: payments.cash,
+    card: payments.card,
+    mobileMoney: payments.mobileMoney,
+  };
+}
 
 /**
  * Cloud reports only know uploaded sales. Unsynced checkouts already appear in
@@ -14,15 +38,28 @@ export function mergeSalesReportWithLocal(
   local: LocalSalesReport | null | undefined,
 ): LocalSalesReport | null {
   if (!remote && !local) return null;
-  if (!remote) return local ?? null;
-  if (!local) return remote;
+  if (!remote) {
+    if (!local) return null;
+    return {
+      ...local,
+      paymentTotals: local.paymentTotals ?? emptyReportPaymentTotals(),
+      daily: local.daily.map(withDayPayments),
+    };
+  }
+  if (!local) {
+    return {
+      ...remote,
+      paymentTotals: remote.paymentTotals ?? emptyReportPaymentTotals(),
+      daily: remote.daily.map(withDayPayments),
+    };
+  }
 
   const byDate = new Map<string, DayRow>();
   for (const row of remote.daily) {
-    byDate.set(row.date, { ...row, refunds: row.refunds ?? 0 });
+    byDate.set(row.date, withDayPayments(row));
   }
   for (const row of local.daily) {
-    const next = { ...row, refunds: row.refunds ?? 0 };
+    const next = withDayPayments(row);
     const current = byDate.get(row.date);
     if (!current) {
       byDate.set(row.date, next);
@@ -45,6 +82,7 @@ export function mergeSalesReportWithLocal(
   const totalOrders = daily.reduce((sum, row) => sum + row.orders, 0);
   const itemsSold = daily.reduce((sum, row) => sum + row.itemsSold, 0);
   const grossSales = totalSales + totalRefunds;
+  const paymentTotals = sumReportPaymentTotals(daily.map(dayPaymentTotals));
 
   return {
     kpis: {
@@ -56,6 +94,7 @@ export function mergeSalesReportWithLocal(
       totalRefunds,
       itemsReturned: Math.max(remote.kpis.itemsReturned ?? 0, local.kpis.itemsReturned ?? 0),
     },
+    paymentTotals,
     trend: daily.map((row) => ({ date: row.date, total: row.totalSales })),
     daily,
   };
@@ -83,4 +122,19 @@ export function mergeDayOrdersWithLocal<T extends OrderLike>(
   );
   if (extras.length === 0) return cloudOrders;
   return [...cloudOrders, ...extras].sort((a, b) => b.completedAt - a.completedAt);
+}
+
+/** Gross tender totals from a list of day orders (Cash / MoMo / Card). */
+export function paymentTotalsFromOrders(
+  orders: Array<{ total: number; paymentMethod?: string }>,
+): ReportPaymentTotals {
+  let totals = emptyReportPaymentTotals();
+  for (const order of orders) {
+    const method = order.paymentMethod;
+    if (method === "card") totals = { ...totals, card: totals.card + order.total };
+    else if (method === "mobile_money")
+      totals = { ...totals, mobileMoney: totals.mobileMoney + order.total };
+    else totals = { ...totals, cash: totals.cash + order.total };
+  }
+  return totals;
 }

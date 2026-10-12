@@ -9,6 +9,41 @@ export const PAYMENT_METHOD_OPTIONS: Array<{ value: PaymentMethod; label: string
   { value: "card", label: "Card" },
 ];
 
+/** Gross tender totals for a report period (matches digest `PaymentTotals`). */
+export type ReportPaymentTotals = {
+  cash: number;
+  card: number;
+  mobileMoney: number;
+};
+
+export function emptyReportPaymentTotals(): ReportPaymentTotals {
+  return { cash: 0, card: 0, mobileMoney: 0 };
+}
+
+/** Add a whole-sale total into the tender bucket (no split payments). */
+export function addReportPaymentTotal(
+  totals: ReportPaymentTotals,
+  paymentMethod: string | undefined,
+  amount: number,
+): ReportPaymentTotals {
+  const next = { ...totals };
+  if (paymentMethod === "card") next.card += amount;
+  else if (paymentMethod === "mobile_money") next.mobileMoney += amount;
+  else next.cash += amount;
+  return next;
+}
+
+export function sumReportPaymentTotals(rows: ReportPaymentTotals[]): ReportPaymentTotals {
+  return rows.reduce(
+    (acc, row) => ({
+      cash: acc.cash + row.cash,
+      card: acc.card + row.card,
+      mobileMoney: acc.mobileMoney + row.mobileMoney,
+    }),
+    emptyReportPaymentTotals(),
+  );
+}
+
 export function isPaymentMethod(value: string): value is PaymentMethod {
   return (PAYMENT_METHODS as readonly string[]).includes(value);
 }

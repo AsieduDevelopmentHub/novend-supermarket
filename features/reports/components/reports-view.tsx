@@ -24,9 +24,12 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { useBranchesList } from "@/hooks/use-offline-lists";
 import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { buildLocalSalesReport, type LocalSalesReport } from "@/lib/offline/ui-cache";
+import { mergeSalesReportWithLocal } from "@/lib/offline/report-merge";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { salesReportExportTable } from "@/lib/export/sales-report";
 import { formatCurrency, formatNumber } from "@/lib/currency";
+import { PaymentTotalsCard } from "@/components/data-display/payment-totals-card";
+import { emptyReportPaymentTotals } from "@/lib/payments";
 import { InventoryValuePanel } from "@/features/inventory/components/inventory-value-panel";
 import { useNarrowScreen } from "@/hooks/use-narrow-screen";
 import { useUserFilterPreferences } from "@/hooks/use-user-filter-preferences";
@@ -172,7 +175,7 @@ export function ReportsView() {
   const report =
     preferLocal || !online
       ? (localReport ?? remoteReport ?? null)
-      : (remoteReport ?? null);
+      : mergeSalesReportWithLocal(remoteReport, localReport);
   const recordExport = useMutation(api.imports.recordExport);
   const exportTable = report
     ? salesReportExportTable({
@@ -312,6 +315,11 @@ export function ReportsView() {
             />
           </Grid>
 
+          <PaymentTotalsCard
+            totals={report.paymentTotals ?? emptyReportPaymentTotals()}
+            description="Gross sales by payment method — includes unsynced sales on this till."
+          />
+
           {isAdmin || isManager ? (
             <InventoryValuePanel
               range={range}
@@ -372,13 +380,16 @@ export function ReportsView() {
               ) : (
                 <>
                   <div className="hidden max-w-full overflow-x-auto md:block">
-                    <table className="w-full min-w-[560px] text-left text-sm">
+                    <table className="w-full min-w-[760px] text-left text-sm">
                       <thead className="text-muted-foreground">
                         <tr>
                           <th className="px-4 pt-1 pb-2 font-medium">Date</th>
                           <th className="px-4 pt-1 pb-2 font-medium">Orders</th>
                           <th className="px-4 pt-1 pb-2 font-medium">Items Sold</th>
                           <th className="px-4 pt-1 pb-2 font-medium">Net sales</th>
+                          <th className="px-4 pt-1 pb-2 font-medium">Cash</th>
+                          <th className="px-4 pt-1 pb-2 font-medium">MoMo</th>
+                          <th className="px-4 pt-1 pb-2 font-medium">Card</th>
                           <th className="px-4 pt-1 pb-2 font-medium">Refunds</th>
                           <th className="px-4 pt-1 pb-2 font-medium">
                             <span className="sr-only">Open</span>
@@ -392,6 +403,9 @@ export function ReportsView() {
                             <td className="px-4 py-2.5">{row.orders}</td>
                             <td className="px-4 py-2.5">{row.itemsSold}</td>
                             <td className="px-4 py-2.5">{formatCurrency(row.totalSales)}</td>
+                            <td className="px-4 py-2.5">{formatCurrency(row.cash ?? 0)}</td>
+                            <td className="px-4 py-2.5">{formatCurrency(row.mobileMoney ?? 0)}</td>
+                            <td className="px-4 py-2.5">{formatCurrency(row.card ?? 0)}</td>
                             <td className="px-4 py-2.5">{formatCurrency(row.refunds ?? 0)}</td>
                             <td className="text-primary px-4 py-2.5 text-xs font-medium">View →</td>
                           </ClickableTableRow>
@@ -414,7 +428,10 @@ export function ReportsView() {
                           </p>
                         </div>
                         <p className="text-muted-foreground mt-1 text-xs">
-                          {row.orders} orders · {row.itemsSold} items ·{" "}
+                          {row.orders} orders · {row.itemsSold} items · Cash{" "}
+                          {formatCurrency(row.cash ?? 0)} · MoMo{" "}
+                          {formatCurrency(row.mobileMoney ?? 0)} · Card{" "}
+                          {formatCurrency(row.card ?? 0)} ·{" "}
                           {formatCurrency(row.refunds ?? 0)} refunds
                         </p>
                       </Link>
