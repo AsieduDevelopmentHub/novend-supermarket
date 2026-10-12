@@ -1,4 +1,5 @@
 import type { ExportTable } from "./types";
+import type { ReportPaymentTotals } from "@/lib/payments";
 
 export type AnalyticsExportInput = {
   start: string;
@@ -15,6 +16,7 @@ export type AnalyticsExportInput = {
     netProfit: number;
     profitMargin: number;
   };
+  paymentTotals?: ReportPaymentTotals;
   expenseBreakdown: Array<{ label: string; amount: number }>;
   trend: Array<{
     period: string;
@@ -116,6 +118,43 @@ export function analyticsExportTable(input: AnalyticsExportInput): ExportTable {
       grossProfit: "",
       netProfit: "",
     },
+    ...(input.paymentTotals
+      ? [
+          {
+            section: "Payments",
+            label: "Cash",
+            amount: input.paymentTotals.cash,
+            period: "",
+            revenue: "",
+            cogs: "",
+            expenses: "",
+            grossProfit: "",
+            netProfit: "",
+          },
+          {
+            section: "Payments",
+            label: "MoMo",
+            amount: input.paymentTotals.mobileMoney,
+            period: "",
+            revenue: "",
+            cogs: "",
+            expenses: "",
+            grossProfit: "",
+            netProfit: "",
+          },
+          {
+            section: "Payments",
+            label: "Card",
+            amount: input.paymentTotals.card,
+            period: "",
+            revenue: "",
+            cogs: "",
+            expenses: "",
+            grossProfit: "",
+            netProfit: "",
+          },
+        ]
+      : []),
     ...input.expenseBreakdown.map((row) => ({
       section: "Expense",
       label: row.label,

@@ -149,6 +149,29 @@ export function platformNavItemActive(pathname: string, item: PlatformNavItem): 
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
+/**
+ * First path segment under /platform/ that is a static page, not an org id.
+ * Kept in sync with static platform page routes so /platform/[id] never treats
+ * these as organization ids during soft navigation races.
+ */
+export const PLATFORM_STATIC_SEGMENTS = new Set([
+  "organizations",
+  "releases",
+  "revenue",
+  "costs",
+  "plans",
+  "subscriptions",
+  "health",
+  "payments",
+  "analytics",
+  "activity",
+  "exports",
+  "help",
+  "staff",
+  "sms",
+  "notifications",
+]);
+
 export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | null {
   if (path.startsWith("/platform/payments/")) return "analytics";
   if (path.startsWith("/platform/staff")) return "tenants";
@@ -172,25 +195,8 @@ export function findPlatformNavGroupForPath(path: string): PlatformNavGroupId | 
     return "analytics";
   }
 
-  const reserved = new Set([
-    "organizations",
-    "releases",
-    "revenue",
-    "costs",
-    "plans",
-    "subscriptions",
-    "health",
-    "payments",
-    "analytics",
-    "activity",
-    "exports",
-    "help",
-    "staff",
-    "sms",
-    "notifications",
-  ]);
   const orgMatch = path.match(/^\/platform\/([^/]+)\/?$/);
-  if (orgMatch && !reserved.has(orgMatch[1])) {
+  if (orgMatch && !PLATFORM_STATIC_SEGMENTS.has(orgMatch[1])) {
     return "tenants";
   }
 

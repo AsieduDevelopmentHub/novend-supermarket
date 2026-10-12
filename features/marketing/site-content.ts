@@ -9,7 +9,7 @@ export const sitePages = {
     badge: "Documentation",
     title: "Novend Documentation",
     subtitle:
-      "A practical guide to setting up your organization, selling on the counter, managing inventory and wholesale stock, syncing offline work, connecting hardware, and administering users, branches, and billing — on desktop, web, Android, and iOS (PWA).",
+      "A practical guide to setting up your organization, selling on the counter, managing inventory and wholesale stock, syncing offline work, connecting hardware, and administering users, branches, and billing, on desktop, web, Android, and iOS (PWA).",
     sections: [
       {
         id: "getting-started",
@@ -18,9 +18,9 @@ export const sitePages = {
         items: [
           "Open Sign up, enter your name, email, and password, and accept the Terms and Privacy Policy",
           "After signup, complete onboarding with your business name and optional contact details",
-          "You land on the dashboard — your live overview of sales and activity",
+          "You land on the dashboard, your live overview of sales and activity",
           "Add your first branch, products, and activate a selling device from Settings when ready",
-          "Invite cashiers and managers with the correct roles — never share owner credentials",
+          "Invite cashiers and managers with the correct roles, never share owner credentials",
           "Run a test sale, print or preview a receipt, then verify the order and inventory movement",
           "Use Sign in next time, or get the desktop app, Android app, or iOS Home Screen PWA from Downloads",
         ],
@@ -37,7 +37,7 @@ export const sitePages = {
           "Hold incomplete sales to free the counter, then resume without losing the cart",
           "Complete checkout to create one receipt and reduce inventory with a recorded reason",
           "Open Orders to review history, reprint receipts, or start a return",
-          "Keep selling offline — queued sales sync when the network returns",
+          "Keep selling offline, queued sales sync when the network returns",
         ],
       },
       {
@@ -46,7 +46,7 @@ export const sitePages = {
         detail:
           "Products, stock levels, valuation, and wholesale storage you can trust at the counter.",
         items: [
-          "Track quantity, cost, and sell price per product — stock cannot go negative",
+          "Track quantity, cost, and sell price per product, stock cannot go negative",
           "Import an existing catalog from CSV or Excel: Products → Import, download the template, map columns, preview, then import",
           "Opening stock on new products applies to the branch you choose; updates never silently rewrite on-hand quantity",
           "Keep wholesale / warehouse inventory separate from branch floor stock",
@@ -63,7 +63,7 @@ export const sitePages = {
           "Open Products and choose Import. Download the CSV template (Excel on Pro and above) so headers match Novend fields",
           "Required columns: Product Name, SKU, Category, Cost Price, and Selling Price. Optional: barcode, quantity, unit, minimum stock, description, status, and expiry fields",
           "Map each spreadsheet column to a Novend field. Saved mappings can be reused on the next file",
-          "Preview creates vs updates. Opening stock applies on new products only, to the branch you select — existing SKUs are not restocked by import",
+          "Preview creates vs updates. Opening stock applies on new products only, to the branch you select, existing SKUs are not restocked by import",
           "Your plan’s product limit still applies. Spreadsheet files are not stored; Novend keeps job counts, filenames, and your column mapping",
           "Cashiers cannot import. Cost prices in the file follow the same visibility rules as the rest of the catalog",
         ],
@@ -88,8 +88,8 @@ export const sitePages = {
         items: [
           "Sales and inventory updates save on the device first so the counter stays fast",
           "Pending changes upload when connectivity returns",
-          "Watch sync status in the app — do not edit completed sales to “fix” sync",
-          "Desktop and web use the same account and sync model — including the Android app and iOS Home Screen PWA",
+          "Watch sync status in the app, do not edit completed sales to “fix” sync",
+          "Desktop and web use the same account and sync model, including the Android app and iOS Home Screen PWA",
         ],
       },
       {
@@ -107,19 +107,19 @@ export const sitePages = {
         id: "customers",
         title: "Customers, Suppliers & Returns",
         detail:
-          "Keep relationships and corrections connected to real sales — not spreadsheet side notes.",
+          "Keep relationships and corrections connected to real sales, not spreadsheet side notes.",
         items: [
           "Attach customers to sales and review purchase history on their profile",
           "Maintain supplier contacts and delivery context alongside inventory",
           "Process returns against completed orders so stock and money stay consistent",
-          "Completed sales stay immutable — corrections use return workflows",
+          "Completed sales stay immutable, corrections use return workflows",
         ],
       },
       {
         id: "analytics",
         title: "Analytics & Reports",
         detail:
-          "See revenue, profit, and operational reports — then export CSV, Excel, or PDF when you need a file.",
+          "See revenue, profit, and operational reports, then export CSV, Excel, or PDF when you need a file.",
         items: [
           "Monitor KPIs and trends from the analytics overview",
           "Review expenses and profit & loss views as your plan allows",
@@ -135,7 +135,7 @@ export const sitePages = {
           "Assign cashier, manager, and administrator roles from Users",
           "Open additional branches as you grow; stock and reports stay branch-aware",
           "Monitor plan capacity for products, users, and devices before hitting limits",
-          "Upgrade without rebuilding your catalog — entitlements change, data stays",
+          "Upgrade without rebuilding your catalog, entitlements change, data stays",
           "Manage billing, receipts, and business profile from Settings",
         ],
       },
@@ -156,14 +156,14 @@ export const sitePages = {
     badge: "Help Center",
     title: "How can we help you run Novend?",
     subtitle:
-      "Troubleshooting and how-to answers for cashiers, managers, and owners — plus clear paths to documentation, downloads, and human support.",
+      "Troubleshooting and how-to answers for cashiers, managers, and owners, plus clear paths to documentation, downloads, and human support.",
     categories: [
       {
         title: "Selling on the counter",
         items: [
           {
             q: "A sale won’t complete offline",
-            a: "Confirm the product has available stock and that the cart totals look correct, then retry. Novend writes the sale to the device first — internet is not required for checkout. If it still fails, check for a validation message (for example negative stock or missing payment) and try again after fixing it.",
+            a: "Confirm the product has available stock and that the cart totals look correct, then retry. Novend writes the sale to the device first. Internet is not required for checkout. If it still fails, check for a validation message (for example negative stock or missing payment) and try again after fixing it.",
           },
           {
             q: "The barcode scanner isn’t finding products",
@@ -171,7 +171,7 @@ export const sitePages = {
           },
           {
             q: "How do I reprint a receipt?",
-            a: "Open Orders, select the completed sale, then use the receipt or print action. Completed sales are immutable — reprints use the saved snapshot of prices and quantities from checkout time.",
+            a: "Open Orders, select the completed sale, then use the receipt or print action. Completed sales are immutable. Reprints use the saved snapshot of prices and quantities from checkout time.",
           },
           {
             q: "How do I hold and resume a sale?",
@@ -188,11 +188,11 @@ export const sitePages = {
         items: [
           {
             q: "How do I import products from Excel or CSV?",
-            a: "Administrators and managers open Products → Import. Download the Novend template, upload your file, map columns (name, SKU, category, cost, selling price are required), preview creates and updates, choose the branch for opening stock on new products, then import. Existing SKUs update catalog fields only — quantity on the spreadsheet does not rewrite on-hand stock. Excel import and the Excel template follow your plan; CSV import is available on commercial plans.",
+            a: "Administrators and managers open Products → Import. Download the Novend template, upload your file, map columns (name, SKU, category, cost, selling price are required), preview creates and updates, choose the branch for opening stock on new products, then import. Existing SKUs update catalog fields only. Quantity on the spreadsheet does not rewrite on-hand stock. Excel import and the Excel template follow your plan; CSV import is available on commercial plans.",
           },
           {
             q: "Inventory looks wrong after a transfer",
-            a: "Open the transfer history for that branch and confirm quantities issued and received. Stock never changes without a recorded reason. If a transfer was incomplete, finish or reverse it through supported inventory actions — do not adjust blindly without a reason code.",
+            a: "Open the transfer history for that branch and confirm quantities issued and received. Stock never changes without a recorded reason. If a transfer was incomplete, finish or reverse it through supported inventory actions, do not adjust blindly without a reason code.",
           },
           {
             q: "How do I restock from wholesale?",
@@ -234,7 +234,7 @@ export const sitePages = {
         items: [
           {
             q: "What happens when I upgrade?",
-            a: "Your products, customers, branches, and sales stay intact. Higher plans unlock capacity and capabilities — they do not wipe business data.",
+            a: "Your products, customers, branches, and sales stay intact. Higher plans unlock capacity and capabilities, they do not wipe business data.",
           },
           {
             q: "Who creates staff accounts?",
@@ -282,7 +282,7 @@ export const sitePages = {
     badge: "Release Notes",
     title: "What’s new in Novend",
     subtitle:
-      "Product improvements for desktop, Android, and the web app — written for business operators, not developers.",
+      "Product improvements for desktop, Android, and the web app. Written for business operators, not developers.",
     entries: [] as Array<{
       version: string;
       date: string;
@@ -315,7 +315,7 @@ export const sitePages = {
       {
         title: "3. Information we collect",
         paragraphs: [
-          "Account and profile information: name, email address, phone number (if provided), organization name, role, and authentication credentials (passwords are stored using secure hashing via our auth provider — we do not store plaintext passwords).",
+          "Account and profile information: name, email address, phone number (if provided), organization name, role, and authentication credentials (passwords are stored using secure hashing via our auth provider, we do not store plaintext passwords).",
           "Business operational data you and your staff enter: products, categories, SKUs, barcodes, pricing, inventory quantities and movements, sales, receipts, returns, customers, suppliers, branches, users, expenses, analytics inputs, and related notes.",
           "Device and technical information: device activation identifiers, app or client version, operating system hints, whether you are using the web app, desktop app, Android app, or iOS PWA, sync status, approximate timestamps, and diagnostic logs needed to operate and secure the Service.",
           "Catalog import files you choose to upload (CSV or Excel) are processed so your organization can create or update products. We do not retain the original spreadsheet as a stored catalog file. Import summaries such as filename, row counts, and saved column mappings may be kept for support, plan administration, and to let you reuse mappings.",
@@ -340,7 +340,7 @@ export const sitePages = {
         paragraphs: [
           "Novend is designed so operational data can be stored on your device first, allowing sales to continue without internet connectivity after setup and activation.",
           "When connectivity is available, committed changes synchronize to Novend cloud services so you can access dashboards, backups, multi-device workflows, and organization-wide reports. Dashboards update from local data while you work and refresh after synchronization, depending on your connectivity and plan mode.",
-          "Cloud connections use encrypted transport. Portable backups you export can be encrypted with a password you control. The active local operational store on a till or phone is not field-encrypted — it relies on device lock screens, browser or app profile isolation, and physical custody of the hardware.",
+          "Cloud connections use encrypted transport. Portable backups you export can be encrypted with a password you control. The active local operational store on a till or phone is not field-encrypted, it relies on device lock screens, browser or app profile isolation, and physical custody of the hardware.",
           "Treat POS devices as sensitive business equipment: enable Settings → Security → Inactivity lock on shared tills, use OS lock screens, control physical access, sign out when handing a device to another person, and deactivate lost devices through your administrator where possible.",
           "You remain responsible for the accuracy of business records you enter and for deciding which staff may access which branches and capabilities inside your organization.",
         ],
@@ -465,7 +465,7 @@ export const sitePages = {
       {
         title: "7. Software downloads and updates",
         paragraphs: [
-          "Desktop and Android installers made available on the Download page or in-product update channels are licensed for use with your valid Novend account and plan — not for redistribution. The iOS client is currently a Progressive Web App you add to the Home Screen from the browser; a native iOS package, if published, is licensed the same way as other official installers.",
+          "Desktop and Android installers made available on the Download page or in-product update channels are licensed for use with your valid Novend account and plan, not for redistribution. The iOS client is currently a Progressive Web App you add to the Home Screen from the browser; a native iOS package, if published, is licensed the same way as other official installers.",
           "You agree to install security and mandatory updates when prompted. Outdated clients may be restricted from connecting if they pose a risk.",
           "Release details and download links may be served through our cloud service. Availability of a specific platform build depends on whether that version has been published.",
         ],
@@ -775,7 +775,7 @@ export const sitePages = {
       {
         title: "3. Nature and purpose of processing",
         paragraphs: [
-          "We process personal data only to provide, secure, maintain, support, and improve the Service; to prevent abuse; and to comply with law — not for unrelated advertising profiles of your end customers.",
+          "We process personal data only to provide, secure, maintain, support, and improve the Service; to prevent abuse; and to comply with law, not for unrelated advertising profiles of your end customers.",
           "Processing includes storage, transmission, backup, indexing for search, and display to authorized users of your organization.",
         ],
       },
@@ -817,7 +817,7 @@ export const sitePages = {
       {
         title: "9. Assistance with rights and assessments",
         paragraphs: [
-          "Taking into account the nature of processing, we will provide reasonable assistance so you can respond to data-subject requests, security incidents affecting customer content, and documented DPIA/risk assessments you are legally required to perform — via product features (export, user deactivation, organization closure) and support.",
+          "Taking into account the nature of processing, we will provide reasonable assistance so you can respond to data-subject requests, security incidents affecting customer content, and documented DPIA/risk assessments you are legally required to perform, via product features (export, user deactivation, organization closure) and support.",
           "You are responsible for verifying the identity of requesters who contact you about your customers.",
         ],
       },

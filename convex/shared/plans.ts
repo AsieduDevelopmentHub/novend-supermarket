@@ -99,6 +99,15 @@ export const DEFAULT_LIST_PRICE_MARKUP_PERCENT = 20;
 /** Sort order at/above which Pro-tier capabilities unlock (xlsx, customer display, …). */
 export const PRO_CAPABILITY_MIN_SORT_ORDER = 5;
 
+/** Shop+ — SMS to cashiers & staff (clock-in alerts, staff messaging). */
+export const SMS_STAFF_MIN_SORT_ORDER = 2;
+
+/** Basic+ — customer SMS (opt-in receipts / reminders). */
+export const SMS_CUSTOMERS_MIN_SORT_ORDER = 3;
+
+/** Business+ — organization SMS configuration. */
+export const SMS_ORG_CONFIG_MIN_SORT_ORDER = 6;
+
 export function yearlyPriceFromMonthly(monthly: number): number {
   return monthly * YEARLY_MONTHS_BILLED;
 }
@@ -241,6 +250,7 @@ export const PLAN_CATALOG: Record<SeedPlanKey, PlanDefinition> = {
       "Receipt printing",
       "Returns",
       "Basic reports",
+      "SMS notifications",
     ],
   },
   shop: {
@@ -272,6 +282,7 @@ export const PLAN_CATALOG: Record<SeedPlanKey, PlanDefinition> = {
       "Expenses",
       "Hardware barcode",
       "Analytics lite",
+      "SMS to cashiers & staff",
     ],
   },
   basic: {
@@ -305,6 +316,7 @@ export const PLAN_CATALOG: Record<SeedPlanKey, PlanDefinition> = {
       "Expenses",
       "Reports",
       "Analytics",
+      "Customer SMS",
     ],
   },
   growth: {
@@ -368,6 +380,7 @@ export const PLAN_CATALOG: Record<SeedPlanKey, PlanDefinition> = {
       "Staff salary and commission",
       "Customer display",
       "Excel & PDF export",
+      "Salary & commission SMS alerts",
       "Priority support",
     ],
   },
@@ -399,6 +412,7 @@ export const PLAN_CATALOG: Record<SeedPlanKey, PlanDefinition> = {
       "Larger catalogue & team",
       "More branches and devices",
       "1 GB cloud backup",
+      "Organization SMS configuration",
     ],
   },
   enterprise: {

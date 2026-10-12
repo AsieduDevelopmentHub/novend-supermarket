@@ -1,10 +1,14 @@
 import { APP_BRAND, APP_NAME, APP_TAGLINE } from "@/constants/app";
-import { LANDING_CONTACT_EMAIL } from "@/features/marketing/content";
+import { LANDING_CONTACT_EMAIL, LANDING_SOCIAL_LINKS } from "@/features/marketing/content";
 import { absoluteUrl, getSiteOrigin } from "./site-url";
 
 export type FaqItem = { q: string; a: string };
 
 type JsonLd = Record<string, unknown>;
+
+const ORGANIZATION_SAME_AS = LANDING_SOCIAL_LINKS.filter((link) =>
+  ["instagram", "facebook", "x", "linkedin"].includes(link.id),
+).map((link) => link.href);
 
 export function organizationJsonLd(): JsonLd {
   const origin = getSiteOrigin();
@@ -16,7 +20,7 @@ export function organizationJsonLd(): JsonLd {
     url: origin,
     logo: absoluteUrl("/branding/logo_horizontal.png"),
     email: LANDING_CONTACT_EMAIL,
-    sameAs: [],
+    sameAs: ORGANIZATION_SAME_AS,
     description: `${APP_NAME} — ${APP_TAGLINE}. Commercial offline-first Point of Sale.`,
   };
 }

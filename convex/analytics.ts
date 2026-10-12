@@ -23,6 +23,7 @@ import {
   collectSaleItemsForSales,
   collectSalesInCompletedAtRange,
 } from "./shared/salesRange";
+import { addSale, emptyDailySales } from "./shared/dailySalesReport";
 
 export type ExpenseCategory =
   "salaries" | "commissions" | "transport" | "utilities" | "supplies" | "maintenance" | "misc";
@@ -455,6 +456,9 @@ export const summary = query({
         };
       });
 
+    let tenderFigures = emptyDailySales();
+    for (const sale of sales) tenderFigures = addSale(tenderFigures, sale);
+
     return {
       kpis: {
         revenue,
@@ -469,6 +473,11 @@ export const summary = query({
         itemsReturned,
         returnRate,
         grossRevenue: revenueGross,
+      },
+      paymentTotals: {
+        cash: tenderFigures.cash,
+        card: tenderFigures.card,
+        mobileMoney: tenderFigures.mobileMoney,
       },
       pnl: {
         revenue,

@@ -24,6 +24,23 @@ npx convex env set ARKESEL_SENDER_ID "Novend"
 
 Register the sender ID in the Arkesel dashboard before production traffic.
 
+### Tenant SMS entitlements (plan-scoped)
+
+Marketing compare bullets match `FEATURE_KEYS` / `planCapabilities`. **Do not put
+upgrade/status messaging on public pages.** Remaining UX (org SMS settings UI,
+customer send flows) can land later without relabeling these keys.
+
+| Feature key | Plans (seed ladder) | Enforced today |
+| ----------- | ------------------- | -------------- |
+| `sms.notifications` | Starter+ | Daily sales digest SMS |
+| `sms.staff` | Shop+ | Cashier clock-in SMS to admins |
+| `sms.customers` | Basic+ | Entitlement only (send flows later) |
+| `sms.salaryAlerts` | Pro+ | SMS when **salary** or **commission** is recorded for staff — never order/checkout payments |
+| `sms.orgConfig` | Business+ | Entitlement only (settings UI later) |
+
+Platform broadcast SMS (`api.sms.broadcast`) stays Super Admin ops and is not
+gated by tenant plan features.
+
 ## Sentry
 
 | Item | Value |

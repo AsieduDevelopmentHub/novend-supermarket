@@ -37,6 +37,24 @@ export const LANDING_SOCIAL_LINKS = [
     href: LANDING_WHATSAPP_UK.href,
   },
   {
+    id: "instagram",
+    label: "Instagram",
+    detail: "@novend_pos",
+    href: "https://www.instagram.com/novend_pos/",
+  },
+  {
+    id: "facebook",
+    label: "Facebook",
+    detail: "Novend POS",
+    href: "https://www.facebook.com/novendpos/",
+  },
+  {
+    id: "x",
+    label: "X",
+    detail: "@asiedudevhub",
+    href: "https://x.com/asiedudevhub",
+  },
+  {
     id: "linkedin",
     label: "LinkedIn",
     detail: "Asiedu Development Hub",
@@ -75,7 +93,7 @@ export function buildContactMailto(options: {
       ? LANDING_SUPPORT_EMAIL
       : LANDING_CONTACT_EMAIL;
   return buildMailto(address, {
-    subject: `Novend contact — ${topicLabel}`,
+    subject: `Novend contact: ${topicLabel}`,
     body: [
       "Hello Novend team,",
       "",
@@ -151,7 +169,7 @@ export const landingCopy = {
   tagline: APP_TAGLINE,
   hero: {
     eyebrow: "Offline-first POS for modern retail",
-    headlineLead: "Keep selling—even when the",
+    headlineLead: "Keep selling even when the",
     headlineAccent: "internet stops",
     headlineTrail: ".",
     subhead:
@@ -169,7 +187,7 @@ export const landingCopy = {
     badge: "Product demo",
     title: "See Novend run a working day",
     subtitle:
-      "Watch checkout, inventory, and everyday retail flows — then start a trial on your own catalogue.",
+      "Watch checkout, inventory, and everyday retail flows, then start a trial on your own catalogue.",
     primaryCta: "Start free for 14 days",
     secondaryCta: "Talk to sales",
     secondaryHref: "/contact",
@@ -180,14 +198,14 @@ export const landingCopy = {
       {
         id: "overview" as const,
         label: "Complete training",
-        description: "The full Novend walkthrough in one video — setup through settings.",
+        description: "The full Novend walkthrough in one video, setup through settings.",
         src: "/marketing/demo/complete-training.mp4",
         published: true,
       },
       {
         id: "guided" as const,
         label: "Guided tour",
-        description: "Cursor walkthrough of the same flows — follow along step by step.",
+        description: "Cursor walkthrough of the same flows, follow along step by step.",
         src: "/marketing/demo/guided.mp4",
         published: true,
       },
@@ -256,7 +274,7 @@ export const landingCopy = {
       id: "full" as const,
       label: "Complete training",
       description:
-        "The full Novend walkthrough in one video — from account setup through settings.",
+        "The full Novend walkthrough in one video, from account setup through settings.",
       src: "/marketing/demo/complete-training.mp4",
     },
     episodesLabel: "Per action",
@@ -272,7 +290,7 @@ export const landingCopy = {
         id: "dashboard" as const,
         order: 2,
         label: "Dashboard",
-        description: "Read the day at a glance — sales, stock signals, and what needs attention.",
+        description: "Read the day at a glance, sales, stock signals, and what needs attention.",
         src: "/marketing/demo/training/02-novend-dashboard.mp4",
       },
       {
@@ -300,7 +318,7 @@ export const landingCopy = {
         id: "sales" as const,
         order: 6,
         label: "Sales",
-        description: "Run checkout — scan, hold, pay, and print the receipt.",
+        description: "Run checkout, scan, hold, pay, and print the receipt.",
         src: "/marketing/demo/training/06-novend-sales.mp4",
       },
       {
@@ -381,7 +399,7 @@ export const landingCopy = {
       eyebrow: "Point of sale",
       title: "Sell without interruption",
       detail:
-        "Keep the counter moving with barcode scanning, hold and resume, receipts, and a clear offline status—so an outage does not become a closed shop.",
+        "Keep the counter moving with barcode scanning, hold and resume, receipts, and a clear offline status, so an outage does not become a closed shop.",
       bullets: [
         "Fast barcode checkout with one payment method per sale",
         "Hold and resume carts when a customer needs a moment",
@@ -425,14 +443,14 @@ export const landingCopy = {
     eyebrow: "Offline & sync",
     title: "Built for unreliable connectivity",
     detail:
-      "After setup, the counter keeps working on the device. Pending changes upload when you reconnect—without stopping the sale in front of you.",
+      "After setup, the counter keeps working on the device. Pending changes upload when you reconnect, without stopping the sale in front of you.",
     scene: {
       offline: {
         stateLabel: "STATE 01",
         status: "CONNECTION LOST",
         title: "No internet",
         detail:
-          "The connection drops. Novend detects it and keeps the current sale running on this device—no interruption at the counter.",
+          "The connection drops. Novend detects it and keeps the current sale running on this device. No interruption at the counter.",
       },
       local: {
         title: "Active local engine",
@@ -482,7 +500,7 @@ export const landingCopy = {
     badge: "How Novend Works",
     title: "A smarter way to run your business",
     subtitle:
-      "From stocking your warehouse to selling at the counter — Novend keeps every step connected.",
+      "From stocking your warehouse to selling at the counter, Novend keeps every step connected.",
     steps: [
       {
         id: "products",
@@ -501,7 +519,7 @@ export const landingCopy = {
         id: "sell",
         number: "03",
         title: "Sell at the counter",
-        detail: "Scan barcodes, take payments, and print receipts — including offline after setup.",
+        detail: "Scan barcodes, take payments, and print receipts, including offline after setup.",
       },
       {
         id: "sync",
@@ -520,7 +538,7 @@ export const landingCopy = {
     badge: "Built for the real world",
     title: "Offline-first. Always dependable.",
     subtitle:
-      "After setup, core selling and local operations continue on the device when the network drops. Pending work uploads in the background when you reconnect — without interrupting the counter.",
+      "After setup, core selling and local operations continue on the device when the network drops. Pending work uploads in the background when you reconnect, without interrupting the counter.",
     flow: [
       {
         id: "device",
@@ -591,13 +609,13 @@ export const landingCopy = {
     badge: "Complete business platform",
     title: "Everything you need to run a modern store",
     subtitle:
-      "Checkout, inventory, wholesale, analytics, and reports — the screens that matter for day-to-day retail.",
+      "Checkout, inventory, wholesale, analytics, and reports, the screens that matter for day-to-day retail.",
     blocks: [
       {
         id: "checkout",
         title: "Smart checkout built for speed",
         detail:
-          "Complete sales in seconds with barcode scanning, discounts, one payment method per sale, and receipt printing — including while offline after setup.",
+          "Complete sales in seconds with barcode scanning, discounts, one payment method per sale, and receipt printing, including while offline after setup.",
         bullets: [
           "Barcode ready",
           "Cash, card & mobile money",
@@ -694,7 +712,7 @@ export const landingCopy = {
         pill: "Restaurant",
         title: "Food service counters",
         detail:
-          "Sell menu items without requiring on-hand stock — food is cooked to order. Keep inventory on drinks and supplies when you need it.",
+          "Sell menu items without requiring on-hand stock, food is cooked to order. Keep inventory on drinks and supplies when you need it.",
         capabilities: [
           "Menu catalogue without stock",
           "Optional stock for drinks & supplies",
@@ -707,7 +725,7 @@ export const landingCopy = {
         pill: "Hotel",
         title: "Rooms and rates",
         detail:
-          "Sell room types with nightly rates at the counter. Quantity is nights — no reservation calendar required in this release.",
+          "Sell room types with nightly rates at the counter. Quantity is nights. No reservation calendar is required in this release.",
         capabilities: ["Room types as catalogue items", "Nightly rates at POS", "Stock not required"],
         cta: "Start free trial",
       },
@@ -715,7 +733,7 @@ export const landingCopy = {
   },
   researchProof: {
     eyebrow: "Built with local retailers",
-    title: "Designed from counter realities—not invented testimonials",
+    title: "Designed from counter realities, not invented testimonials",
     detail:
       "Novend is shaped around pharmacies, provision shops, wholesalers, and multi-branch retailers operating with intermittent connectivity. Verified customer stories will appear here when we have permission to publish them.",
   },
@@ -723,7 +741,7 @@ export const landingCopy = {
     eyebrow: "Pricing",
     title: "Clear plans for how you grow",
     detail:
-      "Every plan includes offline POS after setup, barcode support, receipts, inventory, and cloud sync. Compare limits and backup entitlements on the full pricing page.",
+      "Every plan includes offline POS after setup, barcode support, receipts, inventory, cloud sync, and SMS notifications. Compare limits and backup entitlements on the full pricing page.",
     summaries: {
       basic: "For single-location shops that need a dependable counter and catalogue.",
       pro: "For pharmacies, supermarkets, and growing wholesalers that need branches and transfers.",
@@ -742,7 +760,7 @@ export const landingCopy = {
     badge: "Pricing",
     title: "Simple, transparent pricing",
     subtitle:
-      "Every plan includes offline POS, barcode support, receipt printing, inventory, and cloud sync. Limits and cloud backup match the published catalog — upgrade only as you grow.",
+      "Every plan includes offline POS, barcode support, receipt printing, inventory, cloud sync, and SMS notifications. Limits and cloud backup match the published catalog, upgrade only as you grow.",
     trialNote: "14-day free trial",
     cards: {
       basic: {
@@ -980,7 +998,7 @@ export const landingCopy = {
     badge: "Contact",
     title: "Talk to Novend",
     subtitle:
-      "Ask about pricing, onboarding, or support—or join the WhatsApp community with other retailers using Novend.",
+      "Ask about pricing, onboarding, or support, or join the WhatsApp community with other retailers using Novend.",
     responseNote: "We typically reply within one business day. WhatsApp is fastest for quick questions.",
     channels: {
       title: "Reach us directly",
@@ -989,7 +1007,7 @@ export const landingCopy = {
         {
           id: "community",
           label: "WhatsApp community",
-          detail: "Join retailers using Novend — tips, updates, and peer help.",
+          detail: "Join retailers using Novend for tips, updates, and peer help.",
           cta: "Join on WhatsApp",
           href: LANDING_WHATSAPP_COMMUNITY_HREF,
           accent: "community" as const,
@@ -1049,7 +1067,7 @@ export const landingCopy = {
     },
     socials: {
       title: "Connect with Novend",
-      detail: "Follow Asiedu Development Hub and reach the team on WhatsApp.",
+      detail: "Follow Novend on Instagram, Facebook, and X, or reach the team on WhatsApp and LinkedIn.",
       links: LANDING_SOCIAL_LINKS,
     },
   },

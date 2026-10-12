@@ -20,8 +20,9 @@ import { ArrowLeft } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
 import { listLocalOrders } from "@/lib/offline/mirror-queries";
-import { mergeDayOrdersWithLocal } from "@/lib/offline/report-merge";
+import { mergeDayOrdersWithLocal, paymentTotalsFromOrders } from "@/lib/offline/report-merge";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
+import { PaymentTotalsCard } from "@/components/data-display/payment-totals-card";
 import { useEffect, useState } from "react";
 
 function isIsoDate(value: string) {
@@ -136,9 +137,15 @@ export function ReportDayDetailView() {
       pendingUpload: order.isLocal,
     })),
   );
-  const pendingCount = mergedOrders.filter((order) => order.pendingUpload).length;
-  const grossSales = details.kpis.grossSales;
-  const itemsSold = details.kpis.itemsSold;
+  const pendingOrders = mergedOrders.filter((order) => order.pendingUpload);
+  const pendingCount = pendingOrders.length;
+  const pendingGross = pendingOrders.reduce((sum, order) => sum + order.total, 0);
+  const pendingItems = pendingOrders.reduce((sum, order) => sum + order.itemCount, 0);
+  const paymentTotals = paymentTotalsFromOrders(mergedOrders);
+  const refunds = details.kpis.refunds;
+  const grossSales = details.kpis.grossSales + pendingGross;
+  const itemsSold = details.kpis.itemsSold + pendingItems;
+  const netSales = details.kpis.netSales + pendingGross;
   const titleDate = formatDate(new Date(`${date}T00:00:00Z`));
 
   return (
@@ -157,17 +164,22 @@ export function ReportDayDetailView() {
       />
 
       <Grid cols={5}>
-        <Kpi title="Orders" value={String(details.kpis.orders)} />
+        <Kpi title="Orders" value={String(mergedOrders.length)} />
         <Kpi title="Items sold" value={String(itemsSold)} />
         <Kpi title="Gross sales" value={formatCurrency(grossSales)} />
-        <Kpi title="Refunds" value={formatCurrency(details.kpis.refunds)} />
-        <Kpi title="Net sales" value={formatCurrency(details.kpis.netSales)} />
+        <Kpi title="Refunds" value={formatCurrency(refunds)} />
+        <Kpi title="Net sales" value={formatCurrency(netSales)} />
       </Grid>
+
+      <PaymentTotalsCard
+        totals={paymentTotals}
+        description="Gross tender totals for every order listed below, including unsynced sales."
+      />
 
       {pendingCount > 0 ? (
         <p className="text-muted-foreground text-sm">
           {pendingCount} sale{pendingCount === 1 ? "" : "s"} on this day are still only on this
-          till. They are listed below and are not included in these totals until they upload.
+          till. They are included in the totals and payment breakdown above.
         </p>
       ) : null}
 
@@ -293,6 +305,7 @@ function LocalDayFallback({
 }) {
   const gross = orders?.reduce((sum, order) => sum + order.total, 0) ?? 0;
   const items = orders?.reduce((sum, order) => sum + order.itemCount, 0) ?? 0;
+  const paymentTotals = paymentTotalsFromOrders(orders ?? []);
 
   return (
     <div className="max-w-full min-w-0 space-y-6 overflow-x-hidden">
@@ -323,6 +336,10 @@ function LocalDayFallback({
             <Kpi title="Items sold" value={String(items)} />
             <Kpi title="Gross sales" value={formatCurrency(gross)} />
           </Grid>
+          <PaymentTotalsCard
+            totals={paymentTotals}
+            description="Gross tender totals for orders saved on this device."
+          />
           <Card>
             <CardContent className="max-w-full min-w-0 overflow-x-auto p-0">
               <table className="w-full min-w-[640px] text-left text-sm">

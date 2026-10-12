@@ -43,7 +43,7 @@ export function LandingPricing() {
             <BillingCycleToggle cycle={cycle} onChange={setCycle} />
             <p className="text-xs text-slate-500">
               {cycle === "yearly"
-                ? "Billed once a year — two months free versus monthly."
+                ? "Billed once a year, two months free versus monthly."
                 : "Switch to Annual anytime to lock in two months free."}
             </p>
           </div>

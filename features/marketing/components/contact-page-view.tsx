@@ -1,10 +1,13 @@
 import Link from "next/link";
 import {
+  Facebook,
+  Instagram,
   Linkedin,
   Mail,
   MessageCircle,
   Phone,
   Users,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +27,9 @@ const CHANNEL_ICONS = {
 const SOCIAL_ICONS: Record<string, LucideIcon> = {
   community: Users,
   whatsapp: MessageCircle,
+  instagram: Instagram,
+  facebook: Facebook,
+  x: X,
   linkedin: Linkedin,
 };
 
@@ -78,19 +84,22 @@ export function ContactPageView() {
 
         <ul
           data-reveal
-          className="mt-8 grid gap-3 sm:mt-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4"
+          className="mt-8 flex flex-wrap justify-center gap-3 sm:mt-10 lg:gap-4"
         >
           {contactPage.channels.items.map((channel) => {
             const Icon = CHANNEL_ICONS[channel.id as keyof typeof CHANNEL_ICONS] ?? MessageCircle;
             const isExternal = channel.href.startsWith("http");
             return (
-              <li key={channel.id}>
+              <li
+                key={channel.id}
+                className="flex w-full sm:w-[calc(50%-0.375rem)] lg:w-[calc(33.333%-0.667rem)]"
+              >
                 <a
                   href={channel.href}
                   target={isExternal ? "_blank" : undefined}
                   rel={isExternal ? "noopener noreferrer" : undefined}
                   className={cn(
-                    "flex h-full flex-col rounded-2xl border border-slate-200/90 bg-white p-5 transition-colors",
+                    "flex h-full w-full flex-col rounded-2xl border border-slate-200/90 bg-white p-5 transition-colors",
                     "hover:border-primary/30 hover:bg-primary/[0.03] focus-visible:ring-primary focus-visible:ring-2 focus-visible:outline-none",
                     channel.accent === "community" && "border-primary/25 bg-primary/[0.04]",
                   )}
@@ -155,16 +164,17 @@ export function ContactPageView() {
 
         <ul
           data-reveal
-          className="mx-auto mt-8 grid max-w-4xl gap-3 sm:mt-10 sm:grid-cols-2 lg:grid-cols-4"
+          className="mx-auto mt-8 grid max-w-4xl gap-3 sm:mt-10 sm:grid-cols-2 lg:grid-cols-3"
         >
           {contactPage.socials.links.map((social) => {
-            const Icon = SOCIAL_ICONS[social.id] ?? Linkedin;            return (
-              <li key={social.id}>
+            const Icon = SOCIAL_ICONS[social.id] ?? Linkedin;
+            return (
+              <li key={social.id} className="min-h-full">
                 <a
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-3 rounded-2xl border border-slate-200/90 bg-white px-4 py-4 transition-colors hover:border-primary/30 hover:bg-primary/[0.03] focus-visible:ring-primary focus-visible:ring-2 focus-visible:outline-none"
+                  className="flex h-full items-center gap-3 rounded-2xl border border-slate-200/90 bg-white px-4 py-4 transition-colors hover:border-primary/30 hover:bg-primary/[0.03] focus-visible:ring-primary focus-visible:ring-2 focus-visible:outline-none"
                 >
                   <span className="bg-primary/12 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
                     <Icon className="h-4 w-4" aria-hidden />

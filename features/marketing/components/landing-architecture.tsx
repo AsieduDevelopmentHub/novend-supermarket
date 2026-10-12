@@ -241,7 +241,7 @@ function statusForPhase(
       return { message: labels.dashboard, badge: labels.synced, tone: "ok" };
     default:
       return {
-        message: "Never lose a completed sale — continue working during outages.",
+        message: "Never lose a completed sale. Continue working during outages.",
         badge: "Ready",
         tone: "idle",
       };

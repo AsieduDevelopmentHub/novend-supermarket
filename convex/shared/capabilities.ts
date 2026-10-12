@@ -8,6 +8,9 @@
 
 import {
   PRO_CAPABILITY_MIN_SORT_ORDER,
+  SMS_CUSTOMERS_MIN_SORT_ORDER,
+  SMS_ORG_CONFIG_MIN_SORT_ORDER,
+  SMS_STAFF_MIN_SORT_ORDER,
   resolvePlan,
   type PlanKey,
   type PlanLimits,
@@ -34,6 +37,16 @@ export type PlanCapabilities = {
   canManageStaffCompensation: boolean;
   /** Customer-facing second screen — Pro rank and above. */
   canUseCustomerDisplay: boolean;
+  /** Operational SMS digests / notifications — every sellable plan. */
+  canSmsNotifications: boolean;
+  /** SMS to cashiers & staff (e.g. clock-in alerts) — Shop rank and above. */
+  canSmsStaff: boolean;
+  /** Customer-facing SMS — Basic rank and above. */
+  canSmsCustomers: boolean;
+  /** Salary & commission payment SMS alerts — Pro rank and above (not order payments). */
+  canSmsSalaryAlerts: boolean;
+  /** Organization SMS settings / templates — Business rank and above. */
+  canSmsOrgConfig: boolean;
   /** Per-file row cap derived from the product limit, never a separate price. */
   maxImportRows: number;
 };
@@ -56,6 +69,7 @@ export function planCapabilities(planKey: PlanKey, limits?: PlanLimits): PlanCap
   const plan = resolvePlan(planKey);
   const effective = limits ?? plan.limits;
   const advanced = hasAdvancedReporting(plan.key);
+  const sort = plan.sortOrder;
   return {
     canImportProducts: true,
     canExportReports: true,
@@ -66,6 +80,11 @@ export function planCapabilities(planKey: PlanKey, limits?: PlanLimits): PlanCap
     canAdvancedAnalytics: advanced,
     canManageStaffCompensation: advanced,
     canUseCustomerDisplay: advanced,
+    canSmsNotifications: true,
+    canSmsStaff: sort >= SMS_STAFF_MIN_SORT_ORDER,
+    canSmsCustomers: sort >= SMS_CUSTOMERS_MIN_SORT_ORDER,
+    canSmsSalaryAlerts: advanced,
+    canSmsOrgConfig: sort >= SMS_ORG_CONFIG_MIN_SORT_ORDER,
     maxImportRows: derivedMaxImportRows(effective.products),
   };
 }
@@ -87,6 +106,16 @@ export function capabilityDeniedMessage(
       return `Staff salary and commission are available on Pro and above. Upgrade from ${planName} to continue.`;
     case "canUseCustomerDisplay":
       return `Customer display is available on Pro and above. Upgrade from ${planName} to continue.`;
+    case "canSmsNotifications":
+      return `SMS notifications are not available on the ${planName} plan.`;
+    case "canSmsStaff":
+      return `Staff SMS alerts are available on Shop and above. Upgrade from ${planName} to continue.`;
+    case "canSmsCustomers":
+      return `Customer SMS is available on Basic and above. Upgrade from ${planName} to continue.`;
+    case "canSmsSalaryAlerts":
+      return `Salary and commission SMS alerts are available on Pro and above. Upgrade from ${planName} to continue.`;
+    case "canSmsOrgConfig":
+      return `Organization SMS configuration is available on Business and above. Upgrade from ${planName} to continue.`;
     case "canExportReports":
     case "canExportCsv":
     case "canExportJson":

@@ -489,6 +489,12 @@ export type LocalSalesReport = {
     totalRefunds?: number;
     itemsReturned?: number;
   };
+  /** Gross tender totals for sales in the period (Cash / MoMo / Card). */
+  paymentTotals: {
+    cash: number;
+    card: number;
+    mobileMoney: number;
+  };
   trend: Array<{ date: string; total: number }>;
   daily: Array<{
     date: string;
@@ -496,6 +502,9 @@ export type LocalSalesReport = {
     itemsSold: number;
     totalSales: number;
     refunds?: number;
+    cash: number;
+    card: number;
+    mobileMoney: number;
   }>;
 };
 
@@ -509,6 +518,7 @@ export async function buildLocalSalesReport(
   if (!db) {
     return {
       kpis: { totalSales: 0, totalOrders: 0, itemsSold: 0, averageOrder: 0 },
+      paymentTotals: { cash: 0, card: 0, mobileMoney: 0 },
       trend: [],
       daily: [],
     };
@@ -567,19 +577,55 @@ export async function buildLocalSalesReport(
 
   const byDay = new Map<
     string,
-    { orders: number; itemsSold: number; totalSales: number; refunds: number }
+    {
+      orders: number;
+      itemsSold: number;
+      totalSales: number;
+      refunds: number;
+      cash: number;
+      card: number;
+      mobileMoney: number;
+    }
   >();
+  let paymentTotals = { cash: 0, card: 0, mobileMoney: 0 };
   for (const sale of [...mirrored, ...unsyncedLocal]) {
     const key = new Date(sale.completedAt).toISOString().slice(0, 10);
-    const current = byDay.get(key) ?? { orders: 0, itemsSold: 0, totalSales: 0, refunds: 0 };
+    const current = byDay.get(key) ?? {
+      orders: 0,
+      itemsSold: 0,
+      totalSales: 0,
+      refunds: 0,
+      cash: 0,
+      card: 0,
+      mobileMoney: 0,
+    };
     current.orders += 1;
     current.itemsSold += sale.itemCount;
     current.totalSales += sale.total;
+    const method = sale.paymentMethod;
+    if (method === "card") {
+      current.card += sale.total;
+      paymentTotals.card += sale.total;
+    } else if (method === "mobile_money") {
+      current.mobileMoney += sale.total;
+      paymentTotals.mobileMoney += sale.total;
+    } else {
+      current.cash += sale.total;
+      paymentTotals.cash += sale.total;
+    }
     byDay.set(key, current);
   }
   for (const row of returns) {
     const key = new Date(row.completedAt).toISOString().slice(0, 10);
-    const current = byDay.get(key) ?? { orders: 0, itemsSold: 0, totalSales: 0, refunds: 0 };
+    const current = byDay.get(key) ?? {
+      orders: 0,
+      itemsSold: 0,
+      totalSales: 0,
+      refunds: 0,
+      cash: 0,
+      card: 0,
+      mobileMoney: 0,
+    };
     current.refunds += row.refundAmount;
     current.totalSales -= row.refundAmount;
     current.itemsSold -= row.itemCount;
@@ -594,6 +640,9 @@ export async function buildLocalSalesReport(
       itemsSold: Math.max(0, row.itemsSold),
       totalSales: row.totalSales,
       refunds: row.refunds,
+      cash: row.cash,
+      card: row.card,
+      mobileMoney: row.mobileMoney,
     }));
 
   return {
@@ -606,6 +655,7 @@ export async function buildLocalSalesReport(
       totalRefunds,
       itemsReturned,
     },
+    paymentTotals,
     trend: daily.map((row) => ({ date: row.date, total: row.totalSales })),
     daily,
   };

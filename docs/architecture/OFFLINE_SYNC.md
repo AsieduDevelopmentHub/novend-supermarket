@@ -299,20 +299,25 @@ Name, phone, catalog, inventory, wholesale, suppliers, customers, expenses,
 sales, returns, reports, analytics, **admin/manager branch switching**, and
 **per-batch expiry edits** all continue on the device. Reports and Analytics
 summaries build from Dexie when offline (or when Cap reports online but Convex
-does not answer). While online they still fold in unsynced local sales so Daily
-Orders is not missing a checkout that Orders already shows. Inventory value on
-Reports and Analytics is a cloud query: it replays branch stock movements and
-prices them at today's cost and selling price. The card shows the value at the start
-of the selected period and at the end, then an administrator or manager can look
-up the day that value matched an amount. It is not in the Dexie replica,
-so the card asks for a connection when the till is offline. An administrator can
-complete a sale for any branch already in the device snapshot, including a
-branch that is not their home branch, without a connection. The admin snapshot
-stores stock for every branch, and the sale is tagged with that branch. Branch
-pickers read the
-Dexie `branches` table — they must not wait on `navigator.onLine`. A stuck
-IndexedDB upgrade (missing `meta` / `productImages` / `lots`) rebuilds that
-replica on open, then the next snapshot refill.
+does not answer). While online, Reports calls `mergeSalesReportWithLocal` so
+period KPIs, daily breakdown rows, and **Cash / MoMo / Card tender totals**
+include unsynced checkouts that Orders already shows on this till. Analytics
+prefers the local summary when this device has a higher order count than the
+cloud (same gap). Day detail merges device-only invoices into the order list
+and recomputes that day’s payment totals from the merged list. Payment totals
+are gross by single tender (`cash` | `mobile_money` | `card`) — same buckets as
+the end-of-day SMS digest. Inventory value on Reports and Analytics is a cloud
+query: it replays branch stock movements and prices them at today's cost and
+selling price. The card shows the value at the start of the selected period and
+at the end, then an administrator or manager can look up the day that value
+matched an amount. It is not in the Dexie replica, so the card asks for a
+connection when the till is offline. An administrator can complete a sale for
+any branch already in the device snapshot, including a branch that is not their
+home branch, without a connection. The admin snapshot stores stock for every
+branch, and the sale is tagged with that branch. Branch pickers read the Dexie
+`branches` table — they must not wait on `navigator.onLine`. A stuck IndexedDB
+upgrade (missing `meta` / `productImages` / `lots`) rebuilds that replica on
+open, then the next snapshot refill.
 
 ## Conflict policy
 

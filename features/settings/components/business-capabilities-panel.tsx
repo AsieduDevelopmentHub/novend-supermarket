@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api";
 import {
   BUSINESS_CAPABILITY_REGISTRY,
   INDUSTRY_PACKS,
+  INDUSTRY_PROFILE_LABELS,
   INDUSTRY_PROFILES,
   businessCapabilitiesAllowedOnPlan,
   type BusinessCapabilityKey,
@@ -33,19 +34,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-
-const PROFILE_LABELS: Record<IndustryProfile, string> = {
-  retail: "Retail",
-  wholesale: "Wholesale distribution",
-  supermarket: "Supermarket",
-  cold_store: "Cold store / meat & fish",
-  electronics: "Electronics",
-  pharmacy: "Pharmacy (inventory)",
-  restaurant: "Restaurant / F&B",
-  bar: "Bar / lounge",
-  hotel: "Hotel / lodging",
-  custom: "Custom",
-};
 
 const PROFILE_BLURBS: Record<IndustryProfile, string> = {
   retail: "Simple selling — Add Product stays lean.",
@@ -190,7 +178,7 @@ export function BusinessCapabilitiesPanel() {
 
   function onApplyPackToDraft() {
     fillDraftFromPack(effectiveProfile);
-    toast.message(`Loaded ${PROFILE_LABELS[effectiveProfile]} pack into draft — Save to apply.`);
+    toast.message(`Loaded ${INDUSTRY_PROFILE_LABELS[effectiveProfile]} pack into draft — Save to apply.`);
   }
 
   async function onSave() {
@@ -301,7 +289,7 @@ export function BusinessCapabilitiesPanel() {
             <SelectContent>
               {INDUSTRY_PROFILES.map((key) => (
                 <SelectItem key={key} value={key}>
-                  {PROFILE_LABELS[key]}
+                  {INDUSTRY_PROFILE_LABELS[key]}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -330,7 +318,7 @@ export function BusinessCapabilitiesPanel() {
             <p className="text-sm font-medium">Preview before Save</p>
             {profileDirty ? (
               <p className="text-muted-foreground text-xs">
-                Profile: {PROFILE_LABELS[savedProfile]} → {PROFILE_LABELS[effectiveProfile]}
+                Profile: {INDUSTRY_PROFILE_LABELS[savedProfile]} → {INDUSTRY_PROFILE_LABELS[effectiveProfile]}
               </p>
             ) : null}
             {diff.added.length > 0 ? (

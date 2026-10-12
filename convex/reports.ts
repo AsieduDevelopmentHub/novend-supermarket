@@ -11,6 +11,7 @@ import { completedReturnsInRange } from "./shared/returns";
 import { collectSalesInCompletedAtRange } from "./shared/salesRange";
 import { roundMoney } from "./shared/validation";
 import { buildInventoryValueSeries } from "./shared/inventoryValueSeries";
+import { addSale, emptyDailySales } from "./shared/dailySalesReport";
 
 export const salesSummary = query({
   args: {
@@ -57,19 +58,48 @@ export const salesSummary = query({
 
     const byDay = new Map<
       string,
-      { orders: number; itemsSold: number; totalSales: number; refunds: number }
+      {
+        orders: number;
+        itemsSold: number;
+        totalSales: number;
+        refunds: number;
+        cash: number;
+        card: number;
+        mobileMoney: number;
+      }
     >();
+    let tenderFigures = emptyDailySales();
     for (const sale of sales) {
+      tenderFigures = addSale(tenderFigures, sale);
       const key = new Date(sale.completedAt).toISOString().slice(0, 10);
-      const current = byDay.get(key) ?? { orders: 0, itemsSold: 0, totalSales: 0, refunds: 0 };
+      const current = byDay.get(key) ?? {
+        orders: 0,
+        itemsSold: 0,
+        totalSales: 0,
+        refunds: 0,
+        cash: 0,
+        card: 0,
+        mobileMoney: 0,
+      };
       current.orders += 1;
       current.itemsSold += sale.itemCount;
       current.totalSales += sale.total;
+      if (sale.paymentMethod === "card") current.card += sale.total;
+      else if (sale.paymentMethod === "mobile_money") current.mobileMoney += sale.total;
+      else current.cash += sale.total;
       byDay.set(key, current);
     }
     for (const row of returns) {
       const key = new Date(row.completedAt).toISOString().slice(0, 10);
-      const current = byDay.get(key) ?? { orders: 0, itemsSold: 0, totalSales: 0, refunds: 0 };
+      const current = byDay.get(key) ?? {
+        orders: 0,
+        itemsSold: 0,
+        totalSales: 0,
+        refunds: 0,
+        cash: 0,
+        card: 0,
+        mobileMoney: 0,
+      };
       current.refunds += row.refundAmount;
       current.totalSales -= row.refundAmount;
       current.itemsSold -= row.itemCount;
@@ -84,6 +114,9 @@ export const salesSummary = query({
         itemsSold: Math.max(0, row.itemsSold),
         totalSales: roundMoney(row.totalSales),
         refunds: roundMoney(row.refunds),
+        cash: roundMoney(row.cash),
+        card: roundMoney(row.card),
+        mobileMoney: roundMoney(row.mobileMoney),
       }));
 
     return {
@@ -95,6 +128,11 @@ export const salesSummary = query({
         itemsSold: netItemsSold,
         itemsReturned,
         averageOrder,
+      },
+      paymentTotals: {
+        cash: tenderFigures.cash,
+        card: tenderFigures.card,
+        mobileMoney: tenderFigures.mobileMoney,
       },
       trend: daily.map((d) => ({ date: d.date, total: d.totalSales })),
       daily,
@@ -281,6 +319,15 @@ export const dayDetails = query({
         refunds: roundMoney(totalRefunds),
         netSales: roundMoney(grossSales - totalRefunds),
         returns: returns.length,
+        paymentTotals: (() => {
+          let tender = emptyDailySales();
+          for (const sale of sales) tender = addSale(tender, sale);
+          return {
+            cash: tender.cash,
+            card: tender.card,
+            mobileMoney: tender.mobileMoney,
+          };
+        })(),
       },
       orders: sales
         .sort((a, b) => b.completedAt - a.completedAt)

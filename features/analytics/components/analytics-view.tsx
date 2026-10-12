@@ -37,6 +37,8 @@ import {
 } from "@/lib/period-filter";
 import { useOfflineAnalytics } from "@/hooks/use-offline-analytics";
 import { useLocalExpenses, useBranchesList } from "@/hooks/use-offline-lists";
+import { PaymentTotalsCard } from "@/components/data-display/payment-totals-card";
+import { emptyReportPaymentTotals } from "@/lib/payments";
 import {
   persistBusinessWrite,
   queuedSaveMessage,
@@ -205,6 +207,7 @@ export function AnalyticsView() {
             ? branches?.find((b) => b.id === branchFilter)?.name
             : (branchName ?? undefined),
         pnl: summary.pnl,
+        paymentTotals: summary.paymentTotals ?? emptyReportPaymentTotals(),
         expenseBreakdown: summary.expenseBreakdown,
         trend: summary.trend,
       })
@@ -495,6 +498,10 @@ export function AnalyticsView() {
                 href={metricHref("expenseCount")}
               />
             </Grid>
+            <PaymentTotalsCard
+              totals={summary.paymentTotals ?? emptyReportPaymentTotals()}
+              description="Gross sales by payment method for this period (includes unsynced till sales when local is preferred)."
+            />
             {isAdmin || isManager ? (
               <InventoryValuePanel range={range} branchId={branchArg} enabled />
             ) : null}

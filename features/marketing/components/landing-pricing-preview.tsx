@@ -59,7 +59,7 @@ export function LandingPricingPreview() {
             </Link>
           </Button>
           <p className="text-muted-foreground max-w-md text-sm">
-            See every plan, limits, and a full feature comparison — including Shop, Growth, and
+            See every plan, limits, and a full feature comparison, including Shop, Growth, and
             Business.
           </p>
         </div>

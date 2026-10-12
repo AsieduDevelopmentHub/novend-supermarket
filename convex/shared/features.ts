@@ -25,6 +25,11 @@ export const FEATURE_KEYS = [
   "cloud.remoteMonitoring",
   "imports.products",
   "exports.reports",
+  "sms.notifications",
+  "sms.staff",
+  "sms.customers",
+  "sms.salaryAlerts",
+  "sms.orgConfig",
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
@@ -39,7 +44,8 @@ export type FeatureCategory =
   | "hardware"
   | "cloud"
   | "imports"
-  | "exports";
+  | "exports"
+  | "sms";
 
 export type FeatureOfflineBehavior = "enforce" | "cache_last" | "local_ok";
 
@@ -223,6 +229,62 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     routes: ["/reports", "/analytics"],
     backendOps: ["exportEvents.insert"],
   },
+  "sms.notifications": {
+    key: "sms.notifications",
+    label: "SMS notifications",
+    description: "Operational SMS digests and alerts (for example daily sales summaries).",
+    category: "sms",
+    defaultEnabled: true,
+    prerequisites: [],
+    offlineBehavior: "enforce",
+    routes: ["/settings"],
+    backendOps: ["sms.*", "dailySalesDigest.*"],
+  },
+  "sms.staff": {
+    key: "sms.staff",
+    label: "Staff SMS",
+    description: "SMS to cashiers and staff (clock-in alerts and staff messaging).",
+    category: "sms",
+    defaultEnabled: false,
+    prerequisites: ["sms.notifications"],
+    offlineBehavior: "enforce",
+    routes: ["/users", "/settings"],
+    backendOps: ["sms.notifyCashierClockIn"],
+  },
+  "sms.customers": {
+    key: "sms.customers",
+    label: "Customer SMS",
+    description: "Opt-in SMS to customers (receipts, pickup, reminders).",
+    category: "sms",
+    defaultEnabled: false,
+    prerequisites: ["sms.notifications"],
+    offlineBehavior: "enforce",
+    routes: ["/customers", "/settings"],
+    backendOps: ["sms.*"],
+  },
+  "sms.salaryAlerts": {
+    key: "sms.salaryAlerts",
+    label: "Salary & commission SMS",
+    description:
+      "SMS alerts when salary or commission payments are recorded for staff — not order checkout payments.",
+    category: "sms",
+    defaultEnabled: false,
+    prerequisites: ["sms.notifications", "staff.compensation"],
+    offlineBehavior: "enforce",
+    routes: ["/users", "/settings"],
+    backendOps: ["sms.notifyPayrollPayment", "payroll.paySalary", "payroll.payCommission"],
+  },
+  "sms.orgConfig": {
+    key: "sms.orgConfig",
+    label: "Organization SMS configuration",
+    description: "Per-organization SMS settings, templates, and mute rules.",
+    category: "sms",
+    defaultEnabled: false,
+    prerequisites: ["sms.notifications"],
+    offlineBehavior: "enforce",
+    routes: ["/settings"],
+    backendOps: ["settings.*"],
+  },
 };
 
 export const featureKeyValidator = v.union(
@@ -241,6 +303,11 @@ export const featureKeyValidator = v.union(
   v.literal("cloud.remoteMonitoring"),
   v.literal("imports.products"),
   v.literal("exports.reports"),
+  v.literal("sms.notifications"),
+  v.literal("sms.staff"),
+  v.literal("sms.customers"),
+  v.literal("sms.salaryAlerts"),
+  v.literal("sms.orgConfig"),
 );
 
 export function isFeatureKey(value: unknown): value is FeatureKey {

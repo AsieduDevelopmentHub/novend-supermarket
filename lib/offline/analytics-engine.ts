@@ -19,6 +19,11 @@ export type LocalAnalyticsSummary = {
     returnRate: number;
     grossRevenue: number;
   };
+  paymentTotals: {
+    cash: number;
+    card: number;
+    mobileMoney: number;
+  };
   pnl: {
     revenue: number;
     cogs: number;
@@ -118,6 +123,7 @@ type SaleRow = {
   completedAt: number;
   branchId: string | null;
   itemCount: number;
+  paymentMethod?: string;
 };
 
 type ItemRow = {
@@ -210,6 +216,7 @@ export async function buildLocalAnalyticsSummary(args: {
       completedAt: order.completedAt,
       branchId: order.branchId,
       itemCount: order.itemCount,
+      paymentMethod: order.paymentMethod,
     });
   }
   for (const sale of localSales) {
@@ -228,6 +235,7 @@ export async function buildLocalAnalyticsSummary(args: {
       completedAt: sale.completedAt,
       branchId: sale.branchId ?? null,
       itemCount: sale.itemCount,
+      paymentMethod: sale.paymentMethod,
     });
   }
 
@@ -373,6 +381,13 @@ export async function buildLocalAnalyticsSummary(args: {
       };
     });
 
+  const paymentTotals = { cash: 0, card: 0, mobileMoney: 0 };
+  for (const sale of sales) {
+    if (sale.paymentMethod === "card") paymentTotals.card += sale.total;
+    else if (sale.paymentMethod === "mobile_money") paymentTotals.mobileMoney += sale.total;
+    else paymentTotals.cash += sale.total;
+  }
+
   return {
     kpis: {
       revenue,
@@ -387,6 +402,11 @@ export async function buildLocalAnalyticsSummary(args: {
       itemsReturned,
       returnRate,
       grossRevenue: revenueGross,
+    },
+    paymentTotals: {
+      cash: roundMoney(paymentTotals.cash),
+      card: roundMoney(paymentTotals.card),
+      mobileMoney: roundMoney(paymentTotals.mobileMoney),
     },
     pnl: {
       revenue,
@@ -429,6 +449,7 @@ function emptySummary(branchId: string | null): LocalAnalyticsSummary {
       returnRate: 0,
       grossRevenue: 0,
     },
+    paymentTotals: { cash: 0, card: 0, mobileMoney: 0 },
     pnl: {
       revenue: 0,
       cogs: 0,

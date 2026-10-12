@@ -5,9 +5,10 @@ import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { arkeselConfigured, sendArkeselSms } from "./shared/arkeselSms";
 import { formatBusinessTime } from "./shared/businessDate";
-import { clockInSms } from "./shared/emailTemplates";
+import { clockInSms, payrollPaymentSms } from "./shared/emailTemplates";
 import { SMS_MESSAGE_MAX, smsAudienceValidator } from "./shared/smsAudience";
 import { publicAppUrl } from "./shared/transactionalEmail";
+import { formatMoney } from "./shared/dailySalesReport";
 
 /**
  * Platform broadcast. Owners and operators only, and only to owners,
@@ -101,6 +102,46 @@ export const notifyCashierClockIn = internalAction({
     } catch (error) {
       const reason = error instanceof Error ? error.message : "SMS failed";
       console.warn("[sms] Clock-in alert failed.", reason);
+      return { status: "failed" as const, reason };
+    }
+  },
+});
+
+/**
+ * SMS when salary or commission is recorded for a staff member.
+ * Entitlement `sms.salaryAlerts` must already be checked by the caller.
+ * This is never for order/checkout payments.
+ */
+export const notifyPayrollPayment = internalAction({
+  args: {
+    phone: v.string(),
+    kind: v.union(v.literal("salary"), v.literal("commission")),
+    staffName: v.string(),
+    amount: v.number(),
+    currency: v.string(),
+    payPeriodKey: v.string(),
+    organizationName: v.string(),
+  },
+  handler: async (_ctx, args): Promise<{ status: "sent" | "skipped" | "failed"; reason?: string }> => {
+    if (!arkeselConfigured()) {
+      return { status: "skipped" as const, reason: "not configured" };
+    }
+    const message = payrollPaymentSms({
+      kind: args.kind,
+      staffName: args.staffName,
+      amountLabel: formatMoney(args.amount, args.currency),
+      payPeriodKey: args.payPeriodKey,
+      organizationName: args.organizationName,
+      staffUrl: `${publicAppUrl()}/users`,
+    });
+    try {
+      return await sendArkeselSms({
+        to: args.phone,
+        message: message.slice(0, SMS_MESSAGE_MAX),
+      });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "SMS failed";
+      console.warn("[sms] Payroll payment alert failed.", reason);
       return { status: "failed" as const, reason };
     }
   },
