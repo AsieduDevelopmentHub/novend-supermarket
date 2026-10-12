@@ -105,7 +105,7 @@ export function ReleasesView() {
         <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center">
           <p className="text-base font-semibold text-[#111827]">No published releases yet</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-600">
-            When a new version is published, friendly highlights appear here automatically — matching
+            When a new version is published, friendly highlights appear here automatically and match
             the Download page.
           </p>
           <Button asChild className="mt-5" size="sm">

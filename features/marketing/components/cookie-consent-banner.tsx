@@ -139,7 +139,7 @@ export function CookieConsentBanner({ enabled = true }: Props) {
                       Strictly necessary
                     </Label>
                     <p className="text-xs leading-relaxed text-slate-500">
-                      Always on — security, session, and core site functions.
+                      Always on for security, session, and core site functions.
                     </p>
                   </div>
                 </div>

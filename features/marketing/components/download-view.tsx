@@ -103,7 +103,7 @@ export function DownloadView() {
     <MarketingSitePage
       badge="Downloads"
       title={`Download ${APP_NAME}`}
-      subtitle="Get Novend for your counter PC, Android phone, or iPhone — one business account everywhere."
+      subtitle="Get Novend for your counter PC, Android phone, or iPhone. One business account everywhere."
       maxWidthClassName="max-w-5xl"
       meta={
         offer
@@ -122,7 +122,7 @@ export function DownloadView() {
                 <div>
                   <h2 className="text-xl font-semibold tracking-tight text-[#111827]">Desktop</h2>
                   <p className="text-sm text-slate-600">
-                    Windows, macOS, and Linux — ready for barcode scanners and receipt printers.
+                    Windows, macOS, and Linux. Ready for barcode scanners and receipt printers.
                   </p>
                 </div>
               </div>
@@ -304,7 +304,7 @@ export function DownloadView() {
               <div>
                 <h2 className="text-xl font-semibold tracking-tight text-[#111827]">Web app</h2>
                 <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                  Use Novend in the browser with the same account and catalog — no installer needed.
+                  Use Novend in the browser with the same account and catalog. No installer needed.
                 </p>
               </div>
             </div>

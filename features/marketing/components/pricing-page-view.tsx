@@ -28,7 +28,7 @@ export function PricingPageView() {
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-pretty text-[#526174] sm:text-lg">
             From Starter (100 products) through Enterprise. Every plan includes offline POS after
             setup, barcode support, receipts, inventory, and cloud sync. No account required to
-            review limits here — sign up only when you are ready to start the trial.
+            review limits here. Sign up only when you are ready to start the trial.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg" className="h-12 rounded-full px-7 font-semibold">
@@ -61,7 +61,7 @@ export function PricingPageView() {
           </li>
           <li>
             Existing Lifetime licences remain valid for organizations that already purchased
-            them. Lifetime is no longer offered for new sales—contact Novend if you need to
+            them. Lifetime is no longer offered for new sales. Contact Novend if you need to
             migrate or discuss commercial terms.
           </li>
           <li>

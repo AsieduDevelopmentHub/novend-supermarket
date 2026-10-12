@@ -398,7 +398,7 @@ Replace the generic “Run Your Business. Anywhere.” presentation with a more 
 
 Suggested copy direction:
 
-> **Keep selling—even when the internet stops.**  
+> **Keep selling even when the internet stops.**  
 > Novend brings checkout, inventory, branch transfers, and reporting into one dependable system built for everyday retail.
 
 Primary CTA: **Start free for 14 days**  

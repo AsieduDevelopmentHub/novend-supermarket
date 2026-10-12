@@ -32,7 +32,7 @@ export const PRODUCT_PAGES: Record<ProductPageSlug, ProductPageContent> = {
     eyebrow: "Point of sale",
     title: "Sell without interruption",
     summary:
-      "Barcode-ready checkout, hold and resume, receipts, and offline selling after setup—so an outage does not close the counter.",
+      "Barcode-ready checkout, hold and resume, receipts, and offline selling after setup, so an outage does not close the counter.",
     problem:
       "When the network drops mid-queue, staff should not lose the sale or rebuild the cart from memory. Novend keeps the counter moving on the device after setup.",
     heroImage: FEATURE_BLOCK_SCREENS.checkout,
@@ -100,7 +100,7 @@ export const PRODUCT_PAGES: Record<ProductPageSlug, ProductPageContent> = {
       {
         question: "Can cashiers sell without internet?",
         answer:
-          "Yes—after the device has completed initial setup and sync. Core selling writes locally first, then uploads when you reconnect.",
+          "Yes, after the device has completed initial setup and sync. Core selling writes locally first, then uploads when you reconnect.",
       },
       {
         question: "Can I edit a completed sale?",
@@ -124,7 +124,7 @@ export const PRODUCT_PAGES: Record<ProductPageSlug, ProductPageContent> = {
     eyebrow: "Inventory",
     title: "Know what is in stock",
     summary:
-      "Track catalogue, quantities, low stock, and valuation in one place—then import or adjust with a clear audit trail.",
+      "Track catalogue, quantities, low stock, and valuation in one place, then import or adjust with a clear audit trail.",
     problem:
       "Guesswork on shelf levels leads to stockouts, overbuying, and arguments between counter and warehouse. Novend keeps one catalogue with attributable stock history.",
     heroImage: FEATURE_BLOCK_SCREENS.inventory,
@@ -134,7 +134,7 @@ export const PRODUCT_PAGES: Record<ProductPageSlug, ProductPageContent> = {
       {
         title: "Build the catalogue",
         detail:
-          "Create products with SKUs, barcodes, pricing, categories, and optional images—unique per organization.",
+          "Create products with SKUs, barcodes, pricing, categories, and optional images. SKUs stay unique per organization.",
       },
       {
         title: "Receive and adjust",
@@ -162,7 +162,7 @@ export const PRODUCT_PAGES: Record<ProductPageSlug, ProductPageContent> = {
       {
         title: "Stock you can explain",
         detail:
-          "Every quantity change records a business reason. Managers can open product detail and see what moved—and why.",
+          "Every quantity change records a business reason. Managers can open product detail and see what moved, and why.",
         image: MARKETING_UI_SCREENS.inventoryStock,
         imageAlt: "Novend inventory stock list",
       },
@@ -231,7 +231,7 @@ export const PRODUCT_PAGES: Record<ProductPageSlug, ProductPageContent> = {
       },
       {
         title: "Sell locally",
-        detail: "Each counter sells from stock available at that location—no shared mystery quantity.",
+        detail: "Each counter sells from stock available at that location. No shared mystery quantity.",
       },
       {
         title: "Review by branch",
@@ -264,7 +264,7 @@ export const PRODUCT_PAGES: Record<ProductPageSlug, ProductPageContent> = {
       {
         title: "Branches as real places",
         detail:
-          "Manage branch profiles and drill into a location when you need operational detail—not just a label on a filter.",
+          "Manage branch profiles and drill into a location when you need operational detail, not just a label on a filter.",
         image: MARKETING_UI_SCREENS.administrationBranches,
         imageAlt: "Novend branches administration",
       },
@@ -307,7 +307,7 @@ export const PRODUCT_PAGES: Record<ProductPageSlug, ProductPageContent> = {
       "Owners should not wait until month-end to learn what sold, what margin remained, or which branch underperformed.",
     heroImage: FEATURE_BLOCK_SCREENS.reports,
     heroAlt: "Novend business reports screen",
-    outcome: "Leave the day with printable and exportable proof—not a guess.",
+    outcome: "Leave the day with printable and exportable proof, not a guess.",
     workflow: [
       {
         title: "Review the day",
@@ -345,7 +345,7 @@ export const PRODUCT_PAGES: Record<ProductPageSlug, ProductPageContent> = {
       {
         title: "Analytics beside reports",
         detail:
-          "Review revenue posture and expense context without leaving the business suite—useful for weekly owner reviews.",
+          "Review revenue posture and expense context without leaving the business suite. Useful for weekly owner reviews.",
         image: MARKETING_UI_SCREENS.businessAnalyticsOverview,
         imageAlt: "Novend analytics overview",
       },
@@ -389,12 +389,12 @@ export const PRODUCT_PAGES: Record<ProductPageSlug, ProductPageContent> = {
     eyebrow: "Offline & sync",
     title: "Built for unreliable connectivity",
     summary:
-      "After setup, the counter keeps working on the device. Pending changes upload when you reconnect—without stopping the sale in front of you.",
+      "After setup, the counter keeps working on the device. Pending changes upload when you reconnect, without stopping the sale in front of you.",
     problem:
       "Retail in intermittent networks cannot treat the cloud as a hard dependency for every scan. Novend is local-first for core operations after setup.",
     heroImage: MARKETING_UI_SCREENS.salesPos,
     heroAlt: "Novend POS ready for offline selling",
-    outcome: "Treat connectivity as optional for core selling—not as a dependency.",
+    outcome: "Treat connectivity as optional for core selling, not as a dependency.",
     workflow: [
       {
         title: "Sell on device",
