@@ -725,8 +725,8 @@ export const landingCopy = {
         pill: "Hotel",
         title: "Rooms and rates",
         detail:
-          "Sell room types with nightly rates at the counter. Quantity is nights. No reservation calendar is required in this release.",
-        capabilities: ["Room types as catalogue items", "Nightly rates at POS", "Stock not required"],
+          "Sell room types with nightly rates, manage the rooms board, reservations, and folio checkout.",
+        capabilities: ["Rooms & folio", "Reservations", "Room rates at POS"],
         cta: "Start free trial",
       },
     ],

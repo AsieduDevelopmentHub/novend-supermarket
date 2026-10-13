@@ -128,7 +128,9 @@ Automated coverage: `tests/weight-conflict-matrix.test.ts` (oversell → definit
 | ----------------- | --------------------------------------------------------------------------------------------------- |
 | Ledger            | **Extend** `inventoryHistory` reasons/fields—do not create a parallel movement table for this stage |
 | `lot_expiry`      | Strengthen existing `inventoryLots` / FEFO; capability-gate FEFO where appropriate                  |
-| `serial_tracking` | Separate branch; electronics-oriented; unique serial sell-once                                      |
+| `serial_tracking` | **Thin slice shipped** — `tracksSerials` + `productSerials` + sale-line serials (electronics/hardware packs) |
+| `product_variants` | **Shipped** — parent/child products; fashion/cosmetics/stationery packs |
+| `custom_fields` | **Thin slice shipped** — free-form `customValues` on products (pharmacy/cosmetics) |
 
 Pharmacy **lots / expiry / custom field types** may appear here or in Stage 5 **without** `rx_controls`.
 
