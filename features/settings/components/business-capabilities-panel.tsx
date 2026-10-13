@@ -39,10 +39,15 @@ const PROFILE_BLURBS: Record<IndustryProfile, string> = {
   retail: "Simple selling — Add Product stays lean.",
   wholesale:
     "Pack/carton pricing at checkout, customer price lists, and on-account credit (Pro+).",
-  supermarket: "Packs plus dated lots for perishable goods.",
+  supermarket: "Packs, dated lots, and optional sell-by-weight for produce.",
+  convenience: "Pack pricing and dated lots for high-turn convenience stock.",
   cold_store: "Weight selling, lots, and optional scale support.",
   electronics: "Serial / IMEI tracking for high-value items.",
-  pharmacy: "Lots, expiry, and room for custom catalog fields.",
+  pharmacy: "Lots, expiry, and custom catalog fields (inventory-oriented).",
+  fashion: "Size and color variants — each variant is its own SKU and stock.",
+  cosmetics: "Shade/size variants, lots/expiry, and custom product fields.",
+  hardware: "Pack pricing plus serial tracking for tools and equipment.",
+  stationery: "Pack pricing and variants for reams, packs, and assortments.",
   restaurant: "Menu catalogue, floor tables, modifiers, and kitchen tickets.",
   bar: "Drink menu, floor/tables, modifiers, and bar ticket queue.",
   hotel: "Rooms board, reservations, folio checkout, and room-rate catalogue at POS.",
@@ -52,11 +57,13 @@ const PROFILE_BLURBS: Record<IndustryProfile, string> = {
 /** Capabilities that change Add Product / sales UX — shown first. */
 const CATALOG_KEYS: BusinessCapabilityKey[] = [
   "multi_unit_pricing",
+  "product_variants",
   "customer_pricing",
   "customer_credit",
   "sell_by_weight",
   "lot_expiry",
   "serial_tracking",
+  "custom_fields",
   "non_stock_sales",
   "modifiers",
   "tables_orders",
@@ -75,6 +82,8 @@ function productFormHint(key: BusinessCapabilityKey): string | null {
   switch (key) {
     case "multi_unit_pricing":
       return "Shows pack / carton units on Add Product and sell-unit picker at checkout";
+    case "product_variants":
+      return "Parent products with size/color/shade children (each child has its own stock)";
     case "customer_pricing":
       return "Customer groups and quantity price rules (Customers → Price lists)";
     case "customer_credit":
@@ -84,7 +93,9 @@ function productFormHint(key: BusinessCapabilityKey): string | null {
     case "lot_expiry":
       return "Shows expiry tracking on Add Product";
     case "serial_tracking":
-      return "Serial fields land in a later release";
+      return "Track serials toggle on Add Product; serial capture at checkout";
+    case "custom_fields":
+      return "Free-form product attributes on Add Product";
     case "non_stock_sales":
       return "Shows Track inventory toggle on Add Product";
     case "modifiers":
