@@ -62,6 +62,14 @@ import { loadProductImagesPolicy, loadBusinessConfiguration, loadExpiryPolicy } 
 import { assertProductImageUploadsEnabled } from "./shared/productImagesPolicy";
 import { hasBusinessCapability } from "./shared/businessCapabilities";
 import { isValidExpiryAlertDays } from "./shared/expiryPolicy";
+import {
+  formatVariantLabel,
+  sanitizeCustomValues,
+  sanitizeVariantAttributes,
+} from "./shared/productVariants";
+
+const variantAttributeValidator = v.object({ key: v.string(), value: v.string() });
+const customValueValidator = v.object({ key: v.string(), value: v.string() });
 
 /** null/undefined → org default (field unset). Number → product override. */
 function parseExpiryAlertOverride(value: number | null | undefined): number | undefined {
@@ -286,6 +294,11 @@ export const createProduct = mutation({
     expiryAlertDays: v.optional(v.union(v.number(), v.null())),
     expiryDate: v.optional(v.string()),
     tracksInventory: v.optional(v.boolean()),
+    isVariantParent: v.optional(v.boolean()),
+    parentProductId: v.optional(v.id("products")),
+    variantAttributes: v.optional(v.array(variantAttributeValidator)),
+    tracksSerials: v.optional(v.boolean()),
+    customValues: v.optional(v.array(customValueValidator)),
   },
   handler: async (ctx, args) => {
     const { userId, profile, organizationId, organization } = await requireRole(ctx, [
@@ -296,12 +309,46 @@ export const createProduct = mutation({
     await assertOrganizationCapacity(ctx, organization, "products");
 
     const businessConfig = await loadBusinessConfiguration(ctx, organizationId);
+    const variantsOn = hasBusinessCapability(businessConfig, "product_variants");
+    const serialsOn = hasBusinessCapability(businessConfig, "serial_tracking");
+    const customOn = hasBusinessCapability(businessConfig, "custom_fields");
     const nonStockAllowed = hasBusinessCapability(businessConfig, "non_stock_sales");
     if (args.tracksInventory === false && !nonStockAllowed) {
       throw new Error("Non-stock catalogue is not enabled for this organization");
     }
+    if (args.isVariantParent || args.parentProductId || args.variantAttributes?.length) {
+      if (!variantsOn) throw new Error("Product variants are not enabled for this organization");
+    }
+    if (args.tracksSerials && !serialsOn) {
+      throw new Error("Serial tracking is not enabled for this organization");
+    }
+    if (args.customValues?.length && !customOn) {
+      throw new Error("Custom fields are not enabled for this organization");
+    }
     const tracksInventory =
       nonStockAllowed && args.tracksInventory === false ? false : true;
+    const isVariantParent = variantsOn && args.isVariantParent === true;
+    let parentProductId: Id<"products"> | undefined;
+    let variantAttributes = sanitizeVariantAttributes(args.variantAttributes);
+    let variantLabel: string | undefined;
+    if (args.parentProductId) {
+      if (isVariantParent) throw new Error("A parent product cannot also be a variant");
+      const parent = await ctx.db.get(args.parentProductId);
+      if (!parent || parent.organizationId !== organizationId || parent.isVariantParent !== true) {
+        throw new Error("Parent product not found");
+      }
+      parentProductId = parent._id;
+      if (variantAttributes.length === 0) {
+        throw new Error("Add at least one variant attribute (e.g. size or color)");
+      }
+      variantLabel = formatVariantLabel(variantAttributes);
+    } else if (isVariantParent) {
+      variantAttributes = [];
+    }
+    const tracksSerials = serialsOn && args.tracksSerials === true && !isVariantParent;
+    const customValues = customOn ? sanitizeCustomValues(args.customValues) : [];
+    // Parents hold no sellable stock — force zero initial qty.
+    const forceZeroStock = isVariantParent;
 
     const name = sanitizeText(args.name, "Product name", TEXT_LIMITS.name);
     const sku = sanitizeSku(args.sku);
@@ -319,7 +366,7 @@ export const createProduct = mutation({
     if (tracksExpiry) {
       expiryAlertDays = parseExpiryAlertOverride(args.expiryAlertDays);
     }
-    const initial = Math.floor(args.stockQuantity);
+    const initial = forceZeroStock ? 0 : Math.floor(args.stockQuantity);
     if (tracksExpiry && initial > 0 && !args.expiryDate) {
       throw new Error("Expiry date is required when tracking expiry on initial stock");
     }
@@ -371,6 +418,12 @@ export const createProduct = mutation({
       tracksExpiry: tracksExpiry || undefined,
       expiryAlertDays,
       tracksInventory: tracksInventory ? undefined : false,
+      isVariantParent: isVariantParent || undefined,
+      parentProductId,
+      variantLabel,
+      variantAttributes: variantAttributes.length ? variantAttributes : undefined,
+      tracksSerials: tracksSerials || undefined,
+      customValues: customValues.length ? customValues : undefined,
       status: args.status,
       description,
       imageStorageId: args.imageStorageId,
@@ -460,6 +513,11 @@ export const updateProduct = mutation({
     expiryAlertDays: v.optional(v.union(v.number(), v.null())),
     openingExpiryDate: v.optional(v.string()),
     tracksInventory: v.optional(v.boolean()),
+    isVariantParent: v.optional(v.boolean()),
+    parentProductId: v.optional(v.union(v.id("products"), v.null())),
+    variantAttributes: v.optional(v.array(variantAttributeValidator)),
+    tracksSerials: v.optional(v.boolean()),
+    customValues: v.optional(v.array(customValueValidator)),
     /** Absolute branch stock — only when products.editStock entitlement is on. */
     stockQuantity: v.optional(v.number()),
     /** Branch to set stock on (defaults to the actor’s working branch). */
@@ -475,12 +533,63 @@ export const updateProduct = mutation({
     if (!product || product.organizationId !== organizationId) throw new Error("Product not found");
 
     const businessConfig = await loadBusinessConfiguration(ctx, organizationId);
+    const variantsOn = hasBusinessCapability(businessConfig, "product_variants");
+    const serialsOn = hasBusinessCapability(businessConfig, "serial_tracking");
+    const customOn = hasBusinessCapability(businessConfig, "custom_fields");
     const nonStockAllowed = hasBusinessCapability(businessConfig, "non_stock_sales");
     if (args.tracksInventory === false && !nonStockAllowed) {
       throw new Error("Non-stock catalogue is not enabled for this organization");
     }
+    if (
+      (args.isVariantParent !== undefined ||
+        args.parentProductId !== undefined ||
+        args.variantAttributes !== undefined) &&
+      !variantsOn
+    ) {
+      throw new Error("Product variants are not enabled for this organization");
+    }
+    if (args.tracksSerials && !serialsOn) {
+      throw new Error("Serial tracking is not enabled for this organization");
+    }
+    if (args.customValues !== undefined && !customOn) {
+      throw new Error("Custom fields are not enabled for this organization");
+    }
     const tracksInventory =
       nonStockAllowed && args.tracksInventory === false ? false : true;
+    const isVariantParent =
+      variantsOn &&
+      (args.isVariantParent !== undefined
+        ? args.isVariantParent === true
+        : product.isVariantParent === true);
+    let parentProductId =
+      args.parentProductId === null
+        ? undefined
+        : (args.parentProductId ?? product.parentProductId);
+    let variantAttributes =
+      args.variantAttributes !== undefined
+        ? sanitizeVariantAttributes(args.variantAttributes)
+        : sanitizeVariantAttributes(product.variantAttributes);
+    let variantLabel = product.variantLabel;
+    if (isVariantParent) {
+      parentProductId = undefined;
+      variantAttributes = [];
+      variantLabel = undefined;
+    } else if (parentProductId) {
+      const parent = await ctx.db.get(parentProductId);
+      if (!parent || parent.organizationId !== organizationId || parent.isVariantParent !== true) {
+        throw new Error("Parent product not found");
+      }
+      if (variantAttributes.length === 0) {
+        throw new Error("Add at least one variant attribute (e.g. size or color)");
+      }
+      variantLabel = formatVariantLabel(variantAttributes);
+    }
+    const tracksSerials =
+      serialsOn && (args.tracksSerials ?? product.tracksSerials === true) && !isVariantParent;
+    const customValues =
+      args.customValues !== undefined
+        ? sanitizeCustomValues(args.customValues)
+        : sanitizeCustomValues(product.customValues);
 
     const name = sanitizeText(args.name, "Product name", TEXT_LIMITS.name);
     const sku = sanitizeSku(args.sku);
@@ -592,6 +701,12 @@ export const updateProduct = mutation({
       tracksExpiry,
       expiryAlertDays,
       tracksInventory: tracksInventory ? undefined : false,
+      isVariantParent: isVariantParent || undefined,
+      parentProductId,
+      variantLabel,
+      variantAttributes: variantAttributes.length ? variantAttributes : undefined,
+      tracksSerials: tracksSerials || undefined,
+      customValues: customValues.length ? customValues : undefined,
       status: args.status,
       description: sanitizeOptionalText(args.description, "Description", TEXT_LIMITS.description),
       imageStorageId,
@@ -618,6 +733,45 @@ export const updateProduct = mutation({
     }
 
     return args.id;
+  },
+});
+
+/** Active sellable children of a variant parent (POS picker). */
+export const listVariantsByParent = query({
+  args: {
+    parentProductId: v.id("products"),
+    branchId: v.optional(v.id("branches")),
+  },
+  handler: async (ctx, args) => {
+    const { profile, branchId } = await requireBranchId(ctx, args.branchId);
+    const parent = await ctx.db.get(args.parentProductId);
+    if (!parent || parent.organizationId !== profile.organizationId) {
+      throw new Error("Product not found");
+    }
+    const children = await ctx.db
+      .query("products")
+      .withIndex("by_organization_parent", (q) =>
+        q.eq("organizationId", profile.organizationId).eq("parentProductId", args.parentProductId),
+      )
+      .collect();
+    const stock = await stockMapForBranch(ctx, branchId);
+    return children
+      .filter((row) => row.status === "active")
+      .map((row) => ({
+        id: row._id,
+        name: row.name,
+        sku: row.sku,
+        barcode: row.barcode ?? null,
+        sellingPrice: row.sellingPrice,
+        costPrice: canViewCostPrice(profile) ? row.costPrice : 0,
+        stockQuantity: stock.get(row._id) ?? 0,
+        unit: row.unit,
+        variantLabel: row.variantLabel ?? null,
+        variantAttributes: row.variantAttributes ?? [],
+        tracksSerials: row.tracksSerials === true,
+        tracksInventory: row.tracksInventory !== false,
+      }))
+      .sort((a, b) => (a.variantLabel ?? a.sku).localeCompare(b.variantLabel ?? b.sku));
   },
 });
 

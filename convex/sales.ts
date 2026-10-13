@@ -34,6 +34,8 @@ import { loadReturnableLines } from "./shared/returns";
 import { allocateInvoiceNumber, sanitizeInvoiceNumber } from "./shared/documentReferences";
 import { hasBusinessCapability } from "./shared/businessCapabilities";
 import { productTracksInventory } from "./shared/productInventory";
+import { assertSellableProduct, catalogDisplayName } from "./shared/productVariants";
+import { assertSerialListForQuantity } from "./shared/serialTracking";
 import {
   buildSaleLineUnitSnapshot,
   lineGrossForSellUnit,
@@ -57,6 +59,7 @@ type CartLine = {
   factorToBase?: number;
   pricingMode?: "fixed" | "per_weight";
   trackedInventory?: boolean;
+  serialNumbers?: string[];
 };
 
 function isSoldSnapshot(item: CartLine) {
@@ -406,6 +409,7 @@ export const completeSale = mutation({
         pricingMode: v.optional(v.union(v.literal("fixed"), v.literal("per_weight"))),
         /** False when the till sold this line without stock tracking. */
         trackedInventory: v.optional(v.boolean()),
+        serialNumbers: v.optional(v.array(v.string())),
       }),
     ),
     discount: v.number(),
@@ -513,6 +517,7 @@ export const completeSale = mutation({
       pricingMode: "fixed" | "per_weight";
       /** Units this upload may remove. Less than quantity when a manager posts a shortage. */
       stockQuantity: number;
+      serialNumbers?: string[];
     }> = [];
 
     let subtotal = 0;
@@ -530,6 +535,7 @@ export const completeSale = mutation({
     const weightOn = hasBusinessCapability(businessConfig, "sell_by_weight");
     const pricingOn = hasBusinessCapability(businessConfig, "customer_pricing");
     const creditOn = hasBusinessCapability(businessConfig, "customer_credit");
+    const serialsOn = hasBusinessCapability(businessConfig, "serial_tracking");
     const priceRules = pricingOn
       ? (
           await ctx.db
@@ -549,6 +555,11 @@ export const completeSale = mutation({
       }
       if (!replay && product.status !== "active") {
         throw new ConvexError(`Product unavailable`);
+      }
+      try {
+        assertSellableProduct(product);
+      } catch (error) {
+        throw new ConvexError(error instanceof Error ? error.message : "Product unavailable");
       }
 
       const allowFractional =
@@ -678,11 +689,38 @@ export const completeSale = mutation({
       }
       const lineTotal = roundMoney(gross - item.discount);
       if (lineTotal < 0) throw new ConvexError("Invalid line discount");
+      let serialNumbers: string[] | undefined;
+      if (serialsOn && product.tracksSerials === true) {
+        try {
+          serialNumbers = assertSerialListForQuantity(
+            item.serialNumbers,
+            snapshot.baseQuantity,
+            catalogDisplayName(product),
+          );
+        } catch (error) {
+          throw new ConvexError(error instanceof Error ? error.message : "Invalid serial numbers");
+        }
+        for (const serial of serialNumbers) {
+          const existing = await ctx.db
+            .query("productSerials")
+            .withIndex("by_organization_serial", (q) =>
+              q.eq("organizationId", profile.organizationId).eq("serial", serial),
+            )
+            .unique();
+          if (existing && existing.status === "sold" && !replay) {
+            throw new ConvexError(`Serial ${serial} was already sold`);
+          }
+          if (existing && existing.productId !== product._id) {
+            throw new ConvexError(`Serial ${serial} belongs to another product`);
+          }
+        }
+      }
+
       subtotal += lineTotal;
       itemCount += snapshot.baseQuantity;
       lines.push({
         productId: product._id,
-        productName: product.name,
+        productName: catalogDisplayName(product),
         sku: product.sku,
         quantity: snapshot.baseQuantity,
         unitPrice: unit.unitPrice,
@@ -695,6 +733,7 @@ export const completeSale = mutation({
         factorToBase: snapshot.factorToBase,
         pricingMode: snapshot.pricingMode,
         stockQuantity,
+        serialNumbers,
       });
     }
 
@@ -799,7 +838,37 @@ export const completeSale = mutation({
         displayedQuantity: saleItem.displayedQuantity,
         factorToBase: saleItem.factorToBase,
         pricingMode: saleItem.pricingMode,
+        serialNumbers: saleItem.serialNumbers,
       });
+      if (saleItem.serialNumbers?.length) {
+        for (const serial of saleItem.serialNumbers) {
+          const existing = await ctx.db
+            .query("productSerials")
+            .withIndex("by_organization_serial", (q) =>
+              q.eq("organizationId", profile.organizationId).eq("serial", serial),
+            )
+            .unique();
+          if (existing) {
+            await ctx.db.patch(existing._id, {
+              status: "sold",
+              saleId,
+              saleItemId,
+              soldAt: completedAt,
+            });
+          } else {
+            await ctx.db.insert("productSerials", {
+              organizationId: profile.organizationId,
+              productId: saleItem.productId,
+              serial,
+              status: "sold",
+              saleId,
+              saleItemId,
+              createdAt: completedAt,
+              soldAt: completedAt,
+            });
+          }
+        }
+      }
       const product = await ctx.db.get(line.productId);
       if (!product || product.status !== "active") {
         throw new ConvexError("Product unavailable");

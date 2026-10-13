@@ -163,6 +163,11 @@ export async function completeSaleLocally(input: {
         if (!product || product.status !== "active") {
           throw new Error(`Product unavailable: ${item.name}`);
         }
+        if (product.isVariantParent === true) {
+          throw new Error(
+            `Choose a variant of ${product.name} — the parent is not sold directly.`,
+          );
+        }
         if (!branchId) {
           throw new Error("Branch is required to complete this sale offline");
         }

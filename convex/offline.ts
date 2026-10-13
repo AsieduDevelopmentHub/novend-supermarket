@@ -158,6 +158,12 @@ export const getSnapshot = query({
             : null,
           tracksExpiry: expiry.tracksExpiry,
           tracksInventory: product.tracksInventory !== false,
+          isVariantParent: product.isVariantParent === true,
+          parentProductId: (product.parentProductId as string | undefined) ?? null,
+          variantLabel: product.variantLabel ?? null,
+          variantAttributes: product.variantAttributes ?? null,
+          tracksSerials: product.tracksSerials === true,
+          customValues: product.customValues ?? null,
           // Raw override only — resolve against snapshot.expiryPolicy offline.
           expiryAlertDays:
             typeof product.expiryAlertDays === "number" ? product.expiryAlertDays : null,

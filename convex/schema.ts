@@ -759,6 +759,21 @@ export default defineSchema({
     lowStockThreshold: v.number(),
     tracksExpiry: v.optional(v.boolean()),
     expiryAlertDays: v.optional(v.number()),
+    /**
+     * product_variants: parent is catalog-only (not sold). Children carry stock
+     * via the normal branchStock productId path.
+     */
+    isVariantParent: v.optional(v.boolean()),
+    parentProductId: v.optional(v.id("products")),
+    /** Display label for a child, e.g. "Red / M". */
+    variantLabel: v.optional(v.string()),
+    variantAttributes: v.optional(
+      v.array(v.object({ key: v.string(), value: v.string() })),
+    ),
+    /** serial_tracking: require serials at sale equal to base quantity. */
+    tracksSerials: v.optional(v.boolean()),
+    /** custom_fields: free-form org-defined key/value pairs (max enforced in mutations). */
+    customValues: v.optional(v.array(v.object({ key: v.string(), value: v.string() }))),
     status: v.union(v.literal("active"), v.literal("inactive"), v.literal("archived")),
     description: v.optional(v.string()),
     imageStorageId: v.optional(v.id("_storage")),
@@ -767,9 +782,26 @@ export default defineSchema({
     .index("by_organization_sku", ["organizationId", "sku"])
     .index("by_organization_barcode", ["organizationId", "barcode"])
     .index("by_organization_status", ["organizationId", "status"])
+    .index("by_organization_parent", ["organizationId", "parentProductId"])
     .index("by_sku", ["sku"])
     .index("by_category", ["categoryId"])
     .index("by_status", ["status"]),
+
+  /** serial_tracking: unique serial / IMEI per organization. */
+  productSerials: defineTable({
+    organizationId: v.id("organizations"),
+    productId: v.id("products"),
+    serial: v.string(),
+    status: v.union(v.literal("available"), v.literal("sold")),
+    saleId: v.optional(v.id("sales")),
+    saleItemId: v.optional(v.id("saleItems")),
+    createdAt: v.number(),
+    soldAt: v.optional(v.number()),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_serial", ["organizationId", "serial"])
+    .index("by_product", ["productId"])
+    .index("by_sale", ["saleId"]),
 
   branchStock: defineTable({
     organizationId: v.id("organizations"),
@@ -981,6 +1013,8 @@ export default defineSchema({
     displayedQuantity: v.optional(v.number()),
     factorToBase: v.optional(v.number()),
     pricingMode: v.optional(v.union(v.literal("fixed"), v.literal("per_weight"))),
+    /** serial_tracking: one serial per base unit on this line. */
+    serialNumbers: v.optional(v.array(v.string())),
   })
     .index("by_sale", ["saleId"])
     .index("by_organization", ["organizationId"]),

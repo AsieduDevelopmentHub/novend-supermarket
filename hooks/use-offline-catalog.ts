@@ -32,6 +32,10 @@ export type CatalogProduct = {
   isExpiring?: boolean;
   /** False when non-stock catalogue item (menu / room rate). Missing = track stock. */
   tracksInventory?: boolean;
+  parentProductId?: string | null;
+  variantLabel?: string | null;
+  tracksSerials?: boolean;
+  isVariantParent?: boolean;
 };
 
 /** Sellable base qty for POS checks — unlimited when inventory is not tracked. */

@@ -181,6 +181,12 @@ export type MirroredProduct = {
   tracksExpiry?: boolean;
   /** When false and non_stock_sales is on, sell without stock. Missing = true. */
   tracksInventory?: boolean;
+  isVariantParent?: boolean;
+  parentProductId?: string | null;
+  variantLabel?: string | null;
+  variantAttributes?: Array<{ key: string; value: string }> | null;
+  tracksSerials?: boolean;
+  customValues?: Array<{ key: string; value: string }> | null;
   expiryAlertDays?: number | null;
   nearestExpiry?: string | null;
   expiredQuantity?: number;
@@ -845,6 +851,12 @@ export type UpsertProductPayload = {
   description?: string;
   tracksExpiry?: boolean;
   tracksInventory?: boolean;
+  isVariantParent?: boolean;
+  parentProductId?: string | null;
+  variantLabel?: string | null;
+  variantAttributes?: Array<{ key: string; value: string }> | null;
+  tracksSerials?: boolean;
+  customValues?: Array<{ key: string; value: string }> | null;
   expiryAlertDays?: number | null;
   expiryDate?: string;
   imageStorageId?: string;

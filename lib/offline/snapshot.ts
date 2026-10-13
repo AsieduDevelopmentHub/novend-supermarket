@@ -491,7 +491,9 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
   const effectiveBranchId = await resolveCatalogBranchId(db, branchId);
   if (!effectiveBranchId) return [];
 
-  let products = await db.products.filter((p) => p.status === "active").toArray();
+  let products = await db.products
+    .filter((p) => p.status === "active" && p.isVariantParent !== true)
+    .toArray();
   if (search?.trim()) {
     products = products.filter((p) => productMatchesQuery(p, search));
   }
@@ -515,9 +517,13 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
         stockQuantity = 0;
       }
 
+      const displayName = product.variantLabel
+        ? `${product.name} · ${product.variantLabel}`
+        : product.name;
+
       return {
         id: product.id,
-        name: product.name,
+        name: displayName,
         sku: product.sku,
         barcode: product.barcode ?? null,
         sellingPrice: product.sellingPrice,
@@ -528,6 +534,10 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
         imageUrl: product.imageUrl,
         isExpiring,
         tracksInventory: productTracksInventory(product, businessConfig),
+        parentProductId: product.parentProductId ?? null,
+        variantLabel: product.variantLabel ?? null,
+        tracksSerials: product.tracksSerials === true,
+        isVariantParent: false,
       };
     })
     .filter((p) => p.tracksInventory === false || p.stockQuantity > 0)
