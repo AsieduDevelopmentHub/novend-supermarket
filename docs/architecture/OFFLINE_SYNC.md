@@ -190,6 +190,42 @@ remap is **not** a Sync Center conflict — "Waiting for the category to finish
 syncing" stays in Waiting and retries. Convex `categories.create` returns the
 existing row when the name/slug already exists so a second save does not stall.
 
+## Credit, price lists, and warehouse lots (wholesale)
+
+These extend the existing mirror and outbox — there is no second sync protocol.
+
+| Convex data                                        | Dexie store / field                  | Outbox op                                                  |
+| -------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------- |
+| `salePayments` (split tenders)                     | `LocalSale.payments`, `MirroredOrder.payments` | `complete_sale` payload `payments` (always normalized)  |
+| `customers.creditLimit` / `balance`                | `customers`                          | `upsert_customer` (terms) · `record_customer_payment`      |
+| `customerLedgerEntries`                            | `customerLedger`                     | — (server-written; replaced on snapshot)                   |
+| `customerGroups`, `customers.customerGroupId`      | `customerGroups`                     | `upsert_customer_group`                                    |
+| `priceListRules`                                   | `priceListRules`                     | `upsert_price_rule`                                        |
+| `wholesaleLots`                                    | `wholesaleLots` (Dexie v15)          | `record_wholesale_purchase` · `wholesale_transfer`         |
+
+- `getSnapshot` returns the ledger, groups, rules and warehouse lots; the client
+  replaces server rows and keeps only pending `local_*` rows.
+- **Customer balance.** Checkout and `queueRecordCustomerPayment` change the
+  local balance immediately. On each snapshot the server balance is overlaid
+  with only **pending/syncing** outbox rows (`overlayPendingCustomerBalances`),
+  so a synced row is never counted twice. A permanently failed sale rolls its
+  on-account charge back once (`markLocalSaleFailed`).
+- **Credit conflicts.** If another till exhausts the limit first, upload fails
+  with "Credit limit exceeded" (also: credit not enabled, customer required).
+  `describeOutboxConflict` shows these as permanent business conflicts, not
+  retryable network errors.
+- **Pricing.** `completeSaleLocally` resolves prices with the same pure
+  `resolveUnitPrice` as Convex and uploads lines as sold snapshots (`unitPrice`,
+  `baseQuantity`), so the server does not reprice an offline sale.
+- **Capabilities** (`customer_credit`, `customer_pricing`) are checked at queue
+  time from the cached business configuration; Convex re-checks on upload.
+- **Warehouse lots.** `wholesaleLots` is cleared and rebuilt on each snapshot and
+  pending purchases/transfers are replayed on top (`replayPendingWarehouseLots`)
+  so a pull cannot resurrect issued stock. Offline transfers of dated products
+  issue FEFO from these lots and create branch lots locally.
+- **Returns to credit** are online-authoritative: the ledger adjustment is
+  written by Convex and the balance refreshes on the next sync.
+
 ## List reads
 
 Catalog and history screens (Products, Inventory, Customers, Orders) **page**

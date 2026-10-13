@@ -118,13 +118,14 @@ export function VerifyEmailDialog({ open, onOpenChange, autoRequest = true }: Pr
       setResendInMs(result.retryAfterMs ?? 60_000);
       toast.success("We sent a new code to your updated email.");
     } catch (error) {
-      showError(error, "That email cannot be used.");
+      showError(error, "Could not update your email.");
     } finally {
       setPending(false);
     }
   }
 
-  const shownEmail = maskedEmail ?? status?.maskedEmail ?? "your email";
+  const shownEmail =
+    maskedEmail ?? status?.pendingMaskedEmail ?? status?.maskedEmail ?? "your email";
   const resendSeconds = Math.ceil(resendInMs / 1000);
 
   return (

@@ -1,5 +1,6 @@
 import { RECEIPT_VENDOR_FOOTER } from "@/constants/app";
 import type { ReceiptPayload } from "@/features/receipts/types";
+import { parseReceiptPayments, receiptPaymentLines } from "@/features/receipts/payment-lines";
 import {
   SAMPLE_RECEIPT_PAYLOAD,
   type ReceiptBusiness,
@@ -68,6 +69,7 @@ export function normalizeReceiptPayload(
       lineTotal: Number(line.lineTotal ?? 0),
     })),
     paymentMethod: String(source.paymentMethod ?? "cash"),
+    payments: parseReceiptPayments(source.payments),
     completedAt: Number(source.completedAt ?? Date.now()),
     customerName: String(source.customerName ?? "Walk-in Customer"),
     customerPhone: (source.customerPhone as string | null | undefined) ?? null,
@@ -85,6 +87,7 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
   const payload = normalizeReceiptPayload(input);
   const t = payload.template;
   const b = payload.business;
+  const splitLines = receiptPaymentLines(payload);
   const widthMm = t.paperWidthMm === 58 ? 58 : 80;
   const widthPx = widthMm === 58 ? 220 : 302;
 
@@ -157,13 +160,14 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
       <div>${escapeHtml(formatDateTime(payload.completedAt))}</div>
       ${t.showCashier && payload.cashierName ? `<div>Cashier: ${escapeHtml(payload.cashierName)}</div>` : ""}
       ${t.showCustomer ? `<div>Customer: ${escapeHtml(payload.customerName)}</div>` : ""}
-      ${t.showPaymentMethod ? `<div>Payment: ${escapeHtml(payload.paymentMethod.replace("_", " "))}</div>` : ""}
+      ${t.showPaymentMethod ? `<div>Payment: ${splitLines ? "Split" : escapeHtml(payload.paymentMethod.replace("_", " "))}</div>` : ""}
     </div>
     <div class="sep">${lines || "<div>No line items</div>"}</div>
     <div class="sep">
       <div class="row"><span>Subtotal</span><span>${escapeHtml(formatCurrency(payload.subtotal))}</span></div>
       <div class="row"><span>Discount</span><span>${escapeHtml(formatCurrency(payload.discount))}</span></div>
       <div class="row total"><span>TOTAL</span><span>${escapeHtml(formatCurrency(payload.total))}</span></div>
+      ${t.showPaymentMethod && splitLines ? splitLines.map((split) => `<div class="row"><span>${escapeHtml(split.label)}</span><span>${escapeHtml(formatCurrency(split.amount))}</span></div>`).join("") : ""}
     </div>
     <div class="sep center">
       ${t.footerText ? `<div>${escapeHtml(t.footerText)}</div>` : ""}

@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { formatCurrency } from "@/lib/currency";
-import { paymentMethodLabel } from "@/lib/payments";
+import { paymentMethodLabel, type PaymentMethod } from "@/lib/payments";
 import { formatDateTime } from "@/lib/date";
 import { ReceiptPreviewDialog } from "@/features/receipts/components/receipt-preview-dialog";
 import { SAMPLE_RECEIPT_PAYLOAD, type ReceiptPayload } from "@/features/receipts/types";
@@ -32,7 +32,7 @@ type OrderDetail = {
   customerId: string | null;
   customerName: string;
   cashierName: string;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: PaymentMethod;
   subtotal: number;
   discount: number;
   total: number;
@@ -166,7 +166,7 @@ function mapRemoteOrder(remote: {
   customerId: string | null;
   customerName: string;
   cashierName: string;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: PaymentMethod;
   subtotal: number;
   discount: number;
   total: number;

@@ -5,6 +5,8 @@ export type PaymentTotals = {
   cash: number;
   card: number;
   mobileMoney: number;
+  /** Sold on customer credit (receivable), not money in the till. */
+  onAccount: number;
 };
 
 export type DailySalesFigures = PaymentTotals & {
@@ -14,7 +16,13 @@ export type DailySalesFigures = PaymentTotals & {
   returns: number;
 };
 
-type SaleRow = { total: number; paymentMethod: "cash" | "card" | "mobile_money" };
+type TenderMethod = "cash" | "card" | "mobile_money" | "on_account";
+type SaleRow = {
+  total: number;
+  paymentMethod: TenderMethod;
+  /** Split tenders. Absent on legacy sales: the whole total is the primary method. */
+  payments?: Array<{ method: TenderMethod; amount: number }>;
+};
 type ReturnRow = { refundAmount: number; status: "completed" | "pending" };
 
 export function emptyDailySales(): DailySalesFigures {
@@ -26,21 +34,31 @@ export function emptyDailySales(): DailySalesFigures {
     cash: 0,
     card: 0,
     mobileMoney: 0,
+    onAccount: 0,
   };
 }
 
 export function addSale(figures: DailySalesFigures, sale: SaleRow): DailySalesFigures {
   const total = roundMoney(sale.total);
-  return {
+  const lines =
+    sale.payments && sale.payments.length > 0
+      ? sale.payments
+      : [{ method: sale.paymentMethod, amount: total }];
+  const next: DailySalesFigures = {
     ...figures,
     saleCount: figures.saleCount + 1,
     gross: roundMoney(figures.gross + total),
-    cash: roundMoney(figures.cash + (sale.paymentMethod === "cash" ? total : 0)),
-    card: roundMoney(figures.card + (sale.paymentMethod === "card" ? total : 0)),
-    mobileMoney: roundMoney(
-      figures.mobileMoney + (sale.paymentMethod === "mobile_money" ? total : 0),
-    ),
   };
+  for (const line of lines) {
+    const amount = roundMoney(line.amount);
+    if (line.method === "card") next.card = roundMoney(next.card + amount);
+    else if (line.method === "mobile_money") {
+      next.mobileMoney = roundMoney(next.mobileMoney + amount);
+    } else if (line.method === "on_account") {
+      next.onAccount = roundMoney(next.onAccount + amount);
+    } else next.cash = roundMoney(next.cash + amount);
+  }
+  return next;
 }
 
 export function addReturn(figures: DailySalesFigures, row: ReturnRow): DailySalesFigures {
@@ -178,6 +196,7 @@ export function dailySalesSms(input: {
     input.figures.cash > 0 ? `Cash ${money(input.figures.cash)}` : null,
     input.figures.mobileMoney > 0 ? `MoMo ${money(input.figures.mobileMoney)}` : null,
     input.figures.card > 0 ? `Card ${money(input.figures.card)}` : null,
+    input.figures.onAccount > 0 ? `On account ${money(input.figures.onAccount)}` : null,
   ].filter(Boolean);
   if (tenders.length > 0) parts.push(`${tenders.join(", ")}.`);
   if (input.figures.returnCount > 0) {

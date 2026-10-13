@@ -179,11 +179,11 @@ function toCachePayload(remote: RemoteDashboard): Omit<DashboardSummaryCache, "c
 }
 
 /**
- * Local-first dashboard.
+ * Local-first dashboard for cashiers; cloud-authoritative for admin/manager
+ * while online so multi-till sales are not stuck on a stale hourly Dexie mirror.
  *
- * A warm Dexie mirror serves the normal operational view. Convex is reserved
- * for cold bootstrap and explicit historical ranges, avoiding an always-on
- * raw-data subscription while preserving cloud-authoritative reports.
+ * Cashier tills stay Dexie-first (own sales land locally). Ops roles open
+ * `dashboard.summary` — an aggregate query, not a full catalog collect.
  */
 export function useDashboardData(
   branchFilter: Id<"branches"> | "all",
@@ -202,12 +202,13 @@ export function useDashboardData(
     : `${branchKey}:today`;
   const [localData, setLocalData] = useState<DashboardData | null>(null);
   const [acceptEmptyLocal, setAcceptEmptyLocal] = useState(false);
-  // Cold till only. Admin/manager always pass a periodRange (default last 7 days),
-  // so `|| range` previously kept dashboard.summary subscribed all day on warm
-  // Dexie tills and dominated Convex database bandwidth. Historical UI ranges
-  // rebuild from the mirror; background snapshot is the bulk refresh path.
+  // Cold till: always remote. Warm cashier: Dexie only. Warm admin/manager:
+  // remote KPIs so another till's uploads appear without waiting for snapshot.
   const shouldQueryRemote = Boolean(
-    online && isAuthenticated && businessSourceReady && !serveLocal,
+    online &&
+      isAuthenticated &&
+      businessSourceReady &&
+      (!serveLocal || showOps),
   );
 
   const remote = useQuery(

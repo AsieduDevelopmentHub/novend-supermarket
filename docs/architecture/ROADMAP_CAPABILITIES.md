@@ -85,9 +85,20 @@ Treat as one releasable theme; may be one or two PRs if needed, but **sale-line 
 - Manual weight first (no scale hardware in this slice)
 - Conflict matrix product choice documented + automated in `tests/weight-conflict-matrix.test.ts`
 
-### Deferred (Stage 3c — later)
+### 3c — `customer_pricing` and `customer_credit` — **implemented** (wholesale)
 
-Tiered quantity, customer-group, branch-specific, and open price.
+- `customer_pricing`: customer groups and price-list rules (tiered quantity,
+  group, per product or category). Pure `resolveUnitPrice` runs in Convex and
+  offline.
+- `customer_credit`: credit limits, on-account tender, receivable ledger, aging,
+  recorded payments. Split payments are core (no capability) and reuse the same
+  `salePayments` model. See
+  [`../business/CUSTOMERS_CREDIT_WORKFLOW.md`](../business/CUSTOMERS_CREDIT_WORKFLOW.md).
+
+### Deferred (remaining Stage 3c)
+
+Branch-specific and open price are still deferred. (Tiered quantity and
+customer-group pricing shipped above.)
 
 `scale_hardware` — optional follow-up after manual weight.
 
@@ -117,7 +128,9 @@ Automated coverage: `tests/weight-conflict-matrix.test.ts` (oversell → definit
 | ----------------- | --------------------------------------------------------------------------------------------------- |
 | Ledger            | **Extend** `inventoryHistory` reasons/fields—do not create a parallel movement table for this stage |
 | `lot_expiry`      | Strengthen existing `inventoryLots` / FEFO; capability-gate FEFO where appropriate                  |
-| `serial_tracking` | Separate branch; electronics-oriented; unique serial sell-once                                      |
+| `serial_tracking` | **Thin slice shipped** — `tracksSerials` + `productSerials` + sale-line serials (electronics/hardware packs) |
+| `product_variants` | **Shipped** — parent/child products; fashion/cosmetics/stationery packs |
+| `custom_fields` | **Thin slice shipped** — free-form `customValues` on products (pharmacy/cosmetics) |
 
 Pharmacy **lots / expiry / custom field types** may appear here or in Stage 5 **without** `rx_controls`.
 

@@ -28,15 +28,15 @@ describe("Dexie-first business lists", () => {
     );
   });
 
-  it("warm dashboard rebuilds from Dexie without holding dashboard.summary open", () => {
+  it("warm cashier dashboards stay Dexie-first; admin/manager use live summary online", () => {
     const source = readFileSync(resolve(process.cwd(), "hooks/use-dashboard-data.ts"), "utf8");
     const gate = readFileSync(resolve(process.cwd(), "hooks/use-business-data-gate.ts"), "utf8");
-    // PeriodRange must not force remote — admin default last_7_days always passes range.
-    expect(source).toContain("businessSourceReady && !serveLocal");
+    // PeriodRange alone must not force remote — use showOps (role), not range.
+    expect(source).toContain("(!serveLocal || showOps)");
     expect(source).not.toContain("(!serveLocal || range)");
     expect(source).toContain("subscribeReplicaChanged(loadLocal)");
     expect(source).toContain("buildLocalDashboardSummary");
-    // hospitalityOps is the same expensive collect path — gate it too.
+    // hospitalityOps shares the same gate — no always-on cold auth path.
     const hospitalityArgs = source
       .split("api.dashboard.hospitalityOps,")[1]
       ?.split(");")[0];

@@ -17,8 +17,9 @@ function report(
       cash: acc.cash + (row.cash ?? 0),
       card: acc.card + (row.card ?? 0),
       mobileMoney: acc.mobileMoney + (row.mobileMoney ?? 0),
+      onAccount: acc.onAccount + (row.onAccount ?? 0),
     }),
-    { cash: 0, card: 0, mobileMoney: 0 },
+    { cash: 0, card: 0, mobileMoney: 0, onAccount: 0 },
   );
   return {
     kpis: {
@@ -64,7 +65,7 @@ describe("report merge", () => {
     expect(merged?.daily[0]?.orders).toBe(3);
     expect(merged?.kpis.totalOrders).toBe(3);
     expect(merged?.kpis.totalSales).toBe(55);
-    expect(merged?.paymentTotals).toEqual({ cash: 40, card: 0, mobileMoney: 15 });
+    expect(merged?.paymentTotals).toEqual({ cash: 40, card: 0, mobileMoney: 15, onAccount: 0 });
   });
 
   it("keeps the cloud day when the local copy has more orders but less money", () => {
@@ -95,7 +96,7 @@ describe("report merge", () => {
     const merged = mergeSalesReportWithLocal(remote, local);
     expect(merged?.daily[0]?.orders).toBe(4);
     expect(merged?.daily[0]?.totalSales).toBe(200);
-    expect(merged?.paymentTotals).toEqual({ cash: 100, card: 100, mobileMoney: 0 });
+    expect(merged?.paymentTotals).toEqual({ cash: 100, card: 100, mobileMoney: 0, onAccount: 0 });
   });
 
   it("does not drop a cloud day that is absent from the local mirror", () => {
@@ -135,7 +136,7 @@ describe("report merge", () => {
     ]);
     const merged = mergeSalesReportWithLocal(remote, local);
     expect(merged?.daily.map((row) => row.date)).toEqual(["2026-10-06", "2026-10-07"]);
-    expect(merged?.paymentTotals).toEqual({ cash: 10, card: 12, mobileMoney: 0 });
+    expect(merged?.paymentTotals).toEqual({ cash: 10, card: 12, mobileMoney: 0, onAccount: 0 });
   });
 
   it("appends local-only invoices onto a cloud day order list", () => {
@@ -176,6 +177,6 @@ describe("report merge", () => {
         { total: 20, paymentMethod: "mobile_money" },
         { total: 5, paymentMethod: "card" },
       ]),
-    ).toEqual({ cash: 10, card: 5, mobileMoney: 20 });
+    ).toEqual({ cash: 10, card: 5, mobileMoney: 20, onAccount: 0 });
   });
 });

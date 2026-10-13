@@ -19,10 +19,16 @@ import { ArrowLeft, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { getMirroredCustomerDetail } from "@/lib/offline/mirror-queries";
+import { usePermissions } from "@/hooks/use-permissions";
+import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { summarizeAging } from "@/convex/shared/customerCredit";
+import { CustomerCreditCard, type CreditLedgerRow } from "./customer-credit-card";
 
 export function CustomerDetailView({ customerId }: { customerId: Id<"customers"> }) {
   const router = useRouter();
   const online = useConnectivity();
+  const { isAdmin, isManager } = usePermissions();
+  const { hasCapability } = useBusinessCapabilities();
   const remote = useAuthedQuery(api.customers.get, online ? { id: customerId } : "skip");
   const history = useAuthedQuery(
     api.customers.purchaseHistory,
@@ -60,6 +66,33 @@ export function CustomerDetailView({ customerId }: { customerId: Id<"customers">
     paymentMethod: order.paymentMethod,
   }));
   const purchases = history ?? localHistory;
+
+  const creditOn = hasCapability("customer_credit");
+  const canRecordPayment = creditOn && (isAdmin || isManager);
+  const remoteBalance = useAuthedQuery(
+    api.customerLedger.balance,
+    online && creditOn ? { customerId } : "skip",
+  );
+  const remoteEntries = useAuthedQuery(
+    api.customerLedger.listForCustomer,
+    online && canRecordPayment ? { customerId, limit: 20 } : "skip",
+  );
+  const localLedger: CreditLedgerRow[] = (local?.ledger ?? []).map((row) => ({
+    id: row.id,
+    type: row.type,
+    amount: row.amount,
+    method: row.method ?? null,
+    note: row.note ?? null,
+    occurredAt: row.occurredAt,
+  }));
+  const creditEntries: CreditLedgerRow[] = (remoteEntries ?? localLedger).slice(0, 20);
+  const creditBalance = remoteBalance?.balance ?? local?.customer.balance ?? 0;
+  const creditAging =
+    remoteBalance?.aging ??
+    summarizeAging(
+      localLedger.map((row) => ({ type: row.type, amount: row.amount, occurredAt: row.occurredAt })),
+      Date.now(),
+    );
 
   if (customer === undefined || (online && history === undefined && !localHistory)) {
     return <LoadingState label="Loading customer…" />;
@@ -111,6 +144,18 @@ export function CustomerDetailView({ customerId }: { customerId: Id<"customers">
           ) : null}
         </CardContent>
       </Card>
+
+      {creditOn ? (
+        <CustomerCreditCard
+          customerId={customerId}
+          customerName={customer.name}
+          balance={creditBalance}
+          creditLimit={remoteBalance?.creditLimit ?? customer.creditLimit ?? null}
+          aging={creditAging}
+          entries={creditEntries}
+          canRecordPayment={canRecordPayment}
+        />
+      ) : null}
 
       <Card>
         <CardHeader>

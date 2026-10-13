@@ -164,6 +164,18 @@ export const DEFAULT_BUSINESS_TERMS: BusinessTermsMap = { ...RETAIL_TERMS };
 /**
  * Industry pack term defaults. Profiles without a dedicated pack fall back to retail.
  */
+const FASHION_TERMS: BusinessTermsMap = {
+  ...RETAIL_TERMS,
+  product: "Style",
+  product_plural: "Styles",
+};
+
+const COSMETICS_TERMS: BusinessTermsMap = {
+  ...RETAIL_TERMS,
+  product: "SKU",
+  product_plural: "SKUs",
+};
+
 export const INDUSTRY_TERM_DEFAULTS: Record<IndustryProfile, BusinessTermsMap> = {
   retail: RETAIL_TERMS,
   wholesale: WHOLESALE_TERMS,
@@ -174,6 +186,11 @@ export const INDUSTRY_TERM_DEFAULTS: Record<IndustryProfile, BusinessTermsMap> =
   restaurant: RESTAURANT_TERMS,
   bar: BAR_TERMS,
   hotel: HOTEL_TERMS,
+  fashion: FASHION_TERMS,
+  cosmetics: COSMETICS_TERMS,
+  convenience: RETAIL_TERMS,
+  hardware: RETAIL_TERMS,
+  stationery: RETAIL_TERMS,
   custom: RETAIL_TERMS,
 };
 

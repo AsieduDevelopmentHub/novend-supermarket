@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query, MutationCtx } from "./_generated/server";
+import { loadSalePayments } from "./shared/salePaymentLoader";
 import {
   requireRole,
   requireBranchId,
@@ -15,6 +16,14 @@ import { loadPrintSnapshot, loadBusinessConfiguration } from "./settings";
 import { applyBranchStockChange, getBranchQuantity, stockMapForBranch } from "./shared/branchStock";
 import { paymentMethodValidator } from "./shared/paymentMethod";
 import {
+  normalizeSalePayments,
+  onAccountAmount,
+  primarySalePaymentMethod,
+  type SalePaymentLine,
+} from "./shared/salePayments";
+import { assertCreditLimit, customerBalance } from "./shared/customerCredit";
+import { resolveUnitPrice } from "./shared/pricing";
+import {
   decreaseLots,
   deriveExpiryListFields,
   getSellableQuantity,
@@ -25,11 +34,14 @@ import { loadReturnableLines } from "./shared/returns";
 import { allocateInvoiceNumber, sanitizeInvoiceNumber } from "./shared/documentReferences";
 import { hasBusinessCapability } from "./shared/businessCapabilities";
 import { productTracksInventory } from "./shared/productInventory";
+import { assertSellableProduct, catalogDisplayName } from "./shared/productVariants";
+import { assertSerialListForQuantity } from "./shared/serialTracking";
 import {
   buildSaleLineUnitSnapshot,
   lineGrossForSellUnit,
   resolveSellUnit,
   roundQuantity,
+  toBaseQuantity,
 } from "./shared/units";
 import { bumpOrgSaleStats } from "./shared/organizationStats";
 import { resolveSaleCompletedAt } from "./shared/saleTimestamps";
@@ -47,6 +59,7 @@ type CartLine = {
   factorToBase?: number;
   pricingMode?: "fixed" | "per_weight";
   trackedInventory?: boolean;
+  serialNumbers?: string[];
 };
 
 function isSoldSnapshot(item: CartLine) {
@@ -396,10 +409,23 @@ export const completeSale = mutation({
         pricingMode: v.optional(v.union(v.literal("fixed"), v.literal("per_weight"))),
         /** False when the till sold this line without stock tracking. */
         trackedInventory: v.optional(v.boolean()),
+        serialNumbers: v.optional(v.array(v.string())),
       }),
     ),
     discount: v.number(),
     paymentMethod: paymentMethodValidator,
+    /**
+     * Split tenders. Must sum to the sale total. Omit for a single-method sale
+     * (`paymentMethod` covers the whole total).
+     */
+    payments: v.optional(
+      v.array(
+        v.object({
+          method: paymentMethodValidator,
+          amount: v.number(),
+        }),
+      ),
+    ),
     /** Working branch for this sale (admin may choose; others use assigned). */
     branchId: v.optional(v.id("branches")),
     heldSaleId: v.optional(v.id("heldSales")),
@@ -460,6 +486,7 @@ export const completeSale = mutation({
     const customerId = args.customerId;
     let customerName = args.customerName?.trim() || "Walk-in Customer";
     let customerPhone: string | null = null;
+    let customerDoc: Doc<"customers"> | null = null;
     if (customerId) {
       const customer = await ctx.db.get(customerId);
       if (
@@ -469,6 +496,7 @@ export const completeSale = mutation({
       ) {
         throw new ConvexError("Customer not found");
       }
+      customerDoc = customer;
       customerName = customer.name;
       customerPhone = customer.phone ?? null;
     }
@@ -489,6 +517,7 @@ export const completeSale = mutation({
       pricingMode: "fixed" | "per_weight";
       /** Units this upload may remove. Less than quantity when a manager posts a shortage. */
       stockQuantity: number;
+      serialNumbers?: string[];
     }> = [];
 
     let subtotal = 0;
@@ -504,6 +533,18 @@ export const completeSale = mutation({
     const businessConfig = await loadBusinessConfiguration(ctx, profile.organizationId);
     const multiUnitOn = hasBusinessCapability(businessConfig, "multi_unit_pricing");
     const weightOn = hasBusinessCapability(businessConfig, "sell_by_weight");
+    const pricingOn = hasBusinessCapability(businessConfig, "customer_pricing");
+    const creditOn = hasBusinessCapability(businessConfig, "customer_credit");
+    const serialsOn = hasBusinessCapability(businessConfig, "serial_tracking");
+    const priceRules = pricingOn
+      ? (
+          await ctx.db
+            .query("priceListRules")
+            .withIndex("by_organization", (q) => q.eq("organizationId", profile.organizationId))
+            .collect()
+        ).filter((rule) => rule.active)
+      : [];
+    const customerGroupId = customerDoc?.customerGroupId ?? null;
 
     for (const item of args.items as CartLine[]) {
       assertPositiveMoney(item.discount, "line discount");
@@ -514,6 +555,11 @@ export const completeSale = mutation({
       }
       if (!replay && product.status !== "active") {
         throw new ConvexError(`Product unavailable`);
+      }
+      try {
+        assertSellableProduct(product);
+      } catch (error) {
+        throw new ConvexError(error instanceof Error ? error.message : "Product unavailable");
       }
 
       const allowFractional =
@@ -557,6 +603,31 @@ export const completeSale = mutation({
       }
       if (!replay && unit.pricingMode === "per_weight" && !weightOn) {
         throw new ConvexError("Sell by weight is not enabled for this organization");
+      }
+      if (!replay && pricingOn && priceRules.length > 0) {
+        const resolved = resolveUnitPrice(
+          priceRules.map((rule) => ({
+            id: rule._id,
+            productId: rule.productId ?? null,
+            categoryId: rule.categoryId ?? null,
+            groupId: rule.groupId ?? null,
+            minBaseQty: rule.minBaseQty,
+            unitPrice: rule.unitPrice,
+            priority: rule.priority,
+            active: rule.active,
+          })),
+          {
+            productId: product._id,
+            categoryId: product.categoryId,
+            customerGroupId,
+            baseQuantity: toBaseQuantity(displayedQuantity, unit.factorToBase),
+            factorToBase: unit.factorToBase,
+            pricingMode: unit.pricingMode,
+            sellUnitPrice: unit.unitPrice,
+            productSellingPrice: product.sellingPrice,
+          },
+        );
+        unit = { ...unit, unitPrice: resolved.unitPrice };
       }
       if (replay) {
         const factor =
@@ -618,11 +689,38 @@ export const completeSale = mutation({
       }
       const lineTotal = roundMoney(gross - item.discount);
       if (lineTotal < 0) throw new ConvexError("Invalid line discount");
+      let serialNumbers: string[] | undefined;
+      if (serialsOn && product.tracksSerials === true) {
+        try {
+          serialNumbers = assertSerialListForQuantity(
+            item.serialNumbers,
+            snapshot.baseQuantity,
+            catalogDisplayName(product),
+          );
+        } catch (error) {
+          throw new ConvexError(error instanceof Error ? error.message : "Invalid serial numbers");
+        }
+        for (const serial of serialNumbers) {
+          const existing = await ctx.db
+            .query("productSerials")
+            .withIndex("by_organization_serial", (q) =>
+              q.eq("organizationId", profile.organizationId).eq("serial", serial),
+            )
+            .unique();
+          if (existing && existing.status === "sold" && !replay) {
+            throw new ConvexError(`Serial ${serial} was already sold`);
+          }
+          if (existing && existing.productId !== product._id) {
+            throw new ConvexError(`Serial ${serial} belongs to another product`);
+          }
+        }
+      }
+
       subtotal += lineTotal;
       itemCount += snapshot.baseQuantity;
       lines.push({
         productId: product._id,
-        productName: product.name,
+        productName: catalogDisplayName(product),
         sku: product.sku,
         quantity: snapshot.baseQuantity,
         unitPrice: unit.unitPrice,
@@ -635,6 +733,7 @@ export const completeSale = mutation({
         factorToBase: snapshot.factorToBase,
         pricingMode: snapshot.pricingMode,
         stockQuantity,
+        serialNumbers,
       });
     }
 
@@ -644,6 +743,39 @@ export const completeSale = mutation({
     }
     const cartDiscount = roundMoney(args.discount);
     const total = Math.max(0, roundMoney(subtotal - cartDiscount));
+
+    let payments: SalePaymentLine[];
+    try {
+      payments = normalizeSalePayments(args.payments, args.paymentMethod, total);
+    } catch (error) {
+      throw new ConvexError(error instanceof Error ? error.message : "Invalid payments");
+    }
+    const primaryTender = payments.length > 0 ? primarySalePaymentMethod(payments) : args.paymentMethod;
+    const chargeOnAccount = onAccountAmount(payments);
+    if (chargeOnAccount > 0) {
+      if (!creditOn) {
+        throw new ConvexError("Customer credit is not enabled for this organization");
+      }
+      if (!customerDoc || !customerId) {
+        throw new ConvexError("Choose a customer to sell on account");
+      }
+      const ledger = await ctx.db
+        .query("customerLedgerEntries")
+        .withIndex("by_organization_customer_occurredAt", (q) =>
+          q.eq("organizationId", profile.organizationId).eq("customerId", customerId),
+        )
+        .collect();
+      try {
+        assertCreditLimit({
+          currentBalance: customerBalance(ledger),
+          charge: chargeOnAccount,
+          limit: customerDoc.creditLimit,
+        });
+      } catch (error) {
+        throw new ConvexError(error instanceof Error ? error.message : "Credit limit exceeded");
+      }
+    }
+
     const invoiceNumber = await nextInvoiceNumber(ctx, profile.organizationId, args.invoiceNumber);
     const syncedAt = Date.now();
     const { completedAt } = resolveSaleCompletedAt(args.clientCompletedAt, syncedAt);
@@ -659,12 +791,34 @@ export const completeSale = mutation({
       subtotal: roundMoney(subtotal),
       discount: cartDiscount,
       total,
-      paymentMethod: args.paymentMethod,
+      paymentMethod: primaryTender,
       itemCount,
       status: "completed",
       completedAt,
       syncedAt,
     });
+
+    for (const line of payments) {
+      await ctx.db.insert("salePayments", {
+        organizationId: profile.organizationId,
+        saleId,
+        method: line.method,
+        amount: line.amount,
+      });
+    }
+    if (chargeOnAccount > 0 && customerId) {
+      await ctx.db.insert("customerLedgerEntries", {
+        organizationId: profile.organizationId,
+        customerId,
+        type: "sale_charge",
+        amount: chargeOnAccount,
+        saleId,
+        method: "on_account",
+        note: `Sale ${invoiceNumber}`,
+        occurredAt: completedAt,
+        performedBy: userId,
+      });
+    }
 
     for (const line of lines) {
       const { sku: _sku, ...saleItem } = line;
@@ -684,7 +838,37 @@ export const completeSale = mutation({
         displayedQuantity: saleItem.displayedQuantity,
         factorToBase: saleItem.factorToBase,
         pricingMode: saleItem.pricingMode,
+        serialNumbers: saleItem.serialNumbers,
       });
+      if (saleItem.serialNumbers?.length) {
+        for (const serial of saleItem.serialNumbers) {
+          const existing = await ctx.db
+            .query("productSerials")
+            .withIndex("by_organization_serial", (q) =>
+              q.eq("organizationId", profile.organizationId).eq("serial", serial),
+            )
+            .unique();
+          if (existing) {
+            await ctx.db.patch(existing._id, {
+              status: "sold",
+              saleId,
+              saleItemId,
+              soldAt: completedAt,
+            });
+          } else {
+            await ctx.db.insert("productSerials", {
+              organizationId: profile.organizationId,
+              productId: saleItem.productId,
+              serial,
+              status: "sold",
+              saleId,
+              saleItemId,
+              createdAt: completedAt,
+              soldAt: completedAt,
+            });
+          }
+        }
+      }
       const product = await ctx.db.get(line.productId);
       if (!product || product.status !== "active") {
         throw new ConvexError("Product unavailable");
@@ -733,7 +917,8 @@ export const completeSale = mutation({
       total,
       itemCount,
       lines: lines.map(({ stockQuantity: _stockQuantity, ...line }) => line),
-      paymentMethod: args.paymentMethod,
+      paymentMethod: primaryTender,
+      payments,
       completedAt,
       customerName,
       customerPhone,
@@ -780,6 +965,7 @@ export const completeSale = mutation({
         branchId,
         completedAt,
         syncedAt,
+        payments: payments.length > 1 || chargeOnAccount > 0 ? payments : undefined,
         stockShortages: stockShortages.length > 0 ? stockShortages : undefined,
       },
     });
@@ -1078,6 +1264,7 @@ export const getOrder = query({
       };
     });
 
+    const salePayments = await loadSalePayments(ctx, sale);
     const snapshot = await loadPrintSnapshot(ctx, sale.organizationId, sale.branchId);
     const parsedBusiness =
       parsed?.business && typeof parsed.business === "object"
@@ -1098,6 +1285,7 @@ export const getOrder = query({
       total: sale.total,
       itemCount: sale.itemCount,
       paymentMethod: sale.paymentMethod,
+      payments: salePayments,
       completedAt: sale.completedAt,
       syncedAt: sale.syncedAt ?? null,
       customerName: sale.customerName,
@@ -1134,6 +1322,7 @@ export const getOrder = query({
       discount: sale.discount,
       total: sale.total,
       paymentMethod: sale.paymentMethod,
+      payments: salePayments,
       status: sale.status,
       completedAt: sale.completedAt,
       syncedAt: sale.syncedAt ?? null,

@@ -1,5 +1,6 @@
 import { RECEIPT_VENDOR_FOOTER } from "@/constants/app";
 import type { ReceiptPayload } from "@/features/receipts/types";
+import { receiptPaymentLines } from "@/features/receipts/payment-lines";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { bytesToBlob, downloadBlob, shareBlob } from "@/lib/export/download";
@@ -22,8 +23,11 @@ export function buildReceiptShareText(input: ReceiptPayload | Record<string, unk
   lines.push(formatDateTime(payload.completedAt));
   if (t.showCashier && payload.cashierName) lines.push(`Cashier: ${payload.cashierName}`);
   if (t.showCustomer) lines.push(`Customer: ${payload.customerName}`);
+  const splitLines = receiptPaymentLines(payload);
   if (t.showPaymentMethod) {
-    lines.push(`Payment: ${payload.paymentMethod.replace(/_/g, " ")}`);
+    lines.push(
+      splitLines ? "Payment: Split" : `Payment: ${payload.paymentMethod.replace(/_/g, " ")}`,
+    );
   }
   lines.push("----------------");
 
@@ -38,6 +42,9 @@ export function buildReceiptShareText(input: ReceiptPayload | Record<string, unk
   lines.push(`Subtotal: ${formatCurrency(payload.subtotal)}`);
   lines.push(`Discount: ${formatCurrency(payload.discount)}`);
   lines.push(`TOTAL: ${formatCurrency(payload.total)}`);
+  if (t.showPaymentMethod && splitLines) {
+    for (const split of splitLines) lines.push(`  ${split.label}: ${formatCurrency(split.amount)}`);
+  }
   if (t.thankYouLine) {
     lines.push("");
     lines.push(t.thankYouLine);

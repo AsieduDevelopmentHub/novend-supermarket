@@ -8,8 +8,11 @@
 
 import { resolvePlan, type PlanKey } from "./plans";
 
-/** Stage 1 configurationVersion — UOM adapter N is defined in Stage 2. Bumped for Phase C hotel keys. */
-export const BUSINESS_CAPABILITY_CONFIGURATION_VERSION = 3;
+/**
+ * Stage 1 configurationVersion — UOM adapter N is defined in Stage 2.
+ * Bumped for Phase C hotel keys (3) and wholesale credit / price lists (4).
+ */
+export const BUSINESS_CAPABILITY_CONFIGURATION_VERSION = 5;
 
 export const BUSINESS_CAPABILITY_KEYS = [
   "multi_unit_pricing",
@@ -25,6 +28,9 @@ export const BUSINESS_CAPABILITY_KEYS = [
   "kitchen_tickets",
   "rooms_folio",
   "reservations",
+  "customer_credit",
+  "customer_pricing",
+  "product_variants",
 ] as const;
 
 export type BusinessCapabilityKey = (typeof BUSINESS_CAPABILITY_KEYS)[number];
@@ -39,6 +45,11 @@ export const INDUSTRY_PROFILES = [
   "restaurant",
   "bar",
   "hotel",
+  "fashion",
+  "cosmetics",
+  "convenience",
+  "hardware",
+  "stationery",
   "custom",
 ] as const;
 
@@ -55,6 +66,11 @@ export const INDUSTRY_PROFILE_LABELS: Record<IndustryProfile, string> = {
   restaurant: "Restaurant / F&B",
   bar: "Bar / lounge",
   hotel: "Hotel / lodging",
+  fashion: "Fashion & apparel",
+  cosmetics: "Cosmetics & beauty",
+  convenience: "Convenience store",
+  hardware: "Hardware & tools",
+  stationery: "Stationery & office",
   custom: "Custom",
 };
 
@@ -113,7 +129,8 @@ export const BUSINESS_CAPABILITY_REGISTRY: Record<
     key: "serial_tracking",
     version: 1,
     label: "Serial / IMEI tracking",
-    description: "Track high-value serialized units.",
+    description:
+      "Require unique serial numbers at sale for marked products. Adds a Track serials toggle on Add Product.",
     minPlanSortOrder: resolvePlan("pro").sortOrder,
   },
   scale_hardware: {
@@ -128,8 +145,16 @@ export const BUSINESS_CAPABILITY_REGISTRY: Record<
     key: "custom_fields",
     version: 1,
     label: "Custom fields",
-    description: "Schema-controlled product and catalog fields.",
+    description: "Free-form product attributes (strength, shade, material) on Add Product.",
     minPlanSortOrder: resolvePlan("basic").sortOrder,
+  },
+  product_variants: {
+    key: "product_variants",
+    version: 1,
+    label: "Product variants",
+    description:
+      "Parent products with size/color/shade children. Each variant is its own SKU and stock row.",
+    minPlanSortOrder: resolvePlan("pro").sortOrder,
   },
   configurable_pos: {
     key: "configurable_pos",
@@ -183,13 +208,29 @@ export const BUSINESS_CAPABILITY_REGISTRY: Record<
     dependencies: ["rooms_folio"],
     minPlanSortOrder: resolvePlan("basic").sortOrder,
   },
+  customer_credit: {
+    key: "customer_credit",
+    version: 1,
+    label: "Customer credit",
+    description:
+      "Sell on account with a per-customer credit limit, balances, aging, and recorded payments.",
+    minPlanSortOrder: resolvePlan("pro").sortOrder,
+  },
+  customer_pricing: {
+    key: "customer_pricing",
+    version: 1,
+    label: "Customer price lists",
+    description:
+      "Customer groups and quantity-tier price rules resolved at checkout, snapshotted on the receipt.",
+    minPlanSortOrder: resolvePlan("pro").sortOrder,
+  },
 };
 
 /** Industry packs are presets of capability keys — not hardcoded industry branches. */
 export const INDUSTRY_PACKS: Record<IndustryProfile, BusinessCapabilityKey[]> = {
   retail: ["configurable_pos"],
-  wholesale: ["multi_unit_pricing", "configurable_pos"],
-  supermarket: ["multi_unit_pricing", "lot_expiry", "configurable_pos"],
+  wholesale: ["multi_unit_pricing", "customer_pricing", "customer_credit", "configurable_pos"],
+  supermarket: ["multi_unit_pricing", "lot_expiry", "sell_by_weight", "configurable_pos"],
   cold_store: ["sell_by_weight", "lot_expiry", "scale_hardware", "configurable_pos"],
   electronics: ["serial_tracking", "configurable_pos"],
   pharmacy: ["lot_expiry", "custom_fields", "configurable_pos"],
@@ -208,6 +249,11 @@ export const INDUSTRY_PACKS: Record<IndustryProfile, BusinessCapabilityKey[]> = 
     "kitchen_tickets",
   ],
   hotel: ["non_stock_sales", "configurable_pos", "rooms_folio", "reservations"],
+  fashion: ["product_variants", "configurable_pos"],
+  cosmetics: ["product_variants", "lot_expiry", "custom_fields", "configurable_pos"],
+  convenience: ["multi_unit_pricing", "lot_expiry", "configurable_pos"],
+  hardware: ["multi_unit_pricing", "serial_tracking", "configurable_pos"],
+  stationery: ["multi_unit_pricing", "product_variants", "configurable_pos"],
   custom: [],
 };
 

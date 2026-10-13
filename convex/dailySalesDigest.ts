@@ -13,6 +13,7 @@ import {
   reportDateKey,
   type DailySalesFigures,
 } from "./shared/dailySalesReport";
+import { loadPaymentsBySale } from "./shared/salePaymentLoader";
 import { normalizeSmsRecipient, sendArkeselSms } from "./shared/arkeselSms";
 import { publicAppUrl } from "./shared/transactionalEmail";
 import { collectSalesInCompletedAtRange } from "./shared/salesRange";
@@ -50,8 +51,9 @@ export const prepare = internalQuery({
     const { start, end } = businessDayRange(dateKey, timeZone);
     const sales = await collectSalesInCompletedAtRange(ctx, org._id, start, end - 1);
     let figures: DailySalesFigures = emptyDailySales();
+    const paymentsBySale = await loadPaymentsBySale(ctx, sales);
     for (const sale of sales) {
-      figures = addSale(figures, sale);
+      figures = addSale(figures, { ...sale, payments: paymentsBySale.get(sale._id) });
     }
 
     const returns = await ctx.db

@@ -18,6 +18,9 @@ import { Id } from "./_generated/dataModel";
 import { applyBranchStockChange } from "./shared/branchStock";
 import { increaseLot, productTracksExpiry } from "./shared/lots";
 import { productTracksInventory } from "./shared/productInventory";
+import { loadSalePayments } from "./shared/salePaymentLoader";
+import { onAccountAmount } from "./shared/salePayments";
+import { creditRefundAmount } from "./shared/customerCredit";
 import {
   lineRefundAmount,
   loadReturnedLotQty,
@@ -303,8 +306,48 @@ export const processReturn = mutation({
       }
     }
 
+    // A sale that was partly on account refunds that share to the customer's
+    // balance instead of paying it out in cash.
+    let creditedToAccount = 0;
+    const salePayments = await loadSalePayments(ctx, sale);
+    const onAccountCharged = onAccountAmount(salePayments);
+    if (onAccountCharged > 0 && sale.customerId) {
+      const ledger = await ctx.db
+        .query("customerLedgerEntries")
+        .withIndex("by_organization_customer_occurredAt", (q) =>
+          q.eq("organizationId", organizationId).eq("customerId", sale.customerId!),
+        )
+        .collect();
+      const alreadyCredited = roundMoney(
+        ledger
+          .filter((row) => row.saleId === sale._id && row.type === "adjustment" && row.amount < 0)
+          .reduce((sum, row) => sum - row.amount, 0),
+      );
+      creditedToAccount = creditRefundAmount({
+        saleTotal: sale.total,
+        onAccountCharged,
+        alreadyCredited,
+        refundAmount,
+      });
+      if (creditedToAccount > 0) {
+        await ctx.db.insert("customerLedgerEntries", {
+          organizationId,
+          customerId: sale.customerId,
+          type: "adjustment",
+          amount: -creditedToAccount,
+          saleId: sale._id,
+          returnId,
+          method: "on_account",
+          note: `Return ${returnNumber} for ${sale.invoiceNumber}`,
+          occurredAt: completedAt,
+          performedBy: userId,
+        });
+      }
+    }
+
     const payload = {
       kind: "return" as const,
+      creditedToAccount,
       invoiceNumber: returnNumber,
       returnNumber,
       originalInvoiceNumber: sale.invoiceNumber,

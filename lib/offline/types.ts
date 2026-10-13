@@ -1,5 +1,7 @@
 /** Shared types for the Phase 1 offline mirror + outbox. */
 
+import type { PaymentLine, PaymentMethod } from "@/lib/payments";
+
 export type OutboxStatus =
   | "pending"
   | "syncing"
@@ -19,6 +21,9 @@ export type OutboxOpType =
   | "update_lot_expiry"
   | "transfer_stock"
   | "upsert_customer"
+  | "record_customer_payment"
+  | "upsert_customer_group"
+  | "upsert_price_rule"
   | "create_expense"
   | "remove_expense"
   | "update_profile"
@@ -176,6 +181,12 @@ export type MirroredProduct = {
   tracksExpiry?: boolean;
   /** When false and non_stock_sales is on, sell without stock. Missing = true. */
   tracksInventory?: boolean;
+  isVariantParent?: boolean;
+  parentProductId?: string | null;
+  variantLabel?: string | null;
+  variantAttributes?: Array<{ key: string; value: string }> | null;
+  tracksSerials?: boolean;
+  customValues?: Array<{ key: string; value: string }> | null;
   expiryAlertDays?: number | null;
   nearestExpiry?: string | null;
   expiredQuantity?: number;
@@ -227,7 +238,57 @@ export type MirroredCustomer = {
   lastPurchaseAt: number | null;
   lastPurchaseTotal: number | null;
   lastInvoiceNumber: string | null;
+  /** customer_credit: max owed on account. Null/absent = no limit configured. */
+  creditLimit?: number | null;
+  /** customer_pricing: price-list group. */
+  customerGroupId?: string | null;
+  /** customer_credit: amount currently owed (positive = customer owes). */
+  balance?: number;
   updatedAt: number;
+};
+
+/** Receivable ledger row mirrored for managers (offline balances / statements). */
+export type MirroredCustomerLedgerEntry = {
+  id: string;
+  customerId: string;
+  type: "sale_charge" | "payment" | "adjustment";
+  /** Signed effect on the balance owed. */
+  amount: number;
+  saleId?: string | null;
+  returnId?: string | null;
+  method?: PaymentMethod | null;
+  note?: string | null;
+  occurredAt: number;
+  /** Written on this device and not yet confirmed by Convex. */
+  syncStatus?: "pending" | "synced";
+};
+
+export type MirroredCustomerGroup = {
+  id: string;
+  name: string;
+  status: "active" | "inactive";
+};
+
+export type MirroredPriceListRule = {
+  id: string;
+  productId: string | null;
+  categoryId: string | null;
+  groupId: string | null;
+  minBaseQty: number;
+  /** Price per base unit. */
+  unitPrice: number;
+  priority: number;
+  active: boolean;
+};
+
+/** Warehouse (wholesale) dated lot for offline FEFO receive / issue. */
+export type MirroredWholesaleLot = {
+  id: string;
+  productId: string;
+  quantity: number;
+  expiryDate: string;
+  receivedAt: number;
+  lotCode: string;
 };
 
 /** Server sales mirrored for offline Orders / customer stats. */
@@ -242,7 +303,9 @@ export type MirroredOrder = {
   subtotal: number;
   discount: number;
   total: number;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  /** Primary (largest) tender. Split sales carry every line in `payments`. */
+  paymentMethod: PaymentMethod;
+  payments?: PaymentLine[];
   status: string;
   completedAt: number;
   branchId: string | null;
@@ -318,7 +381,10 @@ export type LocalSale = {
   subtotal: number;
   discount: number;
   total: number;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  /** Primary (largest) tender. */
+  paymentMethod: PaymentMethod;
+  /** Normalized tender lines (sum = total). Absent on sales saved before split tenders. */
+  payments?: PaymentLine[];
   itemCount: number;
   completedAt: number;
   syncStatus: LocalSaleSyncStatus;
@@ -358,7 +424,9 @@ export type CompleteSaleOutboxPayload = {
     trackedInventory?: boolean;
   }>;
   discount: number;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: PaymentMethod;
+  /** Split tenders summing to the sale total. Omitted for single-method sales. */
+  payments?: PaymentLine[];
   /** Manager posts the receipt even when the branch no longer has the units. */
   acceptStockShortage?: boolean;
   /** Working branch for this sale (admin may choose; others use assigned). */
@@ -654,6 +722,38 @@ export type UpsertCustomerPayload = {
   email?: string;
   notes?: string;
   status?: "active" | "inactive";
+  /** Manager / admin terms. Null clears; omit to leave unchanged. */
+  creditLimit?: number | null;
+  customerGroupId?: string | null;
+};
+
+export type RecordCustomerPaymentPayload = {
+  /** Local ledger row id (`local_…`), replaced by the server row after sync. */
+  localId: string;
+  customerId: string;
+  amount: number;
+  method: "cash" | "card" | "mobile_money";
+  note?: string;
+  paidAt: number;
+};
+
+export type UpsertCustomerGroupPayload = {
+  localId: string;
+  serverId?: string;
+  name: string;
+  status?: "active" | "inactive";
+};
+
+export type UpsertPriceRulePayload = {
+  localId: string;
+  serverId?: string;
+  productId?: string;
+  categoryId?: string;
+  groupId?: string;
+  minBaseQty: number;
+  unitPrice: number;
+  priority: number;
+  active: boolean;
 };
 
 export type CreateExpensePayload = {
@@ -751,6 +851,12 @@ export type UpsertProductPayload = {
   description?: string;
   tracksExpiry?: boolean;
   tracksInventory?: boolean;
+  isVariantParent?: boolean;
+  parentProductId?: string | null;
+  variantLabel?: string | null;
+  variantAttributes?: Array<{ key: string; value: string }> | null;
+  tracksSerials?: boolean;
+  customValues?: Array<{ key: string; value: string }> | null;
   expiryAlertDays?: number | null;
   expiryDate?: string;
   imageStorageId?: string;

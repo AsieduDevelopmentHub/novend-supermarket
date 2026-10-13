@@ -1,5 +1,6 @@
 import type { LocalSalesReport } from "./ui-cache";
 import {
+  addReportPaymentTotal,
   emptyReportPaymentTotals,
   sumReportPaymentTotals,
   type ReportPaymentTotals,
@@ -12,6 +13,7 @@ function dayPaymentTotals(row: DayRow): ReportPaymentTotals {
     cash: row.cash ?? 0,
     card: row.card ?? 0,
     mobileMoney: row.mobileMoney ?? 0,
+    onAccount: row.onAccount ?? 0,
   };
 }
 
@@ -23,6 +25,7 @@ function withDayPayments(row: DayRow): DayRow {
     cash: payments.cash,
     card: payments.card,
     mobileMoney: payments.mobileMoney,
+    onAccount: payments.onAccount ?? 0,
   };
 }
 
@@ -124,17 +127,17 @@ export function mergeDayOrdersWithLocal<T extends OrderLike>(
   return [...cloudOrders, ...extras].sort((a, b) => b.completedAt - a.completedAt);
 }
 
-/** Gross tender totals from a list of day orders (Cash / MoMo / Card). */
+/** Gross tender totals from day orders (Cash / MoMo / Card / On account). Split-aware when `payments` is present. */
 export function paymentTotalsFromOrders(
-  orders: Array<{ total: number; paymentMethod?: string }>,
+  orders: Array<{
+    total: number;
+    paymentMethod?: string;
+    payments?: ReadonlyArray<{ method: string; amount: number }> | null;
+  }>,
 ): ReportPaymentTotals {
   let totals = emptyReportPaymentTotals();
   for (const order of orders) {
-    const method = order.paymentMethod;
-    if (method === "card") totals = { ...totals, card: totals.card + order.total };
-    else if (method === "mobile_money")
-      totals = { ...totals, mobileMoney: totals.mobileMoney + order.total };
-    else totals = { ...totals, cash: totals.cash + order.total };
+    totals = addReportPaymentTotal(totals, order.paymentMethod, order.total, order.payments);
   }
   return totals;
 }

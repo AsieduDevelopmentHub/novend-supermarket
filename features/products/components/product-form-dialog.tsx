@@ -88,6 +88,12 @@ type ProductDetails = {
   lowStockThreshold: number;
   tracksExpiry?: boolean;
   tracksInventory?: boolean;
+  isVariantParent?: boolean;
+  parentProductId?: Id<"products"> | null;
+  variantLabel?: string | null;
+  variantAttributes?: Array<{ key: string; value: string }> | null;
+  tracksSerials?: boolean;
+  customValues?: Array<{ key: string; value: string }> | null;
   /** Effective alert days (resolved). */
   expiryAlertDays?: number;
   /** Stored override; null/undefined = use organization default. */
@@ -232,6 +238,9 @@ function ProductFormBody({
   const showNonStock = hasCapability("non_stock_sales");
   const showModifiers = hasCapability("modifiers");
   const showExpiry = hasCapability("lot_expiry") || initialProduct?.tracksExpiry === true;
+  const showVariants = hasCapability("product_variants");
+  const showSerials = hasCapability("serial_tracking");
+  const showCustomFields = hasCapability("custom_fields");
   const defaultUnit =
     industryProfile === "hotel"
       ? "night"
@@ -258,6 +267,13 @@ function ProductFormBody({
     if (initialProduct) return initialProduct.tracksInventory !== false;
     return false;
   });
+  const [isVariantParent, setIsVariantParent] = useState(
+    () => initialProduct?.isVariantParent === true,
+  );
+  const [tracksSerials, setTracksSerials] = useState(() => initialProduct?.tracksSerials === true);
+  const [customValues, setCustomValues] = useState<Array<{ key: string; value: string }>>(
+    () => initialProduct?.customValues ?? [],
+  );
   const [stockQuantity, setStockQuantity] = useState(
     String(warehouseIntake ? 0 : (initialProduct?.stockQuantity ?? 0)),
   );
@@ -483,6 +499,9 @@ function ProductFormBody({
                 status,
                 description,
                 tracksInventory: resolvedTracksInventory,
+                isVariantParent: showVariants ? isVariantParent : undefined,
+                tracksSerials: showSerials ? tracksSerials : undefined,
+                customValues: showCustomFields ? customValues : undefined,
                 tracksExpiry: resolvedTracksExpiry,
                 expiryAlertDays: resolvedTracksExpiry
                   ? expiryAlertUseOrgDefault
@@ -515,6 +534,9 @@ function ProductFormBody({
                 status,
                 description,
                 tracksInventory: resolvedTracksInventory,
+                isVariantParent: showVariants ? isVariantParent : undefined,
+                tracksSerials: showSerials ? tracksSerials : undefined,
+                customValues: showCustomFields ? customValues : undefined,
                 tracksExpiry: resolvedTracksExpiry,
                 expiryAlertDays: resolvedTracksExpiry
                   ? expiryAlertUseOrgDefault
@@ -559,6 +581,9 @@ function ProductFormBody({
             status,
             description,
             tracksInventory: resolvedTracksInventory,
+            isVariantParent: showVariants ? isVariantParent : undefined,
+            tracksSerials: showSerials ? tracksSerials : undefined,
+            customValues: showCustomFields ? customValues : undefined,
             tracksExpiry: resolvedTracksExpiry,
             expiryAlertDays: resolvedTracksExpiry
               ? expiryAlertUseOrgDefault
@@ -700,6 +725,86 @@ function ProductFormBody({
                     if (!checked) setTracksExpiry(false);
                   }}
                 />
+              </div>
+            ) : null}
+            {showVariants ? (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 px-3 py-2.5">
+                <div className="min-w-0">
+                  <Label htmlFor="variant-parent" className="text-sm font-medium">
+                    Variant parent
+                  </Label>
+                  <p className="text-muted-foreground mt-0.5 text-xs leading-snug">
+                    On = catalog style only. Add child products with size/color and their own stock.
+                  </p>
+                </div>
+                <Switch
+                  id="variant-parent"
+                  checked={isVariantParent}
+                  onCheckedChange={(checked) => {
+                    setIsVariantParent(checked);
+                    if (checked) {
+                      setTracksSerials(false);
+                      setStockQuantity("0");
+                    }
+                  }}
+                />
+              </div>
+            ) : null}
+            {showSerials && !isVariantParent ? (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 px-3 py-2.5">
+                <div className="min-w-0">
+                  <Label htmlFor="tracks-serials" className="text-sm font-medium">
+                    Track serials
+                  </Label>
+                  <p className="text-muted-foreground mt-0.5 text-xs leading-snug">
+                    Require a unique serial / IMEI for each unit sold.
+                  </p>
+                </div>
+                <Switch
+                  id="tracks-serials"
+                  checked={tracksSerials}
+                  onCheckedChange={setTracksSerials}
+                />
+              </div>
+            ) : null}
+            {showCustomFields ? (
+              <div className="space-y-2 rounded-xl border border-slate-200/80 bg-slate-50/80 px-3 py-2.5">
+                <Label className="text-sm font-medium">Custom fields</Label>
+                <p className="text-muted-foreground text-xs">
+                  Optional attributes (strength, shade, material). Max 8.
+                </p>
+                {customValues.map((row, index) => (
+                  <div key={`cf-${index}`} className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Field"
+                      value={row.key}
+                      onChange={(e) => {
+                        const next = [...customValues];
+                        next[index] = { ...row, key: e.target.value };
+                        setCustomValues(next);
+                      }}
+                    />
+                    <Input
+                      placeholder="Value"
+                      value={row.value}
+                      onChange={(e) => {
+                        const next = [...customValues];
+                        next[index] = { ...row, value: e.target.value };
+                        setCustomValues(next);
+                      }}
+                    />
+                  </div>
+                ))}
+                {customValues.length < 8 ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCustomValues([...customValues, { key: "", value: "" }])}
+                  >
+                    Add field
+                  </Button>
+                ) : null}
               </div>
             ) : null}
             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">

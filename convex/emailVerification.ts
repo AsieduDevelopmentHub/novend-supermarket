@@ -29,11 +29,64 @@ import {
   tooManySends,
 } from "./shared/emailOtp";
 
-const GENERIC_CHANGE_ERROR = "That email cannot be used.";
+const WRONG_PASSWORD_ERROR = "Current password is incorrect.";
+const EMAIL_TAKEN_ERROR = "That email is already registered to another account.";
+const EMAIL_RATE_LIMIT_ERROR = "Too many attempts. Try again in a few minutes.";
+const EMAIL_MISSING_ACCOUNT_ERROR = "This account cannot change email with a password.";
+const EMAIL_SEND_ERROR = "We couldn't send a verification code. Try again in a moment.";
 
 export const getState = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => loadEmailVerification(ctx, args.userId),
+});
+
+/** Password login id for the signed-in user (may differ in case from users.email). */
+export const getPasswordAccount = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const account = await ctx.db
+      .query("authAccounts")
+      .withIndex("userIdAndProvider", (q) => q.eq("userId", args.userId).eq("provider", "password"))
+      .unique();
+    if (!account) return null;
+    return { providerAccountId: account.providerAccountId as string };
+  },
+});
+
+/** Unused challenge still open for OTP verify / resend targeting. */
+export const getActiveChallenge = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const recent = await ctx.db
+      .query("emailVerificationChallenges")
+      .withIndex("by_userId_createdAt", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .take(5);
+    const active = recent.find((row) => !row.usedAt && row.expiresAt > now);
+    if (!active) return null;
+    return { email: active.email, expiresAt: active.expiresAt };
+  },
+});
+
+export const isEmailTaken = internalQuery({
+  args: { userId: v.id("users"), email: v.string() },
+  handler: async (ctx, args) => {
+    const email = normalizeEmail(args.email);
+    const account = await ctx.db
+      .query("authAccounts")
+      .withIndex("providerAndAccountId", (q) =>
+        q.eq("provider", "password").eq("providerAccountId", email),
+      )
+      .unique();
+    if (account && account.userId !== args.userId) return true;
+    const byEmail = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", email))
+      .unique();
+    if (byEmail && byEmail._id !== args.userId) return true;
+    return false;
+  },
 });
 
 export const insertChallenge = internalMutation({
@@ -116,76 +169,67 @@ export const consumeChallenge = internalMutation({
       });
       return { ok: false as const };
     }
+
+    const user = await ctx.db.get(args.userId);
+    if (!user?.email) return { ok: false as const };
+    const currentEmail = normalizeEmail(user.email);
+    const challengeEmail = normalizeEmail(active.email);
+
+    let passwordAccountId: Id<"authAccounts"> | null = null;
+    if (currentEmail !== challengeEmail) {
+      const takenAccount = await ctx.db
+        .query("authAccounts")
+        .withIndex("providerAndAccountId", (q) =>
+          q.eq("provider", "password").eq("providerAccountId", challengeEmail),
+        )
+        .unique();
+      if (takenAccount && takenAccount.userId !== args.userId) {
+        return { ok: false as const, reason: "taken" as const };
+      }
+      const takenUser = await ctx.db
+        .query("users")
+        .withIndex("email", (q) => q.eq("email", challengeEmail))
+        .unique();
+      if (takenUser && takenUser._id !== args.userId) {
+        return { ok: false as const, reason: "taken" as const };
+      }
+      const account = await ctx.db
+        .query("authAccounts")
+        .withIndex("userIdAndProvider", (q) =>
+          q.eq("userId", args.userId).eq("provider", "password"),
+        )
+        .unique();
+      if (!account) return { ok: false as const, reason: "missing" as const };
+      passwordAccountId = account._id;
+    }
+
     await ctx.db.patch(active._id, { usedAt: now });
+
+    if (passwordAccountId) {
+      await ctx.db.patch(args.userId, { email: challengeEmail });
+      await ctx.db.patch(passwordAccountId, { providerAccountId: challengeEmail });
+      await writeAuditLog(ctx, {
+        actorId: args.userId,
+        action: "change_email",
+        entityType: "users",
+        entityId: args.userId,
+      });
+    }
+
     const existing = await ctx.db
       .query("emailVerificationState")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .unique();
     if (existing) {
-      await ctx.db.patch(existing._id, { email: active.email, verifiedAt: now });
+      await ctx.db.patch(existing._id, { email: challengeEmail, verifiedAt: now });
     } else {
       await ctx.db.insert("emailVerificationState", {
         userId: args.userId,
-        email: active.email,
+        email: challengeEmail,
         verifiedAt: now,
       });
     }
-    return { ok: true as const, email: active.email };
-  },
-});
-
-export const applyOwnEmailChange = internalMutation({
-  args: { userId: v.id("users"), newEmail: v.string() },
-  handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    if (!user) return { ok: false as const, reason: "missing" as const };
-    const currentEmail = user.email ? normalizeEmail(user.email) : null;
-    const newEmail = normalizeEmail(args.newEmail);
-    if (currentEmail === newEmail) {
-      return { ok: true as const, email: newEmail, unchanged: true as const };
-    }
-
-    const taken = await ctx.db
-      .query("authAccounts")
-      .withIndex("providerAndAccountId", (q) =>
-        q.eq("provider", "password").eq("providerAccountId", newEmail),
-      )
-      .unique();
-    if (taken && taken.userId !== args.userId) {
-      return { ok: false as const, reason: "taken" as const };
-    }
-
-    const account = await ctx.db
-      .query("authAccounts")
-      .withIndex("userIdAndProvider", (q) => q.eq("userId", args.userId).eq("provider", "password"))
-      .unique();
-    if (!account) return { ok: false as const, reason: "missing" as const };
-
-    await ctx.db.patch(args.userId, { email: newEmail });
-    await ctx.db.patch(account._id, { providerAccountId: newEmail });
-
-    const verified = await ctx.db
-      .query("emailVerificationState")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .unique();
-    if (verified) {
-      await ctx.db.delete(verified._id);
-    }
-    const open = await ctx.db
-      .query("emailVerificationChallenges")
-      .withIndex("by_userId_createdAt", (q) => q.eq("userId", args.userId))
-      .take(20);
-    const now = Date.now();
-    for (const row of open) {
-      if (!row.usedAt) await ctx.db.patch(row._id, { usedAt: now });
-    }
-    await writeAuditLog(ctx, {
-      actorId: args.userId,
-      action: "change_email",
-      entityType: "users",
-      entityId: args.userId,
-    });
-    return { ok: true as const, email: newEmail, unchanged: false as const };
+    return { ok: true as const, email: challengeEmail };
   },
 });
 
@@ -194,7 +238,23 @@ export const status = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
-    return await loadEmailVerification(ctx, userId);
+    const state = await loadEmailVerification(ctx, userId);
+    const now = Date.now();
+    const recent = await ctx.db
+      .query("emailVerificationChallenges")
+      .withIndex("by_userId_createdAt", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(5);
+    const pending = recent.find((row) => !row.usedAt && row.expiresAt > now);
+    const pendingEmail =
+      pending && state.email && normalizeEmail(pending.email) !== state.email
+        ? normalizeEmail(pending.email)
+        : null;
+    return {
+      ...state,
+      pendingEmail,
+      pendingMaskedEmail: pendingEmail ? maskEmail(pendingEmail) : null,
+    };
   },
 });
 
@@ -230,6 +290,14 @@ async function issueOtp(
   return { retryAfterMs: inserted.retryAfterMs, sent: true as const };
 }
 
+function otpThrottleMessage(retryAfterMs: number): string {
+  if (retryAfterMs >= EMAIL_OTP_TTL_MS) {
+    return "Too many verification emails. Try again later.";
+  }
+  const seconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+  return `Wait ${seconds}s before requesting another code.`;
+}
+
 export const requestEmailVerification = action({
   args: {},
   handler: async (
@@ -254,11 +322,14 @@ export const requestEmailVerification = action({
         maskedEmail: state.maskedEmail ?? maskEmail(state.email),
       };
     }
-    const issued = await issueOtp(ctx, userId, state.email);
+    const active = await ctx.runQuery(internal.emailVerification.getActiveChallenge, { userId });
+    const targetEmail = active?.email ? normalizeEmail(active.email) : state.email;
+    const issued = await issueOtp(ctx, userId, targetEmail);
+    if (!issued.sent) throw new Error(otpThrottleMessage(issued.retryAfterMs));
     return {
       ok: true as const,
       alreadyVerified: false as const,
-      maskedEmail: state.maskedEmail ?? maskEmail(state.email),
+      maskedEmail: maskEmail(targetEmail),
       retryAfterMs: issued.retryAfterMs,
     };
   },
@@ -274,11 +345,17 @@ export const verifyEmailOtp = action({
     if (!state.email) throw new Error(emailOtpGenericError());
     const code = args.code.replace(/\D/g, "");
     if (!/^\d{6}$/.test(code)) throw new Error(emailOtpGenericError());
+    const active = await ctx.runQuery(internal.emailVerification.getActiveChallenge, { userId });
+    if (!active) throw new Error(emailOtpGenericError());
+    const challengeEmail = normalizeEmail(active.email);
     const consumed = await ctx.runMutation(internal.emailVerification.consumeChallenge, {
       userId,
-      codeHash: await hashEmailOtp(userId, state.email, code),
+      codeHash: await hashEmailOtp(userId, challengeEmail, code),
     });
-    if (!consumed.ok) throw new Error(emailOtpGenericError());
+    if (!consumed.ok) {
+      if (consumed.reason === "taken") throw new Error(EMAIL_TAKEN_ERROR);
+      throw new Error(emailOtpGenericError());
+    }
     return { ok: true as const, alreadyVerified: false as const };
   },
 });
@@ -295,39 +372,56 @@ export const changeOwnEmail = action({
     if (!isWellFormedEmail(email)) throw new Error("Enter a valid email address.");
     const state = await ctx.runQuery(internal.emailVerification.getState, { userId });
     if (!state.email) throw new Error("Add an email address before updating it.");
+
+    const passwordAccount = await ctx.runQuery(internal.emailVerification.getPasswordAccount, {
+      userId,
+    });
+    if (!passwordAccount) throw new Error(EMAIL_MISSING_ACCOUNT_ERROR);
+
     const decision = await ctx.runMutation(internal.loginGuards.beginCredentialAttempt, {
       purpose: "email_change",
       email: state.email,
       now: Date.now(),
     });
-    if (!decision.allowed) throw new Error(GENERIC_CHANGE_ERROR);
+    if (!decision.allowed) throw new Error(EMAIL_RATE_LIMIT_ERROR);
     if (decision.delayMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, decision.delayMs));
     }
     try {
+      // Use the stored providerAccountId — it may not match users.email casing.
       await retrieveAccount(ctx, {
         provider: "password",
-        account: { id: state.email, secret: args.currentPassword },
+        account: { id: passwordAccount.providerAccountId, secret: args.currentPassword },
       });
     } catch {
-      throw new Error(GENERIC_CHANGE_ERROR);
+      throw new Error(WRONG_PASSWORD_ERROR);
     }
     await ctx.runMutation(internal.loginGuards.clearCredentialFailures, {
       purpose: "email_change",
       email: state.email,
     });
-    const changed = await ctx.runMutation(internal.emailVerification.applyOwnEmailChange, {
-      userId,
-      newEmail: email,
-    });
-    if (!changed.ok) {
-      throw new Error(GENERIC_CHANGE_ERROR);
+
+    if (email !== state.email) {
+      const taken = await ctx.runQuery(internal.emailVerification.isEmailTaken, {
+        userId,
+        email,
+      });
+      if (taken) throw new Error(EMAIL_TAKEN_ERROR);
     }
-    const issued = await issueOtp(ctx, userId, changed.email);
+
+    // Send OTP to the new address first; login email switches only after verify.
+    let issued: { retryAfterMs: number; sent: boolean };
+    try {
+      issued = await issueOtp(ctx, userId, email);
+    } catch {
+      throw new Error(EMAIL_SEND_ERROR);
+    }
+    if (!issued.sent) throw new Error(otpThrottleMessage(issued.retryAfterMs));
+
     return {
       ok: true as const,
-      email: changed.email,
-      maskedEmail: maskEmail(changed.email),
+      email,
+      maskedEmail: maskEmail(email),
       retryAfterMs: issued.retryAfterMs,
     };
   },

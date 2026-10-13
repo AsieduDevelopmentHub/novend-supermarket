@@ -2,7 +2,7 @@ import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { featureKeyValidator } from "./shared/features";
-import { paymentMethodValidator } from "./shared/paymentMethod";
+import { paymentMethodValidator, settlementMethodValidator } from "./shared/paymentMethod";
 
 export const roleValidator = v.union(
   v.literal("administrator"),
@@ -759,6 +759,21 @@ export default defineSchema({
     lowStockThreshold: v.number(),
     tracksExpiry: v.optional(v.boolean()),
     expiryAlertDays: v.optional(v.number()),
+    /**
+     * product_variants: parent is catalog-only (not sold). Children carry stock
+     * via the normal branchStock productId path.
+     */
+    isVariantParent: v.optional(v.boolean()),
+    parentProductId: v.optional(v.id("products")),
+    /** Display label for a child, e.g. "Red / M". */
+    variantLabel: v.optional(v.string()),
+    variantAttributes: v.optional(
+      v.array(v.object({ key: v.string(), value: v.string() })),
+    ),
+    /** serial_tracking: require serials at sale equal to base quantity. */
+    tracksSerials: v.optional(v.boolean()),
+    /** custom_fields: free-form org-defined key/value pairs (max enforced in mutations). */
+    customValues: v.optional(v.array(v.object({ key: v.string(), value: v.string() }))),
     status: v.union(v.literal("active"), v.literal("inactive"), v.literal("archived")),
     description: v.optional(v.string()),
     imageStorageId: v.optional(v.id("_storage")),
@@ -767,9 +782,26 @@ export default defineSchema({
     .index("by_organization_sku", ["organizationId", "sku"])
     .index("by_organization_barcode", ["organizationId", "barcode"])
     .index("by_organization_status", ["organizationId", "status"])
+    .index("by_organization_parent", ["organizationId", "parentProductId"])
     .index("by_sku", ["sku"])
     .index("by_category", ["categoryId"])
     .index("by_status", ["status"]),
+
+  /** serial_tracking: unique serial / IMEI per organization. */
+  productSerials: defineTable({
+    organizationId: v.id("organizations"),
+    productId: v.id("products"),
+    serial: v.string(),
+    status: v.union(v.literal("available"), v.literal("sold")),
+    saleId: v.optional(v.id("sales")),
+    saleItemId: v.optional(v.id("saleItems")),
+    createdAt: v.number(),
+    soldAt: v.optional(v.number()),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_serial", ["organizationId", "serial"])
+    .index("by_product", ["productId"])
+    .index("by_sale", ["saleId"]),
 
   branchStock: defineTable({
     organizationId: v.id("organizations"),
@@ -892,7 +924,7 @@ export default defineSchema({
     purchaseId: v.optional(v.id("supplierPurchases")),
     amount: v.number(),
     paidAt: v.number(),
-    method: paymentMethodValidator,
+    method: settlementMethodValidator,
     note: v.optional(v.string()),
     recordedBy: v.id("users"),
     createdAt: v.number(),
@@ -951,6 +983,20 @@ export default defineSchema({
     .index("by_customer", ["customerId"])
     .index("by_branch", ["branchId"]),
 
+  /**
+   * Tender lines for a completed sale (split payments). `sales.paymentMethod`
+   * stays the primary (largest) tender for legacy readers; these rows are the
+   * source for per-method reports and on-account charges.
+   */
+  salePayments: defineTable({
+    organizationId: v.id("organizations"),
+    saleId: v.id("sales"),
+    method: paymentMethodValidator,
+    amount: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_sale", ["saleId"]),
+
   saleItems: defineTable({
     organizationId: v.id("organizations"),
     saleId: v.id("sales"),
@@ -967,6 +1013,8 @@ export default defineSchema({
     displayedQuantity: v.optional(v.number()),
     factorToBase: v.optional(v.number()),
     pricingMode: v.optional(v.union(v.literal("fixed"), v.literal("per_weight"))),
+    /** serial_tracking: one serial per base unit on this line. */
+    serialNumbers: v.optional(v.array(v.string())),
   })
     .index("by_sale", ["saleId"])
     .index("by_organization", ["organizationId"]),
@@ -1122,12 +1170,65 @@ export default defineSchema({
     email: v.optional(v.string()),
     notes: v.optional(v.string()),
     status: v.union(v.literal("active"), v.literal("inactive")),
+    /** customer_credit: max amount owed on account. Absent = no limit configured. */
+    creditLimit: v.optional(v.number()),
+    /** customer_pricing: price-list group this customer buys under. */
+    customerGroupId: v.optional(v.id("customerGroups")),
   })
     .index("by_organization", ["organizationId"])
     .index("by_organization_status", ["organizationId", "status"])
     .index("by_name", ["name"])
     .index("by_phone", ["phone"])
     .index("by_status", ["status"]),
+
+  /**
+   * Customer receivable ledger. Positive amount = customer owes more
+   * (sale_charge); negative = owes less (payment, refund to account).
+   * Append-only: corrections are new adjustment rows.
+   */
+  customerLedgerEntries: defineTable({
+    organizationId: v.id("organizations"),
+    customerId: v.id("customers"),
+    type: v.union(v.literal("sale_charge"), v.literal("payment"), v.literal("adjustment")),
+    /** Signed effect on the balance owed (see table comment). */
+    amount: v.number(),
+    saleId: v.optional(v.id("sales")),
+    returnId: v.optional(v.id("saleReturns")),
+    method: v.optional(paymentMethodValidator),
+    note: v.optional(v.string()),
+    occurredAt: v.number(),
+    performedBy: v.id("users"),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_customer", ["customerId"])
+    .index("by_organization_customer_occurredAt", ["organizationId", "customerId", "occurredAt"]),
+
+  /** customer_pricing: buyer segments (e.g. Wholesale, Distributor). */
+  customerGroups: defineTable({
+    organizationId: v.id("organizations"),
+    name: v.string(),
+    status: v.union(v.literal("active"), v.literal("inactive")),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_status", ["organizationId", "status"]),
+
+  /**
+   * customer_pricing: price-per-base-unit rule. Scope = product or category;
+   * groupId empty = every customer. Highest priority matching rule wins.
+   */
+  priceListRules: defineTable({
+    organizationId: v.id("organizations"),
+    productId: v.optional(v.id("products")),
+    categoryId: v.optional(v.id("categories")),
+    groupId: v.optional(v.id("customerGroups")),
+    minBaseQty: v.number(),
+    unitPrice: v.number(),
+    priority: v.number(),
+    active: v.boolean(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_product", ["organizationId", "productId"])
+    .index("by_group", ["groupId"]),
 
   receipts: defineTable({
     organizationId: v.id("organizations"),

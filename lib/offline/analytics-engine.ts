@@ -1,4 +1,10 @@
 import { roundMoney } from "@/lib/currency";
+import {
+  addReportPaymentTotal,
+  emptyReportPaymentTotals,
+  type PaymentLine,
+  type ReportPaymentTotals,
+} from "@/lib/payments";
 import { EXPENSE_CATEGORY_OPTIONS, type ExpenseCategory } from "@/features/analytics/constants";
 import { getOfflineDb, getMeta, META_KEYS } from "./db";
 import { dropLocalDuplicates, sameExpense } from "./replica-dedupe";
@@ -23,6 +29,8 @@ export type LocalAnalyticsSummary = {
     cash: number;
     card: number;
     mobileMoney: number;
+    /** Sold on customer credit; absent on summaries cached before customer credit. */
+    onAccount?: number;
   };
   pnl: {
     revenue: number;
@@ -124,6 +132,7 @@ type SaleRow = {
   branchId: string | null;
   itemCount: number;
   paymentMethod?: string;
+  payments?: PaymentLine[];
 };
 
 type ItemRow = {
@@ -194,9 +203,6 @@ export async function buildLocalAnalyticsSummary(args: {
   ]);
 
   const costByProduct = new Map(products.map((p) => [p.id, p.costPrice]));
-  const syncedLocalIds = new Set(
-    localSales.filter((s) => s.syncStatus === "synced").map((s) => s.clientOperationId),
-  );
 
   const mirroredSaleIds = new Set(mirroredOrders.map((o) => o.id));
   const mirroredInvoices = new Set(mirroredOrders.map((o) => o.invoiceNumber));
@@ -204,6 +210,7 @@ export async function buildLocalAnalyticsSummary(args: {
   const role = await getMeta(db, META_KEYS.profileRole);
   const sessionUserId = await getMeta(db, META_KEYS.profileUserId);
   const ownedSaleIds = ownedSaleIdsForCashier(role, sessionUserId, mirroredOrders, localSales);
+  const lastSnapshotAt = Number((await getMeta(db, META_KEYS.lastSnapshotAt)) ?? 0) || 0;
 
   const sales: SaleRow[] = [];
   for (const order of mirroredOrders) {
@@ -217,18 +224,28 @@ export async function buildLocalAnalyticsSummary(args: {
       branchId: order.branchId,
       itemCount: order.itemCount,
       paymentMethod: order.paymentMethod,
+      payments: order.payments,
     });
   }
   for (const sale of localSales) {
     if (ownedSaleIds && !ownedSaleIds.has(sale.id) && !ownedSaleIds.has(sale.serverSaleId ?? "")) {
       continue;
     }
-    if (sale.syncStatus === "synced") continue;
     if (sale.completedAt < args.startDate || sale.completedAt > args.endDate) continue;
     if (args.branchId && sale.branchId !== args.branchId) continue;
-    if (syncedLocalIds.has(sale.clientOperationId)) continue;
     if (sale.serverSaleId && mirroredSaleIds.has(sale.serverSaleId)) continue;
     if (mirroredInvoices.has(sale.invoiceNumber)) continue;
+    if (sale.syncStatus === "pending" || sale.syncStatus === "failed") {
+      // always include
+    } else if (
+      sale.syncStatus === "synced" &&
+      lastSnapshotAt > 0 &&
+      sale.completedAt >= lastSnapshotAt
+    ) {
+      // include until snapshot / mirror catches up
+    } else {
+      continue;
+    }
     sales.push({
       id: sale.id,
       total: sale.total,
@@ -236,6 +253,7 @@ export async function buildLocalAnalyticsSummary(args: {
       branchId: sale.branchId ?? null,
       itemCount: sale.itemCount,
       paymentMethod: sale.paymentMethod,
+      payments: sale.payments,
     });
   }
 
@@ -381,11 +399,14 @@ export async function buildLocalAnalyticsSummary(args: {
       };
     });
 
-  const paymentTotals = { cash: 0, card: 0, mobileMoney: 0 };
+  let paymentTotals: ReportPaymentTotals = emptyReportPaymentTotals();
   for (const sale of sales) {
-    if (sale.paymentMethod === "card") paymentTotals.card += sale.total;
-    else if (sale.paymentMethod === "mobile_money") paymentTotals.mobileMoney += sale.total;
-    else paymentTotals.cash += sale.total;
+    paymentTotals = addReportPaymentTotal(
+      paymentTotals,
+      sale.paymentMethod,
+      sale.total,
+      sale.payments,
+    );
   }
 
   return {
@@ -407,6 +428,7 @@ export async function buildLocalAnalyticsSummary(args: {
       cash: roundMoney(paymentTotals.cash),
       card: roundMoney(paymentTotals.card),
       mobileMoney: roundMoney(paymentTotals.mobileMoney),
+      onAccount: roundMoney(paymentTotals.onAccount ?? 0),
     },
     pnl: {
       revenue,
@@ -449,7 +471,7 @@ function emptySummary(branchId: string | null): LocalAnalyticsSummary {
       returnRate: 0,
       grossRevenue: 0,
     },
-    paymentTotals: { cash: 0, card: 0, mobileMoney: 0 },
+    paymentTotals: { cash: 0, card: 0, mobileMoney: 0, onAccount: 0 },
     pnl: {
       revenue: 0,
       cogs: 0,
@@ -513,15 +535,13 @@ export async function buildLocalAnalyticsDetails(args: {
   const costByProduct = new Map(products.map((p) => [p.id, p.costPrice]));
   const nameByProduct = new Map(products.map((p) => [p.id, p.name]));
   const branchName = new Map(branches.map((b) => [b.id, b.name]));
-  const syncedLocalIds = new Set(
-    localSales.filter((s) => s.syncStatus === "synced").map((s) => s.clientOperationId),
-  );
   const mirroredSaleIds = new Set(mirroredOrders.map((o) => o.id));
   const mirroredInvoices = new Set(mirroredOrders.map((o) => o.invoiceNumber));
   const uniqueExpenses = dropLocalDuplicates(expenses, sameExpense);
   const role = await getMeta(db, META_KEYS.profileRole);
   const sessionUserId = await getMeta(db, META_KEYS.profileUserId);
   const ownedSaleIds = ownedSaleIdsForCashier(role, sessionUserId, mirroredOrders, localSales);
+  const lastSnapshotAt = Number((await getMeta(db, META_KEYS.lastSnapshotAt)) ?? 0) || 0;
 
   const sales: DetailSale[] = [];
   for (const order of mirroredOrders) {
@@ -542,12 +562,21 @@ export async function buildLocalAnalyticsDetails(args: {
     if (ownedSaleIds && !ownedSaleIds.has(sale.id) && !ownedSaleIds.has(sale.serverSaleId ?? "")) {
       continue;
     }
-    if (sale.syncStatus === "synced") continue;
-    if (syncedLocalIds.has(sale.clientOperationId)) continue;
     if (sale.completedAt < args.startDate || sale.completedAt > args.endDate) continue;
     if (args.branchId && sale.branchId !== args.branchId) continue;
     if (sale.serverSaleId && mirroredSaleIds.has(sale.serverSaleId)) continue;
     if (mirroredInvoices.has(sale.invoiceNumber)) continue;
+    if (sale.syncStatus === "pending" || sale.syncStatus === "failed") {
+      // always include
+    } else if (
+      sale.syncStatus === "synced" &&
+      lastSnapshotAt > 0 &&
+      sale.completedAt >= lastSnapshotAt
+    ) {
+      // include until snapshot / mirror catches up
+    } else {
+      continue;
+    }
     sales.push({
       id: sale.id,
       invoiceNumber: sale.invoiceNumber,

@@ -6,8 +6,9 @@ import { applyBranchStockChange } from "./shared/branchStock";
 import { increaseLot, productTracksExpiry } from "./shared/lots";
 import { writeAuditLog } from "./shared/audit";
 import { rememberClientOp, replayClientOp } from "./shared/clientOps";
-import { paymentMethodValidator } from "./shared/paymentMethod";
+import { settlementMethodValidator } from "./shared/paymentMethod";
 import { purchaseBalance } from "./shared/supplierFinance";
+import { assertOrganizationFeature } from "./shared/entitlements";
 import { allocatePurchaseReference } from "./shared/documentReferences";
 import {
   productMatchesLookup,
@@ -243,7 +244,7 @@ export const recordPurchase = mutation({
     purchasedAt: v.number(),
     /** Omit to record the delivery as paid in full. Send 0 when the supplier is still owed. */
     amountPaid: v.optional(v.number()),
-    paymentMethod: v.optional(paymentMethodValidator),
+    paymentMethod: v.optional(settlementMethodValidator),
     notes: v.optional(v.string()),
     clientOperationId: v.optional(v.string()),
     items: v.array(
@@ -257,7 +258,11 @@ export const recordPurchase = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const { userId, organizationId } = await requireRole(ctx, ["administrator", "manager"]);
+    const { userId, organizationId, organization } = await requireRole(ctx, [
+      "administrator",
+      "manager",
+    ]);
+    await assertOrganizationFeature(ctx, organization, "inventory.wholesale");
     const replayed = await replayClientOp<{
       purchaseId: Id<"supplierPurchases">;
       reference: string;
@@ -445,10 +450,11 @@ export const transferToBranch = mutation({
     clientOperationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile, organizationId } = await requireRole(ctx, [
+    const { userId, profile, organizationId, organization } = await requireRole(ctx, [
       "administrator",
       "manager",
     ]);
+    await assertOrganizationFeature(ctx, organization, "inventory.wholesale");
     const replayed = await replayClientOp<Id<"stockTransfers">>(
       ctx,
       organizationId,

@@ -25,7 +25,7 @@ import {
   queueWholesalePurchase,
 } from "@/lib/offline/replica-writes";
 import { formatCurrency } from "@/lib/currency";
-import { PAYMENT_METHOD_OPTIONS, type PaymentMethod } from "@/lib/payments";
+import { SETTLEMENT_METHOD_OPTIONS, type SettlementMethod } from "@/lib/payments";
 import {
   resolveDeliveryAmountPaid,
   type SupplierSettlement,
@@ -94,7 +94,7 @@ export function RecordPurchaseDialog({
   const [lines, setLines] = useState<DraftLine[]>([blankLine()]);
   const [settlement, setSettlement] = useState<SupplierSettlement>("paid");
   const [partialAmount, setPartialAmount] = useState("");
-  const [method, setMethod] = useState<PaymentMethod>("cash");
+  const [method, setMethod] = useState<SettlementMethod>("cash");
   const [pending, setPending] = useState(false);
   const [productFormOpen, setProductFormOpen] = useState(false);
 
@@ -374,9 +374,9 @@ export function RecordPurchaseDialog({
                   <select
                     className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
                     value={method}
-                    onChange={(event) => setMethod(event.target.value as PaymentMethod)}
+                    onChange={(event) => setMethod(event.target.value as SettlementMethod)}
                   >
-                    {PAYMENT_METHOD_OPTIONS.map((option) => (
+                    {SETTLEMENT_METHOD_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>

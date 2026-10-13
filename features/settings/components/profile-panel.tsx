@@ -96,7 +96,7 @@ function EmailAccountCard({
             />
             <p className="text-muted-foreground text-xs leading-relaxed">
               {emailVerified
-                ? "Verified. Changing this updates how you sign in and needs a new verification code."
+                ? "Verified. Enter a new address and your password; we send a code there before your sign-in email switches."
                 : "Not verified yet. You can correct it here, then enter the code we send."}
             </p>
           </div>

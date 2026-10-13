@@ -17,7 +17,11 @@ import {
   replicaWriteEpoch,
   shouldApplyFetchedSnapshot,
 } from "./replica-events";
-import { productMatchesBarcode, productMatchesQuery } from "./barcode-lookup";
+import {
+  productMatchesBarcode,
+  productMatchesQuery,
+  resolveBarcodeMatch,
+} from "./barcode-lookup";
 import {
   branchStockMapForBranch,
   resolveCatalogBranchId,
@@ -53,11 +57,17 @@ import {
   sameWholesaleTransfer,
 } from "./replica-dedupe";
 import { withReceiptQuantities } from "./sale-upload-lines";
+import { overlayPendingCustomerBalances } from "./customer-credit";
+import { replayPendingWarehouseLots } from "./wholesale-lots";
 import type {
   MirroredBranch,
   MirroredBranchStock,
   MirroredCategory,
   MirroredCustomer,
+  MirroredCustomerGroup,
+  MirroredCustomerLedgerEntry,
+  MirroredPriceListRule,
+  MirroredWholesaleLot,
   MirroredDiningTable,
   MirroredDiningSession,
   MirroredDiningSessionItem,
@@ -189,6 +199,10 @@ export async function applySnapshot(
     branchStock?: MirroredBranchStock[];
     categories: MirroredCategory[];
     customers: MirroredCustomer[];
+    customerLedger?: MirroredCustomerLedgerEntry[];
+    customerGroups?: MirroredCustomerGroup[];
+    priceListRules?: MirroredPriceListRule[];
+    wholesaleLots?: MirroredWholesaleLot[];
     orders: MirroredOrder[];
     orderItems?: MirroredOrderItem[];
     suppliers?: MirroredSupplier[];
@@ -239,6 +253,10 @@ export async function applySnapshot(
     db.branchStock,
     db.categories,
     db.customers,
+    db.customerLedger,
+    db.customerGroups,
+    db.priceListRules,
+    db.wholesaleLots,
     db.orders,
     db.orderItems,
     db.suppliers,
@@ -262,6 +280,7 @@ export async function applySnapshot(
     db.hotelReservations,
     db.meta,
   ];
+  let pendingBranchLots: MirroredLot[] = snapshot.lots ?? [];
   await db.transaction("rw", tables, async () => {
     await replaceServerRows(
       db.products,
@@ -276,17 +295,42 @@ export async function applySnapshot(
     await replaceServerRows(db.categories, snapshot.categories, pendingLocalIds);
     await replaceServerRows(
       db.customers,
-      snapshot.customers.map((c) => ({
-        ...c,
-        notes: c.notes ?? null,
-        purchaseCount: c.purchaseCount ?? 0,
-        lastPurchaseAt: c.lastPurchaseAt ?? null,
-        lastPurchaseTotal: c.lastPurchaseTotal ?? null,
-        lastInvoiceNumber: c.lastInvoiceNumber ?? null,
-        updatedAt: c.updatedAt || now,
-      })),
+      overlayPendingCustomerBalances(
+        snapshot.customers.map((c) => ({
+          ...c,
+          notes: c.notes ?? null,
+          purchaseCount: c.purchaseCount ?? 0,
+          lastPurchaseAt: c.lastPurchaseAt ?? null,
+          lastPurchaseTotal: c.lastPurchaseTotal ?? null,
+          lastInvoiceNumber: c.lastInvoiceNumber ?? null,
+          creditLimit: c.creditLimit ?? null,
+          customerGroupId: c.customerGroupId ?? null,
+          balance: c.balance ?? 0,
+          updatedAt: c.updatedAt || now,
+        })),
+        openOutbox,
+      ),
       pendingLocalIds,
     );
+    await replaceServerRows(db.customerLedger, snapshot.customerLedger ?? [], pendingLocalIds);
+    await replaceServerRows(db.customerGroups, snapshot.customerGroups ?? [], pendingLocalIds);
+    await replaceServerRows(db.priceListRules, snapshot.priceListRules ?? [], pendingLocalIds);
+    {
+      const datedProductIds = new Set(
+        snapshot.products.filter((p) => p.tracksExpiry).map((p) => p.id),
+      );
+      const branchNames = new Map((snapshot.branches ?? []).map((b) => [b.id, b.name]));
+      const replayed = replayPendingWarehouseLots({
+        warehouseLots: snapshot.wholesaleLots ?? [],
+        branchLots: snapshot.lots ?? [],
+        outbox: openOutbox,
+        datedProductIds,
+        branchName: (branchId) => branchNames.get(branchId) ?? null,
+      });
+      await db.wholesaleLots.clear();
+      if (replayed.warehouseLots.length > 0) await db.wholesaleLots.bulkPut(replayed.warehouseLots);
+      pendingBranchLots = replayed.branchLots;
+    }
     await replaceServerRows(db.orders, snapshot.orders ?? [], pendingLocalIds);
     await db.orderItems.clear();
     if (snapshot.orderItems && snapshot.orderItems.length > 0) {
@@ -340,7 +384,7 @@ export async function applySnapshot(
     );
     await replaceServerRows(db.expenses, snapshot.expenses ?? [], pendingLocalIds, sameExpense);
     await replaceServerRows(db.returns, snapshot.returns ?? [], pendingLocalIds, sameReturnNumber);
-    await replaceServerRows(db.lots, snapshot.lots ?? [], pendingLocalIds);
+    await replaceServerRows(db.lots, pendingBranchLots, pendingLocalIds);
     await replaceServerRows(db.diningTables, snapshot.diningTables ?? [], pendingLocalIds);
     await replaceServerRows(db.diningSessions, snapshot.diningSessions ?? [], pendingLocalIds);
     await replaceServerRows(
@@ -447,7 +491,9 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
   const effectiveBranchId = await resolveCatalogBranchId(db, branchId);
   if (!effectiveBranchId) return [];
 
-  let products = await db.products.filter((p) => p.status === "active").toArray();
+  let products = await db.products
+    .filter((p) => p.status === "active" && p.isVariantParent !== true)
+    .toArray();
   if (search?.trim()) {
     products = products.filter((p) => productMatchesQuery(p, search));
   }
@@ -471,9 +517,13 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
         stockQuantity = 0;
       }
 
+      const displayName = product.variantLabel
+        ? `${product.name} · ${product.variantLabel}`
+        : product.name;
+
       return {
         id: product.id,
-        name: product.name,
+        name: displayName,
         sku: product.sku,
         barcode: product.barcode ?? null,
         sellingPrice: product.sellingPrice,
@@ -484,6 +534,10 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
         imageUrl: product.imageUrl,
         isExpiring,
         tracksInventory: productTracksInventory(product, businessConfig),
+        parentProductId: product.parentProductId ?? null,
+        variantLabel: product.variantLabel ?? null,
+        tracksSerials: product.tracksSerials === true,
+        isVariantParent: false,
       };
     })
     .filter((p) => p.tracksInventory === false || p.stockQuantity > 0)
@@ -498,7 +552,8 @@ export async function findLocalProductBySku(sku: string) {
 }
 
 /**
- * Offline barcode lookup — Dexie only. Matches dedicated barcode first, then SKU.
+ * Offline barcode lookup — Dexie only.
+ * Matches sell-unit barcode, product barcode, then SKU.
  * Multiple rows support rare catalog duplicates; the sales UI shows a picker.
  */
 export async function findLocalProductsByBarcode(code: string, branchId?: string | null) {
@@ -529,6 +584,7 @@ export async function findLocalProductsByBarcode(code: string, branchId?: string
       } else {
         stockQuantity = 0;
       }
+      const match = resolveBarcodeMatch(product, normalized);
       return {
         id: product.id,
         name: product.name,
@@ -537,9 +593,13 @@ export async function findLocalProductsByBarcode(code: string, branchId?: string
         sellingPrice: product.sellingPrice,
         stockQuantity,
         unit: product.unit,
+        sellUnits: product.sellUnits ?? null,
+        pricingMode: product.pricingMode ?? null,
+        costPrice: product.costPrice,
         imageUrl: product.imageUrl,
         isExpiring: stock?.isExpiring ?? product.isExpiring,
         tracksInventory: productTracksInventory(product, businessConfig),
+        matchedSellUnitKey: match?.sellUnitKey,
       };
     })
     .filter((product) => product.tracksInventory === false || product.stockQuantity > 0);

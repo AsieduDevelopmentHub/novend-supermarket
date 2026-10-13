@@ -14,6 +14,9 @@ export function PaymentTotalsCard({
     { label: "Cash", amount: totals.cash },
     { label: "MoMo", amount: totals.mobileMoney },
     { label: "Card", amount: totals.card },
+    ...((totals.onAccount ?? 0) > 0
+      ? [{ label: "On account", amount: totals.onAccount ?? 0 }]
+      : []),
   ];
 
   return (
@@ -23,7 +26,7 @@ export function PaymentTotalsCard({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <ul className="grid gap-3 sm:grid-cols-3">
+        <ul className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {rows.map((row) => (
             <li
               key={row.label}
