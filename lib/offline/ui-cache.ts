@@ -305,12 +305,17 @@ export async function buildLocalDashboardSummary(
 
   const mirroredIds = new Set(mirroredOrders.map((o) => o.id));
   const mirroredInvoices = new Set(mirroredOrders.map((o) => o.invoiceNumber));
-  const unsyncedLocal = localSales.filter(
-    (s) =>
-      (s.syncStatus === "pending" || s.syncStatus === "failed") &&
-      !(s.serverSaleId && mirroredIds.has(s.serverSaleId)) &&
-      !mirroredInvoices.has(s.invoiceNumber),
-  );
+  // Include pending/failed locals, and synced locals completed since the last
+  // snapshot that are not yet in `orders` (upload→mirror race).
+  const lastSnapshotAt = Number((await getMeta(db, META_KEYS.lastSnapshotAt)) ?? 0) || 0;
+  const unsyncedLocal = localSales.filter((s) => {
+    if (s.serverSaleId && mirroredIds.has(s.serverSaleId)) return false;
+    if (mirroredInvoices.has(s.invoiceNumber)) return false;
+    if (s.syncStatus === "pending" || s.syncStatus === "failed") return true;
+    // Without a snapshot baseline, rely on mirrorUploadedLocalSale → orders.
+    if (!lastSnapshotAt || s.syncStatus !== "synced") return false;
+    return s.completedAt >= lastSnapshotAt;
+  });
   const combinedSales = filterCashierDashboardSales(
     [...mirroredOrders, ...unsyncedLocal],
     role,
@@ -561,12 +566,14 @@ export async function buildLocalSalesReport(
   );
   const mirroredIds = new Set(mirrored.map((o) => o.id));
   const mirroredInvoices = new Set(mirrored.map((o) => o.invoiceNumber));
-  const unsyncedLocal = sales.filter(
-    (s) =>
-      (s.syncStatus === "pending" || s.syncStatus === "failed") &&
-      !(s.serverSaleId && mirroredIds.has(s.serverSaleId)) &&
-      !mirroredInvoices.has(s.invoiceNumber),
-  );
+  const lastSnapshotAt = Number((await getMeta(db, META_KEYS.lastSnapshotAt)) ?? 0) || 0;
+  const unsyncedLocal = sales.filter((s) => {
+    if (s.serverSaleId && mirroredIds.has(s.serverSaleId)) return false;
+    if (mirroredInvoices.has(s.invoiceNumber)) return false;
+    if (s.syncStatus === "pending" || s.syncStatus === "failed") return true;
+    if (!lastSnapshotAt || s.syncStatus !== "synced") return false;
+    return s.completedAt >= lastSnapshotAt;
+  });
 
   const grossSales =
     mirrored.reduce((sum, s) => sum + s.total, 0) +

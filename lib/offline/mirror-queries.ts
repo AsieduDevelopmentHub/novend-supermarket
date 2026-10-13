@@ -339,12 +339,14 @@ export async function listLocalOrders(filters: LocalOrderFilters = {}) {
 
   const mirroredIds = new Set(mirrored.map((o) => o.id));
   const mirroredInvoices = new Set(mirrored.map((o) => o.invoiceNumber));
-  const unsyncedLocal = localSales.filter(
-    (s) =>
-      (s.syncStatus === "pending" || s.syncStatus === "failed") &&
-      !(s.serverSaleId && mirroredIds.has(s.serverSaleId)) &&
-      !mirroredInvoices.has(s.invoiceNumber),
-  );
+  const lastSnapshotAt = Number((await getMeta(db, META_KEYS.lastSnapshotAt)) ?? 0) || 0;
+  const unsyncedLocal = localSales.filter((s) => {
+    if (s.serverSaleId && mirroredIds.has(s.serverSaleId)) return false;
+    if (mirroredInvoices.has(s.invoiceNumber)) return false;
+    if (s.syncStatus === "pending" || s.syncStatus === "failed") return true;
+    if (!lastSnapshotAt || s.syncStatus !== "synced") return false;
+    return s.completedAt >= lastSnapshotAt;
+  });
 
   type OrderRow = {
     id: string;

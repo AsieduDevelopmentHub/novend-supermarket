@@ -203,9 +203,6 @@ export async function buildLocalAnalyticsSummary(args: {
   ]);
 
   const costByProduct = new Map(products.map((p) => [p.id, p.costPrice]));
-  const syncedLocalIds = new Set(
-    localSales.filter((s) => s.syncStatus === "synced").map((s) => s.clientOperationId),
-  );
 
   const mirroredSaleIds = new Set(mirroredOrders.map((o) => o.id));
   const mirroredInvoices = new Set(mirroredOrders.map((o) => o.invoiceNumber));
@@ -213,6 +210,7 @@ export async function buildLocalAnalyticsSummary(args: {
   const role = await getMeta(db, META_KEYS.profileRole);
   const sessionUserId = await getMeta(db, META_KEYS.profileUserId);
   const ownedSaleIds = ownedSaleIdsForCashier(role, sessionUserId, mirroredOrders, localSales);
+  const lastSnapshotAt = Number((await getMeta(db, META_KEYS.lastSnapshotAt)) ?? 0) || 0;
 
   const sales: SaleRow[] = [];
   for (const order of mirroredOrders) {
@@ -233,12 +231,21 @@ export async function buildLocalAnalyticsSummary(args: {
     if (ownedSaleIds && !ownedSaleIds.has(sale.id) && !ownedSaleIds.has(sale.serverSaleId ?? "")) {
       continue;
     }
-    if (sale.syncStatus === "synced") continue;
     if (sale.completedAt < args.startDate || sale.completedAt > args.endDate) continue;
     if (args.branchId && sale.branchId !== args.branchId) continue;
-    if (syncedLocalIds.has(sale.clientOperationId)) continue;
     if (sale.serverSaleId && mirroredSaleIds.has(sale.serverSaleId)) continue;
     if (mirroredInvoices.has(sale.invoiceNumber)) continue;
+    if (sale.syncStatus === "pending" || sale.syncStatus === "failed") {
+      // always include
+    } else if (
+      sale.syncStatus === "synced" &&
+      lastSnapshotAt > 0 &&
+      sale.completedAt >= lastSnapshotAt
+    ) {
+      // include until snapshot / mirror catches up
+    } else {
+      continue;
+    }
     sales.push({
       id: sale.id,
       total: sale.total,
@@ -528,15 +535,13 @@ export async function buildLocalAnalyticsDetails(args: {
   const costByProduct = new Map(products.map((p) => [p.id, p.costPrice]));
   const nameByProduct = new Map(products.map((p) => [p.id, p.name]));
   const branchName = new Map(branches.map((b) => [b.id, b.name]));
-  const syncedLocalIds = new Set(
-    localSales.filter((s) => s.syncStatus === "synced").map((s) => s.clientOperationId),
-  );
   const mirroredSaleIds = new Set(mirroredOrders.map((o) => o.id));
   const mirroredInvoices = new Set(mirroredOrders.map((o) => o.invoiceNumber));
   const uniqueExpenses = dropLocalDuplicates(expenses, sameExpense);
   const role = await getMeta(db, META_KEYS.profileRole);
   const sessionUserId = await getMeta(db, META_KEYS.profileUserId);
   const ownedSaleIds = ownedSaleIdsForCashier(role, sessionUserId, mirroredOrders, localSales);
+  const lastSnapshotAt = Number((await getMeta(db, META_KEYS.lastSnapshotAt)) ?? 0) || 0;
 
   const sales: DetailSale[] = [];
   for (const order of mirroredOrders) {
@@ -557,12 +562,21 @@ export async function buildLocalAnalyticsDetails(args: {
     if (ownedSaleIds && !ownedSaleIds.has(sale.id) && !ownedSaleIds.has(sale.serverSaleId ?? "")) {
       continue;
     }
-    if (sale.syncStatus === "synced") continue;
-    if (syncedLocalIds.has(sale.clientOperationId)) continue;
     if (sale.completedAt < args.startDate || sale.completedAt > args.endDate) continue;
     if (args.branchId && sale.branchId !== args.branchId) continue;
     if (sale.serverSaleId && mirroredSaleIds.has(sale.serverSaleId)) continue;
     if (mirroredInvoices.has(sale.invoiceNumber)) continue;
+    if (sale.syncStatus === "pending" || sale.syncStatus === "failed") {
+      // always include
+    } else if (
+      sale.syncStatus === "synced" &&
+      lastSnapshotAt > 0 &&
+      sale.completedAt >= lastSnapshotAt
+    ) {
+      // include until snapshot / mirror catches up
+    } else {
+      continue;
+    }
     sales.push({
       id: sale.id,
       invoiceNumber: sale.invoiceNumber,

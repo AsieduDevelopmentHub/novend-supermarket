@@ -36,7 +36,11 @@ import {
 } from "./license-guard";
 import { loadLicenseSnapshot } from "./license";
 import { attachSoldLineSnapshots } from "./sale-upload-lines";
-import { markLocalSaleFailed, markLocalSaleSynced } from "./sales-repository";
+import {
+  markLocalSaleFailed,
+  markLocalSaleSynced,
+  mirrorUploadedLocalSale,
+} from "./sales-repository";
 import {
   describeReturnUploadBlock,
   mapReturnLinesToServerSaleItems,
@@ -699,6 +703,7 @@ async function drainOwnedOutbox(
             },
             { db, outboxId: claimed.id },
           );
+          await mirrorUploadedLocalSale(payload.localSaleId, String(result.saleId), db);
           processed += 1;
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "process_return") {

@@ -475,6 +475,51 @@ export async function markLocalSaleSynced(
   });
 }
 
+/**
+ * After upload acknowledgement, write the sale into `orders` so dashboard / Orders
+ * keep counting it. Synced `localSales` are otherwise dropped from KPIs until the
+ * next hourly snapshot — which made tills undercount and admin devices lag.
+ */
+export async function mirrorUploadedLocalSale(
+  localSaleId: string,
+  serverSaleId: string,
+  dbOverride?: NovendOfflineDb,
+): Promise<void> {
+  const db = dbOverride ?? (await getOfflineDb());
+  if (!db?.orders || !db.orderItems) return;
+  const sale = await db.localSales.get(localSaleId);
+  if (!sale) return;
+  const items = await db.localSaleItems.where("localSaleId").equals(localSaleId).toArray();
+  await mirrorCompletedSale(
+    {
+      saleId: serverSaleId,
+      invoiceNumber: sale.invoiceNumber,
+      customerId: sale.customerId ?? null,
+      customerName: sale.customerName,
+      cashierId: sale.cashierId,
+      cashierName: sale.cashierName,
+      itemCount: sale.itemCount,
+      subtotal: sale.subtotal,
+      discount: sale.discount,
+      total: sale.total,
+      paymentMethod: sale.paymentMethod,
+      payments: sale.payments,
+      completedAt: sale.completedAt,
+      branchId: sale.branchId ?? null,
+      branchName: sale.branchName ?? null,
+      items: items.map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount,
+        lineTotal: item.lineTotal,
+      })),
+    },
+    db,
+  );
+}
+
 export async function discardFailedLocalSale(localSaleId: string) {
   const db = await getOfflineDb();
   if (!db) return;
@@ -581,33 +626,36 @@ export async function listPendingLocalSales() {
 }
 
 /** Write a server-completed sale into Dexie so Orders updates without waiting for a snapshot. */
-export async function mirrorCompletedSale(input: {
-  saleId: string;
-  invoiceNumber: string;
-  customerId?: string | null;
-  customerName: string;
-  cashierId?: string | null;
-  cashierName?: string;
-  itemCount: number;
-  subtotal: number;
-  discount: number;
-  total: number;
-  paymentMethod: PaymentMethod;
-  payments?: PaymentLine[];
-  completedAt: number;
-  branchId?: string | null;
-  branchName?: string | null;
-  items: Array<{
-    productId: string;
-    productName: string;
-    quantity: number;
-    unitPrice: number;
+export async function mirrorCompletedSale(
+  input: {
+    saleId: string;
+    invoiceNumber: string;
+    customerId?: string | null;
+    customerName: string;
+    cashierId?: string | null;
+    cashierName?: string;
+    itemCount: number;
+    subtotal: number;
     discount: number;
-    lineTotal: number;
-  }>;
-}): Promise<void> {
-  const db = await getOfflineDb();
-  if (!db) return;
+    total: number;
+    paymentMethod: PaymentMethod;
+    payments?: PaymentLine[];
+    completedAt: number;
+    branchId?: string | null;
+    branchName?: string | null;
+    items: Array<{
+      productId: string;
+      productName: string;
+      quantity: number;
+      unitPrice: number;
+      discount: number;
+      lineTotal: number;
+    }>;
+  },
+  dbOverride?: NovendOfflineDb,
+): Promise<void> {
+  const db = dbOverride ?? (await getOfflineDb());
+  if (!db?.orders || !db.orderItems) return;
   const cashierId = input.cashierId ?? (await getMeta(db, META_KEYS.profileUserId)) ?? null;
   const cashierName = input.cashierName ?? (await getMeta(db, META_KEYS.profileName)) ?? "Cashier";
   const branchId = input.branchId ?? (await getMeta(db, META_KEYS.profileBranchId)) ?? null;
