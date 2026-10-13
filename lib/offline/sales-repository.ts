@@ -5,7 +5,18 @@ import {
   lineGrossForSellUnit,
   resolveSellUnit,
   roundQuantity,
+  toBaseQuantity,
 } from "@/convex/shared/units";
+import type { PaymentLine, PaymentMethod } from "@/lib/payments";
+import {
+  normalizeSalePayments,
+  onAccountAmount,
+  primarySalePaymentMethod,
+} from "@/convex/shared/salePayments";
+import { checkCreditLimit } from "@/convex/shared/customerCredit";
+import { resolveUnitPrice } from "@/convex/shared/pricing";
+import { applyLocalCustomerBalanceChange } from "./customer-credit";
+import { customerGroupIdFor, loadActivePriceRules } from "./price-lists";
 import { hasBusinessCapability } from "@/convex/shared/businessCapabilities";
 import { productTracksInventory } from "@/convex/shared/productInventory";
 import { loadBusinessCapabilitiesCache } from "./business-capabilities";
@@ -83,7 +94,9 @@ async function loadPrintSnapshot(db: NovendOfflineDb): Promise<PrintSnapshot> {
 export async function completeSaleLocally(input: {
   items: CartLineInput[];
   discount: number;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: PaymentMethod;
+  /** Split tenders; must sum to the sale total. Omit for a single-method sale. */
+  payments?: PaymentLine[];
   customerId?: string;
   customerName?: string;
   customerPhone?: string | null;
@@ -117,6 +130,10 @@ export async function completeSaleLocally(input: {
   const businessConfig = await loadBusinessCapabilitiesCache();
   const multiUnitOn = hasBusinessCapability(businessConfig, "multi_unit_pricing");
   const weightOn = hasBusinessCapability(businessConfig, "sell_by_weight");
+  const pricingOn = hasBusinessCapability(businessConfig, "customer_pricing");
+  const creditOn = hasBusinessCapability(businessConfig, "customer_credit");
+  const priceRules = pricingOn ? await loadActivePriceRules(db) : [];
+  const customerGroupId = pricingOn ? await customerGroupIdFor(db, input.customerId) : null;
   const clientOperationId = newClientId("sale");
   const localSaleId = newClientId("lsale");
   const invoiceNumber = nextProvisionalInvoice();
@@ -133,6 +150,7 @@ export async function completeSaleLocally(input: {
     [
       db.products,
       db.branchStock,
+      db.customers,
       db.localSales,
       db.localSaleItems,
       db.localReceipts,
@@ -158,7 +176,7 @@ export async function completeSaleLocally(input: {
           throw new Error("Invalid quantity");
         }
 
-        const unit = resolveSellUnit(
+        let unit = resolveSellUnit(
           product,
           multiUnitOn || weightOn ? item.sellUnitKey : undefined,
         );
@@ -167,6 +185,21 @@ export async function completeSaleLocally(input: {
         }
         if (unit.pricingMode === "per_weight" && !weightOn) {
           throw new Error("Sell by weight is not enabled for this organization");
+        }
+
+        if (pricingOn && priceRules.length > 0) {
+          // Same resolver as convex/sales.ts so the till total matches what Convex would charge.
+          const resolved = resolveUnitPrice(priceRules, {
+            productId: product.id,
+            categoryId: product.categoryId,
+            customerGroupId,
+            baseQuantity: toBaseQuantity(displayedQuantity, unit.factorToBase),
+            factorToBase: unit.factorToBase,
+            pricingMode: unit.pricingMode,
+            sellUnitPrice: unit.unitPrice,
+            productSellingPrice: product.sellingPrice,
+          });
+          unit = { ...unit, unitPrice: resolved.unitPrice };
         }
 
         const unitSnapshot = buildSaleLineUnitSnapshot(unit, displayedQuantity);
@@ -226,6 +259,28 @@ export async function completeSaleLocally(input: {
       total = Math.max(0, roundMoney(subtotal - cartDiscount));
       const customerName = input.customerName?.trim() || "Walk-in Customer";
 
+      let payments: PaymentLine[];
+      try {
+        payments = normalizeSalePayments(input.payments, input.paymentMethod, total);
+      } catch (error) {
+        throw new Error(error instanceof Error ? error.message : "Invalid payments");
+      }
+      const primaryTender = primarySalePaymentMethod(payments);
+      const chargeOnAccount = onAccountAmount(payments);
+      if (chargeOnAccount > 0) {
+        if (!creditOn) throw new Error("Customer credit is not enabled for this organization");
+        if (!input.customerId) throw new Error("Choose a customer to sell on account");
+        const customerRow = await db.customers.get(input.customerId);
+        if (!customerRow) throw new Error("Customer not found on this device");
+        const check = checkCreditLimit({
+          currentBalance: customerRow.balance ?? 0,
+          charge: chargeOnAccount,
+          limit: customerRow.creditLimit,
+        });
+        if (!check.ok) throw new Error(check.message);
+        await applyLocalCustomerBalanceChange(db, input.customerId, chargeOnAccount);
+      }
+
       const sale: LocalSale = {
         id: localSaleId,
         clientOperationId,
@@ -240,7 +295,8 @@ export async function completeSaleLocally(input: {
         subtotal: roundMoney(subtotal),
         discount: cartDiscount,
         total,
-        paymentMethod: input.paymentMethod,
+        paymentMethod: primaryTender,
+        payments,
         itemCount,
         completedAt,
         syncStatus: "pending",
@@ -266,7 +322,8 @@ export async function completeSaleLocally(input: {
           sellUnitLabel: l.sellUnitLabel,
           pricingMode: l.pricingMode,
         })),
-        paymentMethod: input.paymentMethod,
+        paymentMethod: primaryTender,
+        payments: payments.length > 1 || chargeOnAccount > 0 ? payments : undefined,
         completedAt,
         customerName,
         customerPhone: input.customerPhone ?? null,
@@ -303,7 +360,9 @@ export async function completeSaleLocally(input: {
           trackedInventory: line.trackedInventory,
         })),
         discount: cartDiscount,
-        paymentMethod: input.paymentMethod,
+        paymentMethod: primaryTender,
+        // Always present so the balance overlay can read on-account charges from the outbox row.
+        payments,
         branchId,
         localHeldSaleId: input.localHeldSaleId,
         serverHeldSaleId: input.serverHeldSaleId,
@@ -336,10 +395,16 @@ export async function markLocalSaleFailed(localSaleId: string, error: string) {
 
   await db.transaction(
     "rw",
-    [db.products, db.branchStock, db.localSales, db.localSaleItems],
+    [db.products, db.branchStock, db.customers, db.localSales, db.localSaleItems],
     async () => {
       const sale = await db.localSales.get(localSaleId);
       if (!sale || sale.syncStatus === "synced") return;
+
+      // Release the optimistic on-account charge once; the server never posted it.
+      if (sale.syncStatus !== "failed" && sale.customerId && sale.payments) {
+        const charged = onAccountAmount(sale.payments);
+        if (charged > 0) await applyLocalCustomerBalanceChange(db, sale.customerId, -charged);
+      }
 
       if (sale.syncStatus === "pending") {
         const items = await db.localSaleItems.where("localSaleId").equals(localSaleId).toArray();
@@ -522,7 +587,8 @@ export async function mirrorCompletedSale(input: {
   subtotal: number;
   discount: number;
   total: number;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: PaymentMethod;
+  payments?: PaymentLine[];
   completedAt: number;
   branchId?: string | null;
   branchName?: string | null;
@@ -554,6 +620,7 @@ export async function mirrorCompletedSale(input: {
     discount: input.discount,
     total: input.total,
     paymentMethod: input.paymentMethod,
+    payments: input.payments,
     status: "completed",
     completedAt: input.completedAt,
     branchId,
@@ -591,7 +658,8 @@ type HospitalityReceiptPayload = {
   discount: number;
   total: number;
   itemCount: number;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: PaymentMethod;
+  payments?: PaymentLine[];
   completedAt: number;
   customerName: string;
   customerId?: string | null;
@@ -630,6 +698,7 @@ export async function mirrorServerSaleReceipt(result: {
     discount: payload.discount,
     total: payload.total,
     paymentMethod: payload.paymentMethod,
+    payments: payload.payments,
     completedAt: payload.completedAt,
     branchId: payload.branchId ? String(payload.branchId) : null,
     items: payload.lines.map((line) => ({

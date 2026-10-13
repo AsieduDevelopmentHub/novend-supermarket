@@ -2,7 +2,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { periodPresetShortLabel } from "@/lib/period-filter";
-import { paymentMethodLabel, PAYMENT_METHOD_OPTIONS } from "@/lib/payments";
+import {
+  paymentMethodLabel,
+  PAYMENT_METHOD_OPTIONS,
+  SETTLEMENT_METHOD_OPTIONS,
+} from "@/lib/payments";
 
 const sales = readFileSync(
   resolve(process.cwd(), "features/sales/components/sales-view.tsx"),
@@ -11,9 +15,26 @@ const sales = readFileSync(
 
 describe("checkout payments", () => {
   it("offers cash first, then MoMo and card", () => {
-    expect(PAYMENT_METHOD_OPTIONS.map((option) => option.label)).toEqual(["Cash", "MoMo", "Card"]);
+    expect(SETTLEMENT_METHOD_OPTIONS.map((option) => option.label)).toEqual([
+      "Cash",
+      "MoMo",
+      "Card",
+    ]);
     expect(paymentMethodLabel("mobile_money")).toBe("MoMo");
-    expect(PAYMENT_METHOD_OPTIONS).toHaveLength(3);
+    expect(SETTLEMENT_METHOD_OPTIONS).toHaveLength(3);
+  });
+
+  it("adds on account as a checkout tender only, never a settlement method", () => {
+    expect(PAYMENT_METHOD_OPTIONS.map((option) => option.value)).toEqual([
+      "cash",
+      "mobile_money",
+      "card",
+      "on_account",
+    ]);
+    expect(paymentMethodLabel("on_account")).toBe("On account");
+    expect(
+      SETTLEMENT_METHOD_OPTIONS.some((option) => (option.value as string) === "on_account"),
+    ).toBe(false);
   });
 
   it("defaults the till to cash and no longer blocks another branch offline", () => {

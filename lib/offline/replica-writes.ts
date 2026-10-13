@@ -12,6 +12,20 @@ import { loadExpiryPolicyCache } from "./expiry-policy";
 import { assertProductImageUploadsEnabled } from "@/convex/shared/productImagesPolicy";
 import { nextCatalogPrices } from "@/lib/wholesale/purchase-prices";
 import { applySupplierPayment } from "@/convex/shared/supplierFinance";
+import { addBranchLot, addWholesaleLot, takeWholesaleLotsFefo } from "./wholesale-lots";
+import { assertPaymentWithinBalance } from "@/convex/shared/customerCredit";
+import { assertValidPriceRule } from "@/convex/shared/pricing";
+import { applyLocalCustomerBalanceChange } from "./customer-credit";
+import { loadBusinessCapabilitiesCache } from "./business-capabilities";
+import {
+  hasBusinessCapability,
+  type BusinessCapabilityKey,
+} from "@/convex/shared/businessCapabilities";
+
+async function assertCapabilityEnabled(key: BusinessCapabilityKey, message: string) {
+  const config = await loadBusinessCapabilitiesCache();
+  if (!hasBusinessCapability(config, key)) throw new Error(message);
+}
 import { resolveExpiryAlertDays, lotStatus } from "@/lib/expiry";
 import type {
   AdjustStockPayload,
@@ -26,7 +40,10 @@ import type {
   TransferStockPayload,
   UpdateLotExpiryPayload,
   UpsertBranchPayload,
+  UpsertCustomerGroupPayload,
   UpsertCustomerPayload,
+  UpsertPriceRulePayload,
+  RecordCustomerPaymentPayload,
   UpsertProductPayload,
   UpsertStaffCompensationPayload,
   UpsertSupplierPayload,
@@ -110,9 +127,27 @@ export async function queueWholesalePurchase(
   const supplier = await db.suppliers.get(payload.supplierId);
   const totalCost = payload.items.reduce((sum, item) => sum + item.unitCost * item.quantity, 0);
   const itemCount = payload.items.reduce((sum, item) => sum + item.quantity, 0);
+  // Same rule as convex/wholesale.ts: dated products cannot be received without an expiry.
+  for (const item of payload.items) {
+    const dated = await db.products.get(item.productId);
+    if (dated?.tracksExpiry && !item.expiryDate) {
+      throw new Error(`Enter an expiry date for ${dated.name}`);
+    }
+  }
   const lineItems = [];
   for (const item of payload.items) {
     const rowProduct = await db.products.get(item.productId);
+    if (rowProduct?.tracksExpiry && item.expiryDate) {
+      const lots = await db.wholesaleLots.where("productId").equals(item.productId).toArray();
+      const merged = addWholesaleLot(lots, {
+        id: newClientId("local_lot"),
+        productId: item.productId,
+        quantity: item.quantity,
+        expiryDate: item.expiryDate,
+        receivedAt: payload.purchasedAt,
+      });
+      await db.wholesaleLots.bulkPut(merged);
+    }
     const prices = nextCatalogPrices({
       unitCost: item.unitCost,
       sellingPrice: item.sellingPrice,
@@ -227,7 +262,40 @@ export async function queueWholesaleTransfer(payload: Omit<WholesaleTransferPayl
   if (stock) {
     const next = stock.quantity - payload.quantity;
     if (next < 0) throw new Error("Insufficient wholesale stock");
-    await db.wholesaleStock.put({ ...stock, quantity: next });
+  }
+  if (product?.tracksExpiry) {
+    // Dated stock leaves the warehouse earliest-expiry first and lands on the branch with its expiry.
+    const warehouseLots = await db.wholesaleLots
+      .where("productId")
+      .equals(payload.productId)
+      .toArray();
+    const { lots: remainingLots, taken } = takeWholesaleLotsFefo(
+      warehouseLots,
+      payload.productId,
+      payload.quantity,
+    );
+    await db.wholesaleLots.where("productId").equals(payload.productId).delete();
+    if (remainingLots.length > 0) await db.wholesaleLots.bulkPut(remainingLots);
+    let branchLots = await db.lots
+      .where("productId")
+      .equals(payload.productId)
+      .and((lot) => lot.branchId === payload.branchId)
+      .toArray();
+    for (const allocation of taken) {
+      branchLots = addBranchLot(branchLots, {
+        id: newClientId("local_lot"),
+        productId: payload.productId,
+        branchId: payload.branchId,
+        branchName: branch?.name ?? null,
+        quantity: allocation.quantity,
+        expiryDate: allocation.expiryDate,
+        receivedAt: Date.now(),
+      });
+    }
+    await db.lots.bulkPut(branchLots);
+  }
+  if (stock) {
+    await db.wholesaleStock.put({ ...stock, quantity: stock.quantity - payload.quantity });
   }
   if (product) {
     await db.products.put({
@@ -413,12 +481,110 @@ export async function queueUpsertCustomer(
     lastPurchaseAt: existing?.lastPurchaseAt ?? null,
     lastPurchaseTotal: existing?.lastPurchaseTotal ?? null,
     lastInvoiceNumber: existing?.lastInvoiceNumber ?? null,
+    creditLimit:
+      payload.creditLimit === undefined ? (existing?.creditLimit ?? null) : payload.creditLimit,
+    customerGroupId:
+      payload.customerGroupId === undefined
+        ? (existing?.customerGroupId ?? null)
+        : payload.customerGroupId,
+    balance: existing?.balance ?? 0,
     updatedAt: Date.now(),
   });
   await enqueueOutbox(db, "upsert_customer", {
     ...payload,
     localId,
   } satisfies UpsertCustomerPayload);
+  return localId;
+}
+
+/** Record cash / MoMo / card received against a customer's balance (managers). */
+export async function queueRecordCustomerPayment(
+  payload: Omit<RecordCustomerPaymentPayload, "localId" | "paidAt"> & { paidAt?: number },
+) {
+  await assertLocalWriteAllowed();
+  await assertCapabilityEnabled(
+    "customer_credit",
+    "Customer credit is not enabled for this organization",
+  );
+  const db = await getOfflineDb();
+  if (!db) throw new Error("Local storage is not available on this device.");
+  const customer = await db.customers.get(payload.customerId);
+  if (!customer) throw new Error("Customer not found on this device");
+  const amount = roundMoney(payload.amount);
+  assertPaymentWithinBalance(customer.balance ?? 0, amount);
+  const localId = newClientId("local");
+  const paidAt = payload.paidAt ?? Date.now();
+  await db.transaction("rw", [db.customers, db.customerLedger, db.outbox], async () => {
+    await applyLocalCustomerBalanceChange(db, payload.customerId, -amount);
+    await db.customerLedger.put({
+      id: localId,
+      customerId: payload.customerId,
+      type: "payment",
+      amount: -amount,
+      method: payload.method,
+      note: payload.note ?? null,
+      occurredAt: paidAt,
+      syncStatus: "pending",
+    });
+    await enqueueOutbox(db, "record_customer_payment", {
+      ...payload,
+      amount,
+      paidAt,
+      localId,
+    } satisfies RecordCustomerPaymentPayload);
+  });
+  return localId;
+}
+
+export async function queueUpsertCustomerGroup(
+  payload: Omit<UpsertCustomerGroupPayload, "localId"> & { localId?: string },
+) {
+  await assertLocalWriteAllowed();
+  await assertCapabilityEnabled(
+    "customer_pricing",
+    "Customer pricing is not enabled for this organization",
+  );
+  const db = await getOfflineDb();
+  if (!db) throw new Error("Local storage is not available on this device.");
+  const localId = payload.serverId ?? payload.localId ?? newClientId("local");
+  await db.customerGroups.put({
+    id: localId,
+    name: payload.name,
+    status: payload.status ?? "active",
+  });
+  await enqueueOutbox(db, "upsert_customer_group", {
+    ...payload,
+    localId,
+  } satisfies UpsertCustomerGroupPayload);
+  return localId;
+}
+
+export async function queueUpsertPriceRule(
+  payload: Omit<UpsertPriceRulePayload, "localId"> & { localId?: string },
+) {
+  await assertLocalWriteAllowed();
+  await assertCapabilityEnabled(
+    "customer_pricing",
+    "Customer pricing is not enabled for this organization",
+  );
+  assertValidPriceRule(payload);
+  const db = await getOfflineDb();
+  if (!db) throw new Error("Local storage is not available on this device.");
+  const localId = payload.serverId ?? payload.localId ?? newClientId("local");
+  await db.priceListRules.put({
+    id: localId,
+    productId: payload.productId ?? null,
+    categoryId: payload.productId ? null : (payload.categoryId ?? null),
+    groupId: payload.groupId ?? null,
+    minBaseQty: Math.floor(payload.minBaseQty),
+    unitPrice: roundMoney(payload.unitPrice),
+    priority: payload.priority,
+    active: payload.active,
+  });
+  await enqueueOutbox(db, "upsert_price_rule", {
+    ...payload,
+    localId,
+  } satisfies UpsertPriceRulePayload);
   return localId;
 }
 

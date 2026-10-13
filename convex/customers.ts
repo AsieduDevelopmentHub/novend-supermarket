@@ -3,14 +3,69 @@ import { mutation, query } from "./_generated/server";
 import { assertOrgDoc, requireRole } from "./shared/permissions";
 import { writeAuditLog } from "./shared/audit";
 import { rememberClientOp, replayClientOp } from "./shared/clientOps";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
+import type { MutationCtx } from "./_generated/server";
+import { hasBusinessCapability } from "./shared/businessCapabilities";
+import { customerBalance } from "./shared/customerCredit";
+import { loadBusinessConfiguration } from "./settings";
 import {
+  roundMoney,
   sanitizeEmail,
   sanitizeOptionalText,
   sanitizePhone,
   sanitizeText,
   TEXT_LIMITS,
 } from "./shared/validation";
+
+const commercialTermsArgs = {
+  /** Null clears the limit. Managers / administrators only. */
+  creditLimit: v.optional(v.union(v.number(), v.null())),
+  /** Null clears the group. Managers / administrators only. */
+  customerGroupId: v.optional(v.union(v.id("customerGroups"), v.null())),
+};
+
+type CommercialTermsPatch = {
+  touched: boolean;
+  creditLimit?: number;
+  customerGroupId?: Id<"customerGroups">;
+};
+
+/**
+ * Credit limit and price-list group are manager/admin commercial terms.
+ * `touched` is false when the caller did not send either field.
+ */
+async function resolveCommercialTerms(
+  ctx: MutationCtx,
+  session: { profile: Doc<"profiles">; organizationId: Id<"organizations"> },
+  args: { creditLimit?: number | null; customerGroupId?: Id<"customerGroups"> | null },
+): Promise<CommercialTermsPatch> {
+  const touchesLimit = args.creditLimit !== undefined;
+  const touchesGroup = args.customerGroupId !== undefined;
+  if (!touchesLimit && !touchesGroup) return { touched: false };
+  if (session.profile.role !== "administrator" && session.profile.role !== "manager") {
+    throw new Error("Only managers and administrators can change credit terms");
+  }
+  const config = await loadBusinessConfiguration(ctx, session.organizationId);
+  const out: CommercialTermsPatch = { touched: true };
+  if (typeof args.creditLimit === "number") {
+    if (!hasBusinessCapability(config, "customer_credit")) {
+      throw new Error("Customer credit is not enabled for this organization");
+    }
+    if (!Number.isFinite(args.creditLimit) || args.creditLimit < 0) {
+      throw new Error("Invalid credit limit");
+    }
+    out.creditLimit = roundMoney(args.creditLimit);
+  }
+  if (args.customerGroupId) {
+    if (!hasBusinessCapability(config, "customer_pricing")) {
+      throw new Error("Customer price lists are not enabled for this organization");
+    }
+    const group = await ctx.db.get(args.customerGroupId);
+    assertOrgDoc(group, session.organizationId);
+    out.customerGroupId = args.customerGroupId;
+  }
+  return out;
+}
 
 export const list = query({
   args: {
@@ -42,6 +97,16 @@ export const list = query({
       .query("sales")
       .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
       .collect();
+    const ledger = await ctx.db
+      .query("customerLedgerEntries")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
+    const ledgerByCustomer = new Map<string, number[]>();
+    for (const row of ledger) {
+      const bucket = ledgerByCustomer.get(row.customerId) ?? [];
+      bucket.push(row.amount);
+      ledgerByCustomer.set(row.customerId, bucket);
+    }
 
     return customers
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -61,6 +126,11 @@ export const list = query({
           lastPurchaseAt: last?.completedAt ?? null,
           lastPurchaseTotal: last?.total ?? null,
           lastInvoiceNumber: last?.invoiceNumber ?? null,
+          creditLimit: customer.creditLimit ?? null,
+          customerGroupId: customer.customerGroupId ?? null,
+          balance: customerBalance(
+            (ledgerByCustomer.get(customer._id) ?? []).map((amount) => ({ amount })),
+          ),
         };
       });
   },
@@ -105,6 +175,12 @@ export const get = query({
     const { organizationId } = await requireRole(ctx, ["administrator", "manager", "cashier"]);
     const customer = await ctx.db.get(args.id);
     if (!customer || customer.organizationId !== organizationId) return null;
+    const ledger = await ctx.db
+      .query("customerLedgerEntries")
+      .withIndex("by_organization_customer_occurredAt", (q) =>
+        q.eq("organizationId", organizationId).eq("customerId", args.id),
+      )
+      .collect();
     return {
       id: customer._id,
       name: customer.name,
@@ -112,6 +188,9 @@ export const get = query({
       email: customer.email ?? null,
       notes: customer.notes ?? null,
       status: customer.status,
+      creditLimit: customer.creditLimit ?? null,
+      customerGroupId: customer.customerGroupId ?? null,
+      balance: customerBalance(ledger),
     };
   },
 });
@@ -153,9 +232,10 @@ export const create = mutation({
     email: v.optional(v.string()),
     notes: v.optional(v.string()),
     clientOperationId: v.optional(v.string()),
+    ...commercialTermsArgs,
   },
   handler: async (ctx, args) => {
-    const { userId, organizationId } = await requireRole(ctx, [
+    const { userId, profile, organizationId } = await requireRole(ctx, [
       "administrator",
       "manager",
       "cashier",
@@ -167,6 +247,7 @@ export const create = mutation({
       args.clientOperationId,
     );
     if (replayed !== null) return replayed;
+    const terms = await resolveCommercialTerms(ctx, { profile, organizationId }, args);
 
     const id = await ctx.db.insert("customers", {
       organizationId,
@@ -175,6 +256,8 @@ export const create = mutation({
       email: sanitizeEmail(args.email),
       notes: sanitizeOptionalText(args.notes, "Notes", TEXT_LIMITS.note),
       status: "active",
+      creditLimit: terms.creditLimit,
+      customerGroupId: terms.customerGroupId,
     });
 
     await writeAuditLog(ctx, {
@@ -203,6 +286,7 @@ export const update = mutation({
     email: v.optional(v.string()),
     notes: v.optional(v.string()),
     status: v.union(v.literal("active"), v.literal("inactive")),
+    ...commercialTermsArgs,
   },
   handler: async (ctx, args) => {
     const { userId, profile, organizationId } = await requireRole(ctx, [
@@ -217,6 +301,7 @@ export const update = mutation({
     assertOrgDoc(customer, organizationId);
 
     const name = sanitizeText(args.name, "Customer name", TEXT_LIMITS.name);
+    const terms = await resolveCommercialTerms(ctx, { profile, organizationId }, args);
 
     await ctx.db.patch(args.id, {
       name,
@@ -224,6 +309,8 @@ export const update = mutation({
       email: sanitizeEmail(args.email),
       notes: sanitizeOptionalText(args.notes, "Notes", TEXT_LIMITS.note),
       status: args.status,
+      ...(args.creditLimit !== undefined ? { creditLimit: terms.creditLimit } : {}),
+      ...(args.customerGroupId !== undefined ? { customerGroupId: terms.customerGroupId } : {}),
     });
 
     await writeAuditLog(ctx, {

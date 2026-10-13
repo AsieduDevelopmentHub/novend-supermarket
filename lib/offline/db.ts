@@ -9,6 +9,10 @@ import type {
   MirroredBranchStock,
   MirroredCategory,
   MirroredCustomer,
+  MirroredCustomerGroup,
+  MirroredCustomerLedgerEntry,
+  MirroredPriceListRule,
+  MirroredWholesaleLot,
   MirroredExpense,
   MirroredLot,
   MirroredOrder,
@@ -71,6 +75,10 @@ export type NovendOfflineDb = Dexie & {
   hotelReservations: EntityTable<MirroredHotelReservation, "id">;
   hotelStays: EntityTable<MirroredHotelStay, "id">;
   hotelFolioCharges: EntityTable<MirroredHotelFolioCharge, "id">;
+  wholesaleLots: EntityTable<MirroredWholesaleLot, "id">;
+  customerLedger: EntityTable<MirroredCustomerLedgerEntry, "id">;
+  customerGroups: EntityTable<MirroredCustomerGroup, "id">;
+  priceListRules: EntityTable<MirroredPriceListRule, "id">;
   outbox: EntityTable<OutboxRow, "id">;
 };
 
@@ -421,7 +429,7 @@ export function createOfflineDb(organizationId?: string, userId?: string): Noven
     hotelFolioCharges: "id, stayId, status, createdAt",
   });
   // v14: supplier payment ledger. Purchase amountPaid is a field on the existing purchase store.
-  db.version(14).stores({
+  const storesV14 = {
     ...storesV8,
     lots: "id, productId, branchId, expiryDate, [productId+branchId]",
     staffCompensation: "id",
@@ -436,6 +444,15 @@ export function createOfflineDb(organizationId?: string, userId?: string): Noven
     hotelStays: "id, branchId, roomId, status, checkInAt, customerId",
     hotelFolioCharges: "id, stayId, status, createdAt",
     supplierPayments: "id, supplierId, purchaseId, paidAt",
+  } as const;
+  db.version(14).stores(storesV14);
+  // v15: warehouse lots (offline FEFO), customer receivable ledger, price lists.
+  db.version(15).stores({
+    ...storesV14,
+    wholesaleLots: "id, productId, expiryDate, [productId+expiryDate]",
+    customerLedger: "id, customerId, occurredAt, [customerId+occurredAt]",
+    customerGroups: "id, name, status",
+    priceListRules: "id, productId, categoryId, groupId, active",
   });
   return db;
 }
@@ -584,7 +601,7 @@ export const META_KEYS = {
 } as const;
 
 /** Bump when Dexie adds replica tables so TTL snapshot skips cannot leave new stores empty. */
-export const REPLICA_SCHEMA_VERSION = "14";
+export const REPLICA_SCHEMA_VERSION = "15";
 
 export async function getMeta(db: NovendOfflineDb, key: string): Promise<string | null> {
   try {

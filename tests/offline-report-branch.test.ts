@@ -74,11 +74,11 @@ describe("offline report branch scope", () => {
     expect(branch.kpis).toMatchObject({
       grossSales: 80, totalRefunds: 10, totalSales: 70, totalOrders: 2, itemsSold: 2,
     });
-    expect(branch.paymentTotals).toEqual({ cash: 50, card: 0, mobileMoney: 30 });
+    expect(branch.paymentTotals).toEqual({ cash: 50, card: 0, mobileMoney: 30, onAccount: 0 });
     const all = await buildLocalSalesReport(10, 30);
     expect(all.kpis).toMatchObject({
       grossSales: 320, totalRefunds: 30, totalSales: 290, totalOrders: 4,
     });
-    expect(all.paymentTotals).toEqual({ cash: 90, card: 200, mobileMoney: 30 });
+    expect(all.paymentTotals).toEqual({ cash: 90, card: 200, mobileMoney: 30, onAccount: 0 });
   });
 });

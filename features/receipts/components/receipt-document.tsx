@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/date";
 import type { ReceiptPayload, ReceiptTemplateConfig, ReceiptBusiness } from "../types";
 import { SAMPLE_RECEIPT_PAYLOAD } from "../types";
 import { sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
+import { receiptPaymentLines } from "../payment-lines";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -37,6 +38,7 @@ export function ReceiptDocument({
   const widthClass = template.paperWidthMm === 58 ? "w-[220px]" : "w-[302px]";
   const lines = Array.isArray(payload.lines) ? payload.lines : [];
   const headerLine = sanitizeReceiptCopy(template.headerText, "");
+  const paymentLines = receiptPaymentLines(payload);
 
   return (
     <div
@@ -72,12 +74,13 @@ export function ReceiptDocument({
             <p>Cashier: {payload.cashierName}</p>
           ) : null}
           {template.showCustomer ? <p>Customer: {payload.customerName}</p> : null}
-          {template.showPaymentMethod ? (
+          {template.showPaymentMethod && !paymentLines ? (
             <p className="capitalize">
               {payload.kind === "return" ? "Refund" : "Payment"}:{" "}
               {payload.paymentMethod.replace("_", " ")}
             </p>
           ) : null}
+          {template.showPaymentMethod && paymentLines ? <p>Payment: Split</p> : null}
           {payload.kind === "return" && payload.returnReason ? (
             <p>Reason: {payload.returnReason}</p>
           ) : null}
@@ -112,6 +115,14 @@ export function ReceiptDocument({
             <span>{payload.kind === "return" ? "REFUND" : "TOTAL"}</span>
             <span>{formatCurrency(payload.total)}</span>
           </div>
+          {template.showPaymentMethod && paymentLines
+            ? paymentLines.map((line, index) => (
+                <div key={`${line.label}-${index}`} className="flex justify-between">
+                  <span>{line.label}</span>
+                  <span>{formatCurrency(line.amount)}</span>
+                </div>
+              ))
+            : null}
         </div>
 
         <div className="border-t border-dashed border-black/40 pt-2 text-center">

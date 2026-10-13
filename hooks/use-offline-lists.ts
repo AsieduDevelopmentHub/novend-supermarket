@@ -9,6 +9,8 @@ import {
   listMirroredBranches,
   listMirroredCategories,
   listMirroredCustomers,
+  listMirroredCustomerGroups,
+  listMirroredPriceListRules,
   getMirroredProduct,
   listMirroredExpenses,
   listMirroredProducts,
@@ -465,6 +467,9 @@ export function useCustomersList(options: { search: string; includeInactive: boo
       lastPurchaseAt: c.lastPurchaseAt ?? null,
       lastPurchaseTotal: c.lastPurchaseTotal ?? null,
       lastInvoiceNumber: c.lastInvoiceNumber ?? null,
+      creditLimit: c.creditLimit ?? null,
+      customerGroupId: c.customerGroupId ?? null,
+      balance: c.balance ?? 0,
     }));
 
   const mappedLocal = local ? mapLocal(local) : null;
@@ -712,6 +717,29 @@ export function useWholesaleLists(search: string) {
     purchases: purchasePick.rows ?? localPurchases,
     transfers: transferPick.rows ?? localTransfers,
   };
+}
+
+/** Customer price-list groups (managers). Dexie first; Convex fills the gap before the first snapshot. */
+export function useCustomerGroups(enabled = true) {
+  const { online, ready, serveLocal } = useBusinessDataGate();
+  const local = useMirrorRows(() => listMirroredCustomerGroups(), []);
+  const remote = useAuthedQuery(
+    api.priceLists.listGroups,
+    enabled && online && ready && !serveLocal ? {} : "skip",
+  );
+  const mappedLocal = local?.map((row) => ({ ...row, id: row.id as Id<"customerGroups"> }));
+  return pickReplicaList({ local: mappedLocal, remote, online }).rows;
+}
+
+export function usePriceListRules(enabled = true) {
+  const { online, ready, serveLocal } = useBusinessDataGate();
+  const local = useMirrorRows(() => listMirroredPriceListRules(), []);
+  const remote = useAuthedQuery(
+    api.priceLists.listRules,
+    enabled && online && ready && !serveLocal ? {} : "skip",
+  );
+  const mappedLocal = local?.map((row) => ({ ...row, id: row.id as Id<"priceListRules"> }));
+  return pickReplicaList({ local: mappedLocal, remote, online }).rows;
 }
 
 export function useBranchesList(includeInactive = false, enabled = true) {

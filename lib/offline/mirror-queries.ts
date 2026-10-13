@@ -1,3 +1,4 @@
+import type { PaymentMethod } from "@/lib/payments";
 import { purchaseBalance, purchasePaymentStatus, settledAmount } from "@/convex/shared/supplierFinance";
 import { getMeta, getOfflineDb, META_KEYS } from "./db";
 import { productMatchesQuery } from "./barcode-lookup";
@@ -22,6 +23,8 @@ import {
 import type {
   MirroredCategory,
   MirroredCustomer,
+  MirroredCustomerGroup,
+  MirroredPriceListRule,
   MirroredProduct,
   MirroredSupplierPayment,
 } from "./types";
@@ -318,7 +321,7 @@ export type LocalOrderFilters = {
   endDate?: number;
   minTotal?: number;
   maxTotal?: number;
-  paymentMethod?: "cash" | "card" | "mobile_money";
+  paymentMethod?: PaymentMethod;
   returnStatus?: "none" | "returned";
 };
 
@@ -354,7 +357,7 @@ export async function listLocalOrders(filters: LocalOrderFilters = {}) {
     cashierId: string | null;
     cashierName: string;
     itemCount: number;
-    paymentMethod: "cash" | "card" | "mobile_money";
+    paymentMethod: PaymentMethod;
     total: number;
     status: string;
     isLocal: boolean;
@@ -760,7 +763,10 @@ export async function getMirroredCustomerDetail(id: string) {
   const orders = (await db.orders.where("customerId").equals(id).toArray()).sort(
     (a, b) => b.completedAt - a.completedAt,
   );
-  return { customer, orders };
+  const ledger = (await db.customerLedger.where("customerId").equals(id).toArray()).sort(
+    (a, b) => b.occurredAt - a.occurredAt,
+  );
+  return { customer, orders, ledger };
 }
 
 export async function getMirroredReturn(id: string) {
@@ -1076,4 +1082,18 @@ export async function listMirroredHotelReservations(branchId?: string) {
   } catch {
     return [];
   }
+}
+
+export async function listMirroredCustomerGroups(): Promise<MirroredCustomerGroup[]> {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  const rows = await db.customerGroups.toArray();
+  return rows.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function listMirroredPriceListRules(): Promise<MirroredPriceListRule[]> {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  const rows = await db.priceListRules.toArray();
+  return rows.sort((a, b) => b.priority - a.priority);
 }

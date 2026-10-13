@@ -111,7 +111,8 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
   "inventory.wholesale": {
     key: "inventory.wholesale",
     label: "Wholesale inventory",
-    description: "Wholesale stock, packs/cartons, and wholesale receive/issue.",
+    description:
+      "Central warehouse stock: supplier purchases, dated warehouse lots (FEFO), and issuing stock to branches. Pack / carton selling is a separate business capability (multi-unit pricing).",
     category: "inventory",
     defaultEnabled: false,
     prerequisites: [],

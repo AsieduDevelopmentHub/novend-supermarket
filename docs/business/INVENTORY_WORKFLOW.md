@@ -40,6 +40,16 @@ SKU can be created from the purchase dialog (zero branch stock); warehouse
 quantity is added when the purchase is saved. Deliveries saved before balances
 existed stay treated as paid.
 
+Wholesale receive and issue-to-branch require the `inventory.wholesale` plan
+feature; Convex rejects them otherwise. Dated products (expiry tracked) must
+carry an expiry date on each purchase line. Issuing to a branch takes warehouse
+lots first-expiry-first-out (FEFO) and creates matching dated lots on the
+branch. This works offline: the device mirrors warehouse lots, issues FEFO from
+them, and replays unsynced purchases and transfers on top of every snapshot so a
+refresh cannot restore stock that was already issued. If another till or the
+warehouse has since sold the lots, the transfer is rejected on upload as
+insufficient dated stock and appears in Sync Center.
+
 ![Transfer stock between branches](../design/ui/inventory-transfer-stock-modal.png)
 
 ## Related screenshots

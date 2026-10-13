@@ -35,7 +35,9 @@ import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { useCustomersList } from "@/hooks/use-offline-lists";
+import { useCustomerGroups, useCustomersList } from "@/hooks/use-offline-lists";
+import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { PriceListsPanel } from "./price-lists-panel";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { useClientPagedRows } from "@/hooks/use-ui";
 import { Eye, Pencil, Plus, Users } from "lucide-react";
@@ -48,8 +50,15 @@ import {
   queueUpsertCustomer,
 } from "@/lib/offline/replica-writes";
 
+const NO_GROUP = "none";
+
 export function CustomersView() {
-  const { isAdmin } = usePermissions();
+  const { isAdmin, isManager } = usePermissions();
+  const { hasCapability } = useBusinessCapabilities();
+  const canSetTerms = isAdmin || isManager;
+  const creditOn = hasCapability("customer_credit");
+  const pricingOn = hasCapability("customer_pricing");
+  const groups = useCustomerGroups(canSetTerms && pricingOn);
   const online = useConnectivity();
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -88,6 +97,8 @@ export function CustomersView() {
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
+  const [creditLimit, setCreditLimit] = useState("");
+  const [groupId, setGroupId] = useState<string>(NO_GROUP);
   const [pending, setPending] = useState(false);
 
   function openCreate() {
@@ -97,6 +108,8 @@ export function CustomersView() {
     setEmail("");
     setNotes("");
     setStatus("active");
+    setCreditLimit("");
+    setGroupId(NO_GROUP);
     setFormOpen(true);
   }
 
@@ -107,6 +120,8 @@ export function CustomersView() {
     email: string | null;
     notes: string | null;
     status: "active" | "inactive";
+    creditLimit?: number | null;
+    customerGroupId?: string | null;
   }) {
     setEditingId(row.id);
     setName(row.name);
@@ -114,13 +129,37 @@ export function CustomersView() {
     setEmail(row.email ?? "");
     setNotes(row.notes ?? "");
     setStatus(row.status);
+    setCreditLimit(row.creditLimit == null ? "" : String(row.creditLimit));
+    setGroupId(row.customerGroupId ?? NO_GROUP);
     setFormOpen(true);
+  }
+
+  /** Terms are manager-only; cashiers never send them so an edit cannot clear them. */
+  function customerTerms(): { creditLimit?: number | null; customerGroupId?: string | null } {
+    if (!canSetTerms) return {};
+    const terms: { creditLimit?: number | null; customerGroupId?: string | null } = {};
+    if (creditOn) {
+      const parsed = creditLimit.trim() === "" ? null : Number(creditLimit);
+      if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0)) {
+        throw new Error("Enter a credit limit of zero or more, or leave it blank for no limit");
+      }
+      terms.creditLimit = parsed;
+    }
+    if (pricingOn) terms.customerGroupId = groupId === NO_GROUP ? null : groupId;
+    return terms;
   }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setPending(true);
     try {
+      const terms = customerTerms();
+      const remoteTerms = {
+        ...(terms.creditLimit !== undefined ? { creditLimit: terms.creditLimit } : {}),
+        ...(terms.customerGroupId !== undefined
+          ? { customerGroupId: terms.customerGroupId as Id<"customerGroups"> | null }
+          : {}),
+      };
       const kind = await persistBusinessWrite({
         online,
         remote: async () => {
@@ -132,6 +171,7 @@ export function CustomersView() {
               email: email || undefined,
               notes: notes || undefined,
               status,
+              ...remoteTerms,
             });
           } else {
             await createCustomer({
@@ -139,6 +179,7 @@ export function CustomersView() {
               phone: phone || undefined,
               email: email || undefined,
               notes: notes || undefined,
+              ...remoteTerms,
             });
           }
         },
@@ -150,6 +191,7 @@ export function CustomersView() {
             email: email || undefined,
             notes: notes || undefined,
             status,
+            ...terms,
           }),
       });
       toast.success(queuedSaveMessage(kind, editingId ? "Customer updated" : "Customer created"));
@@ -341,6 +383,8 @@ export function CustomersView() {
         </CardContent>
       </Card>
 
+      {canSetTerms && pricingOn ? <PriceListsPanel /> : null}
+
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent>
           <DialogHeader>
@@ -378,6 +422,44 @@ export function CustomersView() {
                 rows={3}
               />
             </div>
+            {canSetTerms && creditOn ? (
+              <div className="space-y-2">
+                <Label htmlFor="customer-credit-limit">Credit limit (GHS)</Label>
+                <Input
+                  id="customer-credit-limit"
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step="0.01"
+                  value={creditLimit}
+                  placeholder="No limit"
+                  onChange={(e) => setCreditLimit(e.target.value)}
+                />
+                <p className="text-muted-foreground text-xs">
+                  The most this customer can owe on account. Leave blank for no limit.
+                </p>
+              </div>
+            ) : null}
+            {canSetTerms && pricingOn ? (
+              <div className="space-y-2">
+                <Label>Price list group</Label>
+                <Select value={groupId} onValueChange={setGroupId}>
+                  <SelectTrigger aria-label="Price list group">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_GROUP}>Standard prices</SelectItem>
+                    {(groups ?? [])
+                      .filter((group) => group.status === "active")
+                      .map((group) => (
+                        <SelectItem key={group.id} value={group.id}>
+                          {group.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             {editingId && isAdmin ? (
               <div className="space-y-2">
                 <Label>Status</Label>

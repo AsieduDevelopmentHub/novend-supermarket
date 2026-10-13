@@ -43,7 +43,7 @@ import {
 } from "@/lib/offline/replica-writes";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
-import { PAYMENT_METHOD_OPTIONS, paymentMethodLabel, type PaymentMethod } from "@/lib/payments";
+import { SETTLEMENT_METHOD_OPTIONS, paymentMethodLabel, type SettlementMethod } from "@/lib/payments";
 import { paymentStatusLabel } from "@/convex/shared/supplierFinance";
 import { RecordPurchaseDialog } from "@/features/wholesale/components/record-purchase-dialog";
 import { showError } from "@/lib/errors";
@@ -100,7 +100,7 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<PaymentMethod>("cash");
+  const [method, setMethod] = useState<SettlementMethod>("cash");
   const [purchaseId, setPurchaseId] = useState("");
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
@@ -464,9 +464,9 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
                 <select
                   className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
                   value={method}
-                  onChange={(event) => setMethod(event.target.value as PaymentMethod)}
+                  onChange={(event) => setMethod(event.target.value as SettlementMethod)}
                 >
-                  {PAYMENT_METHOD_OPTIONS.map((option) => (
+                  {SETTLEMENT_METHOD_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>

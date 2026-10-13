@@ -12,6 +12,8 @@ import { presenceFromLastSeenAt } from "./shared/presence";
 import { loadTourProgressForUser } from "./shared/tourProgress";
 import { hasBusinessCapability } from "./shared/businessCapabilities";
 import { purchaseBalance } from "./shared/supplierFinance";
+import { loadPaymentsBySale } from "./shared/salePaymentLoader";
+import { roundMoney } from "./shared/validation";
 
 /**
  * Compact catalog snapshot for Dexie offline mirror.
@@ -206,6 +208,7 @@ export const getSnapshot = query({
       }
     }
 
+    const paymentsBySale = await loadPaymentsBySale(ctx, orderSales.slice(0, 200));
     const mirroredOrders = orderSales.slice(0, 200).map((sale) => ({
       id: sale._id as string,
       invoiceNumber: sale.invoiceNumber,
@@ -218,7 +221,8 @@ export const getSnapshot = query({
       discount: sale.discount,
       total: sale.total,
       refundedAmount: refundedBySale.get(sale._id) ?? 0,
-      paymentMethod: sale.paymentMethod as "cash" | "card" | "mobile_money",
+      paymentMethod: sale.paymentMethod,
+      payments: paymentsBySale.get(sale._id),
       status: sale.status,
       completedAt: sale.completedAt,
       branchId: (sale.branchId as string | undefined) ?? null,
@@ -248,6 +252,19 @@ export const getSnapshot = query({
 
     // Purchase stats from the recent window (same window as mirrored orders).
     const completedInWindow = recentSales.filter((s) => s.status === "completed");
+    const businessCapabilities = await loadBusinessConfiguration(ctx, profile.organizationId);
+    const creditOn = hasBusinessCapability(businessCapabilities, "customer_credit");
+    const pricingOn = hasBusinessCapability(businessCapabilities, "customer_pricing");
+    const ledgerRows = creditOn
+      ? await ctx.db
+          .query("customerLedgerEntries")
+          .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+          .collect()
+      : [];
+    const balanceByCustomer = new Map<string, number>();
+    for (const row of ledgerRows) {
+      balanceByCustomer.set(row.customerId, (balanceByCustomer.get(row.customerId) ?? 0) + row.amount);
+    }
     const customers = activeCustomers.map((c) => {
       const customerSales = completedInWindow
         .filter((s) => s.customerId === c._id)
@@ -264,13 +281,57 @@ export const getSnapshot = query({
         lastPurchaseAt: last?.completedAt ?? null,
         lastPurchaseTotal: last?.total ?? null,
         lastInvoiceNumber: last?.invoiceNumber ?? null,
+        creditLimit: c.creditLimit ?? null,
+        customerGroupId: (c.customerGroupId as string | undefined) ?? null,
+        balance: roundMoney(balanceByCustomer.get(c._id) ?? 0),
         updatedAt: now,
       };
     });
+    const canSeeLedger = profile.role === "administrator" || profile.role === "manager";
+    const customerLedger = canSeeLedger
+      ? [...ledgerRows]
+          .sort((a, b) => b.occurredAt - a.occurredAt)
+          .slice(0, 1000)
+          .map((row) => ({
+            id: row._id as string,
+            customerId: row.customerId as string,
+            type: row.type,
+            amount: row.amount,
+            saleId: (row.saleId as string | undefined) ?? null,
+            returnId: (row.returnId as string | undefined) ?? null,
+            method: row.method ?? null,
+            note: row.note ?? null,
+            occurredAt: row.occurredAt,
+          }))
+      : [];
+    const customerGroups = pricingOn
+      ? (
+          await ctx.db
+            .query("customerGroups")
+            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+            .collect()
+        ).map((g) => ({ id: g._id as string, name: g.name, status: g.status }))
+      : [];
+    const priceListRules = pricingOn
+      ? (
+          await ctx.db
+            .query("priceListRules")
+            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+            .collect()
+        ).map((r) => ({
+          id: r._id as string,
+          productId: (r.productId as string | undefined) ?? null,
+          categoryId: (r.categoryId as string | undefined) ?? null,
+          groupId: (r.groupId as string | undefined) ?? null,
+          minBaseQty: r.minBaseQty,
+          unitPrice: r.unitPrice,
+          priority: r.priority,
+          active: r.active,
+        }))
+      : [];
 
     const print = await loadPrintSnapshot(ctx, profile.organizationId, branchId);
     const { business, template } = print;
-    const businessCapabilities = await loadBusinessConfiguration(ctx, profile.organizationId);
     const businessTerminology = await loadResolvedBusinessTerms(
       ctx,
       profile.organizationId,
@@ -887,6 +948,25 @@ export const getSnapshot = query({
       }));
     }
 
+    // Warehouse lots (dated products) so FEFO receive / issue works offline.
+    const wholesaleLots = canManage
+      ? (
+          await ctx.db
+            .query("wholesaleLots")
+            .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+            .collect()
+        )
+          .filter((lot) => lot.quantity > 0)
+          .map((lot) => ({
+            id: lot._id as string,
+            productId: lot.productId as string,
+            quantity: lot.quantity,
+            expiryDate: lot.expiryDate,
+            receivedAt: lot.receivedAt,
+            lotCode: lot.lotCode ?? lot.expiryDate,
+          }))
+      : [];
+
     const returnRows = await ctx.db
       .query("saleReturns")
       .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
@@ -961,6 +1041,10 @@ export const getSnapshot = query({
         isActive: c.isActive,
       })),
       customers,
+      customerLedger,
+      customerGroups,
+      priceListRules,
+      wholesaleLots,
       orders: mirroredOrders,
       orderItems,
       suppliers,

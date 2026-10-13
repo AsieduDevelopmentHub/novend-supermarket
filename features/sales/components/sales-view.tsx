@@ -21,7 +21,9 @@ import {
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { formatCurrency, roundMoney } from "@/lib/currency";
-import { PAYMENT_METHOD_OPTIONS, type PaymentMethod } from "@/lib/payments";
+import type { PaymentMethod } from "@/lib/payments";
+import { evaluateSplitTender, type SplitTenderDraft } from "@/lib/sales/split-tender";
+import { PaymentTenderSelector } from "./payment-tender-selector";
 import { Minus, Plus, ScanBarcode, ShoppingCart, Trash2, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
@@ -40,6 +42,7 @@ import {
   useSalesCustomerSearch,
   catalogAvailableQuantity,
   resolveCatalogAvailable,
+  type CatalogProduct,
   type CatalogStockHint,
 } from "@/hooks/use-offline-catalog";
 import { useBranchesList } from "@/hooks/use-offline-lists";
@@ -76,12 +79,16 @@ import {
   BarcodeMatchDialog,
   type BarcodeMatchProduct,
 } from "@/features/sales/components/barcode-match-dialog";
+import { SellUnitPickerDialog } from "@/features/sales/components/sell-unit-picker-dialog";
 import { DraggableCartFab } from "@/features/sales/components/draggable-cart-fab";
 import {
   SalesProductCatalog,
   SalesProductDisplayControls,
 } from "@/features/sales/components/sales-product-catalog";
 import { HeldSalesPanel } from "@/features/sales/components/held-sales-panel";
+import { resolveBarcodeMatch } from "@/lib/offline/barcode-lookup";
+import { resolveCartLineUnitPrice } from "@/lib/sales/cart-pricing";
+import type { ResolvedSellUnit } from "@/convex/shared/units";
 import {
   readCartDraft,
   writeCartDraft,
@@ -104,8 +111,25 @@ type CartItem = {
   discount: number;
   sellUnitKey?: string;
   sellUnitLabel?: string;
+  /** Base units per displayed sell unit (1 for piece). */
+  factorToBase?: number;
   /** When true, quantity may be fractional (weight). */
   allowFractional?: boolean;
+};
+
+type PendingSellUnitPick = {
+  product: {
+    id: string;
+    name: string;
+    sellingPrice: number;
+    stockQuantity: number;
+    tracksInventory?: boolean;
+    unit?: string;
+    costPrice?: number;
+    sellUnits?: CatalogProduct["sellUnits"];
+    pricingMode?: CatalogProduct["pricingMode"];
+  };
+  units: ResolvedSellUnit[];
 };
 
 type SelectedCustomer = {
@@ -137,12 +161,15 @@ export function SalesView() {
   const { terms } = useBusinessTerms();
   const multiUnitOn = hasCapability("multi_unit_pricing");
   const weightOn = hasCapability("sell_by_weight");
+  const pricingOn = hasCapability("customer_pricing");
   const nativeShell = useNativeShell();
   const isDesktop = useDesktopRuntime();
   const [search, setSearch] = useState("");
   const persistedBranchId = usePersistedSalesBranchId(userId, isAdmin);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customer, setCustomer] = useState<SelectedCustomer>(null);
+  const customerRef = useRef(customer);
+  customerRef.current = customer;
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickName, setQuickName] = useState("");
   const [quickPhone, setQuickPhone] = useState("");
@@ -156,6 +183,8 @@ export function SalesView() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [paying, setPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [splitDrafts, setSplitDrafts] = useState<SplitTenderDraft[] | null>(null);
+  const allowOnAccount = hasCapability("customer_credit") && Boolean(customer?.id);
   const payingRef = useRef(false);
   const [holding, setHolding] = useState(false);
   const holdingRef = useRef(false);
@@ -169,6 +198,7 @@ export function SalesView() {
     code: string;
     products: BarcodeMatchProduct[];
   } | null>(null);
+  const [sellUnitPick, setSellUnitPick] = useState<PendingSellUnitPick | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const showCameraScan = shouldShowCameraBarcodeButton();
   const [hydratedCartScope, setHydratedCartScope] = useState<string | null>(null);
@@ -283,7 +313,14 @@ export function SalesView() {
   const discountExceedsSubtotal =
     discountMode === "percent" ? discountField - 100 > 0.001 : cartDiscount - subtotal > 0.001;
   const total = discountExceedsSubtotal ? 0 : Math.max(0, subtotal - cartDiscount);
-  const canCheckout = cart.length > 0 && !discountExceedsSubtotal && access.canWrite;
+  const splitEvaluation = splitDrafts
+    ? evaluateSplitTender(splitDrafts, total, { allowOnAccount })
+    : null;
+  const canCheckout =
+    cart.length > 0 &&
+    !discountExceedsSubtotal &&
+    access.canWrite &&
+    (splitEvaluation === null || splitEvaluation.valid);
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const catalogImages = useMemo(() => {
@@ -419,25 +456,21 @@ export function SalesView() {
     return [...localRows, ...remoteRows].sort((a, b) => b.heldAt - a.heldAt);
   }, [localHeld, remoteHeld]);
 
-  function addToCart(product: {
-    id: string;
-    name: string;
-    sellingPrice: number;
-    stockQuantity: number;
-    tracksInventory?: boolean;
-    unit?: string;
-    costPrice?: number;
-    sellUnits?: Array<{
-      key: string;
-      label: string;
-      factorToBase: number;
-      barcode?: string;
-      sellingPrice?: number;
-      active: boolean;
-    }> | null;
-    pricingMode?: "fixed" | "per_weight" | null;
-    isExpiring?: boolean;
-  }) {
+  function addToCart(
+    product: {
+      id: string;
+      name: string;
+      sellingPrice: number;
+      stockQuantity: number;
+      tracksInventory?: boolean;
+      unit?: string;
+      costPrice?: number;
+      sellUnits?: CatalogProduct["sellUnits"];
+      pricingMode?: CatalogProduct["pricingMode"];
+      isExpiring?: boolean;
+    },
+    options?: { sellUnitKey?: string; skipUnitPicker?: boolean },
+  ) {
     rememberStockHint(product);
     const available = catalogAvailableQuantity(product);
     if (available <= 0) {
@@ -451,7 +484,16 @@ export function SalesView() {
       sellUnits: multiUnitOn || weightOn ? product.sellUnits : null,
       pricingMode: weightOn ? product.pricingMode : "fixed",
     });
-    const unit = units[0]!;
+
+    let unit = units[0]!;
+    if (options?.sellUnitKey) {
+      const matched = units.find((row) => row.key === options.sellUnitKey);
+      if (matched) unit = matched;
+    } else if (!options?.skipUnitPicker && multiUnitOn && units.length > 1) {
+      setSellUnitPick({ product, units });
+      return;
+    }
+
     const allowFractional = weightOn && unit.pricingMode === "per_weight";
     const step = allowFractional ? 0.001 : 1;
     const existing = cart.find(
@@ -467,51 +509,93 @@ export function SalesView() {
         return;
       }
     }
-    setCart((prev) => {
-      const current = prev.find(
-        (item) => item.productId === product.id && (item.sellUnitKey ?? "default") === unit.key,
-      );
-      if (current) {
-        const nextQty = roundQuantity(current.quantity + step);
-        const baseNeeded = roundQuantity(nextQty * unit.factorToBase);
-        if (baseNeeded > available) return prev;
-        return prev.map((item) =>
-          item.productId === product.id && (item.sellUnitKey ?? "default") === unit.key
-            ? { ...item, quantity: nextQty }
-            : item,
+
+    void (async () => {
+      const nextQty = existing ? roundQuantity(existing.quantity + step) : 1;
+      const unitPrice = await resolveCartLineUnitPrice({
+        productId: product.id,
+        sellUnit: unit,
+        displayedQuantity: nextQty,
+        customerId: customerRef.current?.id,
+        pricingEnabled: pricingOn,
+      });
+      setCart((prev) => {
+        const current = prev.find(
+          (item) => item.productId === product.id && (item.sellUnitKey ?? "default") === unit.key,
         );
-      }
-      return [
-        ...prev,
-        {
-          productId: product.id,
-          name: product.name,
-          unitPrice: unit.unitPrice,
-          quantity: 1,
-          discount: 0,
-          sellUnitKey: unit.key,
-          sellUnitLabel: unit.label,
-          allowFractional,
-        },
-      ];
-    });
-    // Same confirmation as barcode scan — manual taps must be audible on the till.
-    playScanSuccessBeep();
+        if (current) {
+          const qty = roundQuantity(current.quantity + step);
+          const baseNeeded = roundQuantity(qty * unit.factorToBase);
+          if (baseNeeded > available) return prev;
+          return prev.map((item) =>
+            item.productId === product.id && (item.sellUnitKey ?? "default") === unit.key
+              ? { ...item, quantity: qty, unitPrice }
+              : item,
+          );
+        }
+        return [
+          ...prev,
+          {
+            productId: product.id,
+            name: product.name,
+            unitPrice,
+            quantity: 1,
+            discount: 0,
+            sellUnitKey: unit.key,
+            sellUnitLabel: unit.label,
+            factorToBase: unit.factorToBase,
+            allowFractional,
+          },
+        ];
+      });
+      playScanSuccessBeep();
+    })();
   }
 
-  function addScannedProduct(product: {
-    id: string;
-    name: string;
-    sellingPrice: number;
-    stockQuantity: number;
-    tracksInventory?: boolean;
-  }) {
+  /** Reprice open cart lines when the buyer (and their price-list group) changes. */
+  function repriceCartForCustomer(nextCustomer: SelectedCustomer) {
+    if (!pricingOn || cart.length === 0) return;
+    void (async () => {
+      const next = await Promise.all(
+        cart.map(async (item) => {
+          const product = catalog.find((row) => row.id === item.productId);
+          const units = listActiveSellUnits({
+            unit: product?.unit ?? item.sellUnitLabel ?? "unit",
+            sellingPrice: product?.sellingPrice ?? item.unitPrice,
+            costPrice: 0,
+            sellUnits: multiUnitOn || weightOn ? product?.sellUnits : null,
+            pricingMode: weightOn ? product?.pricingMode : "fixed",
+          });
+          const unit =
+            units.find((row) => row.key === (item.sellUnitKey ?? "default")) ?? units[0]!;
+          const unitPrice = await resolveCartLineUnitPrice({
+            productId: item.productId,
+            sellUnit: unit,
+            displayedQuantity: item.quantity,
+            customerId: nextCustomer?.id,
+            pricingEnabled: pricingOn,
+          });
+          return { ...item, unitPrice };
+        }),
+      );
+      setCart(next);
+    })();
+  }
+
+  function addScannedProduct(product: BarcodeMatchProduct) {
     if (catalogAvailableQuantity(product) <= 0) {
       toast.error(`Not enough stock for ${product.name}`);
       return;
     }
-    addToCart(product);
-    toast.success(`Added ${product.name}`);
+    addToCart(product, {
+      sellUnitKey: product.matchedSellUnitKey,
+      skipUnitPicker: Boolean(product.matchedSellUnitKey),
+    });
+    toast.success(
+      product.matchedSellUnitKey
+        ? `Added ${product.name}`
+        : `Added ${product.name}`,
+    );
   }
 
   function handleBarcodeScan(code: string) {
@@ -520,11 +604,25 @@ export function SalesView() {
         code,
         workingBranchId ?? myBranchId ?? undefined,
       );
-      const catalogMatches = catalog.filter(
-        (p) =>
-          p.sku.toLowerCase() === code.trim().toLowerCase() ||
-          (p.barcode?.trim().toLowerCase() ?? "") === code.trim().toLowerCase(),
-      );
+      const catalogMatches = catalog
+        .flatMap((p): BarcodeMatchProduct[] => {
+          const match = resolveBarcodeMatch(p, code);
+          if (!match) return [];
+          return [{
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+            sellingPrice: p.sellingPrice,
+            stockQuantity: p.stockQuantity,
+            tracksInventory: p.tracksInventory,
+            imageUrl: p.imageUrl,
+            costPrice: undefined as number | undefined,
+            unit: p.unit,
+            sellUnits: p.sellUnits,
+            pricingMode: p.pricingMode,
+            matchedSellUnitKey: match.sellUnitKey,
+          }];
+        });
       const byId = new Map<string, BarcodeMatchProduct>();
       for (const product of [...localMatches, ...catalogMatches]) {
         byId.set(product.id, {
@@ -533,8 +631,14 @@ export function SalesView() {
           sku: product.sku,
           sellingPrice: product.sellingPrice,
           stockQuantity: product.stockQuantity,
-          tracksInventory: "tracksInventory" in product ? product.tracksInventory : undefined,
+          tracksInventory: product.tracksInventory,
           imageUrl: product.imageUrl,
+          costPrice: "costPrice" in product ? product.costPrice : undefined,
+          unit: "unit" in product ? product.unit : undefined,
+          sellUnits: "sellUnits" in product ? product.sellUnits : undefined,
+          pricingMode: "pricingMode" in product ? product.pricingMode : undefined,
+          matchedSellUnitKey:
+            "matchedSellUnitKey" in product ? product.matchedSellUnitKey : undefined,
         });
       }
       const matches = [...byId.values()];
@@ -555,14 +659,24 @@ export function SalesView() {
     allowInInputs: true,
   });
 
-  function setCartQuantity(productId: string, raw: string) {
-    setQtyDrafts((prev) => ({ ...prev, [productId]: raw }));
+  function cartLineKey(productId: string, sellUnitKey?: string) {
+    return `${productId}:${sellUnitKey ?? "default"}`;
   }
 
-  function commitCartQuantity(productId: string) {
-    const draft = qtyDrafts[productId];
-    const stock = availableFor(productId);
-    const current = cart.find((row) => row.productId === productId)?.quantity ?? 1;
+  function setCartQuantity(lineKey: string, raw: string) {
+    setQtyDrafts((prev) => ({ ...prev, [lineKey]: raw }));
+  }
+
+  function commitCartQuantity(lineKey: string) {
+    const draft = qtyDrafts[lineKey];
+    const [productId, sellUnitKey = "default"] = lineKey.split(":");
+    const line = cart.find(
+      (row) =>
+        row.productId === productId && (row.sellUnitKey ?? "default") === sellUnitKey,
+    );
+    const stock = availableFor(productId!);
+    const factor = line?.factorToBase ?? 1;
+    const current = line?.quantity ?? 1;
 
     if (draft === undefined) return;
 
@@ -570,7 +684,7 @@ export function SalesView() {
     if (trimmed === "") {
       setQtyDrafts((prev) => {
         const next = { ...prev };
-        delete next[productId];
+        delete next[lineKey];
         return next;
       });
       return;
@@ -581,25 +695,34 @@ export function SalesView() {
       toast.error("Enter a quantity of at least 1");
       setQtyDrafts((prev) => {
         const next = { ...prev };
-        delete next[productId];
+        delete next[lineKey];
         return next;
       });
       setCart((prev) =>
-        prev.map((row) => (row.productId === productId ? { ...row, quantity: current } : row)),
+        prev.map((row) =>
+          row.productId === productId && (row.sellUnitKey ?? "default") === sellUnitKey
+            ? { ...row, quantity: current }
+            : row,
+        ),
       );
       return;
     }
 
-    const quantity = Number.isFinite(stock) ? Math.min(parsed, stock) : parsed;
-    if (Number.isFinite(stock) && parsed > stock) {
-      toast.error(`Not enough stock. Available: ${stock}.`);
+    const maxDisplay = Number.isFinite(stock) ? Math.floor(stock / factor) : parsed;
+    const quantity = Number.isFinite(stock) ? Math.min(parsed, maxDisplay) : parsed;
+    if (Number.isFinite(stock) && parsed > maxDisplay) {
+      toast.error(`Not enough stock. Available: ${maxDisplay} ${line?.sellUnitLabel ?? "units"}.`);
     }
     setCart((prev) =>
-      prev.map((row) => (row.productId === productId ? { ...row, quantity } : row)),
+      prev.map((row) =>
+        row.productId === productId && (row.sellUnitKey ?? "default") === sellUnitKey
+          ? { ...row, quantity }
+          : row,
+      ),
     );
     setQtyDrafts((prev) => {
       const next = { ...prev };
-      delete next[productId];
+      delete next[lineKey];
       return next;
     });
   }
@@ -749,6 +872,13 @@ export function SalesView() {
     setPreviewOpen(true);
   }
 
+  function clearCustomer() {
+    setCustomer(null);
+    repriceCartForCustomer(null);
+    // On account needs a customer, so drop it from whichever tender mode is active.
+    if (paymentMethod === "on_account") setPaymentMethod("cash");
+  }
+
   async function onPay() {
     if (!access.canWrite) {
       toast.error(access.reason ?? "This business cannot record new activity right now.");
@@ -791,6 +921,7 @@ export function SalesView() {
         items: cart,
         discount: cartDiscount,
         paymentMethod,
+        payments: splitEvaluation?.payments,
         customerId: customer?.id,
         customerName: customer?.name,
         customerPhone: customer?.phone,
@@ -801,6 +932,7 @@ export function SalesView() {
       setCustomer(null);
       setCustomerQuery("");
       setPaymentMethod("cash");
+      setSplitDrafts(null);
       setCheckoutOpen(false);
       await refreshLocal();
       notifyReplicaChanged({ flush: true });
@@ -1032,11 +1164,12 @@ export function SalesView() {
               holding={holding}
               lastReceipt={lastReceipt}
               onQuickCreate={() => setQuickOpen(true)}
-              onClearCustomer={() => setCustomer(null)}
+              onClearCustomer={clearCustomer}
               onCustomerQuery={setCustomerQuery}
               onSelectCustomer={(hit) => {
                 setCustomer(hit);
                 setCustomerQuery("");
+                repriceCartForCustomer(hit);
               }}
               onSetCart={setCart}
               onSetCartQuantity={setCartQuantity}
@@ -1045,6 +1178,9 @@ export function SalesView() {
               onDiscountField={setDiscountField}
               paymentMethod={paymentMethod}
               onPaymentMethod={setPaymentMethod}
+              splitDrafts={splitDrafts}
+              onSplitDrafts={setSplitDrafts}
+              allowOnAccount={allowOnAccount}
               onHold={() => void onHold()}
               onPay={() => void onPay()}
               onReprint={openLastReceipt}
@@ -1104,11 +1240,12 @@ export function SalesView() {
               lastReceipt={lastReceipt}
               pinActions
               onQuickCreate={() => setQuickOpen(true)}
-              onClearCustomer={() => setCustomer(null)}
+              onClearCustomer={clearCustomer}
               onCustomerQuery={setCustomerQuery}
               onSelectCustomer={(hit) => {
                 setCustomer(hit);
                 setCustomerQuery("");
+                repriceCartForCustomer(hit);
               }}
               onSetCart={setCart}
               onSetCartQuantity={setCartQuantity}
@@ -1117,6 +1254,9 @@ export function SalesView() {
               onDiscountField={setDiscountField}
               paymentMethod={paymentMethod}
               onPaymentMethod={setPaymentMethod}
+              splitDrafts={splitDrafts}
+              onSplitDrafts={setSplitDrafts}
+              allowOnAccount={allowOnAccount}
               onHold={() => void onHold()}
               onPay={() => void onPay()}
               onReprint={openLastReceipt}
@@ -1151,6 +1291,27 @@ export function SalesView() {
         onSelect={(product) => {
           setBarcodeMatches(null);
           addScannedProduct(product);
+        }}
+      />
+      <SellUnitPickerDialog
+        open={sellUnitPick != null}
+        product={
+          sellUnitPick
+            ? {
+                id: sellUnitPick.product.id,
+                name: sellUnitPick.product.name,
+                stockQuantity: sellUnitPick.product.stockQuantity,
+                tracksInventory: sellUnitPick.product.tracksInventory,
+              }
+            : null
+        }
+        units={sellUnitPick?.units ?? []}
+        onCancel={() => setSellUnitPick(null)}
+        onSelect={(unitKey) => {
+          const pending = sellUnitPick;
+          setSellUnitPick(null);
+          if (!pending) return;
+          addToCart(pending.product, { sellUnitKey: unitKey, skipUnitPicker: true });
         }}
       />
       <ScanBarcodeCameraDialog
@@ -1230,12 +1391,15 @@ type SalesCheckoutFieldsProps = {
   onCustomerQuery: (value: string) => void;
   onSelectCustomer: (hit: CheckoutCustomerHit) => void;
   onSetCart: Dispatch<SetStateAction<CartItem[]>>;
-  onSetCartQuantity: (productId: string, raw: string) => void;
-  onCommitCartQuantity: (productId: string) => void;
+  onSetCartQuantity: (lineKey: string, raw: string) => void;
+  onCommitCartQuantity: (lineKey: string) => void;
   onDiscountMode: (mode: DiscountMode) => void;
   onDiscountField: (value: number) => void;
   paymentMethod: PaymentMethod;
   onPaymentMethod: (method: PaymentMethod) => void;
+  splitDrafts: SplitTenderDraft[] | null;
+  onSplitDrafts: (drafts: SplitTenderDraft[] | null) => void;
+  allowOnAccount: boolean;
   onHold: () => void;
   onPay: () => void;
   onReprint: () => void;
@@ -1271,6 +1435,9 @@ function SalesCheckoutFields({
   onCommitCartQuantity,
   paymentMethod,
   onPaymentMethod,
+  splitDrafts,
+  onSplitDrafts,
+  allowOnAccount,
   onDiscountMode,
   onDiscountField,
   onHold,
@@ -1418,9 +1585,9 @@ function SalesCheckoutFields({
                   <UnsignedQuantityInput
                     aria-label={`Quantity for ${item.name}`}
                     className="h-7 w-14 px-1 text-center text-sm"
-                    value={qtyDrafts[item.productId] ?? String(item.quantity)}
-                    onValueChange={(next) => onSetCartQuantity(item.productId, next)}
-                    onBlur={() => onCommitCartQuantity(item.productId)}
+                    value={qtyDrafts[lineKey] ?? String(item.quantity)}
+                    onValueChange={(next) => onSetCartQuantity(lineKey, next)}
+                    onBlur={() => onCommitCartQuantity(lineKey)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.currentTarget.blur();
@@ -1435,11 +1602,12 @@ function SalesCheckoutFields({
                     aria-label={`Increase ${item.name}`}
                     onClick={() => {
                       const stock = resolveCatalogAvailable(item.productId, catalog, stockHints);
-                      if (item.quantity + 1 > stock) {
+                      const factor = item.factorToBase ?? 1;
+                      const nextQty = item.quantity + 1;
+                      const baseNeeded = nextQty * factor;
+                      if (Number.isFinite(stock) && baseNeeded > stock) {
                         toast.error(
-                          Number.isFinite(stock)
-                            ? `Not enough stock. Available: ${stock}.`
-                            : "Not enough stock",
+                          `Not enough stock. Available: ${Math.floor(stock / factor)} ${item.sellUnitLabel ?? "units"}.`,
                         );
                         return;
                       }
@@ -1541,30 +1709,14 @@ function SalesCheckoutFields({
             </p>
           ) : null}
         </div>
-        <div className="space-y-1.5">
-          <span className="text-muted-foreground text-sm">Payment</span>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Payment method">
-            {PAYMENT_METHOD_OPTIONS.map((option) => {
-              const selected = paymentMethod === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  aria-pressed={selected}
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                    selected
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={() => onPaymentMethod(option.value)}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <PaymentTenderSelector
+          total={total}
+          paymentMethod={paymentMethod}
+          onPaymentMethod={onPaymentMethod}
+          splitDrafts={splitDrafts}
+          onSplitDrafts={onSplitDrafts}
+          allowOnAccount={allowOnAccount}
+        />
         <div className="flex justify-between text-base font-semibold">
           <span>Total</span>
           <span className="text-primary">{formatCurrency(total)}</span>

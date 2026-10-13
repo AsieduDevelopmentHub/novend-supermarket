@@ -28,6 +28,9 @@ const OP_LABELS: Record<OutboxOpType, string> = {
   update_lot_expiry: "Lot expiry",
   transfer_stock: "Stock transfer",
   upsert_customer: "Customer",
+  upsert_customer_group: "Customer group",
+  upsert_price_rule: "Price rule",
+  record_customer_payment: "Customer payment",
   create_expense: "Expense",
   remove_expense: "Remove expense",
   update_profile: "Profile",
@@ -72,6 +75,35 @@ function number(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+/** "cash" for a single tender; "cash + on account" when the sale was split. */
+function saleTenderSummary(payload: Record<string, unknown>): string | null {
+  const lines = Array.isArray(payload.payments) ? payload.payments : [];
+  const methods = lines
+    .map((line) =>
+      line && typeof line === "object" ? text((line as { method?: unknown }).method) : null,
+    )
+    .filter((method): method is string => method !== null);
+  if (methods.length > 1) return methods.map((method) => method.replace(/_/g, " ")).join(" + ");
+  return text(payload.paymentMethod)?.replace(/_/g, " ") ?? null;
+}
+
+export type CreditConflictKind = "credit_limit" | "credit_disabled" | "customer_required";
+
+/** Receivable rejections need a manager decision, not a generic "sale rejected". */
+export function classifyCreditConflict(message: string): CreditConflictKind | null {
+  const lower = message.toLowerCase();
+  if (lower.includes("credit limit")) return "credit_limit";
+  if (lower.includes("customer credit is not enabled")) return "credit_disabled";
+  if (lower.includes("choose a customer to sell on account")) return "customer_required";
+  return null;
+}
+
+const CREDIT_CONFLICT_HEADLINES: Record<CreditConflictKind, string> = {
+  credit_limit: "Credit limit exceeded",
+  credit_disabled: "Customer credit is not enabled",
+  customer_required: "Choose a customer to sell on account",
+};
+
 const STOCK_REASON_LABELS: Record<string, string> = {
   receive: "Receive stock",
   adjustment: "Count adjustment",
@@ -99,7 +131,7 @@ export function describeOutboxEvent(row: OutboxRow): { title: string; detail: st
 
   if (row.type === "complete_sale") {
     const customer = text(payload.customerName);
-    const method = text(payload.paymentMethod)?.replace(/_/g, " ");
+    const method = saleTenderSummary(payload);
     const invoice = text(payload.invoiceNumber);
     return {
       title,
@@ -113,9 +145,23 @@ export function describeOutboxEvent(row: OutboxRow): { title: string; detail: st
       detail: text(payload.returnNumber) ?? text(payload.reason) ?? "Return waiting to upload",
     };
   }
+  if (row.type === "record_customer_payment") {
+    const amount = number(payload.amount);
+    return {
+      title,
+      detail:
+        [
+          amount === null ? null : `GHS ${amount.toFixed(2)}`,
+          text(payload.method)?.replace(/_/g, " "),
+        ]
+          .filter(Boolean)
+          .join(" · ") || "Customer payment waiting to upload",
+    };
+  }
   if (
     row.type === "upsert_supplier" ||
     row.type === "upsert_customer" ||
+    row.type === "upsert_customer_group" ||
     row.type === "upsert_product"
   ) {
     const name = text(payload.name);
@@ -323,6 +369,16 @@ export function describeOutboxConflict(
       explanation: stockConflictExplanation(message, payload),
       permanent: true,
       canPostShortage: true,
+    };
+  }
+
+  const creditConflict = row.type === "complete_sale" ? classifyCreditConflict(message) : null;
+  if (creditConflict) {
+    return {
+      kind: "business",
+      headline: CREDIT_CONFLICT_HEADLINES[creditConflict],
+      explanation: `${base.detail}. ${message} The goods already left the till on account. A manager should raise the customer's limit or record a payment, then retry; otherwise discard and re-ring the sale with another tender.`,
+      permanent: true,
     };
   }
 

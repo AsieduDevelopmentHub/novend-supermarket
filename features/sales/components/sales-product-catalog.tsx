@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/select";
 import type { CatalogProduct } from "@/hooks/use-offline-catalog";
 import { formatCurrency } from "@/lib/currency";
+import { listActiveSellUnits } from "@/convex/shared/units";
+import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import {
   productDisplayContainerClass,
   productDisplayGridTemplate,
@@ -175,12 +177,31 @@ function SalesProductTile({
 }) {
   const isList = display.mode === "list";
   const isIcons = display.mode === "icons";
+  const { hasCapability } = useBusinessCapabilities();
+  const multiUnitOn = hasCapability("multi_unit_pricing");
+  const activeUnits =
+    multiUnitOn && product.sellUnits?.length
+      ? listActiveSellUnits({
+          unit: product.unit,
+          sellingPrice: product.sellingPrice,
+          costPrice: 0,
+          sellUnits: product.sellUnits,
+          pricingMode: product.pricingMode,
+        })
+      : [];
+  const unitHint =
+    activeUnits.length > 1 ? `${activeUnits.length} units` : product.unit;
 
   return (
     <button
       type="button"
       onClick={() => onAddToCart(product)}
       className={productDisplayTileClass(display)}
+      aria-label={
+        activeUnits.length > 1
+          ? `${product.name}, choose sell unit`
+          : product.name
+      }
     >
       {isList ? (
         <>
@@ -199,8 +220,9 @@ function SalesProductTile({
             <p className="truncate text-sm font-medium">{product.name}</p>
             <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
               {product.tracksInventory === false
-                ? product.unit
+                ? unitHint
                 : `Stock ${product.stockQuantity} ${product.unit}`}
+              {activeUnits.length > 1 ? ` · ${activeUnits.length} sell units` : null}
               {product.isExpiring ? " · Expiring soon" : null}
             </p>
           </div>

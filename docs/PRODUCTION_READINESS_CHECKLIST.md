@@ -33,7 +33,8 @@ Related: `docs/architecture/NOVEND_AUDIT_GAPS_AND_FIXES.md`, `SECURITY.md`.
 | -------------------------------------------------- | ----------- | ---------------------------------------------- |
 | Convex schema migration plan for breaking changes  | DRAFT       | Document per-release; no automatic proof here. |
 | Backup / restore drill with RTO/RPO targets        | **BLOCKED** | Needs operational evidence.                    |
-| Tenant isolation adversarial tests against staging | **BLOCKED** | Needs live two-org suite (P1-4).               |
+| Tenant isolation adversarial tests against staging | **BLOCKED** | Needs live two-org suite (P1-4). Unit-level guards exist: `tests/idor-tenancy.test.ts`, `tests/idor-tenant-isolation.test.ts` (credit, price lists, wholesale). |
+| Customer credit ledger, split tenders, price lists | DONE (code) | Convex-enforced limit/capability/org checks; see `docs/business/CUSTOMERS_CREDIT_WORKFLOW.md`. Real-deployment concurrency evidence **BLOCKED**. |
 
 ## Tenancy & authorization
 
@@ -48,7 +49,8 @@ Related: `docs/architecture/NOVEND_AUDIT_GAPS_AND_FIXES.md`, `SECURITY.md`.
 | -------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------ |
 | Offline licence fail-safe (no phantom sales)             | DONE (code) / verify  | Confirm state-matrix tests stay green.                                   |
 | Sync conflict UX separates network vs business rejection | DONE (code) / partial | Sync center humanizes conflicts; manager review queue still open (UX-3). |
-| Concurrent stock / return stress tests                   | **BLOCKED**           | Needs staging harness (P1-4).                                            |
+| Concurrent stock / return stress tests                   | **BLOCKED**           | Needs staging harness (P1-4). Pure-rule tests (oversell, credit over-limit) in `tests/concurrent-stock-credit.test.ts` do not replace it. |
+| Credit, price-list and warehouse-lot offline replica     | DONE (code) / verify  | Dexie v15, snapshot, outbox ops, conflict labels covered by unit tests. Real-device offline run **BLOCKED**. |
 
 ## Billing
 

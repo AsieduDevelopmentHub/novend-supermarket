@@ -37,7 +37,8 @@ import { toast } from "sonner";
 
 const PROFILE_BLURBS: Record<IndustryProfile, string> = {
   retail: "Simple selling — Add Product stays lean.",
-  wholesale: "Pack and carton pricing on products and at checkout.",
+  wholesale:
+    "Pack/carton pricing at checkout, customer price lists, and on-account credit (Pro+).",
   supermarket: "Packs plus dated lots for perishable goods.",
   cold_store: "Weight selling, lots, and optional scale support.",
   electronics: "Serial / IMEI tracking for high-value items.",
@@ -51,6 +52,8 @@ const PROFILE_BLURBS: Record<IndustryProfile, string> = {
 /** Capabilities that change Add Product / sales UX — shown first. */
 const CATALOG_KEYS: BusinessCapabilityKey[] = [
   "multi_unit_pricing",
+  "customer_pricing",
+  "customer_credit",
   "sell_by_weight",
   "lot_expiry",
   "serial_tracking",
@@ -71,7 +74,11 @@ const OPS_DISABLE_SET = new Set<string>(OPS_CAPABILITY_DISABLE_WARNING_KEYS);
 function productFormHint(key: BusinessCapabilityKey): string | null {
   switch (key) {
     case "multi_unit_pricing":
-      return "Shows pack / carton units on Add Product";
+      return "Shows pack / carton units on Add Product and sell-unit picker at checkout";
+    case "customer_pricing":
+      return "Customer groups and quantity price rules (Customers → Price lists)";
+    case "customer_credit":
+      return "On-account tender, credit limits, and customer ledger payments";
     case "sell_by_weight":
       return "Shows weight / fractional pricing on Add Product";
     case "lot_expiry":

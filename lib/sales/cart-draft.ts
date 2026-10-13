@@ -6,6 +6,10 @@ export type CartDraftItem = {
   unitPrice: number;
   quantity: number;
   discount: number;
+  sellUnitKey?: string;
+  sellUnitLabel?: string;
+  factorToBase?: number;
+  allowFractional?: boolean;
 };
 
 export type CartDraftCustomer = {
@@ -31,13 +35,16 @@ export function cartDraftStorageKey(userId: string, branchId: string | null): st
 function isItem(value: unknown): value is CartDraftItem {
   if (!value || typeof value !== "object") return false;
   const row = value as CartDraftItem;
+  const qtyOk =
+    Number.isFinite(row.quantity) &&
+    row.quantity > 0 &&
+    (row.allowFractional === true || Number.isInteger(row.quantity));
   return (
     typeof row.productId === "string" &&
     row.productId.length > 0 &&
     typeof row.name === "string" &&
     Number.isFinite(row.unitPrice) &&
-    Number.isInteger(row.quantity) &&
-    row.quantity > 0 &&
+    qtyOk &&
     Number.isFinite(row.discount)
   );
 }

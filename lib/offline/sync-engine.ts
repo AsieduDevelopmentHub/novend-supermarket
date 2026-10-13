@@ -2,6 +2,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { toUserMessage } from "@/lib/errors";
 import { withTimeout } from "@/lib/async/with-timeout";
+import type { PaymentLine, PaymentMethod } from "@/lib/payments";
 import { mirrorServerSaleReceipt } from "./sales-repository";
 import {
   cleanupStaleOfflineRecords,
@@ -67,7 +68,10 @@ import type {
   TransferStockPayload,
   UpdateLotExpiryPayload,
   UpdateProfilePayload,
+  RecordCustomerPaymentPayload,
+  UpsertCustomerGroupPayload,
   UpsertCustomerPayload,
+  UpsertPriceRulePayload,
   UpsertProductPayload,
   UpsertStaffCompensationPayload,
   UpsertSupplierPayload,
@@ -85,16 +89,20 @@ const OUTBOX_DRAIN_PRIORITY: Partial<Record<OutboxOpType, number>> = {
   create_category: 0,
   upsert_supplier: 1,
   upsert_customer: 1,
+  upsert_customer_group: 1,
   upsert_branch: 1,
   create_user: 1,
   upsert_staff_compensation: 1,
   upsert_product: 2,
+  upsert_price_rule: 3,
   pay_salary: 3,
   pay_commission: 3,
   complete_sale: 4,
   record_wholesale_purchase: 5,
   process_return: 6,
   record_supplier_payment: 7,
+  // After the sales that created the charges, so a payment never precedes the debt it settles.
+  record_customer_payment: 8,
 };
 
 export function sortOutboxForDrain(rows: OutboxRow[]): OutboxRow[] {
@@ -104,6 +112,19 @@ export function sortOutboxForDrain(rows: OutboxRow[]): OutboxRow[] {
     if (pa !== pb) return pa - pb;
     return a.createdAt - b.createdAt;
   });
+}
+
+/** Only forward credit terms the till actually changed; null clears, undefined leaves alone. */
+function customerTermsArgs(payload: UpsertCustomerPayload): {
+  creditLimit?: number | null;
+  customerGroupId?: Id<"customerGroups"> | null;
+} {
+  return {
+    ...(payload.creditLimit !== undefined ? { creditLimit: payload.creditLimit } : {}),
+    ...(payload.customerGroupId !== undefined
+      ? { customerGroupId: payload.customerGroupId as Id<"customerGroups"> | null }
+      : {}),
+  };
 }
 
 function optionalText(value: string | undefined | null): string | undefined {
@@ -158,7 +179,8 @@ export type CompleteSaleMutator = (args: {
     trackedInventory?: boolean;
   }>;
   discount: number;
-  paymentMethod: "cash" | "card" | "mobile_money";
+  paymentMethod: PaymentMethod;
+  payments?: PaymentLine[];
   heldSaleId?: Id<"heldSales">;
   clientOperationId?: string;
   branchId?: Id<"branches">;
@@ -319,6 +341,8 @@ export type QueuedMutators = {
     phone?: string;
     email?: string;
     notes?: string;
+    creditLimit?: number | null;
+    customerGroupId?: Id<"customerGroups"> | null;
     clientOperationId?: string;
   }) => Promise<Id<"customers">>;
   updateCustomer: (args: {
@@ -328,7 +352,34 @@ export type QueuedMutators = {
     email?: string;
     notes?: string;
     status: "active" | "inactive";
+    creditLimit?: number | null;
+    customerGroupId?: Id<"customerGroups"> | null;
   }) => Promise<unknown>;
+  recordCustomerPayment: (args: {
+    customerId: Id<"customers">;
+    amount: number;
+    method: "cash" | "card" | "mobile_money";
+    note?: string;
+    paidAt?: number;
+    clientOperationId?: string;
+  }) => Promise<unknown>;
+  saveCustomerGroup: (args: {
+    id?: Id<"customerGroups">;
+    name: string;
+    status?: "active" | "inactive";
+    clientOperationId?: string;
+  }) => Promise<Id<"customerGroups">>;
+  savePriceRule: (args: {
+    id?: Id<"priceListRules">;
+    productId?: Id<"products">;
+    categoryId?: Id<"categories">;
+    groupId?: Id<"customerGroups">;
+    minBaseQty: number;
+    unitPrice: number;
+    priority: number;
+    active: boolean;
+    clientOperationId?: string;
+  }) => Promise<Id<"priceListRules">>;
   createExpense: (args: CreateExpensePayload) => Promise<unknown>;
   removeExpense: (args: { id: Id<"expenses"> }) => Promise<unknown>;
   updateOwnProfile: (args: UpdateProfilePayload & { name: string }) => Promise<unknown>;
@@ -628,6 +679,7 @@ async function drainOwnedOutbox(
             })),
             discount: payload.discount,
             paymentMethod: payload.paymentMethod,
+            payments: payload.payments,
             heldSaleId: payload.serverHeldSaleId as Id<"heldSales"> | undefined,
             clientOperationId: claimed.clientOperationId,
             branchId: payload.branchId as Id<"branches"> | undefined,
@@ -1001,6 +1053,10 @@ async function drainOwnedOutbox(
           consecutiveTransientFailures = 0;
         } else if (claimed.type === "upsert_customer") {
           const payload = JSON.parse(claimed.payloadJson) as UpsertCustomerPayload;
+          if (payload.customerGroupId && isLocalId(payload.customerGroupId)) {
+            await markOutboxPending(db, claimed.id, "Waiting for the customer group to finish syncing.");
+            continue;
+          }
           if (payload.serverId && !payload.serverId.startsWith("local_")) {
             await options.mutators.updateCustomer({
               id: payload.serverId as Id<"customers">,
@@ -1009,6 +1065,7 @@ async function drainOwnedOutbox(
               email: payload.email,
               notes: payload.notes,
               status: payload.status ?? "active",
+              ...customerTermsArgs(payload),
             });
           } else {
             const id = await options.mutators.createCustomer({
@@ -1016,6 +1073,7 @@ async function drainOwnedOutbox(
               phone: payload.phone,
               email: payload.email,
               notes: payload.notes,
+              ...customerTermsArgs(payload),
               clientOperationId: claimed.clientOperationId,
             });
             await db.transaction(
@@ -1047,6 +1105,101 @@ async function drainOwnedOutbox(
             );
           }
           if (payload.serverId && !payload.serverId.startsWith("local_")) {
+            await markOutboxSynced(db, claimed.id);
+          }
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "record_customer_payment") {
+          const payload = JSON.parse(claimed.payloadJson) as RecordCustomerPaymentPayload;
+          if (isLocalId(payload.customerId)) {
+            await markOutboxPending(db, claimed.id, "Waiting for the customer to finish syncing.");
+            continue;
+          }
+          await options.mutators.recordCustomerPayment({
+            customerId: payload.customerId as Id<"customers">,
+            amount: payload.amount,
+            method: payload.method,
+            note: payload.note,
+            paidAt: payload.paidAt,
+            clientOperationId: claimed.clientOperationId,
+          });
+          if (payload.localId.startsWith("local_")) {
+            await db.customerLedger.delete(payload.localId);
+          }
+          await markOutboxSynced(db, claimed.id);
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "upsert_customer_group") {
+          const payload = JSON.parse(claimed.payloadJson) as UpsertCustomerGroupPayload;
+          const isUpdate = Boolean(payload.serverId && !isLocalId(payload.serverId));
+          const id = await options.mutators.saveCustomerGroup({
+            id: isUpdate ? (payload.serverId as Id<"customerGroups">) : undefined,
+            name: payload.name,
+            status: payload.status,
+            clientOperationId: claimed.clientOperationId,
+          });
+          if (!isUpdate && isLocalId(payload.localId)) {
+            await db.transaction(
+              "rw",
+              [db.customerGroups, db.customers, db.priceListRules, db.outbox],
+              async () => {
+                await replaceIdInPendingOutbox(db, payload.localId, String(id));
+                const existing = await db.customerGroups.get(payload.localId);
+                await db.customerGroups.delete(payload.localId);
+                if (existing) await db.customerGroups.put({ ...existing, id: String(id) });
+                for (const customer of await db.customers
+                  .filter((row) => row.customerGroupId === payload.localId)
+                  .toArray()) {
+                  await db.customers.put({ ...customer, customerGroupId: String(id) });
+                }
+                for (const rule of await db.priceListRules
+                  .where("groupId")
+                  .equals(payload.localId)
+                  .toArray()) {
+                  await db.priceListRules.put({ ...rule, groupId: String(id) });
+                }
+                await markOutboxSynced(db, claimed.id);
+              },
+            );
+          } else {
+            await markOutboxSynced(db, claimed.id);
+          }
+          processed += 1;
+          consecutiveTransientFailures = 0;
+        } else if (claimed.type === "upsert_price_rule") {
+          const payload = JSON.parse(claimed.payloadJson) as UpsertPriceRulePayload;
+          const dependsOnLocal = [payload.productId, payload.categoryId, payload.groupId].some(
+            (ref) => ref !== undefined && isLocalId(ref),
+          );
+          if (dependsOnLocal) {
+            await markOutboxPending(
+              db,
+              claimed.id,
+              "Waiting for the product, category or group to finish syncing.",
+            );
+            continue;
+          }
+          const isUpdate = Boolean(payload.serverId && !isLocalId(payload.serverId));
+          const id = await options.mutators.savePriceRule({
+            id: isUpdate ? (payload.serverId as Id<"priceListRules">) : undefined,
+            productId: payload.productId as Id<"products"> | undefined,
+            categoryId: payload.categoryId as Id<"categories"> | undefined,
+            groupId: payload.groupId as Id<"customerGroups"> | undefined,
+            minBaseQty: payload.minBaseQty,
+            unitPrice: payload.unitPrice,
+            priority: payload.priority,
+            active: payload.active,
+            clientOperationId: claimed.clientOperationId,
+          });
+          if (!isUpdate && isLocalId(payload.localId)) {
+            await db.transaction("rw", [db.priceListRules, db.outbox], async () => {
+              await replaceIdInPendingOutbox(db, payload.localId, String(id));
+              const existing = await db.priceListRules.get(payload.localId);
+              await db.priceListRules.delete(payload.localId);
+              if (existing) await db.priceListRules.put({ ...existing, id: String(id) });
+              await markOutboxSynced(db, claimed.id);
+            });
+          } else {
             await markOutboxSynced(db, claimed.id);
           }
           processed += 1;

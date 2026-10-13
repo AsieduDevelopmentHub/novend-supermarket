@@ -8,8 +8,11 @@
 
 import { resolvePlan, type PlanKey } from "./plans";
 
-/** Stage 1 configurationVersion — UOM adapter N is defined in Stage 2. Bumped for Phase C hotel keys. */
-export const BUSINESS_CAPABILITY_CONFIGURATION_VERSION = 3;
+/**
+ * Stage 1 configurationVersion — UOM adapter N is defined in Stage 2.
+ * Bumped for Phase C hotel keys (3) and wholesale credit / price lists (4).
+ */
+export const BUSINESS_CAPABILITY_CONFIGURATION_VERSION = 4;
 
 export const BUSINESS_CAPABILITY_KEYS = [
   "multi_unit_pricing",
@@ -25,6 +28,8 @@ export const BUSINESS_CAPABILITY_KEYS = [
   "kitchen_tickets",
   "rooms_folio",
   "reservations",
+  "customer_credit",
+  "customer_pricing",
 ] as const;
 
 export type BusinessCapabilityKey = (typeof BUSINESS_CAPABILITY_KEYS)[number];
@@ -183,12 +188,28 @@ export const BUSINESS_CAPABILITY_REGISTRY: Record<
     dependencies: ["rooms_folio"],
     minPlanSortOrder: resolvePlan("basic").sortOrder,
   },
+  customer_credit: {
+    key: "customer_credit",
+    version: 1,
+    label: "Customer credit",
+    description:
+      "Sell on account with a per-customer credit limit, balances, aging, and recorded payments.",
+    minPlanSortOrder: resolvePlan("pro").sortOrder,
+  },
+  customer_pricing: {
+    key: "customer_pricing",
+    version: 1,
+    label: "Customer price lists",
+    description:
+      "Customer groups and quantity-tier price rules resolved at checkout, snapshotted on the receipt.",
+    minPlanSortOrder: resolvePlan("pro").sortOrder,
+  },
 };
 
 /** Industry packs are presets of capability keys — not hardcoded industry branches. */
 export const INDUSTRY_PACKS: Record<IndustryProfile, BusinessCapabilityKey[]> = {
   retail: ["configurable_pos"],
-  wholesale: ["multi_unit_pricing", "configurable_pos"],
+  wholesale: ["multi_unit_pricing", "customer_pricing", "customer_credit", "configurable_pos"],
   supermarket: ["multi_unit_pricing", "lot_expiry", "configurable_pos"],
   cold_store: ["sell_by_weight", "lot_expiry", "scale_hardware", "configurable_pos"],
   electronics: ["serial_tracking", "configurable_pos"],

@@ -17,6 +17,11 @@ immutable and print a receipt.
 - Pay writes `sales` + `saleItems` + `receipts` and decrements inventory
 - Completed sales are immutable
 - Hold stores the cart; inventory is not reduced until checkout
+- Payments are stored per tender in `salePayments`; the lines must equal the
+  sale total and the largest tender is the sale's primary payment method
+- On-account tender needs a customer, the `customer_credit` capability, and
+  stays within the customer's credit limit; it writes a ledger charge
+- Receipts list every tender when a sale is split or on account
 - Offline checkout writes Dexie + outbox, then syncs with `clientOperationId`
 - The invoice printed on the receipt is the permanent invoice number (sync does not replace it)
 - The working cart (items, discount, customer) is kept in the tab per cashier
@@ -28,9 +33,17 @@ immutable and print a receipt.
 1. Open Sales
 2. Optionally attach or create a customer
 3. Search or tap products
-4. Adjust quantities; optional discount
-5. Hold, or Pay (cash / card / mobile money)
-6. Print receipt
+4. When multi-unit pricing is enabled and a product has more than one sell unit
+   (piece / pack / carton), choose the unit before it enters the cart. Scanning a
+   sell-unit barcode adds that unit directly.
+5. Adjust quantities; optional discount
+6. Hold, or Pay. Cash / card / mobile money are one-tap shortcuts; **Split
+   payment** takes several tenders that must add up to the total. **On account**
+   appears when customer credit is enabled and a named customer is selected (see
+   [`CUSTOMERS_CREDIT_WORKFLOW.md`](./CUSTOMERS_CREDIT_WORKFLOW.md)). When
+   customer price lists are enabled, the customer's group rules reprice the cart
+   as soon as the buyer is selected and again when the sale is saved.
+7. Print receipt
 
 ![Receipt after checkout](../design/ui/sales-pos-receipt-modal.png)
 

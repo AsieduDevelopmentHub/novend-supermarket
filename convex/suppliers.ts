@@ -4,7 +4,7 @@ import { Doc } from "./_generated/dataModel";
 import { requireRole } from "./shared/permissions";
 import { writeAuditLog } from "./shared/audit";
 import { rememberClientOp, replayClientOp } from "./shared/clientOps";
-import { paymentMethodValidator } from "./shared/paymentMethod";
+import { settlementMethodValidator } from "./shared/paymentMethod";
 import {
   allocateSupplierPayment,
   purchaseBalance,
@@ -235,7 +235,7 @@ export const recordPayment = mutation({
     purchaseId: v.optional(v.id("supplierPurchases")),
     amount: v.number(),
     paidAt: v.number(),
-    method: paymentMethodValidator,
+    method: settlementMethodValidator,
     note: v.optional(v.string()),
     clientOperationId: v.optional(v.string()),
   },

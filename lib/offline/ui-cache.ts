@@ -1,6 +1,11 @@
 import type { AppRole } from "@/config/navigation";
 import { getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
 import type { PrintSnapshot } from "./types";
+import {
+  addReportPaymentTotal,
+  emptyReportPaymentTotals,
+  type ReportPaymentTotals,
+} from "@/lib/payments";
 import { collectTopSellingCandidates } from "@/lib/dashboard/top-selling";
 import { DASHBOARD_OPS_WINDOW_DAYS } from "@/lib/dashboard/window";
 import {
@@ -494,6 +499,8 @@ export type LocalSalesReport = {
     cash: number;
     card: number;
     mobileMoney: number;
+    /** Sold on customer credit. Absent on reports cached before customer credit. */
+    onAccount?: number;
   };
   trend: Array<{ date: string; total: number }>;
   daily: Array<{
@@ -505,6 +512,7 @@ export type LocalSalesReport = {
     cash: number;
     card: number;
     mobileMoney: number;
+    onAccount?: number;
   }>;
 };
 
@@ -518,7 +526,7 @@ export async function buildLocalSalesReport(
   if (!db) {
     return {
       kpis: { totalSales: 0, totalOrders: 0, itemsSold: 0, averageOrder: 0 },
-      paymentTotals: { cash: 0, card: 0, mobileMoney: 0 },
+      paymentTotals: { cash: 0, card: 0, mobileMoney: 0, onAccount: 0 },
       trend: [],
       daily: [],
     };
@@ -585,9 +593,10 @@ export async function buildLocalSalesReport(
       cash: number;
       card: number;
       mobileMoney: number;
+      onAccount: number;
     }
   >();
-  let paymentTotals = { cash: 0, card: 0, mobileMoney: 0 };
+  let paymentTotals: ReportPaymentTotals = emptyReportPaymentTotals();
   for (const sale of [...mirrored, ...unsyncedLocal]) {
     const key = new Date(sale.completedAt).toISOString().slice(0, 10);
     const current = byDay.get(key) ?? {
@@ -598,21 +607,23 @@ export async function buildLocalSalesReport(
       cash: 0,
       card: 0,
       mobileMoney: 0,
+      onAccount: 0,
     };
     current.orders += 1;
     current.itemsSold += sale.itemCount;
     current.totalSales += sale.total;
-    const method = sale.paymentMethod;
-    if (method === "card") {
-      current.card += sale.total;
-      paymentTotals.card += sale.total;
-    } else if (method === "mobile_money") {
-      current.mobileMoney += sale.total;
-      paymentTotals.mobileMoney += sale.total;
-    } else {
-      current.cash += sale.total;
-      paymentTotals.cash += sale.total;
-    }
+    // Split sales land in each tender's own bucket, not wholly in the primary one.
+    const day = addReportPaymentTotal(
+      { cash: current.cash, card: current.card, mobileMoney: current.mobileMoney, onAccount: current.onAccount },
+      sale.paymentMethod,
+      sale.total,
+      sale.payments,
+    );
+    current.cash = day.cash;
+    current.card = day.card;
+    current.mobileMoney = day.mobileMoney;
+    current.onAccount = day.onAccount ?? 0;
+    paymentTotals = addReportPaymentTotal(paymentTotals, sale.paymentMethod, sale.total, sale.payments);
     byDay.set(key, current);
   }
   for (const row of returns) {
@@ -625,6 +636,7 @@ export async function buildLocalSalesReport(
       cash: 0,
       card: 0,
       mobileMoney: 0,
+      onAccount: 0,
     };
     current.refunds += row.refundAmount;
     current.totalSales -= row.refundAmount;
@@ -643,6 +655,7 @@ export async function buildLocalSalesReport(
       cash: row.cash,
       card: row.card,
       mobileMoney: row.mobileMoney,
+      onAccount: row.onAccount,
     }));
 
   return {

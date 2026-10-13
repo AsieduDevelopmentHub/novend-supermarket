@@ -24,6 +24,7 @@ import {
   collectSalesInCompletedAtRange,
 } from "./shared/salesRange";
 import { addSale, emptyDailySales } from "./shared/dailySalesReport";
+import { loadPaymentsBySale } from "./shared/salePaymentLoader";
 
 export type ExpenseCategory =
   "salaries" | "commissions" | "transport" | "utilities" | "supplies" | "maintenance" | "misc";
@@ -457,7 +458,10 @@ export const summary = query({
       });
 
     let tenderFigures = emptyDailySales();
-    for (const sale of sales) tenderFigures = addSale(tenderFigures, sale);
+    const paymentsBySale = await loadPaymentsBySale(ctx, sales);
+    for (const sale of sales) {
+      tenderFigures = addSale(tenderFigures, { ...sale, payments: paymentsBySale.get(sale._id) });
+    }
 
     return {
       kpis: {
@@ -478,6 +482,7 @@ export const summary = query({
         cash: tenderFigures.cash,
         card: tenderFigures.card,
         mobileMoney: tenderFigures.mobileMoney,
+        onAccount: tenderFigures.onAccount,
       },
       pnl: {
         revenue,

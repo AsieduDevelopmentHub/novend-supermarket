@@ -33,6 +33,11 @@ export type ReceiptLine = {
   pricingMode?: "fixed" | "per_weight";
 };
 
+export type ReceiptPaymentLine = {
+  method: string;
+  amount: number;
+};
+
 export type ReceiptPayload = {
   kind?: "sale" | "return";
   invoiceNumber: string;
@@ -46,7 +51,10 @@ export type ReceiptPayload = {
   total: number;
   itemCount: number;
   lines: ReceiptLine[];
+  /** Primary tender (largest amount when the sale was split). */
   paymentMethod: string;
+  /** Present only for split or on-account sales; lines sum to `total`. */
+  payments?: ReceiptPaymentLine[];
   completedAt: number;
   customerName: string;
   customerPhone?: string | null;

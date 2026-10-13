@@ -19,6 +19,18 @@ export type BarcodeMatchProduct = {
   stockQuantity: number;
   tracksInventory?: boolean;
   imageUrl?: string | null;
+  costPrice?: number;
+  unit?: string;
+  sellUnits?: Array<{
+    key: string;
+    label: string;
+    factorToBase: number;
+    barcode?: string;
+    sellingPrice?: number;
+    active: boolean;
+  }> | null;
+  pricingMode?: "fixed" | "per_weight" | null;
+  matchedSellUnitKey?: string;
 };
 
 type Props = {

@@ -38,7 +38,18 @@ or drive hot queries **start with** `organizationId`.
 - `branchStock` — per-branch on-hand quantity
 - `inventoryLots` — dated batches; FEFO for dated SKUs
 - `inventoryHistory` — quantity changes with reason
-- `customers` — organization-wide
+- `customers` — organization-wide; optional `creditLimit` (`customer_credit`)
+  and `customerGroupId` (`customer_pricing`)
+- `customerLedgerEntries` — append-only receivable ledger per customer
+  (`sale_charge` +, `payment` −, `adjustment` signed); balance is the sum.
+  Indexed `by_organization_customer`.
+- `customerGroups` / `priceListRules` — customer price lists. Rules target a
+  product or category, optional group, a minimum base quantity, a per-base-unit
+  price, and a priority.
+- `salePayments` — one row per tender of a sale (`cash`, `card`, `mobile_money`,
+  `on_account`); the lines sum to `sales.total`. `sales.paymentMethod` stays the
+  primary (largest) tender. Supplier, purchase, dining and hotel settlements use
+  the narrower `settlementMethodValidator` (no `on_account`).
 - `sales` / `saleItems` / `saleItemLots` — immutable completed transactions
 - `saleClientOps` — idempotency keys for `completeSale`
 - `saleReturnClientOps` — idempotency keys for `processReturn`

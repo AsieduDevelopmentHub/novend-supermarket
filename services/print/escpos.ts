@@ -1,5 +1,6 @@
 import { RECEIPT_VENDOR_FOOTER } from "@/constants/app";
 import type { ReceiptPayload } from "@/features/receipts/types";
+import { receiptPaymentLines } from "@/features/receipts/payment-lines";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
@@ -66,8 +67,12 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
   write(formatDateTime(payload.completedAt), "\n");
   if (t.showCashier && payload.cashierName) write(`Cashier: ${payload.cashierName}`, "\n");
   if (t.showCustomer) write(`Customer: ${payload.customerName}`, "\n");
+  const splitLines = receiptPaymentLines(payload);
   if (t.showPaymentMethod) {
-    write(`Payment: ${payload.paymentMethod.replaceAll("_", " ")}`, "\n");
+    write(
+      splitLines ? "Payment: Split" : `Payment: ${payload.paymentMethod.replaceAll("_", " ")}`,
+      "\n",
+    );
   }
   write(sep(cols), "\n");
 
@@ -89,6 +94,11 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
   write(ESC, 0x45, 0x01);
   write(line(cols, "TOTAL", formatCurrency(payload.total)), "\n");
   write(ESC, 0x45, 0x00);
+  if (t.showPaymentMethod && splitLines) {
+    for (const split of splitLines) {
+      write(line(cols, split.label, formatCurrency(split.amount)), "\n");
+    }
+  }
   write(sep(cols), "\n");
   write(ESC, 0x61, 0x01);
   if (t.footerText) write(t.footerText, "\n");

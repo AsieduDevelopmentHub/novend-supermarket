@@ -83,6 +83,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const transferStock = useMutation(api.inventory.transferStock);
   const createCustomer = useMutation(api.customers.create);
   const updateCustomer = useMutation(api.customers.update);
+  const recordCustomerPayment = useMutation(api.customerLedger.recordPayment);
+  const saveCustomerGroup = useMutation(api.priceLists.saveGroup);
+  const savePriceRule = useMutation(api.priceLists.saveRule);
   const createExpense = useMutation(api.analytics.createExpense);
   const removeExpense = useMutation(api.analytics.removeExpense);
   const updateOwnProfile = useMutation(api.users.updateOwnProfile);
@@ -334,6 +337,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
               }),
             createCustomer: (args) => createCustomer(args),
             updateCustomer: (args) => updateCustomer(args),
+            recordCustomerPayment: (args) => recordCustomerPayment(args),
+            saveCustomerGroup: (args) => saveCustomerGroup(args),
+            savePriceRule: (args) => savePriceRule(args),
             createExpense: (payload) =>
               createExpense({
                 amount: payload.amount,
@@ -426,6 +432,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       transferStock,
       createCustomer,
       updateCustomer,
+      recordCustomerPayment,
+      saveCustomerGroup,
+      savePriceRule,
       createExpense,
       removeExpense,
       updateOwnProfile,

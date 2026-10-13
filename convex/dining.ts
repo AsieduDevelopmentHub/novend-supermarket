@@ -4,7 +4,7 @@
  */
 
 import { v } from "convex/values";
-import { paymentMethodValidator } from "./shared/paymentMethod";
+import { settlementMethodValidator } from "./shared/paymentMethod";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import {
@@ -723,7 +723,7 @@ export const upsertModifierOption = mutation({
 export const paySession = mutation({
   args: {
     sessionId: v.id("diningSessions"),
-    paymentMethod: paymentMethodValidator,
+    paymentMethod: settlementMethodValidator,
     discount: v.optional(v.number()),
     customerName: v.optional(v.string()),
     clientOperationId: v.optional(v.string()),
