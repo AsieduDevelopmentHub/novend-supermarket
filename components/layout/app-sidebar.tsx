@@ -9,8 +9,9 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react
 import { ChevronLeft, ChevronRight, CircleHelp, LogOut, Menu, Shield } from "lucide-react";
 import type { AppRole } from "@/config/navigation";
 import { SidebarNavTree, SidebarSettingsLink } from "@/components/layout/sidebar-nav-tree";
-import { APP_NAME } from "@/constants/app";
+import { APP_BRAND, APP_NAME } from "@/constants/app";
 import { BRANDING } from "@/constants/branding";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { cn } from "@/lib/utils";
 import { api } from "@/convex/_generated/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,6 +29,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { SyncStatusChip } from "@/components/offline/sync-status-chip";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
+import { markExplicitLogout } from "@/lib/auth/logout-flag";
+import { clearMilliesSession, milliesLogout } from "@/lib/offline/millies-auth";
 import { useOfflineNavigation } from "@/providers/offline-navigation";
 
 const SIDEBAR_COLLAPSED_KEY = "novend.sidebarCollapsed";
@@ -151,7 +154,7 @@ function SidebarBrand({
   );
 }
 
-function SidebarUser({ user, collapsed }: { user: ShellUser; collapsed?: boolean }) {
+function SidebarUserCloud({ user, collapsed }: { user: ShellUser; collapsed?: boolean }) {
   const { signOut } = useAuthActions();
   const router = useRouter();
   const clearPresence = useMutation(api.users.clearPresence);
@@ -176,6 +179,72 @@ function SidebarUser({ user, collapsed }: { user: ShellUser; collapsed?: boolean
       setSigningOut(false);
     }
   }
+
+  return (
+    <SidebarUserMenu
+      user={user}
+      collapsed={collapsed}
+      initials={initials}
+      signingOut={signingOut}
+      onSignOut={() => void onSignOut()}
+    />
+  );
+}
+
+function SidebarUserLocal({ user, collapsed }: { user: ShellUser; collapsed?: boolean }) {
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
+  const initials = user.name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  async function onSignOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      markExplicitLogout();
+      await milliesLogout();
+      clearMilliesSession();
+      router.replace("/login?signedOut=1");
+    } catch {
+      setSigningOut(false);
+    }
+  }
+
+  return (
+    <SidebarUserMenu
+      user={user}
+      collapsed={collapsed}
+      initials={initials}
+      signingOut={signingOut}
+      onSignOut={() => void onSignOut()}
+    />
+  );
+}
+
+function SidebarUser({ user, collapsed }: { user: ShellUser; collapsed?: boolean }) {
+  if (FULLY_OFFLINE) {
+    return <SidebarUserLocal user={user} collapsed={collapsed} />;
+  }
+  return <SidebarUserCloud user={user} collapsed={collapsed} />;
+}
+
+function SidebarUserMenu({
+  user,
+  collapsed,
+  initials,
+  signingOut,
+  onSignOut,
+}: {
+  user: ShellUser;
+  collapsed?: boolean;
+  initials: string;
+  signingOut: boolean;
+  onSignOut: () => void;
+}) {
 
   return (
     <div className="border-sidebar-border mt-auto border-t p-3">

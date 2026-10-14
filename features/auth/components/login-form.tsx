@@ -2,6 +2,7 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvex, useConvexAuth } from "convex/react";
+import { isCapacitor, isElectron } from "@novend/hardware";
 import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";

@@ -12,6 +12,7 @@ import {
 } from "react";
 import { useAction, useConvex, useConvexAuth, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { getOfflineDb, getBoundOrganizationId, isOfflineDbAvailable } from "@/lib/offline/db";
 import {
@@ -60,7 +61,118 @@ const emptyStatus: OfflineStatus = {
   syncing: false,
 };
 
+/** Millie's: Dexie status + local folder backup only — no Convex sync/heartbeat. */
+function FullyOfflineOfflineProvider({ children }: { children: ReactNode }) {
+  const [status, setStatus] = useState<OfflineStatus>({
+    ...emptyStatus,
+    online: false,
+  });
+  const [syncCenterOpen, setSyncCenterOpen] = useState(false);
+  const [preparingUpdate, setPreparingUpdate] = useState(false);
+
+  const refreshStatus = useCallback(async () => {
+    const db = await getOfflineDb();
+    setStatus({
+      online: false,
+      dexieAvailable: Boolean(db) || isOfflineDbAvailable(),
+      pendingCount: 0,
+      failedCount: 0,
+      lastSyncAt: null,
+      lastError: null,
+      syncing: false,
+    });
+  }, []);
+
+  useEffect(() => {
+    void refreshStatus();
+    return subscribeReplicaChanged(() => {
+      void refreshStatus();
+    });
+  }, [refreshStatus]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void maybeRunLocalFolderBackup().catch(() => undefined);
+    }, 60_000);
+    void maybeRunLocalFolderBackup().catch(() => undefined);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const bridge = window.novendDesktop;
+    if (!bridge?.onPrepareUpdate || !bridge.acknowledgeUpdatePreparation) return;
+    const acknowledge = bridge.acknowledgeUpdatePreparation;
+    let active: { id: string; controller: AbortController } | null = null;
+    const unsubscribe = bridge.onPrepareUpdate(({ id }) => {
+      if (active) {
+        void acknowledge(id, false);
+        return;
+      }
+      const controller = new AbortController();
+      active = { id, controller };
+      setPreparingUpdate(true);
+      void (async () => {
+        try {
+          const db = await getOfflineDb();
+          if (!db || controller.signal.aborted) {
+            await acknowledge(id, false);
+            return;
+          }
+          await holdDatabaseForUpdate(db, controller.signal, () => acknowledge(id, true));
+        } catch {
+          await acknowledge(id, false).catch(() => undefined);
+        } finally {
+          if (active?.id === id) active = null;
+          if (!controller.signal.aborted) setPreparingUpdate(false);
+        }
+      })();
+    });
+    return () => {
+      unsubscribe();
+      active?.controller.abort();
+    };
+  }, []);
+
+  const noop = useCallback(async () => undefined, []);
+  const value = useMemo<OfflineContextValue>(
+    () => ({
+      ...status,
+      online: false,
+      refreshStatus,
+      pullSnapshot: noop,
+      flushOutbox: noop,
+      refreshCatalog: refreshStatus,
+      syncCenterOpen,
+      openSyncCenter: () => setSyncCenterOpen(true),
+      closeSyncCenter: () => setSyncCenterOpen(false),
+    }),
+    [status, refreshStatus, noop, syncCenterOpen],
+  );
+
+  return (
+    <OfflineContext.Provider value={value}>
+      {children}
+      {preparingUpdate ? (
+        <div
+          className="bg-background/95 fixed inset-0 z-[9999] grid place-items-center p-6"
+          role="status"
+          aria-live="polite"
+        >
+          <p className="text-foreground text-center">Securing local records before restarting…</p>
+        </div>
+      ) : null}
+    </OfflineContext.Provider>
+  );
+}
+
 export function OfflineProvider({ children }: { children: ReactNode }) {
+  if (FULLY_OFFLINE) {
+    return <FullyOfflineOfflineProvider>{children}</FullyOfflineOfflineProvider>;
+  }
+  return <CloudOfflineProvider>{children}</CloudOfflineProvider>;
+}
+
+function CloudOfflineProvider({ children }: { children: ReactNode }) {
   const online = useConnectivity();
   const { isAuthenticated } = useConvexAuth();
   const convex = useConvex();

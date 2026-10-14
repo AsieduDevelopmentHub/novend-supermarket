@@ -7,6 +7,7 @@
  * keeps the rest available from the login screen.
  */
 
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import { readPlatformOfflineSession } from "@/lib/offline/platform-cache";
 import { bindOfflineOrganization, unbindOfflineOrganization } from "./db";
@@ -81,6 +82,8 @@ function migrateLegacyActive(raw: string): void {
 
 function isFreshHint(parsed: OfflineSessionHint | null): parsed is OfflineSessionHint {
   if (!parsed?.userId || !parsed?.role || !parsed?.branchId) return false;
+  // Millie's fully offline: never expire hints for a cloud refresh.
+  if (FULLY_OFFLINE) return true;
   if (!Number.isFinite(parsed.savedAt) || Date.now() - parsed.savedAt > OFFLINE_AUTHORITY_TTL_MS) {
     return false;
   }

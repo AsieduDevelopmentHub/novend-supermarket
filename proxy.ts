@@ -2,6 +2,7 @@ import { convexAuthNextjsMiddleware, createRouteMatcher } from "@convex-dev/auth
 import { ConvexHttpClient } from "convex/browser";
 import { type NextRequest, NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { loginPathWithNext, resolvePostAuthPath } from "@/lib/auth/safe-return-path";
 import {
   hostnameFromOrigin,
@@ -16,6 +17,8 @@ import { applySecurityHeaders } from "@/lib/security/response-headers";
  * Duplicated here so the Edge proxy never imports browser/session helpers.
  */
 const LOCAL_ONLY_CLOUD_COOKIE = "novend_local_only";
+/** Must match `MILLIES_LOCAL_SESSION_COOKIE` in lib/offline/millies-auth.ts. */
+const MILLIES_LOCAL_SESSION_COOKIE = "millies_local_session";
 
 const isLoginPage = createRouteMatcher([
   "/login",
@@ -61,9 +64,6 @@ const isRetiredPublicPath = createRouteMatcher([
   "/branches(.*)",
 ]);
 
-/**
- * Health / auth bootstrap — no session lookup.
- */
 const isStaticPublicRoute = createRouteMatcher([
   "/billing/callback",
   "/api/auth(.*)",
@@ -71,20 +71,10 @@ const isStaticPublicRoute = createRouteMatcher([
   "/api/mobile-updates/latest",
 ]);
 
-/**
- * Prefer NextResponse.redirect over nextjsMiddlewareRedirect when the target
- * includes a query string. The Convex helper treats the whole href as a
- * pathname (encoding `?` → `%3F`) and re-appends the original search
- * (`fromBoot=1`), which breaks Cap/WebView cold start with net::ERR_FAILED.
- */
 function redirectTo(request: NextRequest, href: string) {
   return NextResponse.redirect(new URL(href, request.nextUrl.origin));
 }
 
-/**
- * Continue locally clears the Convex JWT but must keep the SPA shell.
- * sessionStorage is invisible to middleware — a same-site cookie carries the latch.
- */
 function hasLocalOnlyShellCookie(request: NextRequest): boolean {
   const raw = request.cookies.get(LOCAL_ONLY_CLOUD_COOKIE)?.value?.trim() ?? "";
   if (!raw || raw.length > 200) return false;
@@ -95,7 +85,11 @@ function hasLocalOnlyShellCookie(request: NextRequest): boolean {
   }
 }
 
-/** When this request is on the marketing host, send auth paths to the app origin. */
+function hasMilliesLocalSessionCookie(request: NextRequest): boolean {
+  const raw = request.cookies.get(MILLIES_LOCAL_SESSION_COOKIE)?.value?.trim() ?? "";
+  return raw === "1";
+}
+
 function redirectAuthToApp(request: NextRequest) {
   const { appOrigin, marketingOrigin } = resolveHostingOrigins();
   const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
@@ -116,10 +110,8 @@ function cspDirectives(scriptSrc: string, extraConnect: string[] = [], extraImg:
     "https://*.convex.cloud",
     "wss://*.convex.cloud",
     "https://*.convex.site",
-    // Sentry (opt-in via NEXT_PUBLIC_SENTRY_DSN)
     "https://*.ingest.sentry.io",
     "https://*.ingest.us.sentry.io",
-    // GA4 collect (page views on marketing; funnel events from auth / install)
     "https://www.google-analytics.com",
     "https://analytics.google.com",
     "https://*.google-analytics.com",
@@ -142,7 +134,6 @@ function cspDirectives(scriptSrc: string, extraConnect: string[] = [], extraImg:
     "frame-ancestors 'none'",
     "form-action 'self'",
     "object-src 'none'",
-    // Receipt printing loads HTML via blob:/srcdoc iframes.
     "frame-src 'self' blob:",
     "child-src 'self' blob:",
     scriptSrc,
@@ -154,23 +145,14 @@ function cspDirectives(scriptSrc: string, extraConnect: string[] = [], extraImg:
   ].join("; ");
 }
 
-/** Per-request nonce CSP for app/auth (Next.js stamps scripts; ThemeBootScript matches). */
 function buildNonceCsp(nonce: string) {
   const isDev = process.env.NODE_ENV === "development";
-  // Dev bundlers may need eval; production drops unsafe-eval.
-  // Styles still allow unsafe-inline (next/font, next-themes). Scripts use nonce + strict-dynamic.
   const scriptSrc = isDev
     ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
     : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`;
   return cspDirectives(scriptSrc);
 }
 
-/**
- * Static CSP for public marketing — no per-request nonce (pages stay cacheable).
- * `'unsafe-inline'` covers next-themes boot without forcing dynamic rendering.
- * GA4 script hosts are allowlisted here. Auth/app use nonce + strict-dynamic
- * and only send explicit funnel events (no POS page views).
- */
 function buildStaticMarketingCsp() {
   const isDev = process.env.NODE_ENV === "development";
   const gaHosts =
@@ -211,16 +193,57 @@ async function sessionForToken(token: string | undefined) {
   }
 }
 
-export default convexAuthNextjsMiddleware(
+/** Millie's fully offline — no Convex JWT. Client gates setup/login; cookie unlocks shell. */
+async function milliesProxy(request: NextRequest) {
+  if (request.nextUrl.pathname === "/api/boot") {
+    return NextResponse.next();
+  }
+
+  if (isRetiredPublicPath(request)) {
+    if (hasMilliesLocalSessionCookie(request)) {
+      return withStaticSecurityHeaders(redirectTo(request, "/sales"));
+    }
+    return withStaticSecurityHeaders(redirectTo(request, "/login"));
+  }
+
+  if (isLoginPage(request)) {
+    const appRedirect = redirectAuthToApp(request);
+    if (appRedirect) return appRedirect;
+  }
+
+  if (isStaticPublicRoute(request)) {
+    return withStaticSecurityHeaders(NextResponse.next());
+  }
+
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", buildNonceCsp(nonce));
+
+  if (isLoginPage(request)) {
+    return withNonceSecurityHeaders(
+      NextResponse.next({ request: { headers: requestHeaders } }),
+      nonce,
+    );
+  }
+
+  if (!isPublicRoute(request) && !hasMilliesLocalSessionCookie(request)) {
+    const loginHref = loginPathWithNext(request.nextUrl.pathname, request.nextUrl.search);
+    return withNonceSecurityHeaders(redirectTo(request, loginHref), nonce);
+  }
+
+  return withNonceSecurityHeaders(
+    NextResponse.next({ request: { headers: requestHeaders } }),
+    nonce,
+  );
+}
+
+const cloudProxy = convexAuthNextjsMiddleware(
   async (request, { convexAuth }) => {
-    // Let /api/boot set its own CSP (inline trampoline). Auth middleware still
-    // runs; the route is public so unauthenticated Cap cold-start can land.
     if (request.nextUrl.pathname === "/api/boot") {
       return NextResponse.next();
     }
 
-    // No public website: retired marketing / legal / branch / wholesale paths
-    // land on sign-in (or the dashboard when already signed in).
     if (isRetiredPublicPath(request)) {
       const authenticated = await convexAuth.isAuthenticated();
       if (authenticated) {
@@ -229,33 +252,23 @@ export default convexAuthNextjsMiddleware(
       return withStaticSecurityHeaders(redirectTo(request, "/login"));
     }
 
-    // Auth pages belong on the app host. A visit on www goes to dashboard.
     if (isLoginPage(request)) {
       const appRedirect = redirectAuthToApp(request);
       if (appRedirect) return appRedirect;
     }
 
-    // Health / billing callback: security headers only — skip session work.
     if (isStaticPublicRoute(request)) {
       return withStaticSecurityHeaders(NextResponse.next());
     }
 
     const onLoginPage = isLoginPage(request);
-
-    // App / auth routes: nonce CSP + session checks.
     const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-nonce", nonce);
-    // Next.js reads CSP from the *request* to stamp nonce on its scripts.
     requestHeaders.set("Content-Security-Policy", buildNonceCsp(nonce));
 
     const authenticated = await convexAuth.isAuthenticated();
 
-    // Signed-out navigation must be able to paint /login even if the auth
-    // cookie has not been cleared yet (Cap/WebView session race).
-    // signedOut: the till just left. shellBack: the app shell sent the
-    // browser here because client auth had not settled. Redirecting either
-    // straight back to the dashboard reloads login in a loop.
     if (
       onLoginPage &&
       (request.nextUrl.searchParams.get("signedOut") === "1" ||
@@ -276,14 +289,10 @@ export default convexAuthNextjsMiddleware(
         fromBoot && !destination.includes("fromBoot=")
           ? `${destination}${destination.includes("?") ? "&" : "?"}fromBoot=1`
           : destination;
-      // 302 to /dashboard. public/sw.js must not intercept /login — returning
-      // this followed redirect as a navigation response paints Chrome ERR_FAILED.
       return withNonceSecurityHeaders(redirectTo(request, href), nonce);
     }
 
     if (!isPublicRoute(request) && !authenticated) {
-      // Password-modal "Continue locally" signs out the stale cloud session but
-      // keeps the Dexie shell. Allow the app document through (not /platform).
       if (hasLocalOnlyShellCookie(request) && !isPlatformRoute(request)) {
         return withNonceSecurityHeaders(
           NextResponse.next({ request: { headers: requestHeaders } }),
@@ -300,8 +309,6 @@ export default convexAuthNextjsMiddleware(
       (isAdminOnly(request) || isAdminOrManager(request))
     ) {
       const session = await sessionForToken(await convexAuth.getToken());
-      // Privileged route resolution fails closed. Backend checks remain
-      // authoritative, but an outage must not render an operational shell.
       if (session === null) {
         return withNonceSecurityHeaders(redirectTo(request, "/dashboard"), nonce);
       }
@@ -325,10 +332,11 @@ export default convexAuthNextjsMiddleware(
     );
   },
   {
-    // Persist session cookies so middleware can validate auth on each request.
     cookieConfig: { maxAge: 60 * 60 * 24 * 30 },
   },
 );
+
+export default FULLY_OFFLINE ? milliesProxy : cloudProxy;
 
 export const config = {
   matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],

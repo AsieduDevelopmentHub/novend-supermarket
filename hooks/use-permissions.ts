@@ -1,17 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useConvexAuth, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import type { AppRole } from "@/config/navigation";
-import { useConnectivity } from "@/hooks/use-connectivity";
 import {
   loadShellProfile,
-  shellProfileFromSessionHint,
   type ShellProfile,
 } from "@/lib/offline/shell-profile";
-import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
+import { readMilliesSession } from "@/lib/offline/millies-auth";
 import { Id } from "@/convex/_generated/dataModel";
 
 type CurrentUser = {
@@ -40,16 +36,11 @@ function shellToUser(profile: ShellProfile): CurrentUser {
   };
 }
 
+/** Millie's: identity from local PBKDF2 session + Dexie shell profile. */
 export function useCurrentUser() {
-  const { isAuthenticated } = useConvexAuth();
-  const online = useConnectivity();
-  const sessionHint = useOfflineSessionHint();
-  // Skip Convex while offline or signed out so refresh never hangs on users.me
-  // and logout never throws Unauthenticated in the app shell.
-  const remote = useQuery(api.users.me, isAuthenticated && online ? {} : "skip");
   const [cached, setCached] = useState<ShellProfile | null>(null);
   const [cacheReady, setCacheReady] = useState(false);
-  const [remoteBudgetElapsed, setRemoteBudgetElapsed] = useState(false);
+  const session = typeof window !== "undefined" ? readMilliesSession() : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -63,49 +54,29 @@ export function useCurrentUser() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!online || !isAuthenticated || remote !== undefined) {
-      queueMicrotask(() => setRemoteBudgetElapsed(false));
-      return;
-    }
-    const timer = window.setTimeout(() => setRemoteBudgetElapsed(true), 2500);
-    return () => window.clearTimeout(timer);
-  }, [online, isAuthenticated, remote]);
+  const fromSession: CurrentUser | null = session
+    ? {
+        name: session.displayName,
+        role: session.role,
+        branch: session.branchName,
+        branchId: session.branchId as Id<"branches">,
+        email: session.username.includes("@") ? session.username : null,
+        userId: session.id,
+        needsProfile: false,
+      }
+    : null;
 
-  const readyRemote = remote && !remote.needsProfile && remote.role ? remote : null;
-  const cachedUser = cached ? shellToUser(cached) : null;
-  const hintProfile = sessionHint ? shellProfileFromSessionHint(sessionHint) : null;
-  const hintUser =
-    hintProfile &&
-    (!cachedUser || cachedUser.userId === hintProfile.userId) &&
-    (!readyRemote || String(readyRemote.userId) === hintProfile.userId)
-      ? shellToUser(hintProfile)
-      : null;
-  const offlineUser = !online && (cachedUser ?? hintUser) ? (cachedUser ?? hintUser) : null;
-  const liveUser = readyRemote as CurrentUser | null;
-  const signingOut = hasExplicitLogout();
-  // Prefer live when online. The login session hint is available before Convex
-  // auth settles — using it avoids a cashier-shaped first paint for admins.
-  const user = signingOut
+  const user = hasExplicitLogout()
     ? null
-    : online
-      ? (liveUser ?? cachedUser ?? hintUser)
-      : (offlineUser ?? liveUser ?? hintUser);
-
-  const waitingOnRemote =
-    isAuthenticated &&
-    remote === undefined &&
-    online &&
-    !remoteBudgetElapsed &&
-    !cachedUser &&
-    !hintUser;
-  const waitingOnCache = !online && !cacheReady;
+    : cached
+      ? shellToUser(cached)
+      : fromSession;
 
   return {
     user,
-    isLoading: waitingOnRemote || waitingOnCache,
-    isAuthenticated: Boolean(user || remote),
-    needsProfile: Boolean(remote?.needsProfile),
+    isLoading: !cacheReady && !fromSession,
+    isAuthenticated: Boolean(user),
+    needsProfile: false,
   };
 }
 

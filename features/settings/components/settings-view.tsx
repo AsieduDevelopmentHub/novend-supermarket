@@ -160,6 +160,8 @@ export function SettingsView() {
         isDesktop,
         isMobileCap,
         showBilling: !billingHidden,
+        // Millie's fully offline: no cloud device activation.
+        showDevices: false,
       }),
     [isAdmin, isManager, isDesktop, isMobileCap, billingHidden],
   );

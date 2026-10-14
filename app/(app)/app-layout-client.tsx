@@ -36,9 +36,11 @@ import { CloudSessionMismatchGate } from "@/features/auth/components/cloud-sessi
 import { DeviceActivationGate } from "@/features/billing/components/device-activation-gate";
 import { InstallPromptDialog } from "@/components/install-prompt-dialog";
 import { CloudPackageRestoreGate } from "@/features/settings/components/cloud-package-restore-gate";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { OfflineProvider } from "@/providers/offline-provider";
 import { OfflineNavigationProvider, OfflineOutlet } from "@/providers/offline-navigation";
 import { OrganizationExperienceRoot } from "@/features/experience/components/organization-experience-root";
+import { MilliesAppLayoutClient } from "./millies-app-layout-client";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useNativeShell } from "@/hooks/use-native-shell";
 import { useStandaloneDisplay } from "@/hooks/use-standalone-display";
@@ -217,6 +219,10 @@ function AppShellWithIdleLock({
 }
 
 export default function AppLayoutClient({ children }: { children: React.ReactNode }) {
+  if (FULLY_OFFLINE) {
+    return <MilliesAppLayoutClient>{children}</MilliesAppLayoutClient>;
+  }
+
   const configured = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
 
   if (!configured) {

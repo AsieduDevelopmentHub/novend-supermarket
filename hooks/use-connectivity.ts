@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 
 function subscribe(onStoreChange: () => void) {
   window.addEventListener("online", onStoreChange);
@@ -12,10 +13,12 @@ function subscribe(onStoreChange: () => void) {
 }
 
 function getSnapshot() {
+  if (FULLY_OFFLINE) return false;
   return navigator.onLine;
 }
 
 function getServerSnapshot() {
+  if (FULLY_OFFLINE) return false;
   return true;
 }
 

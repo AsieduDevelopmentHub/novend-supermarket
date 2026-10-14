@@ -47,8 +47,17 @@ export function buildSettingsSections(input: {
   isMobileCap: boolean;
   /** When false, Billing is omitted (platform billingVisibility / billing.view). */
   showBilling?: boolean;
+  /** When false, cloud device-activation list is omitted (Millie's local till). */
+  showDevices?: boolean;
 }): SettingsSection[] {
-  const { isAdmin, isManager, isDesktop, isMobileCap, showBilling = true } = input;
+  const {
+    isAdmin,
+    isManager,
+    isDesktop,
+    isMobileCap,
+    showBilling = true,
+    showDevices = true,
+  } = input;
 
   const terminalSections: SettingsSection[] = isDesktop
     ? [
@@ -81,7 +90,9 @@ export function buildSettingsSections(input: {
     isManager || isAdmin
       ? [
           { value: "branchReceipt", label: "Branch", long: "Branch receipt" },
-          { value: "devices", label: "Devices", long: "Activated devices" },
+          ...(showDevices
+            ? ([{ value: "devices", label: "Devices", long: "Activated devices" }] as SettingsSection[])
+            : []),
         ]
       : [];
 

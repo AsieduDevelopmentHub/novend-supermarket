@@ -4,6 +4,7 @@ import { type ReactNode, Suspense, useEffect, useSyncExternalStore } from "react
 import { useSearchParams } from "next/navigation";
 import { useConvexAuth } from "convex/react";
 import { isElectron } from "@novend/hardware";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { useIsClient } from "@/hooks/use-is-client";
 import { hasExplicitLogout } from "@/lib/auth/logout-flag";
 import {
@@ -12,6 +13,7 @@ import {
 } from "@/lib/auth/redirect-after-login";
 import { getDesktopBridge } from "@/lib/desktop";
 import { readPlatformOfflineSession } from "@/lib/offline/platform-cache";
+import { readMilliesSession } from "@/lib/offline/millies-auth";
 
 /**
  * Escape hatch: if still on /login with a live session, hard-leave so "Welcome"
@@ -25,11 +27,23 @@ const FORCE_LEAVE_BUDGET_MS = 6_000;
 const STUCK_LEAVE_BUDGET_MS = 12_000;
 
 export function LoginSessionGate({ children }: { children: ReactNode }) {
+  if (FULLY_OFFLINE) {
+    return <MilliesLoginSessionGate>{children}</MilliesLoginSessionGate>;
+  }
   return (
     <Suspense fallback={children}>
       <LoginSessionGateInner>{children}</LoginSessionGateInner>
     </Suspense>
   );
+}
+
+function MilliesLoginSessionGate({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    if (hasExplicitLogout()) return;
+    if (!readMilliesSession()) return;
+    hardLeaveToShell("/sales?fromLogin=1");
+  }, []);
+  return <>{children}</>;
 }
 
 function subscribeNoop() {
@@ -78,15 +92,8 @@ function LoginSessionGateInner({ children }: { children: ReactNode }) {
 
     const leavePending = isPostLoginLeavePending();
     const budget = leavePending ? STUCK_LEAVE_BUDGET_MS : FORCE_LEAVE_BUDGET_MS;
-
     const timer = window.setTimeout(() => {
-      if (window.location.pathname !== "/login" && window.location.pathname !== "/signup") {
-        return;
-      }
-      // Mid-resolve: only the stuck budget may interrupt. Soft budget still
-      // skips while the login form owns the leave.
-      if (!leavePending && isPostLoginLeavePending()) return;
-
+      if (hasExplicitLogout()) return;
       hardLeaveToShell(postLoginTarget());
     }, budget);
     return () => window.clearTimeout(timer);

@@ -288,11 +288,6 @@ export function BusinessCapabilitiesPanel() {
         {dirty ? (
           <section className="border-border bg-muted/40 space-y-2 rounded-[14px] border px-3 py-3">
             <p className="text-sm font-medium">Preview before Save</p>
-            {profileDirty ? (
-              <p className="text-muted-foreground text-xs">
-                Profile: {INDUSTRY_PROFILE_LABELS[savedProfile]} → {INDUSTRY_PROFILE_LABELS[effectiveProfile]}
-              </p>
-            ) : null}
             {diff.added.length > 0 ? (
               <p className="text-muted-foreground text-xs">
                 Will enable:{" "}
@@ -305,7 +300,6 @@ export function BusinessCapabilitiesPanel() {
                 {diff.removed.map((key) => BUSINESS_CAPABILITY_REGISTRY[key].label).join(" · ")}
               </p>
             ) : null}
-            {!profileDirty && !capsDirty ? null : null}
             {opsWarning ? (
               <p className="text-amber-700 dark:text-amber-400 text-xs leading-relaxed">
                 {opsWarning}

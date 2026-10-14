@@ -1,14 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useConvexAuth, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { useConnectivity } from "@/hooks/use-connectivity";
 import {
   FIRST_ACTIVATION_REQUIRED,
   loadOfflineLicenseState,
-  resolveOfflineLicenseState,
-  saveLicenseSnapshot,
   type OfflineLicenseState,
 } from "@/lib/offline/license";
 import {
@@ -19,7 +14,7 @@ import {
 } from "@/convex/shared/licensing";
 import { resolvePlan, type PlanKey, type PlanLimits } from "@/convex/shared/plans";
 import { planCapabilities, type PlanCapabilities } from "@/convex/shared/capabilities";
-import { DEFAULT_CLOUD_MODE, normalizeCloudMode, type CloudMode } from "@/convex/shared/cloudMode";
+import { normalizeCloudMode, type CloudMode } from "@/convex/shared/cloudMode";
 import {
   DEFAULT_NOVEND_EXPERIENCE,
   type ResolvedExperienceTokens,
@@ -33,24 +28,17 @@ export type LicenseState = {
   planName: string;
   limits: PlanLimits;
   capabilities: PlanCapabilities;
-  /** Resolved feature entitlements. */
   features: Record<FeatureKey, boolean>;
-  /** Plan marketing bullets. */
   planFeatures: string[];
   experience: ResolvedExperienceTokens;
   billingVisibility: BillingVisibility;
   commercial: LicenseCommercialSnapshot;
   configVersion: number;
   access: LicenseAccess;
-  /** Cloud usage mode for this organization. Defaults to full_sync. */
   cloudMode: CloudMode;
-  /** PEAS-planned mode (ignores temporary org sync boost). */
   plannedCloudMode: CloudMode;
-  /** Org-wide catch-up boost end time, or null. */
   syncBoostUntil: number | null;
-  /** True when the licence came from the offline cache rather than Convex. */
   fromCache: boolean;
-  /** Cached licence that is too old to be trusted for writes. */
   stale: boolean;
   offlineState: OfflineLicenseState["kind"] | null;
   subscription: LicenseSnapshot["subscription"];
@@ -79,8 +67,6 @@ function entitlementsFromSnapshot(snapshot: LicenseSnapshot | null, planKey: Pla
       configVersion: defaults.configVersion,
     };
   }
-  // Merge so newly added FeatureKeys (e.g. products.editStock) are present even
-  // when a cached/live snapshot was issued before that key existed.
   const features = { ...defaults.features, ...(snapshot.features ?? {}) };
   return {
     features,
@@ -123,15 +109,9 @@ function stateFromCachedSnapshot(cached: OfflineLicenseState & { snapshot: Licen
 }
 
 /**
- * The organization's licence, live when connected and cached when not.
- *
- * The server is always the authority — this hook exists so the UI can show the
- * right banners and disable actions before a mutation is rejected.
+ * Millie's: perpetual local licence from Dexie — never calls billing.licenseSnapshot.
  */
 export function useLicense(): LicenseState {
-  const { isAuthenticated } = useConvexAuth();
-  const online = useConnectivity();
-  const remote = useQuery(api.billing.licenseSnapshot, isAuthenticated && online ? {} : "skip");
   const [cached, setCached] = useState<OfflineLicenseState | null>(null);
   const [cacheReady, setCacheReady] = useState(false);
 
@@ -147,51 +127,6 @@ export function useLicense(): LicenseState {
     };
   }, []);
 
-  useEffect(() => {
-    if (!remote) return;
-    const snapshot = remote as LicenseSnapshot;
-    void saveLicenseSnapshot(snapshot);
-    // Keep React cache in sync so experience tokens survive Cap/Electron
-    // "online" false positives and mid-session disconnects without a remount.
-    setCached(
-      resolveOfflineLicenseState({
-        raw: JSON.stringify(snapshot),
-        activatedBefore: true,
-        establishedOrganizationId: snapshot.organizationId,
-      }),
-    );
-    setCacheReady(true);
-  }, [remote]);
-
-  if (remote) {
-    const plan = resolvePlan(remote.planKey);
-    const entitlements = entitlementsFromSnapshot(remote as LicenseSnapshot, plan.key);
-    return {
-      isLoading: false,
-      planKey: plan.key,
-      planName: remote.planName,
-      limits: remote.limits,
-      capabilities: remote.capabilities ?? planCapabilities(plan.key, remote.limits),
-      ...entitlements,
-      access: remote.access,
-      cloudMode: normalizeCloudMode(remote.cloudMode),
-      plannedCloudMode: normalizeCloudMode(remote.plannedCloudMode ?? remote.cloudMode),
-      syncBoostUntil:
-        typeof remote.syncBoostUntil === "number" ? remote.syncBoostUntil : null,
-      fromCache: false,
-      stale: false,
-      offlineState: null,
-      subscription: remote.subscription,
-      organizationId: remote.organizationId,
-      pendingClosure: remote.pendingClosure ?? false,
-      closureEffectiveAt: remote.closureEffectiveAt ?? null,
-    };
-  }
-
-  // Prefer the Dexie/localStorage snapshot whenever live remote is missing.
-  // Do not gate on !online — Cap/Electron often keep navigator.onLine true
-  // while Convex never resolves, which used to leave DEFAULT_NOVEND_EXPERIENCE
-  // painted (org colors "missing" offline).
   if (cached?.snapshot) {
     return {
       isLoading: false,
@@ -201,10 +136,10 @@ export function useLicense(): LicenseState {
     };
   }
 
-  const fallback = resolvePlan(undefined);
+  const fallback = resolvePlan("lifetime");
   const defaults = defaultLicenseEntitlements(fallback.key);
   return {
-    isLoading: !cacheReady || (online && isAuthenticated && remote === undefined),
+    isLoading: !cacheReady,
     planKey: fallback.key,
     planName: fallback.name,
     limits: fallback.limits,
@@ -212,12 +147,12 @@ export function useLicense(): LicenseState {
     features: defaults.features,
     planFeatures: fallback.features,
     experience: defaults.experience,
-    billingVisibility: defaults.billingVisibility,
+    billingVisibility: "hidden",
     commercial: defaults.commercial,
     configVersion: defaults.configVersion,
     access: cached ? cached.access : DEFAULT_ACCESS,
-    cloudMode: DEFAULT_CLOUD_MODE,
-    plannedCloudMode: DEFAULT_CLOUD_MODE,
+    cloudMode: "local_only",
+    plannedCloudMode: "local_only",
     syncBoostUntil: null,
     fromCache: false,
     stale: false,

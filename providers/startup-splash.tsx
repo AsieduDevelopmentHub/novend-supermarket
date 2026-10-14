@@ -30,9 +30,8 @@ const FROM_LOGIN_PARAM = "fromLogin";
  * can skip without touching sessionStorage.
  */
 export function StartupSplash({ children }: { children: ReactNode }) {
-  const configured = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
-
-  if (!configured) {
+  // Millie's fully offline — skip Convex auth splash wait entirely.
+  if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
     return <>{children}</>;
   }
 

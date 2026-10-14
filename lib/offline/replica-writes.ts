@@ -1,3 +1,4 @@
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { branchStockId, applyLocalBranchStockChange, getSellableQuantity } from "./branch-stock";
 import { getMeta, getOfflineDb, META_KEYS, newClientId } from "./db";
 import { pendingOutboundTransferQuantities, transferStockKey } from "./pending-transfers";
@@ -70,6 +71,12 @@ export async function persistBusinessWrite(args: {
   local: () => Promise<unknown>;
 }): Promise<"remote" | "queued"> {
   await assertLocalWriteAllowed();
+  // Millie's fully offline: Dexie only — never call Convex or grow a sync outbox.
+  if (FULLY_OFFLINE) {
+    await withMirrorOnly(() => args.local());
+    notifyReplicaChanged({ flush: false });
+    return "queued";
+  }
   if (args.online) {
     const policy = await loadCloudPolicy();
     if (!policy.shouldQueueRealtimeSync()) {

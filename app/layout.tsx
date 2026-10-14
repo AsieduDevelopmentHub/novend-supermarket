@@ -3,6 +3,7 @@ import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import { AppProviders } from "@/providers/app-providers";
 import { PwaRegister } from "@/components/pwa-register";
 import { buildRootMetadata } from "@/lib/seo/metadata";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 
 import "@/styles/globals.css";
 
@@ -22,19 +23,20 @@ export const viewport: Viewport = {
 
 /**
  * Root layout is static-friendly: does not read request headers or a CSP nonce.
- * ConvexAuth + AppProviders stay here (nonce optional / unset) so the Convex
- * client survives navigations. App/auth layouts add a nonced ThemeBootScript.
+ * Millie's fully offline skips Convex Auth server provider entirely.
  */
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const body = (
+    <AppProviders>
+      {children}
+      <PwaRegister />
+    </AppProviders>
+  );
+
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
       <body className="bg-background text-foreground h-full overflow-hidden font-sans antialiased">
-        <ConvexAuthNextjsServerProvider>
-          <AppProviders>
-            {children}
-            <PwaRegister />
-          </AppProviders>
-        </ConvexAuthNextjsServerProvider>
+        {FULLY_OFFLINE ? body : <ConvexAuthNextjsServerProvider>{body}</ConvexAuthNextjsServerProvider>}
       </body>
     </html>
   );
