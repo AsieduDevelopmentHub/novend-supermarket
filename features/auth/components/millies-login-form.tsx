@@ -68,7 +68,7 @@ export function MilliesLoginForm({ compact = false }: { compact?: boolean }) {
   }
 
   if (!setupComplete) {
-    return <MilliesSetupWizard />;
+    return <MilliesSetupWizard onSetupComplete={() => setSetupComplete(true)} />;
   }
 
   return (

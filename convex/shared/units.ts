@@ -132,8 +132,12 @@ export function listActiveSellUnits(product: ProductUnitFields): ResolvedSellUni
     label: u.label,
     factorToBase: u.factorToBase,
     barcode: u.barcode,
+    // Treat 0 as "unset" when the catalog price is positive — product forms often
+    // seed sell-unit drafts with 0 before the main selling price is entered.
     unitPrice:
-      typeof u.sellingPrice === "number" && Number.isFinite(u.sellingPrice)
+      typeof u.sellingPrice === "number" &&
+      Number.isFinite(u.sellingPrice) &&
+      !(u.sellingPrice === 0 && product.sellingPrice > 0)
         ? u.sellingPrice
         : roundMoney(product.sellingPrice * u.factorToBase),
     costPerBase: product.costPrice,

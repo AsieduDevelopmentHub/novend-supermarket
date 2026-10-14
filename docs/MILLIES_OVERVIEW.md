@@ -167,9 +167,15 @@ Later
 | Recovery key | Sealed on device | Encrypt `.novend-backup` files |
 | Licence snapshot | Dexie `meta` (+ org localStorage) | Perpetual `local_only` / lifetime write access |
 | Shell profile | Dexie org replica `meta` | Name, role, branch for UI and sale attribution |
+| Business replica | `novend-offline-millies-local` | **Shared** catalog, stock, sales for all staff on this till |
+
+Unlike SaaS Novend (per-user replicas), Millie's binds one org Dexie for every
+cashier so products and stock stay consistent after staff switch. Legacy
+per-user DBs are migrated once via `lib/offline/millies-shared-replica.ts`.
 
 Key files: `constants/runtime.ts`, `lib/offline/millies-auth.ts`,
 `lib/offline/millies-auth-db.ts`, `lib/offline/millies-bootstrap.ts`,
+`lib/offline/millies-shared-replica.ts`,
 `features/auth/components/millies-setup-wizard.tsx`,
 `features/auth/components/millies-login-form.tsx`,
 `features/users/components/millies-users-view.tsx`.

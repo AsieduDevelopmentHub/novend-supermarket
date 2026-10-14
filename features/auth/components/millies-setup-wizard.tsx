@@ -12,7 +12,11 @@ import { completeMilliesSetup } from "@/lib/offline/millies-auth";
 import { toUserMessage } from "@/lib/errors";
 import { toast } from "sonner";
 
-export function MilliesSetupWizard() {
+export function MilliesSetupWizard({
+  onSetupComplete,
+}: {
+  onSetupComplete?: () => void;
+} = {}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -76,7 +80,7 @@ export function MilliesSetupWizard() {
               className="w-full"
               type="button"
               onClick={() => {
-                setRecoveryKey(null);
+                onSetupComplete?.();
                 router.replace("/sales");
               }}
             >

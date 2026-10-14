@@ -17,8 +17,9 @@ import {
   readMilliesSession,
   type MilliesSessionUser,
 } from "@/lib/offline/millies-auth";
-import { loadShellProfile, type ShellProfile } from "@/lib/offline/shell-profile";
+import { loadShellProfile, saveShellProfile, type ShellProfile } from "@/lib/offline/shell-profile";
 import { bindOfflineOrganization } from "@/lib/offline/db";
+import { migrateMilliesSharedReplicaIfNeeded } from "@/lib/offline/millies-shared-replica";
 import { CustomerDisplayServices } from "@/features/customer-display/components/customer-display-services";
 
 /**
@@ -47,7 +48,21 @@ export function MilliesAppLayoutClient({ children }: { children: ReactNode }) {
         router.replace("/login");
         return;
       }
-      bindOfflineOrganization(local.organizationId, local.id);
+      bindOfflineOrganization(local.organizationId);
+      await migrateMilliesSharedReplicaIfNeeded();
+      // Shared replica meta can lag behind the PBKDF2 session — always stamp shell.
+      await saveShellProfile({
+        userId: local.id,
+        name: local.displayName,
+        role: local.role,
+        branchId: local.branchId,
+        branchName: local.branchName,
+        imageUrl: null,
+        email: local.username.includes("@") ? local.username : null,
+        phone: null,
+        organizationName: "Millie's Supermarket",
+        organizationId: local.organizationId,
+      });
       const shell = await loadShellProfile();
       if (cancelled) return;
       setSession(local);

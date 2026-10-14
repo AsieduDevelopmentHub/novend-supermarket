@@ -36,7 +36,8 @@ export async function bootstrapMilliesStore(input: {
   storeAddress?: string;
   session: MilliesBootstrapSession;
 }): Promise<void> {
-  bindOfflineOrganization(input.organizationId, input.session.id);
+  // Shared till replica — do not scope by user id.
+  bindOfflineOrganization(input.organizationId);
   const db = await getOfflineDb();
   if (!db) throw new Error("Local business database unavailable");
 

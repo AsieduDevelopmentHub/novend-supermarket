@@ -193,7 +193,9 @@ export async function listLocalUsers(): Promise<
 > {
   const db = await getMilliesAuthDb();
   if (!db) return [];
-  const rows = await db.localUsers.orderBy("createdAt").toArray();
+  // createdAt is not indexed on millies-auth-v1 — sort in memory.
+  const rows = await db.localUsers.toArray();
+  rows.sort((a, b) => a.createdAt - b.createdAt);
   return rows.map((row) => ({
     id: row.id,
     username: row.username,

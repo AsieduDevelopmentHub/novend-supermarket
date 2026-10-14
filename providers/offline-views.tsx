@@ -16,6 +16,8 @@ import { CustomerDisplayView } from "@/features/customer-display/components/cust
 import { MoreView } from "@/features/more/components/more-view";
 import { AboutNovendView } from "@/features/settings/components/about-novend-view";
 import { UsersView } from "@/features/users/components/users-view";
+import { MilliesUsersView } from "@/features/users/components/millies-users-view";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { AnalyticsView } from "@/features/analytics/components/analytics-view";
 import { AnalyticsMetricDetailView } from "@/features/analytics/components/metric-detail-view";
 import { BranchesView } from "@/features/branches/components/branches-view";
@@ -72,7 +74,7 @@ const SHELL_VIEWS: Record<string, () => ReactNode> = {
   "/customer-display": () => <CustomerDisplayView />,
   "/more": () => <MoreView />,
   "/about": () => <AboutNovendView />,
-  "/users": () => <UsersView />,
+  "/users": () => (FULLY_OFFLINE ? <MilliesUsersView /> : <UsersView />),
   "/analytics": () => <AnalyticsView />,
   "/branches": () => <BranchesView />,
   "/wholesale": () => <WholesaleView />,

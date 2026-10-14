@@ -47,7 +47,8 @@ export function draftsFromSellUnits(
       key: "default",
       label: fallbackUnit || "unit",
       factorToBase: "1",
-      sellingPrice: String(fallbackPrice || 0),
+      // Leave empty so parse leaves sellingPrice undefined → catalog price applies.
+      sellingPrice: fallbackPrice > 0 ? String(fallbackPrice) : "",
       barcode: "",
       active: true,
     },

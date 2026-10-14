@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { allocateInvoiceNumber } from "@/convex/shared/documentReferences";
 import type {
   LocalHeldSale,
@@ -119,6 +120,8 @@ function readStoredUserId(): string | undefined {
 /** Dexie database name for an org (and optional user) replica. */
 export function offlineReplicaDbName(organizationId?: string, userId?: string) {
   const org = organizationId ?? "anon";
+  // Millie's single till: all staff share one org replica (catalog + stock + sales).
+  if (FULLY_OFFLINE) return `novend-offline-${org}`;
   return userId ? `novend-offline-${org}-${userId}` : `novend-offline-${org}`;
 }
 
@@ -142,23 +145,30 @@ export function shouldDeleteOfflineReplicaOnLogout(
   return rest === boundOrganizationId || rest.startsWith(`${boundOrganizationId}-`);
 }
 
-/** Bind IndexedDB to the session organization + user so cashiers don't share an admin replica. */
+/** Bind IndexedDB to the session organization (+ user when not fully offline). */
 export function bindOfflineOrganization(organizationId: string, userId?: string) {
   boundOrganizationId = organizationId;
   dbFailed = false;
+  const scopedUserId = FULLY_OFFLINE ? undefined : userId;
   if (typeof window !== "undefined") {
     try {
       window.localStorage.setItem(ORG_STORAGE_KEY, organizationId);
-      if (userId) {
-        boundUserId = userId;
-        window.localStorage.setItem(USER_STORAGE_KEY, userId);
+      if (FULLY_OFFLINE) {
+        boundUserId = null;
+        window.localStorage.removeItem(USER_STORAGE_KEY);
+      } else if (scopedUserId) {
+        boundUserId = scopedUserId;
+        window.localStorage.setItem(USER_STORAGE_KEY, scopedUserId);
       }
     } catch {
       /* private mode / quota */
     }
   }
-  if (userId) boundUserId = userId;
-  const expectedName = replicaDbName(organizationId, userId ?? readStoredUserId());
+  if (scopedUserId) boundUserId = scopedUserId;
+  const expectedName = replicaDbName(
+    organizationId,
+    FULLY_OFFLINE ? undefined : scopedUserId ?? readStoredUserId(),
+  );
   if (dbInstance && dbInstance.name !== expectedName) {
     dbInstance.close();
     dbInstance = null;

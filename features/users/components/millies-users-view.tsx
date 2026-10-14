@@ -58,7 +58,7 @@ async function mirrorUserToReplica(user: {
 }) {
   const session = readMilliesSession();
   if (!session) return;
-  bindOfflineOrganization(session.organizationId, session.id);
+  bindOfflineOrganization(session.organizationId);
   const db = await getOfflineDb();
   if (!db) return;
   const row: MirroredUser = {
@@ -91,8 +91,13 @@ export function MilliesUsersView() {
   const [pending, setPending] = useState(false);
 
   async function reload() {
-    const list = await listLocalUsers();
-    setRows(list);
+    try {
+      const list = await listLocalUsers();
+      setRows(list);
+    } catch (error) {
+      showError(error, "Could not load staff");
+      setRows([]);
+    }
   }
 
   useEffect(() => {
