@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
@@ -9,8 +8,7 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react
 import { ChevronLeft, ChevronRight, CircleHelp, LogOut, Menu, Shield } from "lucide-react";
 import type { AppRole } from "@/config/navigation";
 import { SidebarNavTree, SidebarSettingsLink } from "@/components/layout/sidebar-nav-tree";
-import { APP_BRAND } from "@/constants/app";
-import { BRANDING } from "@/constants/branding";
+import { APP_NAME } from "@/constants/app";
 import { cn } from "@/lib/utils";
 import { api } from "@/convex/_generated/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -108,27 +106,15 @@ function SidebarBrand({
   collapsed?: boolean;
   onToggle?: () => void;
 }) {
-  const branchLabel = branchName?.trim();
-  const subtitle = branchLabel || `${APP_BRAND} POS`;
+  const subtitle = APP_NAME;
 
   return (
     <div className={cn("flex items-center gap-2 py-4", collapsed ? "flex-col px-2" : "px-3")}>
-      <div className="relative h-11 w-11 shrink-0">
-        <Image
-          src={BRANDING.brandmark}
-          alt=""
-          fill
-          priority
-          unoptimized
-          className="object-contain"
-          sizes="44px"
-        />
+      <div className="bg-sidebar-accent text-sidebar-accent-foreground flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-semibold tracking-tight">
+        {APP_NAME.slice(0, 2).toUpperCase()}
       </div>
       {collapsed ? (
-        <span className="sr-only">
-          {businessName}
-          {branchLabel ? `, ${branchLabel}` : ""}
-        </span>
+        <span className="sr-only">{businessName}</span>
       ) : (
         <div className="min-w-0 flex-1">
           <p className="text-sidebar-foreground truncate text-base leading-tight font-semibold tracking-tight">

@@ -47,9 +47,9 @@ function PublicOrAppLink({
 }
 
 const EXTRA_SYSTEM = [
-  { title: "About Novend", href: "/about", icon: Info },
+  { title: "About Milliesmart", href: "/about", icon: Info },
   { title: "Billing", href: "/settings?section=billing", icon: CreditCard },
-  { title: "Help", href: "/docs/help", icon: HelpCircle },
+  { title: "Help", href: "/settings?section=help", icon: HelpCircle },
 ] as const;
 
 /**

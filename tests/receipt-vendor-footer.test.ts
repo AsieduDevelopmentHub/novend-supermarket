@@ -9,8 +9,7 @@ import { buildReceiptShareText } from "@/services/receipts/share";
 
 describe("receipt vendor footer", () => {
   it("fits one 58mm thermal line in plain ASCII", () => {
-    expect(RECEIPT_VENDOR_FOOTER).toContain("Novend");
-    expect(RECEIPT_VENDOR_FOOTER).toContain("055 525 7482");
+    expect(RECEIPT_VENDOR_FOOTER).toBe("Powered by Novend POS");
     expect(RECEIPT_VENDOR_FOOTER.length).toBeLessThanOrEqual(32);
     expect(RECEIPT_VENDOR_FOOTER).toMatch(/^[\x20-\x7e]+$/);
   });

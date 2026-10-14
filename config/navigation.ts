@@ -9,9 +9,7 @@ import {
   LineChart,
   Settings,
   UserCog,
-  Building2,
   Undo2,
-  Warehouse,
   Truck,
   UtensilsCrossed,
   ChefHat,
@@ -172,13 +170,6 @@ export const NAV_GROUPS: NavGroup[] = [
         roles: ["administrator", "manager", "cashier"],
       },
       {
-        title: "Wholesale",
-        href: "/wholesale",
-        icon: Warehouse,
-        roles: ["administrator", "manager"],
-        features: ["inventory.wholesale"],
-      },
-      {
         title: "Suppliers",
         href: "/suppliers",
         icon: Truck,
@@ -211,13 +202,6 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Administration",
     defaultExpanded: false,
     items: [
-      {
-        title: "Branches",
-        href: "/branches",
-        icon: Building2,
-        roles: ["administrator"],
-        features: ["branches.multiBranch"],
-      },
       {
         title: "Users",
         href: "/users",

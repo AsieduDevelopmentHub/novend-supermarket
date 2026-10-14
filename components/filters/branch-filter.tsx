@@ -1,6 +1,7 @@
 "use client";
 
 import { Id } from "@/convex/_generated/dataModel";
+import { SINGLE_STORE } from "@/constants/app";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,9 @@ export function BranchFilter({
   inline = false,
   triggerClassName,
 }: Props) {
+  // Milliesmart is one store — branch pickers add noise without choice.
+  if (SINGLE_STORE) return null;
+
   if (lockedLabel) {
     return (
       <div className={className}>

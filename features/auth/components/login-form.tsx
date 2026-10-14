@@ -14,20 +14,16 @@ import {
   showError,
 } from "@/lib/errors";
 import { recoverStaleClient } from "@/lib/auth/recover-auth-navigation";
-import Image from "next/image";
-import { ArrowLeft, Mail } from "lucide-react";
-import { isCapacitor, isElectron } from "@novend/hardware";
+import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { APP_NAME } from "@/constants/app";
-import { BRANDING } from "@/constants/branding";
 import { ROUTES } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 import { AppSplash } from "@/features/auth/components/app-splash";
-import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
 import {
   clearPostLoginLeavePending,
   markOnlineSessionWarm,
@@ -164,7 +160,6 @@ export function LoginForm({ compact = false }: { compact?: boolean }) {
 }
 
 function ConfiguredLoginForm({ compact }: { compact: boolean }) {
-  const websiteHref = usePublicSiteHref("/");
   const { signIn, signOut } = useAuthActions();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const online = useConnectivity();
@@ -180,12 +175,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
   const staleCloudLogoutRef = useRef(false);
   /** Bumps when a submit is abandoned so a late `signIn` cannot open the wrong shell. */
   const submitGenerationRef = useRef(0);
-  /** Cap / Electron are the product shell — no escape hatch to the marketing site. */
-  const [hideWebsiteLink, setHideWebsiteLink] = useState(false);
-
-  useEffect(() => {
-    setHideWebsiteLink(isCapacitor() || isElectron());
-  }, []);
 
   // Landed on login — drop the transient “Signing out…” UI so reloads of the
   // form (or fromBoot) never keep that label. Keep the security barrier until
@@ -567,16 +556,6 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
         className={openingWorkspace ? "invisible h-0 overflow-hidden" : undefined}
         aria-hidden={openingWorkspace}
       >
-        {!hideWebsiteLink ? (
-          <Link
-            href={websiteHref}
-            className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-            Back to website
-          </Link>
-        ) : null}
-
         <FormHeader compact={compact} />
 
         <form className="space-y-4" onSubmit={onSubmit} noValidate>
@@ -672,20 +651,17 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 function FormHeader({ compact }: { compact: boolean }) {
   return (
     <div className={cn("text-center", compact ? "mb-6 space-y-3" : "mb-8 space-y-4")}>
-      <div className={cn("relative mx-auto", compact ? "h-14 w-14" : "h-16 w-16")}>
-        <Image
-          src={BRANDING.brandmark}
-          alt=""
-          fill
-          priority
-          unoptimized
-          sizes="64px"
-          className="object-contain"
-        />
-      </div>
+      <p
+        className={cn(
+          "text-primary font-semibold tracking-tight",
+          compact ? "text-2xl" : "text-3xl",
+        )}
+      >
+        {APP_NAME}
+      </p>
       <div className="space-y-1">
         <h1 className="text-foreground text-2xl font-semibold tracking-tight">Welcome back</h1>
-        <p className="text-muted-foreground text-sm">{APP_NAME}</p>
+        <p className="text-muted-foreground text-sm">Sign in to continue</p>
       </div>
     </div>
   );

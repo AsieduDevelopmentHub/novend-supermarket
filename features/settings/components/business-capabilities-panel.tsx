@@ -8,7 +8,6 @@ import {
   BUSINESS_CAPABILITY_REGISTRY,
   INDUSTRY_PACKS,
   INDUSTRY_PROFILE_LABELS,
-  INDUSTRY_PROFILES,
   businessCapabilitiesAllowedOnPlan,
   type BusinessCapabilityKey,
   type IndustryProfile,
@@ -26,33 +25,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 
-const PROFILE_BLURBS: Record<IndustryProfile, string> = {
-  retail: "Simple selling — Add Product stays lean.",
-  wholesale:
-    "Pack/carton pricing at checkout, customer price lists, and on-account credit (Pro+).",
-  supermarket: "Packs, dated lots, and optional sell-by-weight for produce.",
-  convenience: "Pack pricing and dated lots for high-turn convenience stock.",
-  cold_store: "Weight selling, lots, and optional scale support.",
-  electronics: "Serial / IMEI tracking for high-value items.",
-  pharmacy: "Lots, expiry, and custom catalog fields (inventory-oriented).",
-  fashion: "Size and color variants — each variant is its own SKU and stock.",
-  cosmetics: "Shade/size variants, lots/expiry, and custom product fields.",
-  hardware: "Pack pricing plus serial tracking for tools and equipment.",
-  stationery: "Pack pricing and variants for reams, packs, and assortments.",
-  restaurant: "Menu catalogue, floor tables, modifiers, and kitchen tickets.",
-  bar: "Drink menu, floor/tables, modifiers, and bar ticket queue.",
-  hotel: "Rooms board, reservations, folio checkout, and room-rate catalogue at POS.",
-  custom: "Start empty and turn on only what you need.",
-};
+const FIXED_INDUSTRY_PROFILE: IndustryProfile = "supermarket";
+const SUPERMARKET_BLURB = "Packs, dated lots, and optional sell-by-weight for produce.";
 
 /** Capabilities that change Add Product / sales UX — shown first. */
 const CATALOG_KEYS: BusinessCapabilityKey[] = [
@@ -135,13 +111,11 @@ export function BusinessCapabilitiesPanel() {
   const remote = useAuthedQuery(api.settings.getBusinessCapabilities, online ? {} : "skip");
   const update = useMutation(api.settings.updateBusinessCapabilities);
 
-  const [profile, setProfile] = useState<IndustryProfile | null>(null);
   const [selected, setSelected] = useState<BusinessCapabilityKey[] | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const savedProfile = remote?.industryProfile ?? "retail";
   const savedSelected = remote?.enabledCapabilities ?? [];
-  const effectiveProfile = profile ?? savedProfile;
+  const effectiveProfile = FIXED_INDUSTRY_PROFILE;
   const effectiveSelected = selected ?? savedSelected;
 
   const allowedOnPlan = useMemo(
@@ -151,9 +125,7 @@ export function BusinessCapabilitiesPanel() {
 
   const packPreview = INDUSTRY_PACKS[effectiveProfile].filter((key) => allowedOnPlan.has(key));
   const diff = capabilityDiff(savedSelected, effectiveSelected);
-  const profileDirty = effectiveProfile !== savedProfile;
-  const capsDirty = diff.added.length > 0 || diff.removed.length > 0;
-  const dirty = profileDirty || capsDirty;
+  const dirty = diff.added.length > 0 || diff.removed.length > 0;
 
   const disablingOps = diff.removed.filter((key) => OPS_DISABLE_SET.has(key));
   const opsWarning = opsDisableWarningCopy(disablingOps);
@@ -183,35 +155,30 @@ export function BusinessCapabilitiesPanel() {
     );
   }
 
-  function fillDraftFromPack(nextProfile: IndustryProfile) {
-    const pack = INDUSTRY_PACKS[nextProfile].filter((key) => allowedOnPlan.has(key));
-    setProfile(nextProfile);
+  function fillDraftFromPack() {
+    const pack = INDUSTRY_PACKS[FIXED_INDUSTRY_PROFILE].filter((key) => allowedOnPlan.has(key));
     setSelected(pack);
   }
 
-  function onProfileChange(value: IndustryProfile) {
-    // Selecting a profile loads pack defaults into local draft only — nav stays on saved config.
-    fillDraftFromPack(value);
-  }
-
   function onApplyPackToDraft() {
-    fillDraftFromPack(effectiveProfile);
-    toast.message(`Loaded ${INDUSTRY_PROFILE_LABELS[effectiveProfile]} pack into draft — Save to apply.`);
+    fillDraftFromPack();
+    toast.message(
+      `Loaded ${INDUSTRY_PROFILE_LABELS[FIXED_INDUSTRY_PROFILE]} pack into draft — Save to apply.`,
+    );
   }
 
   async function onSave() {
     setSaving(true);
     try {
       const next = await update({
-        industryProfile: effectiveProfile,
+        industryProfile: FIXED_INDUSTRY_PROFILE,
         enabledCapabilities: effectiveSelected,
         applyIndustryPack: false,
       });
-      setProfile(next.industryProfile);
       setSelected(next.enabledCapabilities);
       await saveBusinessCapabilitiesCache(next);
-      await cacheResolvedBusinessTerms(next.industryProfile);
-      toast.success("Selling options saved. Navigation updates to the new profile.");
+      await cacheResolvedBusinessTerms(FIXED_INDUSTRY_PROFILE);
+      toast.success("Selling options saved.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save capabilities");
     } finally {
@@ -220,7 +187,6 @@ export function BusinessCapabilitiesPanel() {
   }
 
   function onDiscardDraft() {
-    setProfile(null);
     setSelected(null);
   }
 
@@ -295,24 +261,12 @@ export function BusinessCapabilitiesPanel() {
       <CardContent className="space-y-8">
         <section className="space-y-3">
           <div className="space-y-1">
-            <Label htmlFor="industry-profile">Industry profile</Label>
+            <Label>Industry profile</Label>
           </div>
-          <Select
-            value={effectiveProfile}
-            onValueChange={(value) => onProfileChange(value as IndustryProfile)}
-          >
-            <SelectTrigger id="industry-profile" className="min-h-11 max-w-md">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {INDUSTRY_PROFILES.map((key) => (
-                <SelectItem key={key} value={key}>
-                  {INDUSTRY_PROFILE_LABELS[key]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-muted-foreground text-sm">{PROFILE_BLURBS[effectiveProfile]}</p>
+          <p className="border-border bg-muted/40 text-foreground max-w-md rounded-[12px] border px-3 py-2.5 text-sm font-medium">
+            {INDUSTRY_PROFILE_LABELS[FIXED_INDUSTRY_PROFILE]}
+          </p>
+          <p className="text-muted-foreground text-sm">{SUPERMARKET_BLURB}</p>
           {packPreview.length > 0 ? (
             <p className="text-muted-foreground text-xs">
               Pack includes:{" "}

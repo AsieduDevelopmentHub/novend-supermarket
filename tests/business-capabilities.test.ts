@@ -22,18 +22,23 @@ import {
 import { navGroupsForRole, pathAllowedForRole } from "@/config/navigation";
 
 describe("businessCapabilities registry", () => {
-  it("defaults to retail with no capabilities enabled", () => {
-    expect(DEFAULT_BUSINESS_CONFIGURATION.enabledCapabilities).toEqual([]);
-    expect(DEFAULT_BUSINESS_CONFIGURATION.industryProfile).toBe("retail");
+  it("defaults to the supermarket pack", () => {
+    expect(DEFAULT_BUSINESS_CONFIGURATION.industryProfile).toBe("supermarket");
+    expect(DEFAULT_BUSINESS_CONFIGURATION.enabledCapabilities).toEqual([
+      "multi_unit_pricing",
+      "lot_expiry",
+      "sell_by_weight",
+      "configurable_pos",
+    ]);
     expect(DEFAULT_BUSINESS_CONFIGURATION.configurationVersion).toBe(
       BUSINESS_CAPABILITY_CONFIGURATION_VERSION,
     );
-    expect(hasBusinessCapability(DEFAULT_BUSINESS_CONFIGURATION, "multi_unit_pricing")).toBe(false);
+    expect(hasBusinessCapability(DEFAULT_BUSINESS_CONFIGURATION, "multi_unit_pricing")).toBe(true);
   });
 
-  it("parses missing or invalid JSON as defaults", () => {
-    expect(parseBusinessConfiguration(undefined).enabledCapabilities).toEqual([]);
-    expect(parseBusinessConfiguration("{").industryProfile).toBe("retail");
+  it("parses missing or invalid JSON as supermarket defaults", () => {
+    expect(parseBusinessConfiguration(undefined).industryProfile).toBe("supermarket");
+    expect(parseBusinessConfiguration("{").industryProfile).toBe("supermarket");
   });
 
   it("gates multi_unit_pricing behind Pro+", () => {
@@ -96,11 +101,11 @@ describe("businessCapabilities registry", () => {
     expect(bar.enabledCapabilities).toContain("kitchen_tickets");
   });
 
-  it("resolves provision industry with custom → retail and policy default", () => {
-    expect(resolveIndustryProfileForProvision("custom")).toBe("retail");
-    expect(resolveIndustryProfileForProvision(undefined, "restaurant")).toBe("restaurant");
-    expect(resolveIndustryProfileForProvision("bar")).toBe("bar");
-    expect(resolveIndustryProfileForProvision("other")).toBe("retail");
+  it("always provisions supermarket regardless of request or policy", () => {
+    expect(resolveIndustryProfileForProvision("custom")).toBe("supermarket");
+    expect(resolveIndustryProfileForProvision(undefined, "restaurant")).toBe("supermarket");
+    expect(resolveIndustryProfileForProvision("bar")).toBe("supermarket");
+    expect(resolveIndustryProfileForProvision("other")).toBe("supermarket");
   });
 
   it("allows non_stock_sales on Basic", () => {

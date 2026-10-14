@@ -21,7 +21,7 @@ describe("navigation tree", () => {
     ]);
   });
 
-  it("hides wholesale and analytics from cashiers", () => {
+  it("hides wholesale, branches, and analytics from cashiers", () => {
     const groups = navGroupsForRole("cashier");
     expect(groups.map((g) => g.id)).toEqual(["overview", "sales", "inventory", "business"]);
     expect(groups.find((g) => g.id === "inventory")?.items.map((i) => i.href)).toEqual([
@@ -29,6 +29,8 @@ describe("navigation tree", () => {
       "/inventory",
     ]);
     expect(flatNavForRole("cashier").some((i) => i.href === "/wholesale")).toBe(false);
+    expect(flatNavForRole("administrator").some((i) => i.href === "/wholesale")).toBe(false);
+    expect(flatNavForRole("administrator").some((i) => i.href === "/branches")).toBe(false);
   });
 
   it("keeps settings separate from tree groups", () => {

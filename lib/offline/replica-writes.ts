@@ -60,9 +60,9 @@ import {
 const QUEUED_TOAST = "Saved on this device. We'll sync when you're back online.";
 
 /**
- * Write Dexie immediately. When online on full_sync, outbox flush updates Convex.
- * On package/local modes outbox flush is disabled — apply Dexie without queueing,
- * then call Convex directly so the cloud clone stays aligned (Inventory vs Sales).
+ * Write Dexie immediately. Milliesmart is local-only: when realtime sync is off,
+ * business writes stay on the till and never call Convex. On full_sync (unused
+ * here) the outbox flush still updates Convex when online.
  */
 export async function persistBusinessWrite(args: {
   online: boolean;
@@ -74,15 +74,8 @@ export async function persistBusinessWrite(args: {
     const policy = await loadCloudPolicy();
     if (!policy.shouldQueueRealtimeSync()) {
       await withMirrorOnly(() => args.local());
-      try {
-        await args.remote();
-        notifyReplicaChanged({ flush: false });
-        return "remote";
-      } catch {
-        // Dexie already has the write; lists prefer Dexie on package modes.
-        notifyReplicaChanged({ flush: false });
-        return "queued";
-      }
+      notifyReplicaChanged({ flush: false });
+      return "queued";
     }
   }
   await args.local();

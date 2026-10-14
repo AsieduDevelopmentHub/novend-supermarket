@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isLegalPath, isMarketingPath } from "@/lib/marketing-routes";
 
 describe("isMarketingPath", () => {
-  it("treats pricing and product marketing pages as public", () => {
+  it("treats retired marketing pages as marketing paths", () => {
     expect(isMarketingPath("/pricing")).toBe(true);
     expect(isMarketingPath("/pricing#lifetime")).toBe(true);
     expect(isMarketingPath("/product")).toBe(true);
@@ -16,7 +16,7 @@ describe("isMarketingPath", () => {
     expect(isMarketingPath("/products/abc")).toBe(false);
   });
 
-  it("keeps core marketing and legal paths public", () => {
+  it("keeps retired marketing and legal paths identifiable", () => {
     expect(isMarketingPath("/")).toBe(true);
     expect(isMarketingPath("/download")).toBe(true);
     expect(isMarketingPath("/contact")).toBe(true);
@@ -25,7 +25,7 @@ describe("isMarketingPath", () => {
     expect(isMarketingPath("/privacy")).toBe(true);
   });
 
-  it("recognizes the public legal pages", () => {
+  it("recognizes the retired legal pages", () => {
     expect(isLegalPath("/privacy")).toBe(true);
     expect(isLegalPath("/terms")).toBe(true);
     expect(isLegalPath("/refund")).toBe(true);

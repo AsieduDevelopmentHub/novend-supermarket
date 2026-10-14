@@ -2,14 +2,13 @@
  * Cloud usage mode policy — shared by Convex and the browser client.
  *
  * A tenant's `organizations.cloudMode` decides how aggressively the device
- * talks to the cloud. Missing / unknown values normalize to `full_sync` so old
- * records and stale caches keep their current behaviour without a migration.
- * See docs/architecture/CLOUD_MODE_PLAN_V1.md and CLOUD_MODE_PLAN_V2.md.
+ * talks to the cloud. Milliesmart is local-only: missing / unknown values
+ * normalize to `local_only`. See docs/architecture/OFFLINE_SYNC.md.
  */
 
 export const CLOUD_MODES = ["full_sync", "backup_only", "snapshot_only", "local_only"] as const;
 export type CloudMode = (typeof CLOUD_MODES)[number];
-export const DEFAULT_CLOUD_MODE: CloudMode = "full_sync";
+export const DEFAULT_CLOUD_MODE: CloudMode = "local_only";
 
 /**
  * How often a backup_only / snapshot_only device may upload an automatic package.
@@ -122,50 +121,25 @@ export function cloudSyncBoostRefreshIfRemainingMs(ttlMs: number): number {
 }
 
 /**
- * Planned PEAS mode vs temporary org-wide boost.
- * While `boostUntil` is in the future, every client treats the org as full_sync
- * for pull/outbox — without rewriting `organizations.cloudMode`.
+ * Milliesmart never boosts into full_sync — business data stays on the till.
  */
 export function resolveEffectiveCloudMode(input: {
   planned: CloudMode | unknown;
   boostUntil?: number | null;
   now?: number;
 }): CloudMode {
-  const planned = normalizeCloudMode(input.planned);
-  const now = input.now ?? Date.now();
-  const until = input.boostUntil;
-  if (typeof until === "number" && Number.isFinite(until) && until > now) {
-    return "full_sync";
-  }
-  return planned;
+  return normalizeCloudMode(input.planned);
 }
 
-/** Whether to start or extend an org sync boost given the planned mode and clock. */
-export function shouldApplyCloudSyncBoost(input: {
+/** Sync boost is disabled for this single-store offline product. */
+export function shouldApplyCloudSyncBoost(_input: {
   planned: CloudMode | unknown;
   boostUntil?: number | null;
   now?: number;
   /** Effective TTL for this org (resolved from org → global → default). */
   ttlMs?: number;
 }): { apply: boolean; until: number } {
-  const now = input.now ?? Date.now();
-  const planned = normalizeCloudMode(input.planned);
-  if (planned === "full_sync") {
-    return { apply: false, until: 0 };
-  }
-  const ttlMs =
-    typeof input.ttlMs === "number" && Number.isFinite(input.ttlMs) && input.ttlMs > 0
-      ? input.ttlMs
-      : CLOUD_SYNC_BOOST_TTL_MS;
-  const refreshMs = cloudSyncBoostRefreshIfRemainingMs(ttlMs);
-  const existing = input.boostUntil;
-  if (typeof existing === "number" && existing > now) {
-    const remaining = existing - now;
-    if (remaining >= refreshMs) {
-      return { apply: false, until: existing };
-    }
-  }
-  return { apply: true, until: now + ttlMs };
+  return { apply: false, until: 0 };
 }
 
 export function resolveCloudPolicy(

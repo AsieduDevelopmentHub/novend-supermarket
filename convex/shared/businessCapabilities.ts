@@ -93,8 +93,13 @@ export type OrganizationBusinessConfiguration = {
 };
 
 export const DEFAULT_BUSINESS_CONFIGURATION: OrganizationBusinessConfiguration = {
-  industryProfile: "retail",
-  enabledCapabilities: [],
+  industryProfile: "supermarket",
+  enabledCapabilities: [
+    "multi_unit_pricing",
+    "lot_expiry",
+    "sell_by_weight",
+    "configurable_pos",
+  ],
   capabilitySettings: {},
   configurationVersion: BUSINESS_CAPABILITY_CONFIGURATION_VERSION,
 };
@@ -280,20 +285,13 @@ export function stockOpsVisibleForIndustry(
 }
 
 /**
- * Resolve industry for org create / onboarding.
- * `custom` and unknown values map to retail. Explicit valid profiles pass through.
+ * Milliesmart is supermarket-only. Provisioning always uses that pack.
  */
 export function resolveIndustryProfileForProvision(
-  requested: string | null | undefined,
-  policyDefault?: string | null,
+  _requested?: string | null,
+  _policyDefault?: string | null,
 ): IndustryProfile {
-  if (requested && requested !== "custom" && isIndustryProfile(requested)) {
-    return requested;
-  }
-  if (policyDefault && policyDefault !== "custom" && isIndustryProfile(policyDefault)) {
-    return policyDefault;
-  }
-  return "retail";
+  return "supermarket";
 }
 
 export function isStockOpsNavHref(href: string): boolean {

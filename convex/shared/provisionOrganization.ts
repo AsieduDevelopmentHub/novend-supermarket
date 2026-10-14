@@ -108,7 +108,7 @@ export async function provisionOrganization(
     currency,
     taxId,
     plan: "standard",
-    cloudMode: "full_sync",
+    cloudMode: "local_only",
     entitlementVersion: 1,
     experiencePresetId: policy?.experiencePresetId,
     featureTemplateId: policy?.featureTemplateId,
@@ -220,7 +220,7 @@ export async function provisionOrganization(
   await seedOrgPlatformStats(ctx, organizationId, { branchCount: 1 });
   await onOrganizationProvisioned(ctx, {
     planKey,
-    cloudMode: "full_sync",
+    cloudMode: "local_only",
     status: "active",
     branchCount: 1,
   });

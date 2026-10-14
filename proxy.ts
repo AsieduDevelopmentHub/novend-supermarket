@@ -8,9 +8,7 @@ import {
   hostsMatch,
   normalizeOrigin,
   resolveHostingOrigins,
-  shouldRedirectAuthenticatedHome,
 } from "@/lib/hosting/hosts";
-import { isLegalPath } from "@/lib/marketing-routes";
 import { applySecurityHeaders } from "@/lib/security/response-headers";
 
 /**
@@ -26,32 +24,12 @@ const isLoginPage = createRouteMatcher([
   "/reset-password",
 ]);
 const isPublicRoute = createRouteMatcher([
-  "/",
   "/login",
   "/signup",
   "/forgot-password",
   "/reset-password",
   "/billing/callback",
   "/api/auth(.*)",
-  "/docs(.*)",
-  "/download",
-  // Marketing product/pricing (segment-bounded — never a bare product(.*), which matches /products).
-  "/pricing",
-  "/pricing/(.*)",
-  "/product",
-  "/product/(.*)",
-  "/industries",
-  "/industries/(.*)",
-  "/contact",
-  "/contact/(.*)",
-  "/demo",
-  "/demo/(.*)",
-  "/privacy",
-  "/terms",
-  "/refund",
-  "/cookies",
-  "/aup",
-  "/dpa",
   "/api/health",
   "/api/boot",
   "/api/mobile-updates/latest",
@@ -59,14 +37,8 @@ const isPublicRoute = createRouteMatcher([
 const isPlatformRoute = createRouteMatcher(["/platform(.*)"]);
 const isAdminOnly = createRouteMatcher(["/branches(.*)"]);
 const isAdminOrManager = createRouteMatcher(["/analytics(.*)", "/users(.*)"]);
-
-/**
- * Public marketing / docs / legal / health — no session lookup.
- * Excludes `/` (authenticated home redirect) and login pages (post-auth redirect).
- */
-const isStaticPublicRoute = createRouteMatcher([
-  "/billing/callback",
-  "/api/auth(.*)",
+const isRetiredPublicPath = createRouteMatcher([
+  "/",
   "/docs(.*)",
   "/download",
   "/pricing",
@@ -85,6 +57,16 @@ const isStaticPublicRoute = createRouteMatcher([
   "/cookies",
   "/aup",
   "/dpa",
+  "/wholesale(.*)",
+  "/branches(.*)",
+]);
+
+/**
+ * Health / auth bootstrap — no session lookup.
+ */
+const isStaticPublicRoute = createRouteMatcher([
+  "/billing/callback",
+  "/api/auth(.*)",
   "/api/health",
   "/api/mobile-updates/latest",
 ]);
@@ -111,21 +93,6 @@ function hasLocalOnlyShellCookie(request: NextRequest): boolean {
   } catch {
     return false;
   }
-}
-
-/** When this request is on the app host, send the same path to the marketing origin. */
-function redirectToMarketing(request: NextRequest) {
-  const { appOrigin, marketingOrigin } = resolveHostingOrigins();
-  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const requestHost = forwardedHost || request.nextUrl.host;
-  const onAppHost =
-    hostsMatch(requestHost, hostnameFromOrigin(appOrigin)) &&
-    !hostsMatch(hostnameFromOrigin(appOrigin), hostnameFromOrigin(marketingOrigin));
-  if (!onAppHost) return null;
-  const marketing = normalizeOrigin(marketingOrigin);
-  if (!marketing) return null;
-  const destination = new URL(`${request.nextUrl.pathname}${request.nextUrl.search}`, marketing);
-  return withStaticSecurityHeaders(NextResponse.redirect(destination));
 }
 
 /** When this request is on the marketing host, send auth paths to the app origin. */
@@ -252,11 +219,14 @@ export default convexAuthNextjsMiddleware(
       return NextResponse.next();
     }
 
-    // Legal pages belong on the marketing host. A visit on the app host
-    // (including a new tab from signup) goes to www, not dashboard.
-    if (isLegalPath(request.nextUrl.pathname)) {
-      const marketingRedirect = redirectToMarketing(request);
-      if (marketingRedirect) return marketingRedirect;
+    // No public website: retired marketing / legal / branch / wholesale paths
+    // land on sign-in (or the dashboard when already signed in).
+    if (isRetiredPublicPath(request)) {
+      const authenticated = await convexAuth.isAuthenticated();
+      if (authenticated) {
+        return withStaticSecurityHeaders(redirectTo(request, "/dashboard"));
+      }
+      return withStaticSecurityHeaders(redirectTo(request, "/login"));
     }
 
     // Auth pages belong on the app host. A visit on www goes to dashboard.
@@ -265,51 +235,12 @@ export default convexAuthNextjsMiddleware(
       if (appRedirect) return appRedirect;
     }
 
-    // Marketing / docs / legal / health: security headers only — skip session work.
+    // Health / billing callback: security headers only — skip session work.
     if (isStaticPublicRoute(request)) {
       return withStaticSecurityHeaders(NextResponse.next());
     }
 
-    const pathname = request.nextUrl.pathname;
-    const isHome = pathname === "/";
     const onLoginPage = isLoginPage(request);
-
-    // Public landing: only authenticate when we might redirect into the POS shell.
-    // Otherwise use static marketing CSP (no per-request nonce).
-    if (isHome) {
-      const { appOrigin, marketingOrigin } = resolveHostingOrigins();
-      const authenticated = await convexAuth.isAuthenticated();
-      const fromBoot = request.nextUrl.searchParams.get("fromBoot") === "1";
-      const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-      const requestHost = forwardedHost || request.nextUrl.host;
-      const onAppHost =
-        hostsMatch(requestHost, hostnameFromOrigin(appOrigin)) &&
-        !hostsMatch(hostnameFromOrigin(appOrigin), hostnameFromOrigin(marketingOrigin));
-      if (!authenticated && onAppHost && !fromBoot) {
-        const marketing = normalizeOrigin(marketingOrigin);
-        if (marketing) {
-          return withStaticSecurityHeaders(NextResponse.redirect(new URL("/", marketing)));
-        }
-      }
-      if (authenticated) {
-        const redirectHome = shouldRedirectAuthenticatedHome({
-          requestHost,
-          appOrigin,
-          marketingOrigin,
-        });
-        if (redirectHome) {
-          const session = await sessionForToken(await convexAuth.getToken());
-          const destination = resolvePostAuthPath(session);
-          const fromBoot = request.nextUrl.searchParams.get("fromBoot") === "1";
-          const href =
-            fromBoot && !destination.includes("fromBoot=")
-              ? `${destination}${destination.includes("?") ? "&" : "?"}fromBoot=1`
-              : destination;
-          return withStaticSecurityHeaders(redirectTo(request, href));
-        }
-      }
-      return withStaticSecurityHeaders(NextResponse.next());
-    }
 
     // App / auth routes: nonce CSP + session checks.
     const nonce = Buffer.from(crypto.randomUUID()).toString("base64");

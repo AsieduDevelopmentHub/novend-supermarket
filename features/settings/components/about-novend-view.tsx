@@ -11,9 +11,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { useShowsRealtimeSyncUi } from "@/hooks/use-shows-realtime-sync-ui";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
 import { estimateBackupSize } from "@/lib/offline/backup";
-import { APP_BRAND, APP_NAME, APP_VERSION } from "@/constants/app";
-import { usePublicSiteHref } from "@/features/auth/components/public-site-host";
-import { SUPPORT_MAILTO } from "@/features/marketing/content";
+import { APP_NAME, APP_VERSION, RECEIPT_VENDOR_FOOTER } from "@/constants/app";
 import { Info } from "lucide-react";
 
 const LAST_UPDATE_KEY = "novend.mobileUpdate.last";
@@ -38,13 +36,7 @@ function cacheSuccessfulUpdate(info: UpdateInfo) {
 }
 
 export function AboutNovendView() {
-  const privacyHref = usePublicSiteHref("/privacy");
-  const termsHref = usePublicSiteHref("/terms");
-  const refundHref = usePublicSiteHref("/refund");
-  const cookiesHref = usePublicSiteHref("/cookies");
-  const aupHref = usePublicSiteHref("/aup");
-  const dpaHref = usePublicSiteHref("/dpa");
-  const { role, branchName } = usePermissions();
+  const { role } = usePermissions();
   const offline = useOfflineStatus();
   const showRealtimeSync = useShowsRealtimeSyncUi();
   const [info, setInfo] = useState<AppInfo | null>(null);
@@ -91,7 +83,7 @@ export function AboutNovendView() {
 
   return (
     <div className="mx-auto max-w-lg space-y-4">
-      <PageHeader title={`About ${APP_BRAND}`} />
+      <PageHeader title={`About ${APP_NAME}`} />
 
       <Card className="rounded-[20px]">
         <CardHeader>
@@ -114,13 +106,12 @@ export function AboutNovendView() {
           ) : null}
           {orgName ? (
             <p>
-              Organization: <span className="text-foreground font-medium">{orgName}</span>
+              Store: <span className="text-foreground font-medium">{orgName}</span>
             </p>
           ) : null}
           {role ? (
             <p>
               Role: <span className="text-foreground font-medium capitalize">{role}</span>
-              {branchName ? ` · ${branchName}` : null}
             </p>
           ) : null}
           <p>
@@ -138,59 +129,17 @@ export function AboutNovendView() {
                   : "Offline"}
             </span>
           </p>
+          <p className="text-foreground pt-2 font-medium">{RECEIPT_VENDOR_FOOTER}</p>
         </CardContent>
       </Card>
 
       <Card className="rounded-[20px]">
         <CardHeader>
-          <CardTitle className="text-base">Legal & support</CardTitle>
+          <CardTitle className="text-base">Help</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href={privacyHref} target="_blank" rel="noopener noreferrer">
-              Privacy Policy
-            </a>
-          </Button>
-          <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href={termsHref} target="_blank" rel="noopener noreferrer">
-              Terms of Service
-            </a>
-          </Button>
-          <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href={refundHref} target="_blank" rel="noopener noreferrer">
-              Refund Policy
-            </a>
-          </Button>
-          <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href={cookiesHref} target="_blank" rel="noopener noreferrer">
-              Cookie Policy
-            </a>
-          </Button>
-          <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href={aupHref} target="_blank" rel="noopener noreferrer">
-              Acceptable Use
-            </a>
-          </Button>
-          <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href={dpaHref} target="_blank" rel="noopener noreferrer">
-              Data Processing
-            </a>
-          </Button>
-          <Button asChild variant="outline" className="min-h-11 justify-start">
             <Link href="/settings?section=help">Help &amp; tours</Link>
-          </Button>
-          <Button asChild variant="outline" className="min-h-11 justify-start">
-            <a href="/docs/help" target="_blank" rel="noopener noreferrer">
-              Help & support
-            </a>
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11 justify-start"
-            onClick={() => void Hardware.app.openExternalUrl(SUPPORT_MAILTO)}
-          >
-            Contact support
           </Button>
         </CardContent>
       </Card>

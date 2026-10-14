@@ -8,7 +8,6 @@ import {
   resolveCloudSyncBoostTtlMinutes,
   resolveEffectiveCloudMode,
   shouldApplyCloudSyncBoost,
-  CLOUD_SYNC_BOOST_TTL_MS,
 } from "@/convex/shared/cloudMode";
 import { isScheduledBackupDue } from "@/lib/offline/scheduled-backup";
 
@@ -69,9 +68,9 @@ describe("resolveCloudPolicy", () => {
     expect(policy.shouldAllowRemoteDeviceSync()).toBe(false);
   });
 
-  it("unknown / missing modes normalize to full_sync", () => {
-    expect(resolveCloudPolicy(undefined).mode).toBe("full_sync");
-    expect(resolveCloudPolicy("nonsense").mode).toBe("full_sync");
+  it("unknown / missing modes normalize to local_only", () => {
+    expect(resolveCloudPolicy(undefined).mode).toBe("local_only");
+    expect(resolveCloudPolicy("nonsense").mode).toBe("local_only");
   });
 
   it("entitlement flags disable backup and monitoring even in full_sync", () => {
@@ -117,7 +116,7 @@ describe("backup interval", () => {
 });
 
 describe("org sync boost", () => {
-  it("resolves effective full_sync while boostUntil is in the future", () => {
+  it("never resolves effective full_sync from a boost", () => {
     const now = 1_000_000;
     expect(
       resolveEffectiveCloudMode({
@@ -125,74 +124,44 @@ describe("org sync boost", () => {
         boostUntil: now + 60_000,
         now,
       }),
-    ).toBe("full_sync");
+    ).toBe("snapshot_only");
     expect(
       resolveEffectiveCloudMode({
         planned: "local_only",
-        boostUntil: now - 1,
+        boostUntil: now + 60_000,
         now,
       }),
     ).toBe("local_only");
   });
 
-  it("does not boost full_sync orgs", () => {
+  it("never starts a sync boost", () => {
     const now = 1_000_000;
     expect(shouldApplyCloudSyncBoost({ planned: "full_sync", now })).toEqual({
       apply: false,
       until: 0,
     });
+    expect(shouldApplyCloudSyncBoost({ planned: "backup_only", now })).toEqual({
+      apply: false,
+      until: 0,
+    });
+    expect(shouldApplyCloudSyncBoost({ planned: "local_only", now })).toEqual({
+      apply: false,
+      until: 0,
+    });
   });
 
-  it("starts a boost for package modes and extends when nearly expired", () => {
-    const now = 1_000_000;
-    const started = shouldApplyCloudSyncBoost({ planned: "backup_only", now });
-    expect(started.apply).toBe(true);
-    expect(started.until).toBe(now + CLOUD_SYNC_BOOST_TTL_MS);
-
-    const stillFresh = shouldApplyCloudSyncBoost({
-      planned: "backup_only",
-      boostUntil: now + 15 * 60 * 1000,
-      now,
-    });
-    expect(stillFresh.apply).toBe(false);
-    expect(stillFresh.until).toBe(now + 15 * 60 * 1000);
-
-    const nearlyDone = shouldApplyCloudSyncBoost({
-      planned: "local_only",
-      boostUntil: now + 5 * 60 * 1000,
-      now,
-    });
-    expect(nearlyDone.apply).toBe(true);
-    expect(nearlyDone.until).toBe(now + CLOUD_SYNC_BOOST_TTL_MS);
-  });
-
-  it("honours a custom TTL and refresh threshold (one-third of TTL)", () => {
+  it("keeps custom TTL helpers available without enabling boost", () => {
     const now = 1_000_000;
     const ttlMs = cloudSyncBoostTtlMs(120);
-    const started = shouldApplyCloudSyncBoost({
-      planned: "snapshot_only",
-      now,
-      ttlMs,
-    });
-    expect(started.apply).toBe(true);
-    expect(started.until).toBe(now + ttlMs);
-
-    const stillFresh = shouldApplyCloudSyncBoost({
-      planned: "snapshot_only",
-      boostUntil: now + 50 * 60 * 1000,
-      now,
-      ttlMs,
-    });
-    expect(stillFresh.apply).toBe(false);
-
-    const nearlyDone = shouldApplyCloudSyncBoost({
-      planned: "snapshot_only",
-      boostUntil: now + 30 * 60 * 1000,
-      now,
-      ttlMs,
-    });
-    expect(nearlyDone.apply).toBe(true);
-    expect(nearlyDone.until).toBe(now + ttlMs);
+    expect(ttlMs).toBe(120 * 60 * 1000);
+    expect(
+      shouldApplyCloudSyncBoost({
+        planned: "snapshot_only",
+        now,
+        ttlMs,
+        boostUntil: now + 30 * 60 * 1000,
+      }),
+    ).toEqual({ apply: false, until: 0 });
   });
 });
 

@@ -1,6 +1,6 @@
 /**
- * Public marketing surfaces (site chrome, light theme, SW shell policy).
- * Segment-bounded so `/product` never matches the authenticated `/products` catalog.
+ * Former public marketing / legal surfaces. This product has no public website;
+ * callers treat these paths as redirects to sign-in.
  */
 function pathOnly(hrefOrPath: string): string {
   const path = hrefOrPath.split(/[?#]/, 1)[0] ?? hrefOrPath;
@@ -13,6 +13,17 @@ function exactOrChild(pathname: string, base: string): boolean {
 
 const LEGAL_PATHS = ["/privacy", "/terms", "/refund", "/cookies", "/aup", "/dpa"] as const;
 
+const RETIRED_PUBLIC_PATHS = [
+  "/download",
+  "/pricing",
+  "/contact",
+  "/demo",
+  "/product",
+  "/industries",
+  "/docs",
+  ...LEGAL_PATHS,
+] as const;
+
 /** Privacy, terms, refunds, cookies, acceptable use, and the data-processing addendum. */
 export function isLegalPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
@@ -20,26 +31,14 @@ export function isLegalPath(pathname: string | null | undefined): boolean {
   return LEGAL_PATHS.some((base) => exactOrChild(path, base));
 }
 
-/** True for public marketing paths. Never matches authenticated `/products`. */
+/**
+ * True for retired marketing / legal paths (and `/`). Never matches authenticated
+ * `/products`.
+ */
 export function isMarketingPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
   const path = pathOnly(pathname);
   if (path === "/") return true;
 
-  return (
-    exactOrChild(path, "/download") ||
-    exactOrChild(path, "/pricing") ||
-    exactOrChild(path, "/contact") ||
-    exactOrChild(path, "/demo") ||
-    exactOrChild(path, "/product") ||
-    exactOrChild(path, "/industries") ||
-    exactOrChild(path, "/docs") ||
-    exactOrChild(path, "/privacy") ||
-    exactOrChild(path, "/terms") ||
-    exactOrChild(path, "/refund") ||
-    exactOrChild(path, "/cookies") ||
-    exactOrChild(path, "/aup") ||
-    exactOrChild(path, "/dpa") ||
-    path === "/unauthorized"
-  );
+  return RETIRED_PUBLIC_PATHS.some((base) => exactOrChild(path, base));
 }

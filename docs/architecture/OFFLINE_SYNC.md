@@ -1,17 +1,16 @@
 # Offline Sync
 
-Version: 2.4.29
+Version: 2.5.0 (Milliesmart)
 
 ## Purpose
 
-Keep every operational Novend screen usable without a network. Dexie is the
-**operational replica** the UI reads and writes. Convex remains the
-**committed cloud replica**: it authenticates, authorizes, validates, and
-stores canonical state when a device is online.
+Milliesmart is a single-store supermarket till. Dexie is the **business source
+of truth** on each device. Convex is used for sign-in and licence cache only —
+business sales, stock, and customers do not sync to the cloud.
 
-This is local-first operations, not a second source of truth. Negative
-inventory and immutable completed sales are still enforced when the outbox
-drains to Convex.
+Organizations are provisioned `local_only`. Missing / unknown cloud modes
+normalize to `local_only`. Sync boost never elevates a till to `full_sync`.
+Each till is its own database until a later local sync exists.
 
 ## Platform feature entitlements (offline)
 
@@ -48,8 +47,8 @@ enforced at these points:
 - The mode originates from `organizations.cloudMode` via
   `billing.licenseSnapshot`, is cached in the Dexie license snapshot, and is read
   client-side through `lib/offline/cloud-policy.ts`. Missing / unknown values
-  normalize to `full_sync`, so existing tenants and stale caches keep today's
-  behaviour with no migration.
+  normalize to `local_only`. `persistBusinessWrite` keeps Dexie-only writes when
+  realtime sync is off (no Convex mirror call).
 - **Entitlement flags.** `cloudBackupEnabled` and `remoteMonitoringEnabled`
   (defaults: enabled) are ANDed into the policy: `resolveCloudPolicy(mode, {
 cloudBackupEnabled, remoteMonitoringEnabled })`. A Super Admin can switch either

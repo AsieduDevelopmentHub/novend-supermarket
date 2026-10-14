@@ -3,9 +3,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("proxy public routes", () => {
-  it("keeps marketing pricing/product in isPublicRoute and static short-circuit", () => {
+  it("retires marketing pricing/product into the login redirect matcher", () => {
     const source = readFileSync(resolve(process.cwd(), "proxy.ts"), "utf8");
 
+    expect(source).toContain("isRetiredPublicPath");
     expect(source).toContain('"/pricing"');
     expect(source).toContain('"/pricing/(.*)"');
     expect(source).toContain('"/product"');
@@ -14,6 +15,8 @@ describe("proxy public routes", () => {
     expect(source).toContain('"/contact/(.*)"');
     expect(source).toContain('"/demo"');
     expect(source).toContain('"/demo/(.*)"');
+    expect(source).toContain('"/wholesale(.*)"');
+    expect(source).toContain('"/branches(.*)"');
     expect(source).toContain("isStaticPublicRoute");
     expect(source).toContain("isPublicRoute");
 
@@ -22,11 +25,13 @@ describe("proxy public routes", () => {
     expect(source).not.toMatch(/"\/product\(\.\*\)"/);
   });
 
-  it("skips session work for static public routes but still authenticates `/` and login", () => {
+  it("redirects retired public paths to login or dashboard", () => {
     const source = readFileSync(resolve(process.cwd(), "proxy.ts"), "utf8");
+    expect(source).toContain("if (isRetiredPublicPath(request))");
     expect(source).toContain("if (isStaticPublicRoute(request))");
     expect(source).toContain("withStaticSecurityHeaders");
-    expect(source).toContain("shouldRedirectAuthenticatedHome");
+    expect(source).toContain('redirectTo(request, "/login")');
+    expect(source).toContain('redirectTo(request, "/dashboard")');
     expect(source).toContain("onLoginPage && authenticated");
     expect(source).toContain('searchParams.get("shellBack") === "1"');
     expect(source).toContain('pathname === "/api/boot"');

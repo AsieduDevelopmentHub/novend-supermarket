@@ -10,18 +10,12 @@ import { DEFAULT_NOVEND_EXPERIENCE } from "@/convex/shared/experience";
 import { requiredFeatureForOutbox } from "@/lib/offline/license-guard";
 
 describe("navigation feature gates", () => {
-  it("hides wholesale when inventory.wholesale is disabled", () => {
-    const features = { ...featuresFromPlan("basic"), "inventory.wholesale": false };
+  it("never shows wholesale or branches in Milliesmart navigation", () => {
+    const features = { ...featuresFromPlan("pro"), "inventory.wholesale": true, "branches.multiBranch": true };
     const groups = navGroupsForRole("administrator", [], { features });
     const hrefs = groups.flatMap((g) => g.items.map((i) => i.href));
     expect(hrefs).not.toContain("/wholesale");
-  });
-
-  it("shows wholesale when inventory.wholesale is enabled", () => {
-    const features = { ...featuresFromPlan("pro"), "inventory.wholesale": true };
-    const groups = navGroupsForRole("administrator", [], { features });
-    const hrefs = groups.flatMap((g) => g.items.map((i) => i.href));
-    expect(hrefs).toContain("/wholesale");
+    expect(hrefs).not.toContain("/branches");
   });
 
   it("denies billing deep-links when billingVisibility is hidden", () => {

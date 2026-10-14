@@ -3,46 +3,18 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { APP_NAME } from "@/constants/app";
-import { BRANDING } from "@/constants/branding";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import { navigateAfterLogin, resolvePostLoginPath } from "@/lib/auth/redirect-after-login";
 import { trackGaEvent } from "@/lib/analytics/ga-events";
-import type { IndustryProfile } from "@/convex/shared/businessCapabilities";
 
-const ONBOARDING_INDUSTRY_OPTIONS: Array<{ value: IndustryProfile | "other"; label: string }> = [
-  { value: "retail", label: "Retail shop" },
-  { value: "wholesale", label: "Wholesale distribution" },
-  { value: "supermarket", label: "Supermarket" },
-  { value: "convenience", label: "Convenience store" },
-  { value: "cold_store", label: "Cold store / meat & fish" },
-  { value: "electronics", label: "Electronics" },
-  { value: "pharmacy", label: "Pharmacy" },
-  { value: "fashion", label: "Fashion & apparel" },
-  { value: "cosmetics", label: "Cosmetics & beauty" },
-  { value: "hardware", label: "Hardware & tools" },
-  { value: "stationery", label: "Stationery & office" },
-  { value: "restaurant", label: "Restaurant / F&B" },
-  { value: "bar", label: "Bar / lounge" },
-  { value: "hotel", label: "Hotel / lodging" },
-  { value: "other", label: "Other (retail defaults)" },
-];
-
-/** Completes public SaaS signup by creating the owner's organization on a Pro trial. */
+/** Completes signup by creating the owner's supermarket organization. */
 export function OnboardingForm() {
   const router = useRouter();
   const convex = useConvex();
@@ -51,7 +23,6 @@ export function OnboardingForm() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
-  const [industry, setIndustry] = useState<string>("retail");
   const [pending, setPending] = useState(false);
   const onboardingTracked = useRef(false);
 
@@ -83,15 +54,14 @@ export function OnboardingForm() {
     event.preventDefault();
     setPending(true);
     try {
-      const industryProfile = industry === "other" ? "custom" : industry;
       await createOrganization({
         name,
         currency: "GHS",
         phone: phone.trim() || undefined,
         address: address.trim() || undefined,
-        industryProfile,
+        industryProfile: "supermarket",
       });
-      toast.success("Your 14-day Pro trial is live");
+      toast.success("Your store is ready");
       const path = await resolvePostLoginPath(convex);
       navigateAfterLogin(path, router);
     } catch (error) {
@@ -108,23 +78,20 @@ export function OnboardingForm() {
   return (
     <div className="mx-auto w-full max-w-[360px]">
       <div className="mb-8 space-y-3 text-center">
-        <div className="relative mx-auto h-14 w-14">
-          <Image src={BRANDING.brandmark} alt="" fill sizes="56px" className="object-contain" />
-        </div>
+        <p className="text-primary text-3xl font-semibold tracking-tight">{APP_NAME}</p>
         <div className="space-y-1">
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">
-            Set up your business
+            Set up your supermarket
           </h1>
           <p className="text-muted-foreground text-sm">
-            {APP_NAME} starts with a 14-day Pro trial. Passwords must be 12+ characters with
-            uppercase, lowercase, and a number.
+            Passwords must be 12+ characters with uppercase, lowercase, and a number.
           </p>
         </div>
       </div>
 
       <form className="space-y-4" onSubmit={onSubmit}>
         <div className="space-y-2">
-          <Label htmlFor="business-name">Business name</Label>
+          <Label htmlFor="business-name">Store name</Label>
           <Input
             id="business-name"
             value={name}
@@ -132,26 +99,16 @@ export function OnboardingForm() {
             required
             maxLength={120}
             className="h-11"
-            placeholder="e.g. East Legon Pharmacy"
+            placeholder="e.g. Milliesmart Main"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="business-type">Business type</Label>
-          <Select value={industry} onValueChange={setIndustry}>
-            <SelectTrigger id="business-type" className="h-11">
-              <SelectValue placeholder="Choose type" />
-            </SelectTrigger>
-            <SelectContent>
-              {ONBOARDING_INDUSTRY_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>Business type</Label>
+          <p className="border-border bg-muted/40 text-foreground rounded-[12px] border px-3 py-2.5 text-sm font-medium">
+            Supermarket
+          </p>
           <p className="text-muted-foreground text-xs">
-            Restaurant and bar unlock floor tables, modifiers, and kitchen. Hotel starts with
-            room-rate catalogue (no stock ops). Other uses retail defaults.
+            Pack pricing, dated lots, and sell-by-weight for produce.
           </p>
         </div>
         <div className="space-y-2">
@@ -177,7 +134,7 @@ export function OnboardingForm() {
           />
         </div>
         <Button type="submit" className="h-11 w-full text-[15px] font-semibold" disabled={pending}>
-          {pending ? "Creating business…" : "Start free trial"}
+          {pending ? "Creating store…" : "Create store"}
         </Button>
       </form>
     </div>

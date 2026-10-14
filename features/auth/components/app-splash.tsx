@@ -1,10 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { createPortal } from "react-dom";
 import { useLayoutEffect, useState, type ReactNode } from "react";
-import { BRANDING } from "@/constants/branding";
-import { APP_BRAND } from "@/constants/app";
+import { APP_NAME } from "@/constants/app";
 import {
   readBootSplashStart,
   readSignInMotionStart,
@@ -161,14 +159,11 @@ export function AppSplash({
               )}
               style={lingerNow ? holdStyle : undefined}
             >
-              <Image
-                src={BRANDING.brandmark}
-                alt={APP_BRAND}
-                fill
-                unoptimized
-                sizes="160px"
-                className="object-contain drop-shadow-sm"
-              />
+              <div className="flex h-full w-full items-center justify-center">
+                <span className="text-center text-2xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-3xl">
+                  {APP_NAME}
+                </span>
+              </div>
             </div>
           </div>
 

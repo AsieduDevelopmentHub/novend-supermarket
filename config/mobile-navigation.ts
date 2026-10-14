@@ -69,7 +69,7 @@ const MORE_SECTIONS: Array<{ id: string; label: string; hrefs: string[] }> = [
   {
     id: "business",
     label: "Business",
-    hrefs: ["/returns", "/customers", "/wholesale", "/suppliers", "/products"],
+    hrefs: ["/returns", "/customers", "/suppliers", "/products"],
   },
   {
     id: "insights",
@@ -79,7 +79,7 @@ const MORE_SECTIONS: Array<{ id: string; label: string; hrefs: string[] }> = [
   {
     id: "administration",
     label: "Administration",
-    hrefs: ["/branches", "/users"],
+    hrefs: ["/users"],
   },
   {
     id: "system",

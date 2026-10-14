@@ -11,7 +11,6 @@ import {
   INDUSTRY_PROFILES,
   configurationFromIndustryPack,
   isBusinessCapabilityKey,
-  isIndustryProfile,
   parseBusinessConfiguration,
   validateBusinessCapabilitySet,
   DEFAULT_BUSINESS_CONFIGURATION,
@@ -501,10 +500,8 @@ export const updateBusinessCapabilities = mutation({
     if (!organization) throw new Error("Organization not found");
     const license = await resolveLicense(ctx, organization);
 
-    if (!isIndustryProfile(args.industryProfile)) {
-      throw new Error("Invalid industry profile");
-    }
-    const profile: IndustryProfile = args.industryProfile;
+    // Milliesmart is supermarket-only — ignore any other profile from the client.
+    const profile: IndustryProfile = "supermarket";
 
     let next: OrganizationBusinessConfiguration;
     if (args.applyIndustryPack) {
