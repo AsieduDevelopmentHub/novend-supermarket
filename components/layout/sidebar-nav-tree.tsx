@@ -68,11 +68,11 @@ function SidebarNavLink({
           "flex items-center rounded-full py-2 text-sm font-medium transition-colors",
           collapsed ? "justify-center px-0" : "gap-3 px-3",
           active
-            ? "bg-white/10 text-white ring-1 ring-[#38bdf8]/45"
+            ? "bg-white/10 text-white ring-1 ring-[#ed0206]/45"
             : "text-sidebar-foreground/80 hover:bg-white/5 hover:text-white",
         )}
       >
-        <Icon className={cn("h-4 w-4 shrink-0", active ? "text-[#38bdf8]" : null)} />
+        <Icon className={cn("h-4 w-4 shrink-0", active ? "text-[#ed0206]" : null)} />
         {collapsed ? (
           <span className="sr-only">{item.title}</span>
         ) : (
@@ -111,14 +111,14 @@ function NavGroupLinks({
             className={cn(
               "relative flex items-center gap-2.5 rounded-full py-2 pr-3 pl-6 text-sm font-medium transition-colors",
               active
-                ? "bg-white/10 text-white ring-1 ring-[#38bdf8]/45"
+                ? "bg-white/10 text-white ring-1 ring-[#ed0206]/45"
                 : "text-sidebar-foreground/75 hover:bg-white/5 hover:text-white",
             )}
           >
             <span
               className={cn(
                 "absolute top-1/2 left-3 h-1 w-1 -translate-y-1/2 rounded-full",
-                active ? "bg-[#38bdf8]" : "bg-sidebar-foreground/35",
+                active ? "bg-[#ed0206]" : "bg-sidebar-foreground/35",
               )}
               aria-hidden
             />

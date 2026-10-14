@@ -18,6 +18,7 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { PeriodFilter } from "@/components/filters/period-filter";
 import { ExportMenu } from "@/components/export/export-menu";
+import { TillSessionsCard } from "@/features/reports/components/till-sessions-card";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -319,6 +320,8 @@ export function ReportsView() {
             totals={report.paymentTotals ?? emptyReportPaymentTotals()}
             description="Gross sales by payment method — includes unsynced sales on this till."
           />
+
+          <TillSessionsCard mode="recent" limit={25} />
 
           {isAdmin || isManager ? (
             <InventoryValuePanel

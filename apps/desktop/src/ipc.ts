@@ -1,5 +1,7 @@
-import { Notification, app, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
+import { Notification, app, dialog, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import { execFile } from "node:child_process";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 import {
@@ -39,7 +41,24 @@ const CHANNELS = {
   showNotification: "desktop:notifications:show",
   openDateTimeSettings: "desktop:shell:openDateTimeSettings",
   quitApp: "desktop:app:quit",
+  getDefaultBackupFolder: "desktop:backup:getDefaultFolder",
+  pickBackupFolder: "desktop:backup:pickFolder",
+  writeBackupFile: "desktop:backup:writeFile",
+  openBackupFolder: "desktop:backup:openFolder",
 } as const;
+
+const DEFAULT_BACKUP_FOLDER_NAME = "Millies-Supermarket-Backups";
+
+function defaultBackupFolderPath() {
+  return path.join(app.getPath("documents"), DEFAULT_BACKUP_FOLDER_NAME);
+}
+
+function isSafeBackupFileName(fileName: string) {
+  if (!fileName || fileName.includes("..") || fileName.includes("/") || fileName.includes("\\")) {
+    return false;
+  }
+  return fileName.endsWith(".novend-backup");
+}
 
 const execFileAsync = promisify(execFile);
 
@@ -213,6 +232,85 @@ export function registerDesktopIpc() {
     setImmediate(() => {
       app.quit();
     });
+    return { ok: true as const };
+  });
+
+  ipcMain.handle(CHANNELS.getDefaultBackupFolder, async (event) => {
+    requireTrustedSender(event);
+    const folder = defaultBackupFolderPath();
+    try {
+      await fs.mkdir(folder, { recursive: true });
+    } catch {
+      /* still return the intended path */
+    }
+    return { ok: true as const, path: folder };
+  });
+
+  ipcMain.handle(CHANNELS.pickBackupFolder, async (event, currentPath?: unknown) => {
+    requireTrustedSender(event);
+    const defaultPath =
+      typeof currentPath === "string" && currentPath.trim().length > 0
+        ? currentPath.trim()
+        : defaultBackupFolderPath();
+    const result = await dialog.showOpenDialog({
+      title: "Choose backup folder",
+      defaultPath,
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (result.canceled || !result.filePaths[0]) return { ok: false as const };
+    return { ok: true as const, path: result.filePaths[0] };
+  });
+
+  ipcMain.handle(
+    CHANNELS.writeBackupFile,
+    async (
+      event,
+      payload: unknown,
+    ): Promise<{ ok: true; path: string } | { ok: false; message?: string }> => {
+      requireTrustedSender(event);
+      if (!payload || typeof payload !== "object") {
+        return { ok: false, message: "Invalid backup write payload." };
+      }
+      const folderPath = String((payload as { folderPath?: unknown }).folderPath ?? "").trim();
+      const fileName = String((payload as { fileName?: unknown }).fileName ?? "").trim();
+      const contents = String((payload as { contents?: unknown }).contents ?? "");
+      if (!folderPath || !isSafeBackupFileName(fileName) || !contents) {
+        return { ok: false, message: "Invalid backup folder or file name." };
+      }
+      try {
+        const resolvedFolder = path.resolve(folderPath);
+        await fs.mkdir(resolvedFolder, { recursive: true });
+        const target = path.resolve(resolvedFolder, fileName);
+        const folderPrefix = resolvedFolder.endsWith(path.sep)
+          ? resolvedFolder
+          : `${resolvedFolder}${path.sep}`;
+        if (!target.startsWith(folderPrefix)) {
+          return { ok: false, message: "Backup path rejected." };
+        }
+        await fs.writeFile(target, contents, "utf8");
+        return { ok: true, path: target };
+      } catch (error) {
+        return {
+          ok: false,
+          message: error instanceof Error ? error.message : "Could not write backup file.",
+        };
+      }
+    },
+  );
+
+  ipcMain.handle(CHANNELS.openBackupFolder, async (event, folderPath?: unknown) => {
+    requireTrustedSender(event);
+    const target =
+      typeof folderPath === "string" && folderPath.trim().length > 0
+        ? folderPath.trim()
+        : defaultBackupFolderPath();
+    try {
+      await fs.mkdir(target, { recursive: true });
+    } catch {
+      /* open anyway */
+    }
+    const error = await shell.openPath(target);
+    if (error) return { ok: false as const, message: error };
     return { ok: true as const };
   });
 }

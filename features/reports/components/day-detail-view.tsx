@@ -23,6 +23,7 @@ import { listLocalOrders } from "@/lib/offline/mirror-queries";
 import { mergeDayOrdersWithLocal, paymentTotalsFromOrders } from "@/lib/offline/report-merge";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { PaymentTotalsCard } from "@/components/data-display/payment-totals-card";
+import { TillSessionsCard } from "@/features/reports/components/till-sessions-card";
 import { useEffect, useState } from "react";
 
 function isIsoDate(value: string) {
@@ -175,6 +176,8 @@ export function ReportDayDetailView() {
         totals={paymentTotals}
         description="Gross tender totals for every order listed below, including unsynced sales."
       />
+
+      <TillSessionsCard mode="day" date={date} />
 
       {pendingCount > 0 ? (
         <p className="text-muted-foreground text-sm">
@@ -381,6 +384,7 @@ function LocalDayFallback({
           </Card>
         </>
       )}
+      <TillSessionsCard mode="day" date={date} />
     </div>
   );
 }

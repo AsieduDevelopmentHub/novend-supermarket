@@ -1,64 +1,31 @@
-# Novend Brand Color Palette
+# Millie's Supermarket Brand Color Palette
 
-**Brand:** Novend (Nova + Vend)
+**Brand:** Millie's Supermarket
 
-> Primary visual identity for the commercial offline-first POS and
-> business management platform.
+> Derived from `docs/design/branding/milliesmart.png` (sampled brand red and navy).
 
 ---
 
 ## Primary Brand Colors
 
----
-
-Color Hex Usage
-
----
-
-**Onyx** `#111827` Primary brand, sidebar,
-logo, headings
-
-**Candy Blue** `#38BDF8` Accent, CTA buttons,
-active states, logo
-highlight
-
-**Cloud White** `#F8FAFC` Backgrounds, cards,
-dark logo variant
-
-**Slate Ash** `#64748B` Secondary text,
-borders, muted UI
------------------------------------------------------------------------
+| Color | Hex | Usage |
+| --- | --- | --- |
+| **Brand Red** | `#ED0206` | Primary accent, CTAs, focus ring, cart body, SUPERMARKET banner |
+| **Brand Navy** | `#012561` | Sidebar, headings, Millie's wordmark, cart frame |
+| **Cart Blue** | `#0059C0` | Secondary accent / charts |
+| **Cloud White** | `#F8FAFC` | Backgrounds, cards |
+| **White** | `#FFFFFF` | Text on red / navy |
 
 ---
 
 ## Semantic UI Colors
 
-Purpose Hex
-
----
-
-Success `#16A34A`
-Warning `#EA580C`
-Error `#DC2626`
-Info `#0EA5E9`
-
----
-
-## Neutral Scale
-
-Shade Hex
-
----
-
-950 `#020617`
-900 `#0F172A`
-800 `#1E293B`
-700 `#334155`
-500 `#64748B`
-300 `#CBD5E1`
-200 `#E2E8F0`
-100 `#F1F5F9`
-50 `#F8FAFC`
+| Purpose | Hex |
+| --- | --- |
+| Success | `#16A34A` |
+| Warning | `#EA580C` |
+| Error | `#DC2626` |
+| Info | `#0059C0` |
 
 ---
 
@@ -66,64 +33,14 @@ Shade Hex
 
 ### Primary Logo
 
-- Icon: **Onyx** + **Candy Blue**
-- Wordmark: **Onyx**
+- Full mark: shopping cart + Millie's + SUPERMARKET banner
+- File: `public/branding/brandmark.png` (from `docs/design/branding/milliesmart.png`)
 
 ### Dark Background
 
-- Icon: **Candy Blue**
-- Wordmark: **Cloud White**
+- Use the full-color mark on navy sidebar or splash (white surround in the asset)
 
-### Monochrome
+### Receipt / vendor line
 
-- Black: `#111827`
-- White: `#FFFFFF`
-
----
-
-## UI Guidelines
-
-### Buttons
-
-- Primary: Background `#38BDF8`, Text `#111827`
-- Secondary: Background `#111827`, Text `#FFFFFF`
-- Ghost: Transparent with Onyx text
-
-### Navigation
-
-- Sidebar: `#111827`
-- Active Item: `#38BDF8`
-- Inactive Icon: `#94A3B8`
-
-### Cards
-
-- Background: `#FFFFFF`
-- Border: `#E2E8F0`
-- Title: `#111827`
-- Body Text: `#64748B`
-
----
-
-## Accessibility
-
-Combination Contrast
-
----
-
-Onyx on White AAA
-White on Onyx AAA
-Candy Blue on Onyx AA
-Onyx on Candy Blue AA
-
----
-
-## Brand Personality
-
-- **Primary:** Onyx `#111827`
-- **Signature Accent:** Candy Blue `#38BDF8`
-- **Style:** Modern, minimal, geometric
-- **Avoid:** Purple gradients, neon glows, AI-style multicolor effects
-
----
-
-© 2026 Novend --- Commercial Offline-First POS Platform
+- App chrome: Millie's Supermarket
+- Receipt footer only: `Powered by Novend POS`

@@ -125,6 +125,18 @@ export type NovendDesktopBridge = {
   reloadAuthShell: (entry?: string) => Promise<{ ok: boolean; message?: string }>;
   openDateTimeSettings: () => Promise<{ ok: boolean; message?: string }>;
   quitApp: () => Promise<{ ok: boolean; message?: string }>;
+  getDefaultBackupFolder?: () => Promise<{ ok: true; path: string } | { ok: false }>;
+  pickBackupFolder?: (
+    currentPath?: string,
+  ) => Promise<{ ok: true; path: string } | { ok: false }>;
+  writeBackupFile?: (payload: {
+    folderPath: string;
+    fileName: string;
+    contents: string;
+  }) => Promise<{ ok: true; path: string } | { ok: false; message?: string }>;
+  openBackupFolder?: (
+    folderPath?: string,
+  ) => Promise<{ ok: boolean; message?: string }>;
 };
 
 declare global {

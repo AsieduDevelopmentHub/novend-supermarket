@@ -1,74 +1,79 @@
-# Novend POS
+# Millie's Supermarket POS
 
 ## Project Context
 
-Version: 1.1.1
+Version: 2.0.0
 
 # Purpose
 
-Operational and product context for Novend POS. Read alongside the Constitution.
+Operational and product context for **Millie's Supermarket POS**. Full stack and
+workflow overview: [`MILLIES_OVERVIEW.md`](./MILLIES_OVERVIEW.md).
 
 # Product
 
-**Brand:** Novend (Nova + Vend)
-**Developer:** Asiedu Development Hub
-**Type:** Commercial SaaS / deployable POS, inventory, and business management
+**Brand:** Millie's Supermarket  
+**Engine lineage:** Novend POS (cloned and specialized)  
+**Vendor credit on receipts only:** `Powered by Novend POS`  
+**Type:** Single-store supermarket Point of Sale (local-first)
 
-Novend is the commercial evolution of Princellen POS: one codebase serving many
-independent businesses rather than one dedicated wholesaler.
-
-![Landing](design/ui/desktop_fullpage.png)
-
-![Sales POS](design/ui/sales-pos.jpg)
+This repository is not the multi-industry Novend SaaS website. There is no public
+marketing or legal site. `/` sends staff to sign-in.
 
 # Who it is for
 
-Retail shops, wholesale distributors, pharmacies, electronics, fashion, hardware,
-convenience stores, and other product-based businesses — including multi-branch
-organizations.
+Millie's supermarket cashiers, managers, and administrators on one store.
 
-# Product screens (GitHub)
+# What staff can do
 
-| Flow         | Capture                                                                    |
-| ------------ | -------------------------------------------------------------------------- |
-| Landing      | [`design/ui/desktop_fullpage.png`](./design/ui/desktop_fullpage.png)       |
-| Sign up      | [`design/ui/auth-signup.png`](./design/ui/auth-signup.png)                 |
-| Onboarding   | [`design/ui/business-onboarding.png`](./design/ui/business-onboarding.png) |
-| Dashboard    | [`design/ui/dashboard.png`](./design/ui/dashboard.png)                     |
-| Mobile shell | [`design/ui/mobile_fullpage.png`](./design/ui/mobile_fullpage.png)         |
+1. Sign in (first time online) and set up the store — later offline re-login uses a
+   device password verifier; see [`MILLIES_OVERVIEW.md`](./MILLIES_OVERVIEW.md) §5
+2. Add categories, products, and stock
+3. Receive goods via suppliers / inventory
+4. Sell at the POS (packs, lots/expiry, sell-by-weight as configured)
+5. Print or share a receipt
+6. Keep selling offline after first activation — business data stays on the till
+7. Process returns, review orders, customers, and reports (by role)
+8. Admins: encrypted folder auto-backup (Novend-compatible `.novend-backup`) for
+   recovery on a new till
 
-Index: [`design/ui/README.md`](./design/ui/README.md).
+# What is out of scope
 
-# What a customer can do
-
-1. Create an account (accept Terms & Privacy)
-2. Create their business (organization + MAIN branch)
-3. Add staff
-4. Add categories and products (including CSV/Excel catalog import)
-5. Receive / adjust stock; wholesale and transfers where enabled
-6. Sell at the POS
-7. Print a receipt
-8. Complete a sale while offline (after an online login), then sync
-9. Review orders, returns, customers, analytics, and export reports as entitled
+- Multi-branch management UI
+- Wholesale warehouse UI
+- Hotel / restaurant / pharmacy industry packs
+- Live cloud sync of sales and stock between tills
+- Public marketing, pricing, or legal pages
 
 # Stakeholders
 
-| Role                    | Need                                                   |
-| ----------------------- | ------------------------------------------------------ |
-| Organization owner      | Bootstrap the business, manage staff and settings      |
-| Administrator / manager | Catalog, inventory, oversight                          |
-| Cashier                 | Fast, reliable selling                                 |
-| Engineer                | Clear architecture, tenant isolation, documented rules |
+| Role | Need |
+| --- | --- |
+| Store owner / admin | Bootstrap store, staff, settings |
+| Manager | Catalog, inventory, oversight |
+| Cashier | Fast, reliable selling |
+| Engineer | Clear architecture, local integrity, Millie's branding |
 
 # Deployment targets
 
 - **Web** — browsers and tablets
-- **PWA** — iOS Home Screen install; service worker for offline shell
-- **Desktop (Electron)** — Windows / macOS / Linux installers via Downloads
-- **Android** — native app via Downloads (Capacitor)
+- **PWA** — offline shell via service worker
+- **Desktop (Electron)** — installers under `apps/desktop`
+- **Android (Capacitor)** — shell under `apps/mobile`
 
-# Success for the business
+# Brand
 
-Two organizations on one deployment cannot see each other’s data.
-A cashier can complete a sale online and offline. Inventory never goes negative.
-The UI follows Novend branding (Candy Blue, Onyx, Cloud White).
+| Token | Value |
+| --- | --- |
+| Name | Millie's Supermarket |
+| Red | `#ED0206` |
+| Navy | `#012561` |
+| Logo | `docs/design/branding/milliesmart.png` |
+
+See [`design/branding/colors.md`](./design/branding/colors.md).
+
+# Success for the store
+
+A cashier completes sales online and offline. Inventory never goes negative.
+The UI is Millie's red and navy with the Millie's logo. Business data for the
+day lives on the till. Encrypted backups can rebuild the store on new hardware.
+Receipts end with `Powered by Novend POS`.

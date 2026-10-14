@@ -4,12 +4,12 @@ import { EMAIL_LOGO_CONTENT_ID } from "./emailLogoBase64";
 import { appendSmsLink } from "./smsAudience";
 
 export const EMAIL_BRAND = {
-  product: "Novend",
-  productFull: "Novend POS",
-  company: "Asiedu Development Hub",
-  primary: "#38bdf8",
-  onPrimary: "#111827",
-  navy: "#111827",
+  product: "Millie's",
+  productFull: "Millie's Supermarket",
+  company: "Millie's Supermarket",
+  primary: "#ed0206",
+  onPrimary: "#ffffff",
+  navy: "#012561",
   muted: "#64748b",
   border: "#e2e8f0",
   background: "#f8fafc",

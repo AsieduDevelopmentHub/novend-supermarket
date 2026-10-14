@@ -63,6 +63,12 @@ cloudBackupEnabled, remoteMonitoringEnabled })`. A Super Admin can switch either
   client timer only reads local state; Convex is contacted when the interval has
   elapsed. Skips when no recovery key is sealed on the device. `local_only` does
   not upload. Wired in `OfflineProvider`.
+- **Millie's local folder backup (`local_only`).** Cloud uploads stay off. Instead
+  `lib/offline/local-folder-backup.ts` writes encrypted `.novend-backup` files on
+  the same interval set (`BACKUP_INTERVAL_HOURS`: 12h–30d) into a desktop folder
+  (default `Documents/Millies-Supermarket-Backups`, changeable in Settings →
+  Backups) or Capacitor Documents. Format matches Novend POS restore. See
+  `docs/MILLIES_OVERVIEW.md` §8a.
 - **Recovery key.** Set once in Settings → Backups. Sealed on-device in
   **localStorage** (org-scoped). Cap does not use SecureStorage here — that
   plugin often hangs the WebView bridge (same pattern as biometric unlock

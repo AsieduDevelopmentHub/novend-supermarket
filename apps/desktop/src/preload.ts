@@ -136,6 +136,18 @@ export type NovendDesktopBridge = {
   }) => Promise<{ ok: boolean; message?: string }>;
   openDateTimeSettings: () => Promise<{ ok: boolean; message?: string }>;
   quitApp: () => Promise<{ ok: boolean; message?: string }>;
+  getDefaultBackupFolder: () => Promise<{ ok: true; path: string } | { ok: false }>;
+  pickBackupFolder: (
+    currentPath?: string,
+  ) => Promise<{ ok: true; path: string } | { ok: false }>;
+  writeBackupFile: (payload: {
+    folderPath: string;
+    fileName: string;
+    contents: string;
+  }) => Promise<{ ok: true; path: string } | { ok: false; message?: string }>;
+  openBackupFolder: (
+    folderPath?: string,
+  ) => Promise<{ ok: boolean; message?: string }>;
 };
 
 const bridge: NovendDesktopBridge = {
@@ -220,6 +232,12 @@ const bridge: NovendDesktopBridge = {
   showNotification: (payload) => ipcRenderer.invoke("desktop:notifications:show", payload),
   openDateTimeSettings: () => ipcRenderer.invoke("desktop:shell:openDateTimeSettings"),
   quitApp: () => ipcRenderer.invoke("desktop:app:quit"),
+  getDefaultBackupFolder: () => ipcRenderer.invoke("desktop:backup:getDefaultFolder"),
+  pickBackupFolder: (currentPath) =>
+    ipcRenderer.invoke("desktop:backup:pickFolder", currentPath),
+  writeBackupFile: (payload) => ipcRenderer.invoke("desktop:backup:writeFile", payload),
+  openBackupFolder: (folderPath) =>
+    ipcRenderer.invoke("desktop:backup:openFolder", folderPath),
 };
 
 contextBridge.exposeInMainWorld("novendDesktop", bridge);

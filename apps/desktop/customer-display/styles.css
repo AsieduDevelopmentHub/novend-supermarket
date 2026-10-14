@@ -3,9 +3,9 @@
 :root {
   color-scheme: light;
   --background: #f8fafc;
-  --foreground: #111827;
+  --foreground: #012561;
   --muted-foreground: #64748b;
-  --primary: #38bdf8;
+  --primary: #ed0206;
   --border: #e2e8f0;
   --success: #16a34a;
   --warning: #ea580c;
@@ -17,7 +17,7 @@
   --background: #020617;
   --foreground: #f8fafc;
   --muted-foreground: #94a3b8;
-  --primary: #38bdf8;
+  --primary: #ed0206;
   --border: #1e293b;
   --success: #22c55e;
   --warning: #fb923c;

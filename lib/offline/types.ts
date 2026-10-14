@@ -470,6 +470,37 @@ export type LocalReturn = {
   payloadJson: string;
 };
 
+/**
+ * Local till / cash-drawer day session (Dexie-only — never synced to Convex).
+ * Start today → sell → Close today with counted tenders vs expected from local sales.
+ */
+export type LocalTillSession = {
+  id: string;
+  cashierId: string;
+  cashierName: string;
+  branchId?: string;
+  status: "open" | "closed";
+  openedAt: number;
+  openingFloat: number;
+  closedAt?: number;
+  countedCash?: number;
+  countedCard?: number;
+  countedMobileMoney?: number;
+  expectedCash?: number;
+  expectedCard?: number;
+  expectedMobileMoney?: number;
+  expectedOnAccount?: number;
+  saleCount?: number;
+  grossSales?: number;
+  returnsTotal?: number;
+  varianceCash?: number;
+  varianceCard?: number;
+  varianceMobileMoney?: number;
+  notes?: string;
+  /** Auto-opened on first sale of the day with float 0. */
+  autoStarted?: boolean;
+};
+
 export type LocalReturnItem = {
   id: string;
   localReturnId: string;

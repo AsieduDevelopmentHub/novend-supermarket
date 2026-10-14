@@ -63,7 +63,9 @@ import {
   listLocalHeldSales,
   resumeLocalHeldSale,
 } from "@/lib/offline/sales-repository";
+import { ensureTillOpenForSale } from "@/lib/offline/till-sessions";
 import { notifyReplicaChanged } from "@/lib/offline/replica-events";
+import { TillSessionBanner } from "@/features/sales/components/till-session-banner";
 import { queueUpsertCustomer } from "@/lib/offline/replica-writes";
 import { findLocalProductsByBarcode, getLocalProductAvailability } from "@/lib/offline/snapshot";
 import { postSaleReceiptAction, resolveReceiptPrintMode } from "@/lib/receipt-print-mode";
@@ -917,6 +919,8 @@ export function SalesView() {
     payingRef.current = true;
     setPaying(true);
     try {
+      // Dexie-only: auto-start today with float 0 if the cashier has not started yet.
+      await ensureTillOpenForSale({ branchId: saleBranchId });
       const result = await completeSaleLocally({
         items: cart,
         discount: cartDiscount,
@@ -1059,7 +1063,13 @@ export function SalesView() {
         nativeShell ? "pb-[calc(var(--novend-tabbar-offset)+3.75rem)]" : "pb-24",
       )}
     >
-      <PageHeader title="Sales" description={salesViewDescription(industryProfile, terms)} />
+      <PageHeader
+        title="Sales"
+        description={salesViewDescription(industryProfile, terms)}
+        actions={
+          <TillSessionBanner branchId={workingBranchId ?? myBranchId} compact />
+        }
+      />
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <div className="min-w-0 space-y-4">

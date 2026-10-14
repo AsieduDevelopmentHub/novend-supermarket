@@ -14,6 +14,7 @@ import {
   showError,
 } from "@/lib/errors";
 import { recoverStaleClient } from "@/lib/auth/recover-auth-navigation";
+import Image from "next/image";
 import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { APP_NAME } from "@/constants/app";
+import { BRANDING } from "@/constants/branding";
 import { ROUTES } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 import { AppSplash } from "@/features/auth/components/app-splash";
@@ -651,17 +653,20 @@ function ConfiguredLoginForm({ compact }: { compact: boolean }) {
 function FormHeader({ compact }: { compact: boolean }) {
   return (
     <div className={cn("text-center", compact ? "mb-6 space-y-3" : "mb-8 space-y-4")}>
-      <p
-        className={cn(
-          "text-primary font-semibold tracking-tight",
-          compact ? "text-2xl" : "text-3xl",
-        )}
-      >
-        {APP_NAME}
-      </p>
+      <div className={cn("relative mx-auto", compact ? "h-20 w-20" : "h-24 w-24")}>
+        <Image
+          src={BRANDING.brandmark}
+          alt={APP_NAME}
+          fill
+          priority
+          unoptimized
+          sizes="96px"
+          className="object-contain"
+        />
+      </div>
       <div className="space-y-1">
         <h1 className="text-foreground text-2xl font-semibold tracking-tight">Welcome back</h1>
-        <p className="text-muted-foreground text-sm">Sign in to continue</p>
+        <p className="text-muted-foreground text-sm">{APP_NAME}</p>
       </div>
     </div>
   );

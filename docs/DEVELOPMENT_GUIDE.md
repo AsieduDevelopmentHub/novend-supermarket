@@ -11,19 +11,22 @@ Engineering entry point. Detailed standards live under `docs/architecture/`,
 
 # Authority order
 
-1. `PROJECT_CONSTITUTION.md`
-2. `PROJECT_CONTEXT.md`
-3. `BUSINESS_GLOSSARY.md`
-4. `FOLDER_STRUCTURE.md`
-5. This guide and satellite docs
+1. `MILLIES_OVERVIEW.md` — product stack and how the till works
+2. `PROJECT_CONSTITUTION.md`
+3. `PROJECT_CONTEXT.md`
+4. `BUSINESS_GLOSSARY.md`
+5. `FOLDER_STRUCTURE.md`
+6. This guide and satellite docs
 
 # Stack
 
 - Next.js App Router (TypeScript)
-- Convex (auth, data, business rules)
-- Tailwind CSS v4 + tokenized theme
-- Dexie (IndexedDB) for local-first cache and outbox
+- Convex (auth + licence bootstrap; business mode is `local_only`)
+- Tailwind CSS v4 + Millie's red/navy tokens
+- Dexie (IndexedDB) as on-till business source of truth
 - pnpm
+
+Full picture: [`MILLIES_OVERVIEW.md`](./MILLIES_OVERVIEW.md).
 
 # Scripts
 

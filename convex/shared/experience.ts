@@ -36,15 +36,15 @@ export type ResolvedExperienceTokens = {
   radiusScale: ExperienceRadiusScale;
 };
 
-/** Official Novend defaults — Candy Blue accent + Onyx navy sidebar. */
+/** Millie's Supermarket defaults — logo red accent + logo navy sidebar. */
 export const DEFAULT_NOVEND_EXPERIENCE: ResolvedExperienceTokens = {
-  accent: "#38bdf8",
-  accentForeground: "#111827",
-  sidebarBackground: "#111827",
+  accent: "#ed0206",
+  accentForeground: "#ffffff",
+  sidebarBackground: "#012561",
   sidebarForeground: "#e2e8f0",
-  sidebarAccent: "#1e293b",
+  sidebarAccent: "#0a3a7a",
   sidebarAccentForeground: "#f8fafc",
-  focusRing: "#38bdf8",
+  focusRing: "#ed0206",
   success: "#16a34a",
   warning: "#ea580c",
   danger: "#dc2626",
@@ -85,10 +85,9 @@ export const HOTEL_EXPERIENCE: ResolvedExperienceTokens = {
 };
 
 export function experiencePresetForIndustry(
-  profile: string | null | undefined,
+  _profile?: string | null,
 ): ResolvedExperienceTokens {
-  if (profile === "restaurant" || profile === "bar") return { ...RESTAURANT_EXPERIENCE };
-  if (profile === "hotel") return { ...HOTEL_EXPERIENCE };
+  // Millie's is supermarket-only — always ship the logo palette.
   return { ...DEFAULT_NOVEND_EXPERIENCE };
 }
 

@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { createPortal } from "react-dom";
 import { useLayoutEffect, useState, type ReactNode } from "react";
-import { APP_NAME } from "@/constants/app";
+import { APP_NAME, APP_TAGLINE } from "@/constants/app";
+import { BRANDING } from "@/constants/branding";
 import {
   readBootSplashStart,
   readSignInMotionStart,
@@ -159,11 +161,14 @@ export function AppSplash({
               )}
               style={lingerNow ? holdStyle : undefined}
             >
-              <div className="flex h-full w-full items-center justify-center">
-                <span className="text-center text-2xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-3xl">
-                  {APP_NAME}
-                </span>
-              </div>
+              <Image
+                src={BRANDING.brandmark}
+                alt={APP_NAME}
+                fill
+                unoptimized
+                sizes="160px"
+                className="object-contain drop-shadow-sm"
+              />
             </div>
           </div>
 
@@ -198,7 +203,7 @@ export function AppSplash({
           )}
           style={fallStyle}
         >
-          Smart POS. Strong business.
+          {APP_TAGLINE}
         </p>
         {showLabel ? (
           <p className="mt-4 text-sm font-medium text-white/90">{label}</p>

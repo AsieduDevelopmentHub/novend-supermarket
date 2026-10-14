@@ -1,9 +1,9 @@
 import { version as packageVersion } from "../package.json";
 
-export const APP_NAME = "Milliesmart";
-export const APP_WEB_INSTALL_NAME = "Milliesmart";
-export const APP_BRAND = "Milliesmart";
-export const APP_TAGLINE = "Smart POS. Strong business.";
+export const APP_NAME = "Millie's Supermarket";
+export const APP_WEB_INSTALL_NAME = "Millie's Supermarket";
+export const APP_BRAND = "Millie's Supermarket";
+export const APP_TAGLINE = "Fresh finds. Friendly service.";
 /** Hosted app version — always the root package.json so About cannot drift. */
 export const APP_VERSION = packageVersion;
 export const DEFAULT_BRANCH = "Main Branch";

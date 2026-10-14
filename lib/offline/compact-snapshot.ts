@@ -41,12 +41,13 @@ const TIME_FILTERED_TABLES = [
   "orders",
   "orderItems",
   "returns",
+  "tillSessions",
 ] as const;
 
 function rowTime(row: unknown): number {
   if (!row || typeof row !== "object") return 0;
   const record = row as Record<string, unknown>;
-  for (const key of ["completedAt", "createdAt", "updatedAt", "soldAt", "returnedAt"]) {
+  for (const key of ["completedAt", "createdAt", "updatedAt", "soldAt", "returnedAt", "openedAt"]) {
     const value = record[key];
     if (typeof value === "number" && Number.isFinite(value)) return value;
   }

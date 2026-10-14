@@ -11,6 +11,7 @@ import {
   canUnlockWithRecovery,
 } from "./recovery-key-panel";
 import { LocalBackupCard } from "./local-backup-panel";
+import { LocalFolderBackupCard } from "./local-folder-backup-panel";
 import { CloudBackupCard } from "./cloud-backup-panel";
 
 /** One Settings place for recovery key, device backups, and cloud packages. */
@@ -46,6 +47,8 @@ export function BackupsPanel() {
         canUnlock={canUnlock}
         resolveSecret={resolveSecret}
       />
+
+      {isAdmin ? <LocalFolderBackupCard canProtect={canProtect} /> : null}
 
       {isAdmin ? (
         <CloudBackupCard

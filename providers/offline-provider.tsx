@@ -26,6 +26,7 @@ import { loadCloudPolicy } from "@/lib/offline/cloud-policy";
 import { drainOutbox } from "@/lib/offline/sync-engine";
 import { maybeSendHeartbeat } from "@/lib/telemetry/heartbeat";
 import { maybeRunScheduledCloudBackup } from "@/lib/offline/scheduled-backup";
+import { maybeRunLocalFolderBackup } from "@/lib/offline/local-folder-backup";
 import type { OfflineStatus } from "@/lib/offline/types";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { toUserMessage } from "@/lib/errors";
@@ -583,6 +584,21 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       window.clearInterval(id);
     };
   }, [online, generateBackupUploadUrl, claimBackupUpload, recordBackup]);
+
+  // Millie's local_only: automatic encrypted folder backups (desktop Documents /
+  // chosen folder, or Cap Documents). Same .novend-backup format as Novend POS.
+  // Does not need network. Delayed like cloud packaging to protect first paint.
+  useEffect(() => {
+    if (isPlatformReplicaBound()) return;
+    const run = () => void maybeRunLocalFolderBackup();
+    const initialDelayMs = 3 * 60 * 1000;
+    const initialId = window.setTimeout(run, initialDelayMs);
+    const id = window.setInterval(run, 60 * 60 * 1000);
+    return () => {
+      window.clearTimeout(initialId);
+      window.clearInterval(id);
+    };
+  }, []);
 
   const value = useMemo<OfflineContextValue>(
     () => ({

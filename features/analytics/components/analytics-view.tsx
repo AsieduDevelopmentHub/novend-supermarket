@@ -23,6 +23,7 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { PeriodFilter } from "@/components/filters/period-filter";
 import { ExportMenu } from "@/components/export/export-menu";
+import { TillSessionsCard } from "@/features/reports/components/till-sessions-card";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -367,6 +368,8 @@ export function AnalyticsView() {
           </div>
         }
       />
+
+      <TillSessionsCard mode="recent" limit={15} />
 
       <Card>
         <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:flex-wrap lg:items-end">

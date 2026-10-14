@@ -4,6 +4,10 @@ import { Hardware, isCapacitor } from "@novend/hardware";
 import { assertBackupPassword, assertBackupUnlockPassword } from "./backup-password";
 import { normalizeRecoveryKeyInput } from "./recovery-key";
 
+/**
+ * Full device restore set. Format stays `novend-encrypted-backup` so files open in
+ * Novend POS Settings → Backups (extra tables are ignored there; shared tables restore).
+ */
 const TABLE_NAMES = [
   "meta",
   "products",
@@ -25,10 +29,24 @@ const TABLE_NAMES = [
   "wholesaleTransfers",
   "branches",
   "users",
+  "staffCompensation",
   "expenses",
   "returns",
   "productImages",
   "lots",
+  "diningTables",
+  "diningSessions",
+  "diningSessionItems",
+  "kitchenTickets",
+  "hotelRooms",
+  "hotelReservations",
+  "hotelStays",
+  "hotelFolioCharges",
+  "wholesaleLots",
+  "customerLedger",
+  "customerGroups",
+  "priceListRules",
+  "tillSessions",
   "outbox",
 ] as const;
 
@@ -194,7 +212,8 @@ function downloadJson(filename: string, payload: EncryptedBackupEnvelope) {
   URL.revokeObjectURL(url);
 }
 
-async function rememberBackupTime(exportedAt: number) {
+/** Stamp last local backup time (shared by manual download and folder auto-backup). */
+export async function rememberBackupTime(exportedAt: number) {
   try {
     if (isCapacitor()) {
       const { Preferences } = await import("@capacitor/preferences");

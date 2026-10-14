@@ -78,10 +78,10 @@ export function OnboardingForm() {
   return (
     <div className="mx-auto w-full max-w-[360px]">
       <div className="mb-8 space-y-3 text-center">
-        <p className="text-primary text-3xl font-semibold tracking-tight">{APP_NAME}</p>
+        <p className="text-secondary text-2xl font-semibold tracking-tight">{APP_NAME}</p>
         <div className="space-y-1">
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">
-            Set up your supermarket
+            Set up your store
           </h1>
           <p className="text-muted-foreground text-sm">
             Passwords must be 12+ characters with uppercase, lowercase, and a number.

@@ -1,5 +1,5 @@
 /** Bump when replacing files under /public/branding so Next Image + browsers refetch. */
-const BRAND_ASSET_VERSION = "20260926a";
+const BRAND_ASSET_VERSION = "20261014a";
 /** Bump when replacing files under /public/marketing so Next Image + browsers refetch. */
 const MARKETING_ASSET_VERSION = "20260926b";
 
@@ -31,4 +31,16 @@ export const BRANDING = {
   landingFaqHeadset: marketingAsset("/marketing/v3/headset.png"),
 } as const;
 
-export const BRAND_TAGLINE = "Smart POS. Strong business.";
+export const BRAND_TAGLINE = "Fresh finds. Friendly service.";
+
+/**
+ * Logo-derived palette (sampled from docs/design/branding/milliesmart.png).
+ * Red from the M / SUPERMARKET banner; navy from the Millie's wordmark.
+ */
+export const BRAND_COLORS = {
+  red: "#ed0206",
+  navy: "#012561",
+  cartBlue: "#0059c0",
+  white: "#ffffff",
+  cloud: "#f8fafc",
+} as const;

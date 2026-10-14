@@ -11,10 +11,13 @@ import {
 import { sumInventoryValues } from "@/convex/shared/dashboardFinance";
 
 describe("experiencePresetForIndustry", () => {
-  it("returns warm amber for restaurant and teal for hotel", () => {
-    expect(experiencePresetForIndustry("restaurant").accent).toBe(RESTAURANT_EXPERIENCE.accent);
-    expect(experiencePresetForIndustry("hotel").accent).toBe(HOTEL_EXPERIENCE.accent);
-    expect(experiencePresetForIndustry("retail").accent).toBe(DEFAULT_NOVEND_EXPERIENCE.accent);
+  it("always returns the Millie's logo palette", () => {
+    expect(experiencePresetForIndustry("restaurant").accent).toBe(DEFAULT_NOVEND_EXPERIENCE.accent);
+    expect(experiencePresetForIndustry("hotel").accent).toBe(DEFAULT_NOVEND_EXPERIENCE.accent);
+    expect(experiencePresetForIndustry("supermarket").accent).toBe("#ed0206");
+    expect(experiencePresetForIndustry("supermarket").sidebarBackground).toBe("#012561");
+    expect(RESTAURANT_EXPERIENCE.accent).not.toBe(DEFAULT_NOVEND_EXPERIENCE.accent);
+    expect(HOTEL_EXPERIENCE.accent).not.toBe(DEFAULT_NOVEND_EXPERIENCE.accent);
   });
 
   it("is used for org provisioning seed, not pack save", () => {
@@ -43,7 +46,7 @@ describe("deriveChartPalette", () => {
     expect(palette.chart5).toBe(DEFAULT_NOVEND_EXPERIENCE.warning);
   });
 
-  it("falls back to Candy Blue for invalid hex", () => {
+  it("falls back to brand red for invalid hex", () => {
     expect(deriveChartPalette("not-a-color").chart1).toBe(DEFAULT_NOVEND_EXPERIENCE.accent);
   });
 });
