@@ -1,10 +1,12 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Grid } from "@/components/layout/primitives";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,11 @@ import {
 import { formatCurrency } from "@/lib/currency";
 import { findInventoryValueDays } from "@/convex/shared/inventoryValueSeries";
 import {
+  loadOfflineInventoryValue,
+  type OfflineInventoryValueResult,
+} from "@/lib/offline/inventory-value";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
+import {
   Area,
   AreaChart,
   CartesianGrid,
@@ -33,17 +40,52 @@ import {
 
 type Basis = "cost" | "sell";
 
+type InventoryValueData = OfflineInventoryValueResult;
+
 export function useInventoryValueSeries(
   range: { startDate: number; endDate: number } | null,
   branchId: Id<"branches"> | undefined,
   enabled: boolean,
 ) {
   const online = useConnectivity();
-  const data = useAuthedQuery(
+  const { canManageProducts, isCashier } = usePermissions();
+  const showCost = canManageProducts && !isCashier;
+
+  const remote = useAuthedQuery(
     api.reports.inventoryValue,
-    enabled && online && range ? { ...range, branchId } : "skip",
+    !FULLY_OFFLINE && enabled && online && range ? { ...range, branchId } : "skip",
   );
-  return { online, data };
+
+  const [local, setLocal] = useState<InventoryValueData | undefined>(undefined);
+
+  useEffect(() => {
+    if (!FULLY_OFFLINE || !enabled || !range) {
+      queueMicrotask(() => setLocal(undefined));
+      return;
+    }
+    let cancelled = false;
+    const load = () => {
+      void loadOfflineInventoryValue({
+        startDate: range.startDate,
+        endDate: range.endDate,
+        branchId: branchId ? String(branchId) : null,
+        showCost,
+      }).then((data) => {
+        if (!cancelled) setLocal(data);
+      });
+    };
+    load();
+    const unsub = subscribeReplicaChanged(load);
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [enabled, range, branchId, showCost]);
+
+  if (FULLY_OFFLINE) {
+    return { online: true, data: local };
+  }
+  return { online, data: remote as InventoryValueData | undefined };
 }
 
 export function InventoryValuePanel({
@@ -91,7 +133,7 @@ export function InventoryValuePanel({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!online ? (
+        {!FULLY_OFFLINE && !online ? (
           <p className="text-muted-foreground text-sm">
             Connect to the cloud to load inventory value for this period.
           </p>

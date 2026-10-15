@@ -131,9 +131,8 @@ export function RecoveryKeyPanel({
           Recovery key
         </CardTitle>
         <CardDescription>
-          One organization key encrypts cloud backups and snapshots. Set it once on this device so
-          scheduled uploads run without retyping. Store a copy offline — Novend cannot recover it.
-          Login passwords are never used.
+          One key encrypts local backups on this till. Set it once so folder backups can run without
+          retyping. Store a copy offline — Novend cannot recover it. Login passwords are never used.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -172,7 +171,7 @@ export function RecoveryKeyPanel({
         ) : sealed ? (
           <div className="space-y-3">
             <p className="text-foreground text-sm">
-              A recovery key is sealed on this device. Automatic cloud uploads can encrypt without
+              A recovery key is sealed on this device. Local folder backups can encrypt without
               opening Settings.
             </p>
             <Button
@@ -191,7 +190,7 @@ export function RecoveryKeyPanel({
         ) : (
           <div className="space-y-3">
             <p className="text-muted-foreground text-sm">
-              No recovery key on this device yet. Create one before scheduled cloud uploads can run.
+              No recovery key on this device yet. Create one before encrypted local backups can run.
             </p>
             <Button type="button" disabled={!organizationId || pending} onClick={startCreate}>
               {pending ? "Creating…" : "Create recovery key"}
@@ -210,8 +209,7 @@ export function RecoveryKeyPanel({
             aria-invalid={unlockKey.length > 0 && !canUnlock}
           />
           <p className={cn("text-xs", canUnlock ? "text-foreground" : "text-muted-foreground")}>
-            Required to restore a cloud or file backup on this device. Hyphens and spaces are
-            ignored.
+            Required to restore a file backup on this device. Hyphens and spaces are ignored.
           </p>
           {organizationId && isValidRecoveryKey(unlockKey) && !sealed ? (
             <Button
@@ -230,7 +228,7 @@ export function RecoveryKeyPanel({
         open={confirmRotate}
         onOpenChange={setConfirmRotate}
         title="Rotate recovery key?"
-        description="This device forgets the current key. New backups use the next key. Old cloud packages still need the previous key to restore."
+        description="This device forgets the current key. New backups use the next key. Older backup files still need the previous key to restore."
         confirmLabel={pending ? "Working…" : "Rotate"}
         confirmVariant="destructive"
         pending={pending}

@@ -640,12 +640,15 @@ function InventoryViewInner() {
                       <ClickableTableRow key={row.rowKey ?? row.id} href={`/products/${row.id}`}>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="bg-muted relative h-9 w-9 overflow-hidden rounded-md">
+                            <div className="bg-muted relative h-9 w-9 shrink-0 overflow-hidden rounded-md">
                               <ProductImage
                                 productId={row.id}
                                 remoteUrl={row.imageUrl}
                                 alt={row.name}
                                 sizes="36px"
+                                fallback={
+                                  <Package className="text-muted-foreground absolute inset-0 m-auto h-4 w-4" />
+                                }
                               />
                             </div>
                             <div>

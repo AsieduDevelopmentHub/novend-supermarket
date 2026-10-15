@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentProps,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import Link from "next/link";
 import { useMutation } from "convex/react";
 import { useAuthedQuery } from "@/hooks/use-authed-query";
@@ -10,18 +17,13 @@ import { PageHeader, Grid } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { BranchFilter } from "@/components/filters/branch-filter";
 import { PeriodFilter } from "@/components/filters/period-filter";
+import { SINGLE_STORE } from "@/constants/app";
 import { ExportMenu } from "@/components/export/export-menu";
 import { TillSessionsCard } from "@/features/reports/components/till-sessions-card";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -371,82 +373,42 @@ export function AnalyticsView() {
 
       <TillSessionsCard mode="recent" limit={15} />
 
-      <Card>
-        <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:flex-wrap lg:items-end">
-          <PeriodFilter
-            preset={filters.preset}
-            start={start}
-            end={end}
-            onPresetChange={(preset) =>
-              setFilters((current) => ({
-                ...current,
-                preset,
-                granularity: recommendedGranularity(preset),
-              }))
-            }
-            onCustomRangeChange={(next) =>
-              setFilters((current) => ({
-                ...current,
-                preset: "custom",
-                customStart: next.start,
-                customEnd: next.end,
-              }))
-            }
-          />
-          {isAdmin ? (
-            <BranchFilter
-              branches={branches}
-              value={branchFilter}
-              onChange={(next) =>
-                setFilters((current) => ({ ...current, branchFilter: String(next) }))
-              }
-              allowAll
-            />
-          ) : isManager && branchName ? (
-            <BranchFilter
-              branches={branches}
-              value={myBranchId}
-              onChange={() => undefined}
-              lockedLabel={branchName}
-            />
-          ) : null}
-          <div className="space-y-1">
-            <p className="text-muted-foreground text-xs">Trend</p>
-            <Select
-              value={granularity}
-              onValueChange={(value) =>
-                setFilters((current) => ({ ...current, granularity: value as Granularity }))
-              }
-            >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="day">Daily</SelectItem>
-                <SelectItem value="week">Weekly</SelectItem>
-                <SelectItem value="month">Monthly</SelectItem>
-                <SelectItem value="year">Yearly</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
       {rangeError ? <ErrorState message={rangeError} /> : null}
 
       {!range ? (
         <EmptyState title="Select a date range" />
-      ) : !summary ? (
-        <LoadingState label="Loading analytics…" variant="cards" />
       ) : (
         <Tabs defaultValue="overview">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="expenses">Expenses</TabsTrigger>
-            <TabsTrigger value="pnl">P&L report</TabsTrigger>
-          </TabsList>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <TabsList className="h-10 w-fit shrink-0 self-start sm:self-center">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="expenses">Expenses</TabsTrigger>
+              <TabsTrigger value="pnl">P&L report</TabsTrigger>
+            </TabsList>
+            <AnalyticsToolbar
+              filters={filters}
+              setFilters={setFilters}
+              start={start}
+              end={end}
+              granularity={granularity}
+              branches={branches}
+              branchFilter={branchFilter}
+              myBranchId={myBranchId}
+              branchName={branchName}
+              isAdmin={isAdmin}
+              isManager={isManager}
+            />
+          </div>
 
-          <TabsContent value="overview" className="mt-4 space-y-4">
+          {!summary ? (
+            <div className="mt-4">
+              <LoadingState label="Loading analytics…" variant="cards" />
+            </div>
+          ) : null}
+
+          {summary ? (
+            <>
+              <TabsContent value="overview" className="mt-4 space-y-4">
             <Grid cols={5}>
               <Kpi
                 title="Revenue"
@@ -704,8 +666,11 @@ export function AnalyticsView() {
               </CardContent>
             </Card>
           </TabsContent>
+            </>
+          ) : null}
         </Tabs>
       )}
+
 
       <ExpenseFormDialog
         open={expenseOpen}
@@ -729,6 +694,107 @@ export function AnalyticsView() {
         pending={deletePending}
         onConfirm={onDelete}
       />
+    </div>
+  );
+}
+
+function AnalyticsToolbar({
+  filters,
+  setFilters,
+  start,
+  end,
+  granularity,
+  branches,
+  branchFilter,
+  myBranchId,
+  branchName,
+  isAdmin,
+  isManager,
+}: {
+  filters: AnalyticsFilterPreferences;
+  setFilters: Dispatch<SetStateAction<AnalyticsFilterPreferences>>;
+  start: string;
+  end: string;
+  granularity: Granularity;
+  branches: ComponentProps<typeof BranchFilter>["branches"];
+  branchFilter: Id<"branches"> | "all";
+  myBranchId: Id<"branches"> | null;
+  branchName: string | null;
+  isAdmin: boolean;
+  isManager: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-end justify-end gap-2">
+      <Card className="w-fit shadow-sm">
+        <CardContent className="flex flex-wrap items-end gap-3 p-3">
+          <PeriodFilter
+            preset={filters.preset}
+            start={start}
+            end={end}
+            onPresetChange={(preset) =>
+              setFilters((current) => ({
+                ...current,
+                preset,
+                granularity: recommendedGranularity(preset),
+              }))
+            }
+            onCustomRangeChange={(next) =>
+              setFilters((current) => ({
+                ...current,
+                preset: "custom",
+                customStart: next.start,
+                customEnd: next.end,
+              }))
+            }
+          />
+        </CardContent>
+      </Card>
+      {!SINGLE_STORE && isAdmin ? (
+        <Card className="w-fit shadow-sm">
+          <CardContent className="p-3">
+            <BranchFilter
+              branches={branches}
+              value={branchFilter}
+              onChange={(next) =>
+                setFilters((current) => ({ ...current, branchFilter: String(next) }))
+              }
+              allowAll
+            />
+          </CardContent>
+        </Card>
+      ) : !SINGLE_STORE && isManager && branchName ? (
+        <Card className="w-fit shadow-sm">
+          <CardContent className="p-3">
+            <BranchFilter
+              branches={branches}
+              value={myBranchId}
+              onChange={() => undefined}
+              lockedLabel={branchName}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
+      <Card className="w-fit shadow-sm">
+        <CardContent className="space-y-1 p-3">
+          <p className="text-muted-foreground text-xs">Trend</p>
+          <SearchableSelect
+            options={[
+              { value: "day", label: "Daily" },
+              { value: "week", label: "Weekly" },
+              { value: "month", label: "Monthly" },
+              { value: "year", label: "Yearly" },
+            ]}
+            value={granularity}
+            onValueChange={(value) =>
+              setFilters((current) => ({ ...current, granularity: value as Granularity }))
+            }
+            placeholder="Trend"
+            searchPlaceholder="Search trends…"
+            emptyMessage="No trend found."
+            triggerClassName="h-10 w-[140px] sm:h-9"
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

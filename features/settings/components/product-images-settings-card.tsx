@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useProductImagesPolicy } from "@/hooks/use-product-images-policy";
 import { saveProductImagesPolicyCache } from "@/lib/offline/product-images-policy";
@@ -24,13 +25,13 @@ export function ProductImagesSettingsCard() {
   const [pending, setPending] = useState(false);
 
   async function onToggle(enabled: boolean) {
-    if (!online) {
+    if (!FULLY_OFFLINE && !online) {
       toast.message("Reconnect to change product image settings");
       return;
     }
     setPending(true);
     try {
-      const next = await update({ enabled });
+      const next = FULLY_OFFLINE ? { enabled } : await update({ enabled });
       await saveProductImagesPolicyCache(next);
       toast.success(enabled ? "Product image uploads enabled" : "Product image uploads disabled");
     } catch (error) {
@@ -56,7 +57,7 @@ export function ProductImagesSettingsCard() {
           <Switch
             id="product-images-enabled"
             checked={policy.enabled}
-            disabled={pending || !online}
+            disabled={pending || (!FULLY_OFFLINE && !online)}
             onCheckedChange={(checked) => void onToggle(checked)}
           />
         </div>

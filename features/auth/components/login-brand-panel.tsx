@@ -6,11 +6,13 @@ import { cn } from "@/lib/utils";
 type Props = {
   /** Mobile: shorter hero under overlapping form; desktop: full brand rail. */
   variant?: "desktop" | "mobile";
+  /** Millie's: solid brand rail without chart dots / radial circle washes. */
+  plain?: boolean;
   className?: string;
 };
 
-/** Onyx brand rail — commerce chart motif (not photography). */
-export function LoginBrandPanel({ variant = "desktop", className }: Props) {
+/** Brand rail for the sign-in sheet. */
+export function LoginBrandPanel({ variant = "desktop", plain = false, className }: Props) {
   const isMobile = variant === "mobile";
 
   return (
@@ -21,16 +23,29 @@ export function LoginBrandPanel({ variant = "desktop", className }: Props) {
         className,
       )}
     >
-      <div
-        className="pointer-events-none absolute inset-0 opacity-80"
-        aria-hidden
-        style={{
-          background: isMobile
-            ? "radial-gradient(ellipse 90% 70% at 50% 100%, color-mix(in oklab, var(--primary) 28%, transparent), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 10%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 50%)"
-            : "radial-gradient(ellipse 80% 60% at 20% 90%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 10%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 50%)",
-        }}
-      />
-      <div className="login-grid pointer-events-none absolute inset-0 opacity-40" aria-hidden />
+      {!plain ? (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0 opacity-80"
+            aria-hidden
+            style={{
+              background: isMobile
+                ? "radial-gradient(ellipse 90% 70% at 50% 100%, color-mix(in oklab, var(--primary) 28%, transparent), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 10%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 50%)"
+                : "radial-gradient(ellipse 80% 60% at 20% 90%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 10%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 50%)",
+            }}
+          />
+          <div className="login-grid pointer-events-none absolute inset-0 opacity-40" aria-hidden />
+        </>
+      ) : (
+        <div
+          className="pointer-events-none absolute inset-0"
+          aria-hidden
+          style={{
+            background:
+              "linear-gradient(160deg, color-mix(in oklab, var(--primary) 18%, #0b1220) 0%, #0b1220 55%)",
+          }}
+        />
+      )}
 
       <div
         className={cn(
@@ -59,7 +74,9 @@ export function LoginBrandPanel({ variant = "desktop", className }: Props) {
           <div>
             <p className="text-xl font-semibold tracking-tight">Built for the counter.</p>
             <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/65">
-              Fast checkout, live stock, and sync when you reconnect.
+              {plain
+                ? "Fast checkout and live stock on this till — no cloud required."
+                : "Fast checkout, live stock, and sync when you reconnect."}
             </p>
           </div>
         ) : (
@@ -68,9 +85,11 @@ export function LoginBrandPanel({ variant = "desktop", className }: Props) {
               Built for the counter.
             </p>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/65">
-              Fast checkout, live stock, and a warehouse that feeds every branch.
+              {plain
+                ? "Fast checkout, live stock, and receipts — all on this machine."
+                : "Fast checkout, live stock, and a warehouse that feeds every branch."}
             </p>
-            <CommerceChart className="mt-8 h-40" />
+            {!plain ? <CommerceChart className="mt-8 h-40" /> : null}
           </div>
         )}
       </div>

@@ -18,7 +18,8 @@ export type SettingsTab =
   | "appearance"
   | "security"
   | "privacy"
-  | "help";
+  | "help"
+  | "license";
 
 export type SettingsSection = {
   value: SettingsTab;
@@ -49,6 +50,8 @@ export function buildSettingsSections(input: {
   showBilling?: boolean;
   /** When false, cloud device-activation list is omitted (Millie's local till). */
   showDevices?: boolean;
+  /** Millie's fully offline till — hide cloud/privacy/download surfaces. */
+  fullyOffline?: boolean;
 }): SettingsSection[] {
   const {
     isAdmin,
@@ -57,6 +60,7 @@ export function buildSettingsSections(input: {
     isMobileCap,
     showBilling = true,
     showDevices = true,
+    fullyOffline = false,
   } = input;
 
   const terminalSections: SettingsSection[] = isDesktop
@@ -65,22 +69,31 @@ export function buildSettingsSections(input: {
         { value: "customerDisplay", label: "Display", long: "Customer display" },
         { value: "scanner", label: "Scanner", long: "Barcode scanner" },
         { value: "futureDevices", label: "Future", long: "Future devices" },
-        { value: "updates", label: "Updates", long: "Desktop updates" },
-        { value: "desktop", label: "Downloads", long: "Download apps" },
+        ...(fullyOffline
+          ? []
+          : ([
+              { value: "updates", label: "Updates", long: "Desktop updates" },
+              { value: "desktop", label: "Downloads", long: "Download apps" },
+            ] as SettingsSection[])),
       ]
     : isMobileCap
       ? [{ value: "mobileHardware", label: "Hardware", long: "Printer, camera & sharing" }]
       : [
           { value: "scanner", label: "Scanner", long: "Barcode scanner" },
           { value: "customerDisplay", label: "Display", long: "Customer display" },
-          { value: "desktop", label: "Downloads", long: "Download apps" },
+          ...(fullyOffline
+            ? []
+            : ([{ value: "desktop", label: "Downloads", long: "Download apps" }] as SettingsSection[])),
         ];
 
   const adminSections: SettingsSection[] = isAdmin
     ? [
         { value: "receipt", label: "Receipt", long: "Receipt template" },
         { value: "business", label: "Business", long: "Business profile" },
-        ...(showBilling
+        ...(fullyOffline
+          ? ([{ value: "license", label: "License", long: "License" }] as SettingsSection[])
+          : []),
+        ...(showBilling && !fullyOffline
           ? ([{ value: "billing", label: "Billing", long: "Billing & plan" }] as SettingsSection[])
           : []),
       ]
@@ -89,8 +102,12 @@ export function buildSettingsSections(input: {
   const branchSections: SettingsSection[] =
     isManager || isAdmin
       ? [
-          { value: "branchReceipt", label: "Branch", long: "Branch receipt" },
-          ...(showDevices
+          {
+            value: "branchReceipt",
+            label: fullyOffline ? "Store" : "Branch",
+            long: fullyOffline ? "Store receipt" : "Branch receipt",
+          },
+          ...(showDevices && !fullyOffline
             ? ([{ value: "devices", label: "Devices", long: "Activated devices" }] as SettingsSection[])
             : []),
         ]
@@ -101,10 +118,16 @@ export function buildSettingsSections(input: {
     ...adminSections,
     ...branchSections,
     ...terminalSections,
-    { value: "backup", label: "Backups", long: "Backups" },
+    {
+      value: "backup",
+      label: "Backups",
+      long: fullyOffline ? "Local backups" : "Backups",
+    },
     { value: "appearance", label: "Appearance", long: "Appearance" },
     { value: "security", label: "Security", long: "Security" },
-    { value: "privacy", label: "Privacy", long: "Privacy & data" },
+    ...(fullyOffline
+      ? []
+      : ([{ value: "privacy", label: "Privacy", long: "Privacy & data" }] as SettingsSection[])),
     { value: "help", label: "Help", long: "Help & tours" },
   ];
 }
@@ -121,10 +144,12 @@ export function groupSettingsSections(sections: SettingsSection[]): SettingsSect
     },
     {
       label: "Business",
-      items: sections.filter((item) => ["business", "receipt", "billing"].includes(item.value)),
+      items: sections.filter((item) =>
+        ["business", "receipt", "billing", "license"].includes(item.value),
+      ),
     },
     {
-      label: "Branch",
+      label: "Store",
       items: sections.filter((item) => item.value === "branchReceipt"),
     },
     {

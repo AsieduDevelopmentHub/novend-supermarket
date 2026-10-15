@@ -3,6 +3,7 @@
 import { useMutation } from "convex/react";
 import { useSyncExternalStore } from "react";
 import { api } from "@/convex/_generated/api";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -37,7 +38,7 @@ export function AppearancePanel() {
   async function persist(nextTheme: AppearanceTheme, nextFont: FontSize) {
     setTheme(nextTheme);
     applyFontSize(nextFont);
-    if (!online) {
+    if (FULLY_OFFLINE || !online) {
       return;
     }
     try {
@@ -70,7 +71,9 @@ export function AppearancePanel() {
             </SelectContent>
           </Select>
           <p className="text-muted-foreground text-xs">
-            Saved to your account and restored on every login.
+            {FULLY_OFFLINE
+              ? "Saved on this till only."
+              : "Saved to your account and restored on every login."}
           </p>
         </div>
         <div className="space-y-2">

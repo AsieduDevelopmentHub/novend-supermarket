@@ -1,9 +1,13 @@
 import { toast } from "sonner";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 
-export const OFFLINE_MESSAGE = "You're offline. Please connect to the internet and try again.";
+export const OFFLINE_MESSAGE = FULLY_OFFLINE
+  ? "Something went wrong on this till. Try again, or reopen the screen."
+  : "You're offline. Please connect to the internet and try again.";
 
-export const SERVER_UNREACHABLE_MESSAGE =
-  "Unable to reach the server. We'll sync automatically when you're back online.";
+export const SERVER_UNREACHABLE_MESSAGE = FULLY_OFFLINE
+  ? "This action could not finish on this till. Try again."
+  : "Unable to reach the server. We'll sync automatically when you're back online.";
 
 const LOAD_FAILED_MESSAGE = "We couldn't load this data. Please try again.";
 
@@ -41,6 +45,8 @@ function rawErrorText(error: unknown): string {
 }
 
 function isOfflineError(error: unknown): boolean {
+  // Millie's never needs the network — do not treat navigator.onLine as a failure.
+  if (FULLY_OFFLINE) return false;
   const lower = rawErrorText(error).toLowerCase();
   if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
   if (OFFLINE_PATTERNS.some((pattern) => lower.includes(pattern))) return true;
@@ -61,6 +67,7 @@ export function isStaleClientError(error: unknown): boolean {
 }
 
 export function isConnectivityError(error: unknown): boolean {
+  if (FULLY_OFFLINE) return false;
   if (isOfflineError(error)) return true;
   const lower = rawErrorText(error).toLowerCase();
   if (SERVER_PATTERNS.some((pattern) => lower.includes(pattern))) return true;

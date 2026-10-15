@@ -10,10 +10,12 @@ import { Hardware } from "@novend/hardware";
 type SalesTillClockProps = {
   /** Show Fix date & time CTA (offline / no reliable server clock). */
   showFixCta: boolean;
+  /** Tighter checkout footer layout. */
+  compact?: boolean;
 };
 
 /** Live till clock on checkout — receipts use this device time until sync. */
-export function SalesTillClock({ showFixCta }: SalesTillClockProps) {
+export function SalesTillClock({ showFixCta, compact = false }: SalesTillClockProps) {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -33,15 +35,26 @@ export function SalesTillClock({ showFixCta }: SalesTillClockProps) {
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-      <p className="text-muted-foreground flex min-w-0 items-center gap-1.5">
-        <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+    <div
+      className={
+        compact
+          ? "flex flex-wrap items-center justify-between gap-1 text-[11px]"
+          : "flex flex-wrap items-center justify-between gap-2 text-sm"
+      }
+    >
+      <p className="text-muted-foreground flex min-w-0 items-center gap-1">
+        <Clock className={compact ? "h-3 w-3 shrink-0" : "h-3.5 w-3.5 shrink-0"} aria-hidden />
         <span>
-          Till clock · <span className="text-foreground tabular-nums">{formatDateTime(now)}</span>
+          Till · <span className="text-foreground tabular-nums">{formatDateTime(now)}</span>
         </span>
       </p>
       {showFixCta ? (
-        <Button type="button" variant="link" className="h-auto shrink-0 px-0 text-xs" onClick={() => void onFixDateTime()}>
+        <Button
+          type="button"
+          variant="link"
+          className="h-auto shrink-0 px-0 text-[11px]"
+          onClick={() => void onFixDateTime()}
+        >
           Fix date & time
         </Button>
       ) : null}

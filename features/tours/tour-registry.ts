@@ -50,18 +50,23 @@ export const TOUR_REGISTRY: TourDefinition[] = [
       },
       {
         id: "sync",
-        anchors: ['[data-tour="sync-status"]'],
-        title: "Offline and sync status",
+        anchors: [
+          '[data-tour="sync-status"]',
+          '[data-tour="desktop-navigation"]',
+          '[data-tour="account-menu"]',
+        ],
+        title: "Workspace status",
         description:
-          "Novend keeps work available offline and shows when changes are safely synced.",
+          "Your till keeps selling locally. Open Settings → Help & product tours anytime to replay walkthroughs.",
         side: "bottom",
       },
       {
         id: "account",
         anchors: [
-          '[data-tour="mobile-more"]',
           '[data-tour="account-menu"]',
+          '[data-tour="mobile-more"]',
           '[data-tour="mobile-navigation-trigger"]',
+          '[data-tour="desktop-navigation"]',
         ],
         title: "Account and help",
         description: "Open your account menu for settings, tours, and sign out.",

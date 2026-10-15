@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
 import { resolveBackupSecret } from "@/lib/offline/recovery-key";
@@ -14,7 +15,7 @@ import { LocalBackupCard } from "./local-backup-panel";
 import { LocalFolderBackupCard } from "./local-folder-backup-panel";
 import { CloudBackupCard } from "./cloud-backup-panel";
 
-/** One Settings place for recovery key, device backups, and cloud packages. */
+/** One Settings place for recovery key, device backups, and (cloud) packages. */
 export function BackupsPanel() {
   const { isAdmin } = usePermissions();
   const { organizationId } = useLicense();
@@ -50,7 +51,7 @@ export function BackupsPanel() {
 
       {isAdmin ? <LocalFolderBackupCard canProtect={canProtect} /> : null}
 
-      {isAdmin ? (
+      {isAdmin && !FULLY_OFFLINE ? (
         <CloudBackupCard
           canProtect={canProtect}
           canUnlock={canUnlock}

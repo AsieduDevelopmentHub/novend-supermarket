@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useMutation } from "convex/react";
 import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
@@ -19,14 +19,19 @@ import {
 } from "@/components/ui/select";
 import { ReceiptDocument } from "@/features/receipts/components/receipt-document";
 import { SAMPLE_RECEIPT_PAYLOAD } from "@/features/receipts/types";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { useConnectivity } from "@/hooks/use-connectivity";
+import {
+  loadMilliesPrintSnapshot,
+  saveMilliesBranchReceipt,
+} from "@/lib/offline/millies-print-settings";
 import { withTimeout } from "@/lib/async/with-timeout";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { ReceiptDesignerLayout } from "./receipt-designer-layout";
 
 type BranchReceipt = {
-  id: Id<"branches">;
+  id: Id<"branches"> | string;
   name: string;
   address: string | null;
   phone: string | null;
@@ -38,11 +43,44 @@ type BranchReceipt = {
   receiptPaperWidthMm: 58 | 80 | null;
 };
 
-export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
+export function BranchReceiptForm({
+  branch,
+  onLocalSaved,
+}: {
+  branch: BranchReceipt;
+  onLocalSaved?: () => void;
+}) {
   const online = useConnectivity();
   const updateReceiptProfile = useMutation(api.branches.updateReceiptProfile);
-  const orgTemplate = useAuthedQuery(api.settings.getReceiptTemplate, online ? {} : "skip");
-  const orgBusiness = useAuthedQuery(api.settings.getBusiness, online ? {} : "skip");
+  const orgTemplate = useAuthedQuery(
+    api.settings.getReceiptTemplate,
+    !FULLY_OFFLINE && online ? {} : "skip",
+  );
+  const orgBusiness = useAuthedQuery(
+    api.settings.getBusiness,
+    !FULLY_OFFLINE && online ? {} : "skip",
+  );
+  const [localPrint, setLocalPrint] = useState<{
+    tradeName: string;
+    headerText: string;
+    paperWidthMm: 58 | 80;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!FULLY_OFFLINE) return;
+    let cancelled = false;
+    void loadMilliesPrintSnapshot().then((snap) => {
+      if (cancelled) return;
+      setLocalPrint({
+        tradeName: snap.business.tradeName,
+        headerText: snap.template.headerText,
+        paperWidthMm: snap.template.paperWidthMm === 58 ? 58 : 80,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [name, setName] = useState(branch.name);
   const [address, setAddress] = useState(branch.address ?? "");
@@ -57,20 +95,26 @@ export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
   );
   const [pending, setPending] = useState(false);
 
-  const effectivePaperWidth: "58" | "80" =
-    paperWidthMm ?? (orgTemplate?.paperWidthMm === 58 ? "58" : "80");
+  const orgPaper =
+    orgTemplate?.paperWidthMm === 58
+      ? "58"
+      : localPrint?.paperWidthMm === 58
+        ? "58"
+        : "80";
+  const effectivePaperWidth: "58" | "80" = paperWidthMm ?? orgPaper;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!online) {
+    if (!FULLY_OFFLINE && !online) {
       toast.message("Reconnect to save branch receipt settings");
       return;
     }
     setPending(true);
     try {
-      await withTimeout(
-        updateReceiptProfile({
-          id: branch.id,
+      const paper = Number(effectivePaperWidth) as 58 | 80;
+      if (FULLY_OFFLINE) {
+        await saveMilliesBranchReceipt({
+          id: String(branch.id),
           name,
           address: address || undefined,
           phone: phone || undefined,
@@ -79,11 +123,29 @@ export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
           receiptShowAddress: showAddress,
           receiptShowPhone: showPhone,
           receiptShowEmail: showEmail,
-          receiptPaperWidthMm: Number(effectivePaperWidth) as 58 | 80,
-        }),
-        12_000,
-        "Save timed out — check your connection and try again",
-      );
+          receiptPaperWidthMm: paper,
+        });
+        onLocalSaved?.();
+        toast.success("Store receipt settings saved");
+      } else {
+        await withTimeout(
+          updateReceiptProfile({
+            id: branch.id as Id<"branches">,
+            name,
+            address: address || undefined,
+            phone: phone || undefined,
+            email: email || undefined,
+            receiptShowName: showName,
+            receiptShowAddress: showAddress,
+            receiptShowPhone: showPhone,
+            receiptShowEmail: showEmail,
+            receiptPaperWidthMm: paper,
+          }),
+          12_000,
+          "Save timed out — check your connection and try again",
+        );
+        toast.success("Branch receipt settings saved");
+      }
     } catch (error) {
       showError(error, "Save failed");
     } finally {
@@ -91,8 +153,10 @@ export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
     }
   }
 
-  const title = orgBusiness?.tradeName ?? SAMPLE_RECEIPT_PAYLOAD.business.tradeName;
-  const headerText = orgTemplate?.headerText ?? SAMPLE_RECEIPT_PAYLOAD.template.headerText;
+  const title =
+    orgBusiness?.tradeName ?? localPrint?.tradeName ?? SAMPLE_RECEIPT_PAYLOAD.business.tradeName;
+  const headerText =
+    orgTemplate?.headerText ?? localPrint?.headerText ?? SAMPLE_RECEIPT_PAYLOAD.template.headerText;
 
   const previewBusiness = {
     ...SAMPLE_RECEIPT_PAYLOAD.business,
@@ -126,13 +190,16 @@ export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
       form={
         <Card className="flex min-w-0 flex-col lg:h-full">
           <CardHeader>
-            <CardTitle className="text-base">Branch receipt · {branch.name}</CardTitle>
+            <CardTitle className="text-base">
+              {FULLY_OFFLINE ? "Store receipt" : "Branch receipt"} · {branch.name}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={onSubmit}>
               <p className="text-muted-foreground text-sm">
-                The company title ({title}) stays on every receipt. Update only this branch’s line,
-                contact details, and paper size.
+                {FULLY_OFFLINE
+                  ? `The company title (${title}) stays on every receipt. Update store contact details and paper size — saved on this till only.`
+                  : `The company title (${title}) stays on every receipt. Update only this branch’s line, contact details, and paper size.`}
               </p>
 
               <div className="space-y-2">
@@ -155,7 +222,9 @@ export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="branch-receipt-name">Branch name on receipt</Label>
+                <Label htmlFor="branch-receipt-name">
+                  {FULLY_OFFLINE ? "Store name on receipt" : "Branch name on receipt"}
+                </Label>
                 <Input
                   id="branch-receipt-name"
                   value={name}
@@ -192,7 +261,7 @@ export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
                 <p className="text-sm font-medium">Show on receipt</p>
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox checked={showName} onCheckedChange={(v) => setShowName(v === true)} />
-                  Branch name
+                  {FULLY_OFFLINE ? "Store name" : "Branch name"}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox
@@ -210,8 +279,12 @@ export function BranchReceiptForm({ branch }: { branch: BranchReceipt }) {
                   Email
                 </label>
               </div>
-              <Button type="submit" disabled={pending || !online}>
-                {pending ? "Saving…" : "Save branch receipt"}
+              <Button type="submit" disabled={pending || (!FULLY_OFFLINE && !online)}>
+                {pending
+                  ? "Saving…"
+                  : FULLY_OFFLINE
+                    ? "Save store receipt"
+                    : "Save branch receipt"}
               </Button>
             </form>
           </CardContent>

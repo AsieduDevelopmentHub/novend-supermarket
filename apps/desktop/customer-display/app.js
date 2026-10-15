@@ -341,7 +341,7 @@
       renderPhasePanel(showCart) +
       (showCart ? renderTotalsPanel() : "") +
       "</main>" +
-      '<footer class="layout-footer">Powered by Novend POS</footer>' +
+      '<footer class="layout-footer">Powered by Novend - 055 525 7482</footer>' +
       "</div>" +
       "</div>";
   }

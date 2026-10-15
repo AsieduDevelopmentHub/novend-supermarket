@@ -2,7 +2,7 @@
 
 Single-store, supermarket Point of Sale for **Millie's Supermarket**. Local-first
 on the till (Dexie); Convex is used for sign-in and licence bootstrap only.
-Receipts end with `Powered by Novend POS`.
+Receipts end with `Powered by Novend - 055 525 7482`.
 
 Full stack and workflow overview:
 

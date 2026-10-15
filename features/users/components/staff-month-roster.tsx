@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -34,7 +35,7 @@ export function StaffMonthRoster() {
           <CardTitle className="text-base">Staff month</CardTitle>
           <CardDescription>
             Salary and commission for the period. Open a user to record payment.
-            {!online ? " Showing offline data from this device." : ""}
+            {FULLY_OFFLINE || !online ? " Showing data from this till." : ""}
           </CardDescription>
         </div>
         <div className="space-y-1">

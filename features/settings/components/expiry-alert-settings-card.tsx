@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useExpiryPolicy } from "@/hooks/use-expiry-policy";
 import { saveExpiryPolicyCache } from "@/lib/offline/expiry-policy";
@@ -35,7 +36,7 @@ export function ExpiryAlertSettingsCard() {
   if (!hasCapability("lot_expiry")) return null;
 
   async function onSave() {
-    if (!online) {
+    if (!FULLY_OFFLINE && !online) {
       toast.message("Reconnect to change expiry alert settings");
       return;
     }
@@ -50,7 +51,9 @@ export function ExpiryAlertSettingsCard() {
     }
     setPending(true);
     try {
-      const next = await update({ defaultAlertDays: Math.floor(parsed) });
+      const next = FULLY_OFFLINE
+        ? { defaultAlertDays: Math.floor(parsed) }
+        : await update({ defaultAlertDays: Math.floor(parsed) });
       await saveExpiryPolicyCache(next);
       toast.success("Default expiry alert updated");
     } catch (error) {
@@ -84,14 +87,14 @@ export function ExpiryAlertSettingsCard() {
               step="1"
               className="min-h-11"
               value={days}
-              disabled={pending || !online}
+              disabled={pending || (!FULLY_OFFLINE && !online)}
               onChange={(e) => setDays(e.target.value)}
             />
           </div>
           <Button
             type="button"
             className="min-h-11 sm:w-auto"
-            disabled={pending || !online}
+            disabled={pending || (!FULLY_OFFLINE && !online)}
             onClick={() => void onSave()}
           >
             {pending ? "Saving…" : "Save"}

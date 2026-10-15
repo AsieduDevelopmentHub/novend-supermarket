@@ -31,6 +31,7 @@ import {
 import { FEATURE_KEYS, type FeatureKey } from "@/convex/shared/features";
 import type { BillingVisibility } from "@/convex/shared/organizationConfig";
 import { isPlanKey, isSellablePlanKey } from "@/convex/shared/plans";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
 
 export type CachedLicense = LicenseSnapshot & {
@@ -44,10 +45,12 @@ export type OfflineLicenseState =
   | { kind: "stale"; snapshot: CachedLicense; access: CachedLicense["access"] }
   | { kind: "perpetual"; snapshot: CachedLicense; access: CachedLicense["access"] };
 
-export const FIRST_ACTIVATION_REQUIRED =
-  "Connect to the internet and activate this installation before recording sales or other activity.";
-export const LICENSE_RECOVERY_REQUIRED =
-  "Licence recovery is required. This installation is read-only because its saved licence is missing or damaged. Reconnect to restore access.";
+export const FIRST_ACTIVATION_REQUIRED = FULLY_OFFLINE
+  ? "Finish store setup on this till before recording sales or other activity."
+  : "Connect to the internet and activate this installation before recording sales or other activity.";
+export const LICENSE_RECOVERY_REQUIRED = FULLY_OFFLINE
+  ? "Licence recovery is required. This till is read-only because its saved licence is missing or damaged. Restore from a local backup or re-enter your license key."
+  : "Licence recovery is required. This installation is read-only because its saved licence is missing or damaged. Reconnect to restore access.";
 
 const ORG_LICENSE_PREFIX = "novend.license.org.";
 

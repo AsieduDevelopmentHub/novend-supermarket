@@ -14,6 +14,7 @@ import { bindOfflineOrganization, getOfflineDb, META_KEYS, setMeta } from "./db"
 import { saveLicenseSnapshot } from "./license";
 import { markOfflineSession } from "./session";
 import { saveShellProfile } from "./shell-profile";
+import { ensureDefaultSupermarketCategories } from "./millies-default-categories";
 import type { MilliesLocalRole } from "./millies-auth-db";
 import type { MirroredBranch, MirroredUser } from "./types";
 
@@ -126,6 +127,7 @@ export async function bootstrapMilliesStore(input: {
     issuedAt: Date.now(),
   };
   await saveLicenseSnapshot(snapshot);
+  await ensureDefaultSupermarketCategories();
 
   const printSnapshot = {
     business: {

@@ -19,6 +19,7 @@ import { BranchFilter } from "@/components/filters/branch-filter";
 import { PeriodFilter } from "@/components/filters/period-filter";
 import { ExportMenu } from "@/components/export/export-menu";
 import { TillSessionsCard } from "@/features/reports/components/till-sessions-card";
+import { SINGLE_STORE } from "@/constants/app";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
 import { useConnectivity } from "@/hooks/use-connectivity";
@@ -228,43 +229,53 @@ export function ReportsView() {
         }
       />
 
-      <Card data-tour="reports-range">
-        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">
-          <PeriodFilter
-            preset={filters.preset}
-            start={start}
-            end={end}
-            onPresetChange={(preset) =>
-              setFilters((current) => ({ ...current, preset }))
-            }
-            onCustomRangeChange={(next) =>
-              setFilters((current) => ({
-                ...current,
-                preset: "custom",
-                customStart: next.start,
-                customEnd: next.end,
-              }))
-            }
-          />
-          {isAdmin ? (
-            <BranchFilter
-              branches={branches}
-              value={branchFilter}
-              onChange={(next) =>
-                setFilters((current) => ({ ...current, branchFilter: String(next) }))
+      <div className="flex flex-wrap items-end justify-end gap-2" data-tour="reports-range">
+        <Card className="w-fit shadow-sm">
+          <CardContent className="flex flex-wrap items-end gap-3 p-3">
+            <PeriodFilter
+              preset={filters.preset}
+              start={start}
+              end={end}
+              onPresetChange={(preset) =>
+                setFilters((current) => ({ ...current, preset }))
               }
-              allowAll
+              onCustomRangeChange={(next) =>
+                setFilters((current) => ({
+                  ...current,
+                  preset: "custom",
+                  customStart: next.start,
+                  customEnd: next.end,
+                }))
+              }
             />
-          ) : isManager && branchName ? (
-            <BranchFilter
-              branches={branches}
-              value={myBranchId}
-              onChange={() => undefined}
-              lockedLabel={branchName}
-            />
-          ) : null}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        {!SINGLE_STORE && isAdmin ? (
+          <Card className="w-fit shadow-sm">
+            <CardContent className="p-3">
+              <BranchFilter
+                branches={branches}
+                value={branchFilter}
+                onChange={(next) =>
+                  setFilters((current) => ({ ...current, branchFilter: String(next) }))
+                }
+                allowAll
+              />
+            </CardContent>
+          </Card>
+        ) : !SINGLE_STORE && isManager && branchName ? (
+          <Card className="w-fit shadow-sm">
+            <CardContent className="p-3">
+              <BranchFilter
+                branches={branches}
+                value={myBranchId}
+                onChange={() => undefined}
+                lockedLabel={branchName}
+              />
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
 
       {rangeError ? <ErrorState message={rangeError} /> : null}
 

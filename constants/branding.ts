@@ -1,5 +1,5 @@
 /** Bump when replacing files under /public/branding so Next Image + browsers refetch. */
-const BRAND_ASSET_VERSION = "20261014a";
+const BRAND_ASSET_VERSION = "20261015c";
 /** Bump when replacing files under /public/marketing so Next Image + browsers refetch. */
 const MARKETING_ASSET_VERSION = "20260926b";
 
@@ -34,8 +34,8 @@ export const BRANDING = {
 export const BRAND_TAGLINE = "Fresh finds. Friendly service.";
 
 /**
- * Logo-derived palette (sampled from docs/design/branding/milliesmart.png).
- * Red from the M / SUPERMARKET banner; navy from the Millie's wordmark.
+ * Logo-derived palette (sampled from docs/design/branding/MilliesSupermarket.png).
+ * Red from the SUPERMARKET banner / apple; navy from the Millie's wordmark.
  */
 export const BRAND_COLORS = {
   red: "#ed0206",

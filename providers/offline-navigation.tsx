@@ -21,6 +21,8 @@ import { isMarketingPath } from "@/lib/marketing-routes";
 import { resolveOfflineView } from "@/providers/offline-views";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import { useLicense } from "@/hooks/use-license";
+import { FULLY_OFFLINE } from "@/constants/runtime";
+import { APP_BRAND } from "@/constants/app";
 
 type OfflineNavigationContextValue = {
   /** True when the shell is rendering a client-side route instead of Next RSC children. */
@@ -218,6 +220,15 @@ export function OfflineOutlet({ children }: { children: ReactNode }) {
     if (isPlatformAppPath(activePath)) {
       return <>{resolveOfflineView(activePath)}</>;
     }
+    // Customer display is not a sidebar nav item — always allow on Millie's
+    // (session-free second window) and when the path is opened directly.
+    const pathnameOnly = activePath.split("?")[0] || activePath;
+    if (
+      pathnameOnly === "/customer-display" ||
+      pathnameOnly.startsWith("/customer-display/")
+    ) {
+      return <>{resolveOfflineView(activePath)}</>;
+    }
     // Do not evaluate AccessDenied until the session identity is restored.
     // Cached Dexie roles from the previous user caused a "You don't have access"
     // flash, then splash, then the correct screen.
@@ -234,7 +245,11 @@ export function OfflineOutlet({ children }: { children: ReactNode }) {
       return (
         <AccessDenied
           title="This section isn’t available"
-          message="Your Novend workspace isn’t configured for this area. Continue from Dashboard or Sales."
+          message={
+            FULLY_OFFLINE
+              ? `This area isn’t available for your role on ${APP_BRAND}. Continue from Dashboard or Sales.`
+              : "Your Novend workspace isn’t configured for this area. Continue from Dashboard or Sales."
+          }
         />
       );
     }

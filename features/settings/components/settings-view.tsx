@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "convex/react";
 import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { api } from "@/convex/_generated/api";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { PageHeader } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,13 @@ import { ReceiptDocument } from "@/features/receipts/components/receipt-document
 import { SAMPLE_RECEIPT_PAYLOAD } from "@/features/receipts/types";
 import type { ReceiptBusiness, ReceiptTemplateConfig } from "@/features/receipts/types";
 import { loadPrintSnapshotMeta } from "@/lib/offline/ui-cache";
+import {
+  DEFAULT_MILLIES_BUSINESS,
+  DEFAULT_MILLIES_TEMPLATE,
+  loadMilliesPrintSnapshot,
+  saveMilliesBusiness,
+  saveMilliesReceiptTemplate,
+} from "@/lib/offline/millies-print-settings";
 import { savePosPreferences } from "@/lib/offline/pos-preferences";
 import { withTimeout } from "@/lib/async/with-timeout";
 import { toast } from "sonner";
@@ -52,11 +60,13 @@ import { FutureDevicesPanel } from "./future-devices-panel";
 import { UpdatesPanel } from "./updates-panel";
 import { DesktopDownloadPanel } from "./desktop-download-panel";
 import { BackupsPanel } from "./backups-panel";
+import { MilliesLicensePanel } from "./millies-license-panel";
 import { ReceiptPrintModePicker } from "./receipt-print-mode-picker";
 import { resolveReceiptPrintMode, sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 import {
   CreditCard,
   Download,
+  KeyRound,
   Monitor,
   MonitorSmartphone,
   Palette,
@@ -95,10 +105,13 @@ export function SettingsView() {
   const isMobileCap = useNativeShell();
   const { features, billingVisibility } = useLicense();
   const billingHidden = isBillingHidden({ features, billingVisibility });
-  const remoteBusiness = useAuthedQuery(api.settings.getBusiness, online && isAdmin ? {} : "skip");
+  const remoteBusiness = useAuthedQuery(
+    api.settings.getBusiness,
+    !FULLY_OFFLINE && online && isAdmin ? {} : "skip",
+  );
   const remoteTemplate = useAuthedQuery(
     api.settings.getReceiptTemplate,
-    online && isAdmin ? {} : "skip",
+    !FULLY_OFFLINE && online && isAdmin ? {} : "skip",
   );
   const [cachedPrint, setCachedPrint] = useState<{
     business: ReceiptBusiness;
@@ -106,6 +119,7 @@ export function SettingsView() {
   } | null>(null);
   const [tab, setTab] = useState<SettingsTab | null>(null);
   const [lastLinkedTab, setLastLinkedTab] = useState<SettingsTab | null>(null);
+  const [printRevision, setPrintRevision] = useState(0);
   const requestedSection = useSearchParams().get("section");
 
   function selectSettingsTab(value: SettingsTab) {
@@ -117,39 +131,46 @@ export function SettingsView() {
 
   useEffect(() => {
     let cancelled = false;
-    void loadPrintSnapshotMeta().then((snapshot) => {
-      if (cancelled) return;
-      if (snapshot) {
-        setCachedPrint({
-          business: {
-            tradeName: snapshot.business.tradeName,
-            legalName: snapshot.business.legalName,
-            address: snapshot.business.address,
-            phone: snapshot.business.phone,
-            email: snapshot.business.email,
-            taxId: snapshot.business.taxId,
-          },
-          template: {
-            paperWidthMm: snapshot.template.paperWidthMm,
-            showLogo: snapshot.template.showLogo,
-            headerText: snapshot.template.headerText,
-            footerText: snapshot.template.footerText,
-            thankYouLine: snapshot.template.thankYouLine,
-            showCashier: snapshot.template.showCashier,
-            showCustomer: snapshot.template.showCustomer,
-            showPaymentMethod: snapshot.template.showPaymentMethod,
-            showSku: snapshot.template.showSku,
-          },
-        });
-      }
-    });
+    void (async () => {
+      const snapshot = FULLY_OFFLINE
+        ? await loadMilliesPrintSnapshot()
+        : await loadPrintSnapshotMeta();
+      if (cancelled || !snapshot) return;
+      setCachedPrint({
+        business: {
+          tradeName: snapshot.business.tradeName,
+          legalName: snapshot.business.legalName,
+          address: snapshot.business.address,
+          phone: snapshot.business.phone,
+          email: snapshot.business.email,
+          taxId: snapshot.business.taxId,
+        },
+        template: {
+          paperWidthMm: snapshot.template.paperWidthMm,
+          showLogo: snapshot.template.showLogo,
+          headerText: snapshot.template.headerText,
+          footerText: snapshot.template.footerText,
+          thankYouLine: snapshot.template.thankYouLine,
+          showCashier: snapshot.template.showCashier,
+          showCustomer: snapshot.template.showCustomer,
+          showPaymentMethod: snapshot.template.showPaymentMethod,
+          showSku: snapshot.template.showSku,
+        },
+      });
+    })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [printRevision]);
 
-  const business = remoteBusiness ?? cachedPrint?.business ?? null;
-  const template = remoteTemplate ?? cachedPrint?.template ?? null;
+  const business =
+    remoteBusiness ??
+    cachedPrint?.business ??
+    (FULLY_OFFLINE && isAdmin ? DEFAULT_MILLIES_BUSINESS : null);
+  const template =
+    remoteTemplate ??
+    cachedPrint?.template ??
+    (FULLY_OFFLINE && isAdmin ? DEFAULT_MILLIES_TEMPLATE : null);
 
   // Desktop-only terminal hardware never appears in the Capacitor shell.
   const sections = useMemo(
@@ -159,9 +180,9 @@ export function SettingsView() {
         isManager,
         isDesktop,
         isMobileCap,
-        showBilling: !billingHidden,
-        // Millie's fully offline: no cloud device activation.
-        showDevices: false,
+        showBilling: !FULLY_OFFLINE && !billingHidden,
+        showDevices: !FULLY_OFFLINE,
+        fullyOffline: FULLY_OFFLINE,
       }),
     [isAdmin, isManager, isDesktop, isMobileCap, billingHidden],
   );
@@ -228,9 +249,10 @@ export function SettingsView() {
               <>
                 <TabsContent value="business" className="mt-0 space-y-5">
                   <BusinessForm
-                    key={JSON.stringify(business)}
+                    key={`${printRevision}:${JSON.stringify(business)}`}
                     initial={business}
-                    readOnly={!online}
+                    readOnly={!FULLY_OFFLINE && !online}
+                    onLocalSaved={() => setPrintRevision((n) => n + 1)}
                   />
                   <ProductImagesSettingsCard />
                   <ExpiryAlertSettingsCard />
@@ -239,14 +261,15 @@ export function SettingsView() {
 
                 <TabsContent value="receipt" className="mt-0">
                   <ReceiptTemplateForm
-                    key={JSON.stringify(template)}
+                    key={`${printRevision}:${JSON.stringify(template)}`}
                     initialTemplate={template}
                     initialBusiness={business}
-                    readOnly={!online}
+                    readOnly={!FULLY_OFFLINE && !online}
+                    onLocalSaved={() => setPrintRevision((n) => n + 1)}
                   />
                 </TabsContent>
               </>
-            ) : isAdmin && !online ? (
+            ) : isAdmin && !FULLY_OFFLINE && !online ? (
               <>
                 <TabsContent value="business" className="mt-0 space-y-6">
                   <Card>
@@ -269,7 +292,13 @@ export function SettingsView() {
               </>
             ) : null}
 
-            {isAdmin && !billingHidden ? (
+            {FULLY_OFFLINE && isAdmin ? (
+              <TabsContent value="license" className="mt-0">
+                <MilliesLicensePanel />
+              </TabsContent>
+            ) : null}
+
+            {isAdmin && !FULLY_OFFLINE && !billingHidden ? (
               <TabsContent value="billing" className="mt-0">
                 <BillingPanel />
               </TabsContent>
@@ -280,9 +309,11 @@ export function SettingsView() {
                 <TabsContent value="branchReceipt" className="mt-0">
                   <BranchReceiptPanel />
                 </TabsContent>
-                <TabsContent value="devices" className="mt-0">
-                  <DevicesPanel />
-                </TabsContent>
+                {!FULLY_OFFLINE ? (
+                  <TabsContent value="devices" className="mt-0">
+                    <DevicesPanel />
+                  </TabsContent>
+                ) : null}
               </>
             ) : null}
 
@@ -294,22 +325,26 @@ export function SettingsView() {
                 <TabsContent value="futureDevices" className="mt-0">
                   <FutureDevicesPanel />
                 </TabsContent>
-                <TabsContent value="updates" className="mt-0">
-                  <UpdatesPanel />
-                </TabsContent>
-                <TabsContent value="desktop" className="mt-0">
-                  <DesktopDownloadPanel />
-                </TabsContent>
+                {!FULLY_OFFLINE ? (
+                  <>
+                    <TabsContent value="updates" className="mt-0">
+                      <UpdatesPanel />
+                    </TabsContent>
+                    <TabsContent value="desktop" className="mt-0">
+                      <DesktopDownloadPanel />
+                    </TabsContent>
+                  </>
+                ) : null}
               </>
             ) : isMobileCap ? (
               <TabsContent value="mobileHardware" className="mt-0">
                 <MobileHardwarePanel />
               </TabsContent>
-            ) : (
+            ) : !FULLY_OFFLINE ? (
               <TabsContent value="desktop" className="mt-0">
                 <DesktopDownloadPanel />
               </TabsContent>
-            )}
+            ) : null}
 
             {!isMobileCap ? (
               <TabsContent value="scanner" className="mt-0">
@@ -335,9 +370,11 @@ export function SettingsView() {
               <SecurityPanel />
             </TabsContent>
 
-            <TabsContent value="privacy" className="mt-0">
-              <PrivacyDataPanel />
-            </TabsContent>
+            {!FULLY_OFFLINE ? (
+              <TabsContent value="privacy" className="mt-0">
+                <PrivacyDataPanel />
+              </TabsContent>
+            ) : null}
 
             <TabsContent value="help" className="mt-0">
               <HelpToursPanel />
@@ -368,6 +405,7 @@ const SETTINGS_ICONS: SettingsSectionIconMap = {
   security: Shield,
   privacy: ShieldCheck,
   help: CircleHelp,
+  license: KeyRound,
 };
 
 function SettingsTreeNav({
@@ -424,9 +462,11 @@ function SettingsTreeNav({
 function BusinessForm({
   initial,
   readOnly = false,
+  onLocalSaved,
 }: {
   initial: ReceiptBusiness;
   readOnly?: boolean;
+  onLocalSaved?: () => void;
 }) {
   const updateBusiness = useMutation(api.settings.updateBusiness);
   const [tradeName, setTradeName] = useState(initial.tradeName);
@@ -445,11 +485,23 @@ function BusinessForm({
     }
     setPending(true);
     try {
-      await withTimeout(
-        updateBusiness({ tradeName, legalName, address, phone, email, taxId }),
-        12_000,
-        "Save timed out — check your connection and try again",
-      );
+      if (FULLY_OFFLINE) {
+        await saveMilliesBusiness({
+          tradeName,
+          legalName,
+          address,
+          phone,
+          email: FULLY_OFFLINE ? "" : email,
+          taxId,
+        });
+        onLocalSaved?.();
+      } else {
+        await withTimeout(
+          updateBusiness({ tradeName, legalName, address, phone, email, taxId }),
+          12_000,
+          "Save timed out — check your connection and try again",
+        );
+      }
       toast.success("Business profile saved");
     } catch (error) {
       showError(error, "Save failed");
@@ -510,17 +562,19 @@ function BusinessForm({
                 className="min-h-11"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={readOnly}
-                className="min-h-11"
-              />
-            </div>
+            {!FULLY_OFFLINE ? (
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={readOnly}
+                  className="min-h-11"
+                />
+              </div>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="taxId">Tax ID / TIN</Label>
@@ -534,7 +588,13 @@ function BusinessForm({
             />
           </div>
           <Button type="submit" disabled={pending || readOnly} className="w-fit">
-            {readOnly ? "Can't save offline" : pending ? "Saving…" : "Save business profile"}
+            {readOnly
+              ? "Can't save offline"
+              : pending
+                ? "Saving…"
+                : FULLY_OFFLINE
+                  ? "Save on this till"
+                  : "Save business profile"}
           </Button>
         </form>
       </CardContent>
@@ -546,11 +606,14 @@ function ReceiptTemplateForm({
   initialTemplate,
   initialBusiness,
   readOnly = false,
+  onLocalSaved,
 }: {
   initialTemplate: ReceiptTemplateConfig;
   initialBusiness: ReceiptBusiness;
   readOnly?: boolean;
+  onLocalSaved?: () => void;
 }) {
+  const online = useConnectivity();
   const updateTemplate = useMutation(api.settings.updateReceiptTemplate);
   const [paperWidthMm, setPaperWidthMm] = useState(
     String(initialTemplate.paperWidthMm) as "58" | "80",
@@ -599,21 +662,34 @@ function ReceiptTemplateForm({
     }
     setPending(true);
     try {
-      await withTimeout(
-        updateTemplate({
-          paperWidthMm: Number(paperWidthMm) as 58 | 80,
-          showLogo: false,
-          headerText,
-          footerText,
-          thankYouLine,
-          showCashier,
-          showCustomer,
-          showPaymentMethod,
-          showSku,
-        }),
-        12_000,
-        "Save timed out — check your connection and try again",
-      );
+      const payload = {
+        paperWidthMm: Number(paperWidthMm) as 58 | 80,
+        showLogo: false,
+        headerText,
+        footerText,
+        thankYouLine,
+        showCashier,
+        showCustomer,
+        showPaymentMethod,
+        showSku,
+      };
+      if (FULLY_OFFLINE) {
+        await saveMilliesReceiptTemplate(payload);
+        await savePosPreferences({
+          receiptPrintMode: printMode,
+          autoPrintReceipt: printMode === "automatic",
+        });
+        onLocalSaved?.();
+      } else {
+        await withTimeout(updateTemplate(payload), 12_000, "Save timed out — check your connection and try again");
+        if (online) {
+          try {
+            await updatePos({ receiptPrintMode: printMode });
+          } catch {
+            /* pos prefs optional */
+          }
+        }
+      }
       toast.success("Receipt template saved");
     } catch (error) {
       showError(error, "Save failed");
@@ -701,16 +777,20 @@ function ReceiptTemplateForm({
                 value={printMode}
                 disabled={readOnly}
                 onChange={(mode) => {
-                  if (!readOnly) {
-                    void updatePos({ receiptPrintMode: mode })
-                      .then(() =>
-                        savePosPreferences({
-                          autoPrintReceipt: mode === "automatic",
-                          receiptPrintMode: mode,
-                        }),
-                      )
-                      .catch((error) => showError(error, "Could not save print setting"));
-                  }
+                  if (readOnly) return;
+                  void (async () => {
+                    try {
+                      await savePosPreferences({
+                        autoPrintReceipt: mode === "automatic",
+                        receiptPrintMode: mode,
+                      });
+                      if (!FULLY_OFFLINE && online) {
+                        await updatePos({ receiptPrintMode: mode });
+                      }
+                    } catch (error) {
+                      showError(error, "Could not save print setting");
+                    }
+                  })();
                 }}
               />
 

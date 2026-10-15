@@ -37,6 +37,8 @@
     "mobile:run:android": "node scripts/run-capacitor-android.mjs run android",
     "mobile:publish-convex": "node scripts/publish-mobile-release-to-convex.mjs",
     "git:assert-no-coauthor": "node scripts/assert-no-coauthor.mjs",
+    "license:issue": "node scripts/issue-millies-license.mjs",
+    "branding:sync": "node scripts/sync-branding-from-master.mjs && node scripts/generate-desktop-icons.mjs && node scripts/generate-mobile-icons.mjs && python scripts/gen-millies-favicon.py",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

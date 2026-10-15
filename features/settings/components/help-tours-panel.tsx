@@ -4,6 +4,7 @@ import { CheckCircle2, CircleHelp, Play, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { useProductTours } from "@/features/tours/tour-provider";
 
 export function HelpToursPanel() {
@@ -16,6 +17,11 @@ export function HelpToursPanel() {
           <CircleHelp className="h-5 w-5" />
           Help &amp; product tours
         </CardTitle>
+        {FULLY_OFFLINE ? (
+          <p className="text-muted-foreground text-sm font-normal">
+            Walkthroughs run on this till and save progress locally — no internet required.
+          </p>
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-3">
         {availableTours.map((tour) => {

@@ -6,7 +6,10 @@ import { useAuthedQuery } from "@/hooks/use-authed-query";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { PageHeader } from "@/components/layout/primitives";
+import { milliesResetStaffPassword, milliesUpdateStaff } from "@/lib/offline/millies-users";
+import type { MilliesLocalRole } from "@/lib/offline/millies-auth-db";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,7 +63,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
   const online = useConnectivity();
   const remote = useAuthedQuery(
     api.users.get,
-    canManageUsers && online ? { id: profileId } : "skip",
+    canManageUsers && online && !FULLY_OFFLINE ? { id: profileId } : "skip",
   );
   const branches = useBranchesList(false);
   const [localUser, setLocalUser] = useState<
@@ -106,7 +109,20 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
   }
 
   if (user === undefined) {
-    if (!online || remoteBudgetElapsed) {
+    if (FULLY_OFFLINE || !online || remoteBudgetElapsed) {
+      if (localUser === null) {
+        return (
+          <EmptyState
+            title="User not found"
+            description="This staff account is not on this till."
+          />
+        );
+      }
+      if (localUser === undefined) {
+        return <LoadingState label="Loading user…" />;
+      }
+    }
+    if (!FULLY_OFFLINE && (!online || remoteBudgetElapsed) && localUser == null) {
       return (
         <EmptyState
           title="User details need a connection"
@@ -168,14 +184,25 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
     }
     setPending(true);
     try {
-      await updateProfile({
-        id: profileId,
-        name,
-        role: isManager ? "cashier" : role,
-        branchId: formBranchId as Id<"branches">,
-        phone: phone || undefined,
-        status,
-      });
+      const nextRole = (isManager ? "cashier" : role) as MilliesLocalRole;
+      if (FULLY_OFFLINE) {
+        await milliesUpdateStaff({
+          id: String(profileId),
+          displayName: name,
+          role: nextRole,
+          phone: phone || undefined,
+          active: status === "active",
+        });
+      } else {
+        await updateProfile({
+          id: profileId,
+          name,
+          role: nextRole,
+          branchId: formBranchId as Id<"branches">,
+          phone: phone || undefined,
+          status,
+        });
+      }
       toast.success("User updated");
       setEditOpen(false);
     } catch (error) {
@@ -186,7 +213,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
   }
 
   async function onToggleStatus() {
-    if (!profile.branchId) {
+    if (!FULLY_OFFLINE && !profile.branchId) {
       toast.error("This user has no branch assignment");
       return;
     }
@@ -197,14 +224,24 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
     setPending(true);
     try {
       const nextStatus = profile.status === "active" ? "inactive" : "active";
-      await updateProfile({
-        id: profileId,
-        name: profile.name,
-        role: profile.role as AppRole,
-        branchId: profile.branchId as Id<"branches">,
-        phone: profile.phone ?? undefined,
-        status: nextStatus,
-      });
+      if (FULLY_OFFLINE) {
+        await milliesUpdateStaff({
+          id: String(profileId),
+          displayName: profile.name,
+          role: profile.role as MilliesLocalRole,
+          phone: profile.phone ?? undefined,
+          active: nextStatus === "active",
+        });
+      } else {
+        await updateProfile({
+          id: profileId,
+          name: profile.name,
+          role: profile.role as AppRole,
+          branchId: profile.branchId as Id<"branches">,
+          phone: profile.phone ?? undefined,
+          status: nextStatus,
+        });
+      }
       toast.success(nextStatus === "active" ? "User reactivated" : "User deactivated");
       setStatusConfirm(false);
     } catch (error) {
@@ -216,7 +253,12 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
 
   async function onResetPassword(event: FormEvent) {
     event.preventDefault();
-    if (
+    if (FULLY_OFFLINE) {
+      if (newPassword.trim().length < 6) {
+        toast.error("Password must be at least 6 characters");
+        return;
+      }
+    } else if (
       newPassword.length < 12 ||
       !/[A-Z]/.test(newPassword) ||
       !/[a-z]/.test(newPassword) ||
@@ -231,10 +273,15 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
     }
     setPending(true);
     try {
-      await resetUserPassword({ profileId, newPassword });
-      toast.success(
-        "Password reset. They’ll get a confirmation email — share the new password securely.",
-      );
+      if (FULLY_OFFLINE) {
+        await milliesResetStaffPassword(String(profileId), newPassword);
+        toast.success("Password updated on this till. Share it securely.");
+      } else {
+        await resetUserPassword({ profileId, newPassword });
+        toast.success(
+          "Password reset. They’ll get a confirmation email — share the new password securely.",
+        );
+      }
       setResetOpen(false);
       setNewPassword("");
       setConfirmPassword("");
@@ -249,7 +296,11 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
     <div className="space-y-6">
       <PageHeader
         title={profile.name}
-        description={profile.email ?? "Team member profile"}
+        description={
+          FULLY_OFFLINE
+            ? `${profile.role} · ${profile.branch ?? "Main Store"}`
+            : (profile.email ?? "Team member profile")
+        }
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">

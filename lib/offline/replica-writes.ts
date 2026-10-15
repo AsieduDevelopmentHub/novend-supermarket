@@ -809,7 +809,12 @@ export async function queueUpsertProduct(
     lowStockThreshold: payload.lowStockThreshold,
     status: payload.status,
     description: payload.description ?? existing?.description ?? null,
-    imageUrl: clearImage ? null : (existing?.imageUrl ?? null),
+    // Keep a stable local marker so list UIs know a Dexie blob exists (blob: URLs die on reload).
+    imageUrl: clearImage
+      ? null
+      : imageBlob
+        ? `local:${localId}`
+        : (existing?.imageUrl ?? null),
     tracksExpiry: payload.tracksExpiry,
     tracksInventory: payload.tracksInventory,
     isVariantParent: payload.isVariantParent ?? existing?.isVariantParent,

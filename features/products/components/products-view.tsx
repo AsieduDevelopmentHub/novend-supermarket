@@ -261,14 +261,14 @@ export function ProductsView() {
                       <ClickableTableRow key={product.id} href={`/products/${product.id}`}>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="bg-muted relative h-10 w-10 overflow-hidden rounded-md">
+                            <div className="bg-muted relative h-10 w-10 shrink-0 overflow-hidden rounded-md">
                               <ProductImage
                                 productId={product.id}
                                 remoteUrl={product.imageUrl}
                                 alt={product.name}
                                 sizes="40px"
                                 fallback={
-                                  <Package className="text-muted-foreground m-auto h-5 w-5" />
+                                  <Package className="text-muted-foreground absolute inset-0 m-auto h-5 w-5" />
                                 }
                               />
                             </div>
@@ -387,7 +387,9 @@ export function ProductsView() {
                           remoteUrl={product.imageUrl}
                           alt={product.name}
                           sizes="64px"
-                          fallback={<Package className="text-muted-foreground m-auto h-5 w-5" />}
+                          fallback={
+                            <Package className="text-muted-foreground absolute inset-0 m-auto h-5 w-5" />
+                          }
                         />
                       </div>
                       <div className="min-w-0 flex-1">

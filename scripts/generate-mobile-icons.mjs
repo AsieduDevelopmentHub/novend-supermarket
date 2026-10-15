@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generate Android launcher + splash assets from the Novend brandmark.
+ * Generate Android launcher + splash assets from the Millie's brandmark.
  *
  * Source: apps/desktop/build/icon.png (same master as Electron).
  *   node scripts/generate-mobile-icons.mjs
@@ -22,7 +22,7 @@ const sourceCandidates = [
 const source = sourceCandidates.find((path) => existsSync(path));
 if (!source) {
   console.error(
-    "No Novend icon source found (desktop build/icon.png or public/branding/brandmark.png)",
+    "No Millie's icon source found (desktop build/icon.png or public/branding/brandmark.png)",
   );
   process.exit(1);
 }
@@ -37,7 +37,8 @@ try {
   process.exit(1);
 }
 
-const NAVY = { r: 11, g: 31, b: 51, alpha: 1 }; // #0B1F33
+/** Millie's wordmark navy (#012561). */
+const NAVY = { r: 1, g: 37, b: 97, alpha: 1 };
 
 mkdirSync(resourcesDir, { recursive: true });
 
@@ -106,7 +107,7 @@ writeFileSync(
   join(androidRes, "values/ic_launcher_background.xml"),
   `<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#0B1F33</color>
+    <color name="ic_launcher_background">#012561</color>
 </resources>
 `,
 );
@@ -115,7 +116,7 @@ writeFileSync(
   join(androidRes, "drawable/ic_launcher_background.xml"),
   `<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#0B1F33" />
+    <solid android:color="#012561" />
 </shape>
 `,
 );
@@ -156,4 +157,4 @@ for (const [dir, width, height] of SPLASH) {
     .toFile(join(outDir, "splash.png"));
 }
 
-console.log(`Wrote Novend mobile icons + splash from ${source}`);
+console.log(`Wrote Millie's mobile icons + splash from ${source}`);

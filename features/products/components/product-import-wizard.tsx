@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useLicense } from "@/hooks/use-license";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -505,7 +506,10 @@ export function ProductImportWizard({
         ) : null}
 
         {step === "Import" ? (
-          <p className="text-sm">Saving products on this device{online ? " and syncing" : ""}…</p>
+          <p className="text-sm">
+            Saving products on this device
+            {!FULLY_OFFLINE && online ? " and syncing" : ""}…
+          </p>
         ) : null}
 
         {step === "Results" && result ? (
@@ -513,7 +517,7 @@ export function ProductImportWizard({
             <p>
               Created {result.created}. Updated {result.updated}. Failed {result.failed.length}.
             </p>
-            {!online ? (
+            {!FULLY_OFFLINE && !online ? (
               <p className="text-muted-foreground text-xs">
                 Saved locally. History is recorded when this device is back online.
               </p>

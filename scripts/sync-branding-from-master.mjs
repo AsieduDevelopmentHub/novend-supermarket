@@ -1,19 +1,26 @@
 #!/usr/bin/env node
 /**
- * Sync public branding + desktop/web icons from the master Novend mark.
+ * Sync public branding + desktop/web icons from the Millie's master mark.
  *
- * Source of truth: docs/design/branding/novend.png (clean, smooth N).
+ * Source of truth: docs/design/branding/MilliesSupermarket.png
+ * (falls back to milliesmart.png if the new master is missing)
  *   node scripts/sync-branding-from-master.mjs
+ *
+ * Then regenerate Windows ICO + mobile launchers:
+ *   node scripts/generate-desktop-icons.mjs
+ *   node scripts/generate-mobile-icons.mjs
  */
 import { createRequire } from "node:module";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const masterPath = join(root, "docs/design/branding/novend.png");
+const preferredMaster = join(root, "docs/design/branding/MilliesSupermarket.png");
+const legacyMaster = join(root, "docs/design/branding/milliesmart.png");
+const masterPath = existsSync(preferredMaster) ? preferredMaster : legacyMaster;
 if (!existsSync(masterPath)) {
-  console.error(`Missing master brandmark: ${masterPath}`);
+  console.error(`Missing master brandmark: ${preferredMaster}`);
   process.exit(1);
 }
 
@@ -21,16 +28,20 @@ const requireFromRoot = createRequire(join(root, "package.json"));
 /** @type {typeof import("sharp")} */
 const sharp = requireFromRoot("sharp");
 
-const NAVY = { r: 11, g: 31, b: 51, alpha: 1 }; // #0B1F33
-const WORDMARK_NAVY = "#0B1F33";
-const WORDMARK_LIGHT = "#FFFFFF";
+/** Millie's wordmark navy (#012561). */
+const NAVY = { r: 1, g: 37, b: 97, alpha: 1 };
+const WHITE = { r: 255, g: 255, b: 255, alpha: 1 };
 const CLEAR = { r: 0, g: 0, b: 0, alpha: 0 };
 
-/** Trim near-transparent padding, keep a little breathing room. */
+/** Trim near-white / transparent padding, keep a little breathing room. */
 async function trimmedMark() {
-  const trimmed = await sharp(masterPath).trim({ threshold: 8 }).png().toBuffer();
+  const trimmed = await sharp(masterPath)
+    .trim({ threshold: 12 })
+    .ensureAlpha()
+    .png()
+    .toBuffer();
   const meta = await sharp(trimmed).metadata();
-  const pad = Math.round(Math.max(meta.width ?? 0, meta.height ?? 0) * 0.06);
+  const pad = Math.round(Math.max(meta.width ?? 0, meta.height ?? 0) * 0.04);
   return sharp(trimmed)
     .extend({
       top: pad,
@@ -43,17 +54,21 @@ async function trimmedMark() {
     .toBuffer();
 }
 
-async function writeSquarePng(input, outPath, size, background = CLEAR) {
+async function writeSquarePng(input, outPath, size, background = CLEAR, padRatio = 0.08) {
   mkdirSync(dirname(outPath), { recursive: true });
+  const meta = await sharp(input).metadata();
+  const iw = meta.width ?? size;
+  const ih = meta.height ?? size;
+  const inner = Math.round(size * (1 - padRatio * 2));
+  const logo = await sharp(input)
+    .resize(inner, inner, { fit: "contain", background: CLEAR })
+    .png()
+    .toBuffer();
   const opaque =
     background.alpha === 1 ||
     (background.alpha === undefined &&
       (background.r !== 0 || background.g !== 0 || background.b !== 0));
   if (opaque) {
-    const logo = await sharp(input)
-      .resize(size, size, { fit: "contain", background: CLEAR })
-      .png()
-      .toBuffer();
     await sharp({
       create: { width: size, height: size, channels: 4, background },
     })
@@ -61,80 +76,37 @@ async function writeSquarePng(input, outPath, size, background = CLEAR) {
       .png()
       .toFile(outPath);
   } else {
-    await sharp(input)
-      .resize(size, size, { fit: "contain", background })
+    await sharp({
+      create: { width: size, height: size, channels: 4, background: CLEAR },
+    })
+      .composite([{ input: logo, gravity: "centre" }])
       .png()
       .toFile(outPath);
   }
+  void iw;
+  void ih;
   console.log(`Wrote ${outPath}`);
 }
 
-function wordmarkSvg(textColor, width, height, markSize, markGap) {
-  const textX = markSize + markGap;
-  const fontSize = Math.round(markSize * 0.52);
-  const textY = Math.round(height * 0.62);
-  return Buffer.from(
-    `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
-  <text x="${textX}" y="${textY}" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="${fontSize}" font-weight="700" fill="${textColor}">Novend</text>
-</svg>`,
-  );
-}
-
-async function writeHorizontal(markBuf, outPath, textColor) {
-  const markSize = 120;
-  const markGap = 18;
-  const width = 470;
-  const height = 134;
-  const mark = await sharp(markBuf)
-    .resize(markSize, markSize, { fit: "contain", background: CLEAR })
-    .png()
-    .toBuffer();
-  const text = await sharp(wordmarkSvg(textColor, width, height, markSize, markGap))
+async function writeContainPng(input, outPath, width, height, background = CLEAR) {
+  mkdirSync(dirname(outPath), { recursive: true });
+  const logo = await sharp(input)
+    .resize(width, height, { fit: "contain", background: CLEAR })
     .png()
     .toBuffer();
   await sharp({
-    create: { width, height, channels: 4, background: CLEAR },
+    create: { width, height, channels: 4, background },
   })
-    .composite([
-      { input: mark, left: 0, top: Math.round((height - markSize) / 2) },
-      { input: text, left: 0, top: 0 },
-    ])
-    .png()
-    .toFile(outPath);
-  console.log(`Wrote ${outPath}`);
-}
-
-async function writeVertical(markBuf, outPath) {
-  const size = 292;
-  const markSize = 180;
-  const mark = await sharp(markBuf)
-    .resize(markSize, markSize, { fit: "contain", background: CLEAR })
-    .png()
-    .toBuffer();
-  const fontSize = 42;
-  const textSvg = Buffer.from(
-    `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-  <text x="50%" y="${markSize + 52}" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="${fontSize}" font-weight="700" fill="${WORDMARK_LIGHT}">Novend</text>
-</svg>`,
-  );
-  const text = await sharp(textSvg).png().toBuffer();
-  await sharp({
-    create: { width: size, height: size, channels: 4, background: CLEAR },
-  })
-    .composite([
-      { input: mark, left: Math.round((size - markSize) / 2), top: 18 },
-      { input: text, left: 0, top: 0 },
-    ])
+    .composite([{ input: logo, gravity: "centre" }])
     .png()
     .toFile(outPath);
   console.log(`Wrote ${outPath}`);
 }
 
 async function writeLoginHero(markBuf, outPath) {
-  // Match previous login_hero proportions (tall panel with mark near top).
   const width = 720;
   const height = 1280;
-  const markSize = 220;
+  const markSize = 320;
   const mark = await sharp(markBuf)
     .resize(markSize, markSize, { fit: "contain", background: CLEAR })
     .png()
@@ -142,7 +114,7 @@ async function writeLoginHero(markBuf, outPath) {
   await sharp({
     create: { width, height, channels: 4, background: NAVY },
   })
-    .composite([{ input: mark, left: Math.round((width - markSize) / 2), top: 160 }])
+    .composite([{ input: mark, left: Math.round((width - markSize) / 2), top: 200 }])
     .png()
     .toFile(outPath);
   console.log(`Wrote ${outPath}`);
@@ -150,19 +122,21 @@ async function writeLoginHero(markBuf, outPath) {
 
 const mark = await trimmedMark();
 
-await writeSquarePng(mark, join(root, "public/branding/brandmark.png"), 512);
-await writeSquarePng(mark, join(root, "apps/desktop/build/icon.png"), 512, NAVY);
-await writeSquarePng(mark, join(root, "public/icons/icon-512.png"), 512, NAVY);
-await writeSquarePng(mark, join(root, "public/icons/icon-192.png"), 192, NAVY);
-await writeSquarePng(mark, join(root, "public/favicon.png"), 32, NAVY);
+// Web / PWA / Electron square icons
+await writeSquarePng(mark, join(root, "public/branding/brandmark.png"), 512, WHITE, 0.06);
+await writeSquarePng(mark, join(root, "apps/desktop/build/icon.png"), 512, NAVY, 0.1);
+await writeSquarePng(mark, join(root, "public/icons/icon-512.png"), 512, NAVY, 0.1);
+await writeSquarePng(mark, join(root, "public/icons/icon-192.png"), 192, NAVY, 0.1);
+await writeSquarePng(mark, join(root, "public/favicon.png"), 64, WHITE, 0.08);
+await writeSquarePng(mark, join(root, "public/icon.png"), 512, NAVY, 0.1);
 
-await writeHorizontal(mark, join(root, "public/branding/logo_horizontal.png"), WORDMARK_NAVY);
-await writeHorizontal(
-  mark,
-  join(root, "public/branding/logo_horizontal_light.png"),
-  WORDMARK_LIGHT,
-);
-await writeVertical(mark, join(root, "public/branding/logo_vertical.png"));
+// Wordmark lockups — Millie's master already includes typography
+await writeContainPng(mark, join(root, "public/branding/logo_horizontal.png"), 640, 220, CLEAR);
+await writeContainPng(mark, join(root, "public/branding/logo_horizontal_light.png"), 640, 220, CLEAR);
+await writeContainPng(mark, join(root, "public/branding/logo_vertical.png"), 360, 360, CLEAR);
 await writeLoginHero(mark, join(root, "public/branding/login_hero.png"));
 
-console.log("Branding synced from docs/design/branding/novend.png");
+// Keep docs master and public brandmark aligned for designers
+copyFileSync(masterPath, join(root, "docs/design/branding/logo_generated.png"));
+
+console.log(`Branding synced from ${masterPath}`);

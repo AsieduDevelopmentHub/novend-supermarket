@@ -1,13 +1,7 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   PERIOD_PRESET_OPTIONS,
   type PeriodPreset,
@@ -50,26 +44,23 @@ export function PeriodFilter({
         ) : (
           <p className="text-muted-foreground text-xs">Period</p>
         )}
-        <Select value={preset} onValueChange={(value) => onPresetChange(value as PeriodPreset)}>
-          <SelectTrigger
-            className={cn(
-              // Fixed width + truncate so long labels (e.g. "Last 30 days") do not
-              // steal space from adjacent Branch / CTA controls in tight toolbars.
-              "min-w-0 shrink [&>span]:min-w-0 [&>span]:truncate",
-              inline ? "h-9 w-[9.75rem] sm:w-[10.5rem]" : "h-10 w-full max-w-[11rem] sm:h-9 sm:w-[10.5rem]",
-            )}
-            aria-label="Period"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PERIOD_PRESET_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          options={PERIOD_PRESET_OPTIONS.map((option) => ({
+            value: option.value,
+            label: option.label,
+          }))}
+          value={preset}
+          onValueChange={(value) => onPresetChange(value as PeriodPreset)}
+          placeholder="Period"
+          searchPlaceholder="Search periods…"
+          emptyMessage="No period found."
+          triggerClassName={cn(
+            "min-w-0 shrink [&>span]:min-w-0 [&>span]:truncate",
+            inline
+              ? "h-9 w-[9.75rem] sm:w-[10.5rem]"
+              : "h-10 w-full max-w-[11rem] sm:h-9 sm:w-[10.5rem]",
+          )}
+        />
       </div>
       {preset === "custom" ? (
         <>

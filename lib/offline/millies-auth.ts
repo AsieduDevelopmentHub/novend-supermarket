@@ -174,6 +174,9 @@ export async function milliesLogin(
     storeName: (await getAuthMeta(MILLIES_AUTH_META.storeName)) ?? APP_BRAND,
     session,
   });
+  // Existing tills that never started a trial (pre-auto-start builds) get one on login.
+  const { startLicenseTrial } = await import("@/lib/millies-license");
+  await startLicenseTrial();
   return session;
 }
 
@@ -319,6 +322,11 @@ export async function completeMilliesSetup(input: MilliesSetupInput): Promise<{
     storeAddress: input.address?.trim() ?? "",
     session,
   });
+
+  // Start the offline trial immediately so the till opens after setup.
+  // Admins can still activate a key anytime from Settings → License.
+  const { startLicenseTrial } = await import("@/lib/millies-license");
+  await startLicenseTrial();
 
   writeMilliesSession(session);
 

@@ -28,6 +28,8 @@ type PaymentTenderSelectorProps = {
   onSplitDrafts: (drafts: SplitTenderDraft[] | null) => void;
   /** On account needs a customer and the customer_credit capability. */
   allowOnAccount: boolean;
+  /** Tighter checkout footer layout. */
+  compact?: boolean;
 };
 
 let draftCounter = 0;
@@ -43,6 +45,7 @@ export function PaymentTenderSelector({
   splitDrafts,
   onSplitDrafts,
   allowOnAccount,
+  compact = false,
 }: PaymentTenderSelectorProps) {
   const options = PAYMENT_METHOD_OPTIONS.filter(
     (option) => allowOnAccount || option.value !== "on_account",
@@ -50,14 +53,16 @@ export function PaymentTenderSelector({
 
   if (splitDrafts === null) {
     return (
-      <div className="space-y-1.5">
+      <div className={compact ? "space-y-1" : "space-y-1.5"}>
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-sm">Payment</span>
+          <span className={cn("text-muted-foreground", compact ? "text-xs" : "text-sm")}>
+            Payment
+          </span>
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs"
+            className={compact ? "h-6 px-1.5 text-[11px]" : "h-7 px-2 text-xs"}
             disabled={total <= 0}
             onClick={() =>
               onSplitDrafts([
@@ -70,10 +75,10 @@ export function PaymentTenderSelector({
               ])
             }
           >
-            Split payment
+            Split
           </Button>
         </div>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Payment method">
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Payment method">
           {options.map((option) => {
             const selected = paymentMethod === option.value;
             return (
@@ -82,7 +87,8 @@ export function PaymentTenderSelector({
                 type="button"
                 aria-pressed={selected}
                 className={cn(
-                  "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  "rounded-full border font-medium transition-colors",
+                  compact ? "px-2.5 py-0.5 text-[11px]" : "px-3 py-1 text-xs",
                   selected
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border text-muted-foreground hover:text-foreground",

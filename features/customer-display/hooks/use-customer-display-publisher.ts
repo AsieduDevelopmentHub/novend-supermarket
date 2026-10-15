@@ -33,7 +33,8 @@ type PublisherInput = {
   enabled: boolean;
 };
 
-const COMPLETE_RESET_MS = 12_000;
+/** Keep the on-screen receipt visible long enough for the customer to read it. */
+const COMPLETE_RESET_MS = 35_000;
 
 /** Push cart snapshots from the cashier screen to customer display windows. */
 export function useCustomerDisplayPublisher(input: PublisherInput) {
@@ -91,8 +92,12 @@ export function useCustomerDisplayPublisher(input: PublisherInput) {
         clearTimeout(resetTimerRef.current);
         resetTimerRef.current = null;
       }
+      // Publish the live cart immediately so the previous receipt cannot linger a frame.
+      if (input.enabled) {
+        publishCustomerDisplaySnapshot(liveSnapshot);
+      }
     }
-  }, [input.cart.length]);
+  }, [input.cart.length, input.enabled, liveSnapshot]);
 
   useEffect(() => {
     if (!input.enabled) return;

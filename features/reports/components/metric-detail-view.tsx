@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuthedQuery } from "@/hooks/use-authed-query";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { PageHeader } from "@/components/layout/primitives";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +19,11 @@ import { formatDateTime } from "@/lib/date";
 import { ArrowLeft } from "lucide-react";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { usePreferLocalData } from "@/hooks/use-prefer-local-data";
+import {
+  buildLocalReportDetails,
+  type LocalReportDetails,
+} from "@/lib/offline/report-details";
+import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 
 const METRICS = [
   "grossSales",
@@ -75,9 +81,9 @@ export function ReportMetricDetailView({ metric }: { metric: string }) {
     return { startDate: startOfDay(startDateObj), endDate: endOfDay(endDateObj) };
   }, [start, end]);
 
-  const details = useAuthedQuery(
+  const remoteDetails = useAuthedQuery(
     api.reports.details,
-    online && range && isMetric(metric)
+    !FULLY_OFFLINE && online && range && isMetric(metric)
       ? {
           metric,
           ...range,
@@ -85,20 +91,53 @@ export function ReportMetricDetailView({ metric }: { metric: string }) {
         }
       : "skip",
   );
-  const preferLocal = usePreferLocalData(details !== undefined);
+  const preferLocal = usePreferLocalData(remoteDetails !== undefined);
+
+  const [localDetails, setLocalDetails] = useState<LocalReportDetails | null | undefined>(
+    undefined,
+  );
+
+  useEffect(() => {
+    if ((!FULLY_OFFLINE && online && !preferLocal) || !range || !isMetric(metric)) {
+      return;
+    }
+    let cancelled = false;
+    const load = () => {
+      void buildLocalReportDetails({
+        metric,
+        startDate: range.startDate,
+        endDate: range.endDate,
+        branchId: branch,
+      }).then((details) => {
+        if (!cancelled) setLocalDetails(details);
+      });
+    };
+    setLocalDetails(undefined);
+    load();
+    const unsub = subscribeReplicaChanged(load);
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [metric, range, branch, online, preferLocal]);
 
   if (!isMetric(metric) || !range) {
     return <ErrorState message="Choose a valid metric and date range from Reports." />;
   }
 
-  const loading = online && !preferLocal && details === undefined;
-  const unavailableOffline = (!online || preferLocal) && details === undefined;
+  const useLocal = FULLY_OFFLINE || preferLocal || !online;
+  const details = useLocal
+    ? localDetails === undefined
+      ? undefined
+      : (localDetails ?? remoteDetails ?? undefined)
+    : (remoteDetails ?? localDetails ?? undefined);
+  const loading = details === undefined;
 
   return (
     <div className="max-w-full min-w-0 space-y-6 overflow-x-hidden">
       <PageHeader
         title={details?.title ?? "Report detail"}
-        description={`${start} → ${end}`}
+        description={`${start} → ${end}${useLocal ? " · On this device" : ""}`}
         actions={
           <Button asChild variant="outline">
             <Link href="/reports">
@@ -110,11 +149,6 @@ export function ReportMetricDetailView({ metric }: { metric: string }) {
       />
       {loading ? (
         <LoadingState label="Loading records…" variant="table" />
-      ) : unavailableOffline ? (
-        <EmptyState
-          title="Detail rows need a connection"
-          description="Summary reports still work offline from this device. Reconnect to open line-item drill-down."
-        />
       ) : details && details.rows.length === 0 ? (
         <EmptyState title="No records in this range" />
       ) : details ? (

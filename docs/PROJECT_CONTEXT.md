@@ -13,7 +13,7 @@ workflow overview: [`MILLIES_OVERVIEW.md`](./MILLIES_OVERVIEW.md).
 
 **Brand:** Millie's Supermarket  
 **Engine lineage:** Novend POS (cloned and specialized)  
-**Vendor credit on receipts only:** `Powered by Novend POS`  
+**Vendor credit on receipts only:** `Powered by Novend - 055 525 7482`  
 **Type:** Single-store supermarket Point of Sale (local-first)
 
 This repository is not the multi-industry Novend SaaS website. There is no public
@@ -76,4 +76,4 @@ See [`design/branding/colors.md`](./design/branding/colors.md).
 A cashier completes sales online and offline. Inventory never goes negative.
 The UI is Millie's red and navy with the Millie's logo. Business data for the
 day lives on the till. Encrypted backups can rebuild the store on new hardware.
-Receipts end with `Powered by Novend POS`.
+Receipts end with `Powered by Novend - 055 525 7482`.

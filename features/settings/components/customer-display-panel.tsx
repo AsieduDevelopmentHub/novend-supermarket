@@ -25,6 +25,7 @@ import {
   hasSecondaryDisplay,
 } from "@/lib/desktop/customer-display-policy";
 import type { NovendDesktopCustomerDisplayStatus, NovendDesktopDisplayInfo } from "@/types/desktop";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { PlanCapabilityGate } from "@/features/billing/components/plan-capability-gate";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
@@ -165,25 +166,31 @@ export function CustomerDisplayPanel() {
     }
   }
 
+  const content = (
+    <CustomerDisplayPanelContent
+      isDesktop={isDesktop}
+      prefs={prefs}
+      setPrefs={setPrefs}
+      status={status}
+      displays={displays}
+      dualDisplayReady={dualDisplayReady}
+      pending={pending}
+      capabilityAvailable={FULLY_OFFLINE ? true : capabilityAvailable}
+      onOpen={() => void openDisplay()}
+      onClose={() => void closeDisplay()}
+      desktopBridgeStale={desktopBridgeStale}
+    />
+  );
+
+  if (FULLY_OFFLINE) return content;
+
   return (
     <PlanCapabilityGate
       capability="canUseCustomerDisplay"
       title="Customer display"
       description="Show cart items, discounts, and totals on a customer-facing screen."
     >
-      <CustomerDisplayPanelContent
-        isDesktop={isDesktop}
-        prefs={prefs}
-        setPrefs={setPrefs}
-        status={status}
-        displays={displays}
-        dualDisplayReady={dualDisplayReady}
-        pending={pending}
-        capabilityAvailable={capabilityAvailable}
-        onOpen={() => void openDisplay()}
-        onClose={() => void closeDisplay()}
-        desktopBridgeStale={desktopBridgeStale}
-      />
+      {content}
     </PlanCapabilityGate>
   );
 }

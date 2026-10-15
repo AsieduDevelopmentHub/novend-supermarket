@@ -16,6 +16,7 @@ import { useAuthedQuery } from "@/hooks/use-authed-query";
 import { driver, type Driver } from "driver.js";
 import { api } from "@/convex/_generated/api";
 import type { AppRole } from "@/config/navigation";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import {
   loadTourProgress,
@@ -29,7 +30,6 @@ import {
   onboardingQueue,
   popoverSideForStep,
   queryTourable,
-  resolveStepAnchor,
   tourForPath,
   toursForAccess,
   type TourDefinition,
@@ -51,8 +51,11 @@ const ProductToursContext = createContext<ProductToursContextValue | null>(null)
 const PENDING_TOUR_KEY = "novend.pendingTour";
 const JOURNEY_KEY = "novend.onboardingJourney";
 const SINGLE_TOUR_KEY = "novend.tourSingle";
-const ANCHOR_WAIT_MS = 3200;
-const ROUTE_SETTLE_MS = 900;
+/** Wait only briefly — missing anchors are skipped, not waited out. */
+const ANCHOR_WAIT_MS = 700;
+const MANUAL_ANCHOR_WAIT_MS = 450;
+/** Give the destination route a moment to paint tour anchors after Help → Start. */
+const ROUTE_SETTLE_MS = 450;
 
 type JourneyState = { remaining: TourId[] };
 
@@ -98,6 +101,10 @@ function waitForTourable(selector: string, timeoutMs: number): Promise<Element |
       resolve(existing);
       return;
     }
+    if (timeoutMs <= 0) {
+      resolve(null);
+      return;
+    }
     const started = Date.now();
     const tick = () => {
       const node = queryTourable(selector);
@@ -109,10 +116,19 @@ function waitForTourable(selector: string, timeoutMs: number): Promise<Element |
         resolve(null);
         return;
       }
-      window.setTimeout(tick, 80);
+      window.setTimeout(tick, 40);
     };
-    window.setTimeout(tick, 80);
+    window.setTimeout(tick, 40);
   });
+}
+
+/** First visible anchor, or null when none exist (do not wait on a missing selector). */
+function resolveVisibleAnchor(step: { anchors: string[] }): { selector: string; element: Element } | null {
+  for (const selector of step.anchors) {
+    const node = queryTourable(selector);
+    if (node instanceof Element) return { selector, element: node };
+  }
+  return null;
 }
 
 function scrollStepIntoView(element: Element) {
@@ -152,7 +168,12 @@ export function ProductTourProvider({
   const pathname = usePathname();
   const router = useRouter();
   const online = useConnectivity();
-  const liveProgress = useAuthedQuery(api.tours.listOwn, enabled && online ? {} : "skip");
+  /** Millie's / fully-offline shells never talk to Convex for tour progress. */
+  const cloudTours = online && !FULLY_OFFLINE;
+  const liveProgress = useAuthedQuery(
+    api.tours.listOwn,
+    enabled && cloudTours ? {} : "skip",
+  );
   const typedLiveProgress = liveProgress as TourProgress[] | undefined;
   const saveOwn = useMutation(api.tours.saveOwn);
   const restartOwn = useMutation(api.tours.restartOwn);
@@ -242,13 +263,13 @@ export function ProductTourProvider({
         status,
         lastStepId: lastStepId ?? null,
         updatedAt: Date.now(),
-        dirty: !online,
+        dirty: cloudTours ? false : !FULLY_OFFLINE,
       };
       const next = [...current.filter((item) => item.tourId !== tour.id), row];
       progressRef.current = next;
       setProgress(next);
       writeProgress(next);
-      if (online) {
+      if (cloudTours) {
         void saveOwn({
           tourId: tour.id,
           version: tour.version,
@@ -263,7 +284,7 @@ export function ProductTourProvider({
         });
       }
     },
-    [identityKey, online, saveOwn],
+    [cloudTours, identityKey, saveOwn],
   );
 
   const persistSkipped = useCallback(
@@ -331,11 +352,25 @@ export function ProductTourProvider({
       }
 
       const generation = (driveGeneration.current += 1);
+      const waitMs = force ? MANUAL_ANCHOR_WAIT_MS : ANCHOR_WAIT_MS;
       const resolved = await Promise.all(
         tour.steps.map(async (step) => {
-          const selector = resolveStepAnchor(step);
-          const element = await waitForTourable(selector, ANCHOR_WAIT_MS);
-          return { step, selector, element };
+          const visible = resolveVisibleAnchor(step);
+          if (visible) {
+            return { step, selector: visible.selector, element: visible.element };
+          }
+          // Nothing painted yet (route transition) — brief wait on first anchor only.
+          const selector = step.anchors[0] ?? "";
+          if (!selector) return { step, selector: "", element: null as Element | null };
+          const element = await waitForTourable(selector, waitMs);
+          if (element) return { step, selector, element };
+          // Re-check all fallbacks once more after the short wait.
+          const after = resolveVisibleAnchor(step);
+          return {
+            step,
+            selector: after?.selector ?? selector,
+            element: after?.element ?? null,
+          };
         }),
       );
       if (generation !== driveGeneration.current) return;
@@ -351,7 +386,7 @@ export function ProductTourProvider({
         allowClose: true,
         allowScroll: true,
         skipMissingElement: true,
-        waitForElement: ANCHOR_WAIT_MS,
+        waitForElement: waitMs,
         showProgress: true,
         progressText: "{{current}} of {{total}}",
         nextBtnText: "Next",
@@ -443,9 +478,10 @@ export function ProductTourProvider({
         router.push(tour.path);
         return;
       }
-      window.setTimeout(() => {
+      // Same-route manual start — kick off on the next frame, no artificial delay.
+      window.requestAnimationFrame(() => {
         void driveTour(tour, true);
-      }, 250);
+      });
     },
     [availableTours, driveTour, pathname, router],
   );
@@ -458,36 +494,43 @@ export function ProductTourProvider({
       progressRef.current = next;
       setProgress(next);
       writeProgress(next);
-      if (online) void restartOwn({ tourId, version: tour.version });
+      if (cloudTours) void restartOwn({ tourId, version: tour.version });
       startTour(tourId);
     },
-    [identityKey, online, restartOwn, startTour],
+    [cloudTours, identityKey, restartOwn, startTour],
   );
 
   useEffect(() => {
-    if (!enabled || !identityKey || !hydrated || attemptedPath.current === pathname) return;
-
-    // Offline shells keep saved progress but must not auto-start onboarding
-    // every time the till opens without a live session (felt like “tours always”).
-    if (!online) return;
-    // Wait for cloud progress before deciding “never seen” — otherwise a slow
-    // listOwn query looks empty and restarts the walkthrough after every login.
-    if (typedLiveProgress === undefined && !initialProgressRef.current?.length) return;
-
-    attemptedPath.current = pathname;
+    if (!enabled || !identityKey || !hydrated) return;
 
     const pending = window.sessionStorage.getItem(PENDING_TOUR_KEY) as TourId | null;
     const pendingTour = pending ? getTourDefinition(pending) : undefined;
+    // Manual Start from Help must resume after redirect — including fully offline.
+    // Runs before the attemptedPath guard so revisiting /sales still starts the tour.
     if (
       pendingTour &&
       (pathname === pendingTour.path || pathname.startsWith(`${pendingTour.path}/`))
     ) {
+      attemptedPath.current = pathname;
       window.sessionStorage.removeItem(PENDING_TOUR_KEY);
       const timer = window.setTimeout(() => {
         void driveTour(pendingTour, true);
       }, ROUTE_SETTLE_MS);
       return () => window.clearTimeout(timer);
     }
+
+    if (attemptedPath.current === pathname) return;
+
+    // Offline / Millie's: no automatic onboarding nag — Help is the only entry.
+    if (!cloudTours) {
+      attemptedPath.current = pathname;
+      return;
+    }
+    // Wait for cloud progress before deciding “never seen” — otherwise a slow
+    // listOwn query looks empty and restarts the walkthrough after every login.
+    if (typedLiveProgress === undefined && !initialProgressRef.current?.length) return;
+
+    attemptedPath.current = pathname;
 
     if (!hasTourProgress(progressRef.current, availableTours) && !isSingleTourMode()) {
       const onPlatformRoute = pathname.startsWith("/platform");
@@ -533,12 +576,12 @@ export function ProductTourProvider({
     return () => window.clearTimeout(timer);
   }, [
     availableTours,
+    cloudTours,
     driveTour,
     enabled,
     hydrated,
     identityKey,
     isPlatformAdmin,
-    online,
     pathname,
     role,
     router,

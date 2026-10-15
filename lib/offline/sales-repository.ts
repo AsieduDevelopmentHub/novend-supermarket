@@ -31,6 +31,7 @@ import {
 import { applyLocalBranchStockChange, getSellableQuantity } from "./branch-stock";
 import { enqueueCompleteSale, markOutboxSynced } from "./outbox";
 import { assertLocalWriteAllowed } from "./license-guard";
+import { loadMilliesPrintSnapshot } from "./millies-print-settings";
 import { notifyReplicaChanged } from "./replica-events";
 import type {
   CompleteSaleOutboxPayload,
@@ -58,36 +59,8 @@ function stampPrintedInvoice(payload: unknown, invoiceNumber: string): unknown {
   return payload;
 }
 
-async function loadPrintSnapshot(db: NovendOfflineDb): Promise<PrintSnapshot> {
-  const raw = await getMeta(db, META_KEYS.printSnapshot);
-  if (raw) {
-    try {
-      return JSON.parse(raw) as PrintSnapshot;
-    } catch {
-      /* fall through */
-    }
-  }
-  return {
-    business: {
-      tradeName: "Novend",
-      legalName: "Novend",
-      address: "Accra, Ghana",
-      phone: "",
-      email: "",
-      taxId: "",
-    },
-    template: {
-      paperWidthMm: 80,
-      showLogo: true,
-      headerText: "Wholesale & Retail Distribution",
-      footerText: "Thank you for your business",
-      thankYouLine: "Goods sold are not returnable without receipt",
-      showCashier: true,
-      showCustomer: true,
-      showPaymentMethod: true,
-      showSku: false,
-    },
-  };
+async function loadPrintSnapshot(_db: NovendOfflineDb): Promise<PrintSnapshot> {
+  return loadMilliesPrintSnapshot();
 }
 
 /** Apply a completed sale locally + enqueue outbox op. Receipt invoice is canonical. */

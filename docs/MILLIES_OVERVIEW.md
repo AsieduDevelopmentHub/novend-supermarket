@@ -13,7 +13,9 @@ Version: 1.1.0
 
 **Millie's Supermarket POS** is a single-store, supermarket Point of Sale for
 cashiers and managers at Millie's. The on-screen brand is **Millie's Supermarket**.
-The only Novend credit is the fixed receipt line `Powered by Novend POS`.
+The only Novend credit is the fixed receipt/vendor footer
+`Powered by Novend - 055 525 7482` (same as Novend POS; also on About and the
+customer display).
 
 It is built for:
 
@@ -39,7 +41,7 @@ It is **not**:
 | Styling | Tailwind CSS v4 + CSS tokens | Millie's red / navy theme |
 | Auth & users | Dexie `millies-auth-v1` + PBKDF2 | Local staff accounts (Chemist-style) |
 | Local business data | Dexie (IndexedDB) | Sales, products, stock, customers on this till |
-| Licence | Perpetual local snapshot in Dexie | `local_only` / lifetime — always writable after setup |
+| Licence | Chemist-style offline key (`NMIL.…`) + Dexie snapshot | Trial starts at setup; activate anytime from Settings → License (no cloud) |
 | Package manager | pnpm (workspace) | App + `packages/hardware` + desktop/mobile shells |
 | Desktop shell | Electron (`apps/desktop`) | Windows/macOS/Linux wrapper around the app |
 | Mobile shell | Capacitor (`apps/mobile`) | Android wrapper around the app |
@@ -77,7 +79,7 @@ Flag: `constants/runtime.ts` → `FULLY_OFFLINE`.
 | Concern | Decision |
 | --- | --- |
 | Legal / display name | Millie's Supermarket |
-| Logo | `docs/design/branding/milliesmart.png` → `public/branding/brandmark.png` |
+| Logo | `docs/design/branding/milliesmart.png` → `public/branding/*`, Electron `apps/desktop/build/icon.{png,ico}`, PWA `/icons`, favicon (via `pnpm branding:sync`) |
 | Primary | `#ED0206` (logo red) |
 | Sidebar / navy | `#012561` (logo navy) |
 | Industry pack | `supermarket` only: multi-unit pricing, lots & expiry, sell-by-weight, configurable POS |
@@ -95,8 +97,12 @@ Palette detail: [`docs/design/branding/colors.md`](./design/branding/colors.md).
 
 1. Staff open the app (web, desktop, or mobile shell) with **no** Convex URL required.
 2. Setup wizard creates the admin username/password (PBKDF2), seals a recovery key,
-   seeds a perpetual local licence, and binds the synthetic org/branch IDs.
-3. Admin adds products, categories, and opening stock — all in Dexie.
+   seeds a perpetual Dexie write snapshot, and binds the synthetic org/branch IDs.
+3. After sign-in, the Chemist-style **activation gate** appears until staff enter a
+   local `NMIL.…` key or start the **7-day offline trial** (machine ID shown on screen).
+4. Setup seeds **common supermarket categories** (produce, beverages, dairy, …) into
+   Dexie so product forms start with a searchable list.
+5. Admin adds products and opening stock — all in Dexie.
 
 ### Everyday selling
 
@@ -107,7 +113,7 @@ Start today (optional) → Cart → pay → receipt
    Dexie till session   Dexie sale + stock
    (float / cash-up)          │
                               ▼
-                    Print (Powered by Novend POS)
+                    Print (Powered by Novend - 055 525 7482)
 ```
 
 - **Till is Dexie-only** — Start today / Close today never call the network.
@@ -166,6 +172,7 @@ Later
 | Local session | `sessionStorage` + cookie | Shell unlock (no cloud refresh expiry) |
 | Recovery key | Sealed on device | Encrypt `.novend-backup` files |
 | Licence snapshot | Dexie `meta` (+ org localStorage) | Perpetual `local_only` / lifetime write access |
+| Activation key | `localStorage` (`millies.licenseState`) | Offline `NMIL.…` key + 7-day trial (Chemist-style) |
 | Shell profile | Dexie org replica `meta` | Name, role, branch for UI and sale attribution |
 | Business replica | `novend-offline-millies-local` | **Shared** catalog, stock, sales for all staff on this till |
 
@@ -173,12 +180,25 @@ Unlike SaaS Novend (per-user replicas), Millie's binds one org Dexie for every
 cashier so products and stock stay consistent after staff switch. Legacy
 per-user DBs are migrated once via `lib/offline/millies-shared-replica.ts`.
 
+Reports inventory value, report drill-downs, and catalog actions read/write
+Dexie only — there is no “connect to the cloud” path. Sync chrome and the mobile
+bottom nav are omitted on this single-machine till.
+
+Activation is **fully offline** (HMAC license key, no Convex device slots, no
+“connect to the internet” gate). Issue keys with `pnpm run license:issue`, or
+remotely via GitHub Actions → **Issue Millie's license** (repo secret
+`MILLIES_LICENSE_SECRET` must match the app build).
+Customer display (`/customer-display`) is a session-free second window that
+mirrors the cart. Users includes staff month payroll (salary / commission) from
+the shared Dexie replica. Email verification and cloud account email fields are
+hidden.
+
 Key files: `constants/runtime.ts`, `lib/offline/millies-auth.ts`,
 `lib/offline/millies-auth-db.ts`, `lib/offline/millies-bootstrap.ts`,
-`lib/offline/millies-shared-replica.ts`,
+`lib/offline/millies-shared-replica.ts`, `lib/millies-license/`,
+`features/license/components/millies-license-gate.tsx`,
 `features/auth/components/millies-setup-wizard.tsx`,
-`features/auth/components/millies-login-form.tsx`,
-`features/users/components/millies-users-view.tsx`.
+`features/auth/components/millies-login-form.tsx`.
 
 ---
 
@@ -320,4 +340,4 @@ pnpm desktop:dev      # Electron shell
 - Inventory never goes negative; every stock change has a reason.
 - Completed sales are immutable; corrections go through returns.
 - The UI looks like Millie's (logo, red, navy).
-- The only Novend branding on receipts is `Powered by Novend POS`.
+- The only Novend branding on receipts is `Powered by Novend - 055 525 7482`.

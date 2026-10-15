@@ -1,0 +1,73 @@
+name: Issue Millie's license
+
+# Run remotely from GitHub → Actions → Issue Millie's license → Run workflow
+# Re-run any past run from the Actions UI. Uses the same offline key format as
+# scripts/issue-millies-license.mjs (HMAC secret must match the shipped app).
+
+on:
+  workflow_dispatch:
+    inputs:
+      customer:
+        description: Store / customer label stored in the key
+        required: true
+        type: string
+      days:
+        description: Validity in days from now (leave empty for perpetual)
+        required: false
+        type: string
+        default: ""
+      machine:
+        description: Optional machine ID lock (from Settings → License)
+        required: false
+        type: string
+        default: ""
+      perpetual:
+        description: Force perpetual even if days is set
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue-millies-license-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  issue:
+    name: Issue license key
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Issue license
+        id: issue
+        env:
+          MILLIES_LICENSE_SECRET: ${{ secrets.MILLIES_LICENSE_SECRET }}
+        run: |
+          set -euo pipefail
+          ARGS=(--customer "${{ inputs.customer }}")
+          if [ "${{ inputs.perpetual }}" = "true" ]; then
+            ARGS+=(--perpetual)
+          elif [ -n "${{ inputs.days }}" ]; then
+            ARGS+=(--days "${{ inputs.days }}")
+          else
+            ARGS+=(--perpetual)
+          fi
+          if [ -n "${{ inputs.machine }}" ]; then
+            ARGS+=(--machine "${{ inputs.machine }}")
+          fi
+          node scripts/issue-millies-license.mjs "${ARGS[@]}"
+
+      - name: Reminder
+        run: |
+          echo "Copy the key from the job Summary tab (or the Issue license step log)."
+          echo "Activate it in Millie's → Settings → License (or the license gate)."
+          echo "Repo secret MILLIES_LICENSE_SECRET must match the app build (NEXT_PUBLIC_MILLIES_LICENSE_SECRET / default fallback)."

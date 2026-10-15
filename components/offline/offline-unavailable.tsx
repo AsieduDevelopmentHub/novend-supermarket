@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CloudOff } from "lucide-react";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
 
@@ -22,7 +23,10 @@ export function OfflineUnavailable({
       icon={CloudOff}
       title={title}
       description={
-        description ?? "This screen needs a connection. You can keep selling from the till."
+        description ??
+        (FULLY_OFFLINE
+          ? "This screen is not available on this till yet. Use Sales or Inventory instead."
+          : "This screen needs a connection. You can keep selling from the till.")
       }
       action={
         <Button asChild variant="outline">

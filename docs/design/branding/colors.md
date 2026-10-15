@@ -43,4 +43,4 @@
 ### Receipt / vendor line
 
 - App chrome: Millie's Supermarket
-- Receipt footer only: `Powered by Novend POS`
+- Receipt footer only: `Powered by Novend - 055 525 7482`

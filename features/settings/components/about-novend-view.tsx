@@ -11,7 +11,14 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { useShowsRealtimeSyncUi } from "@/hooks/use-shows-realtime-sync-ui";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
 import { estimateBackupSize } from "@/lib/offline/backup";
-import { APP_NAME, APP_VERSION, RECEIPT_VENDOR_FOOTER } from "@/constants/app";
+import {
+  APP_NAME,
+  APP_VERSION,
+  NOVEND_CONTACT_EMAIL,
+  NOVEND_CONTACT_SITE,
+  NOVEND_LOCAL_CONTACT,
+  RECEIPT_VENDOR_FOOTER,
+} from "@/constants/app";
 import { Info } from "lucide-react";
 
 const LAST_UPDATE_KEY = "novend.mobileUpdate.last";
@@ -130,6 +137,17 @@ export function AboutNovendView() {
             </span>
           </p>
           <p className="text-foreground pt-2 font-medium">{RECEIPT_VENDOR_FOOTER}</p>
+          <p className="text-muted-foreground text-xs">
+            {NOVEND_LOCAL_CONTACT} · {NOVEND_CONTACT_EMAIL} ·{" "}
+            <a
+              href={NOVEND_CONTACT_SITE}
+              className="text-primary underline-offset-2 hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              novendpos.app
+            </a>
+          </p>
         </CardContent>
       </Card>
 
@@ -140,6 +158,9 @@ export function AboutNovendView() {
         <CardContent className="flex flex-col gap-2">
           <Button asChild variant="outline" className="min-h-11 justify-start">
             <Link href="/settings?section=help">Help &amp; tours</Link>
+          </Button>
+          <Button asChild variant="outline" className="min-h-11 justify-start">
+            <Link href="/settings?section=license">License</Link>
           </Button>
         </CardContent>
       </Card>

@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { PageHeader } from "@/components/layout/primitives";
 import { PlanLimitNotice } from "@/features/billing/components/plan-limit-notice";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,8 @@ import { getBoundOrganizationId } from "@/lib/offline/db";
 import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
 import { deactivateAccountBlockReason } from "@/convex/shared/accountStatus";
 import type { AppRole } from "@/config/navigation";
+import type { MilliesLocalRole } from "@/lib/offline/millies-auth-db";
+import { milliesCreateStaff, milliesUpdateStaff } from "@/lib/offline/millies-users";
 import { StaffMonthRoster } from "./staff-month-roster";
 
 function userInitials(name: string) {
@@ -152,14 +155,25 @@ export function UsersView() {
     }
     setPending(true);
     try {
-      await updateProfile({
-        id: editingId,
-        name,
-        role: isManager ? "cashier" : role,
-        branchId: formBranchId as Id<"branches">,
-        phone: phone || undefined,
-        status,
-      });
+      const nextRole = (isManager ? "cashier" : role) as MilliesLocalRole;
+      if (FULLY_OFFLINE) {
+        await milliesUpdateStaff({
+          id: String(editingId),
+          displayName: name,
+          role: nextRole,
+          phone: phone || undefined,
+          active: status === "active",
+        });
+      } else {
+        await updateProfile({
+          id: editingId,
+          name,
+          role: nextRole,
+          branchId: formBranchId as Id<"branches">,
+          phone: phone || undefined,
+          status,
+        });
+      }
       toast.success("User updated");
       setEditingId(null);
     } catch (error) {
@@ -171,7 +185,7 @@ export function UsersView() {
 
   async function onCreate(event: FormEvent) {
     event.preventDefault();
-    if (!online) {
+    if (!FULLY_OFFLINE && !online) {
       toast.error("Connect to the internet to create user accounts.");
       return;
     }
@@ -179,27 +193,50 @@ export function UsersView() {
       toast.error("Select a branch");
       return;
     }
-    if (!passwordMeetsPolicy(password)) {
+    if (!FULLY_OFFLINE && !passwordMeetsPolicy(password)) {
       toast.error(PASSWORD_POLICY_MESSAGE);
+      return;
+    }
+    if (FULLY_OFFLINE && password.trim().length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    const usernameOrEmail = email.trim();
+    if (!usernameOrEmail) {
+      toast.error(FULLY_OFFLINE ? "Username is required" : "Email is required");
       return;
     }
     setPending(true);
     try {
+      const createdRole = (isManager ? "cashier" : role) as MilliesLocalRole;
+      if (FULLY_OFFLINE) {
+        await milliesCreateStaff({
+          username: usernameOrEmail,
+          displayName: name,
+          password,
+          role: createdRole,
+          phone: phone || undefined,
+        });
+        toast.success("Staff account created on this till. Share the username and password.");
+        setCreating(false);
+        setPassword("");
+        return;
+      }
       // Online-only: never queue plaintext passwords into the Dexie outbox.
       const created = await createUserAccount({
-        email,
+        email: usernameOrEmail,
         password,
         name,
-        role: isManager ? "cashier" : role,
+        role: createdRole,
         branchId: formBranchId as Id<"branches">,
         phone: phone || undefined,
       });
-      const createdRole = isManager ? "cashier" : role;
       const organizationId = getBoundOrganizationId() ?? sessionHint?.organizationId ?? null;
       const branchName =
         branches?.find((branch) => branch.id === formBranchId)?.name ?? "Branch";
       const verifierSaved = Boolean(
-        created?.userId && (await storeLocalAuthVerifier(email, password, created.userId)),
+        created?.userId &&
+          (await storeLocalAuthVerifier(usernameOrEmail, password, created.userId)),
       );
       const offlineReady = Boolean(verifierSaved && created?.userId && organizationId);
       if (offlineReady && created?.userId && organizationId) {
@@ -210,7 +247,7 @@ export function UsersView() {
           branchId: String(formBranchId),
           branchName,
           organizationId,
-          email: email.trim().toLowerCase(),
+          email: usernameOrEmail.toLowerCase(),
           savedAt: Date.now(),
         });
       }
@@ -249,7 +286,7 @@ export function UsersView() {
         }
       />
 
-      <PlanLimitNotice resource="users" />
+      {!FULLY_OFFLINE ? <PlanLimitNotice resource="users" /> : null}
 
       <StaffMonthRoster />
 
@@ -528,10 +565,11 @@ export function UsersView() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-email">Email</Label>
+              <Label htmlFor="create-email">{FULLY_OFFLINE ? "Username" : "Email"}</Label>
               <Input
                 id="create-email"
-                type="email"
+                type={FULLY_OFFLINE ? "text" : "email"}
+                autoComplete="off"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -544,13 +582,15 @@ export function UsersView() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={12}
+                minLength={FULLY_OFFLINE ? 6 : 12}
                 autoComplete="new-password"
               />
-              <PasswordStrengthMeter password={password} compact />
+              {!FULLY_OFFLINE ? <PasswordStrengthMeter password={password} compact /> : null}
               <p className="text-muted-foreground text-xs">
                 Share this password securely. The employee signs in on /login — no self-signup.
-                Creating accounts requires an internet connection.
+                {FULLY_OFFLINE
+                  ? " Accounts stay on this till only."
+                  : " Creating accounts requires an internet connection."}
               </p>
             </div>
             <div className="space-y-2">

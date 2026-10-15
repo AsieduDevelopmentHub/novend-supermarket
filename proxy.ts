@@ -36,6 +36,8 @@ const isPublicRoute = createRouteMatcher([
   "/api/health",
   "/api/boot",
   "/api/mobile-updates/latest",
+  // Second-screen cart mirror — localStorage only; no staff session required.
+  "/customer-display",
 ]);
 const isPlatformRoute = createRouteMatcher(["/platform(.*)"]);
 const isAdminOnly = createRouteMatcher(["/branches(.*)"]);

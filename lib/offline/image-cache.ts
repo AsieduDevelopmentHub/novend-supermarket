@@ -1,4 +1,5 @@
 import { getOfflineDb } from "./db";
+import { notifyReplicaChanged } from "./replica-events";
 import type { MirroredProduct, ProductImageCache } from "./types";
 
 const objectUrls = new Map<string, { url: string; updatedAt: number }>();
@@ -61,6 +62,9 @@ export async function putProductImage(args: {
   try {
     await db.productImages.put(row);
     rememberUrl(args.productId, thumbnailBlob ?? args.blob, row.updatedAt);
+    rememberUrl(`${args.productId}:t`, thumbnailBlob ?? args.blob, row.updatedAt);
+    rememberUrl(`${args.productId}:f`, args.blob, row.updatedAt);
+    notifyReplicaChanged();
   } catch {
     /* Schema repair in getOfflineDb; skip cache until the replica is rebuilt. */
   }
@@ -115,7 +119,7 @@ export async function cacheProductImages(products: MirroredProduct[]) {
   if (!db) return;
 
   for (const product of products) {
-    if (!product.imageUrl) continue;
+    if (!product.imageUrl || !/^https?:\/\//i.test(product.imageUrl)) continue;
     try {
       const existing = await db.productImages.get(product.id);
       if (existing?.sourceUrl === product.imageUrl) continue;
@@ -143,9 +147,11 @@ export async function resolveProductImageSrc(
   if (db) {
     try {
       const row = await db.productImages.get(productId);
-      if (row) {
-        const blob = options?.thumbnail && row.thumbnailBlob ? row.thumbnailBlob : row.blob;
-        return rememberUrl(`${productId}:${options?.thumbnail ? "t" : "f"}`, blob, row.updatedAt);
+      if (row?.blob) {
+        const preferThumb = options?.thumbnail !== false;
+        const blob =
+          preferThumb && row.thumbnailBlob instanceof Blob ? row.thumbnailBlob : row.blob;
+        return rememberUrl(`${productId}:${preferThumb ? "t" : "f"}`, blob, row.updatedAt);
       }
     } catch {
       /* Schema repair in getOfflineDb; fall through to the remote URL. */

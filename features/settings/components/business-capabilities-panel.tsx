@@ -16,7 +16,9 @@ import {
   OPS_CAPABILITY_DISABLE_WARNING_KEYS,
   opsDisableWarningCopy,
 } from "@/convex/shared/businessTerms";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { useLicense } from "@/hooks/use-license";
+import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { saveBusinessCapabilitiesCache } from "@/lib/offline/business-capabilities";
 import { cacheResolvedBusinessTerms } from "@/lib/offline/business-terms";
@@ -108,13 +110,18 @@ function capabilityDiff(
 export function BusinessCapabilitiesPanel() {
   const { online } = useOfflineStatus();
   const { planKey, planName } = useLicense();
-  const remote = useAuthedQuery(api.settings.getBusinessCapabilities, online ? {} : "skip");
+  const { config: cachedConfig } = useBusinessCapabilities();
+  const remote = useAuthedQuery(
+    api.settings.getBusinessCapabilities,
+    !FULLY_OFFLINE && online ? {} : "skip",
+  );
   const update = useMutation(api.settings.updateBusinessCapabilities);
 
   const [selected, setSelected] = useState<BusinessCapabilityKey[] | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const savedSelected = remote?.enabledCapabilities ?? [];
+  const sourceConfig = FULLY_OFFLINE ? cachedConfig : remote;
+  const savedSelected = sourceConfig?.enabledCapabilities ?? [];
   const effectiveProfile = FIXED_INDUSTRY_PROFILE;
   const effectiveSelected = selected ?? savedSelected;
 
@@ -130,7 +137,7 @@ export function BusinessCapabilitiesPanel() {
   const disablingOps = diff.removed.filter((key) => OPS_DISABLE_SET.has(key));
   const opsWarning = opsDisableWarningCopy(disablingOps);
 
-  if (!online) {
+  if (!FULLY_OFFLINE && !online) {
     return (
       <Card className="rounded-[20px]">
         <CardHeader>
@@ -144,7 +151,7 @@ export function BusinessCapabilitiesPanel() {
     );
   }
 
-  if (remote === undefined) {
+  if (!FULLY_OFFLINE && remote === undefined) {
     return (
       <Card className="rounded-[20px]">
         <CardHeader>
@@ -170,14 +177,27 @@ export function BusinessCapabilitiesPanel() {
   async function onSave() {
     setSaving(true);
     try {
-      const next = await update({
-        industryProfile: FIXED_INDUSTRY_PROFILE,
-        enabledCapabilities: effectiveSelected,
-        applyIndustryPack: false,
-      });
-      setSelected(next.enabledCapabilities);
-      await saveBusinessCapabilitiesCache(next);
-      await cacheResolvedBusinessTerms(FIXED_INDUSTRY_PROFILE);
+      if (FULLY_OFFLINE) {
+        const base = cachedConfig;
+        const next = {
+          ...base,
+          industryProfile: FIXED_INDUSTRY_PROFILE,
+          enabledCapabilities: effectiveSelected,
+          configurationVersion: (base.configurationVersion ?? 0) + 1,
+        };
+        await saveBusinessCapabilitiesCache(next);
+        await cacheResolvedBusinessTerms(FIXED_INDUSTRY_PROFILE);
+        setSelected(next.enabledCapabilities);
+      } else {
+        const next = await update({
+          industryProfile: FIXED_INDUSTRY_PROFILE,
+          enabledCapabilities: effectiveSelected,
+          applyIndustryPack: false,
+        });
+        setSelected(next.enabledCapabilities);
+        await saveBusinessCapabilitiesCache(next);
+        await cacheResolvedBusinessTerms(FIXED_INDUSTRY_PROFILE);
+      }
       toast.success("Selling options saved.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save capabilities");
@@ -192,7 +212,7 @@ export function BusinessCapabilitiesPanel() {
 
   function toggleKey(key: BusinessCapabilityKey, checked: boolean) {
     setSelected((prev) => {
-      const base = prev ?? remote?.enabledCapabilities ?? [];
+      const base = prev ?? sourceConfig?.enabledCapabilities ?? [];
       if (checked) return base.includes(key) ? base : [...base, key];
       return base.filter((k) => k !== key);
     });

@@ -144,7 +144,12 @@ export function SaleCompletedDialog({
       </p>
       <p className="text-muted-foreground text-sm">{modeCopy(printMode, printFailureMessage)}</p>
       <div className="bg-muted/40 flex min-w-0 justify-center overflow-x-hidden rounded-xl p-3 sm:p-4">
-        <ReceiptDocument preview payload={normalized} className="max-w-full shrink" />
+        <ReceiptDocument
+          key={normalized.invoiceNumber}
+          preview
+          payload={normalized}
+          className="max-w-full shrink"
+        />
       </div>
     </div>
   ) : (

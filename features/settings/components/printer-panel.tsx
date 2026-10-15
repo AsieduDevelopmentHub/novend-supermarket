@@ -182,7 +182,7 @@ export function PrinterPanel() {
             <div className="space-y-1">
               <CardTitle>This terminal’s printer</CardTitle>
               <CardDescription>
-                Device-local settings. Not synced to the cloud or other terminals.
+                Device-local settings for this till.
               </CardDescription>
             </div>
             <RuntimeBadge bridge={bridge} />

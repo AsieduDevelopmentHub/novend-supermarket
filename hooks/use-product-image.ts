@@ -9,15 +9,21 @@ export function useProductImageSrc(
   productId: string | undefined | null,
   remoteUrl?: string | null,
 ) {
-  const fallback = remoteUrl && /^https?:\/\//i.test(remoteUrl) ? remoteUrl : null;
+  const fallback =
+    remoteUrl && /^https?:\/\//i.test(remoteUrl)
+      ? remoteUrl
+      : null;
   const [src, setSrc] = useState<string | null>(fallback);
 
   useEffect(() => {
-    if (!productId) return;
+    if (!productId) {
+      setSrc(fallback);
+      return;
+    }
     let cancelled = false;
     const load = () => {
       void resolveProductImageSrc(productId, remoteUrl, { thumbnail: true }).then((next) => {
-        if (!cancelled) setSrc(next);
+        if (!cancelled) setSrc(next ?? fallback);
       });
     };
     queueMicrotask(load);
@@ -26,7 +32,7 @@ export function useProductImageSrc(
       cancelled = true;
       unsub();
     };
-  }, [productId, remoteUrl]);
+  }, [productId, remoteUrl, fallback]);
 
   if (!productId) return fallback;
   return src;

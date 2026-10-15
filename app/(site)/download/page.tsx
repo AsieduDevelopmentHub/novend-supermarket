@@ -1,14 +1,6 @@
-import type { Metadata } from "next";
-import { DownloadView } from "@/features/marketing/components/download-view";
-import { APP_BRAND, APP_NAME } from "@/constants/app";
-import { buildPageMetadata } from "@/lib/seo";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Download",
-  description: `Download ${APP_NAME} for desktop today, use the web app anywhere, and get mobile builds as they ship — ${APP_BRAND}.`,
-  path: "/download",
-});
-
+/** Millie's is a local till — no public download marketing page. */
 export default function DownloadPage() {
-  return <DownloadView />;
+  redirect("/login");
 }

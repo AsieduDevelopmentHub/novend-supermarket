@@ -673,6 +673,7 @@ function ProductFormBody({
                   placeholder="Select category"
                   searchPlaceholder="Search categories…"
                   emptyMessage="No categories found."
+                  triggerClassName="h-11"
                 />
               )}
             </div>

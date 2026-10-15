@@ -13,7 +13,7 @@ type AccessDeniedProps = {
 
 /**
  * In-shell access denied (offline Cap navigation / section gates).
- * Keeps cashiers inside Novend instead of a system error page.
+ * Keeps cashiers inside the workspace instead of a system error page.
  */
 export function AccessDenied({
   title = "You don’t have access",

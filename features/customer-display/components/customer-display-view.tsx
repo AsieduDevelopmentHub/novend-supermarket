@@ -4,6 +4,7 @@ import { CheckCircle2, Package, Sparkles } from "lucide-react";
 import { ProductImage } from "@/components/media/product-image";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
+import { RECEIPT_VENDOR_FOOTER } from "@/constants/app";
 import { BRAND_TAGLINE } from "@/constants/branding";
 import { cn } from "@/lib/utils";
 import { useCustomerDisplayState } from "@/features/customer-display/hooks/use-customer-display-state";
@@ -13,7 +14,9 @@ import "@/features/customer-display/customer-display.css";
 export function CustomerDisplayView() {
   const snapshot = useCustomerDisplayState();
   const { branding, phase } = snapshot;
-  const showCart = phase === "active" || phase === "processing" || phase === "complete";
+  const isComplete = phase === "complete";
+  const showCart = phase === "active" || phase === "processing";
+  const showAside = showCart || isComplete;
 
   return (
     <div className="customer-display-ambient text-foreground relative h-dvh overflow-hidden">
@@ -50,15 +53,26 @@ export function CustomerDisplayView() {
             <PhasePanel snapshot={snapshot} phase={phase} showCart={showCart} />
           </section>
 
-          {showCart ? (
-            <aside className="flex w-full shrink-0 flex-col lg:w-[22rem] xl:w-[26rem]">
-              <TotalsPanel snapshot={snapshot} processing={phase === "processing"} />
+          {showAside ? (
+            <aside
+              className={cn(
+                "flex w-full shrink-0 flex-col",
+                isComplete
+                  ? "min-h-0 flex-1 lg:max-w-md lg:flex-none xl:max-w-lg"
+                  : "lg:w-[22rem] xl:w-[26rem]",
+              )}
+            >
+              {isComplete ? (
+                <ReceiptShowcase snapshot={snapshot} />
+              ) : (
+                <TotalsPanel snapshot={snapshot} processing={phase === "processing"} />
+              )}
             </aside>
           ) : null}
         </main>
 
         <footer className="text-muted-foreground shrink-0 px-6 py-3 text-center text-xs lg:px-10 lg:text-sm">
-          Powered by Novend POS
+          {RECEIPT_VENDOR_FOOTER}
         </footer>
       </div>
     </div>
@@ -86,10 +100,15 @@ function PhasePanel({
   }
 
   if (phase === "complete") {
+    const receiptKey =
+      snapshot.invoiceNumber ??
+      (snapshot.completedAt != null ? String(snapshot.completedAt) : "complete");
     return (
-      <div key="complete" className="customer-display-phase-in flex min-h-0 flex-1 flex-col gap-4">
+      <div
+        key={`complete-${receiptKey}`}
+        className="customer-display-phase-in flex min-h-0 flex-1 flex-col"
+      >
         <CompletePanel snapshot={snapshot} />
-        <CartPanel snapshot={snapshot} processing={false} compact />
       </div>
     );
   }
@@ -132,28 +151,119 @@ function IdlePanel({ tradeName }: { tradeName: string }) {
   );
 }
 
+/** Left column after Pay — thank-you / come-again with the paid total under it. */
 function CompletePanel({ snapshot }: { snapshot: CustomerDisplaySnapshot }) {
   const thankYou = snapshot.branding.thankYouLine?.trim() || "Thank you for your purchase!";
 
   return (
-    <div className="customer-display-complete-pop customer-display-glass shrink-0 rounded-2xl px-6 py-5 text-center lg:px-8 lg:py-6">
-      <div className="text-success inline-flex items-center gap-2 rounded-full px-1 py-1">
-        <CheckCircle2 className="h-5 w-5" aria-hidden />
-        <span className="text-sm font-semibold tracking-wide">Payment complete</span>
-      </div>
-      <h2 className="mt-3 max-w-2xl text-2xl font-bold tracking-tight lg:text-4xl">{thankYou}</h2>
-      <p
-        key={snapshot.total}
-        className="customer-display-total-pop text-primary mt-3 text-3xl font-bold tabular-nums lg:text-4xl"
-      >
-        {formatCurrency(snapshot.total)}
-      </p>
-      {snapshot.invoiceNumber ? (
-        <p className="text-muted-foreground mt-2 text-sm lg:text-base">
-          Receipt · {snapshot.invoiceNumber}
-          {snapshot.completedAt ? ` · ${formatDateTime(snapshot.completedAt)}` : null}
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-2 py-6 text-center lg:px-6">
+      <div className="customer-display-complete-pop customer-display-glass w-full max-w-2xl rounded-2xl px-6 py-8 lg:px-10 lg:py-12">
+        <div className="text-success inline-flex items-center gap-2 rounded-full px-1 py-1">
+          <CheckCircle2 className="h-5 w-5" aria-hidden />
+          <span className="text-sm font-semibold tracking-wide">Payment complete</span>
+        </div>
+        <h2 className="mt-4 text-3xl font-bold tracking-tight lg:text-5xl xl:text-6xl">
+          {thankYou}
+        </h2>
+        <p
+          key={snapshot.total}
+          className="customer-display-total-pop text-primary mt-6 text-4xl font-bold tabular-nums lg:text-5xl xl:text-6xl"
+        >
+          {formatCurrency(snapshot.total)}
         </p>
-      ) : null}
+        {snapshot.invoiceNumber ? (
+          <p className="text-muted-foreground mt-3 text-sm lg:text-base">
+            Receipt · {snapshot.invoiceNumber}
+            {snapshot.completedAt ? ` · ${formatDateTime(snapshot.completedAt)}` : null}
+          </p>
+        ) : null}
+        {snapshot.paymentMethod ? (
+          <p className="text-muted-foreground mt-1 text-sm capitalize lg:text-base">
+            Paid · {snapshot.paymentMethod.replace(/_/g, " ")}
+            {snapshot.customerName ? ` · ${snapshot.customerName}` : null}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Full-height receipt in the right column (replaces totals after Pay). */
+function ReceiptShowcase({ snapshot }: { snapshot: CustomerDisplaySnapshot }) {
+  const receiptKey =
+    snapshot.invoiceNumber ??
+    (snapshot.completedAt != null ? String(snapshot.completedAt) : "receipt");
+  const paymentLabel = snapshot.paymentMethod
+    ? snapshot.paymentMethod.replace(/_/g, " ")
+    : null;
+
+  return (
+    <div
+      key={receiptKey}
+      className="customer-display-complete-pop customer-display-glass flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl"
+    >
+      <div className="border-border/50 shrink-0 space-y-1 border-b px-5 py-4 text-center lg:px-6 lg:py-5">
+        <p className="text-lg font-bold tracking-tight lg:text-xl">
+          {snapshot.branding.tradeName}
+        </p>
+        {snapshot.branding.branchName ? (
+          <p className="text-muted-foreground text-xs lg:text-sm">{snapshot.branding.branchName}</p>
+        ) : null}
+        {snapshot.invoiceNumber ? (
+          <p className="text-muted-foreground pt-1 text-xs lg:text-sm">
+            {snapshot.invoiceNumber}
+            {snapshot.completedAt ? ` · ${formatDateTime(snapshot.completedAt)}` : null}
+          </p>
+        ) : null}
+      </div>
+
+      <ul className="divide-border/40 min-h-0 flex-1 space-y-0 overflow-y-auto overscroll-contain px-5 py-2 lg:px-6">
+        {snapshot.items.map((item) => {
+          const lineTotal = Math.max(0, item.unitPrice * item.quantity - (item.discount || 0));
+          return (
+            <li
+              key={item.productId}
+              className="flex items-start justify-between gap-3 border-b border-dashed py-2.5 last:border-0"
+            >
+              <div className="min-w-0">
+                <p className="font-medium lg:text-base">{item.name}</p>
+                <p className="text-muted-foreground text-xs lg:text-sm">
+                  {item.quantity} × {formatCurrency(item.unitPrice)}
+                </p>
+              </div>
+              <p className="shrink-0 tabular-nums font-medium lg:text-base">
+                {formatCurrency(lineTotal)}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="border-border/50 shrink-0 space-y-1.5 border-t px-5 py-4 lg:px-6 lg:py-5">
+        <div className="text-muted-foreground flex justify-between text-sm">
+          <span>Subtotal</span>
+          <span className="tabular-nums">{formatCurrency(snapshot.subtotal)}</span>
+        </div>
+        {snapshot.discount > 0 ? (
+          <div className="text-muted-foreground flex justify-between text-sm">
+            <span>Discount</span>
+            <span className="tabular-nums">−{formatCurrency(snapshot.discount)}</span>
+          </div>
+        ) : null}
+        <div className="flex justify-between text-lg font-semibold lg:text-xl">
+          <span>Total</span>
+          <span className="text-primary tabular-nums">{formatCurrency(snapshot.total)}</span>
+        </div>
+        {paymentLabel ? (
+          <p className="text-muted-foreground text-xs capitalize lg:text-sm">
+            Paid · {paymentLabel}
+            {snapshot.customerName ? ` · ${snapshot.customerName}` : null}
+          </p>
+        ) : null}
+        <p className="text-muted-foreground pt-2 text-center text-[10px] lg:text-xs">
+          {RECEIPT_VENDOR_FOOTER}
+        </p>
+      </div>
     </div>
   );
 }
@@ -161,31 +271,17 @@ function CompletePanel({ snapshot }: { snapshot: CustomerDisplaySnapshot }) {
 function CartPanel({
   snapshot,
   processing,
-  compact = false,
 }: {
   snapshot: CustomerDisplaySnapshot;
   processing: boolean;
-  compact?: boolean;
 }) {
   const displayItems = snapshot.items.slice().reverse();
 
   return (
-    <div
-      className={cn(
-        "customer-display-glass flex min-h-0 flex-col rounded-2xl",
-        compact ? "min-h-0 flex-1" : "flex-1",
-      )}
-    >
+    <div className="customer-display-glass flex min-h-0 flex-1 flex-col rounded-2xl">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[inherit]">
         <div className="border-border/40 flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3 lg:px-5 lg:py-4">
-          <h2
-            className={cn(
-              "font-semibold tracking-tight",
-              compact ? "text-lg" : "text-xl lg:text-2xl",
-            )}
-          >
-            {compact ? "Items" : "Your order"}
-          </h2>
+          <h2 className="text-xl font-semibold tracking-tight lg:text-2xl">Your order</h2>
           {processing ? (
             <span className="customer-display-glass customer-display-shimmer text-primary rounded-full px-3 py-1 text-xs font-semibold tracking-wide uppercase">
               <span className="relative z-[1]">Processing</span>

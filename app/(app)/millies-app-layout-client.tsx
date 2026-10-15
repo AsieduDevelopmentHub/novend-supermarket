@@ -3,14 +3,17 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AppSidebar, MobileSidebar } from "@/components/layout/app-sidebar";
-import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { NativeAppServices } from "@/components/layout/native-app-services";
 import { AppSplash } from "@/features/auth/components/app-splash";
 import type { AppRole } from "@/config/navigation";
-import { SyncStatusHeaderButton } from "@/components/offline/sync-status-chip";
 import { OfflineProvider } from "@/providers/offline-provider";
 import { OfflineNavigationProvider, OfflineOutlet } from "@/providers/offline-navigation";
 import { OrganizationExperienceRoot } from "@/features/experience/components/organization-experience-root";
+import {
+  MilliesLicenseProvider,
+  useMilliesLicense,
+} from "@/providers/millies-license-provider";
+import { MilliesLicenseGate } from "@/features/license/components/millies-license-gate";
 import {
   clearMilliesSession,
   isMilliesSetupComplete,
@@ -19,16 +22,36 @@ import {
 } from "@/lib/offline/millies-auth";
 import { loadShellProfile, saveShellProfile, type ShellProfile } from "@/lib/offline/shell-profile";
 import { bindOfflineOrganization } from "@/lib/offline/db";
+import { MILLIES_LOCAL_ORG_ID } from "@/constants/runtime";
 import { migrateMilliesSharedReplicaIfNeeded } from "@/lib/offline/millies-shared-replica";
+import { syncMilliesStaffMirror } from "@/lib/offline/millies-users";
+import { ensureDefaultSupermarketCategories } from "@/lib/offline/millies-default-categories";
 import { CustomerDisplayServices } from "@/features/customer-display/components/customer-display-services";
+import { MilliesTrialBanner } from "@/features/license/components/millies-trial-banner";
+import { ProductTourProvider } from "@/features/tours/tour-provider";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 
 /**
- * Fully offline Millie's shell — gates on local PBKDF2 session + setupComplete.
- * No Convex Auth, device activation, or cloud reconnect UI.
+ * Fully offline Millie's shell — local PBKDF2 session, Chemist-style offline
+ * license gate, and setupComplete. No Convex Auth, cloud device slots, or
+ * reconnect UI.
+ *
+ * `/customer-display` is session-free: second window only mirrors cart via
+ * localStorage / BroadcastChannel (same machine, no login required).
  */
 export function MilliesAppLayoutClient({ children }: { children: ReactNode }) {
+  return (
+    <MilliesLicenseProvider>
+      <MilliesAppLayoutInner>{children}</MilliesAppLayoutInner>
+    </MilliesLicenseProvider>
+  );
+}
+
+function MilliesAppLayoutInner({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const isCustomerDisplayRoute = pathname === "/customer-display";
+  const { ready: licenseReady, status: license } = useMilliesLicense();
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<MilliesSessionUser | null>(null);
   const [profile, setProfile] = useState<ShellProfile | null>(null);
@@ -38,6 +61,17 @@ export function MilliesAppLayoutClient({ children }: { children: ReactNode }) {
     void (async () => {
       const setup = await isMilliesSetupComplete();
       if (cancelled) return;
+
+      if (isCustomerDisplayRoute) {
+        if (!setup) {
+          router.replace("/login");
+          return;
+        }
+        bindOfflineOrganization(MILLIES_LOCAL_ORG_ID);
+        setReady(true);
+        return;
+      }
+
       if (!setup) {
         router.replace("/login");
         return;
@@ -50,7 +84,8 @@ export function MilliesAppLayoutClient({ children }: { children: ReactNode }) {
       }
       bindOfflineOrganization(local.organizationId);
       await migrateMilliesSharedReplicaIfNeeded();
-      // Shared replica meta can lag behind the PBKDF2 session — always stamp shell.
+      await syncMilliesStaffMirror();
+      await ensureDefaultSupermarketCategories();
       await saveShellProfile({
         userId: local.id,
         name: local.displayName,
@@ -58,7 +93,7 @@ export function MilliesAppLayoutClient({ children }: { children: ReactNode }) {
         branchId: local.branchId,
         branchName: local.branchName,
         imageUrl: null,
-        email: local.username.includes("@") ? local.username : null,
+        email: null,
         phone: null,
         organizationName: "Millie's Supermarket",
         organizationId: local.organizationId,
@@ -72,7 +107,34 @@ export function MilliesAppLayoutClient({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [router, pathname]);
+  }, [router, pathname, isCustomerDisplayRoute]);
+
+  if (isCustomerDisplayRoute) {
+    if (!ready) {
+      return <AppSplash label="Opening customer display…" showLabel />;
+    }
+    return (
+      <NativeAppServices>
+        <OfflineProvider key="millies-customer-display">
+          <OfflineNavigationProvider>
+            <OrganizationExperienceRoot>
+              <main className="bg-background h-dvh min-h-0 overflow-hidden">
+                <OfflineOutlet>{children}</OfflineOutlet>
+              </main>
+            </OrganizationExperienceRoot>
+          </OfflineNavigationProvider>
+        </OfflineProvider>
+      </NativeAppServices>
+    );
+  }
+
+  if (!licenseReady) {
+    return <AppSplash label="Checking license…" showLabel />;
+  }
+
+  if (license && !license.allowed) {
+    return <MilliesLicenseGate />;
+  }
 
   if (!ready || !session) {
     return <AppSplash label="Opening workspace…" showLabel />;
@@ -88,7 +150,6 @@ export function MilliesAppLayoutClient({ children }: { children: ReactNode }) {
     isPlatformAdmin: false,
   };
 
-  const isCustomerDisplayRoute = pathname === "/customer-display";
   const replicaKey = `${session.organizationId}:${session.id}`;
 
   return (
@@ -96,25 +157,31 @@ export function MilliesAppLayoutClient({ children }: { children: ReactNode }) {
       <OfflineProvider key={replicaKey}>
         <OfflineNavigationProvider>
           <OrganizationExperienceRoot>
-            <div className="bg-background flex h-dvh min-h-0 overflow-hidden">
-              {!isCustomerDisplayRoute ? <AppSidebar user={shellUser} /> : null}
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                {!isCustomerDisplayRoute ? (
-                  <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky top-0 z-30 flex h-12 items-center gap-2 border-b px-3 backdrop-blur md:px-4">
+            <ProductTourProvider
+              enabled={FULLY_OFFLINE}
+              identityKey={session.id}
+              role={role}
+              isPlatformAdmin={false}
+            >
+              <div className="bg-background flex h-dvh min-h-0 overflow-hidden">
+                <AppSidebar user={shellUser} />
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                  {/* Mobile hamburger only — store name lives in the navy sidebar. */}
+                  <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky top-0 z-30 flex h-12 items-center gap-2 border-b px-3 backdrop-blur lg:hidden">
                     <MobileSidebar user={shellUser} />
-                    <div className="text-muted-foreground min-w-0 flex-1 truncate text-sm">
-                      {shellUser.organizationName ?? "Millie's"} · {shellUser.branch}
-                    </div>
-                    <SyncStatusHeaderButton />
                   </header>
-                ) : null}
-                <main className="min-h-0 flex-1 overflow-y-auto">
-                  <OfflineOutlet>{children}</OfflineOutlet>
-                </main>
-                {!isCustomerDisplayRoute ? <MobileBottomNav /> : null}
+                  <MilliesTrialBanner />
+                  <main
+                    data-tour="page-content"
+                    data-novend-scroll-root
+                    className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 lg:px-6 lg:py-4"
+                  >
+                    <OfflineOutlet>{children}</OfflineOutlet>
+                  </main>
+                </div>
               </div>
-            </div>
-            <CustomerDisplayServices />
+              <CustomerDisplayServices />
+            </ProductTourProvider>
           </OrganizationExperienceRoot>
         </OfflineNavigationProvider>
       </OfflineProvider>

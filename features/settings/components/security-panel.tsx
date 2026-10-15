@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -14,6 +15,8 @@ import { VerifyEmailDialog } from "@/features/auth/components/verify-email-dialo
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useNativeShell } from "@/hooks/use-native-shell";
 import { useCurrentUser } from "@/hooks/use-permissions";
+import { milliesResetStaffPassword } from "@/lib/offline/millies-users";
+import { readMilliesSession } from "@/lib/offline/millies-auth";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { PasswordStrengthMeter } from "@/features/auth/components/password-strength";
@@ -26,10 +29,20 @@ import { PASSWORD_MIN_LENGTH, passwordMeetsPolicy } from "@/convex/shared/passwo
 export function SecurityPanel() {
   const online = useConnectivity();
   const nativeShell = useNativeShell();
-  const remote = useQuery(api.users.me, online ? {} : "skip");
+  const remote = useQuery(api.users.me, !FULLY_OFFLINE && online ? {} : "skip");
   const { user: cachedUser } = useCurrentUser();
   const me = remote ?? cachedUser;
   const passwordReady = Boolean(me && !me.needsProfile);
+
+  if (FULLY_OFFLINE) {
+    return (
+      <div className="grid max-w-2xl gap-6">
+        <IdleLockSettingsCard />
+        {nativeShell ? <BiometricSecurityCard /> : null}
+        <MilliesPasswordForm />
+      </div>
+    );
+  }
 
   return (
     <div className="grid max-w-2xl gap-6">
@@ -61,6 +74,77 @@ export function SecurityPanel() {
         </Card>
       )}
     </div>
+  );
+}
+
+function MilliesPasswordForm() {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    const session = readMilliesSession();
+    if (!session) {
+      toast.error("Sign in again to change your password");
+      return;
+    }
+    if (newPassword.trim().length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+    setSaving(true);
+    try {
+      await milliesResetStaffPassword(session.id, newPassword);
+      toast.success("Password updated on this till");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      showError(error, "Could not change password");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Password</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form className="space-y-4" onSubmit={(e) => void onSubmit(e)}>
+          <div className="space-y-2">
+            <Label htmlFor="millies-new-password">New password</Label>
+            <PasswordInput
+              id="millies-new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={6}
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="millies-confirm-password">Confirm password</Label>
+            <PasswordInput
+              id="millies-confirm-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={6}
+              autoComplete="new-password"
+            />
+          </div>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Update password"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 

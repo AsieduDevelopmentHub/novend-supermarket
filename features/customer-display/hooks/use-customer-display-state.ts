@@ -18,7 +18,9 @@ function mergeBranding(
   fallback: CustomerDisplayBranding,
 ): CustomerDisplaySnapshot {
   const tradeName =
-    snapshot.branding.tradeName && snapshot.branding.tradeName !== "Novend POS"
+    snapshot.branding.tradeName &&
+    snapshot.branding.tradeName !== "Novend POS" &&
+    snapshot.branding.tradeName !== "Novend"
       ? snapshot.branding.tradeName
       : fallback.tradeName;
   return {
@@ -37,7 +39,7 @@ function mergeBranding(
 /** Subscribe to live cart snapshots for the customer-facing screen. */
 export function useCustomerDisplayState() {
   const [fallbackBranding, setFallbackBranding] = useState<CustomerDisplayBranding>({
-    tradeName: "Novend POS",
+    tradeName: "Millie's Supermarket",
     branchName: null,
     thankYouLine: null,
   });
@@ -61,7 +63,7 @@ export function useCustomerDisplayState() {
           printSnapshot?.business.tradeName ||
           printSnapshot?.business.legalName ||
           shell?.organizationName ||
-          "Novend POS",
+          "Millie's Supermarket",
         branchName: shell?.branchName ?? null,
         thankYouLine: printSnapshot?.template.thankYouLine ?? null,
         accent: license?.experience?.accent ?? DEFAULT_NOVEND_EXPERIENCE.accent,

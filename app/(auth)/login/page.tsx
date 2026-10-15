@@ -6,7 +6,7 @@ import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Sign in",
-  description: `Sign in to ${APP_NAME} to sell offline, manage inventory, and sync when you reconnect.`,
+  description: `Sign in to ${APP_NAME} to sell, manage inventory, and run the till fully offline.`,
   path: "/login",
 });
 

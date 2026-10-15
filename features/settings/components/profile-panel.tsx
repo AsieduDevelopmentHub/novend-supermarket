@@ -4,6 +4,7 @@ import { FormEvent, useRef, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { VerifyEmailDialog } from "@/features/auth/components/verify-email-dialog";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { useCurrentUser } from "@/hooks/use-permissions";
+import { useCurrentUser, usePermissions } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { assertValidImageFile, IMAGE_ACCEPT } from "@/lib/uploads/image";
@@ -23,6 +24,10 @@ import {
   queuedSaveMessage,
   queueUpdateProfile,
 } from "@/lib/offline/replica-writes";
+import { milliesUpdateStaff } from "@/lib/offline/millies-users";
+import { readMilliesSession, writeMilliesSession } from "@/lib/offline/millies-auth";
+import type { MilliesLocalRole } from "@/lib/offline/millies-auth-db";
+import { loadShellProfile, saveShellProfile } from "@/lib/offline/shell-profile";
 import { Camera, Trash2 } from "lucide-react";
 
 function initialsFromName(name: string) {
@@ -137,7 +142,8 @@ function EmailAccountCard({
 
 export function ProfilePanel() {
   const online = useConnectivity();
-  const remote = useQuery(api.users.me, online ? {} : "skip");
+  const { role } = usePermissions();
+  const remote = useQuery(api.users.me, !FULLY_OFFLINE && online ? {} : "skip");
   const { user: cachedUser, isLoading: cacheLoading } = useCurrentUser();
 
   const me =
@@ -152,6 +158,34 @@ export function ProfilePanel() {
           imageUrl: cachedUser.imageUrl ?? null,
         }
       : null);
+
+  if (FULLY_OFFLINE) {
+    if (cacheLoading && !me) {
+      return <LoadingState label="Loading profile…" variant="form" />;
+    }
+    if (!me) {
+      return (
+        <Card>
+          <CardContent className="text-muted-foreground p-5 text-sm">
+            Sign in again to edit your profile on this till.
+          </CardContent>
+        </Card>
+      );
+    }
+    return (
+      <MilliesProfileForm
+        key={`${me.userId}:${me.name}:${me.phone ?? ""}`}
+        userId={me.userId}
+        initialName={me.name}
+        initialPhone={me.phone ?? ""}
+        role={
+          role === "manager" || role === "cashier" || role === "administrator"
+            ? role
+            : "cashier"
+        }
+      />
+    );
+  }
 
   if ((online && remote === undefined) || (!online && cacheLoading && !me)) {
     return <LoadingState label="Loading profile…" variant="form" />;
@@ -183,6 +217,96 @@ export function ProfilePanel() {
         online={online}
       />
     </div>
+  );
+}
+
+function MilliesProfileForm({
+  userId,
+  initialName,
+  initialPhone,
+  role,
+}: {
+  userId: string;
+  initialName: string;
+  initialPhone: string;
+  role: MilliesLocalRole;
+}) {
+  const [name, setName] = useState(initialName);
+  const [phone, setPhone] = useState(initialPhone);
+  const [pending, setPending] = useState(false);
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
+    setPending(true);
+    try {
+      const session = readMilliesSession();
+      if (!session || session.id !== userId) {
+        throw new Error("Sign in again to update your profile");
+      }
+      await milliesUpdateStaff({
+        id: userId,
+        displayName: name.trim(),
+        role,
+        phone: phone.trim() || undefined,
+        active: true,
+      });
+      writeMilliesSession({
+        ...session,
+        displayName: name.trim(),
+      });
+      const shell = await loadShellProfile();
+      if (shell) {
+        await saveShellProfile({
+          ...shell,
+          name: name.trim(),
+          phone: phone.trim() || null,
+        });
+      }
+      toast.success("Profile saved on this till");
+    } catch (error) {
+      showError(error, "Could not save profile");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <Card className="max-w-2xl">
+      <CardHeader>
+        <CardTitle>Profile</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form className="space-y-6" onSubmit={(e) => void onSubmit(e)}>
+          <div className="space-y-2">
+            <Label htmlFor="millies-profile-name">Full name</Label>
+            <Input
+              id="millies-profile-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="min-h-11"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="millies-profile-phone">Phone</Label>
+            <Input
+              id="millies-profile-phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="e.g. 024 XXX XXXX"
+              className="min-h-11"
+            />
+          </div>
+          <Button type="submit" disabled={pending}>
+            {pending ? "Saving…" : "Save on this till"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 

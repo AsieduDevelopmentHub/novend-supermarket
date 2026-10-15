@@ -587,7 +587,14 @@ export type MirroredBranch = {
   code: string;
   address: string | null;
   phone: string | null;
+  email?: string | null;
   status: "active" | "inactive";
+  /** Millie's / offline receipt header toggles (optional on older mirrors). */
+  receiptShowName?: boolean;
+  receiptShowAddress?: boolean;
+  receiptShowPhone?: boolean;
+  receiptShowEmail?: boolean;
+  receiptPaperWidthMm?: 58 | 80 | null;
 };
 
 export type MirroredUser = {

@@ -15,7 +15,7 @@
   "main": "dist/main.js",
   "scripts": {
     "write-update-config": "node ../../scripts/write-desktop-update-config.mjs",
-    "generate-icons": "node ../../scripts/generate-desktop-icons.mjs",
+    "generate-icons": "node ../../scripts/sync-branding-from-master.mjs && node ../../scripts/generate-desktop-icons.mjs",
     "prebuild": "pnpm run write-update-config && pnpm run generate-icons",
     "build": "tsc -p tsconfig.json",
     "dev": "pnpm run build && cross-env ELECTRON_DEV=1 electron .",
