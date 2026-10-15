@@ -33,7 +33,7 @@
     "electron": "^34.2.0",
     "electron-builder": "^25.1.8",
     "png-to-ico": "^2.1.8",
-    "typescript": "^5"
+    "typescript": "^6"
   },
   "build": {
     "appId": "com.novend.millies",
