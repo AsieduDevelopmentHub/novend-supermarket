@@ -1,0 +1,102 @@
+name: Desktop Windows Setup
+
+# Build Millies-Supermarket-Setup-*.exe only (no macOS/Linux/Android).
+# Run from Actions → Desktop Windows Setup → Run workflow.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: desktop-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Build Windows Setup
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.18.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Tag must match package versions
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          root="v$(node -p "require('./package.json').version")"
+          desktop="v$(node -p "require('./apps/desktop/package.json').version")"
+          ok=1
+          if [ "$tag" != "$root" ]; then
+            echo "Tag $tag does not match root package version $root" >&2
+            ok=0
+          fi
+          if [ "$tag" != "$desktop" ]; then
+            echo "Tag $tag does not match desktop package version $desktop" >&2
+            ok=0
+          fi
+          if [ "$ok" -ne 1 ]; then
+            exit 1
+          fi
+          echo "Tag $tag matches package versions."
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Windows Setup
+        run: pnpm desktop:dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Setup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Millies-Supermarket-Setup-windows
+          path: |
+            apps/desktop/release/Millies-Supermarket-Setup-*.exe
+            apps/desktop/release/latest.yml
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          setup=(apps/desktop/release/Millies-Supermarket-Setup-*.exe)
+          if [ ! -f "${setup[0]}" ]; then
+            echo "Setup exe not found" >&2
+            exit 1
+          fi
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" \
+              --title "Millie's Supermarket $tag" \
+              --notes "Windows desktop installer for Millie's Supermarket $tag."
+          fi
+          gh release upload "$tag" "${setup[@]}" --clobber
+          if [ -f apps/desktop/release/latest.yml ]; then
+            gh release upload "$tag" apps/desktop/release/latest.yml --clobber
+          fi

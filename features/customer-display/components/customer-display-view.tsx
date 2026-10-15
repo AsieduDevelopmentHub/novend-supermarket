@@ -28,24 +28,16 @@ export function CustomerDisplayView() {
       </div>
 
       <div className="relative z-10 flex h-dvh min-h-0 flex-col">
-        <header className="shrink-0 px-6 pt-3 pb-2 lg:px-10">
-          <div className="customer-display-glass customer-display-fade-up flex w-full min-w-0 flex-nowrap items-center gap-3 overflow-hidden rounded-xl px-4 py-2 lg:gap-4 lg:px-5 lg:py-2.5">
-            <span className="text-primary shrink-0 text-[11px] font-semibold tracking-[0.14em] uppercase lg:text-xs">
-              Welcome
-            </span>
-            <span className="text-border/70 shrink-0 select-none" aria-hidden>
-              ·
-            </span>
-            <h1 className="min-w-0 truncate text-base font-bold tracking-tight lg:text-xl xl:text-2xl">
-              {branding.tradeName}
-            </h1>
-            <span className="text-border/70 shrink-0 select-none" aria-hidden>
-              ·
-            </span>
-            <p className="text-muted-foreground min-w-0 flex-1 truncate text-right text-xs lg:text-sm xl:text-base">
-              {branding.branchName ?? BRAND_TAGLINE}
-            </p>
-          </div>
+        <header className="customer-display-fade-up flex w-full min-w-0 shrink-0 flex-nowrap items-baseline gap-3 overflow-hidden px-6 pt-4 pb-2 lg:gap-4 lg:px-10">
+          <span className="text-primary shrink-0 text-[11px] font-semibold tracking-[0.14em] uppercase lg:text-xs">
+            Welcome
+          </span>
+          <h1 className="min-w-0 truncate text-base font-bold tracking-tight lg:text-xl xl:text-2xl">
+            {branding.tradeName}
+          </h1>
+          <p className="text-muted-foreground min-w-0 flex-1 truncate text-right text-xs lg:text-sm xl:text-base">
+            {branding.branchName ?? BRAND_TAGLINE}
+          </p>
         </header>
 
         <main className="flex min-h-0 flex-1 flex-col gap-3 px-6 py-1 lg:flex-row lg:gap-5 lg:px-10 lg:py-3">

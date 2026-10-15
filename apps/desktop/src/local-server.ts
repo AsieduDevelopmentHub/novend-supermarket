@@ -4,6 +4,7 @@ import fs from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import path from "node:path";
+import { PACKAGED_LOCAL_ORIGIN, PACKAGED_LOCAL_PORT } from "./desktop-config";
 
 export type LocalServerHandle = {
   origin: string;
@@ -52,23 +53,30 @@ export function resolveAppServerRoot(): string | null {
   return null;
 }
 
-function allocatePort(): Promise<number> {
+/**
+ * Bind the fixed packaged port (or fail). Never fall back to a random port —
+ * that would change the renderer origin and wipe IndexedDB / Dexie accounts.
+ */
+function assertFixedPortAvailable(port: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        server.close();
-        reject(new Error("Could not allocate a local port."));
+    server.once("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "EADDRINUSE") {
+        reject(
+          new Error(
+            `Millie's local till port ${port} is already in use. Close any other Millie's Supermarket window (or free 127.0.0.1:${port}), then try again.`,
+          ),
+        );
         return;
       }
-      const { port } = address;
-      server.close((error) => {
-        if (error) reject(error);
-        else resolve(port);
+      reject(error);
+    });
+    server.listen(port, "127.0.0.1", () => {
+      server.close((closeError) => {
+        if (closeError) reject(closeError);
+        else resolve();
       });
     });
-    server.on("error", reject);
   });
 }
 
@@ -118,8 +126,20 @@ export async function startLocalServer(): Promise<LocalServerHandle> {
     throw new Error(`server.js not found under ${root}`);
   }
   const serverCwd = path.dirname(serverJs);
-  const port = await allocatePort();
-  const origin = `http://127.0.0.1:${port}`;
+  const port = PACKAGED_LOCAL_PORT;
+  const origin = PACKAGED_LOCAL_ORIGIN;
+  await assertFixedPortAvailable(port);
+
+  // pnpm standalone copies often lose top-level junctions; Next then cannot
+  // resolve packages like `@swc/helpers`. Point NODE_PATH at the pnpm virtual
+  // store so Electron-as-Node resolves the same graph as `node .next/standalone`.
+  const pnpmNodeModules = path.join(root, "node_modules", ".pnpm", "node_modules");
+  const nodePathParts = [
+    pnpmNodeModules,
+    path.join(root, "node_modules"),
+    path.join(serverCwd, "node_modules"),
+    ...(process.env.NODE_PATH ? process.env.NODE_PATH.split(path.delimiter) : []),
+  ].filter((value, index, all) => Boolean(value) && fs.existsSync(value) && all.indexOf(value) === index);
 
   child = spawn(process.execPath, [serverJs], {
     cwd: serverCwd,
@@ -129,10 +149,20 @@ export async function startLocalServer(): Promise<LocalServerHandle> {
       PORT: String(port),
       HOSTNAME: "127.0.0.1",
       HOST: "127.0.0.1",
+      NODE_PATH: nodePathParts.join(path.delimiter),
     },
-    stdio: app.isPackaged ? "ignore" : "inherit",
+    stdio: app.isPackaged ? "pipe" : "inherit",
     windowsHide: true,
   });
+
+  let serverErrorTail = "";
+  if (child.stderr) {
+    child.stderr.on("data", (chunk: Buffer | string) => {
+      const text = String(chunk);
+      serverErrorTail = `${serverErrorTail}${text}`.slice(-4000);
+      if (!app.isPackaged) process.stderr.write(text);
+    });
+  }
 
   child.on("exit", (code, signal) => {
     if (running) {
@@ -145,7 +175,13 @@ export async function startLocalServer(): Promise<LocalServerHandle> {
   try {
     await waitForHealth(origin);
   } catch (error) {
+    const detail = serverErrorTail.trim();
     stopLocalServer();
+    if (detail) {
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\n\nServer log:\n${detail}`,
+      );
+    }
     throw error;
   }
 

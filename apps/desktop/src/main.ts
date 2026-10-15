@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session } from "electron";
+import { app, BrowserWindow, dialog, session } from "electron";
 import { createMainWindow, setMainBrowserWindow } from "./window";
 import { startAutoUpdater } from "./updater";
 import {
@@ -95,7 +95,12 @@ if (!gotLock) {
     try {
       appUrl = await resolveSessionOrigin();
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error("[millies-desktop] failed to start local till server", error);
+      dialog.showErrorBox(
+        "Millie's Supermarket could not start",
+        `The local till server failed to start.\n\n${message}\n\nReinstall from the Setup installer, or contact support with this message.`,
+      );
       app.quit();
       return;
     }

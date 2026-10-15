@@ -1,4 +1,4 @@
-import { BrowserWindow, nativeImage, shell } from "electron";
+import { BrowserWindow, nativeImage, shell, type NativeImage } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -29,16 +29,37 @@ function iconPath(): string {
   return candidates.find((candidate) => fs.existsSync(candidate)) || candidates[0]!;
 }
 
-function windowIcon() {
-  const loaded = nativeImage.createFromPath(iconPath());
-  if (loaded.isEmpty()) return loaded;
-  if (process.platform === "win32") {
-    return loaded.resize({ width: 256, height: 256, quality: "best" });
+/**
+ * Windows taskbar/shortcuts need the multi-size `.ico` file path.
+ * Converting via nativeImage.resize() drops ICO sizes and the page favicon
+ * can then replace the brand icon after reload — leaving the Electron default.
+ */
+function browserWindowIcon(): string | NativeImage | undefined {
+  const file = iconPath();
+  if (!fs.existsSync(file)) return undefined;
+  if (process.platform === "win32" && file.toLowerCase().endsWith(".ico")) {
+    return file;
   }
+  const loaded = nativeImage.createFromPath(file);
+  if (loaded.isEmpty()) return undefined;
   if (process.platform === "darwin") {
     return loaded.resize({ width: 512, height: 512, quality: "best" });
   }
   return loaded;
+}
+
+function applyWindowIcon(win: BrowserWindow): void {
+  if (win.isDestroyed()) return;
+  const icon = browserWindowIcon();
+  if (!icon) return;
+  win.setIcon(icon);
+}
+
+function windowIcon() {
+  const icon = browserWindowIcon();
+  if (!icon) return nativeImage.createEmpty();
+  if (typeof icon === "string") return nativeImage.createFromPath(icon);
+  return icon;
 }
 
 function preloadPath(): string {
@@ -111,7 +132,6 @@ export async function reloadMainWindowShell(
 
 export function createMainWindow(appUrl: string): BrowserWindow {
   mainShellEntry = OFFLINE_ENTRY_PATH;
-  const icon = windowIcon();
   const trustedOrigin = createTrustedOriginPolicy(appUrl);
 
   const win = new BrowserWindow({
@@ -122,7 +142,7 @@ export function createMainWindow(appUrl: string): BrowserWindow {
     title: APP_DISPLAY_NAME,
     backgroundColor: "#111827",
     show: false,
-    icon: icon.isEmpty() ? undefined : icon,
+    icon: browserWindowIcon(),
     webPreferences: {
       preload: preloadPath(),
       contextIsolation: true,
@@ -133,7 +153,12 @@ export function createMainWindow(appUrl: string): BrowserWindow {
     },
   });
 
+  // Re-assert brand icon after Chromium applies the page favicon (common on Windows).
+  win.webContents.on("page-favicon-updated", () => applyWindowIcon(win));
+  win.webContents.on("did-finish-load", () => applyWindowIcon(win));
+
   win.once("ready-to-show", () => {
+    applyWindowIcon(win);
     win.show();
   });
 

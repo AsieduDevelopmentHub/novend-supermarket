@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   branchStockId,
+  catalogSellableQuantity,
   sellableFromBranchStock,
   sellableQuantityForBranch,
   stockFieldsFromAggregate,
@@ -61,7 +62,7 @@ describe("branch stock mirror", () => {
     expect(sellableFromBranchStock(stock, product)).toBe(4);
   });
 
-  it("falls back to branch quantity when sellable is absent", () => {
+  it("treats physical on-hand as sellable for non-dated products", () => {
     const product = {
       tracksExpiry: false,
       stockQuantity: 7,
@@ -76,6 +77,62 @@ describe("branch stock mirror", () => {
       updatedAt: 0,
     } satisfies MirroredBranchStock;
     expect(sellableFromBranchStock(stock, product)).toBe(7);
+  });
+
+  it("does not let a stale sellableQuantity of 0 hide positive on-hand", () => {
+    const product = {
+      tracksExpiry: false,
+      stockQuantity: 2,
+      sellableQuantity: 0,
+    } as MirroredProduct;
+    const stock = {
+      id: "main:p",
+      branchId: "main",
+      productId: "p",
+      quantity: 2,
+      sellableQuantity: 0,
+      updatedAt: 0,
+    } satisfies MirroredBranchStock;
+
+    expect(sellableFromBranchStock(stock, product)).toBe(2);
+    expect(catalogSellableQuantity(product)).toBe(2);
+    expect(
+      sellableQuantityForBranch({
+        stock,
+        product,
+        branchId: "main",
+        profileBranchId: "main",
+      }),
+    ).toBe(2);
+    expect(stockFieldsFromAggregate(product, stock, false)).toMatchObject({
+      stockQuantity: 2,
+      sellableQuantity: 2,
+    });
+  });
+
+  it("keeps expired dated stock unsellable even when on-hand remains", () => {
+    const product = {
+      tracksExpiry: true,
+      stockQuantity: 2,
+      sellableQuantity: 0,
+    } as MirroredProduct;
+    const stock = {
+      id: "main:p",
+      branchId: "main",
+      productId: "p",
+      quantity: 2,
+      sellableQuantity: 0,
+      updatedAt: 0,
+    } satisfies MirroredBranchStock;
+    expect(sellableFromBranchStock(stock, product)).toBe(0);
+    expect(
+      sellableQuantityForBranch({
+        stock,
+        product,
+        branchId: "main",
+        profileBranchId: "main",
+      }),
+    ).toBe(0);
   });
 
   it("aggregates org-wide stock from branch rows", () => {

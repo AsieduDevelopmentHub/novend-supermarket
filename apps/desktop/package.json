@@ -1,6 +1,6 @@
 {
   "name": "@novend/desktop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "Millie's Supermarket desktop shell",
   "homepage": "https://www.novendpos.app",
@@ -20,13 +20,15 @@
     "dist:win": "pnpm run build && electron-builder --win",
     "dist:mac": "pnpm run build && electron-builder --mac",
     "dist:linux": "pnpm run build && electron-builder --linux",
-    "release": "pnpm run build && electron-builder --publish always"
+    "release": "pnpm run build && electron-builder --publish always",
+    "stamp:win-icon": "node ../../scripts/stamp-desktop-win-icon.mjs"
   },
   "dependencies": {
     "electron-updater": "^6.3.9"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "rcedit": "^5.0.2",
     "cross-env": "^10.1.0",
     "electron": "^34.2.0",
     "electron-builder": "^25.1.8",
@@ -37,6 +39,8 @@
     "appId": "com.novend.millies",
     "productName": "Millie's Supermarket",
     "npmRebuild": false,
+    "forceCodeSigning": false,
+    "afterPack": "../../scripts/after-pack-stamp-win-icon.cjs",
     "artifactName": "Millies-Supermarket-${version}-${arch}.${ext}",
     "directories": {
       "output": "release",
@@ -71,6 +75,7 @@
     "win": {
       "icon": "build/icon.ico",
       "executableName": "MilliesSupermarket",
+      "signAndEditExecutable": false,
       "target": [
         {
           "target": "nsis",
@@ -104,6 +109,9 @@
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
       "shortcutName": "Millie's Supermarket",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
       "runAfterFinish": true,
       "uninstallDisplayName": "Millie's Supermarket",
       "artifactName": "Millies-Supermarket-Setup-${version}.${ext}"

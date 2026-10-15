@@ -12,19 +12,41 @@ export function branchStockId(branchId: string, productId: string): string {
   return `${branchId}:${productId}`;
 }
 
+/**
+ * Catalog qty used for single-store heal when branch stock is missing/stale.
+ * Non-dated products treat physical on-hand as sellable — a stale sellableQuantity
+ * of 0 must not mask a positive stockQuantity (Sales showed stock then refused checkout).
+ */
+export function catalogSellableQuantity(
+  product: Pick<MirroredProduct, "tracksExpiry" | "stockQuantity" | "sellableQuantity">,
+): number {
+  if (product.tracksExpiry === true) {
+    return Math.max(0, product.sellableQuantity ?? 0);
+  }
+  const onHand = Math.max(0, product.stockQuantity ?? 0);
+  const sellable = product.sellableQuantity;
+  if (sellable == null) return onHand;
+  if (sellable <= 0 && onHand > 0) return onHand;
+  return Math.max(0, sellable);
+}
+
 export function sellableFromBranchStock(
   stock: MirroredBranchStock | undefined,
   product: Pick<MirroredProduct, "tracksExpiry" | "stockQuantity" | "sellableQuantity">,
 ): number {
   if (!stock) return 0;
-  if (product.tracksExpiry) return stock.sellableQuantity ?? 0;
-  return stock.sellableQuantity ?? stock.quantity;
+  if (product.tracksExpiry === true) {
+    return Math.max(0, stock.sellableQuantity ?? 0);
+  }
+  // Non-dated: physical quantity is the sellable truth.
+  // Never let a stale sellableQuantity of 0 hide positive on-hand.
+  return Math.max(0, stock.quantity);
 }
 
 /**
  * Sellable qty for a branch, with single-store heal:
- * a zero `branchStock` row can lag behind product-form stock edits that only
- * updated the catalog row — Sales search then looked empty for those products.
+ * a zero/stale `branchStock` row can lag behind product-form stock edits that only
+ * updated the catalog row — Sales then looked stocked while checkout refused.
  */
 export function sellableQuantityForBranch(args: {
   stock: MirroredBranchStock | undefined;
@@ -33,19 +55,16 @@ export function sellableQuantityForBranch(args: {
   profileBranchId: string | null | undefined;
 }): number {
   const { stock, product, branchId, profileBranchId } = args;
+  const catalogQty = catalogSellableQuantity(product);
   if (stock) {
     const fromBranch = sellableFromBranchStock(stock, product);
     if (fromBranch > 0) return fromBranch;
-    if (profileBranchId && profileBranchId === branchId) {
-      const catalogQty = product.sellableQuantity ?? product.stockQuantity ?? 0;
-      if (catalogQty > 0) return catalogQty;
+    if (profileBranchId && profileBranchId === branchId && catalogQty > 0) {
+      return catalogQty;
     }
     return fromBranch;
   }
-  if (profileBranchId && profileBranchId === branchId) {
-    return product.sellableQuantity ?? product.stockQuantity ?? 0;
-  }
-  return product.sellableQuantity ?? product.stockQuantity ?? 0;
+  return catalogQty;
 }
 
 /** Mirrors Convex resolveBranchFilter for offline list/detail queries. */
@@ -81,10 +100,11 @@ export function stockFieldsFromAggregate(
   legacyFallback: boolean,
 ): MirroredStockFields {
   if (stock) {
-    const sellable = product.tracksExpiry
-      ? stock.sellableQuantity
-      : (stock.sellableQuantity ?? stock.quantity);
-    const stockQuantity = product.tracksExpiry ? sellable : stock.quantity;
+    const sellable =
+      product.tracksExpiry === true
+        ? Math.max(0, stock.sellableQuantity ?? 0)
+        : Math.max(0, stock.quantity);
+    const stockQuantity = product.tracksExpiry === true ? sellable : Math.max(0, stock.quantity);
     return {
       stockQuantity,
       sellableQuantity: sellable,
@@ -93,9 +113,9 @@ export function stockFieldsFromAggregate(
     };
   }
   if (legacyFallback) {
-    const sellable = product.sellableQuantity ?? product.stockQuantity;
+    const sellable = catalogSellableQuantity(product);
     return {
-      stockQuantity: product.tracksExpiry ? sellable : product.stockQuantity,
+      stockQuantity: product.tracksExpiry === true ? sellable : Math.max(0, product.stockQuantity),
       sellableQuantity: sellable,
       isExpiring: product.isExpiring,
       isExpired: product.isExpired,
@@ -194,19 +214,27 @@ export async function applyLocalBranchStockChange(
 
   const id = branchStockId(branchId, productId);
   const existing = await db.branchStock.get(id);
+  const tracksExpiry = catalog.tracksExpiry === true;
+  const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
+  const catalogQty = catalogSellableQuantity(catalog);
+
   if (existing) {
-    const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
     let baseQuantity = existing.quantity;
-    let baseSellable = existing.sellableQuantity ?? existing.quantity;
-    // Heal stale zero branch rows so product-form stock remains sellable.
-    if (
-      baseQuantity <= 0 &&
-      profileBranchId === branchId &&
-      (catalog.sellableQuantity ?? catalog.stockQuantity) > 0
-    ) {
-      baseQuantity = catalog.stockQuantity;
-      baseSellable = catalog.sellableQuantity ?? catalog.stockQuantity;
+    // Non-dated: always treat physical on-hand as the sellable base so a stale
+    // sellableQuantity of 0 cannot block a sale that the catalog already shows.
+    let baseSellable = tracksExpiry
+      ? (existing.sellableQuantity ?? 0)
+      : existing.quantity;
+
+    if (profileBranchId === branchId && catalogQty > 0) {
+      if (baseQuantity <= 0) {
+        baseQuantity = Math.max(0, catalog.stockQuantity);
+        baseSellable = catalogQty;
+      } else if (!tracksExpiry && baseSellable <= 0) {
+        baseSellable = baseQuantity;
+      }
     }
+
     const nextQuantity = baseQuantity + quantityChange;
     const nextSellable = baseSellable + quantityChange;
     if (nextQuantity < 0 || nextSellable < 0) {
@@ -215,29 +243,37 @@ export async function applyLocalBranchStockChange(
     await db.branchStock.put({
       ...existing,
       quantity: nextQuantity,
-      sellableQuantity: Math.max(0, nextSellable),
+      // Non-dated: keep sellable locked to physical on-hand so the desync cannot return.
+      sellableQuantity: Math.max(0, tracksExpiry ? nextSellable : nextQuantity),
       updatedAt: Date.now(),
     });
     return;
   }
 
-  const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
   if (profileBranchId !== branchId) {
     throw new Error("Insufficient stock for this branch");
   }
 
-  const current = catalog.sellableQuantity ?? catalog.stockQuantity;
+  const current = catalogQty;
   const next = current + quantityChange;
   if (next < 0) throw new Error("Insufficient stock for this branch");
   await db.products.put({
     ...catalog,
-    stockQuantity: catalog.stockQuantity + quantityChange,
-    sellableQuantity: Math.max(
-      0,
-      (catalog.sellableQuantity ?? catalog.stockQuantity) + quantityChange,
-    ),
+    stockQuantity: Math.max(0, catalog.stockQuantity + quantityChange),
+    sellableQuantity: Math.max(0, current + quantityChange),
     updatedAt: Date.now(),
   });
+  // Materialize the missing branch row so the next sale does not re-heal from catalog.
+  if (profileBranchId === branchId) {
+    await db.branchStock.put({
+      id,
+      branchId,
+      productId,
+      quantity: Math.max(0, next),
+      sellableQuantity: Math.max(0, next),
+      updatedAt: Date.now(),
+    });
+  }
 }
 
 export async function branchStockMapForBranch(

@@ -8,6 +8,14 @@ import path from "node:path";
  */
 export const DEV_APP_URL = "http://127.0.0.1:3737";
 
+/**
+ * Packaged standalone Next origin — must stay fixed across launches.
+ * Dexie/IndexedDB is keyed by origin; an ephemeral port resets accounts.
+ * Keep in sync with `constants/dev-server.ts` → MILLIES_PACKAGED_PORT.
+ */
+export const PACKAGED_LOCAL_PORT = 4737;
+export const PACKAGED_LOCAL_ORIGIN = `http://127.0.0.1:${PACKAGED_LOCAL_PORT}`;
+
 export type DesktopPackagedConfig = {
   /** Optional override only — Millie's packaged shell uses the local standalone server. */
   appUrl?: string;
