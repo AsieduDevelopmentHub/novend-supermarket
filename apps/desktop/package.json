@@ -31,7 +31,7 @@
     "rcedit": "^5.0.2",
     "cross-env": "^10.1.0",
     "electron": "^34.2.0",
-    "electron-builder": "^25.1.8",
+    "electron-builder": "^26.15.3",
     "png-to-ico": "^2.1.8",
     "typescript": "^5"
   },
