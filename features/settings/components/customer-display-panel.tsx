@@ -105,11 +105,32 @@ export function CustomerDisplayPanel() {
       void bridge.getCustomerDisplayStatus().then(setStatus);
     });
 
+    // Re-probe after focus — Windows can report 1 display during fullscreen transitions.
+    const onFocus = () => {
+      void bridge.listDisplays().then((result) => {
+        if (result.ok) setDisplays(result.displays);
+      });
+      void bridge.getCustomerDisplayStatus().then(setStatus);
+    };
+    window.addEventListener("focus", onFocus);
+
     return () => {
       offStatus?.();
       offDisplays?.();
+      window.removeEventListener("focus", onFocus);
     };
   }, [isDesktop]);
+
+  // Drop a preferred monitor id that no longer exists (hotplug renumbering).
+  useEffect(() => {
+    if (prefs.preferredDisplayId == null || displays.length === 0) return;
+    const stillThere = displays.some(
+      (display) => display.id === prefs.preferredDisplayId && !display.isPrimary,
+    );
+    if (!stillThere) {
+      setPrefs((prev) => ({ ...prev, preferredDisplayId: null }));
+    }
+  }, [displays, prefs.preferredDisplayId]);
 
   async function openDisplay() {
     if (isDesktop && !dualDisplayReady) {

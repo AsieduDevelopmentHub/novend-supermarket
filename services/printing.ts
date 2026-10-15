@@ -7,7 +7,7 @@ import {
   type ReceiptLine,
   type ReceiptTemplateConfig,
 } from "@/features/receipts/types";
-import { formatCurrency } from "@/lib/currency";
+import { formatCurrencyEscPos } from "@/lib/currency";
 import { sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 import { formatDateTime } from "@/lib/date";
 import { brandedDocumentName } from "@/lib/export-filenames";
@@ -91,17 +91,23 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
   const widthMm = t.paperWidthMm === 58 ? 58 : 80;
   const widthPx = widthMm === 58 ? 220 : 302;
 
+  const money = formatCurrencyEscPos;
+  const tradeName = (b.tradeName || "Receipt").trim();
+  const branchName = (b.branchName || "").trim();
+  const showBranch =
+    Boolean(branchName) && branchName.toLowerCase() !== tradeName.toLowerCase();
+
   const lines = payload.lines
     .map((line) => {
       const meta = [
-        `${line.quantity} x ${formatCurrency(line.unitPrice)}`,
-        line.discount > 0 ? `(−${formatCurrency(line.discount)})` : "",
+        `${line.quantity} x ${money(line.unitPrice)}`,
+        line.discount > 0 ? `(-${money(line.discount)})` : "",
         t.showSku && line.sku ? line.sku : "",
       ]
         .filter(Boolean)
-        .join(" · ");
+        .join(" - ");
       return `<div class="line">
-        <div class="row"><span>${escapeHtml(line.productName)}</span><span>${escapeHtml(formatCurrency(line.lineTotal))}</span></div>
+        <div class="row"><span>${escapeHtml(line.productName)}</span><span>${escapeHtml(money(line.lineTotal))}</span></div>
         <div class="meta">${escapeHtml(meta)}</div>
       </div>`;
     })
@@ -147,9 +153,9 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
   <div class="ticket">
     <div class="center">
       ${logo}
-      <div class="title">${escapeHtml(b.tradeName || "Receipt")}</div>
+      <div class="title">${escapeHtml(tradeName)}</div>
       ${sanitizeReceiptCopy(t.headerText, "") ? `<div>${escapeHtml(sanitizeReceiptCopy(t.headerText, ""))}</div>` : ""}
-      ${b.branchName ? `<div>${escapeHtml(b.branchName)}</div>` : ""}
+      ${showBranch ? `<div>${escapeHtml(branchName)}</div>` : ""}
       ${b.address ? `<div>${escapeHtml(b.address)}</div>` : ""}
       ${b.phone ? `<div>Tel: ${escapeHtml(b.phone)}</div>` : ""}
       ${b.email ? `<div>${escapeHtml(b.email)}</div>` : ""}
@@ -164,10 +170,10 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
     </div>
     <div class="sep">${lines || "<div>No line items</div>"}</div>
     <div class="sep">
-      <div class="row"><span>Subtotal</span><span>${escapeHtml(formatCurrency(payload.subtotal))}</span></div>
-      <div class="row"><span>Discount</span><span>${escapeHtml(formatCurrency(payload.discount))}</span></div>
-      <div class="row total"><span>TOTAL</span><span>${escapeHtml(formatCurrency(payload.total))}</span></div>
-      ${t.showPaymentMethod && splitLines ? splitLines.map((split) => `<div class="row"><span>${escapeHtml(split.label)}</span><span>${escapeHtml(formatCurrency(split.amount))}</span></div>`).join("") : ""}
+      <div class="row"><span>Subtotal</span><span>${escapeHtml(money(payload.subtotal))}</span></div>
+      <div class="row"><span>Discount</span><span>${escapeHtml(money(payload.discount))}</span></div>
+      <div class="row total"><span>TOTAL</span><span>${escapeHtml(money(payload.total))}</span></div>
+      ${t.showPaymentMethod && splitLines ? splitLines.map((split) => `<div class="row"><span>${escapeHtml(split.label)}</span><span>${escapeHtml(money(split.amount))}</span></div>`).join("") : ""}
     </div>
     <div class="sep center">
       ${t.footerText ? `<div>${escapeHtml(t.footerText)}</div>` : ""}

@@ -1,7 +1,7 @@
 "use client";
 
 import { RECEIPT_VENDOR_FOOTER } from "@/constants/app";
-import { formatCurrency } from "@/lib/currency";
+import { formatCurrencyEscPos } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import type { ReceiptPayload, ReceiptTemplateConfig, ReceiptBusiness } from "../types";
 import { SAMPLE_RECEIPT_PAYLOAD } from "../types";
@@ -17,6 +17,9 @@ type Props = {
   className?: string;
   preview?: boolean;
 };
+
+/** Match ESC/POS / thermal output — ASCII `GHS` (₵ prints as ? on most printers). */
+const money = formatCurrencyEscPos;
 
 export function ReceiptDocument({
   payload,
@@ -39,6 +42,11 @@ export function ReceiptDocument({
   const lines = Array.isArray(payload.lines) ? payload.lines : [];
   const headerLine = sanitizeReceiptCopy(template.headerText, "");
   const paymentLines = receiptPaymentLines(payload);
+  const tradeName =
+    business.tradeName?.trim() || SAMPLE_RECEIPT_PAYLOAD.business.tradeName;
+  const branchName = business.branchName?.trim() || "";
+  const showBranch =
+    Boolean(branchName) && branchName.toLowerCase() !== tradeName.toLowerCase();
 
   return (
     <div
@@ -52,11 +60,9 @@ export function ReceiptDocument({
     >
       <div className="space-y-2 px-3 py-4 text-[11px] leading-tight">
         <div className="text-center">
-          <p className="text-sm font-bold tracking-wide uppercase">
-            {business.tradeName?.trim() || SAMPLE_RECEIPT_PAYLOAD.business.tradeName}
-          </p>
+          <p className="text-sm font-bold tracking-wide uppercase">{tradeName}</p>
           {headerLine ? <p className="mt-0.5">{headerLine}</p> : null}
-          {business.branchName ? <p className="mt-0.5">{business.branchName}</p> : null}
+          {showBranch ? <p className="mt-0.5">{branchName}</p> : null}
           {business.address ? <p>{business.address}</p> : null}
           {business.phone ? <p>Tel: {business.phone}</p> : null}
           {business.email ? <p>{business.email}</p> : null}
@@ -91,12 +97,12 @@ export function ReceiptDocument({
             <div key={`${line.productName}-${index}`} className="mb-2">
               <div className="flex justify-between gap-2">
                 <span className="font-medium">{line.productName}</span>
-                <span>{formatCurrency(line.lineTotal)}</span>
+                <span>{money(line.lineTotal)}</span>
               </div>
               <div className="text-black/70">
-                {line.quantity} x {formatCurrency(line.unitPrice)}
-                {line.discount > 0 ? ` (−${formatCurrency(line.discount)})` : ""}
-                {template.showSku && line.sku ? ` · ${line.sku}` : ""}
+                {line.quantity} x {money(line.unitPrice)}
+                {line.discount > 0 ? ` (-${money(line.discount)})` : ""}
+                {template.showSku && line.sku ? ` - ${line.sku}` : ""}
               </div>
             </div>
           ))}
@@ -105,21 +111,21 @@ export function ReceiptDocument({
         <div className="space-y-0.5 border-t border-dashed border-black/40 pt-2">
           <div className="flex justify-between">
             <span>Subtotal</span>
-            <span>{formatCurrency(payload.subtotal)}</span>
+            <span>{money(payload.subtotal)}</span>
           </div>
           <div className="flex justify-between">
             <span>Discount</span>
-            <span>{formatCurrency(payload.discount)}</span>
+            <span>{money(payload.discount)}</span>
           </div>
           <div className="flex justify-between text-sm font-bold">
             <span>{payload.kind === "return" ? "REFUND" : "TOTAL"}</span>
-            <span>{formatCurrency(payload.total)}</span>
+            <span>{money(payload.total)}</span>
           </div>
           {template.showPaymentMethod && paymentLines
             ? paymentLines.map((line, index) => (
                 <div key={`${line.label}-${index}`} className="flex justify-between">
                   <span>{line.label}</span>
-                  <span>{formatCurrency(line.amount)}</span>
+                  <span>{money(line.amount)}</span>
                 </div>
               ))
             : null}

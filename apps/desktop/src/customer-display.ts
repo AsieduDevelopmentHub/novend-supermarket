@@ -1,8 +1,10 @@
 import { BrowserWindow, Display, screen, shell } from "electron";
-import fs from "node:fs";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
-import { PERSIST_PARTITION, preloadPath, windowIcon } from "./window";
+import {
+  CUSTOMER_DISPLAY_ENTRY,
+  PERSIST_PARTITION,
+  preloadPath,
+  windowIcon,
+} from "./window";
 import {
   createTrustedOriginPolicy,
   isAllowedExternalUrl,
@@ -10,7 +12,7 @@ import {
 } from "./trusted-origin";
 import { resolveAppUrl } from "./desktop-config";
 
-const CUSTOMER_DISPLAY_TITLE = "Novend Customer Display";
+const CUSTOMER_DISPLAY_TITLE = "Millie's Customer Display";
 
 export const CUSTOMER_DISPLAY_STATE_CHANNEL = "desktop:customerDisplay:state";
 
@@ -45,12 +47,9 @@ let hotplugRegistered = false;
 const statusListeners = new Set<(status: CustomerDisplayStatus) => void>();
 const displayListeners = new Set<(displays: DesktopDisplayInfo[]) => void>();
 
-export function customerDisplayShellPath(): string {
-  const candidates = [
-    path.join(process.resourcesPath, "customer-display", "index.html"),
-    path.resolve(__dirname, "..", "customer-display", "index.html"),
-  ];
-  return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0]!;
+function customerDisplayAppUrl(): string {
+  const origin = resolveAppUrl().replace(/\/$/, "");
+  return `${origin}${CUSTOMER_DISPLAY_ENTRY}`;
 }
 
 function mapDisplay(display: Display, primaryId: number): DesktopDisplayInfo {
@@ -88,28 +87,54 @@ function pickDisplay(preferredId?: number | null): Display | null {
   const displays = screen.getAllDisplays();
   if (!hasSecondaryDisplay(displays.length)) return null;
 
+  const primary = screen.getPrimaryDisplay();
+
   if (preferredId != null) {
     const match = displays.find((display) => display.id === preferredId);
-    if (match && match.id !== screen.getPrimaryDisplay().id) return match;
+    // Ignore stale IDs and never target the primary (cashier) monitor.
+    if (match && match.id !== primary.id) return match;
   }
 
-  const primary = screen.getPrimaryDisplay();
   return displays.find((display) => display.id !== primary.id) ?? null;
+}
+
+/** Keep an open customer window on a valid secondary display after layout changes. */
+function relocateCustomerDisplayIfNeeded() {
+  if (!customerDisplayWindow || customerDisplayWindow.isDestroyed()) return;
+  if (!hasDualDisplays()) return;
+
+  const target = pickDisplay(null);
+  if (!target) return;
+
+  const bounds = customerDisplayWindow.getBounds();
+  const onTarget =
+    Math.abs(target.bounds.x - bounds.x) < 48 && Math.abs(target.bounds.y - bounds.y) < 48;
+  if (onTarget) return;
+
+  configureKioskWindow(customerDisplayWindow, target);
+}
+
+function displayContainsWindow(
+  display: Display,
+  bounds: { x: number; y: number },
+): boolean {
+  // Window is placed on workArea; compare against both workArea and full bounds.
+  const areas = [display.workArea, display.bounds];
+  return areas.some(
+    (area) => Math.abs(area.x - bounds.x) < 48 && Math.abs(area.y - bounds.y) < 48,
+  );
 }
 
 function buildStatus(): CustomerDisplayStatus {
   const displayCount = getDesktopDisplayCount();
+  const open = customerDisplayWindow != null && !customerDisplayWindow.isDestroyed();
   return {
-    open: customerDisplayWindow != null && !customerDisplayWindow.isDestroyed(),
-    displayId:
-      customerDisplayWindow != null && !customerDisplayWindow.isDestroyed()
-        ? (screen.getAllDisplays().find((display) => {
-            const bounds = customerDisplayWindow!.getBounds();
-            return (
-              Math.abs(display.bounds.x - bounds.x) < 8 && Math.abs(display.bounds.y - bounds.y) < 8
-            );
-          })?.id ?? null)
-        : null,
+    open,
+    displayId: open
+      ? (screen.getAllDisplays().find((display) =>
+          displayContainsWindow(display, customerDisplayWindow!.getBounds()),
+        )?.id ?? null)
+      : null,
     displayCount,
     dualDisplayReady: hasSecondaryDisplay(displayCount),
   };
@@ -213,11 +238,19 @@ export async function openCustomerDisplayWindow(options?: {
     return { ok: false, message: CUSTOMER_DISPLAY_SINGLE_MONITOR_MESSAGE };
   }
 
-  const shellPath = customerDisplayShellPath();
-  if (!fs.existsSync(shellPath)) {
-    return { ok: false, message: "Customer display shell is missing from this install." };
+  let displayUrl: string;
+  try {
+    displayUrl = customerDisplayAppUrl();
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Local till origin is not ready for the customer display.",
+    };
   }
-  const trustedOrigin = createTrustedOriginPolicy(resolveAppUrl(), [pathToFileURL(shellPath).href]);
+  const trustedOrigin = createTrustedOriginPolicy(resolveAppUrl());
 
   const icon = windowIcon();
   const { workArea } = targetDisplay;
@@ -245,6 +278,7 @@ export async function openCustomerDisplayWindow(options?: {
       nodeIntegration: false,
       sandbox: true,
       spellcheck: false,
+      // Same partition as the till so localStorage cart snapshots match the web tab.
       partition: PERSIST_PARTITION,
     },
   });
@@ -285,7 +319,8 @@ export async function openCustomerDisplayWindow(options?: {
     },
   );
 
-  await win.loadFile(shellPath);
+  // Same React `/customer-display` route as "Open in new tab" — one UI.
+  await win.loadURL(displayUrl);
   notifyStatus();
   return { ok: true };
 }
@@ -304,23 +339,54 @@ export function registerCustomerDisplayHotplug() {
   if (hotplugRegistered) return;
   hotplugRegistered = true;
 
-  const onChange = () => {
+  let closeVerifyTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const refreshListeners = () => {
     notifyDisplays();
     notifyStatus();
+  };
 
-    if (!hasDualDisplays()) {
-      closeCustomerDisplayWindow();
-      return;
-    }
+  /**
+   * Metrics changes (DPI, workArea, fullscreen) must not close the window.
+   * Windows often fires them when the customer display goes fullscreen; treating
+   * that like unplug made the second screen "disappear" after the first open.
+   */
+  const onMetricsChanged = () => {
+    refreshListeners();
+    relocateCustomerDisplayIfNeeded();
+  };
 
-    if (autoOpenEnabled) {
+  const onDisplayAdded = () => {
+    refreshListeners();
+    if (autoOpenEnabled && hasDualDisplays()) {
       void tryAutoOpenCustomerDisplay();
     }
   };
 
-  screen.on("display-added", onChange);
-  screen.on("display-removed", onChange);
-  screen.on("display-metrics-changed", onChange);
+  const onDisplayRemoved = () => {
+    refreshListeners();
+
+    if (hasDualDisplays()) {
+      relocateCustomerDisplayIfNeeded();
+      return;
+    }
+
+    // Debounce: display count can briefly dip during driver/hotplug transitions.
+    if (closeVerifyTimer) clearTimeout(closeVerifyTimer);
+    closeVerifyTimer = setTimeout(() => {
+      closeVerifyTimer = null;
+      refreshListeners();
+      if (!hasDualDisplays()) {
+        closeCustomerDisplayWindow();
+      } else if (autoOpenEnabled) {
+        void tryAutoOpenCustomerDisplay();
+      }
+    }, 600);
+  };
+
+  screen.on("display-added", onDisplayAdded);
+  screen.on("display-removed", onDisplayRemoved);
+  screen.on("display-metrics-changed", onMetricsChanged);
 }
 
 /** @deprecated Customer display no longer loads the hosted app shell. */

@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, type ReactNode } from "react";
+import { Suspense, type ComponentType, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { DashboardView } from "@/features/dashboard/components/dashboard-view";
 import { SalesView } from "@/features/sales/components/sales-view";
 import { OrdersView } from "@/features/orders/components/orders-view";
@@ -16,8 +17,6 @@ import { CustomerDisplayView } from "@/features/customer-display/components/cust
 import { MoreView } from "@/features/more/components/more-view";
 import { AboutNovendView } from "@/features/settings/components/about-novend-view";
 import { UsersView } from "@/features/users/components/users-view";
-import { AnalyticsView } from "@/features/analytics/components/analytics-view";
-import { AnalyticsMetricDetailView } from "@/features/analytics/components/metric-detail-view";
 import { BranchesView } from "@/features/branches/components/branches-view";
 import { ReturnsView } from "@/features/returns/components/returns-view";
 import { ReturnDetailView } from "@/features/returns/components/return-detail-view";
@@ -54,6 +53,32 @@ import type { PlatformInsightMetric } from "@/convex/platformAnalytics";
 import { OfflineUnavailable } from "@/components/offline/offline-unavailable";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Id } from "@/convex/_generated/dataModel";
+
+/**
+ * Lazy analytics — kept out of the cold offline-shell graph so a parse/build
+ * error in analytics cannot brick Sales / Dashboard on Millie's tills.
+ */
+const AnalyticsView = dynamic(
+  () =>
+    import("@/features/analytics/components/analytics-view").then((m) => ({
+      default: m.AnalyticsView as ComponentType,
+    })),
+  {
+    ssr: false,
+    loading: () => <LoadingState label="Loading analytics…" variant="cards" />,
+  },
+);
+
+const AnalyticsMetricDetailView = dynamic(
+  () =>
+    import("@/features/analytics/components/metric-detail-view").then((m) => ({
+      default: m.AnalyticsMetricDetailView as ComponentType<{ metric: string }>,
+    })),
+  {
+    ssr: false,
+    loading: () => <LoadingState label="Loading…" variant="table" />,
+  },
+);
 
 const SHELL_VIEWS: Record<string, () => ReactNode> = {
   "/dashboard": () => <DashboardView />,

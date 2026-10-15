@@ -1,9 +1,7 @@
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
-import { pathToFileURL } from "node:url";
 import {
   closeCustomerDisplayWindow,
   CUSTOMER_DISPLAY_STATE_CHANNEL,
-  customerDisplayShellPath,
   getCustomerDisplayStatus,
   listDesktopDisplays,
   onCustomerDisplayStatus,
@@ -35,9 +33,8 @@ function isDisplayId(value: unknown): value is number | null | undefined {
 }
 
 export function registerCustomerDisplayIpc() {
-  const trustedOrigin = createTrustedOriginPolicy(resolveAppUrl(), [
-    pathToFileURL(customerDisplayShellPath()).href,
-  ]);
+  // Customer display loads the same loopback Next origin as the till (not a file:// shell).
+  const trustedOrigin = createTrustedOriginPolicy(resolveAppUrl());
   const requireTrustedSender = (event: IpcMainInvokeEvent) => {
     assertTrustedIpcSender(trustedOrigin, event);
   };

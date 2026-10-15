@@ -1,7 +1,7 @@
 import { RECEIPT_VENDOR_FOOTER } from "@/constants/app";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { receiptPaymentLines } from "@/features/receipts/payment-lines";
-import { formatCurrency } from "@/lib/currency";
+import { formatCurrencyEscPos } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 
@@ -13,9 +13,27 @@ import { sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 const ESC = 0x1b;
 const GS = 0x1d;
 
+/** Map common Unicode punctuation to ASCII so columns stay aligned on CP437 printers. */
+function toEscPosAscii(text: string): string {
+  return text
+    .replaceAll("₵", "")
+    .replaceAll("¢", "")
+    .replaceAll("−", "-")
+    .replaceAll("–", "-")
+    .replaceAll("—", "-")
+    .replaceAll("…", "...")
+    .replaceAll("·", "-")
+    .replaceAll("×", "x")
+    .replaceAll("’", "'")
+    .replaceAll("‘", "'")
+    .replaceAll("“", '"')
+    .replaceAll("”", '"')
+    .replaceAll("\u00a0", " ");
+}
+
 function encodeText(text: string): number[] {
   const out: number[] = [];
-  for (const ch of text) {
+  for (const ch of toEscPosAscii(text)) {
     const code = ch.charCodeAt(0);
     if (code <= 0xff) out.push(code);
     else out.push(0x3f);
@@ -25,7 +43,8 @@ function encodeText(text: string): number[] {
 
 function line(width: number, left: string, right = "") {
   const maxLeft = Math.max(0, width - right.length - 1);
-  const clipped = left.length > maxLeft ? `${left.slice(0, Math.max(0, maxLeft - 1))}…` : left;
+  const clipped =
+    left.length > maxLeft ? `${left.slice(0, Math.max(0, maxLeft - 3))}...` : left;
   if (!right) return clipped.padEnd(width).slice(0, width);
   const gap = Math.max(1, width - clipped.length - right.length);
   return `${clipped}${" ".repeat(gap)}${right}`.slice(0, width);
@@ -50,12 +69,17 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
     }
   };
 
+  const tradeName = (b.tradeName || "Receipt").trim();
+  const branchName = (b.branchName || "").trim();
+  // Avoid "Millie's / Millie's" when branch was seeded with the store name.
+  const showBranch = Boolean(branchName) && branchName.toLowerCase() !== tradeName.toLowerCase();
+
   write(ESC, 0x40, ESC, 0x74, 0x00);
   write(ESC, 0x61, 0x01);
-  write(b.tradeName || "Receipt", "\n");
+  write(tradeName, "\n");
   const headerText = sanitizeReceiptCopy(t.headerText, "");
   if (headerText) write(headerText, "\n");
-  if (b.branchName) write(b.branchName, "\n");
+  if (showBranch) write(branchName, "\n");
   if (b.address) write(b.address, "\n");
   if (b.phone) write(`Tel: ${b.phone}`, "\n");
   if (b.email) write(b.email, "\n");
@@ -77,26 +101,26 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
   write(sep(cols), "\n");
 
   for (const item of payload.lines) {
-    write(line(cols, item.productName, formatCurrency(item.lineTotal)), "\n");
+    write(line(cols, item.productName, formatCurrencyEscPos(item.lineTotal)), "\n");
     const meta = [
-      `${item.quantity} x ${formatCurrency(item.unitPrice)}`,
-      item.discount > 0 ? `(-${formatCurrency(item.discount)})` : "",
+      `${item.quantity} x ${formatCurrencyEscPos(item.unitPrice)}`,
+      item.discount > 0 ? `(-${formatCurrencyEscPos(item.discount)})` : "",
       t.showSku && item.sku ? item.sku : "",
     ]
       .filter(Boolean)
-      .join(" · ");
+      .join(" - ");
     if (meta) write(meta, "\n");
   }
 
   write(sep(cols), "\n");
-  write(line(cols, "Subtotal", formatCurrency(payload.subtotal)), "\n");
-  write(line(cols, "Discount", formatCurrency(payload.discount)), "\n");
+  write(line(cols, "Subtotal", formatCurrencyEscPos(payload.subtotal)), "\n");
+  write(line(cols, "Discount", formatCurrencyEscPos(payload.discount)), "\n");
   write(ESC, 0x45, 0x01);
-  write(line(cols, "TOTAL", formatCurrency(payload.total)), "\n");
+  write(line(cols, "TOTAL", formatCurrencyEscPos(payload.total)), "\n");
   write(ESC, 0x45, 0x00);
   if (t.showPaymentMethod && splitLines) {
     for (const split of splitLines) {
-      write(line(cols, split.label, formatCurrency(split.amount)), "\n");
+      write(line(cols, split.label, formatCurrencyEscPos(split.amount)), "\n");
     }
   }
   write(sep(cols), "\n");
@@ -105,7 +129,8 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
   if (t.thankYouLine) write(t.thankYouLine, "\n");
   write("\n", RECEIPT_VENDOR_FOOTER, "\n");
   write("\n\n");
-  write(GS, 0x56, 0x01);
+  // Full cut (not partial) so the ticket releases instead of pausing in the cutter.
+  write(GS, 0x56, 0x00);
   write("\n");
 
   return new Uint8Array(bytes);

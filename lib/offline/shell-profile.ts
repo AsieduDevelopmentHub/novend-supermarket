@@ -1,4 +1,5 @@
 import type { AppRole } from "@/config/navigation";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { bindOfflineOrganization, getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
 import type { OfflineSessionHint } from "./session";
 
@@ -43,7 +44,13 @@ export async function saveShellProfile(profile: ShellProfile): Promise<void> {
     bindOfflineOrganization(profile.organizationId, profile.userId);
   }
   const db = await getOfflineDb();
-  if (!db) return;
+  if (!db) {
+    // Millie's cannot sell / start till without profileUserId in Dexie.
+    if (FULLY_OFFLINE) {
+      throw new Error("Local storage unavailable — cannot open this till offline.");
+    }
+    return;
+  }
   await db.transaction("rw", db.meta, async () => {
     await setMeta(db, META_KEYS.profileUserId, profile.userId);
     await setMeta(db, META_KEYS.profileName, profile.name);

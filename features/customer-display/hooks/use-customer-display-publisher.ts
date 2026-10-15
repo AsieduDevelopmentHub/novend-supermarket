@@ -5,6 +5,7 @@ import {
   buildCustomerDisplaySnapshot,
   idleCustomerDisplaySnapshot,
   publishCustomerDisplaySnapshot,
+  readCustomerDisplaySnapshot,
   type CustomerDisplayBranding,
   type CustomerDisplaySnapshot,
 } from "@/lib/sales/customer-display";
@@ -33,13 +34,16 @@ type PublisherInput = {
   enabled: boolean;
 };
 
-/** Keep the on-screen receipt visible long enough for the customer to read it. */
-const COMPLETE_RESET_MS = 35_000;
-
 /** Push cart snapshots from the cashier screen to customer display windows. */
+function readPersistedComplete(): CustomerDisplaySnapshot | null {
+  if (typeof window === "undefined") return null;
+  const existing = readCustomerDisplaySnapshot();
+  return existing?.phase === "complete" ? existing : null;
+}
+
 export function useCustomerDisplayPublisher(input: PublisherInput) {
-  const completeSnapshotRef = useRef<CustomerDisplaySnapshot | null>(null);
-  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Survive remounts: restore a complete receipt that is still in localStorage.
+  const completeSnapshotRef = useRef<CustomerDisplaySnapshot | null>(readPersistedComplete());
 
   const liveSnapshot = useMemo(() => {
     if (input.paying || input.holding) {
@@ -88,10 +92,6 @@ export function useCustomerDisplayPublisher(input: PublisherInput) {
   useEffect(() => {
     if (input.cart.length > 0 && completeSnapshotRef.current) {
       completeSnapshotRef.current = null;
-      if (resetTimerRef.current) {
-        clearTimeout(resetTimerRef.current);
-        resetTimerRef.current = null;
-      }
       // Publish the live cart immediately so the previous receipt cannot linger a frame.
       if (input.enabled) {
         publishCustomerDisplaySnapshot(liveSnapshot);
@@ -101,15 +101,10 @@ export function useCustomerDisplayPublisher(input: PublisherInput) {
 
   useEffect(() => {
     if (!input.enabled) return;
+    // Keep the thank-you receipt until the cashier starts the next cart.
     if (completeSnapshotRef.current) return;
     publishCustomerDisplaySnapshot(liveSnapshot);
   }, [input.enabled, liveSnapshot]);
-
-  useEffect(() => {
-    return () => {
-      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-    };
-  }, []);
 
   const publishComplete = useCallback(
     (receipt: ReceiptPayload) => {
@@ -138,13 +133,6 @@ export function useCustomerDisplayPublisher(input: PublisherInput) {
 
       completeSnapshotRef.current = snapshot;
       publishCustomerDisplaySnapshot(snapshot);
-
-      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-      resetTimerRef.current = setTimeout(() => {
-        completeSnapshotRef.current = null;
-        resetTimerRef.current = null;
-        publishCustomerDisplaySnapshot(idleCustomerDisplaySnapshot(input.branding));
-      }, COMPLETE_RESET_MS);
     },
     [input.branding, input.enabled],
   );

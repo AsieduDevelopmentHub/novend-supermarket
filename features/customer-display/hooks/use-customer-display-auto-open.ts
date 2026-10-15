@@ -18,7 +18,14 @@ async function tryOpenCustomerDisplay() {
   if (status.open) return;
 
   const prefs = readCustomerDisplayPrefs();
-  await bridge.openCustomerDisplay({ displayId: prefs.preferredDisplayId });
+  const preferred = prefs.preferredDisplayId;
+  const preferredStillValid =
+    preferred != null &&
+    displaysResult.displays.some((display) => display.id === preferred && !display.isPrimary);
+
+  await bridge.openCustomerDisplay({
+    displayId: preferredStillValid ? preferred : null,
+  });
 }
 
 /**

@@ -103,6 +103,7 @@ import { loadPrintSnapshotMeta } from "@/lib/offline/ui-cache";
 import { loadShellProfile } from "@/lib/offline/shell-profile";
 import { useCustomerDisplayPublisher } from "@/features/customer-display/hooks/use-customer-display-publisher";
 import { useSalesProductDisplay } from "@/hooks/use-sales-product-display";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 
 type DiscountMode = "amount" | "percent";
 
@@ -357,7 +358,8 @@ export function SalesView() {
     paying,
     holding,
     branding: customerDisplayBranding,
-    enabled: !nativeShell && capabilities.canUseCustomerDisplay,
+    enabled:
+      !nativeShell && (FULLY_OFFLINE || capabilities.canUseCustomerDisplay),
   });
 
   function setDiscountModeAndConvert(next: DiscountMode) {
@@ -935,6 +937,8 @@ export function SalesView() {
         customerPhone: customer?.phone,
         branchId: saleBranchId,
       });
+      // Publish thank-you before clearing cart so idle snapshots cannot race the receipt away.
+      publishComplete(result.receiptPayload);
       setCart([]);
       clearCartDiscount();
       setCustomer(null);
@@ -944,7 +948,6 @@ export function SalesView() {
       setCheckoutOpen(false);
       await refreshLocal();
       notifyReplicaChanged({ flush: true });
-      publishComplete(result.receiptPayload);
       toast.success(`Sale saved · ${result.invoiceNumber}`, { id: "sale-complete" });
       try {
         await triggerPrint(result.receiptPayload);

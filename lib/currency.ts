@@ -13,6 +13,15 @@ export function formatCurrency(amount: number) {
   return GHS.format(amount);
 }
 
+/**
+ * ASCII-safe money for thermal ESC/POS printers.
+ * The cedi sign (₵) is outside Latin-1 and prints as "?" on most 58/80mm printers.
+ */
+export function formatCurrencyEscPos(amount: number) {
+  const n = Number.isFinite(amount) ? amount : 0;
+  return `GHS ${MONEY_AMOUNT.format(n)}`;
+}
+
 /** Currency symbol on its own (e.g. `GH₵`) for labels that carry the unit. */
 export const CURRENCY_SYMBOL =
   GHS.formatToParts(0).find((part) => part.type === "currency")?.value ?? "GH₵";
