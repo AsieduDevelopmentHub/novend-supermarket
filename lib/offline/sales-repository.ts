@@ -19,6 +19,8 @@ import { applyLocalCustomerBalanceChange } from "./customer-credit";
 import { customerGroupIdFor, loadActivePriceRules } from "./price-lists";
 import { hasBusinessCapability } from "@/convex/shared/businessCapabilities";
 import { productTracksInventory } from "@/convex/shared/productInventory";
+import { splitVatInclusive } from "@/convex/shared/vatInclusive";
+import { parseTaxVatSettings } from "@/convex/shared/taxVatSettings";
 import { loadBusinessCapabilitiesCache } from "./business-capabilities";
 import {
   getMeta,
@@ -31,7 +33,7 @@ import {
 import { applyLocalBranchStockChange, getSellableQuantity } from "./branch-stock";
 import { enqueueCompleteSale, markOutboxSynced } from "./outbox";
 import { assertLocalWriteAllowed } from "./license-guard";
-import { loadMilliesPrintSnapshot } from "./millies-print-settings";
+import { resolveMilliesSalePrintSnapshot } from "./millies-print-settings";
 import { notifyReplicaChanged } from "./replica-events";
 import type {
   CompleteSaleOutboxPayload,
@@ -59,8 +61,11 @@ function stampPrintedInvoice(payload: unknown, invoiceNumber: string): unknown {
   return payload;
 }
 
-async function loadPrintSnapshot(_db: NovendOfflineDb): Promise<PrintSnapshot> {
-  return loadMilliesPrintSnapshot();
+async function loadPrintSnapshot(
+  _db: NovendOfflineDb,
+  branchId?: string | null,
+): Promise<PrintSnapshot> {
+  return resolveMilliesSalePrintSnapshot(branchId);
 }
 
 /** Apply a completed sale locally + enqueue outbox op. Receipt invoice is canonical. */
@@ -99,7 +104,7 @@ export async function completeSaleLocally(input: {
   const mirroredBranch = branchId ? await db.branches.get(branchId) : undefined;
   const branchName =
     mirroredBranch?.name ?? (await getMeta(db, META_KEYS.profileBranchName)) ?? null;
-  const print = await loadPrintSnapshot(db);
+  const print = await loadPrintSnapshot(db, branchId);
   const businessConfig = await loadBusinessCapabilitiesCache();
   const multiUnitOn = hasBusinessCapability(businessConfig, "multi_unit_pricing");
   const weightOn = hasBusinessCapability(businessConfig, "sell_by_weight");
@@ -283,12 +288,28 @@ export async function completeSaleLocally(input: {
       await db.localSales.put(sale);
       await db.localSaleItems.bulkPut(lines);
 
+      const vatRaw = await getMeta(db, META_KEYS.taxVat);
+      const vatSettings = hasBusinessCapability(businessConfig, "tax_vat")
+        ? parseTaxVatSettings(vatRaw)
+        : null;
+      const vat = vatSettings
+        ? splitVatInclusive(sale.total, vatSettings.ratePercent, vatSettings.label)
+        : null;
+
       receiptPayload = {
         invoiceNumber,
         saleId: localSaleId,
         subtotal: sale.subtotal,
         discount: sale.discount,
         total: sale.total,
+        ...(vat
+          ? {
+              taxLabel: vat.label,
+              taxRatePercent: vat.ratePercent,
+              taxNet: vat.net,
+              taxAmount: vat.vat,
+            }
+          : {}),
         itemCount,
         lines: lines.map((l) => ({
           productName: l.productName,

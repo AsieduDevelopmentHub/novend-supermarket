@@ -1,6 +1,6 @@
 {
   "name": "novend-pos",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "private": true,
   "packageManager": "pnpm@11.18.0",
   "repository": {

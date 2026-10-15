@@ -31,6 +31,7 @@ export const BUSINESS_CAPABILITY_KEYS = [
   "customer_credit",
   "customer_pricing",
   "product_variants",
+  "tax_vat",
 ] as const;
 
 export type BusinessCapabilityKey = (typeof BUSINESS_CAPABILITY_KEYS)[number];
@@ -98,6 +99,7 @@ export const DEFAULT_BUSINESS_CONFIGURATION: OrganizationBusinessConfiguration =
     "lot_expiry",
     "sell_by_weight",
     "configurable_pos",
+    "tax_vat",
   ],
   capabilitySettings: {},
   configurationVersion: BUSINESS_CAPABILITY_CONFIGURATION_VERSION,
@@ -228,13 +230,21 @@ export const BUSINESS_CAPABILITY_REGISTRY: Record<
       "Customer groups and quantity-tier price rules resolved at checkout, snapshotted on the receipt.",
     minPlanSortOrder: resolvePlan("pro").sortOrder,
   },
+  tax_vat: {
+    key: "tax_vat",
+    version: 1,
+    label: "VAT / tax on receipts",
+    description:
+      "Show net, VAT, and total on receipts from a configured rate (selling prices are VAT-inclusive).",
+    minPlanSortOrder: resolvePlan("basic").sortOrder,
+  },
 };
 
 /** Industry packs are presets of capability keys — not hardcoded industry branches. */
 export const INDUSTRY_PACKS: Record<IndustryProfile, BusinessCapabilityKey[]> = {
   retail: ["configurable_pos"],
   wholesale: ["multi_unit_pricing", "customer_pricing", "customer_credit", "configurable_pos"],
-  supermarket: ["lot_expiry", "sell_by_weight", "configurable_pos"],
+  supermarket: ["lot_expiry", "sell_by_weight", "configurable_pos", "tax_vat"],
   cold_store: ["sell_by_weight", "lot_expiry", "scale_hardware", "configurable_pos"],
   electronics: ["serial_tracking", "configurable_pos"],
   pharmacy: ["lot_expiry", "custom_fields", "configurable_pos"],

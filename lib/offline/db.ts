@@ -583,6 +583,8 @@ export const META_KEYS = {
   businessTerminology: "businessTerminology",
   productImagesPolicy: "productImagesPolicy",
   expiryPolicy: "expiryPolicy",
+  /** VAT settings when tax_vat capability is on; JSON { ratePercent, label }. */
+  taxVat: "taxVat",
   lastCleanupAt: "lastCleanupAt",
   lastSyncAt: "lastSyncAt",
   lastSyncProcessed: "lastSyncProcessed",

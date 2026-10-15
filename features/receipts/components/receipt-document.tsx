@@ -135,6 +135,23 @@ export function ReceiptDocument({
             <span>Discount</span>
             <span>{money(payload.discount)}</span>
           </div>
+          {typeof payload.taxNet === "number" && typeof payload.taxAmount === "number" ? (
+            <>
+              <div className="flex justify-between">
+                <span>Net</span>
+                <span>{money(payload.taxNet)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>
+                  {payload.taxLabel ?? "VAT"}
+                  {typeof payload.taxRatePercent === "number"
+                    ? ` (${payload.taxRatePercent}%)`
+                    : ""}
+                </span>
+                <span>{money(payload.taxAmount)}</span>
+              </div>
+            </>
+          ) : null}
           <div className="flex justify-between text-sm font-bold">
             <span>{payload.kind === "return" ? "REFUND" : "TOTAL"}</span>
             <span>{money(payload.total)}</span>

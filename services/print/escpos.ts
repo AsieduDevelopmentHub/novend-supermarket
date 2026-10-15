@@ -149,6 +149,16 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
   write(sep(cols), "\n");
   write(line(cols, "Subtotal", formatCurrencyEscPos(payload.subtotal)), "\n");
   write(line(cols, "Discount", formatCurrencyEscPos(payload.discount)), "\n");
+  if (typeof payload.taxNet === "number" && typeof payload.taxAmount === "number") {
+    write(line(cols, "Net", formatCurrencyEscPos(payload.taxNet)), "\n");
+    const taxLabel = [
+      payload.taxLabel ?? "VAT",
+      typeof payload.taxRatePercent === "number" ? `(${payload.taxRatePercent}%)` : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    write(line(cols, taxLabel, formatCurrencyEscPos(payload.taxAmount)), "\n");
+  }
   write(ESC, 0x45, 0x01);
   write(line(cols, "TOTAL", formatCurrencyEscPos(payload.total)), "\n");
   write(ESC, 0x45, 0x00);

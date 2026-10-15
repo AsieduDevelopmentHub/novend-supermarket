@@ -162,6 +162,11 @@ export async function bootstrapMilliesStore(input: {
   const caps =
     configurationFromIndustryPack("supermarket", "lifetime") ?? DEFAULT_BUSINESS_CONFIGURATION;
   await setMeta(db, META_KEYS.businessCapabilities, JSON.stringify(caps));
+  await setMeta(
+    db,
+    META_KEYS.taxVat,
+    JSON.stringify({ ratePercent: 15, label: "VAT" }),
+  );
 
   await ensureMilliesBusinessLicense({
     organizationId: input.organizationId,
@@ -179,12 +184,15 @@ export async function bootstrapMilliesStore(input: {
       taxId: "",
     },
     template: {
-      paperWidthMm: 80,
+      paperWidthMm: 58,
       showLogo: true,
       headerText: "Millie's Supermarket",
       footerText: "Thank you for shopping with us",
       thankYouLine: "Come again soon",
       showCashier: true,
+      showCustomer: false,
+      showPaymentMethod: true,
+      showSku: false,
     },
   };
   await setMeta(db, META_KEYS.printSnapshot, JSON.stringify(printSnapshot));

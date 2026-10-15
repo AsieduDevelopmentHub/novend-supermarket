@@ -80,6 +80,41 @@ export async function loadMilliesPrintSnapshot(): Promise<PrintSnapshot> {
   }
 }
 
+/**
+ * Receipt print snapshot with Store receipt (branch) address / phone / email / paper width.
+ * Prefer this for sales and returns so contact lines actually show on the ticket.
+ */
+export async function resolveMilliesSalePrintSnapshot(
+  branchId: string | null | undefined = MILLIES_LOCAL_BRANCH_ID,
+): Promise<PrintSnapshot> {
+  const base = await loadMilliesPrintSnapshot();
+  const store = await loadMilliesBranchReceipt(branchId ?? MILLIES_LOCAL_BRANCH_ID);
+  if (!store) return base;
+
+  const showName = store.receiptShowName ?? true;
+  const showAddress = store.receiptShowAddress ?? true;
+  const showPhone = store.receiptShowPhone ?? true;
+  const showEmail = store.receiptShowEmail ?? true;
+  const paper =
+    store.receiptPaperWidthMm === 58 || store.receiptPaperWidthMm === 80
+      ? store.receiptPaperWidthMm
+      : base.template.paperWidthMm;
+
+  return {
+    business: {
+      ...base.business,
+      branchName: showName ? store.name : undefined,
+      address: showAddress ? (store.address ?? "") : "",
+      phone: showPhone ? (store.phone ?? "") : "",
+      email: showEmail ? (store.email ?? "") : "",
+    },
+    template: {
+      ...base.template,
+      paperWidthMm: paper === 80 ? 58 : paper,
+    },
+  };
+}
+
 export async function saveMilliesBusiness(business: ReceiptBusiness): Promise<void> {
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
@@ -181,4 +216,23 @@ export async function saveMilliesBranchReceipt(input: {
     receiptShowEmail: input.receiptShowEmail,
     receiptPaperWidthMm: input.receiptPaperWidthMm,
   });
+
+  // Keep org print snapshot contact lines aligned with Store receipt for single-store tills.
+  const current = await loadMilliesPrintSnapshot();
+  await setMeta(
+    db,
+    META_KEYS.printSnapshot,
+    JSON.stringify({
+      business: {
+        ...current.business,
+        address: input.receiptShowAddress ? input.address?.trim() || "" : "",
+        phone: input.receiptShowPhone ? input.phone?.trim() || "" : "",
+        email: input.receiptShowEmail ? input.email?.trim() || "" : "",
+      },
+      template: {
+        ...current.template,
+        paperWidthMm: input.receiptPaperWidthMm === 80 ? 58 : input.receiptPaperWidthMm,
+      },
+    } satisfies PrintSnapshot),
+  );
 }

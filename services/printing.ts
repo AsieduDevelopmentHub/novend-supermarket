@@ -172,6 +172,16 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
     <div class="sep">
       <div class="row"><span>Subtotal</span><span>${escapeHtml(money(payload.subtotal))}</span></div>
       <div class="row"><span>Discount</span><span>${escapeHtml(money(payload.discount))}</span></div>
+      ${
+        typeof payload.taxNet === "number" && typeof payload.taxAmount === "number"
+          ? `<div class="row"><span>Net</span><span>${escapeHtml(money(payload.taxNet))}</span></div>
+      <div class="row"><span>${escapeHtml(
+        `${payload.taxLabel ?? "VAT"}${
+          typeof payload.taxRatePercent === "number" ? ` (${payload.taxRatePercent}%)` : ""
+        }`,
+      )}</span><span>${escapeHtml(money(payload.taxAmount))}</span></div>`
+          : ""
+      }
       <div class="row total"><span>TOTAL</span><span>${escapeHtml(money(payload.total))}</span></div>
       ${t.showPaymentMethod && splitLines ? splitLines.map((split) => `<div class="row"><span>${escapeHtml(split.label)}</span><span>${escapeHtml(money(split.amount))}</span></div>`).join("") : ""}
     </div>

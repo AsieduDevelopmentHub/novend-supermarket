@@ -41,6 +41,16 @@ export function buildReceiptShareText(input: ReceiptPayload | Record<string, unk
   lines.push("----------------");
   lines.push(`Subtotal: ${formatCurrency(payload.subtotal)}`);
   lines.push(`Discount: ${formatCurrency(payload.discount)}`);
+  if (typeof payload.taxNet === "number" && typeof payload.taxAmount === "number") {
+    lines.push(`Net: ${formatCurrency(payload.taxNet)}`);
+    const taxLabel = [
+      payload.taxLabel ?? "VAT",
+      typeof payload.taxRatePercent === "number" ? `(${payload.taxRatePercent}%)` : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    lines.push(`${taxLabel}: ${formatCurrency(payload.taxAmount)}`);
+  }
   lines.push(`TOTAL: ${formatCurrency(payload.total)}`);
   if (t.showPaymentMethod && splitLines) {
     for (const split of splitLines) lines.push(`  ${split.label}: ${formatCurrency(split.amount)}`);

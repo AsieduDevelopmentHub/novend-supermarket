@@ -49,6 +49,14 @@ export type ReceiptPayload = {
   subtotal: number;
   discount: number;
   total: number;
+  /**
+   * Optional VAT-inclusive breakdown snapshotted at checkout when `tax_vat` is on.
+   * `total` remains the gross charged; `taxNet` + `taxAmount` ≈ `total`.
+   */
+  taxLabel?: string;
+  taxRatePercent?: number;
+  taxNet?: number;
+  taxAmount?: number;
   itemCount: number;
   lines: ReceiptLine[];
   /** Primary tender (largest amount when the sale was split). */

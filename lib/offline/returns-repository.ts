@@ -4,10 +4,14 @@ import { allocateReturnNumber } from "@/convex/shared/documentReferences";
 import { applyLocalBranchStockChange } from "./branch-stock";
 import { enqueueProcessReturn, markOutboxSynced } from "./outbox";
 import { assertLocalWriteAllowed } from "./license-guard";
-import { loadMilliesPrintSnapshot } from "./millies-print-settings";
+import { resolveMilliesSalePrintSnapshot } from "./millies-print-settings";
 import { notifyReplicaChanged } from "./replica-events";
 import { estimateReturnRefund } from "@/lib/sales/returns";
 import { roundMoney } from "@/lib/currency";
+import { hasBusinessCapability } from "@/convex/shared/businessCapabilities";
+import { splitVatInclusive } from "@/convex/shared/vatInclusive";
+import { parseTaxVatSettings } from "@/convex/shared/taxVatSettings";
+import { loadBusinessCapabilitiesCache } from "./business-capabilities";
 import type { LocalReturn, LocalReturnItem, PrintSnapshot } from "./types";
 
 export type LocalReturnLineInput = {
@@ -21,8 +25,11 @@ export type LocalReturnLineInput = {
   quantity: number;
 };
 
-async function loadPrintSnapshot(_db: NovendOfflineDb): Promise<PrintSnapshot> {
-  return loadMilliesPrintSnapshot();
+async function loadPrintSnapshot(
+  _db: NovendOfflineDb,
+  branchId?: string | null,
+): Promise<PrintSnapshot> {
+  return resolveMilliesSalePrintSnapshot(branchId);
 }
 
 export async function listLocalReturnsForSale(saleId: string): Promise<LocalReturn[]> {
@@ -92,7 +99,6 @@ export async function processReturnLocally(input: {
   const localReturnId = newClientId("lret");
   const returnNumber = allocateReturnNumber();
   const cashierName = (await getMeta(db, META_KEYS.profileName)) ?? "Cashier";
-  const snapshot = await loadPrintSnapshot(db);
   const [order, localSale] = await Promise.all([
     db.orders.get(input.saleId),
     input.saleId.startsWith("lsale_")
@@ -104,6 +110,15 @@ export async function processReturnLocally(input: {
     localSale?.branchId ??
     (await getMeta(db, META_KEYS.profileBranchId)) ??
     undefined;
+  const snapshot = await loadPrintSnapshot(db, branchId);
+  const businessConfig = await loadBusinessCapabilitiesCache();
+  const vatRaw = await getMeta(db, META_KEYS.taxVat);
+  const vatSettings = hasBusinessCapability(businessConfig, "tax_vat")
+    ? parseTaxVatSettings(vatRaw)
+    : null;
+  const vat = vatSettings
+    ? splitVatInclusive(refundAmount, vatSettings.ratePercent, vatSettings.label)
+    : null;
 
   const receiptPayload: ReceiptPayload = {
     kind: "return",
@@ -114,6 +129,14 @@ export async function processReturnLocally(input: {
     subtotal: refundAmount,
     discount: 0,
     total: refundAmount,
+    ...(vat
+      ? {
+          taxLabel: vat.label,
+          taxRatePercent: vat.ratePercent,
+          taxNet: vat.net,
+          taxAmount: vat.vat,
+        }
+      : {}),
     itemCount: input.items.reduce((sum, item) => sum + item.quantity, 0),
     lines: input.items.map((item) => ({
       productName: item.productName,

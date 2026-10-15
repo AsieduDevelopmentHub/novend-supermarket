@@ -51,6 +51,7 @@ import { GoLivePanel } from "./go-live-panel";
 import { BranchReceiptPanel } from "./branch-receipt-panel";
 import { ProfilePanel } from "./profile-panel";
 import { BusinessCapabilitiesPanel } from "./business-capabilities-panel";
+import { VatSettingsPanel } from "./vat-settings-panel";
 import { ProductImagesSettingsCard } from "./product-images-settings-card";
 import { ExpiryAlertSettingsCard } from "./expiry-alert-settings-card";
 import { PrinterPanel } from "./printer-panel";
@@ -259,6 +260,7 @@ export function SettingsView() {
                   <ProductImagesSettingsCard />
                   <ExpiryAlertSettingsCard />
                   <BusinessCapabilitiesPanel />
+                  <VatSettingsPanel />
                 </TabsContent>
 
                 <TabsContent value="receipt" className="mt-0">
