@@ -45,7 +45,11 @@ export const MILLIES_AUTH_META = {
   branchName: "branchName",
   recoveryKeySealed: "recoveryKeySealed",
   createdAt: "createdAt",
+  /** none | active | cleared — sample catalogue lifecycle. */
+  sampleDataStatus: "sampleDataStatus",
 } as const;
+
+export type MilliesSampleDataStatus = "none" | "active" | "cleared";
 
 function createDb(): MilliesAuthDb {
   const db = new Dexie(DB_NAME) as MilliesAuthDb;
@@ -87,4 +91,10 @@ export async function setAuthMeta(key: string, value: string): Promise<void> {
 
 export async function isMilliesSetupComplete(): Promise<boolean> {
   return (await getAuthMeta(MILLIES_AUTH_META.setupComplete)) === "1";
+}
+
+export async function getMilliesSampleDataStatus(): Promise<MilliesSampleDataStatus> {
+  const raw = await getAuthMeta(MILLIES_AUTH_META.sampleDataStatus);
+  if (raw === "active" || raw === "cleared" || raw === "none") return raw;
+  return "none";
 }

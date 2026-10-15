@@ -47,6 +47,7 @@ import { showError } from "@/lib/errors";
 import { AppearancePanel } from "./appearance-panel";
 import { SecurityPanel } from "./security-panel";
 import { PrivacyDataPanel } from "./privacy-data-panel";
+import { GoLivePanel } from "./go-live-panel";
 import { BranchReceiptPanel } from "./branch-receipt-panel";
 import { ProfilePanel } from "./profile-panel";
 import { BusinessCapabilitiesPanel } from "./business-capabilities-panel";
@@ -248,6 +249,7 @@ export function SettingsView() {
             {isAdmin && business && template ? (
               <>
                 <TabsContent value="business" className="mt-0 space-y-5">
+                  <GoLivePanel />
                   <BusinessForm
                     key={`${printRevision}:${JSON.stringify(business)}`}
                     initial={business}

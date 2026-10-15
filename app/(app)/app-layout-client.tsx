@@ -30,6 +30,7 @@ import { NotificationBell } from "@/features/notifications/components/notificati
 import { clearPendingClockIn, readPendingClockIn } from "@/lib/offline/pending-clock-in";
 import { SyncCenterDialog } from "@/components/offline/sync-center-dialog";
 import { LicenseBanner } from "@/features/billing/components/license-banner";
+import { SampleDataBanner } from "@/features/settings/components/sample-data-banner";
 import { EmailVerificationBanner } from "@/features/auth/components/email-verification-banner";
 import { CloudReconnectBanner } from "@/features/auth/components/cloud-reconnect-banner";
 import { CloudSessionMismatchGate } from "@/features/auth/components/cloud-session-mismatch-gate";
@@ -1161,6 +1162,7 @@ function AuthenticatedAppShell({ children }: { children: React.ReactNode }) {
                       </header>
                     )}
                     <LicenseBanner />
+                    <SampleDataBanner />
                     <EmailVerificationBanner />
                     <CloudReconnectBanner />
                     <SyncStatusBanner />

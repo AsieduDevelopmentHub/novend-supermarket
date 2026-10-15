@@ -193,6 +193,8 @@ export type MirroredProduct = {
   expiringQuantity?: number;
   isExpired?: boolean;
   isExpiring?: boolean;
+  /** Setup sample row; Go live (samples mode) deletes these. */
+  isSample?: boolean;
   updatedAt: number;
 };
 
@@ -225,6 +227,8 @@ export type MirroredCategory = {
   name: string;
   slug: string;
   isActive: boolean;
+  /** Setup sample row; Go live (samples mode) deletes these. */
+  isSample?: boolean;
 };
 
 export type MirroredCustomer = {
@@ -311,6 +315,8 @@ export type MirroredOrder = {
   branchId: string | null;
   branchName: string | null;
   refundedAmount?: number;
+  /** Demo sale from sample seed. */
+  isSample?: boolean;
 };
 
 export type MirroredOrderItem = {

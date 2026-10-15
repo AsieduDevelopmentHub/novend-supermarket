@@ -29,6 +29,7 @@ export function MilliesSetupWizard({
     adminDisplayName: "Administrator",
     adminPassword: "",
     confirmPassword: "",
+    seedSample: true,
   });
 
   async function onSubmit(event: FormEvent) {
@@ -51,9 +52,12 @@ export function MilliesSetupWizard({
         adminUsername: form.adminUsername,
         adminDisplayName: form.adminDisplayName,
         adminPassword: form.adminPassword,
+        seedSample: form.seedSample,
       });
       setRecoveryKey(result.recoveryKeyDisplay);
-      toast.success("Store ready");
+      toast.success(
+        form.seedSample ? "Store ready — sample catalogue loaded" : "Store ready",
+      );
     } catch (err) {
       setError(toUserMessage(err, "Setup could not be completed"));
     } finally {
@@ -176,6 +180,21 @@ export function MilliesSetupWizard({
                 />
               </div>
             </div>
+            <label className="flex items-start gap-2.5 text-sm leading-snug">
+              <input
+                type="checkbox"
+                className="border-input accent-primary mt-0.5 size-4 shrink-0 rounded"
+                checked={form.seedSample}
+                onChange={(e) => setForm({ ...form, seedSample: e.target.checked })}
+              />
+              <span>
+                <span className="text-foreground font-medium">Load sample data</span>
+                <span className="text-muted-foreground mt-0.5 block text-xs">
+                  Sample products, stock, and a few demo sales. Remove anytime with Go live in
+                  Settings.
+                </span>
+              </span>
+            </label>
             {error ? (
               <p className="text-destructive text-sm" role="alert">
                 {error}

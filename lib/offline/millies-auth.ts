@@ -279,6 +279,8 @@ export type MilliesSetupInput = {
   adminUsername: string;
   adminDisplayName: string;
   adminPassword: string;
+  /** When true (default), seed supermarket sample catalogue + demo sales. */
+  seedSample?: boolean;
 };
 
 export async function completeMilliesSetup(input: MilliesSetupInput): Promise<{
@@ -322,6 +324,15 @@ export async function completeMilliesSetup(input: MilliesSetupInput): Promise<{
     storeAddress: input.address?.trim() ?? "",
     session,
   });
+
+  const loadSamples = input.seedSample !== false;
+  if (loadSamples) {
+    const { seedMilliesSampleCatalog } = await import("./millies-sample-seed");
+    await seedMilliesSampleCatalog(session);
+    await setAuthMeta(MILLIES_AUTH_META.sampleDataStatus, "active");
+  } else {
+    await setAuthMeta(MILLIES_AUTH_META.sampleDataStatus, "none");
+  }
 
   // Start the offline trial immediately so the till opens after setup.
   // Admins can still activate a key anytime from Settings → License.
