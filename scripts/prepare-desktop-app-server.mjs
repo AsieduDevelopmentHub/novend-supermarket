@@ -13,13 +13,11 @@
 import {
   cpSync,
   existsSync,
-  lstatSync,
   mkdirSync,
   readdirSync,
-  readlinkSync,
+  realpathSync,
   rmSync,
   statSync,
-  symlinkSync,
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -74,13 +72,12 @@ function copyStandaloneTree(src, dest) {
 }
 
 /**
- * Ensure a package exists at node_modules/<name> by copying from the pnpm
- * virtual store (`.pnpm/node_modules/...`).
+ * Ensure a package exists at node_modules/<name> as a real directory copy.
+ * Junctions/symlinks break electron-builder's Windows 7z pack (CI exits 1).
  */
 function materializeFromPnpmStore(serverRoot, packageName) {
   const parts = packageName.split("/");
   const dest = join(serverRoot, "node_modules", ...parts);
-  if (existsSync(join(dest, "package.json"))) return false;
 
   const candidates = [
     join(serverRoot, "node_modules", ".pnpm", "node_modules", ...parts),
@@ -98,24 +95,21 @@ function materializeFromPnpmStore(serverRoot, packageName) {
 
   for (const src of candidates) {
     if (!existsSync(join(src, "package.json"))) continue;
-    mkdirSync(dirname(dest), { recursive: true });
+    let realSrc = src;
     try {
-      const stat = lstatSync(src);
-      if (stat.isSymbolicLink()) {
-        symlinkSync(readlinkSync(src), dest, "junction");
-      } else {
-        cpSync(src, dest, { recursive: true });
-      }
+      realSrc = realpathSync(src);
+    } catch {
+      continue;
+    }
+    if (!existsSync(join(realSrc, "package.json"))) continue;
+    mkdirSync(dirname(dest), { recursive: true });
+    rmSync(dest, { recursive: true, force: true });
+    try {
+      cpSync(realSrc, dest, { recursive: true });
       console.log(`Materialized ${packageName} → ${relative(serverRoot, dest)}`);
       return true;
-    } catch (error) {
-      try {
-        cpSync(src, dest, { recursive: true });
-        console.log(`Materialized ${packageName} → ${relative(serverRoot, dest)}`);
-        return true;
-      } catch (copyError) {
-        console.warn(`Could not materialize ${packageName}:`, copyError);
-      }
+    } catch (copyError) {
+      console.warn(`Could not materialize ${packageName}:`, copyError);
     }
   }
   return false;
