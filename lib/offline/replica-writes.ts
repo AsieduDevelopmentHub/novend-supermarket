@@ -1,4 +1,4 @@
-import { FULLY_OFFLINE } from "@/constants/runtime";
+import { FULLY_OFFLINE, MILLIES_LOCAL_BRANCH_ID } from "@/constants/runtime";
 import { branchStockId, applyLocalBranchStockChange, getSellableQuantity } from "./branch-stock";
 import { getMeta, getOfflineDb, META_KEYS, newClientId } from "./db";
 import { pendingOutboundTransferQuantities, transferStockKey } from "./pending-transfers";
@@ -61,9 +61,9 @@ import {
 const QUEUED_TOAST = "Saved on this device. We'll sync when you're back online.";
 
 /**
- * Write Dexie immediately. Milliesmart is local-only: when realtime sync is off,
- * business writes stay on the till and never call Convex. On full_sync (unused
- * here) the outbox flush still updates Convex when online.
+ * Write Dexie immediately. Millie's is local-only: when realtime sync is off,
+ * business writes stay on the till and never call Convex. On full_sync the
+ * outbox flush still updates Convex when online.
  */
 export async function persistBusinessWrite(args: {
   online: boolean;
@@ -75,14 +75,16 @@ export async function persistBusinessWrite(args: {
   if (FULLY_OFFLINE) {
     await withMirrorOnly(() => args.local());
     notifyReplicaChanged({ flush: false });
-    return "queued";
+    // Treat as settled locally so toasts never say "wait to sync".
+    return "remote";
   }
   if (args.online) {
     const policy = await loadCloudPolicy();
     if (!policy.shouldQueueRealtimeSync()) {
       await withMirrorOnly(() => args.local());
       notifyReplicaChanged({ flush: false });
-      return "queued";
+      // local_only / backup_only — no live outbox drain; still not a cloud sync wait.
+      return "remote";
     }
   }
   await args.local();
@@ -91,6 +93,7 @@ export async function persistBusinessWrite(args: {
 }
 
 export function queuedSaveMessage(kind: "remote" | "queued", live: string) {
+  if (FULLY_OFFLINE) return live;
   return kind === "queued" ? QUEUED_TOAST : live;
 }
 
@@ -829,12 +832,18 @@ export async function queueUpsertProduct(
     isExpiring: expiryStatus === "expiring",
     updatedAt: Date.now(),
   });
-  if (isCreate && payload.branchId) {
+  const resolvedBranchId =
+    (payload.branchId?.trim() ||
+      (await getMeta(db, META_KEYS.profileBranchId))?.trim() ||
+      (FULLY_OFFLINE ? MILLIES_LOCAL_BRANCH_ID : "")) ||
+    undefined;
+
+  if (isCreate && resolvedBranchId) {
     if (openingQty > 0) {
       const isExpiring = expiryStatus === "expiring";
       await db.branchStock.put({
-        id: branchStockId(payload.branchId, localId),
-        branchId: payload.branchId,
+        id: branchStockId(resolvedBranchId, localId),
+        branchId: resolvedBranchId,
         productId: localId,
         quantity: openingQty,
         sellableQuantity: openingQty,
@@ -845,7 +854,7 @@ export async function queueUpsertProduct(
         await db.lots.put({
           id: newClientId("lot"),
           productId: localId,
-          branchId: payload.branchId,
+          branchId: resolvedBranchId,
           quantity: openingQty,
           expiryDate: payload.expiryDate,
           lotCode: payload.expiryDate,
@@ -854,8 +863,8 @@ export async function queueUpsertProduct(
       }
     } else {
       await db.branchStock.put({
-        id: branchStockId(payload.branchId, localId),
-        branchId: payload.branchId,
+        id: branchStockId(resolvedBranchId, localId),
+        branchId: resolvedBranchId,
         productId: localId,
         quantity: 0,
         sellableQuantity: 0,

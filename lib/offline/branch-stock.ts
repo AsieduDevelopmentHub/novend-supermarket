@@ -1,3 +1,4 @@
+import { FULLY_OFFLINE, MILLIES_LOCAL_BRANCH_ID } from "@/constants/runtime";
 import { getMeta, META_KEYS, type NovendOfflineDb } from "./db";
 import type { MirroredBranchStock, MirroredProduct } from "./types";
 
@@ -85,7 +86,10 @@ export async function resolveCatalogBranchId(
   branchId?: string | null,
 ): Promise<string | null> {
   if (branchId) return branchId;
-  return (await getMeta(db, META_KEYS.profileBranchId)) ?? null;
+  const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
+  if (profileBranchId) return profileBranchId;
+  // Millie's single-store till: never empty the Sales catalog for missing meta.
+  return FULLY_OFFLINE ? MILLIES_LOCAL_BRANCH_ID : null;
 }
 
 type AggregatedBranchStock = {

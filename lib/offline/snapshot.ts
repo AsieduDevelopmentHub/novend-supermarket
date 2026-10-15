@@ -28,6 +28,7 @@ import {
   sellableQuantityForBranch,
 } from "./branch-stock";
 import { catalogSearchRank, salesCatalogResultLimit } from "@/constants/sales-catalog";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { saveShellProfile } from "./shell-profile";
 import type { OrganizationBusinessConfiguration } from "@/convex/shared/businessCapabilities";
 import { DEFAULT_BUSINESS_CONFIGURATION } from "@/convex/shared/businessCapabilities";
@@ -540,10 +541,12 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
         isVariantParent: false,
       };
     })
-    // Browse: only sellable. Search: keep name matches even at 0 stock so cashiers can find them.
+    // Browse: only sellable (cloud). Millie's local till shows all active products
+    // so a just-created item appears on Sales without requiring stock > 0 first.
     .filter((p) => {
       if (p.tracksInventory === false) return true;
       if (query) return true;
+      if (FULLY_OFFLINE) return true;
       return p.stockQuantity > 0;
     });
 
