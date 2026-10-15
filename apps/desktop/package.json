@@ -1,6 +1,6 @@
 {
   "name": "@novend/desktop",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "description": "Millie's Supermarket desktop shell",
   "homepage": "https://www.novendpos.app",
@@ -112,6 +112,7 @@
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
+      "include": "installer.nsh",
       "runAfterFinish": true,
       "uninstallDisplayName": "Millie's Supermarket",
       "artifactName": "Millies-Supermarket-Setup-${version}.${ext}"

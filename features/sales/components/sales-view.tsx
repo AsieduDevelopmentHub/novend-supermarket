@@ -23,6 +23,7 @@ import { BranchFilter } from "@/components/filters/branch-filter";
 import { formatCurrency, roundMoney } from "@/lib/currency";
 import type { PaymentMethod } from "@/lib/payments";
 import { evaluateSplitTender, type SplitTenderDraft } from "@/lib/sales/split-tender";
+import { CashTenderChange } from "./cash-tender-change";
 import { PaymentTenderSelector } from "./payment-tender-selector";
 import { Minus, Plus, ScanBarcode, ShoppingCart, Trash2, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
@@ -1749,6 +1750,7 @@ function SalesCheckoutFields({
           <span>Total</span>
           <span className="text-primary text-base tabular-nums">{formatCurrency(total)}</span>
         </div>
+        <CashTenderChange total={total} active={cart.length > 0} compact />
       </div>
       {actions}
     </div>

@@ -94,7 +94,8 @@ function isReportFilterPreferences(value: unknown): value is ReportFilterPrefere
 }
 
 export function ReportsView() {
-  const { isAdmin, isManager, branchName, branchId: myBranchId, userId } = usePermissions();
+  const { isAdmin, isManager, isCashier, branchName, branchId: myBranchId, userId } =
+    usePermissions();
   const { capabilities, planName } = useLicense();
   const online = useConnectivity();
   const router = useRouter();
@@ -156,11 +157,18 @@ export function ReportsView() {
 
   // Always hydrate Dexie so Cap false-online never waits on a hung Convex query,
   // and so sales still uploading on this device appear in Daily Orders.
+  const reportCashierId = isCashier && userId ? userId : undefined;
+
   useEffect(() => {
     if (!range) return;
     let cancelled = false;
     function load() {
-      void buildLocalSalesReport(range!.startDate, range!.endDate, reportBranchId).then((next) => {
+      void buildLocalSalesReport(
+        range!.startDate,
+        range!.endDate,
+        reportBranchId,
+        reportCashierId,
+      ).then((next) => {
         if (cancelled) return;
         setLocalReport(next);
       });
@@ -172,7 +180,7 @@ export function ReportsView() {
       window.clearTimeout(timer);
       unsubscribe();
     };
-  }, [range, reportBranchId]);
+  }, [range, reportBranchId, reportCashierId]);
 
   const report =
     preferLocal || !online
@@ -328,7 +336,9 @@ export function ReportsView() {
             description="Gross sales by payment method — includes unsynced sales on this till."
           />
 
-          <TillSessionsCard mode="recent" limit={25} />
+          {isAdmin || isManager ? (
+            <TillSessionsCard mode="recent" limit={25} />
+          ) : null}
 
           {isAdmin || isManager ? (
             <InventoryValuePanel

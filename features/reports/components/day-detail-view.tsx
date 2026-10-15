@@ -24,6 +24,7 @@ import { mergeDayOrdersWithLocal, paymentTotalsFromOrders } from "@/lib/offline/
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { PaymentTotalsCard } from "@/components/data-display/payment-totals-card";
 import { TillSessionsCard } from "@/features/reports/components/till-sessions-card";
+import { usePermissions } from "@/hooks/use-permissions";
 import { useEffect, useState } from "react";
 
 function isIsoDate(value: string) {
@@ -66,6 +67,8 @@ function useLocalDayOrders(date: string, branchId?: string | null) {
 
 export function ReportDayDetailView() {
   const online = useConnectivity();
+  const { isAdmin, isManager } = usePermissions();
+  const canViewTillSessions = isAdmin || isManager;
   const params = useSearchParams();
   const date = params.get("date") ?? "";
   const branch = params.get("branch");
@@ -104,6 +107,7 @@ export function ReportDayDetailView() {
         backHref={backHref}
         orders={localOrders}
         offlineNotice
+        showTillSessions={canViewTillSessions}
       />
     );
   }
@@ -177,7 +181,7 @@ export function ReportDayDetailView() {
         description="Gross tender totals for every order listed below, including unsynced sales."
       />
 
-      <TillSessionsCard mode="day" date={date} />
+      {canViewTillSessions ? <TillSessionsCard mode="day" date={date} /> : null}
 
       {pendingCount > 0 ? (
         <p className="text-muted-foreground text-sm">
@@ -300,11 +304,13 @@ function LocalDayFallback({
   backHref,
   orders,
   offlineNotice,
+  showTillSessions,
 }: {
   date: string;
   backHref: string;
   orders: LocalOrderRow[] | null;
   offlineNotice: boolean;
+  showTillSessions: boolean;
 }) {
   const gross = orders?.reduce((sum, order) => sum + order.total, 0) ?? 0;
   const items = orders?.reduce((sum, order) => sum + order.itemCount, 0) ?? 0;
@@ -384,7 +390,7 @@ function LocalDayFallback({
           </Card>
         </>
       )}
-      <TillSessionsCard mode="day" date={date} />
+      {showTillSessions ? <TillSessionsCard mode="day" date={date} /> : null}
     </div>
   );
 }

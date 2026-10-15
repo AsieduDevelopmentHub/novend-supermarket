@@ -413,7 +413,7 @@ export function AnalyticsView() {
         }
       />
 
-      <TillSessionsCard mode="recent" limit={15} />
+      {isAdmin || isManager ? <TillSessionsCard mode="recent" limit={15} /> : null}
 
       {rangeError ? <ErrorState message={rangeError} /> : null}
 

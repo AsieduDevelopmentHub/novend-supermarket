@@ -526,6 +526,8 @@ export async function buildLocalSalesReport(
   startDate: number,
   endDate: number,
   branchId?: string,
+  /** When set (cashiers), match Convex `reports.salesSummary` own-sales scope. */
+  cashierId?: string,
 ): Promise<LocalSalesReport> {
   const db = await getOfflineDb();
   if (!db) {
@@ -543,26 +545,36 @@ export async function buildLocalSalesReport(
     db.localReturns.toArray(),
   ]);
   const inRange = (completedAt: number) => completedAt >= startDate && completedAt <= endDate;
+  const matchesCashier = (sale: { cashierId?: string | null }) =>
+    !cashierId || sale.cashierId === cashierId;
   const sales = allSales.filter(
-    (sale) => inRange(sale.completedAt) && (!branchId || sale.branchId === branchId),
+    (sale) =>
+      inRange(sale.completedAt) &&
+      (!branchId || sale.branchId === branchId) &&
+      matchesCashier(sale),
   );
   const mirrored = allOrders.filter(
-    (sale) => inRange(sale.completedAt) && (!branchId || sale.branchId === branchId),
+    (sale) =>
+      inRange(sale.completedAt) &&
+      (!branchId || sale.branchId === branchId) &&
+      matchesCashier(sale),
   );
   // A return can occur in this period for a sale from an earlier period.
   // Local returns lack branchId, so resolve scope from the original sale.
-  const branchSaleIds = new Set<string>();
+  const ownedSaleIds = new Set<string>();
   for (const sale of allOrders) {
-    if (!branchId || sale.branchId === branchId) branchSaleIds.add(sale.id);
+    if ((!branchId || sale.branchId === branchId) && matchesCashier(sale)) {
+      ownedSaleIds.add(sale.id);
+    }
   }
   for (const sale of allSales) {
-    if (!branchId || sale.branchId === branchId) {
-      branchSaleIds.add(sale.id);
-      if (sale.serverSaleId) branchSaleIds.add(sale.serverSaleId);
+    if ((!branchId || sale.branchId === branchId) && matchesCashier(sale)) {
+      ownedSaleIds.add(sale.id);
+      if (sale.serverSaleId) ownedSaleIds.add(sale.serverSaleId);
     }
   }
   const returns = allReturns.filter(
-    (row) => inRange(row.completedAt) && (!branchId || branchSaleIds.has(row.saleId)),
+    (row) => inRange(row.completedAt) && ownedSaleIds.has(row.saleId),
   );
   const mirroredIds = new Set(mirrored.map((o) => o.id));
   const mirroredInvoices = new Set(mirrored.map((o) => o.invoiceNumber));

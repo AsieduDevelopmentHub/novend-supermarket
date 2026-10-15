@@ -232,13 +232,11 @@ async function loadLocalOrder(localSaleId: string): Promise<OrderDetail | null> 
   }
 
   const syncHint =
-    sale.syncStatus === "pending"
-      ? "Saved on this device — waiting to sync"
-      : sale.syncStatus === "failed"
-        ? sale.lastError
-          ? `Sync failed: ${sale.lastError}`
-          : "Sync failed"
-        : undefined;
+    sale.syncStatus === "failed"
+      ? sale.lastError
+        ? `Sync failed: ${sale.lastError}`
+        : "Sync failed"
+      : undefined;
 
   const detail: OrderDetail = {
     id: sale.id,
