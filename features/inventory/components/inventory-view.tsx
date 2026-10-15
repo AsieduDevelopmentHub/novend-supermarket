@@ -67,16 +67,20 @@ import {
   queueAdjustStock,
   queueTransferStock,
 } from "@/lib/offline/replica-writes";
+import { SINGLE_STORE } from "@/constants/app";
 
 function InventoryViewInner() {
   const {
     isAdmin,
     canManageProducts,
-    canTransferStock,
+    canTransferStock: canTransferStockRole,
     canViewCost,
     branchId: myBranchId,
     branchName,
   } = usePermissions();
+  // Millie's is one store — no warehouse wholesale or branch-to-branch transfer.
+  const canTransferStock = canTransferStockRole && !SINGLE_STORE;
+  const showWholesale = canManageProducts && !SINGLE_STORE;
   const online = useConnectivity();
   const router = useRouter();
   const pathname = usePathname();
@@ -414,7 +418,7 @@ function InventoryViewInner() {
         }
         compactActions={
           [
-            ...(canManageProducts
+            ...(showWholesale
               ? [
                   {
                     key: "wholesale",
@@ -438,7 +442,7 @@ function InventoryViewInner() {
         }
         actions={
           <div className="flex flex-wrap gap-2">
-            {canManageProducts ? (
+            {showWholesale ? (
               <Button type="button" variant="outline" asChild>
                 <Link href="/wholesale">Wholesale</Link>
               </Button>

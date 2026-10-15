@@ -219,7 +219,9 @@ export async function applyLocalBranchStockChange(
   const id = branchStockId(branchId, productId);
   const existing = await db.branchStock.get(id);
   const tracksExpiry = catalog.tracksExpiry === true;
-  const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
+  const profileBranchId =
+    (await getMeta(db, META_KEYS.profileBranchId))?.trim() ||
+    (FULLY_OFFLINE ? MILLIES_LOCAL_BRANCH_ID : null);
   const catalogQty = catalogSellableQuantity(catalog);
 
   if (existing) {

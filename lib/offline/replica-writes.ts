@@ -345,7 +345,11 @@ export async function queueAdjustStock(payload: AdjustStockPayload) {
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const product = await db.products.get(payload.productId);
-  const branchId = payload.branchId ?? (await getMeta(db, META_KEYS.profileBranchId));
+  const branchId =
+    (payload.branchId?.trim() ||
+      (await getMeta(db, META_KEYS.profileBranchId))?.trim() ||
+      (FULLY_OFFLINE ? MILLIES_LOCAL_BRANCH_ID : "")) ||
+    undefined;
   if (!branchId) {
     throw new Error("Select a branch for this adjustment");
   }
