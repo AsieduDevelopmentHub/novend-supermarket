@@ -127,7 +127,7 @@ export function BiometricSecurityCard() {
           await refreshAvailability();
         }
         const auth = await Hardware.biometrics.authenticate(
-          "Enable biometric unlock for Novend POS",
+          "Enable biometric unlock for Millie's Supermarket",
         );
         // Yield after BiometricPrompt so the WebView can paint before more work.
         await yieldToUi();

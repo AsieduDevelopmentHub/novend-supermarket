@@ -1,4 +1,4 @@
-package com.novend.pos;
+package com.novend.millies;
 
 import android.Manifest;
 import android.app.Activity;
@@ -85,7 +85,7 @@ public class NovendNativeBridge {
                     ? pm.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
                     : pm.getPackageInfo(packageName, 0);
             CharSequence label = pm.getApplicationLabel(info.applicationInfo);
-            out.put("name", label != null ? label.toString() : "Novend POS");
+            out.put("name", label != null ? label.toString() : "Millie's Supermarket");
             out.put("id", packageName);
             out.put("version", info.versionName != null ? info.versionName : "");
             long code =
@@ -93,12 +93,12 @@ public class NovendNativeBridge {
             out.put("build", String.valueOf(code));
         } catch (Exception error) {
             try {
-                out.put("name", "Novend POS");
+                out.put("name", "Millie's Supermarket");
                 out.put("id", context.getPackageName());
                 out.put("version", "");
                 out.put("build", "");
             } catch (Exception ignored) {
-                return "{\"name\":\"Novend POS\",\"id\":\"com.novend.pos\",\"version\":\"\",\"build\":\"\"}";
+                return "{\"name\":\"Millie's Supermarket\",\"id\":\"com.novend.millies\",\"version\":\"\",\"build\":\"\"}";
             }
         }
         return out.toString();
@@ -523,14 +523,14 @@ public class NovendNativeBridge {
         final CountDownLatch latch = new CountDownLatch(1);
         final String[] outcome = {"error"};
         final String subtitle =
-            reason != null && !reason.isEmpty() ? reason : "Unlock Novend POS";
+            reason != null && !reason.isEmpty() ? reason : "Unlock Millie's Supermarket";
         final int authenticators = promptAuthenticators(BiometricManager.from(context));
         activity.runOnUiThread(
             () -> {
                 try {
                     BiometricPrompt.PromptInfo.Builder builder =
                         new BiometricPrompt.PromptInfo.Builder()
-                            .setTitle("Novend POS")
+                            .setTitle("Millie's Supermarket")
                             .setSubtitle(subtitle)
                             .setAllowedAuthenticators(authenticators);
                     if ((authenticators & BiometricManager.Authenticators.DEVICE_CREDENTIAL)

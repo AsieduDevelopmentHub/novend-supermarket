@@ -1,4 +1,4 @@
-package com.novend.pos;
+package com.novend.millies;
 
 import android.Manifest;
 import android.content.pm.PackageManager;

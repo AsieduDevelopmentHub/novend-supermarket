@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { useNativeShell } from "@/hooks/use-native-shell";
+import { cn } from "@/lib/utils";
 
 type Props = {
   children: ReactNode;
@@ -13,20 +14,28 @@ type Props = {
   activeCount?: number;
   onReset?: () => void;
   defaultOpen?: boolean;
+  /**
+   * Search (or other primary control) — rendered on the same row as the Filters
+   * button, which stays on the right.
+   */
+  leading?: ReactNode;
+  className?: string;
 };
 
-/** Search stays outside. Advanced filters collapse — bottom sheet on Capacitor. */
+/** Search stays outside the panel. Filters trigger sits inline on the right. */
 export function CollapsibleFilters({
   children,
   activeCount = 0,
   onReset,
   defaultOpen = false,
+  leading,
+  className,
 }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const native = useNativeShell();
 
   const trigger = (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       <Button
         type="button"
         variant="outline"
@@ -58,10 +67,19 @@ export function CollapsibleFilters({
     </div>
   );
 
+  const toolbar = leading ? (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0 w-full flex-1 sm:max-w-md">{leading}</div>
+      <div className="flex w-full shrink-0 justify-end sm:w-auto">{trigger}</div>
+    </div>
+  ) : (
+    <div className="flex justify-end">{trigger}</div>
+  );
+
   if (native) {
     return (
-      <div className="space-y-3">
-        {trigger}
+      <div className={cn("space-y-3", className)}>
+        {toolbar}
         <Drawer open={open} onOpenChange={setOpen} shouldScaleBackground={false}>
           <DrawerContent className="rounded-t-[22px] pb-[max(1rem,env(safe-area-inset-bottom))]">
             <DrawerHeader className="border-border flex flex-row items-center justify-between border-b text-left">
@@ -85,8 +103,8 @@ export function CollapsibleFilters({
   }
 
   return (
-    <div className="space-y-3">
-      {trigger}
+    <div className={cn("space-y-3", className)}>
+      {toolbar}
       {open ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">{children}</div>
       ) : null}

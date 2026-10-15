@@ -39,8 +39,8 @@ const localServer = {
 };
 
 const config: CapacitorConfig = {
-  appId: "com.novend.pos",
-  appName: "Novend POS",
+  appId: "com.novend.millies",
+  appName: "Millie's Supermarket",
   webDir: "www",
   server: liveReload
     ? {
@@ -52,15 +52,15 @@ const config: CapacitorConfig = {
     : localServer,
   android: {
     allowMixedContent: liveReload,
-    appendUserAgent: "NovendCapacitor/1.0",
+    appendUserAgent: "MilliesCapacitor/1.0",
   },
   ios: {
-    appendUserAgent: "NovendCapacitor/1.0",
+    appendUserAgent: "MilliesCapacitor/1.0",
   },
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
-      backgroundColor: "#0B1F33",
+      backgroundColor: "#012561",
     },
   },
 };

@@ -191,28 +191,35 @@ export function ProductsView() {
 
       <PlanLimitNotice resource="products" />
 
-      <div data-tour="products-search" className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <BarcodeSearchField
-          value={search}
-          onChange={setSearch}
-          placeholder="Search products or scan barcode…"
-          listenHid={!open}
-        />
-        {isAdmin ? (
-          <BranchFilter
-            branches={branches}
-            value={branchFilter}
-            onChange={setBranchFilter}
-            allowAll
+      <div
+        data-tour="products-search"
+        className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
+      >
+        <div className="min-w-0 w-full flex-1 sm:max-w-md">
+          <BarcodeSearchField
+            value={search}
+            onChange={setSearch}
+            placeholder="Search products or scan barcode…"
+            listenHid={!open}
           />
-        ) : branchName ? (
-          <BranchFilter
-            branches={branches}
-            value={myBranchId}
-            onChange={() => undefined}
-            lockedLabel={branchName}
-          />
-        ) : null}
+        </div>
+        <div className="flex w-full shrink-0 justify-end sm:w-auto">
+          {isAdmin ? (
+            <BranchFilter
+              branches={branches}
+              value={branchFilter}
+              onChange={setBranchFilter}
+              allowAll
+            />
+          ) : branchName ? (
+            <BranchFilter
+              branches={branches}
+              value={myBranchId}
+              onChange={() => undefined}
+              lockedLabel={branchName}
+            />
+          ) : null}
+        </div>
       </div>
 
       <Card data-tour="products-list">

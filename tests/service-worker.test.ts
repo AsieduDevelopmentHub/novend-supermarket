@@ -129,8 +129,9 @@ describe("boot health probe", () => {
     );
   });
 
-  it("Electron offline-boot defaults to the production POS host", () => {
-    expect(electronBoot).toContain("https://dashboard.novendpos.app");
+  it("Electron offline-boot defaults to local Millie's loopback (no hosted Novend URL)", () => {
+    expect(electronBoot).toContain("http://127.0.0.1:3737");
+    expect(electronBoot).not.toContain("https://dashboard.novendpos.app");
     expect(electronBoot).not.toContain(
       'params.get("appUrl") || "https://novend-pos.vercel.app"',
     );

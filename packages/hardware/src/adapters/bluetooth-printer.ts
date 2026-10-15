@@ -263,7 +263,7 @@ export async function bluetoothTestPrint(paperWidthMm: 58 | 80): Promise<Hardwar
   const lines = [
     "\x1b\x40",
     "\x1b\x61\x01",
-    "Novend POS\n",
+    "Millie's Supermarket\n",
     "Bluetooth test print\n",
     `${paperWidthMm}mm paper\n`,
     new Date().toLocaleString(),

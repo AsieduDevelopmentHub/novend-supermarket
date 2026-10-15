@@ -228,7 +228,7 @@ function CustomerDisplayPanelContent({
         <Alert variant="destructive">
           <AlertTitle>Desktop app update required</AlertTitle>
           <AlertDescription>
-            Customer display needs Novend POS desktop v0.3.19 or newer. Open Settings → This device
+            Customer display needs Millie&apos;s Supermarket desktop v0.3.19 or newer. Open Settings → This device
             → Updates, install the latest release, then restart the app.
           </AlertDescription>
         </Alert>

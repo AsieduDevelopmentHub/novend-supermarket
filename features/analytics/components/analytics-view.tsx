@@ -4,7 +4,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  type ComponentProps,
   type Dispatch,
   type SetStateAction,
 } from "react";
@@ -321,7 +320,7 @@ export function AnalyticsView() {
     <div className="space-y-6">
       <PageHeader
         title="Analytics"
-        description="Financial performance, expenses, and profit & loss."
+        description="Financial performance, expenses, and profit &amp; loss."
         compactActions={[
           {
             key: "print",
@@ -341,10 +340,53 @@ export function AnalyticsView() {
           },
         ]}
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full min-w-0 flex-wrap items-end justify-end gap-2 sm:w-auto">
+            <PeriodFilter
+              inline
+              preset={filters.preset}
+              start={start}
+              end={end}
+              onPresetChange={(preset) =>
+                setFilters((current) => ({
+                  ...current,
+                  preset,
+                  granularity: recommendedGranularity(preset),
+                }))
+              }
+              onCustomRangeChange={(next) =>
+                setFilters((current) => ({
+                  ...current,
+                  preset: "custom",
+                  customStart: next.start,
+                  customEnd: next.end,
+                }))
+              }
+              className="min-w-0 shrink-0"
+            />
+            {!SINGLE_STORE && isAdmin ? (
+              <BranchFilter
+                inline
+                branches={branches}
+                value={branchFilter}
+                onChange={(next) =>
+                  setFilters((current) => ({ ...current, branchFilter: String(next) }))
+                }
+                allowAll
+                className="min-w-0 shrink-0"
+              />
+            ) : !SINGLE_STORE && isManager && branchName ? (
+              <BranchFilter
+                inline
+                branches={branches}
+                value={myBranchId}
+                onChange={() => undefined}
+                lockedLabel={branchName}
+                className="min-w-0 shrink-0"
+              />
+            ) : null}
             <Button type="button" variant="outline" disabled={!summary} onClick={printReport}>
               <Printer className="h-4 w-4" />
-              Print P&L
+              Print P&amp;L
             </Button>
             <ExportMenu
               table={exportTable}
@@ -383,20 +425,11 @@ export function AnalyticsView() {
             <TabsList className="h-10 w-fit shrink-0 self-start sm:self-center">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="expenses">Expenses</TabsTrigger>
-              <TabsTrigger value="pnl">P&L report</TabsTrigger>
+              <TabsTrigger value="pnl">P&amp;L report</TabsTrigger>
             </TabsList>
             <AnalyticsToolbar
-              filters={filters}
-              setFilters={setFilters}
-              start={start}
-              end={end}
               granularity={granularity}
-              branches={branches}
-              branchFilter={branchFilter}
-              myBranchId={myBranchId}
-              branchName={branchName}
-              isAdmin={isAdmin}
-              isManager={isManager}
+              setFilters={setFilters}
             />
           </div>
 
@@ -640,7 +673,7 @@ export function AnalyticsView() {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  Profit & loss · {start} → {end}
+                  Profit &amp; loss · {start} → {end}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
@@ -699,102 +732,30 @@ export function AnalyticsView() {
 }
 
 function AnalyticsToolbar({
-  filters,
   setFilters,
-  start,
-  end,
   granularity,
-  branches,
-  branchFilter,
-  myBranchId,
-  branchName,
-  isAdmin,
-  isManager,
 }: {
-  filters: AnalyticsFilterPreferences;
   setFilters: Dispatch<SetStateAction<AnalyticsFilterPreferences>>;
-  start: string;
-  end: string;
   granularity: Granularity;
-  branches: ComponentProps<typeof BranchFilter>["branches"];
-  branchFilter: Id<"branches"> | "all";
-  myBranchId: Id<"branches"> | null;
-  branchName: string | null;
-  isAdmin: boolean;
-  isManager: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-end justify-end gap-2">
-      <Card className="w-fit shadow-sm">
-        <CardContent className="flex flex-wrap items-end gap-3 p-3">
-          <PeriodFilter
-            preset={filters.preset}
-            start={start}
-            end={end}
-            onPresetChange={(preset) =>
-              setFilters((current) => ({
-                ...current,
-                preset,
-                granularity: recommendedGranularity(preset),
-              }))
-            }
-            onCustomRangeChange={(next) =>
-              setFilters((current) => ({
-                ...current,
-                preset: "custom",
-                customStart: next.start,
-                customEnd: next.end,
-              }))
-            }
-          />
-        </CardContent>
-      </Card>
-      {!SINGLE_STORE && isAdmin ? (
-        <Card className="w-fit shadow-sm">
-          <CardContent className="p-3">
-            <BranchFilter
-              branches={branches}
-              value={branchFilter}
-              onChange={(next) =>
-                setFilters((current) => ({ ...current, branchFilter: String(next) }))
-              }
-              allowAll
-            />
-          </CardContent>
-        </Card>
-      ) : !SINGLE_STORE && isManager && branchName ? (
-        <Card className="w-fit shadow-sm">
-          <CardContent className="p-3">
-            <BranchFilter
-              branches={branches}
-              value={myBranchId}
-              onChange={() => undefined}
-              lockedLabel={branchName}
-            />
-          </CardContent>
-        </Card>
-      ) : null}
-      <Card className="w-fit shadow-sm">
-        <CardContent className="space-y-1 p-3">
-          <p className="text-muted-foreground text-xs">Trend</p>
-          <SearchableSelect
-            options={[
-              { value: "day", label: "Daily" },
-              { value: "week", label: "Weekly" },
-              { value: "month", label: "Monthly" },
-              { value: "year", label: "Yearly" },
-            ]}
-            value={granularity}
-            onValueChange={(value) =>
-              setFilters((current) => ({ ...current, granularity: value as Granularity }))
-            }
-            placeholder="Trend"
-            searchPlaceholder="Search trends…"
-            emptyMessage="No trend found."
-            triggerClassName="h-10 w-[140px] sm:h-9"
-          />
-        </CardContent>
-      </Card>
+      <SearchableSelect
+        options={[
+          { value: "day", label: "Daily" },
+          { value: "week", label: "Weekly" },
+          { value: "month", label: "Monthly" },
+          { value: "year", label: "Yearly" },
+        ]}
+        value={granularity}
+        onValueChange={(value) =>
+          setFilters((current) => ({ ...current, granularity: value as Granularity }))
+        }
+        placeholder="Trend"
+        searchPlaceholder="Search trends…"
+        emptyMessage="No trend found."
+        triggerClassName="h-10 w-[140px] sm:h-9"
+      />
     </div>
   );
 }

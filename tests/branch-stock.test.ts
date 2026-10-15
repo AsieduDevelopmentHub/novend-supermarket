@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   branchStockId,
   sellableFromBranchStock,
+  sellableQuantityForBranch,
   stockFieldsFromAggregate,
 } from "@/lib/offline/branch-stock";
 import type { MirroredBranchStock, MirroredProduct } from "@/lib/offline/types";
@@ -9,6 +10,38 @@ import type { MirroredBranchStock, MirroredProduct } from "@/lib/offline/types";
 describe("branch stock mirror", () => {
   it("builds stable branch stock ids", () => {
     expect(branchStockId("branch_a", "prod_1")).toBe("branch_a:prod_1");
+  });
+
+  it("heals zero branch rows from catalog qty on the profile branch", () => {
+    const product = {
+      tracksExpiry: false,
+      stockQuantity: 12,
+      sellableQuantity: 12,
+    } as MirroredProduct;
+    const stock = {
+      id: "main:p",
+      branchId: "main",
+      productId: "p",
+      quantity: 0,
+      sellableQuantity: 0,
+      updatedAt: 0,
+    } satisfies MirroredBranchStock;
+    expect(
+      sellableQuantityForBranch({
+        stock,
+        product,
+        branchId: "main",
+        profileBranchId: "main",
+      }),
+    ).toBe(12);
+    expect(
+      sellableQuantityForBranch({
+        stock,
+        product,
+        branchId: "other",
+        profileBranchId: "main",
+      }),
+    ).toBe(0);
   });
 
   it("uses sellable quantity for expiry-tracked products", () => {

@@ -106,7 +106,7 @@ function notifyDownloaded(window: BrowserWindow | null, version: string) {
     defaultId: 1,
     cancelId: 1,
     title: "Update ready",
-    message: `Novend POS ${version} is ready to install.`,
+    message: `Millie's Supermarket ${version} is ready to install.`,
     detail:
       "Finish any open sale first — the app will restart to complete the update. You can also install from Settings → Updates.",
   };

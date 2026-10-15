@@ -141,7 +141,9 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
         if (!cancelled) setLocal(rows ?? []);
       });
     };
-    const timer = window.setTimeout(load, 0);
+    // Debounce typed search so each keystroke does not re-scan the full Dexie catalog.
+    const delayMs = search.trim() ? 120 : 0;
+    const timer = window.setTimeout(load, delayMs);
     const unsub = subscribeReplicaChanged(load);
     return () => {
       cancelled = true;

@@ -9,11 +9,11 @@ UI (app/ + features/)
   → schema + business rules
   → database
 
-Desktop:
-  Electron loads https://novend-pos.vercel.app (baked appUrl)
-  → persist:novend session (SW + Dexie)
-  → preload bridge
-  → native hardware / auto-update
+Desktop (Millie's):
+  Electron starts bundled Next standalone on 127.0.0.1
+  → BrowserWindow loads http://127.0.0.1:<port>
+  → persist:millies session + Dexie
+  → preload bridge → native hardware
 ```
 
 ## Layers
@@ -25,15 +25,14 @@ Desktop:
 | Foundation UI     | `components/`           |
 | Shared utils      | `lib/`, `hooks/`        |
 | Print / OS bridge | `services/`             |
-| Backend           | `convex/`               |
+| Backend           | `convex/` (validators only at Millie's runtime) |
 | Config            | `config/`, `constants/` |
 
 ## Deployment targets
 
-- **Web** — browsers, tablets
-- **PWA** — iOS Home Screen install; cached shell + Dexie for offline selling
-- **Desktop** — Electron shell at `apps/desktop`; first launch needs the hosted app, then offline from cache + Dexie
-- **Android** — Capacitor shell at `apps/mobile`; same hosted Next app + `@novend/hardware`. See `CAPACITOR_MOBILE.md`.
+- **Web** — browsers, tablets (local `pnpm dev` / optional deploy)
+- **Desktop** — Electron at `apps/desktop`; packs Next `output: "standalone"` and serves it on loopback (no hosted Novend URL)
+- **Android** — Capacitor shell at `apps/mobile`. See `CAPACITOR_MOBILE.md`.
 
 Hardware access for all targets goes through `packages/hardware` (`@novend/hardware`).
 
@@ -41,14 +40,10 @@ Hardware access for all targets goes through `packages/hardware` (`@novend/hardw
 
 ```text
 Cashier UI
-  → Dexie (paint + offline writes)
-  → Outbox (operation events)
-  → Convex (authz, validation, commit)
-  → Dexie mirror refresh
+  → Dexie (authority when FULLY_OFFLINE)
 ```
 
-Convex is the source of truth for committed business state.
-Dexie is the operational cache. See `OFFLINE_SYNC.md`, `MULTI_TENANT.md`, and `DESKTOP_PLATFORM.md`.
+Millie's: Dexie is the source of truth. See `MILLIES_OVERVIEW.md`, `OFFLINE_SYNC.md`, and `DESKTOP_PLATFORM.md`.
 
 ## Configurable capabilities (future / in design)
 

@@ -111,6 +111,8 @@ type SalesProductCatalogProps = {
   loading: boolean;
   display: SalesProductDisplay;
   onAddToCart: (product: CatalogProduct) => void;
+  /** When set, empty state reflects search rather than an empty catalog. */
+  searchQuery?: string;
 };
 
 export function SalesProductCatalog({
@@ -118,28 +120,34 @@ export function SalesProductCatalog({
   loading,
   display,
   onAddToCart,
+  searchQuery = "",
 }: SalesProductCatalogProps) {
   const gridTemplate = productDisplayGridTemplate(display);
   const { isAdmin, isManager } = usePermissions();
   const canAddProducts = isAdmin || isManager;
+  const searching = Boolean(searchQuery.trim());
 
   return (
     <div className="space-y-3">
-      <h2 className="text-sm font-semibold tracking-tight">Quick Products</h2>
+      <h2 className="text-sm font-semibold tracking-tight">
+        {searching ? "Search results" : "Quick Products"}
+      </h2>
 
       {loading ? (
-        <LoadingState label="Loading products…" />
+        <LoadingState label={searching ? "Searching products…" : "Loading products…"} />
       ) : products.length === 0 ? (
         <EmptyState
           icon={Package}
-          title="No products yet"
+          title={searching ? "No matching products" : "No products yet"}
           description={
-            canAddProducts
-              ? "Add products to your catalog, then sell them here."
-              : "Ask an administrator to add products to the catalog."
+            searching
+              ? "No in-stock products match that name, SKU, or barcode. Try a different search."
+              : canAddProducts
+                ? "Add products to your catalog, then sell them here."
+                : "Ask an administrator to add products to the catalog."
           }
           action={
-            canAddProducts ? (
+            !searching && canAddProducts ? (
               <Button asChild>
                 <Link href="/products">Add product</Link>
               </Button>

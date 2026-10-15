@@ -21,6 +21,33 @@ export function sellableFromBranchStock(
   return stock.sellableQuantity ?? stock.quantity;
 }
 
+/**
+ * Sellable qty for a branch, with single-store heal:
+ * a zero `branchStock` row can lag behind product-form stock edits that only
+ * updated the catalog row — Sales search then looked empty for those products.
+ */
+export function sellableQuantityForBranch(args: {
+  stock: MirroredBranchStock | undefined;
+  product: Pick<MirroredProduct, "tracksExpiry" | "stockQuantity" | "sellableQuantity">;
+  branchId: string;
+  profileBranchId: string | null | undefined;
+}): number {
+  const { stock, product, branchId, profileBranchId } = args;
+  if (stock) {
+    const fromBranch = sellableFromBranchStock(stock, product);
+    if (fromBranch > 0) return fromBranch;
+    if (profileBranchId && profileBranchId === branchId) {
+      const catalogQty = product.sellableQuantity ?? product.stockQuantity ?? 0;
+      if (catalogQty > 0) return catalogQty;
+    }
+    return fromBranch;
+  }
+  if (profileBranchId && profileBranchId === branchId) {
+    return product.sellableQuantity ?? product.stockQuantity ?? 0;
+  }
+  return product.sellableQuantity ?? product.stockQuantity ?? 0;
+}
+
 /** Mirrors Convex resolveBranchFilter for offline list/detail queries. */
 export async function resolveMirrorBranchFilter(
   db: NovendOfflineDb,
@@ -146,13 +173,13 @@ export async function getSellableQuantity(
   const row = await db.branchStock.get(branchStockId(branchId, productId));
   const catalog = product ?? (await db.products.get(productId));
   if (!catalog || catalog.status !== "active") return 0;
-  if (row) return sellableFromBranchStock(row, catalog);
-
   const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
-  if (profileBranchId && profileBranchId === branchId) {
-    return catalog.sellableQuantity ?? catalog.stockQuantity;
-  }
-  return 0;
+  return sellableQuantityForBranch({
+    stock: row,
+    product: catalog,
+    branchId,
+    profileBranchId,
+  });
 }
 
 export async function applyLocalBranchStockChange(
@@ -168,8 +195,20 @@ export async function applyLocalBranchStockChange(
   const id = branchStockId(branchId, productId);
   const existing = await db.branchStock.get(id);
   if (existing) {
-    const nextQuantity = existing.quantity + quantityChange;
-    const nextSellable = (existing.sellableQuantity ?? existing.quantity) + quantityChange;
+    const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
+    let baseQuantity = existing.quantity;
+    let baseSellable = existing.sellableQuantity ?? existing.quantity;
+    // Heal stale zero branch rows so product-form stock remains sellable.
+    if (
+      baseQuantity <= 0 &&
+      profileBranchId === branchId &&
+      (catalog.sellableQuantity ?? catalog.stockQuantity) > 0
+    ) {
+      baseQuantity = catalog.stockQuantity;
+      baseSellable = catalog.sellableQuantity ?? catalog.stockQuantity;
+    }
+    const nextQuantity = baseQuantity + quantityChange;
+    const nextSellable = baseSellable + quantityChange;
     if (nextQuantity < 0 || nextSellable < 0) {
       throw new Error("Insufficient stock for this branch");
     }

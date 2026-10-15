@@ -37,7 +37,7 @@ import { BranchFilter } from "@/components/filters/branch-filter";
 import { CollapsibleFilters } from "@/components/filters/collapsible-filters";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
-import { useCategoriesList, useInventoryList, useBranchesList } from "@/hooks/use-offline-lists";
+import { useInventoryList, useBranchesList } from "@/hooks/use-offline-lists";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
 import { expiryAlertQuantity, formatExpiryDate } from "@/lib/expiry";
 import { signedStockDelta } from "@/lib/quantity";
@@ -87,7 +87,6 @@ function InventoryViewInner() {
   const expiryOnly = filter === "expiry";
   const stockFilter = lowOnly ? "low" : expiryOnly ? "expiry" : "all";
   const [search, setSearch] = useState("");
-  const [categoryId, setCategoryId] = useState<string>("all");
   /** Admin override; default `all` = organization-wide stock totals. */
   const [branchOverride, setBranchOverride] = useState<Id<"branches"> | "all">(() =>
     branchParam && branchParam !== "all" ? (branchParam as Id<"branches">) : "all",
@@ -175,7 +174,6 @@ function InventoryViewInner() {
 
   const branches = useBranchesList(false);
   const transferBranches = branches;
-  const categories = useCategoriesList();
 
   const branchFilter = isAdmin ? branchOverride : myBranchId;
 
@@ -193,7 +191,6 @@ function InventoryViewInner() {
 
   const { rows } = useInventoryList({
     search,
-    categoryId: categoryId !== "all" ? (categoryId as Id<"categories">) : undefined,
     branchId: listBranchId,
   });
 
@@ -270,7 +267,7 @@ function InventoryViewInner() {
     total,
   } = useClientPagedRows(
     visibleRows,
-    `${search}|${categoryId}|${String(listBranchId)}|${lowOnly}|${expiryOnly}`,
+    `${search}|${String(listBranchId)}|${lowOnly}|${expiryOnly}`,
   );
 
   const selected = useMemo(
@@ -514,58 +511,43 @@ function InventoryViewInner() {
         </div>
       ) : null}
 
-      <div data-tour="inventory-filters" className="space-y-3">
-        <BarcodeSearchField
-          value={search}
-          onChange={setSearch}
-          placeholder="Search inventory or scan barcode…"
-          listenHid={!adjustId && !transferOpen}
-        />
-        <CollapsibleFilters
-          defaultOpen={stockFilter !== "all"}
-          activeCount={
-            (categoryId !== "all" ? 1 : 0) +
-            (isAdmin && branchOverride !== "all" ? 1 : 0) +
-            (stockFilter !== "all" ? 1 : 0)
-          }
-          onReset={() => {
-            setCategoryId("all");
-            if (isAdmin) setBranchOverride("all");
-            replaceInventoryQuery({ filter: null, branch: null });
-          }}
-        >
-          <Select
-            value={stockFilter}
-            onValueChange={(value) => {
-              replaceInventoryQuery({
-                filter: value === "low" || value === "expiry" ? value : null,
-              });
+      <div data-tour="inventory-filters">
+        {isAdmin ? (
+          <CollapsibleFilters
+            leading={
+              <BarcodeSearchField
+                value={search}
+                onChange={setSearch}
+                placeholder="Search inventory or scan barcode…"
+                listenHid={!adjustId && !transferOpen}
+              />
+            }
+            defaultOpen={stockFilter !== "all"}
+            activeCount={
+              (branchOverride !== "all" ? 1 : 0) + (stockFilter !== "all" ? 1 : 0)
+            }
+            onReset={() => {
+              setBranchOverride("all");
+              replaceInventoryQuery({ filter: null, branch: null });
             }}
           >
-            <SelectTrigger className="min-h-11 w-full sm:w-48" aria-label="Stock status">
-              <SelectValue placeholder="Stock status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All stock</SelectItem>
-              <SelectItem value="low">Low stock</SelectItem>
-              <SelectItem value="expiry">Expiring / expired</SelectItem>
-            </SelectContent>
-          </Select>
-          <SearchableSelect
-            className="w-full sm:w-56"
-            options={[
-              { value: "all", label: "All categories" },
-              ...(categories ?? []).map((category) => ({
-                value: category._id,
-                label: category.name,
-              })),
-            ]}
-            value={categoryId}
-            onValueChange={setCategoryId}
-            placeholder="Category"
-            searchPlaceholder="Search categories…"
-          />
-          {isAdmin ? (
+            <Select
+              value={stockFilter}
+              onValueChange={(value) => {
+                replaceInventoryQuery({
+                  filter: value === "low" || value === "expiry" ? value : null,
+                });
+              }}
+            >
+              <SelectTrigger className="min-h-11 w-full sm:w-48" aria-label="Stock status">
+                <SelectValue placeholder="Stock status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All stock</SelectItem>
+                <SelectItem value="low">Low stock</SelectItem>
+                <SelectItem value="expiry">Expiring / expired</SelectItem>
+              </SelectContent>
+            </Select>
             <BranchFilter
               branches={branches}
               value={branchFilter}
@@ -577,16 +559,47 @@ function InventoryViewInner() {
               allowAll
               className="w-full sm:w-auto"
             />
-          ) : branchName ? (
-            <BranchFilter
-              branches={branches}
-              value={myBranchId}
-              onChange={() => undefined}
-              lockedLabel={branchName}
-              className="w-full sm:w-auto"
-            />
-          ) : null}
-        </CollapsibleFilters>
+          </CollapsibleFilters>
+        ) : (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0 w-full flex-1 sm:max-w-md">
+              <BarcodeSearchField
+                value={search}
+                onChange={setSearch}
+                placeholder="Search inventory or scan barcode…"
+                listenHid={!adjustId && !transferOpen}
+              />
+            </div>
+            <div className="flex w-full shrink-0 flex-wrap items-end justify-end gap-2 sm:w-auto">
+              <Select
+                value={stockFilter}
+                onValueChange={(value) => {
+                  replaceInventoryQuery({
+                    filter: value === "low" || value === "expiry" ? value : null,
+                  });
+                }}
+              >
+                <SelectTrigger className="min-h-11 w-full sm:w-48" aria-label="Stock status">
+                  <SelectValue placeholder="Stock status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All stock</SelectItem>
+                  <SelectItem value="low">Low stock</SelectItem>
+                  <SelectItem value="expiry">Expiring / expired</SelectItem>
+                </SelectContent>
+              </Select>
+              {branchName ? (
+                <BranchFilter
+                  branches={branches}
+                  value={myBranchId}
+                  onChange={() => undefined}
+                  lockedLabel={branchName}
+                  className="w-full sm:w-auto"
+                />
+              ) : null}
+            </div>
+          </div>
+        )}
       </div>
 
       <Card data-tour="inventory-summary">

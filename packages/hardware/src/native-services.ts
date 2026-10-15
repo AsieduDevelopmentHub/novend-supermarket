@@ -16,7 +16,10 @@ import {
 } from "./adapters/notification-prefs";
 
 function unsupported<T = void>(feature = "This feature"): HardwareResult<T> {
-  return { ok: false, message: `${feature} is only available in the Novend mobile app` };
+  return {
+    ok: false,
+    message: `${feature} is only available in the Millie's Supermarket mobile app`,
+  };
 }
 
 /** Cap plugins stay out of the web/Electron module graph until native runtime. */
@@ -198,7 +201,7 @@ export const appServices = {
       return {
         ok: true,
         data: {
-          name: "Novend POS",
+          name: "Millie's Supermarket",
           id: "web",
           build: "web",
           version: "0.2.0",

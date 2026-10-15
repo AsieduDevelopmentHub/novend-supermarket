@@ -39,7 +39,8 @@ export function createWebAdapters(): HardwareAdapters {
       async discoverPrinters() {
         return {
           ok: false,
-          message: "Open Settings in the Novend POS desktop app to discover printers",
+          message:
+            "Open Settings in the Millie's Supermarket desktop app to discover printers",
           data: { printers: [], suggested: null },
         };
       },

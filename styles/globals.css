@@ -4180,3 +4180,74 @@ button.landing-feature-frame {
     0 10px 32px color-mix(in oklab, var(--primary) 65%, transparent),
     0 0 0 1px color-mix(in oklab, var(--primary) 55%, transparent);
 }
+
+/* Millie's / login micro-motion — subtle entrance + plain brand shimmer */
+@keyframes login-enter-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes login-enter-card {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes login-plain-shimmer {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateX(-8%);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateX(8%);
+  }
+}
+
+.login-enter-card {
+  animation: login-enter-card 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login-enter-form {
+  animation: login-enter-rise 480ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+}
+
+.login-enter-brand {
+  animation: login-enter-rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login-enter-copy {
+  animation: login-enter-rise 560ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
+}
+
+.login-plain-shimmer {
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    color-mix(in oklab, var(--primary) 22%, transparent) 42%,
+    transparent 72%
+  );
+  animation: login-plain-shimmer 7.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-enter-card,
+  .login-enter-form,
+  .login-enter-brand,
+  .login-enter-copy,
+  .login-plain-shimmer {
+    animation: none;
+  }
+}

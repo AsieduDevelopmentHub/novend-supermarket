@@ -1,4 +1,4 @@
-package com.novend.pos;
+package com.novend.millies;
 
 import android.app.Activity;
 import android.content.Intent;

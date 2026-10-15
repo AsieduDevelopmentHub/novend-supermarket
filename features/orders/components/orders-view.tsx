@@ -216,6 +216,11 @@ function useOpenOperationsList(options: {
 export function OrdersView() {
   const { isAdmin, isManager, isCashier, branchId: myBranchId, branchName } = usePermissions();
   const { user } = useCurrentUser();
+  const { hasCapability } = useBusinessCapabilities();
+  const hospitalityOrders =
+    hasCapability("tables_orders") ||
+    hasCapability("rooms_folio") ||
+    hasCapability("reservations");
   const searchParams = useSearchParams();
   const [filters, setFilters] = useState(() => {
     const defaults = defaultOrdersFilters();
@@ -230,6 +235,12 @@ export function OrdersView() {
   const branches = useBranchesList(false);
   const staff = useUsersList("", isAdmin || isManager);
 
+  useEffect(() => {
+    if (hospitalityOrders) return;
+    if (filters.activityTab === "completed") return;
+    setFilters((prev) => ({ ...prev, activityTab: "completed" }));
+  }, [hospitalityOrders, filters.activityTab]);
+
   const dateRange = useMemo(
     () => rangeForDatePreset(filters.datePreset, filters.customStart, filters.customEnd),
     [filters.datePreset, filters.customStart, filters.customEnd],
@@ -240,8 +251,12 @@ export function OrdersView() {
     minTotal !== undefined && maxTotal !== undefined && maxTotal < minTotal;
 
   const showCompleted =
-    filters.activityTab === "all" || filters.activityTab === "completed";
-  const showOpen = filters.activityTab === "all" || filters.activityTab === "open";
+    !hospitalityOrders ||
+    filters.activityTab === "all" ||
+    filters.activityTab === "completed";
+  const showOpen =
+    hospitalityOrders &&
+    (filters.activityTab === "all" || filters.activityTab === "open");
 
   const { orders } = useOrdersList({
     search: filters.search,
@@ -331,7 +346,11 @@ export function OrdersView() {
     <div className="space-y-6">
       <PageHeader
         title="Orders"
-        description="Open table checks, room folios, and reservations alongside completed sales."
+        description={
+          hospitalityOrders
+            ? "Open table checks, room folios, and reservations alongside completed sales."
+            : "Completed sales and receipts for this store."
+        }
         compactActions={[{ key: "sale", label: "New Sale", icon: Plus, href: "/sales" }]}
         actions={
           <Button asChild>
@@ -340,38 +359,43 @@ export function OrdersView() {
         }
       />
 
-      <Tabs
-        value={filters.activityTab}
-        onValueChange={(value) =>
-          setFilters((prev) => ({ ...prev, activityTab: value as OrdersActivityTab }))
-        }
-      >
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
-          {ORDERS_ACTIVITY_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value} className="flex-1 sm:flex-none">
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      {hospitalityOrders ? (
+        <Tabs
+          value={filters.activityTab}
+          onValueChange={(value) =>
+            setFilters((prev) => ({ ...prev, activityTab: value as OrdersActivityTab }))
+          }
+        >
+          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+            {ORDERS_ACTIVITY_TABS.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} className="flex-1 sm:flex-none">
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      ) : null}
 
       <Card>
-        <CardContent className="flex flex-col gap-3 p-4">
-          <div className="w-full space-y-1 sm:max-w-md">
-            <Label htmlFor="orders-search">Search</Label>
-            <Input
-              id="orders-search"
-              value={filters.search}
-              onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-              placeholder={
-                showOpen && !showCompleted
-                  ? "Table, room, guest, or reservation…"
-                  : "Invoice, customer, cashier, table, or room…"
-              }
-            />
-          </div>
-
+        <CardContent className="p-4">
           <CollapsibleFilters
+            leading={
+              <div className="space-y-1">
+                <Label htmlFor="orders-search">Search</Label>
+                <Input
+                  id="orders-search"
+                  value={filters.search}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+                  placeholder={
+                    showOpen && !showCompleted
+                      ? "Table, room, guest, or reservation…"
+                      : hospitalityOrders
+                        ? "Invoice, customer, cashier, table, or room…"
+                        : "Invoice, customer, or cashier…"
+                  }
+                />
+              </div>
+            }
             activeCount={
               [
                 filters.branchId !== "all",

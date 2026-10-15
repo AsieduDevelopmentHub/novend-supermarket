@@ -58,6 +58,7 @@ describe("new industry packs", () => {
     expect(INDUSTRY_PACKS.hardware).toContain("serial_tracking");
     expect(INDUSTRY_PACKS.stationery).toContain("product_variants");
     expect(INDUSTRY_PACKS.supermarket).toContain("sell_by_weight");
+    expect(INDUSTRY_PACKS.supermarket).not.toContain("multi_unit_pricing");
   });
 
   it("keeps pharmacy lot_expiry and custom_fields", () => {

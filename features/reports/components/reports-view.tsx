@@ -213,26 +213,12 @@ export function ReportsView() {
         title="Reports"
         description="Sales performance over a selected period."
         actions={
-          <div data-tour="reports-export">
-            <ExportMenu
-              table={exportTable}
-              capabilities={capabilities}
-              planName={planName}
-              disabled={!report}
-              onExported={(format, count) => {
-                void recordExport({ kind: "reports", format, rowCount: count }).catch(
-                  () => undefined,
-                );
-              }}
-            />
-          </div>
-        }
-      />
-
-      <div className="flex flex-wrap items-end justify-end gap-2" data-tour="reports-range">
-        <Card className="w-fit shadow-sm">
-          <CardContent className="flex flex-wrap items-end gap-3 p-3">
+          <div
+            className="flex w-full min-w-0 flex-wrap items-end justify-end gap-2 sm:w-auto"
+            data-tour="reports-range"
+          >
             <PeriodFilter
+              inline
               preset={filters.preset}
               start={start}
               end={end}
@@ -247,35 +233,45 @@ export function ReportsView() {
                   customEnd: next.end,
                 }))
               }
+              className="min-w-0 shrink-0"
             />
-          </CardContent>
-        </Card>
-        {!SINGLE_STORE && isAdmin ? (
-          <Card className="w-fit shadow-sm">
-            <CardContent className="p-3">
+            {!SINGLE_STORE && isAdmin ? (
               <BranchFilter
+                inline
                 branches={branches}
                 value={branchFilter}
                 onChange={(next) =>
                   setFilters((current) => ({ ...current, branchFilter: String(next) }))
                 }
                 allowAll
+                className="min-w-0 shrink-0"
               />
-            </CardContent>
-          </Card>
-        ) : !SINGLE_STORE && isManager && branchName ? (
-          <Card className="w-fit shadow-sm">
-            <CardContent className="p-3">
+            ) : !SINGLE_STORE && isManager && branchName ? (
               <BranchFilter
+                inline
                 branches={branches}
                 value={myBranchId}
                 onChange={() => undefined}
                 lockedLabel={branchName}
+                className="min-w-0 shrink-0"
               />
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
+            ) : null}
+            <div data-tour="reports-export">
+              <ExportMenu
+                table={exportTable}
+                capabilities={capabilities}
+                planName={planName}
+                disabled={!report}
+                onExported={(format, count) => {
+                  void recordExport({ kind: "reports", format, rowCount: count }).catch(
+                    () => undefined,
+                  );
+                }}
+              />
+            </div>
+          </div>
+        }
+      />
 
       {rangeError ? <ErrorState message={rangeError} /> : null}
 

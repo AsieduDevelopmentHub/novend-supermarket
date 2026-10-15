@@ -126,12 +126,18 @@ export function sanitizeBarcode(value: string | undefined | null): string | unde
 }
 
 export function productMatchesLookup(
-  product: { name: string; sku: string; barcode?: string },
+  product: {
+    name: string;
+    sku: string;
+    barcode?: string | null;
+    variantLabel?: string | null;
+  },
   search: string,
 ): boolean {
   const q = search.trim().toLowerCase();
   if (!q) return true;
   if (product.name.toLowerCase().includes(q)) return true;
+  if ((product.variantLabel ?? "").toLowerCase().includes(q)) return true;
   if (product.sku.toLowerCase().includes(q)) return true;
   return (product.barcode ?? "").toLowerCase().includes(q);
 }

@@ -25,8 +25,9 @@ import {
 import {
   branchStockMapForBranch,
   resolveCatalogBranchId,
-  sellableFromBranchStock,
+  sellableQuantityForBranch,
 } from "./branch-stock";
+import { catalogSearchRank, salesCatalogResultLimit } from "@/constants/sales-catalog";
 import { saveShellProfile } from "./shell-profile";
 import type { OrganizationBusinessConfiguration } from "@/convex/shared/businessCapabilities";
 import { DEFAULT_BUSINESS_CONFIGURATION } from "@/convex/shared/businessCapabilities";
@@ -491,31 +492,30 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
   const effectiveBranchId = await resolveCatalogBranchId(db, branchId);
   if (!effectiveBranchId) return [];
 
+  const query = search?.trim() ?? "";
+  // Always load the full active catalog, then filter — never search only the browse window.
   let products = await db.products
     .filter((p) => p.status === "active" && p.isVariantParent !== true)
     .toArray();
-  if (search?.trim()) {
-    products = products.filter((p) => productMatchesQuery(p, search));
+  if (query) {
+    products = products.filter((p) => productMatchesQuery(p, query));
   }
 
   const stockByProduct = await branchStockMapForBranch(db, effectiveBranchId);
   const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
   const businessConfig = await loadBusinessCapabilitiesCache();
+  const resultLimit = salesCatalogResultLimit(query);
 
-  return products
+  const rows = products
     .map((product) => {
       const stock = stockByProduct.get(product.id);
-      let stockQuantity: number;
-      let isExpiring = product.isExpiring;
-
-      if (stock) {
-        stockQuantity = sellableFromBranchStock(stock, product);
-        isExpiring = stock.isExpiring ?? product.isExpiring;
-      } else if (profileBranchId && profileBranchId === effectiveBranchId) {
-        stockQuantity = product.sellableQuantity ?? product.stockQuantity;
-      } else {
-        stockQuantity = 0;
-      }
+      const stockQuantity = sellableQuantityForBranch({
+        stock,
+        product,
+        branchId: effectiveBranchId,
+        profileBranchId,
+      });
+      const isExpiring = stock?.isExpiring ?? product.isExpiring;
 
       const displayName = product.variantLabel
         ? `${product.name} · ${product.variantLabel}`
@@ -540,9 +540,25 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
         isVariantParent: false,
       };
     })
-    .filter((p) => p.tracksInventory === false || p.stockQuantity > 0)
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .slice(0, 48);
+    // Browse: only sellable. Search: keep name matches even at 0 stock so cashiers can find them.
+    .filter((p) => {
+      if (p.tracksInventory === false) return true;
+      if (query) return true;
+      return p.stockQuantity > 0;
+    });
+
+  if (query) {
+    const q = query.toLowerCase();
+    rows.sort((a, b) => {
+      const rankDiff = catalogSearchRank(a, q) - catalogSearchRank(b, q);
+      if (rankDiff !== 0) return rankDiff;
+      return a.name.localeCompare(b.name);
+    });
+  } else {
+    rows.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  return resultLimit == null ? rows : rows.slice(0, resultLimit);
 }
 
 /** Exact SKU or dedicated barcode match for scanners. */
@@ -576,14 +592,12 @@ export async function findLocalProductsByBarcode(code: string, branchId?: string
   return products
     .map((product) => {
       const stock = stockByProduct.get(product.id);
-      let stockQuantity: number;
-      if (stock) {
-        stockQuantity = sellableFromBranchStock(stock, product);
-      } else if (profileBranchId && profileBranchId === effectiveBranchId) {
-        stockQuantity = product.sellableQuantity ?? product.stockQuantity;
-      } else {
-        stockQuantity = 0;
-      }
+      const stockQuantity = sellableQuantityForBranch({
+        stock,
+        product,
+        branchId: effectiveBranchId,
+        profileBranchId,
+      });
       const match = resolveBarcodeMatch(product, normalized);
       return {
         id: product.id,
@@ -608,7 +622,7 @@ export async function findLocalProductsByBarcode(code: string, branchId?: string
 /**
  * Branch sellable qty for one product — not search-scoped.
  * Sales cart checks must use this (or a session cache) because the POS catalog
- * is limited to ~48 search hits; cart lines fall out of that window and looked
+ * browse/search windows are capped; cart lines fall out of that window and looked
  * like Available: 0 after a few different products.
  */
 export async function getLocalProductAvailability(
@@ -627,16 +641,13 @@ export async function getLocalProductAvailability(
   const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
   const businessConfig = await loadBusinessCapabilitiesCache();
   const stock = stockByProduct.get(product.id);
-  let stockQuantity: number;
-  if (stock) {
-    stockQuantity = sellableFromBranchStock(stock, product);
-  } else if (profileBranchId && profileBranchId === effectiveBranchId) {
-    stockQuantity = product.sellableQuantity ?? product.stockQuantity;
-  } else {
-    stockQuantity = 0;
-  }
   return {
-    stockQuantity,
+    stockQuantity: sellableQuantityForBranch({
+      stock,
+      product,
+      branchId: effectiveBranchId,
+      profileBranchId,
+    }),
     tracksInventory: productTracksInventory(product, businessConfig),
   };
 }

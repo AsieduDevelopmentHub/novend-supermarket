@@ -194,7 +194,7 @@ export function SalesView() {
   const [cashierId, setCashierId] = useState<string | null>(null);
   /** Draft qty strings while editing — empty allowed until blur. */
   const [qtyDrafts, setQtyDrafts] = useState<Record<string, string>>({});
-  /** Last-known stock for products added this session — catalog is search-capped (~48). */
+  /** Last-known stock for products added this session — browse/search windows are capped. */
   const [stockHints, setStockHints] = useState<Record<string, CatalogStockHint>>({});
   const [barcodeMatches, setBarcodeMatches] = useState<{
     code: string;
@@ -625,8 +625,11 @@ export function SalesView() {
             matchedSellUnitKey: match.sellUnitKey,
           }];
         });
+      // Dexie barcode lookup is authoritative (full catalog + healed stock).
+      // Catalog window is a fallback for products not yet mirrored locally —
+      // iterate it first so localMatches overwrite and win on conflicts.
       const byId = new Map<string, BarcodeMatchProduct>();
-      for (const product of [...localMatches, ...catalogMatches]) {
+      for (const product of [...catalogMatches, ...localMatches]) {
         byId.set(product.id, {
           id: product.id,
           name: product.name,
@@ -1073,8 +1076,8 @@ export function SalesView() {
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
         <div className="min-w-0 space-y-4">
-          <div className="bg-background/95 supports-[backdrop-filter]:bg-background/90 border-border sticky top-0 z-20 -mx-1 flex flex-wrap items-end gap-2 border-b px-1 py-2.5 backdrop-blur">
-            <div className="flex max-w-lg min-w-0 flex-1 basis-full gap-2 sm:basis-auto">
+          <div className="bg-background/95 supports-[backdrop-filter]:bg-background/90 border-border sticky top-0 z-20 -mx-1 flex flex-col gap-3 border-b px-1 py-2.5 backdrop-blur sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex min-w-0 w-full max-w-lg flex-1 gap-2">
               <Input
                 data-tour="sales-search"
                 value={search}
@@ -1095,7 +1098,7 @@ export function SalesView() {
                 </Button>
               ) : null}
             </div>
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className="flex w-full shrink-0 flex-wrap items-end justify-end gap-2 sm:w-auto">
               <SalesProductDisplayControls
                 display={productDisplay}
                 onDisplayChange={setProductDisplay}
@@ -1105,32 +1108,33 @@ export function SalesView() {
                 cartHasItems={cart.length > 0}
                 onResume={onResume}
               />
+              {isAdmin ? (
+                <BranchFilter
+                  branches={branches}
+                  value={workingBranchId}
+                  onChange={changeBranch}
+                  allowAll={false}
+                  label="Selling from"
+                  className="min-w-0"
+                />
+              ) : branchName ? (
+                <BranchFilter
+                  branches={undefined}
+                  value={myBranchId}
+                  onChange={() => undefined}
+                  lockedLabel={branchName}
+                  label="Branch"
+                  className="min-w-0"
+                />
+              ) : null}
             </div>
-            {isAdmin ? (
-              <BranchFilter
-                branches={branches}
-                value={workingBranchId}
-                onChange={changeBranch}
-                allowAll={false}
-                label="Selling from"
-                className="min-w-0"
-              />
-            ) : branchName ? (
-              <BranchFilter
-                branches={undefined}
-                value={myBranchId}
-                onChange={() => undefined}
-                lockedLabel={branchName}
-                label="Branch"
-                className="min-w-0"
-              />
-            ) : null}
           </div>
           <SalesProductCatalog
             products={catalog}
             loading={catalogLoading}
             display={productDisplay}
             onAddToCart={addToCart}
+            searchQuery={search}
           />
         </div>
 

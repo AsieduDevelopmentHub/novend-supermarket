@@ -111,7 +111,7 @@ export function ScannerPanel() {
 
       if (!result.ok) {
         const fallback = isDesktopApp
-          ? "Could not find scanners. Restart Novend POS and try again."
+          ? "Could not find scanners. Restart Millie's Supermarket and try again."
           : "Could not refresh the scanner list. Try again.";
         toast.error(result.message ? toUserMessage(result.message, fallback) : fallback);
         return;
@@ -183,8 +183,8 @@ export function ScannerPanel() {
           <Info className="h-4 w-4" />
           <AlertTitle>Desktop connection starting</AlertTitle>
           <AlertDescription>
-            USB scanner discovery works best after Novend POS has fully started. Keyboard-wedge
-            scanning still works on the sales screen.
+            USB scanner discovery works best after Millie&apos;s Supermarket has fully started.
+            Keyboard-wedge scanning still works on the sales screen.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -196,7 +196,7 @@ export function ScannerPanel() {
               <CardTitle className="text-base">Connection status</CardTitle>
               <CardDescription>
                 {isDesktopApp
-                  ? "Barcode scanner settings for this Novend POS terminal."
+                  ? "Barcode scanner settings for this Millie's Supermarket terminal."
                   : "Barcode scanner settings for this browser or PWA session."}
               </CardDescription>
             </div>

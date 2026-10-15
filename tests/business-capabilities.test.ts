@@ -25,7 +25,6 @@ describe("businessCapabilities registry", () => {
   it("defaults to the supermarket pack", () => {
     expect(DEFAULT_BUSINESS_CONFIGURATION.industryProfile).toBe("supermarket");
     expect(DEFAULT_BUSINESS_CONFIGURATION.enabledCapabilities).toEqual([
-      "multi_unit_pricing",
       "lot_expiry",
       "sell_by_weight",
       "configurable_pos",
@@ -33,7 +32,7 @@ describe("businessCapabilities registry", () => {
     expect(DEFAULT_BUSINESS_CONFIGURATION.configurationVersion).toBe(
       BUSINESS_CAPABILITY_CONFIGURATION_VERSION,
     );
-    expect(hasBusinessCapability(DEFAULT_BUSINESS_CONFIGURATION, "multi_unit_pricing")).toBe(true);
+    expect(hasBusinessCapability(DEFAULT_BUSINESS_CONFIGURATION, "multi_unit_pricing")).toBe(false);
   });
 
   it("parses missing or invalid JSON as supermarket defaults", () => {

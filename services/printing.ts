@@ -12,7 +12,7 @@ import { sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 import { formatDateTime } from "@/lib/date";
 import { brandedDocumentName } from "@/lib/export-filenames";
 import { probePrintBridge, sendToPrintBridge } from "./print/bridge";
-import { buildEscPosReceipt, escPosToBase64 } from "./print/escpos";
+import { appendCashDrawerPulse, buildEscPosReceipt, escPosToBase64 } from "./print/escpos";
 import {
   loadTerminalPrinterConfig,
   resolvePaperWidthMm,
@@ -304,7 +304,9 @@ export async function printReceipt(
         savedPaperWidthMm: status.data?.paperWidthMm,
         templatePaperWidthMm: payload.template.paperWidthMm,
       });
-      const bytes = buildEscPosReceipt(payload, paperWidthMm);
+      const receiptBytes = buildEscPosReceipt(payload, paperWidthMm);
+      // Cap Bluetooth writes raw ESC/POS only — embed the drawer pulse in the payload.
+      const bytes = config.openCashDrawer ? appendCashDrawerPulse(receiptBytes) : receiptBytes;
       const defaultPrinter = await Hardware.printer.getDefaultPrinter();
       const result = await Hardware.printer.printReceipt({
         escposBase64: escPosToBase64(bytes),
@@ -313,7 +315,7 @@ export async function printReceipt(
         connectionType: defaultPrinter.data?.connectionType ?? "bluetooth",
         bluetoothDeviceId: defaultPrinter.data?.bluetoothDeviceId,
         paperWidthMm,
-        openCashDrawer: false,
+        openCashDrawer: config.openCashDrawer,
       });
       if (result.ok) {
         return { printed: true, reason: "native", copies: 1 };

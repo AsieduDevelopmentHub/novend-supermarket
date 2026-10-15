@@ -45,7 +45,7 @@ let hotplugRegistered = false;
 const statusListeners = new Set<(status: CustomerDisplayStatus) => void>();
 const displayListeners = new Set<(displays: DesktopDisplayInfo[]) => void>();
 
-function customerDisplayShellPath(): string {
+export function customerDisplayShellPath(): string {
   const candidates = [
     path.join(process.resourcesPath, "customer-display", "index.html"),
     path.resolve(__dirname, "..", "customer-display", "index.html"),

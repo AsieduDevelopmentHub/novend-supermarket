@@ -191,6 +191,20 @@ export function buildEscPosQr(data: string): Uint8Array {
   return new Uint8Array(bytes);
 }
 
+/** ESC/POS cash drawer kick (pin 2 — common default on thermal printers). */
+export function cashDrawerPulseBytes(): Uint8Array {
+  return new Uint8Array([ESC, 0x70, 0x00, 0x19, 0xfa]);
+}
+
+/** Append a drawer pulse after receipt bytes (Cap Bluetooth / when the bridge ignores the flag). */
+export function appendCashDrawerPulse(bytes: Uint8Array): Uint8Array {
+  const pulse = cashDrawerPulseBytes();
+  const out = new Uint8Array(bytes.length + pulse.length);
+  out.set(bytes, 0);
+  out.set(pulse, bytes.length);
+  return out;
+}
+
 export function escPosToBase64(bytes: Uint8Array): string {
   let binary = "";
   for (const b of bytes) binary += String.fromCharCode(b);

@@ -2,12 +2,8 @@
   "name": "@novend/desktop",
   "version": "1.0.2",
   "private": true,
-  "description": "Novend POS desktop shell",
-  "homepage": "https://github.com/AsieduDevelopmentHub/novend-pos",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/AsieduDevelopmentHub/novend-pos.git"
-  },
+  "description": "Millie's Supermarket desktop shell",
+  "homepage": "https://www.novendpos.app",
   "author": {
     "name": "Asiedu Development Hub",
     "email": "support@novendpos.app"
@@ -38,10 +34,10 @@
     "typescript": "^5"
   },
   "build": {
-    "appId": "com.novend.pos",
-    "productName": "Novend POS",
+    "appId": "com.novend.millies",
+    "productName": "Millie's Supermarket",
     "npmRebuild": false,
-    "artifactName": "Novend-POS-${version}-${arch}.${ext}",
+    "artifactName": "Millies-Supermarket-${version}-${arch}.${ext}",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -60,21 +56,21 @@
         "to": "icon.ico"
       },
       {
-        "from": "offline-boot.html",
-        "to": "offline-boot.html"
-      },
-      {
         "from": "customer-display",
         "to": "customer-display"
       },
       {
         "from": "build/update-config.json",
         "to": "update-config.json"
+      },
+      {
+        "from": "resources/app-server",
+        "to": "app-server"
       }
     ],
     "win": {
       "icon": "build/icon.ico",
-      "executableName": "NovendPOS",
+      "executableName": "MilliesSupermarket",
       "target": [
         {
           "target": "nsis",
@@ -107,21 +103,13 @@
       "allowElevation": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "Novend POS",
+      "shortcutName": "Millie's Supermarket",
       "runAfterFinish": true,
-      "uninstallDisplayName": "Novend POS",
-      "artifactName": "Novend-POS-Setup-${version}.${ext}"
+      "uninstallDisplayName": "Millie's Supermarket",
+      "artifactName": "Millies-Supermarket-Setup-${version}.${ext}"
     },
     "releaseInfo": {
-      "releaseName": "Novend POS ${version}"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "AsieduDevelopmentHub",
-        "repo": "novend-pos",
-        "releaseType": "release"
-      }
-    ]
+      "releaseName": "Millie's Supermarket ${version}"
+    }
   }
 }

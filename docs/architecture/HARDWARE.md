@@ -107,7 +107,7 @@ filesystem copy so temporary camera URIs are not the only source of truth.
 
 ## Permissions
 
-Electron grants `media` on the `persist:novend` partition. Capacitor declares
+Electron grants `media` on the `persist:millies` partition. Capacitor declares
 camera, media, Bluetooth, notifications, and biometric permissions in the
 Android manifest. iOS usage strings are documented in `apps/mobile/ios/README.md`
 and applied when the iOS project is generated on macOS.

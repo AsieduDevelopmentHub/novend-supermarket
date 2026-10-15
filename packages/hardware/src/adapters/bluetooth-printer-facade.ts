@@ -11,7 +11,7 @@ function unsupportedBluetooth(): BluetoothPrinterControls {
   const unavailable = <T>(data?: T): HardwareResult<T> => ({
     ok: false,
     code: "unsupported",
-    message: "Bluetooth printing is only available in the Novend mobile app",
+    message: "Bluetooth printing is only available in the Millie's Supermarket mobile app",
     data,
   });
   return {
@@ -82,7 +82,7 @@ export async function printViaBluetoothSafe(request: PrintReceiptRequest): Promi
     return {
       ok: false,
       code: "unsupported",
-      message: "Bluetooth printing is only available in the Novend mobile app",
+      message: "Bluetooth printing is only available in the Millie's Supermarket mobile app",
     };
   }
   const mod = await import("./bluetooth-printer");
@@ -94,7 +94,7 @@ export async function bluetoothTestPrintSafe(paperWidthMm: 58 | 80): Promise<Har
     return {
       ok: false,
       code: "unsupported",
-      message: "Bluetooth printing is only available in the Novend mobile app",
+      message: "Bluetooth printing is only available in the Millie's Supermarket mobile app",
     };
   }
   const mod = await import("./bluetooth-printer");

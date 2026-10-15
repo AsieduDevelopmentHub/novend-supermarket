@@ -2,17 +2,27 @@ import { app } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 
-/** Public hosted web app Electron loads. Override with NOVEND_APP_URL at build or runtime. */
-export const DEFAULT_APP_URL = "https://dashboard.novendpos.app";
+/**
+ * Dev till UI — must match `pnpm dev` (`constants/dev-server.ts` → :3737).
+ * Next does not announce an alternate port to Electron; keep this fixed.
+ */
+export const DEV_APP_URL = "http://127.0.0.1:3737";
 
 export type DesktopPackagedConfig = {
+  /** Optional override only — Millie's packaged shell uses the local standalone server. */
   appUrl?: string;
   convexSiteUrl?: string;
   channel?: "stable" | "beta";
 };
 
+let runtimeAppOrigin: string | null = null;
+
 function stripSlash(value: string) {
   return value.replace(/\/$/, "");
+}
+
+export function setRuntimeAppOrigin(origin: string) {
+  runtimeAppOrigin = stripSlash(origin);
 }
 
 export function readPackagedConfig(): DesktopPackagedConfig | null {
@@ -26,22 +36,39 @@ export function readPackagedConfig(): DesktopPackagedConfig | null {
 }
 
 /**
- * Hosted Next.js origin for the renderer.
- * Packaged apps read the URL baked at build time. CI env vars are not present on cashiers' machines.
+ * Renderer origin for this Electron session.
+ * Millie's is fully offline: packaged builds use a loopback Next standalone server.
+ * Never falls back to a hosted Novend URL.
  */
 export function resolveAppUrl(): string {
+  if (runtimeAppOrigin) return runtimeAppOrigin;
+
   const fromEnv = process.env.NOVEND_APP_URL?.trim();
   if (fromEnv) return stripSlash(fromEnv);
+
   const unpackagedDev = !app.isPackaged && process.env.ELECTRON_DEV === "1";
   if (unpackagedDev) {
-    return stripSlash(process.env.ELECTRON_RENDERER_URL || "http://127.0.0.1:3000");
+    return stripSlash(process.env.ELECTRON_RENDERER_URL || DEV_APP_URL);
   }
-  const packaged = readPackagedConfig()?.appUrl?.trim();
-  if (packaged) return stripSlash(packaged);
-  return DEFAULT_APP_URL;
+
+  // Unpackaged without ELECTRON_DEV — still prefer local Next when developing.
+  if (!app.isPackaged) {
+    return stripSlash(process.env.ELECTRON_RENDERER_URL || DEV_APP_URL);
+  }
+
+  throw new Error(
+    "Local till origin is not ready. startLocalServer() must run before resolveAppUrl() in packaged builds.",
+  );
 }
 
-/** electron-updater generic feed base (appends latest.yml / latest-mac.yml / latest-linux.yml). */
+/** True when Electron should spawn the bundled Next standalone server. */
+export function shouldStartBundledServer(): boolean {
+  if (process.env.NOVEND_APP_URL?.trim()) return false;
+  if (!app.isPackaged && process.env.ELECTRON_DEV === "1") return false;
+  return true;
+}
+
+/** electron-updater generic feed base (optional — Millie's usually has none). */
 export function resolveUpdateFeedUrl(): string | null {
   const fromEnv = process.env.NOVEND_UPDATE_SITE_URL || process.env.CONVEX_SITE_URL;
   const packaged = readPackagedConfig();

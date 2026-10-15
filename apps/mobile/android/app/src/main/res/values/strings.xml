@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Novend POS</string>
-    <string name="title_activity_main">Novend POS</string>
-    <string name="package_name">com.novend.pos</string>
+    <string name="app_name">Millie's Supermarket</string>
+    <string name="title_activity_main">Millie's Supermarket</string>
+    <string name="package_name">com.novend.millies</string>
     <string name="custom_url_scheme">novend</string>
 </resources>

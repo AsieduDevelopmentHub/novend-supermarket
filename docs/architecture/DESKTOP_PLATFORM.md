@@ -1,77 +1,55 @@
-# Desktop platform (Electron)
+# Desktop platform (Electron) — Millie's Supermarket
 
-Version: 1.0.4
+Version: 2.0.0
 
 ## Purpose
 
-Ship Novend POS as a native desktop app while the Next.js web app remains the
-renderer. Convex is still the source of truth. Dexie is the local operational
-cache.
+Ship Millie's Supermarket as a native desktop till. The Next.js app is the
+renderer, but it is **bundled inside the installer** and served on loopback.
+There is no hosted Novend URL and no “connect once to cache” step.
 
-## Hosted origin
+## Local origin (required)
 
-Packaged Electron **must** load the production web app:
+Packaged Electron:
 
-**https://dashboard.novendpos.app**
+1. Main process starts Next `output: "standalone"` via `ELECTRON_RUN_AS_NODE`
+   (`apps/desktop/src/local-server.ts`).
+2. Server binds `127.0.0.1` on an ephemeral port.
+3. Window loads `http://127.0.0.1:<port>/login`.
+4. Session partition: `persist:millies`.
 
-`NOVEND_APP_URL` is a **build-time** override baked into
-`apps/desktop/build/update-config.json` (`appUrl`). GitHub Actions env vars are
-not present on cashiers’ machines. A runtime fallback of a made-up domain will
-fail DNS and show a connect-once screen forever.
+Dev:
 
-Resolution order:
+1. Run `pnpm dev` (Next fixed on `:3737` — see `constants/dev-server.ts`).
+2. Run `pnpm desktop:dev` (`ELECTRON_DEV=1` → `http://127.0.0.1:3737`).
 
-1. `NOVEND_APP_URL` (dev / explicit launch)
-2. Packaged `update-config.json` `appUrl`
-3. `https://dashboard.novendpos.app`
+Next does **not** tell Electron if it hopped ports; Millie's pins `:3737` for both.
+Optional override: `NOVEND_APP_URL` / `ELECTRON_RENDERER_URL` (rare).
 
-## Offline launch
+Resolution order (`resolveAppUrl` / `ensure` in main):
 
-Electron must not call `loadURL(https://…)` first when the machine is offline —
-Chromium fails that call even when the service worker already cached the app
-(electron#35112).
+1. `NOVEND_APP_URL` if set
+2. Dev → `http://127.0.0.1:3737`
+3. Packaged → origin from started local standalone server
 
-Boot sequence (aligned with Princellen):
+Never falls back to `dashboard.novendpos.app`.
 
-1. Main loads local `offline-boot.html` (packaged under `extraResources`).
-2. The boot page **immediately** client-navigates to `/dashboard?fromBoot=1`.
-   It does not wait on `/api/health` — `navigator.onLine` is true on a weak
-   or dead radio, and that probe was the “Can’t start offline” screen.
-3. The registered service worker serves the cached document **cache-first**
-   when `fromBoot=1`, otherwise **network-first**
-   and unwraps followed redirects so login → dashboard does not flash
-   Chrome’s `ERR_FAILED` page. Dexie restores the shell.
-4. `persist:novend` keeps SW + IndexedDB + auth cookies across launches.
-   If the document never leaves `file:` (first run, no cache), the boot page
-   shows the connect-once retry. `did-fail-load` / `chrome-error://` recover
-   onto the local boot page with `stay=1` so Chromium does not loop
-   boot → https → fail → boot (that flickered forever offline).
+## Packaging
 
-Electron always uses the Dexie client shell (same as Capacitor) so false-online
-`navigator.onLine` cannot drive RSC soft navigations that remount the POS.
+```bash
+pnpm desktop:prepare   # next build + copy standalone → apps/desktop/resources/app-server
+pnpm desktop:dist:win  # electron-builder (includes app-server as extraResource)
+```
 
-If the shell is not yet cached, recovery asks the cashier to connect once so the
-terminal can cache Novend POS. After that, offline launch uses Cache Storage —
-no separate “initialized” flag file.
-
-Background sync (while online) runs on a timer and when the outbox pending count
-crosses a threshold — see `lib/offline/freshness.ts`.
-
-## Web marketing vs desktop
-
-The hosted web app serves a public SaaS landing at `/`. Electron must **not**
-open that route:
-
-1. Offline boot always navigates to `/dashboard`.
-2. The landing page client-redirects to `/dashboard` when `novendDesktop` is present.
-
-Marketing UI lives in `features/marketing/` and must stay out of the desktop
-offline-first login path.
+`electron-builder` produces Windows NSIS (and mac/linux targets). Cloud
+auto-update feed is optional and usually empty for Millie's.
 
 ## Layers
 
 ```text
-Next.js UI (renderer at dashboard.novendpos.app)
+Bundled Next standalone (127.0.0.1)
+        ↓
+BrowserWindow (renderer)
         ↓
 window.novendDesktop (preload)
         ↓
@@ -80,9 +58,3 @@ Electron main (IPC) → hardware registry (printers, scanners, …)
 
 Hardware configuration lives under Settings → Hardware. See
 `docs/architecture/HARDWARE.md`.
-
-## Packaging
-
-`electron-builder` produces Windows NSIS, macOS DMG/ZIP, and Linux AppImage/deb.
-Tag `v*` builds on GitHub Actions. Update discovery uses Convex HTTP, not the
-GitHub Releases API. See `docs/development/DESKTOP_UPDATES.md`.

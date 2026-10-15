@@ -30,7 +30,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 const FIXED_INDUSTRY_PROFILE: IndustryProfile = "supermarket";
-const SUPERMARKET_BLURB = "Packs, dated lots, and optional sell-by-weight for produce.";
+const SUPERMARKET_BLURB =
+  "Dated lots and sell-by-weight for produce. Multi-pack pricing is optional — off by default.";
 
 /** Capabilities that change Add Product / sales UX — shown first. */
 const CATALOG_KEYS: BusinessCapabilityKey[] = [

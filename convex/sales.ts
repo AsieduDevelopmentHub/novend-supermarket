@@ -10,6 +10,8 @@ import {
   getProfileByUserId,
 } from "./shared/permissions";
 import { assertPositiveMoney, productMatchesLookup, roundMoney } from "./shared/validation";
+import { catalogSearchRank, salesCatalogResultLimit } from "./shared/salesCatalog";
+
 import { writeAuditLog } from "./shared/audit";
 import { Doc, Id } from "./_generated/dataModel";
 import { loadPrintSnapshot, loadBusinessConfiguration } from "./settings";
@@ -154,6 +156,7 @@ export const catalog = query({
     const stockByProduct = await stockMapForBranch(ctx, branchId);
     const summaries = await lotSummaries(ctx, branchId);
     const businessConfig = await loadBusinessConfiguration(ctx, organizationId);
+    const query = args.search?.trim() ?? "";
     let products = (
       await ctx.db
         .query("products")
@@ -162,18 +165,46 @@ export const catalog = query({
         )
         .collect()
     ).filter((p) => {
+      if (p.isVariantParent === true) return false;
       if (!productTracksInventory(p, businessConfig)) return true;
       const onHand = stockByProduct.get(p._id) ?? 0;
       const expiry = deriveExpiryListFields(p, onHand, summaries.get(p._id));
       return expiry.sellableQuantity > 0;
     });
-    if (args.search?.trim()) {
+    // Filter the full in-stock catalog, then cap — never search only the browse window.
+    if (query) {
       products = products.filter((p) =>
-        productMatchesLookup({ name: p.name, sku: p.sku, barcode: p.barcode }, args.search!),
+        productMatchesLookup(
+          {
+            name: p.name,
+            sku: p.sku,
+            barcode: p.barcode,
+            variantLabel: p.variantLabel,
+          },
+          query,
+        ),
       );
+      const q = query.toLowerCase();
+      products.sort((a, b) => {
+        const rankDiff =
+          catalogSearchRank(
+            { name: a.name, sku: a.sku, barcode: a.barcode, variantLabel: a.variantLabel },
+            q,
+          ) -
+          catalogSearchRank(
+            { name: b.name, sku: b.sku, barcode: b.barcode, variantLabel: b.variantLabel },
+            q,
+          );
+        if (rankDiff !== 0) return rankDiff;
+        return a.name.localeCompare(b.name);
+      });
+    } else {
+      products.sort((a, b) => a.name.localeCompare(b.name));
     }
+    const resultLimit = salesCatalogResultLimit(query);
+    const page = resultLimit == null ? products : products.slice(0, resultLimit);
     return await Promise.all(
-      products.slice(0, 48).map(async (product) => {
+      page.map(async (product) => {
         const onHand = stockByProduct.get(product._id) ?? 0;
         const expiry = deriveExpiryListFields(product, onHand, summaries.get(product._id));
         const tracksInventory = productTracksInventory(product, businessConfig);

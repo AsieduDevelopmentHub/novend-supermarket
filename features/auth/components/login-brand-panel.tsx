@@ -37,14 +37,17 @@ export function LoginBrandPanel({ variant = "desktop", plain = false, className 
           <div className="login-grid pointer-events-none absolute inset-0 opacity-40" aria-hidden />
         </>
       ) : (
-        <div
-          className="pointer-events-none absolute inset-0"
-          aria-hidden
-          style={{
-            background:
-              "linear-gradient(160deg, color-mix(in oklab, var(--primary) 18%, #0b1220) 0%, #0b1220 55%)",
-          }}
-        />
+        <>
+          <div
+            className="pointer-events-none absolute inset-0"
+            aria-hidden
+            style={{
+              background:
+                "linear-gradient(160deg, color-mix(in oklab, var(--primary) 18%, #0b1220) 0%, #0b1220 55%)",
+            }}
+          />
+          <div className="login-plain-shimmer pointer-events-none absolute inset-0" aria-hidden />
+        </>
       )}
 
       <div
@@ -53,7 +56,7 @@ export function LoginBrandPanel({ variant = "desktop", plain = false, className 
           isMobile ? "justify-between p-6 pb-14" : "p-8 lg:p-10",
         )}
       >
-        <div className="flex items-center gap-3">
+        <div className="login-enter-brand flex items-center gap-3">
           <div className={cn("relative shrink-0", isMobile ? "h-10 w-10" : "h-12 w-12")}>
             <Image
               src={BRANDING.brandmark}
@@ -71,7 +74,7 @@ export function LoginBrandPanel({ variant = "desktop", plain = false, className 
         </div>
 
         {isMobile ? (
-          <div>
+          <div className="login-enter-copy">
             <p className="text-xl font-semibold tracking-tight">Built for the counter.</p>
             <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/65">
               {plain
@@ -80,7 +83,7 @@ export function LoginBrandPanel({ variant = "desktop", plain = false, className 
             </p>
           </div>
         ) : (
-          <div className="mt-8 flex flex-1 flex-col justify-center">
+          <div className="login-enter-copy mt-8 flex flex-1 flex-col justify-center">
             <p className="text-3xl font-semibold tracking-tight lg:text-4xl">
               Built for the counter.
             </p>

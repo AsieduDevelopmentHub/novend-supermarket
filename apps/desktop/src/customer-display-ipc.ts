@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 import {
   closeCustomerDisplayWindow,
   CUSTOMER_DISPLAY_STATE_CHANNEL,
+  customerDisplayShellPath,
   getCustomerDisplayStatus,
   listDesktopDisplays,
   onCustomerDisplayStatus,
@@ -12,7 +13,6 @@ import {
   setCustomerDisplayAutoOpenEnabled,
 } from "./customer-display";
 import { resolveAppUrl } from "./desktop-config";
-import { offlineBootPath } from "./window";
 import { assertTrustedIpcSender, createTrustedOriginPolicy } from "./trusted-origin";
 
 export { CUSTOMER_DISPLAY_STATE_CHANNEL };
@@ -36,7 +36,7 @@ function isDisplayId(value: unknown): value is number | null | undefined {
 
 export function registerCustomerDisplayIpc() {
   const trustedOrigin = createTrustedOriginPolicy(resolveAppUrl(), [
-    pathToFileURL(offlineBootPath()).href,
+    pathToFileURL(customerDisplayShellPath()).href,
   ]);
   const requireTrustedSender = (event: IpcMainInvokeEvent) => {
     assertTrustedIpcSender(trustedOrigin, event);

@@ -57,6 +57,16 @@ describe("barcode lookup", () => {
     expect(BARCODE_ALREADY_ASSIGNED).toMatch(/already assigned/);
   });
 
+  it("matches variant labels in list search", () => {
+    const product = {
+      name: "Rice",
+      sku: "RICE-01",
+      variantLabel: "5kg bag",
+    };
+    expect(productMatchesQuery(product, "5kg")).toBe(true);
+    expect(productMatchesQuery(product, "bag")).toBe(true);
+  });
+
   it("filters catalog rows by barcode or SKU", () => {
     const catalog = [
       { id: "1", sku: "RICE-01", barcode: "8901234567890" },

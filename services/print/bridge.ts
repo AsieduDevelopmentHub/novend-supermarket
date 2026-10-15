@@ -1,3 +1,4 @@
+import { APP_BRAND } from "@/constants/app";
 import { Hardware, getElectronBridge, isElectron } from "@novend/hardware";
 import type { BridgePrintRequest, TerminalPrinterConfig } from "./terminal-config";
 
@@ -48,7 +49,7 @@ export async function probePrintBridge(): Promise<BridgeStatus> {
     return {
       ok: false,
       runtime: "browser",
-      message: "Native printing requires the Novend POS desktop app",
+      message: `Native printing requires the ${APP_BRAND} desktop app`,
     };
   }
   try {
@@ -75,7 +76,8 @@ export async function discoverPrinters(): Promise<PrinterDiscoveryResult> {
   if (!result.ok || !result.data) {
     return {
       ok: false,
-      message: result.message || "Open Settings in the Novend POS desktop app to discover printers",
+      message:
+        result.message || `Open Settings in the ${APP_BRAND} desktop app to discover printers`,
       windowsPrinters: [],
       suggested: null,
     };

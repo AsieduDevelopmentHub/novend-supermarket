@@ -65,7 +65,7 @@ export function createElectronAdapters(): HardwareAdapters {
         if (request.connectionType === "bluetooth") {
           return {
             ok: false,
-            message: "Bluetooth printing is available in the Novend mobile app",
+            message: "Bluetooth printing is available in the Millie's Supermarket mobile app",
           };
         }
         try {
@@ -86,7 +86,8 @@ export function createElectronAdapters(): HardwareAdapters {
         if (!desktop) {
           return {
             ok: false,
-            message: "Open Settings in the Novend POS desktop app to discover printers",
+            message:
+              "Open Settings in the Millie's Supermarket desktop app to discover printers",
             data: { printers: [], suggested: null },
           };
         }
@@ -150,7 +151,7 @@ export function createElectronAdapters(): HardwareAdapters {
         if (config.connectionType === "bluetooth") {
           return {
             ok: false,
-            message: "Bluetooth printing is available in the Novend mobile app",
+            message: "Bluetooth printing is available in the Millie's Supermarket mobile app",
           };
         }
         try {

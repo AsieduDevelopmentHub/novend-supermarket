@@ -19,7 +19,7 @@ customer display).
 
 It is built for:
 
-- Fast checkout (barcode, packs, weight where enabled)
+- Fast checkout (barcode, weight where enabled; multi-pack optional)
 - Stock that cannot go negative without a recorded reason
 - **Fully offline operation** — zero network required after install
 - One physical store — not multi-branch, not wholesale warehouse, not hotel/restaurant
@@ -82,7 +82,7 @@ Flag: `constants/runtime.ts` → `FULLY_OFFLINE`.
 | Logo | `docs/design/branding/milliesmart.png` → `public/branding/*`, Electron `apps/desktop/build/icon.{png,ico}`, PWA `/icons`, favicon (via `pnpm branding:sync`) |
 | Primary | `#ED0206` (logo red) |
 | Sidebar / navy | `#012561` (logo navy) |
-| Industry pack | `supermarket` only: multi-unit pricing, lots & expiry, sell-by-weight, configurable POS |
+| Industry pack | `supermarket` only: lots & expiry, sell-by-weight, configurable POS (multi-pack off by default) |
 | Branches UI | Hidden (`SINGLE_STORE`) — one implicit branch remains in data |
 | Wholesale UI | Removed from navigation; routes redirect away |
 | Marketing / legal site | No public website; `/` and old marketing paths go to `/login` |
@@ -309,10 +309,14 @@ cd D:\dev\software\novend-supermarket
 pnpm install
 pnpm dev              # Next.js only — no Convex required
 pnpm test             # Vitest
-pnpm desktop:dev      # Electron shell
+pnpm desktop:dev      # Electron → http://127.0.0.1:3737 (start `pnpm dev` first)
+pnpm desktop:prepare  # next build + copy standalone into apps/desktop/resources/app-server
+pnpm desktop:dist:win # packaged till with bundled local Next (no hosted URL)
 ```
 
 `NEXT_PUBLIC_CONVEX_URL` is optional and unused when `FULLY_OFFLINE` is true.
+Packaged Electron never loads `dashboard.novendpos.app` — it spawns the bundled
+Next standalone server on `127.0.0.1`.
 
 ---
 

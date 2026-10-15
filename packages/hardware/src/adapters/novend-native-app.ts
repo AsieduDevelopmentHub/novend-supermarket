@@ -58,8 +58,8 @@ export function readNativeAppInfo(): AppInfo | null {
     };
     if (!parsed.version) return null;
     return {
-      name: parsed.name?.trim() || "Novend POS",
-      id: parsed.id?.trim() || "com.novend.pos",
+      name: parsed.name?.trim() || "Millie's Supermarket",
+      id: parsed.id?.trim() || "com.novend.millies",
       version: parsed.version.trim(),
       build: parsed.build?.trim() || "0",
     };

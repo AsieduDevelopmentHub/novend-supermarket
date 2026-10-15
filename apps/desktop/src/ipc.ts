@@ -3,7 +3,6 @@ import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import { pathToFileURL } from "node:url";
 import {
   discoverDevices,
   getRuntimeInfo,
@@ -19,7 +18,7 @@ import {
   UPDATE_STATUS_CHANNEL,
 } from "./updater";
 import { resolveAppUrl } from "./desktop-config";
-import { offlineBootPath, reloadMainWindowShell } from "./window";
+import { reloadMainWindowShell } from "./window";
 import { closeCustomerDisplayWithMainWindow } from "./customer-display";
 import { ACK_UPDATE_CHANNEL, acknowledgeUpdatePreparation } from "./update-shutdown";
 import {
@@ -108,7 +107,7 @@ function isPrintJobRequest(value: unknown): value is PrintJobRequest {
 /** Register secure IPC handlers. Renderer only reaches these via preload. */
 export function registerDesktopIpc() {
   const appUrl = resolveAppUrl();
-  const trustedOrigin = createTrustedOriginPolicy(appUrl, [pathToFileURL(offlineBootPath()).href]);
+  const trustedOrigin = createTrustedOriginPolicy(appUrl);
   const requireTrustedSender = (event: IpcMainInvokeEvent) => {
     assertTrustedIpcSender(trustedOrigin, event);
   };

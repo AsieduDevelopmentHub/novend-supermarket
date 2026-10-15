@@ -47,7 +47,7 @@ export async function executePrintJob(job: PrintJobRequest): Promise<PrintJobRes
 export function buildTestEscPosBase64(): string {
   const lines = [
     Buffer.from([0x1b, 0x40]),
-    Buffer.from("Novend POS\n"),
+    Buffer.from("Millie's Supermarket\n"),
     Buffer.from("Desktop print test\n"),
     Buffer.from(`${new Date().toISOString()}\n`),
     Buffer.from([0x1d, 0x56, 0x00]),

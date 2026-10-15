@@ -474,7 +474,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
       const url =
         update.data?.downloadUrl ||
         update.data?.storeUrl ||
-        "https://play.google.com/store/apps/details?id=com.novend.pos";
+        "https://play.google.com/store/apps/details?id=com.novend.millies";
       return this.openExternalUrl(url);
     },
     async addUrlOpenListener(callback) {
@@ -530,7 +530,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
       try {
         const isAndroid = typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
         const settingsUrl = isAndroid
-          ? "intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:com.novend.pos;end"
+          ? "intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:com.novend.millies;end"
           : "app-settings:";
         window.open(settingsUrl, "_system");
         return { ok: true as const };
@@ -540,7 +540,7 @@ export function createCapacitorAppServicesAdapter(): AppServicesAdapter {
           ok: false as const,
           message: friendlyHardwareMessage(
             raw,
-            "Open Android Settings → Apps → Novend → Permissions.",
+            "Open Android Settings → Apps → Millie's Supermarket → Permissions.",
           ),
         };
       }

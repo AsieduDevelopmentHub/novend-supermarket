@@ -95,7 +95,6 @@ export type OrganizationBusinessConfiguration = {
 export const DEFAULT_BUSINESS_CONFIGURATION: OrganizationBusinessConfiguration = {
   industryProfile: "supermarket",
   enabledCapabilities: [
-    "multi_unit_pricing",
     "lot_expiry",
     "sell_by_weight",
     "configurable_pos",
@@ -235,7 +234,7 @@ export const BUSINESS_CAPABILITY_REGISTRY: Record<
 export const INDUSTRY_PACKS: Record<IndustryProfile, BusinessCapabilityKey[]> = {
   retail: ["configurable_pos"],
   wholesale: ["multi_unit_pricing", "customer_pricing", "customer_credit", "configurable_pos"],
-  supermarket: ["multi_unit_pricing", "lot_expiry", "sell_by_weight", "configurable_pos"],
+  supermarket: ["lot_expiry", "sell_by_weight", "configurable_pos"],
   cold_store: ["sell_by_weight", "lot_expiry", "scale_hardware", "configurable_pos"],
   electronics: ["serial_tracking", "configurable_pos"],
   pharmacy: ["lot_expiry", "custom_fields", "configurable_pos"],

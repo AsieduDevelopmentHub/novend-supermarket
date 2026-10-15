@@ -1,17 +1,16 @@
-import { BrowserWindow, nativeImage, net, shell } from "electron";
+import { BrowserWindow, nativeImage, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import {
   createTrustedOriginPolicy,
   isAllowedExternalUrl,
   isTrustedRendererUrl,
 } from "./trusted-origin";
 
-const APP_DISPLAY_NAME = "Novend POS";
-export const PERSIST_PARTITION = "persist:novend";
-/** Cached shell route — warmed after login (not PRECACHE; auth 302). Last route restores via ?fromBoot=1. */
-export const OFFLINE_ENTRY_PATH = "/dashboard";
+const APP_DISPLAY_NAME = "Millie's Supermarket";
+export const PERSIST_PARTITION = "persist:millies";
+/** Cold-start route — local Next redirects unauthenticated users to login/setup. */
+export const OFFLINE_ENTRY_PATH = "/login";
 export const CUSTOMER_DISPLAY_ENTRY = "/customer-display";
 
 function iconPath(): string {
@@ -42,38 +41,8 @@ function windowIcon() {
   return loaded;
 }
 
-function offlineBootPath(): string {
-  const candidates = [
-    path.join(process.resourcesPath, "offline-boot.html"),
-    path.resolve(__dirname, "..", "offline-boot.html"),
-  ];
-  return candidates.find((candidate) => fs.existsSync(candidate)) || candidates[0]!;
-}
-
 function preloadPath(): string {
   return path.join(__dirname, "preload.js");
-}
-
-function isNetworkFailure(errorCode: number): boolean {
-  return (
-    errorCode === -2 ||
-    errorCode === -6 ||
-    errorCode === -7 ||
-    errorCode === -21 ||
-    errorCode === -100 ||
-    errorCode === -101 ||
-    errorCode === -102 ||
-    errorCode === -104 ||
-    errorCode === -105 ||
-    errorCode === -106 ||
-    errorCode === -109 ||
-    errorCode === -118 ||
-    errorCode === -130
-  );
-}
-
-function isLocalBootUrl(url: string): boolean {
-  return url.startsWith("file:") || url.startsWith("data:");
 }
 
 function isChromeErrorUrl(url: string): boolean {
@@ -85,7 +54,6 @@ function appEntryFromUrl(appUrl: string, candidateUrl: string): string | null {
     const app = new URL(appUrl);
     const candidate = new URL(candidateUrl);
     if (candidate.origin !== app.origin) return null;
-    // The boot page appends this marker itself.
     candidate.searchParams.delete("fromBoot");
     const search = candidate.searchParams.toString();
     return `${candidate.pathname}${search ? `?${search}` : ""}${candidate.hash}`;
@@ -94,36 +62,22 @@ function appEntryFromUrl(appUrl: string, candidateUrl: string): string | null {
   }
 }
 
+function shellTarget(appUrl: string, entry: string): string {
+  const base = appUrl.replace(/\/$/, "");
+  const pathPart = entry.startsWith("/") ? entry : `/${entry}`;
+  return `${base}${pathPart}`;
+}
+
 /**
- * Electron loadURL(https) fails offline even when the service worker already
- * cached the document (electron#35112). Load a local boot page, then
- * client-navigate so the SW can serve Cache Storage.
+ * Millie's loads the local loopback Next server directly (bundled standalone
+ * or `pnpm dev` on :3000). No hosted URL / offline-boot trampoline.
  */
 async function loadAppShell(
   win: BrowserWindow,
   appUrl: string,
   entry = OFFLINE_ENTRY_PATH,
-  options?: { stay?: boolean },
 ): Promise<void> {
-  const boot = offlineBootPath();
-  if (fs.existsSync(boot)) {
-    const query: Record<string, string> = {
-      appUrl,
-      entry,
-    };
-    if (options?.stay) query.stay = "1";
-    await win.loadFile(boot, { query });
-    return;
-  }
-  if (!net.isOnline()) {
-    await win.loadURL(
-      `data:text/html;charset=utf-8,${encodeURIComponent(
-        `<!doctype html><title>Novend</title><p style="font-family:system-ui;padding:2rem">Connect once online to cache Novend POS, then use email and password offline.</p>`,
-      )}`,
-    );
-    return;
-  }
-  await win.loadURL(`${appUrl.replace(/\/$/, "")}${entry}`);
+  await win.loadURL(shellTarget(appUrl, entry));
 }
 
 let mainBrowserWindow: BrowserWindow | null = null;
@@ -145,8 +99,6 @@ export async function reloadMainWindowShell(
   mainShellEntry = entry;
   suppressUnloadPrompt = true;
   try {
-    // Local boot file only. Do not wait for the hosted page after that — a
-    // hung HTTPS load must not keep the login cover waiting on this reply.
     await loadAppShell(mainBrowserWindow, appUrl, entry);
   } catch {
     return { ok: false };
@@ -160,8 +112,7 @@ export async function reloadMainWindowShell(
 export function createMainWindow(appUrl: string): BrowserWindow {
   mainShellEntry = OFFLINE_ENTRY_PATH;
   const icon = windowIcon();
-  const trustedOrigin = createTrustedOriginPolicy(appUrl, [pathToFileURL(offlineBootPath()).href]);
-  let showingRecovery = false;
+  const trustedOrigin = createTrustedOriginPolicy(appUrl);
 
   const win = new BrowserWindow({
     width: 1440,
@@ -203,46 +154,10 @@ export function createMainWindow(appUrl: string): BrowserWindow {
     if (suppressUnloadPrompt) event.preventDefault();
   });
 
-  /**
-   * Hosted navigation failed (no SW cache / dead radio). Stay on the local
-   * boot page — do not auto-navigate to https again (that flickered forever
-   * when offlineFailRetries reset on every partial https paint).
-   */
-  function showRecovery() {
-    if (showingRecovery || win.isDestroyed()) return;
-    showingRecovery = true;
-    void loadAppShell(win, appUrl, mainShellEntry, { stay: true }).finally(() => {
-      showingRecovery = false;
-    });
-  }
-
-  win.webContents.on(
-    "did-fail-load",
-    (_event, errorCode, _errorDescription, validatedURL, isMainFrame) => {
-      if (!isMainFrame || showingRecovery) return;
-      // -3 ERR_ABORTED is normal during redirects / boot navigation.
-      if (errorCode === -3) return;
-      if (!isNetworkFailure(errorCode)) return;
-      if (isLocalBootUrl(validatedURL)) return;
-      // Chromium interstitial often reports chrome-error://chromewebdata/.
-      if (
-        !isTrustedRendererUrl(trustedOrigin, validatedURL) &&
-        !isChromeErrorUrl(validatedURL)
-      ) {
-        return;
-      }
-      mainShellEntry = appEntryFromUrl(appUrl, validatedURL) ?? mainShellEntry;
-      showRecovery();
-    },
-  );
-
   win.webContents.on("did-finish-load", () => {
-    if (showingRecovery || win.isDestroyed()) return;
+    if (win.isDestroyed()) return;
     const url = win.webContents.getURL();
-    if (isChromeErrorUrl(url)) {
-      showRecovery();
-      return;
-    }
+    if (isChromeErrorUrl(url)) return;
     mainShellEntry = appEntryFromUrl(appUrl, url) ?? mainShellEntry;
   });
 
@@ -250,4 +165,4 @@ export function createMainWindow(appUrl: string): BrowserWindow {
   return win;
 }
 
-export { preloadPath, windowIcon, offlineBootPath, loadAppShell };
+export { preloadPath, windowIcon, loadAppShell };

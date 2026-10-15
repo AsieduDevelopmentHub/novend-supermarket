@@ -78,6 +78,7 @@ export function productMatchesQuery(
     name: string;
     sku: string;
     barcode?: string | null;
+    variantLabel?: string | null;
     sellUnits?: SellUnitBarcodeFields[] | null;
   },
   search: string,
@@ -85,6 +86,7 @@ export function productMatchesQuery(
   const q = search.trim().toLowerCase();
   if (!q) return true;
   if (product.name.toLowerCase().includes(q)) return true;
+  if ((product.variantLabel ?? "").toLowerCase().includes(q)) return true;
   if (product.sku.toLowerCase().includes(q)) return true;
   if ((product.barcode ?? "").toLowerCase().includes(q)) return true;
   for (const unit of product.sellUnits ?? []) {

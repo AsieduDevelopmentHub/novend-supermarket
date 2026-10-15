@@ -6,6 +6,8 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 // Keep image / HMR config here only.
 
 const nextConfig: NextConfig = {
+  // Packaged Electron embeds this tree and serves it on 127.0.0.1 (no hosted URL).
+  output: "standalone",
   // Allow LAN devices to use HMR when opening the app via local IP.
   allowedDevOrigins: ["192.168.1.202", "127.0.0.1", "localhost", "10.0.2.2"],
   images: {

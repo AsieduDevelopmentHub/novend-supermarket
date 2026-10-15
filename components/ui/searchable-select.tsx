@@ -70,10 +70,13 @@ export function SearchableSelect({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <PopoverContent
+          className="w-max min-w-[var(--radix-popover-trigger-width)] max-w-[min(28rem,calc(100vw-2rem))] p-0"
+          align="start"
+        >
           <Command>
             <CommandInput placeholder={searchPlaceholder} autoFocus />
-            <CommandList>
+            <CommandList className="max-h-72">
               <CommandEmpty>{emptyMessage}</CommandEmpty>
               <CommandGroup>
                 {options.map((option) => (
@@ -81,6 +84,7 @@ export function SearchableSelect({
                     key={option.value}
                     value={`${option.label} ${option.keywords ?? ""} ${option.value}`}
                     disabled={option.disabled}
+                    className="items-start whitespace-normal"
                     onSelect={() => {
                       onValueChange(option.value);
                       setOpen(false);
@@ -88,11 +92,11 @@ export function SearchableSelect({
                   >
                     <Check
                       className={cn(
-                        "h-4 w-4",
+                        "mt-0.5 h-4 w-4 shrink-0",
                         value === option.value ? "opacity-100" : "opacity-0",
                       )}
                     />
-                    {option.label}
+                    <span className="break-words">{option.label}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>

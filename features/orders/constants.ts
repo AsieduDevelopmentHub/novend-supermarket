@@ -83,7 +83,7 @@ export function defaultOrdersFilters(): OrdersFilterState {
     maxAmount: "",
     paymentMethod: "all",
     returnStatus: "all",
-    activityTab: "all",
+    activityTab: "completed",
     operationSource: "all",
     operationStatus: "all",
   };

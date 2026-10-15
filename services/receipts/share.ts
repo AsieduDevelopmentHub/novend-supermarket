@@ -83,7 +83,7 @@ async function offerReceiptPdf(
     if (await shareBlob(fileName, blob)) return { ok: true, via: "share" };
     return {
       ok: false,
-      message: "Could not open the share sheet. Update Novend POS and try again.",
+      message: "Could not open the share sheet. Update Millie's Supermarket and try again.",
     };
   }
 

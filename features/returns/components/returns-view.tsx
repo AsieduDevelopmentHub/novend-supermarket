@@ -56,18 +56,19 @@ export function ReturnsView() {
         }
       />
 
-      <div className="space-y-3">
-        <Input
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Search return, invoice, customer…"
-          className="max-w-md"
-        />
+      {isAdmin ? (
         <CollapsibleFilters
-          activeCount={(kind !== "all" ? 1 : 0) + (isAdmin && branchFilter !== "all" ? 1 : 0)}
+          leading={
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search return, invoice, customer…"
+            />
+          }
+          activeCount={(kind !== "all" ? 1 : 0) + (branchFilter !== "all" ? 1 : 0)}
           onReset={() => {
             setKind("all");
             setBranchFilter("all");
@@ -90,28 +91,58 @@ export function ReturnsView() {
               <SelectItem value="partial">Partial return</SelectItem>
             </SelectContent>
           </Select>
-          {isAdmin ? (
-            <BranchFilter
-              branches={branches}
-              value={branchFilter}
-              onChange={(value) => {
-                setBranchFilter(value);
+          <BranchFilter
+            branches={branches}
+            value={branchFilter}
+            onChange={(value) => {
+              setBranchFilter(value);
+              setPage(1);
+            }}
+            allowAll
+            className="w-full sm:w-auto"
+          />
+        </CollapsibleFilters>
+      ) : (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0 w-full flex-1 sm:max-w-md">
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
                 setPage(1);
               }}
-              allowAll
-              className="w-full sm:w-auto"
+              placeholder="Search return, invoice, customer…"
             />
-          ) : branchName ? (
-            <BranchFilter
-              branches={undefined}
-              value={myBranchId}
-              onChange={() => undefined}
-              lockedLabel={branchName}
-              className="w-full sm:w-auto"
-            />
-          ) : null}
-        </CollapsibleFilters>
-      </div>
+          </div>
+          <div className="flex w-full shrink-0 flex-wrap items-end justify-end gap-2 sm:w-auto">
+            <Select
+              value={kind}
+              onValueChange={(value) => {
+                setKind(value as "all" | "full" | "partial");
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="full">Full return</SelectItem>
+                <SelectItem value="partial">Partial return</SelectItem>
+              </SelectContent>
+            </Select>
+            {branchName ? (
+              <BranchFilter
+                branches={undefined}
+                value={myBranchId}
+                onChange={() => undefined}
+                lockedLabel={branchName}
+                className="w-full sm:w-auto"
+              />
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {returns === undefined ? (
         <LoadingState label="Loading returns…" variant="table" />
