@@ -18,7 +18,8 @@ export const DEFAULT_MILLIES_BUSINESS: ReceiptBusiness = {
 };
 
 export const DEFAULT_MILLIES_TEMPLATE: ReceiptTemplateConfig = {
-  paperWidthMm: 80,
+  // Millie's tills use 58mm thermal paper — 80mm columns wrap and misalign amounts.
+  paperWidthMm: 58,
   showLogo: true,
   headerText: "Millie's Supermarket",
   footerText: "Thank you for shopping with us",
@@ -67,6 +68,8 @@ export async function loadMilliesPrintSnapshot(): Promise<PrintSnapshot> {
       business: { ...DEFAULT_MILLIES_BUSINESS, ...parsed.business },
       template: {
         ...template,
+        // Legacy installs saved 80mm; Millie's tills print 58mm and 80-col lines wrap.
+        paperWidthMm: template.paperWidthMm === 80 ? 58 : template.paperWidthMm,
         footerText: scrubLegacyVendorCopy(template.footerText) || DEFAULT_MILLIES_TEMPLATE.footerText,
         thankYouLine:
           scrubLegacyVendorCopy(template.thankYouLine) || DEFAULT_MILLIES_TEMPLATE.thankYouLine,

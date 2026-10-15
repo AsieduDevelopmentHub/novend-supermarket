@@ -26,6 +26,19 @@ describe("receipt vendor footer", () => {
     expect(buildReceiptShareText(SAMPLE_RECEIPT_PAYLOAD)).toContain(RECEIPT_VENDOR_FOOTER);
   });
 
+  it("keeps 58mm item amounts on a 32-column qty line", () => {
+    const text = new TextDecoder("latin1").decode(
+      buildEscPosReceipt(SAMPLE_RECEIPT_PAYLOAD, 58),
+    );
+    const rows = text.split("\n").map((row) => row.replace(/\r$/, ""));
+    const qtyRow = rows.find((row) => row.includes("4 x ") && row.includes("GHS"));
+    expect(qtyRow).toBeTruthy();
+    expect(qtyRow!.length).toBeLessThanOrEqual(32);
+    expect(qtyRow!.trimEnd().endsWith("GHS 140.00") || /GHS 140\.00\s*$/.test(qtyRow!)).toBe(
+      true,
+    );
+  });
+
   it("is shown on the on-screen receipt regardless of template settings", () => {
     const source = readFileSync(
       resolve(process.cwd(), "features/receipts/components/receipt-document.tsx"),

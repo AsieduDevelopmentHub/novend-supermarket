@@ -31,7 +31,8 @@ export const DEFAULT_TERMINAL_PRINTER_CONFIG: TerminalPrinterConfig = {
   printerHost: "192.168.1.100",
   printerPort: 9100,
   windowsPrinterName: "",
-  paperWidthMm: null,
+  // Millie's shop printers are 58mm; null used to fall through to an 80mm template default.
+  paperWidthMm: 58,
 };
 
 const STORAGE_KEY = "novend.terminal.printer";
@@ -69,7 +70,9 @@ export function loadTerminalPrinterConfig(): TerminalPrinterConfig {
       windowsPrinterName:
         typeof parsed.windowsPrinterName === "string" ? parsed.windowsPrinterName : "",
       paperWidthMm:
-        parsed.paperWidthMm === 58 || parsed.paperWidthMm === 80 ? parsed.paperWidthMm : null,
+        parsed.paperWidthMm === 58 || parsed.paperWidthMm === 80
+          ? parsed.paperWidthMm
+          : DEFAULT_TERMINAL_PRINTER_CONFIG.paperWidthMm,
     };
   } catch {
     return { ...DEFAULT_TERMINAL_PRINTER_CONFIG };
@@ -110,7 +113,7 @@ export function resolvePaperWidthMm(
   config: TerminalPrinterConfig,
 ): 58 | 80 {
   if (config.paperWidthMm === 58 || config.paperWidthMm === 80) return config.paperWidthMm;
-  return payload.template.paperWidthMm === 58 ? 58 : 80;
+  return payload.template.paperWidthMm === 80 ? 80 : 58;
 }
 
 /**

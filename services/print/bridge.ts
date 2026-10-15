@@ -141,6 +141,6 @@ export async function testDesktopPrint(
     printerPort: config.printerPort,
     windowsPrinterName: config.windowsPrinterName,
     paperWidthMm:
-      config.paperWidthMm === 58 || config.paperWidthMm === 80 ? config.paperWidthMm : 80,
+      config.paperWidthMm === 58 || config.paperWidthMm === 80 ? config.paperWidthMm : 58,
   });
 }

@@ -102,7 +102,7 @@ export const SAMPLE_RECEIPT_PAYLOAD: ReceiptPayload = {
     taxId: "",
   },
   template: {
-    paperWidthMm: 80,
+    paperWidthMm: 58,
     showLogo: true,
     headerText: "Millie's Supermarket",
     footerText: "Thank you for shopping with us",

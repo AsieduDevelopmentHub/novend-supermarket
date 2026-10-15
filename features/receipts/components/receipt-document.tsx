@@ -95,15 +95,33 @@ export function ReceiptDocument({
         <div className="border-t border-dashed border-black/40 pt-2">
           {lines.map((line, index) => (
             <div key={`${line.productName}-${index}`} className="mb-2">
-              <div className="flex justify-between gap-2">
-                <span className="font-medium">{line.productName}</span>
-                <span>{money(line.lineTotal)}</span>
-              </div>
-              <div className="text-black/70">
-                {line.quantity} x {money(line.unitPrice)}
-                {line.discount > 0 ? ` (-${money(line.discount)})` : ""}
-                {template.showSku && line.sku ? ` - ${line.sku}` : ""}
-              </div>
+              {template.paperWidthMm === 58 ? (
+                <>
+                  <p className="font-medium break-words">{line.productName}</p>
+                  <div className="flex justify-between gap-2 text-black/70">
+                    <span>
+                      {line.quantity} x {money(line.unitPrice)}
+                      {line.discount > 0 ? ` (-${money(line.discount)})` : ""}
+                    </span>
+                    <span className="shrink-0 text-black">{money(line.lineTotal)}</span>
+                  </div>
+                  {template.showSku && line.sku ? (
+                    <p className="text-black/70">{line.sku}</p>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between gap-2">
+                    <span className="font-medium">{line.productName}</span>
+                    <span>{money(line.lineTotal)}</span>
+                  </div>
+                  <div className="text-black/70">
+                    {line.quantity} x {money(line.unitPrice)}
+                    {line.discount > 0 ? ` (-${money(line.discount)})` : ""}
+                    {template.showSku && line.sku ? ` - ${line.sku}` : ""}
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>

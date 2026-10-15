@@ -50,6 +50,23 @@ function line(width: number, left: string, right = "") {
   return `${clipped}${" ".repeat(gap)}${right}`.slice(0, width);
 }
 
+/** Wrap long names across 58mm lines without eating the amount column. */
+function wrapLeft(text: string, width: number): string[] {
+  const value = text.trim();
+  if (!value) return [];
+  if (value.length <= width) return [value];
+  const rows: string[] = [];
+  let rest = value;
+  while (rest.length > width) {
+    let cut = rest.lastIndexOf(" ", width);
+    if (cut < Math.floor(width / 2)) cut = width;
+    rows.push(rest.slice(0, cut).trimEnd());
+    rest = rest.slice(cut).trimStart();
+  }
+  if (rest) rows.push(rest);
+  return rows;
+}
+
 function sep(width: number, char = "-") {
   return char.repeat(width);
 }
@@ -100,16 +117,33 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
   }
   write(sep(cols), "\n");
 
+  const narrow = paperWidthMm === 58;
   for (const item of payload.lines) {
-    write(line(cols, item.productName, formatCurrencyEscPos(item.lineTotal)), "\n");
-    const meta = [
-      `${item.quantity} x ${formatCurrencyEscPos(item.unitPrice)}`,
-      item.discount > 0 ? `(-${formatCurrencyEscPos(item.discount)})` : "",
-      t.showSku && item.sku ? item.sku : "",
-    ]
-      .filter(Boolean)
-      .join(" - ");
-    if (meta) write(meta, "\n");
+    const amount = formatCurrencyEscPos(item.lineTotal);
+    if (narrow) {
+      // 58mm: name on its own line(s), qty + amount right-aligned on the next.
+      for (const row of wrapLeft(item.productName, cols)) {
+        write(row, "\n");
+      }
+      const qtyLeft = [
+        `${item.quantity} x ${formatCurrencyEscPos(item.unitPrice)}`,
+        item.discount > 0 ? `(-${formatCurrencyEscPos(item.discount)})` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      write(line(cols, qtyLeft, amount), "\n");
+      if (t.showSku && item.sku) write(item.sku, "\n");
+    } else {
+      write(line(cols, item.productName, amount), "\n");
+      const meta = [
+        `${item.quantity} x ${formatCurrencyEscPos(item.unitPrice)}`,
+        item.discount > 0 ? `(-${formatCurrencyEscPos(item.discount)})` : "",
+        t.showSku && item.sku ? item.sku : "",
+      ]
+        .filter(Boolean)
+        .join(" - ");
+      if (meta) write(meta, "\n");
+    }
   }
 
   write(sep(cols), "\n");

@@ -86,7 +86,7 @@ export async function runTestPrint(partial?: Partial<PrintJobRequest>): Promise<
       partial?.windowsPrinterName || suggested?.windowsPrinterName || firstWin || "",
     printerHost: partial?.printerHost || suggested?.printerHost || "",
     printerPort: partial?.printerPort || suggested?.printerPort || 9100,
-    paperWidthMm: partial?.paperWidthMm || 80,
+    paperWidthMm: partial?.paperWidthMm || 58,
     openCashDrawer: partial?.openCashDrawer,
   });
 }
