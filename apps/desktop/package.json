@@ -119,6 +119,14 @@
     },
     "releaseInfo": {
       "releaseName": "Millie's Supermarket ${version}"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "AsieduDevelopmentHub",
+        "repo": "novend-supermarket",
+        "releaseType": "release"
+      }
+    ]
   }
 }
