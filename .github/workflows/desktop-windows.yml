@@ -64,10 +64,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Windows Setup
+        # dist:win uses --publish never; GitHub Release upload is the later step.
+        # Tokens cover any electron-builder GitHub API probes in CI.
         run: pnpm desktop:dist:win
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Setup artifact
         uses: actions/upload-artifact@v4

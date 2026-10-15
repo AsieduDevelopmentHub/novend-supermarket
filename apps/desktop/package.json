@@ -1,6 +1,6 @@
 {
   "name": "@novend/desktop",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "description": "Millie's Supermarket desktop shell",
   "homepage": "https://www.novendpos.app",
@@ -16,10 +16,10 @@
     "build": "tsc -p tsconfig.json",
     "dev": "pnpm run build && cross-env ELECTRON_DEV=1 electron .",
     "start": "pnpm run build && electron .",
-    "dist": "pnpm run build && electron-builder",
-    "dist:win": "pnpm run build && electron-builder --win",
-    "dist:mac": "pnpm run build && electron-builder --mac",
-    "dist:linux": "pnpm run build && electron-builder --linux",
+    "dist": "pnpm run build && electron-builder --publish never",
+    "dist:win": "pnpm run build && electron-builder --win --publish never",
+    "dist:mac": "pnpm run build && electron-builder --mac --publish never",
+    "dist:linux": "pnpm run build && electron-builder --linux --publish never",
     "release": "pnpm run build && electron-builder --publish always",
     "stamp:win-icon": "node ../../scripts/stamp-desktop-win-icon.mjs"
   },
