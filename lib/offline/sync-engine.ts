@@ -191,6 +191,8 @@ export type CompleteSaleMutator = (args: {
   invoiceNumber?: string;
   clientCompletedAt?: number;
   acceptStockShortage?: boolean;
+  amountPaid?: number;
+  changeGiven?: number;
 }) => Promise<{
   saleId: Id<"sales">;
   invoiceNumber: string;

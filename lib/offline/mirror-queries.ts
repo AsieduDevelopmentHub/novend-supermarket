@@ -27,6 +27,7 @@ import type {
   MirroredPriceListRule,
   MirroredProduct,
   MirroredSupplierPayment,
+  MirroredWholesalePurchase,
 } from "./types";
 import { presenceFromLastSeenAt, sortUsersByPresence } from "@/lib/presence";
 import { ownedSaleIdsForCashier } from "@/lib/dashboard/cashier-scope";
@@ -492,7 +493,7 @@ export async function getMirroredSupplier(id: string) {
 
   // Purchases / payments are optional enrichment — never fail the whole supplier
   // detail when a Dexie store is missing or still upgrading (Millies / offline).
-  let purchases: Awaited<ReturnType<typeof db.wholesalePurchases.toArray>> = [];
+  let purchases: MirroredWholesalePurchase[] = [];
   try {
     purchases = (await db.wholesalePurchases.where("supplierId").equals(id).toArray())
       .filter((row) => row.status !== "void")
@@ -544,7 +545,9 @@ export async function getMirroredSupplier(id: string) {
     payments: payments.slice(0, 100).map((row) => ({
       id: row.id,
       purchaseId: row.purchaseId,
-      purchaseReference: row.purchaseId ? (referenceById.get(row.purchaseId) ?? null) : null,
+      purchaseReference: row.purchaseId
+        ? (referenceById.get(row.purchaseId) ?? null)
+        : null,
       amount: row.amount,
       paidAt: row.paidAt,
       method: row.method,

@@ -139,8 +139,8 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
   }
 
   const pendingOnDevice =
-    Boolean(local?.payments.some((row) => row.id.startsWith("local_"))) ||
-    Boolean(local?.purchases.some((row) => row.id.startsWith("local_")));
+    Boolean(local?.payments.some((row: { id: string }) => row.id.startsWith("local_"))) ||
+    Boolean(local?.purchases.some((row: { id: string }) => row.id.startsWith("local_")));
   // Dexie while offline / Cap false-online / local-only id / pending device writes.
   const forceLocal = !online || preferLocal || isLocal || pendingOnDevice;
   const source = forceLocal ? local : (remote ?? local);
@@ -187,28 +187,41 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
   });
   const payments: PaymentRow[] =
     "payments" in source && Array.isArray(source.payments)
-      ? source.payments.map((row) => ({
-          id: String(row.id),
-          purchaseReference: row.purchaseReference ?? null,
-          amount: row.amount,
-          paidAt: row.paidAt,
-          method: row.method,
-          note: row.note ?? null,
-        }))
+      ? source.payments.map(
+          (row: {
+            id: string;
+            purchaseReference?: string | null;
+            amount: number;
+            paidAt: number;
+            method: string;
+            note?: string | null;
+          }) => ({
+            id: String(row.id),
+            purchaseReference:
+              typeof row.purchaseReference === "string" ? row.purchaseReference : null,
+            amount: row.amount,
+            paidAt: row.paidAt,
+            method: row.method,
+            note: row.note ?? null,
+          }),
+        )
       : [];
   const purchased =
     typeof source.purchased === "number"
       ? source.purchased
-      : purchaseRows.reduce((sum, row) => sum + row.totalCost, 0);
+      : purchaseRows.reduce((sum: number, row: { totalCost: number }) => sum + row.totalCost, 0);
   const paid =
     typeof source.paid === "number"
       ? source.paid
       : purchaseRows.reduce(
-          (sum, row) =>
+          (
+            sum: number,
+            row: { totalCost: number; amountPaid?: number | null },
+          ) =>
             sum +
             settledAmount({
               totalCost: row.totalCost,
-              amountPaid: "amountPaid" in row ? (row.amountPaid as number | null) : undefined,
+              amountPaid: "amountPaid" in row ? row.amountPaid : undefined,
             }),
           0,
         );
@@ -216,11 +229,14 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
     typeof source.owed === "number"
       ? source.owed
       : purchaseRows.reduce(
-          (sum, row) =>
+          (
+            sum: number,
+            row: { totalCost: number; amountPaid?: number | null },
+          ) =>
             sum +
             purchaseBalance({
               totalCost: row.totalCost,
-              amountPaid: "amountPaid" in row ? (row.amountPaid as number | null) : undefined,
+              amountPaid: "amountPaid" in row ? row.amountPaid : undefined,
             }),
           0,
         );
