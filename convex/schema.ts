@@ -223,6 +223,7 @@ export const inventoryReasonValidator = v.union(
   v.literal("damage"),
   v.literal("return"),
   v.literal("expiry"),
+  v.literal("theft"),
   v.literal("seed"),
   v.literal("transfer_out"),
   v.literal("transfer_in"),

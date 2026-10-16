@@ -292,7 +292,7 @@ Key files: `lib/offline/backup.ts`, `lib/offline/local-folder-backup.ts`,
 | Customers | Customer records |
 | Products | Catalog |
 | Inventory | Stock levels and adjustments |
-| Suppliers | Receiving / supplier records |
+| Suppliers | Vendor contacts (restock via Inventory → Supplier restock) |
 | Analytics / Reports | Oversight (role-gated) |
 | Users | Local staff accounts (admin/manager) |
 | Settings | Store profile, selling options, local backups, About |

@@ -357,6 +357,16 @@ export async function queueAdjustStock(payload: AdjustStockPayload) {
     const hadBranchRow = Boolean(
       await db.branchStock.get(branchStockId(branchId, payload.productId)),
     );
+    if (product.tracksExpiry === true) {
+      const { applyLocalDatedLotDelta } = await import("./branch-lots");
+      await applyLocalDatedLotDelta(db, {
+        branchId,
+        productId: payload.productId,
+        quantityChange: payload.quantityChange,
+        lotId: payload.lotId,
+        expiryDate: payload.expiryDate,
+      });
+    }
     await applyLocalBranchStockChange(
       db,
       branchId,

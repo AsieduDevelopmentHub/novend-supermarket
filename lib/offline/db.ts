@@ -637,7 +637,24 @@ export async function getMeta(db: NovendOfflineDb, key: string): Promise<string 
 }
 
 export async function setMeta(db: NovendOfflineDb, key: string, value: string) {
-  await db.meta.put({ key, value });
+  try {
+    await db.meta.put({ key, value });
+  } catch (error) {
+    // Stale connection after replica rebuild — drop cache and retry once on a fresh open.
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/object store|NotFoundError/i.test(message)) throw error;
+    if (dbInstance === db) {
+      try {
+        dbInstance.close();
+      } catch {
+        /* ignore */
+      }
+      dbInstance = null;
+    }
+    const fresh = await getOfflineDb();
+    if (!fresh) throw error;
+    await fresh.meta.put({ key, value });
+  }
 }
 
 export async function ensureDeviceId(db: NovendOfflineDb): Promise<string> {

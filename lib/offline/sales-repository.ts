@@ -20,8 +20,8 @@ import { customerGroupIdFor, loadActivePriceRules } from "./price-lists";
 import { hasBusinessCapability } from "@/convex/shared/businessCapabilities";
 import { productTracksInventory } from "@/convex/shared/productInventory";
 import { applyVatToAmount } from "@/convex/shared/vatInclusive";
-import { parseTaxVatSettings } from "@/convex/shared/taxVatSettings";
 import { loadBusinessCapabilitiesCache } from "./business-capabilities";
+import { loadMilliesVatSettings } from "./millies-vat-settings";
 import {
   getMeta,
   getOfflineDb,
@@ -113,6 +113,11 @@ export async function completeSaleLocally(input: {
   const weightOn = hasBusinessCapability(businessConfig, "sell_by_weight");
   const pricingOn = hasBusinessCapability(businessConfig, "customer_pricing");
   const creditOn = hasBusinessCapability(businessConfig, "customer_credit");
+  // VAT must be loaded before the Dexie transaction — auth/replica I/O inside the
+  // txn finishes it early (InvalidStateError on localSales.put).
+  const vatSettingsEarly = hasBusinessCapability(businessConfig, "tax_vat")
+    ? await loadMilliesVatSettings()
+    : null;
   const priceRules = pricingOn ? await loadActivePriceRules(db) : [];
   const customerGroupId = pricingOn ? await customerGroupIdFor(db, input.customerId) : null;
   const clientOperationId = newClientId("sale");
@@ -243,10 +248,6 @@ export async function completeSaleLocally(input: {
         throw new Error("Discount cannot exceed the sale subtotal");
       }
       const cartNet = Math.max(0, roundMoney(subtotal - cartDiscount));
-      const vatRawEarly = await getMeta(db, META_KEYS.taxVat);
-      const vatSettingsEarly = hasBusinessCapability(businessConfig, "tax_vat")
-        ? parseTaxVatSettings(vatRawEarly)
-        : null;
       const vatEarly = vatSettingsEarly ? applyVatToAmount(cartNet, vatSettingsEarly) : null;
       total = vatEarly ? vatEarly.gross : cartNet;
       const customerName = input.customerName?.trim() || "Walk-in Customer";

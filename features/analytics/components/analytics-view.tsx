@@ -46,7 +46,8 @@ import {
   queuedSaveMessage,
   queueRemoveExpense,
 } from "@/lib/offline/replica-writes";
-import { formatCurrency, formatNumber } from "@/lib/currency";
+import { CURRENCY_SYMBOL, formatCurrency, formatMoneyAmount, formatNumber } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/date";
 import { expenseCategoryLabel, type ExpenseCategory } from "../constants";
 import { ExpenseFormDialog, type ExpenseRow } from "./expense-form-dialog";
@@ -445,34 +446,40 @@ export function AnalyticsView() {
             <Grid cols={5}>
               <Kpi
                 title="Revenue"
-                value={formatCurrency(summary.kpis.revenue)}
+                value={formatMoneyAmount(summary.kpis.revenue)}
+                unit={CURRENCY_SYMBOL}
                 href={metricHref("revenue")}
               />
               <Kpi
                 title="Refunds"
-                value={formatCurrency(summary.kpis.totalRefunds ?? 0)}
+                value={formatMoneyAmount(summary.kpis.totalRefunds ?? 0)}
+                unit={CURRENCY_SYMBOL}
                 href={metricHref("refunds")}
               />
               <Kpi
                 title="COGS"
-                value={formatCurrency(summary.kpis.cogs)}
+                value={formatMoneyAmount(summary.kpis.cogs)}
+                unit={CURRENCY_SYMBOL}
                 href={metricHref("cogs")}
               />
               <Kpi
                 title="Gross profit"
-                value={formatCurrency(summary.kpis.grossProfit)}
+                value={formatMoneyAmount(summary.kpis.grossProfit)}
+                unit={CURRENCY_SYMBOL}
                 href={metricHref("grossProfit")}
               />
               <Kpi
                 title="Net profit"
-                value={formatCurrency(summary.kpis.netProfit)}
+                value={formatMoneyAmount(summary.kpis.netProfit)}
+                unit={CURRENCY_SYMBOL}
                 href={metricHref("netProfit")}
               />
             </Grid>
             <Grid cols={5}>
               <Kpi
                 title="Operating expenses"
-                value={formatCurrency(summary.kpis.operatingExpenses)}
+                value={formatMoneyAmount(summary.kpis.operatingExpenses)}
+                unit={CURRENCY_SYMBOL}
                 href={metricHref("expenses")}
               />
               <Kpi
@@ -760,19 +767,51 @@ function AnalyticsToolbar({
   );
 }
 
-function Kpi({ title, value, href }: { title: string; value: string; href?: string }) {
+function Kpi({
+  title,
+  value,
+  href,
+  unit,
+}: {
+  title: string;
+  value: string;
+  href?: string;
+  unit?: string;
+}) {
   const card = (
-    <Card className={href ? "hover:border-primary/40 transition-colors" : undefined}>
-      <CardContent className="min-w-0 p-5">
-        <p className="text-muted-foreground text-sm">{title}</p>
-        <p className="mt-2 truncate text-2xl font-semibold tracking-tight">{value}</p>
-        {href ? <p className="text-primary mt-2 text-xs font-medium">View records →</p> : null}
+    <Card className={cn("h-full min-w-0", href && "hover:border-primary/40 transition-colors")}>
+      <CardContent className="min-w-0 p-4 sm:p-5">
+        {/* Mobile: full amount first (never truncated), title below */}
+        <div className="flex h-full flex-col gap-2 md:hidden">
+          <div className="@container min-w-0">
+            <p className="font-semibold tracking-tight whitespace-nowrap tabular-nums text-lg @[8rem]:text-xl @[10rem]:text-2xl">
+              {value}
+            </p>
+          </div>
+          <p className="text-muted-foreground text-sm leading-snug">
+            {title}
+            {unit ? <span className="text-muted-foreground/80 font-medium"> · {unit}</span> : null}
+          </p>
+          {href ? <p className="text-primary text-xs font-medium">View records →</p> : null}
+        </div>
+        <div className="hidden md:block">
+          <p className="text-muted-foreground truncate text-sm whitespace-nowrap">
+            {title}
+            {unit ? <span className="text-muted-foreground/80 font-medium"> · {unit}</span> : null}
+          </p>
+          <div className="@container mt-2 min-w-0">
+            <p className="font-semibold tracking-tight whitespace-nowrap tabular-nums text-lg @[8rem]:text-xl @[10rem]:text-2xl">
+              {value}
+            </p>
+          </div>
+          {href ? <p className="text-primary mt-2 text-xs font-medium">View records →</p> : null}
+        </div>
       </CardContent>
     </Card>
   );
   if (!href) return card;
   return (
-    <Link href={href} className="min-w-0">
+    <Link href={href} className="block h-full min-w-0">
       {card}
     </Link>
   );

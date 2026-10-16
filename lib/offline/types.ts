@@ -735,9 +735,11 @@ export type AdjustStockPayload = {
   productName?: string;
   branchId?: string;
   quantityChange: number;
-  reason: "receive" | "adjustment" | "damage" | "return";
+  reason: "receive" | "adjustment" | "damage" | "return" | "expiry" | "theft";
   note?: string;
   expiryDate?: string;
+  /** When removing from a dated product, prefer this lot over FEFO. */
+  lotId?: string;
   clientOperationId?: string;
 };
 

@@ -47,6 +47,11 @@ export const MILLIES_AUTH_META = {
   createdAt: "createdAt",
   /** none | active | cleared — sample catalogue lifecycle. */
   sampleDataStatus: "sampleDataStatus",
+  /**
+   * Canonical VAT settings JSON `{ ratePercent, label, pricingMode }`.
+   * Lives here (not the business replica) so replica rebuilds cannot wipe the rate.
+   */
+  taxVat: "taxVat",
 } as const;
 
 export type MilliesSampleDataStatus = "none" | "active" | "cleared";

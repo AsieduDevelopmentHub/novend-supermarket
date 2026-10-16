@@ -131,10 +131,12 @@ export function ReceiptDocument({
             <span>Subtotal</span>
             <span>{money(payload.subtotal)}</span>
           </div>
-          <div className="flex justify-between">
-            <span>Discount</span>
-            <span>{money(payload.discount)}</span>
-          </div>
+          {payload.discount > 0 ? (
+            <div className="flex justify-between">
+              <span>Discount</span>
+              <span>{money(payload.discount)}</span>
+            </div>
+          ) : null}
           {typeof payload.taxNet === "number" && typeof payload.taxAmount === "number" ? (
             <>
               <div className="flex justify-between">

@@ -34,6 +34,7 @@ import {
   queueUpsertSupplier,
 } from "@/lib/offline/replica-writes";
 import { formatCurrency } from "@/lib/currency";
+import { SINGLE_STORE } from "@/constants/app";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { Pencil, Plus, Truck } from "lucide-react";
@@ -150,7 +151,7 @@ export function SuppliersView() {
     <div className="space-y-6">
       <PageHeader
         title="Suppliers"
-        description="Companies you buy wholesale stock from."
+        description="Vendors you buy from — contacts for restocking. Add stock in Inventory with reason “Supplier restock”."
         compactActions={[
           {
             key: "add",
@@ -189,7 +190,11 @@ export function SuppliersView() {
             </div>
           ) : suppliers.length === 0 ? (
             <div className="p-6">
-              <EmptyState icon={Truck} title="No suppliers yet" />
+              <EmptyState
+                icon={Truck}
+                title="No suppliers yet"
+                description="Add suppliers you buy from. Restock shelf stock from Inventory → Adjust."
+              />
             </div>
           ) : (
             <table className="w-full text-left text-sm">
@@ -198,7 +203,9 @@ export function SuppliersView() {
                   <th className="px-4 py-3 font-medium">Supplier</th>
                   <th className="px-4 py-3 font-medium">Contact</th>
                   <th className="px-4 py-3 font-medium">Phone</th>
-                  <th className="px-4 py-3 font-medium">Owed</th>
+                  {!SINGLE_STORE ? (
+                    <th className="px-4 py-3 font-medium">Owed</th>
+                  ) : null}
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium" />
                 </tr>
@@ -209,11 +216,11 @@ export function SuppliersView() {
                     <td className="px-4 py-3 font-medium">{row.name}</td>
                     <td className="px-4 py-3">{row.contactName ?? "—"}</td>
                     <td className="px-4 py-3">{row.phone ?? "—"}</td>
-                    <td className="px-4 py-3">
-                        {formatCurrency(
-                          localOwed[row.id] ?? owedById.get(row.id) ?? 0,
-                        )}
-                    </td>
+                    {!SINGLE_STORE ? (
+                      <td className="px-4 py-3">
+                        {formatCurrency(localOwed[row.id] ?? owedById.get(row.id) ?? 0)}
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3">
                       <Badge variant={row.status === "active" ? "success" : "secondary"}>
                         {row.status}

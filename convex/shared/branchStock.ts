@@ -56,6 +56,7 @@ export async function applyBranchStockChange(
       | "damage"
       | "return"
       | "expiry"
+      | "theft"
       | "seed"
       | "transfer_out"
       | "transfer_in"

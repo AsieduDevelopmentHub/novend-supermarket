@@ -29,7 +29,8 @@ import { buildLocalSalesReport, type LocalSalesReport } from "@/lib/offline/ui-c
 import { mergeSalesReportWithLocal } from "@/lib/offline/report-merge";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { salesReportExportTable } from "@/lib/export/sales-report";
-import { formatCurrency, formatNumber } from "@/lib/currency";
+import { CURRENCY_SYMBOL, formatCurrency, formatMoneyAmount, formatNumber } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 import { PaymentTotalsCard } from "@/components/data-display/payment-totals-card";
 import { emptyReportPaymentTotals } from "@/lib/payments";
 import { InventoryValuePanel } from "@/features/inventory/components/inventory-value-panel";
@@ -293,17 +294,20 @@ export function ReportsView() {
             <Grid cols={4}>
               <Kpi
                 title="Gross Sales"
-                value={formatCurrency(report.kpis.grossSales ?? report.kpis.totalSales)}
+                value={formatMoneyAmount(report.kpis.grossSales ?? report.kpis.totalSales)}
+                unit={CURRENCY_SYMBOL}
                 href={metricHref("grossSales")}
               />
               <Kpi
                 title="Refunds"
-                value={formatCurrency(report.kpis.totalRefunds ?? 0)}
+                value={formatMoneyAmount(report.kpis.totalRefunds ?? 0)}
+                unit={CURRENCY_SYMBOL}
                 href={metricHref("refunds")}
               />
               <Kpi
                 title="Net Sales"
-                value={formatCurrency(report.kpis.totalSales)}
+                value={formatMoneyAmount(report.kpis.totalSales)}
+                unit={CURRENCY_SYMBOL}
                 href={metricHref("netSales")}
               />
               <Kpi
@@ -326,7 +330,8 @@ export function ReportsView() {
             />
             <Kpi
               title="Average Order"
-              value={formatCurrency(report.kpis.averageOrder)}
+              value={formatMoneyAmount(report.kpis.averageOrder)}
+              unit={CURRENCY_SYMBOL}
               href={metricHref("averageOrder")}
             />
           </Grid>
@@ -467,19 +472,50 @@ export function ReportsView() {
   );
 }
 
-function Kpi({ title, value, href }: { title: string; value: string; href?: string }) {
+function Kpi({
+  title,
+  value,
+  href,
+  unit,
+}: {
+  title: string;
+  value: string;
+  href?: string;
+  unit?: string;
+}) {
   const card = (
-    <Card className={href ? "hover:border-primary/40 transition-colors" : undefined}>
-      <CardContent className="min-w-0 p-5">
-        <p className="text-muted-foreground text-sm">{title}</p>
-        <p className="mt-2 truncate text-2xl font-semibold tracking-tight">{value}</p>
-        {href ? <p className="text-primary mt-2 text-xs font-medium">View records →</p> : null}
+    <Card className={cn("h-full min-w-0", href && "hover:border-primary/40 transition-colors")}>
+      <CardContent className="min-w-0 p-4 sm:p-5">
+        <div className="flex h-full flex-col gap-2 md:hidden">
+          <div className="@container min-w-0">
+            <p className="font-semibold tracking-tight whitespace-nowrap tabular-nums text-lg @[8rem]:text-xl @[10rem]:text-2xl">
+              {value}
+            </p>
+          </div>
+          <p className="text-muted-foreground text-sm leading-snug">
+            {title}
+            {unit ? <span className="text-muted-foreground/80 font-medium"> · {unit}</span> : null}
+          </p>
+          {href ? <p className="text-primary text-xs font-medium">View records →</p> : null}
+        </div>
+        <div className="hidden md:block">
+          <p className="text-muted-foreground truncate text-sm whitespace-nowrap">
+            {title}
+            {unit ? <span className="text-muted-foreground/80 font-medium"> · {unit}</span> : null}
+          </p>
+          <div className="@container mt-2 min-w-0">
+            <p className="font-semibold tracking-tight whitespace-nowrap tabular-nums text-lg @[8rem]:text-xl @[10rem]:text-2xl">
+              {value}
+            </p>
+          </div>
+          {href ? <p className="text-primary mt-2 text-xs font-medium">View records →</p> : null}
+        </div>
       </CardContent>
     </Card>
   );
   if (!href) return card;
   return (
-    <Link href={href} className="min-w-0">
+    <Link href={href} className="block h-full min-w-0">
       {card}
     </Link>
   );

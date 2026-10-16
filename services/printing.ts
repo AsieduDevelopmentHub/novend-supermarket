@@ -186,7 +186,11 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
     <div class="sep">${lines || "<div>No line items</div>"}</div>
     <div class="sep">
       <div class="row"><span>Subtotal</span><span>${escapeHtml(money(payload.subtotal))}</span></div>
-      <div class="row"><span>Discount</span><span>${escapeHtml(money(payload.discount))}</span></div>
+      ${
+        payload.discount > 0
+          ? `<div class="row"><span>Discount</span><span>${escapeHtml(money(payload.discount))}</span></div>`
+          : ""
+      }
       ${
         typeof payload.taxNet === "number" && typeof payload.taxAmount === "number"
           ? `<div class="row"><span>Net</span><span>${escapeHtml(money(payload.taxNet))}</span></div>

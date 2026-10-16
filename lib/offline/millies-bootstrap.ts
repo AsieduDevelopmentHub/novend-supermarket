@@ -19,6 +19,7 @@ import {
 import { markOfflineSession } from "./session";
 import { saveShellProfile } from "./shell-profile";
 import { ensureDefaultSupermarketCategories } from "./millies-default-categories";
+import { ensureMilliesVatSettingsSeeded } from "./millies-vat-settings";
 import type { MilliesLocalRole } from "./millies-auth-db";
 import type { MirroredBranch, MirroredUser } from "./types";
 
@@ -159,14 +160,14 @@ export async function bootstrapMilliesStore(input: {
   };
   await db.users.put(mirroredUser);
 
-  const caps =
-    configurationFromIndustryPack("supermarket", "lifetime") ?? DEFAULT_BUSINESS_CONFIGURATION;
-  await setMeta(db, META_KEYS.businessCapabilities, JSON.stringify(caps));
-  await setMeta(
-    db,
-    META_KEYS.taxVat,
-    JSON.stringify({ ratePercent: 15, label: "VAT" }),
-  );
+  // Seed defaults once — never wipe admin VAT / capability / print customizations on login.
+  const existingCaps = await getMeta(db, META_KEYS.businessCapabilities);
+  if (!existingCaps?.trim()) {
+    const caps =
+      configurationFromIndustryPack("supermarket", "lifetime") ?? DEFAULT_BUSINESS_CONFIGURATION;
+    await setMeta(db, META_KEYS.businessCapabilities, JSON.stringify(caps));
+  }
+  await ensureMilliesVatSettingsSeeded();
 
   await ensureMilliesBusinessLicense({
     organizationId: input.organizationId,
@@ -174,28 +175,31 @@ export async function bootstrapMilliesStore(input: {
   });
   await ensureDefaultSupermarketCategories();
 
-  const printSnapshot = {
-    business: {
-      tradeName: input.storeName || APP_BRAND,
-      legalName: input.storeName || APP_BRAND,
-      address: input.storeAddress?.trim() || "",
-      phone: input.storePhone?.trim() || "",
-      email: "",
-      taxId: "",
-    },
-    template: {
-      paperWidthMm: 58,
-      showLogo: true,
-      headerText: "Millie's Supermarket",
-      footerText: "Thank you for shopping with us",
-      thankYouLine: "Come again soon",
-      showCashier: true,
-      showCustomer: false,
-      showPaymentMethod: true,
-      showSku: false,
-    },
-  };
-  await setMeta(db, META_KEYS.printSnapshot, JSON.stringify(printSnapshot));
+  const existingPrint = await getMeta(db, META_KEYS.printSnapshot);
+  if (!existingPrint?.trim()) {
+    const printSnapshot = {
+      business: {
+        tradeName: input.storeName || APP_BRAND,
+        legalName: input.storeName || APP_BRAND,
+        address: input.storeAddress?.trim() || "",
+        phone: input.storePhone?.trim() || "",
+        email: "",
+        taxId: "",
+      },
+      template: {
+        paperWidthMm: 58,
+        showLogo: true,
+        headerText: "Millie's Supermarket",
+        footerText: "Thank you for shopping with us",
+        thankYouLine: "Come again soon",
+        showCashier: true,
+        showCustomer: false,
+        showPaymentMethod: true,
+        showSku: false,
+      },
+    };
+    await setMeta(db, META_KEYS.printSnapshot, JSON.stringify(printSnapshot));
+  }
 
   await saveShellProfile({
     userId: input.session.id,

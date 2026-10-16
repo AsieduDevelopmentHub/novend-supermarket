@@ -105,10 +105,12 @@ const CREDIT_CONFLICT_HEADLINES: Record<CreditConflictKind, string> = {
 };
 
 const STOCK_REASON_LABELS: Record<string, string> = {
-  receive: "Receive stock",
+  receive: "Supplier restock",
   adjustment: "Count adjustment",
-  damage: "Damage",
-  return: "Return to stock",
+  damage: "Damaged / spoilage",
+  return: "Customer return",
+  expiry: "Expired write-off",
+  theft: "Theft / loss",
 };
 
 function signedQuantity(value: number) {

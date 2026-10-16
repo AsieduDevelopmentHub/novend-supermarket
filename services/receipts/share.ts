@@ -40,7 +40,9 @@ export function buildReceiptShareText(input: ReceiptPayload | Record<string, unk
 
   lines.push("----------------");
   lines.push(`Subtotal: ${formatCurrency(payload.subtotal)}`);
-  lines.push(`Discount: ${formatCurrency(payload.discount)}`);
+  if (payload.discount > 0) {
+    lines.push(`Discount: ${formatCurrency(payload.discount)}`);
+  }
   if (typeof payload.taxNet === "number" && typeof payload.taxAmount === "number") {
     lines.push(`Net: ${formatCurrency(payload.taxNet)}`);
     const taxLabel = [

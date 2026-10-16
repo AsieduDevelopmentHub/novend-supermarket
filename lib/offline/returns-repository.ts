@@ -10,8 +10,8 @@ import { estimateReturnRefund } from "@/lib/sales/returns";
 import { roundMoney } from "@/lib/currency";
 import { hasBusinessCapability } from "@/convex/shared/businessCapabilities";
 import { applyVatToAmount } from "@/convex/shared/vatInclusive";
-import { parseTaxVatSettings } from "@/convex/shared/taxVatSettings";
 import { loadBusinessCapabilitiesCache } from "./business-capabilities";
+import { loadMilliesVatSettings } from "./millies-vat-settings";
 import type { LocalReturn, LocalReturnItem, PrintSnapshot } from "./types";
 
 export type LocalReturnLineInput = {
@@ -112,9 +112,8 @@ export async function processReturnLocally(input: {
     undefined;
   const snapshot = await loadPrintSnapshot(db, branchId);
   const businessConfig = await loadBusinessCapabilitiesCache();
-  const vatRaw = await getMeta(db, META_KEYS.taxVat);
   const vatSettings = hasBusinessCapability(businessConfig, "tax_vat")
-    ? parseTaxVatSettings(vatRaw)
+    ? await loadMilliesVatSettings()
     : null;
   const vat = vatSettings ? applyVatToAmount(refundAmount, vatSettings) : null;
   const refundTotal = vat ? vat.gross : refundAmount;

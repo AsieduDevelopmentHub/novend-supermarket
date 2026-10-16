@@ -23,6 +23,7 @@ import { ReturnDetailView } from "@/features/returns/components/return-detail-vi
 import { BranchDetailView } from "@/features/branches/components/branch-detail-view";
 import { WholesaleView } from "@/features/wholesale/components/wholesale-view";
 import { SuppliersView } from "@/features/suppliers/components/suppliers-view";
+import { SupplierDetailView } from "@/features/suppliers/components/supplier-detail-view";
 import { DiningFloorView } from "@/features/dining/components/dining-floor-view";
 import { KitchenView } from "@/features/dining/components/kitchen-view";
 import { RoomsBoardView } from "@/features/hotel/components/rooms-board-view";
@@ -151,6 +152,12 @@ export function resolveOfflineView(path: string): ReactNode {
     const customerId = path.slice("/customers/".length);
     if (customerId) {
       return <CustomerDetailView customerId={customerId as Id<"customers">} />;
+    }
+  }
+  if (path.startsWith("/suppliers/")) {
+    const supplierId = path.slice("/suppliers/".length);
+    if (supplierId && !supplierId.includes("/")) {
+      return <SupplierDetailView supplierId={supplierId} />;
     }
   }
   if (path.startsWith("/returns/")) {

@@ -487,64 +487,70 @@ export async function listMirroredSuppliers(options?: {
 export async function getMirroredSupplier(id: string) {
   const db = await getOfflineDb();
   if (!db) return null;
+  const supplier = await db.suppliers.get(id).catch(() => undefined);
+  if (!supplier) return null;
+
+  // Purchases / payments are optional enrichment — never fail the whole supplier
+  // detail when a Dexie store is missing or still upgrading (Millies / offline).
+  let purchases: Awaited<ReturnType<typeof db.wholesalePurchases.toArray>> = [];
   try {
-    const supplier = await db.suppliers.get(id);
-    if (!supplier) return null;
-    const purchases = (await db.wholesalePurchases.where("supplierId").equals(id).toArray())
+    purchases = (await db.wholesalePurchases.where("supplierId").equals(id).toArray())
       .filter((row) => row.status !== "void")
       .sort((a, b) => b.purchasedAt - a.purchasedAt);
-    let payments: MirroredSupplierPayment[] = [];
-    try {
-      payments = await db.supplierPayments.where("supplierId").equals(id).toArray();
-    } catch {
-      /* Dexie may still be upgrading past the supplierPayments store. */
-      payments = [];
-    }
-    payments.sort((a, b) => b.paidAt - a.paidAt);
-    const referenceById = new Map(purchases.map((row) => [row.id, row.reference]));
-    const purchased = purchases.reduce((sum, row) => sum + row.totalCost, 0);
-    const paid = purchases.reduce((sum, row) => sum + settledAmount(row), 0);
-    const owed = purchases.reduce((sum, row) => sum + purchaseBalance(row), 0);
-    return {
-      ...supplier,
-      purchaseCount: purchases.length,
-      purchaseTotal: purchased,
-      purchased,
-      paid,
-      owed,
-      purchases: purchases.slice(0, 50).map((row) => ({
-        id: row.id,
-        reference: row.reference,
-        invoiceNumber: row.invoiceNumber,
-        purchasedAt: row.purchasedAt,
-        itemCount: row.itemCount,
-        totalCost: row.totalCost,
-        amountPaid: row.amountPaid ?? null,
-        balance: purchaseBalance(row),
-        paymentStatus: purchasePaymentStatus(row),
-        legacy: row.amountPaid === undefined,
-        notes: row.notes,
-        items: (row.items ?? []).map((item) => ({
-          productId: item.productId,
-          productName: item.productName,
-          quantity: item.quantity,
-          unitCost: item.unitCost,
-          lineTotal: item.lineTotal,
-        })),
-      })),
-      payments: payments.slice(0, 100).map((row) => ({
-        id: row.id,
-        purchaseId: row.purchaseId,
-        purchaseReference: row.purchaseId ? (referenceById.get(row.purchaseId) ?? null) : null,
-        amount: row.amount,
-        paidAt: row.paidAt,
-        method: row.method,
-        note: row.note,
-      })),
-    };
   } catch {
-    return null;
+    purchases = [];
   }
+
+  let payments: MirroredSupplierPayment[] = [];
+  try {
+    payments = await db.supplierPayments.where("supplierId").equals(id).toArray();
+  } catch {
+    /* Dexie may still be upgrading past the supplierPayments store. */
+    payments = [];
+  }
+  payments.sort((a, b) => b.paidAt - a.paidAt);
+
+  const referenceById = new Map(purchases.map((row) => [row.id, row.reference]));
+  const purchased = purchases.reduce((sum, row) => sum + row.totalCost, 0);
+  const paid = purchases.reduce((sum, row) => sum + settledAmount(row), 0);
+  const owed = purchases.reduce((sum, row) => sum + purchaseBalance(row), 0);
+  return {
+    ...supplier,
+    purchaseCount: purchases.length,
+    purchaseTotal: purchased,
+    purchased,
+    paid,
+    owed,
+    purchases: purchases.slice(0, 50).map((row) => ({
+      id: row.id,
+      reference: row.reference,
+      invoiceNumber: row.invoiceNumber,
+      purchasedAt: row.purchasedAt,
+      itemCount: row.itemCount,
+      totalCost: row.totalCost,
+      amountPaid: row.amountPaid ?? null,
+      balance: purchaseBalance(row),
+      paymentStatus: purchasePaymentStatus(row),
+      legacy: row.amountPaid === undefined,
+      notes: row.notes,
+      items: (row.items ?? []).map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitCost: item.unitCost,
+        lineTotal: item.lineTotal,
+      })),
+    })),
+    payments: payments.slice(0, 100).map((row) => ({
+      id: row.id,
+      purchaseId: row.purchaseId,
+      purchaseReference: row.purchaseId ? (referenceById.get(row.purchaseId) ?? null) : null,
+      amount: row.amount,
+      paidAt: row.paidAt,
+      method: row.method,
+      note: row.note,
+    })),
+  };
 }
 
 export async function listMirroredWholesaleStock(search?: string) {

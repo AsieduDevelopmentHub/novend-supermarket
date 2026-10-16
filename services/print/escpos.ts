@@ -148,7 +148,9 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
 
   write(sep(cols), "\n");
   write(line(cols, "Subtotal", formatCurrencyEscPos(payload.subtotal)), "\n");
-  write(line(cols, "Discount", formatCurrencyEscPos(payload.discount)), "\n");
+  if (payload.discount > 0) {
+    write(line(cols, "Discount", formatCurrencyEscPos(payload.discount)), "\n");
+  }
   if (typeof payload.taxNet === "number" && typeof payload.taxAmount === "number") {
     write(line(cols, "Net", formatCurrencyEscPos(payload.taxNet)), "\n");
     const taxLabel = [

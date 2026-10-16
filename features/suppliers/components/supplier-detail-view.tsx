@@ -46,6 +46,7 @@ import { formatDateTime } from "@/lib/date";
 import { SETTLEMENT_METHOD_OPTIONS, paymentMethodLabel, type SettlementMethod } from "@/lib/payments";
 import { paymentStatusLabel } from "@/convex/shared/supplierFinance";
 import { RecordPurchaseDialog } from "@/features/wholesale/components/record-purchase-dialog";
+import { SINGLE_STORE } from "@/constants/app";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
@@ -152,7 +153,7 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
   }
   if (!source) {
     return (
-      <ErrorState message="Supplier not found on this device. Connect once to refresh suppliers, then open again offline." />
+      <ErrorState message="Supplier not found. Open Suppliers and select a contact from the list." />
     );
   }
 
@@ -272,7 +273,11 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
     <div className="space-y-6">
       <PageHeader
         title={source.name}
-        description="Deliveries, payments, and what is still owed"
+        description={
+          SINGLE_STORE
+            ? "Supplier contact. Restock shelf stock from Inventory → Adjust → Supplier restock."
+            : "Deliveries, payments, and what is still owed"
+        }
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
@@ -281,12 +286,20 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
                 Suppliers
               </Link>
             </Button>
-            <Button type="button" variant="outline" onClick={() => setDeliveryOpen(true)}>
-              Record delivery
-            </Button>
-            <Button type="button" onClick={() => setPaymentOpen(true)} disabled={owed <= 0}>
-              Record payment
-            </Button>
+            {!SINGLE_STORE ? (
+              <>
+                <Button type="button" variant="outline" onClick={() => setDeliveryOpen(true)}>
+                  Record delivery
+                </Button>
+                <Button type="button" onClick={() => setPaymentOpen(true)} disabled={owed <= 0}>
+                  Record payment
+                </Button>
+              </>
+            ) : (
+              <Button asChild>
+                <Link href="/inventory">Go to inventory</Link>
+              </Button>
+            )}
           </div>
         }
       />
@@ -307,185 +320,209 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
             </Badge>
           </CardContent>
         </Card>
-        <div className="grid gap-4 sm:grid-cols-3">
+        {!SINGLE_STORE ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-muted-foreground text-sm">Purchased</p>
+                <p className="mt-1 text-2xl font-semibold">{formatCurrency(purchased)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-muted-foreground text-sm">Paid</p>
+                <p className="mt-1 text-2xl font-semibold">{formatCurrency(paid)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-muted-foreground text-sm">Owed</p>
+                <p className="mt-1 text-2xl font-semibold">{formatCurrency(owed)}</p>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
           <Card>
-            <CardContent className="p-4">
-              <p className="text-muted-foreground text-sm">Purchased</p>
-              <p className="mt-1 text-2xl font-semibold">{formatCurrency(purchased)}</p>
+            <CardHeader>
+              <CardTitle>How to restock</CardTitle>
+            </CardHeader>
+            <CardContent className="text-muted-foreground space-y-2 text-sm">
+              <p>
+                Millie&apos;s keeps suppliers as a contact list. To put goods on the shelf, open{" "}
+                <Link href="/inventory" className="text-foreground font-medium underline">
+                  Inventory
+                </Link>
+                , choose the product, Adjust → Add stock → <strong>Supplier restock</strong>, and
+                optionally note this supplier in the note field.
+              </p>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-muted-foreground text-sm">Paid</p>
-              <p className="mt-1 text-2xl font-semibold">{formatCurrency(paid)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-muted-foreground text-sm">Owed</p>
-              <p className="mt-1 text-2xl font-semibold">{formatCurrency(owed)}</p>
-            </CardContent>
-          </Card>
-        </div>
+        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Deliveries</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {deliveries.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No deliveries recorded yet.</p>
-          ) : (
-            deliveries.map((delivery) => (
-              <article
-                key={delivery.id}
-                className="border-border space-y-2 border-b pb-4 last:border-0"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-medium">
-                      {delivery.reference}
-                      {delivery.invoiceNumber ? ` · ${delivery.invoiceNumber}` : ""}
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {formatDateTime(delivery.purchasedAt)}
-                    </p>
+      {!SINGLE_STORE ? (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Deliveries</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {deliveries.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No deliveries recorded yet.</p>
+              ) : (
+                deliveries.map((delivery) => (
+                  <article
+                    key={delivery.id}
+                    className="border-border space-y-2 border-b pb-4 last:border-0"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="font-medium">
+                          {delivery.reference}
+                          {delivery.invoiceNumber ? ` · ${delivery.invoiceNumber}` : ""}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          {formatDateTime(delivery.purchasedAt)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span>{formatCurrency(delivery.totalCost)}</span>
+                        <Badge variant={STATUS_VARIANT[delivery.paymentStatus]}>
+                          {paymentStatusLabel(delivery.paymentStatus)}
+                        </Badge>
+                      </div>
+                    </div>
+                    {delivery.balance > 0 ? (
+                      <p className="text-sm">Still owed {formatCurrency(delivery.balance)}</p>
+                    ) : null}
+                    {delivery.legacy ? (
+                      <p className="text-muted-foreground text-xs">
+                        Recorded before supplier balances. Treated as paid.
+                      </p>
+                    ) : null}
+                    {delivery.items.length > 0 ? (
+                      <ul className="text-muted-foreground space-y-1 text-sm">
+                        {delivery.items.map((item) => (
+                          <li
+                            key={`${delivery.id}-${item.productName}-${item.quantity}-${item.unitCost}`}
+                          >
+                            {item.productName} · {item.quantity} · cost{" "}
+                            {formatCurrency(item.unitCost)} · {formatCurrency(item.lineTotal)}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </article>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Payments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {payments.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No payments recorded yet.</p>
+              ) : (
+                <ul className="space-y-3 text-sm">
+                  {payments.map((payment) => (
+                    <li
+                      key={payment.id}
+                      className="flex flex-wrap items-baseline justify-between gap-2"
+                    >
+                      <span>
+                        {formatCurrency(payment.amount)} · {paymentMethodLabel(payment.method)}
+                        {payment.purchaseReference ? ` · ${payment.purchaseReference}` : ""}
+                        {payment.note ? ` · ${payment.note}` : ""}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {formatDateTime(payment.paidAt)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <RecordPurchaseDialog
+            key={deliveryOpen ? "delivery-open" : "delivery-closed"}
+            open={deliveryOpen}
+            onOpenChange={setDeliveryOpen}
+            suppliers={[{ id: supplierId, name: source.name }]}
+            products={products ?? []}
+            defaultSupplierId={supplierId}
+            lockSupplier
+          />
+
+          <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+            <DialogContent>
+              <form onSubmit={(event) => void onPayment(event)}>
+                <DialogHeader>
+                  <DialogTitle>Record a payment</DialogTitle>
+                  <DialogDescription>
+                    Apply this to one delivery, or leave the delivery blank to pay the oldest
+                    balance first.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-3 py-4">
+                  <div className="space-y-2">
+                    <Label>Amount</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={amount}
+                      onChange={(event) => setAmount(event.target.value)}
+                      required
+                    />
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span>{formatCurrency(delivery.totalCost)}</span>
-                    <Badge variant={STATUS_VARIANT[delivery.paymentStatus]}>
-                      {paymentStatusLabel(delivery.paymentStatus)}
-                    </Badge>
+                  <div className="space-y-2">
+                    <Label>Delivery</Label>
+                    <SearchableSelect
+                      options={[
+                        { value: "oldest", label: "Oldest open delivery" },
+                        ...openDeliveries.map((row) => ({
+                          value: row.id,
+                          label: `${row.reference} · owed ${formatCurrency(row.balance)}`,
+                        })),
+                      ]}
+                      value={purchaseId || "oldest"}
+                      onValueChange={(value) => setPurchaseId(value === "oldest" ? "" : value)}
+                      placeholder="Oldest open delivery"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Paid with</Label>
+                    <select
+                      className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+                      value={method}
+                      onChange={(event) => setMethod(event.target.value as SettlementMethod)}
+                    >
+                      {SETTLEMENT_METHOD_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Note</Label>
+                    <Textarea value={note} onChange={(event) => setNote(event.target.value)} />
                   </div>
                 </div>
-                {delivery.balance > 0 ? (
-                  <p className="text-sm">Still owed {formatCurrency(delivery.balance)}</p>
-                ) : null}
-                {delivery.legacy ? (
-                  <p className="text-muted-foreground text-xs">
-                    Recorded before supplier balances. Treated as paid.
-                  </p>
-                ) : null}
-                {delivery.items.length > 0 ? (
-                  <ul className="text-muted-foreground space-y-1 text-sm">
-                    {delivery.items.map((item) => (
-                      <li
-                        key={`${delivery.id}-${item.productName}-${item.quantity}-${item.unitCost}`}
-                      >
-                        {item.productName} · {item.quantity} · cost {formatCurrency(item.unitCost)}{" "}
-                        · {formatCurrency(item.lineTotal)}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </article>
-            ))
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Payments</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {payments.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No payments recorded yet.</p>
-          ) : (
-            <ul className="space-y-3 text-sm">
-              {payments.map((payment) => (
-                <li
-                  key={payment.id}
-                  className="flex flex-wrap items-baseline justify-between gap-2"
-                >
-                  <span>
-                    {formatCurrency(payment.amount)} · {paymentMethodLabel(payment.method)}
-                    {payment.purchaseReference ? ` · ${payment.purchaseReference}` : ""}
-                    {payment.note ? ` · ${payment.note}` : ""}
-                  </span>
-                  <span className="text-muted-foreground">{formatDateTime(payment.paidAt)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <RecordPurchaseDialog
-        key={deliveryOpen ? "delivery-open" : "delivery-closed"}
-        open={deliveryOpen}
-        onOpenChange={setDeliveryOpen}
-        suppliers={[{ id: supplierId, name: source.name }]}
-        products={products ?? []}
-        defaultSupplierId={supplierId}
-        lockSupplier
-      />
-
-      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
-        <DialogContent>
-          <form onSubmit={(event) => void onPayment(event)}>
-            <DialogHeader>
-              <DialogTitle>Record a payment</DialogTitle>
-              <DialogDescription>
-                Apply this to one delivery, or leave the delivery blank to pay the oldest balance
-                first.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-3 py-4">
-              <div className="space-y-2">
-                <Label>Amount</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Delivery</Label>
-                <SearchableSelect
-                  options={[
-                    { value: "oldest", label: "Oldest open delivery" },
-                    ...openDeliveries.map((row) => ({
-                      value: row.id,
-                      label: `${row.reference} · owed ${formatCurrency(row.balance)}`,
-                    })),
-                  ]}
-                  value={purchaseId || "oldest"}
-                  onValueChange={(value) => setPurchaseId(value === "oldest" ? "" : value)}
-                  placeholder="Oldest open delivery"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Paid with</Label>
-                <select
-                  className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-                  value={method}
-                  onChange={(event) => setMethod(event.target.value as SettlementMethod)}
-                >
-                  {SETTLEMENT_METHOD_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Note</Label>
-                <Textarea value={note} onChange={(event) => setNote(event.target.value)} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={pending}>
-                Save payment
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+                <DialogFooter>
+                  <Button type="submit" disabled={pending}>
+                    Save payment
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </>
+      ) : null}
     </div>
   );
 }

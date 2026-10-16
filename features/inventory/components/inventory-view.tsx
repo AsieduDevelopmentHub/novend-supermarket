@@ -39,9 +39,11 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useInventoryList, useBranchesList } from "@/hooks/use-offline-lists";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
-import { expiryAlertQuantity, formatExpiryDate } from "@/lib/expiry";
+import { expiryAlertQuantity, formatExpiryDate, lotStatus } from "@/lib/expiry";
 import { signedStockDelta } from "@/lib/quantity";
 import {
+  ADD_STOCK_SELECT,
+  REMOVE_STOCK_SELECT,
   alignDirectionToReason,
   alignReasonToDirection,
   type StockAdjustReason,
@@ -58,7 +60,7 @@ import { useClientPagedRows } from "@/hooks/use-ui";
 import { replaceClientShellUrl } from "@/lib/navigation/client-shell-url";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
-import { listMirroredProducts } from "@/lib/offline/mirror-queries";
+import { listMirroredLots, listMirroredProducts } from "@/lib/offline/mirror-queries";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { isBarcodeScanningEnabled } from "@/services/hardware";
 import {
@@ -67,20 +69,19 @@ import {
   queueAdjustStock,
   queueTransferStock,
 } from "@/lib/offline/replica-writes";
-import { SINGLE_STORE } from "@/constants/app";
+import type { MirroredLot } from "@/lib/offline/types";
 
 function InventoryViewInner() {
   const {
     isAdmin,
     canManageProducts,
-    canTransferStock: canTransferStockRole,
     canViewCost,
     branchId: myBranchId,
     branchName,
   } = usePermissions();
-  // Millie's is one store — no warehouse wholesale or branch-to-branch transfer.
-  const canTransferStock = canTransferStockRole && !SINGLE_STORE;
-  const showWholesale = canManageProducts && !SINGLE_STORE;
+  // Millie's is one store — no branch transfers or wholesale warehouse.
+  const canTransferStock = false;
+  const showWholesale = false;
   const online = useConnectivity();
   const router = useRouter();
   const pathname = usePathname();
@@ -107,6 +108,8 @@ function InventoryViewInner() {
   const [reason, setReason] = useState<StockAdjustReason>("receive");
   const [note, setNote] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
+  const [lotId, setLotId] = useState("");
+  const [localLots, setLocalLots] = useState<MirroredLot[]>([]);
 
   const [fromBranchId, setFromBranchId] = useState<Id<"branches"> | "">("");
   const [toBranchId, setToBranchId] = useState<Id<"branches"> | "">("");
@@ -279,6 +282,60 @@ function InventoryViewInner() {
     [visibleRows, adjustId],
   );
 
+  const adjustLotsBranchId = listBranchId ?? (adjustBranchId || null);
+
+  const remoteLots = useAuthedQuery(
+    api.inventory.listLots,
+    online && adjustId && selected?.tracksExpiry && direction === "remove"
+      ? {
+          productId: adjustId,
+          branchId: (adjustLotsBranchId || undefined) as Id<"branches"> | undefined,
+        }
+      : "skip",
+  );
+
+  useEffect(() => {
+    if (!adjustId || !selected?.tracksExpiry || direction !== "remove") {
+      queueMicrotask(() => setLocalLots([]));
+      return;
+    }
+    let cancelled = false;
+    const load = () => {
+      void listMirroredLots(adjustId, adjustLotsBranchId).then((rows) => {
+        if (!cancelled) setLocalLots(rows);
+      });
+    };
+    load();
+    return subscribeReplicaChanged(load);
+  }, [adjustId, selected?.tracksExpiry, direction, adjustLotsBranchId]);
+
+  const removeLotOptions = useMemo(() => {
+    if (online && remoteLots) {
+      return remoteLots.map((lot) => ({
+        id: lot.id,
+        expiryDate: lot.expiryDate,
+        quantity: lot.quantity,
+        status: lot.status as "expired" | "expiring" | "ok",
+        label: `${formatExpiryDate(lot.expiryDate)} · ${lot.quantity} units${
+          lot.status === "expired" ? " · Expired" : lot.status === "expiring" ? " · Expiring" : ""
+        }`,
+      }));
+    }
+    const alertDays = 30;
+    return localLots.map((lot) => {
+      const status = lotStatus(lot.expiryDate, alertDays);
+      return {
+        id: lot.id,
+        expiryDate: lot.expiryDate,
+        quantity: lot.quantity,
+        status,
+        label: `${formatExpiryDate(lot.expiryDate)} · ${lot.quantity} units${
+          status === "expired" ? " · Expired" : status === "expiring" ? " · Expiring" : ""
+        }`,
+      };
+    });
+  }, [online, remoteLots, localLots]);
+
   useBarcodeScanner(
     (code) => {
       if (!transferOpen) return;
@@ -311,6 +368,21 @@ function InventoryViewInner() {
       toast.error("Enter how many units to add or remove");
       return;
     }
+    if (selected?.tracksExpiry && quantityChange < 0) {
+      if (!lotId) {
+        toast.error("Select which expiry lot to remove from");
+        return;
+      }
+      const lot = removeLotOptions.find((row) => row.id === lotId);
+      if (lot && Math.abs(quantityChange) > lot.quantity) {
+        toast.error(`That lot only has ${lot.quantity} units`);
+        return;
+      }
+    }
+    if (selected?.tracksExpiry && quantityChange > 0 && !expiryDate.trim()) {
+      toast.error("Enter an expiry date for the stock you are adding");
+      return;
+    }
     try {
       const kind = await persistBusinessWrite({
         online,
@@ -321,7 +393,11 @@ function InventoryViewInner() {
             reason,
             note: note || undefined,
             branchId,
-            expiryDate: expiryDate || undefined,
+            expiryDate: quantityChange > 0 ? expiryDate || undefined : undefined,
+            lotId:
+              quantityChange < 0 && lotId
+                ? (lotId as Id<"inventoryLots">)
+                : undefined,
           }),
         local: () =>
           queueAdjustStock({
@@ -330,7 +406,8 @@ function InventoryViewInner() {
             quantityChange,
             reason,
             note: note || undefined,
-            expiryDate: expiryDate || undefined,
+            expiryDate: quantityChange > 0 ? expiryDate || undefined : undefined,
+            lotId: quantityChange < 0 ? lotId || undefined : undefined,
           }),
       });
       toast.success(queuedSaveMessage(kind, "Stock updated"));
@@ -341,6 +418,7 @@ function InventoryViewInner() {
       setReason("receive");
       setNote("");
       setExpiryDate("");
+      setLotId("");
     } catch (error) {
       showError(error, "Adjustment failed");
     }
@@ -353,6 +431,7 @@ function InventoryViewInner() {
     setDirection("add");
     setReason("receive");
     setExpiryDate("");
+    setLotId("");
   }
 
   function openTransfer(productId?: Id<"products">) {
@@ -864,6 +943,8 @@ function InventoryViewInner() {
                   const next = value as StockDirection;
                   setDirection(next);
                   setReason(alignReasonToDirection(next, reason));
+                  setLotId("");
+                  if (next === "remove") setExpiryDate("");
                 }}
               >
                 <TabsList className="w-full">
@@ -898,6 +979,33 @@ function InventoryViewInner() {
                 />
               </div>
             ) : null}
+            {selected?.tracksExpiry && direction === "remove" ? (
+              <div className="space-y-2">
+                <Label>Expiry lot</Label>
+                {removeLotOptions.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">
+                    No active expiry lots with stock for this branch.
+                  </p>
+                ) : (
+                  <Select value={lotId || undefined} onValueChange={setLotId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose expiry date / batch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {removeLotOptions.map((lot) => (
+                        <SelectItem key={lot.id} value={lot.id}>
+                          {lot.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <p className="text-muted-foreground text-xs">
+                  Select the exact expired or dated lot to write off. FEFO is only used when no lot
+                  is chosen.
+                </p>
+              </div>
+            ) : null}
             <div className="space-y-2">
               <Label>Reason</Label>
               <Select
@@ -912,18 +1020,11 @@ function InventoryViewInner() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {direction === "add" ? (
-                    <>
-                      <SelectItem value="receive">Found stock</SelectItem>
-                      <SelectItem value="return">Customer return</SelectItem>
-                      <SelectItem value="adjustment">Adjustment</SelectItem>
-                    </>
-                  ) : (
-                    <>
-                      <SelectItem value="damage">Damage</SelectItem>
-                      <SelectItem value="adjustment">Adjustment</SelectItem>
-                    </>
-                  )}
+                  {(direction === "add" ? ADD_STOCK_SELECT : REMOVE_STOCK_SELECT).map((option) => (
+                    <SelectItem key={`${direction}-${option.value}-${option.label}`} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

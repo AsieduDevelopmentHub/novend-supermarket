@@ -274,6 +274,8 @@ export const adjustStock = mutation({
       v.literal("adjustment"),
       v.literal("damage"),
       v.literal("return"),
+      v.literal("expiry"),
+      v.literal("theft"),
     ),
     note: v.optional(v.string()),
     expiryDate: v.optional(v.string()),
