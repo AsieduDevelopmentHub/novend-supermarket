@@ -55,6 +55,10 @@ export function buildReceiptShareText(input: ReceiptPayload | Record<string, unk
   if (t.showPaymentMethod && splitLines) {
     for (const split of splitLines) lines.push(`  ${split.label}: ${formatCurrency(split.amount)}`);
   }
+  if (typeof payload.amountPaid === "number") {
+    lines.push(`Paid: ${formatCurrency(payload.amountPaid)}`);
+    lines.push(`Change: ${formatCurrency(payload.changeGiven ?? 0)}`);
+  }
   if (t.thankYouLine) {
     lines.push("");
     lines.push(t.thankYouLine);

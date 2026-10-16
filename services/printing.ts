@@ -11,7 +11,7 @@ import { formatCurrencyEscPos } from "@/lib/currency";
 import { sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 import { formatDateTime } from "@/lib/date";
 import { brandedDocumentName } from "@/lib/export-filenames";
-import { probePrintBridge, sendToPrintBridge } from "./print/bridge";
+import { isDesktopRuntime, probePrintBridge, sendToPrintBridge } from "./print/bridge";
 import { appendCashDrawerPulse, buildEscPosReceipt, escPosToBase64 } from "./print/escpos";
 import {
   loadTerminalPrinterConfig,
@@ -53,12 +53,27 @@ export function normalizeReceiptPayload(
   };
   const lines = (Array.isArray(source.lines) ? source.lines : []) as ReceiptLine[];
 
+  const taxNet = typeof source.taxNet === "number" ? source.taxNet : undefined;
+  const taxAmount = typeof source.taxAmount === "number" ? source.taxAmount : undefined;
+  const taxRatePercent =
+    typeof source.taxRatePercent === "number" ? source.taxRatePercent : undefined;
+  const taxLabel = typeof source.taxLabel === "string" ? source.taxLabel : undefined;
+
   return {
     invoiceNumber: String(source.invoiceNumber ?? "INV"),
     saleId: source.saleId ? String(source.saleId) : undefined,
+    kind: source.kind === "return" ? "return" : source.kind === "sale" ? "sale" : undefined,
     subtotal: Number(source.subtotal ?? 0),
     discount: Number(source.discount ?? 0),
     total: Number(source.total ?? 0),
+    ...(typeof taxNet === "number" && typeof taxAmount === "number"
+      ? {
+          taxNet,
+          taxAmount,
+          taxRatePercent,
+          taxLabel,
+        }
+      : {}),
     itemCount: Number(source.itemCount ?? lines.reduce((n, l) => n + (l.quantity || 0), 0)),
     lines: lines.map((line) => ({
       productName: String(line.productName ?? "Item"),
@@ -184,6 +199,12 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
       }
       <div class="row total"><span>TOTAL</span><span>${escapeHtml(money(payload.total))}</span></div>
       ${t.showPaymentMethod && splitLines ? splitLines.map((split) => `<div class="row"><span>${escapeHtml(split.label)}</span><span>${escapeHtml(money(split.amount))}</span></div>`).join("") : ""}
+      ${
+        typeof payload.amountPaid === "number"
+          ? `<div class="row"><span>Paid</span><span>${escapeHtml(money(payload.amountPaid))}</span></div>
+      <div class="row"><span>Change</span><span>${escapeHtml(money(payload.changeGiven ?? 0))}</span></div>`
+          : ""
+      }
     </div>
     <div class="sep center">
       ${t.footerText ? `<div>${escapeHtml(t.footerText)}</div>` : ""}
@@ -350,8 +371,9 @@ export async function printReceipt(
   }
 
   if (!options?.forceBrowser && config.preferNative) {
-    const status = await probePrintBridge();
-    if (status.ok) {
+    // Sync Electron check — skip an extra IPC probe round-trip on every sale.
+    const bridgeOk = isDesktopRuntime() ? true : (await probePrintBridge()).ok;
+    if (bridgeOk) {
       try {
         const paperWidthMm = resolvePaperWidthMm(payload, config);
         const bytes = buildEscPosReceipt(payload, paperWidthMm);

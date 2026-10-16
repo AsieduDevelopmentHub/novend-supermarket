@@ -19,7 +19,7 @@ import { applyLocalCustomerBalanceChange } from "./customer-credit";
 import { customerGroupIdFor, loadActivePriceRules } from "./price-lists";
 import { hasBusinessCapability } from "@/convex/shared/businessCapabilities";
 import { productTracksInventory } from "@/convex/shared/productInventory";
-import { splitVatInclusive } from "@/convex/shared/vatInclusive";
+import { applyVatToAmount } from "@/convex/shared/vatInclusive";
 import { parseTaxVatSettings } from "@/convex/shared/taxVatSettings";
 import { loadBusinessCapabilitiesCache } from "./business-capabilities";
 import {
@@ -81,6 +81,9 @@ export async function completeSaleLocally(input: {
   branchId?: string;
   localHeldSaleId?: string;
   serverHeldSaleId?: string;
+  /** Cash received from the customer (optional; change is derived). */
+  amountPaid?: number;
+  changeGiven?: number;
 }): Promise<{
   localSaleId: string;
   clientOperationId: string;
@@ -239,7 +242,13 @@ export async function completeSaleLocally(input: {
       if (cartDiscount - subtotal > 0.001) {
         throw new Error("Discount cannot exceed the sale subtotal");
       }
-      total = Math.max(0, roundMoney(subtotal - cartDiscount));
+      const cartNet = Math.max(0, roundMoney(subtotal - cartDiscount));
+      const vatRawEarly = await getMeta(db, META_KEYS.taxVat);
+      const vatSettingsEarly = hasBusinessCapability(businessConfig, "tax_vat")
+        ? parseTaxVatSettings(vatRawEarly)
+        : null;
+      const vatEarly = vatSettingsEarly ? applyVatToAmount(cartNet, vatSettingsEarly) : null;
+      total = vatEarly ? vatEarly.gross : cartNet;
       const customerName = input.customerName?.trim() || "Walk-in Customer";
 
       let payments: PaymentLine[];
@@ -288,13 +297,7 @@ export async function completeSaleLocally(input: {
       await db.localSales.put(sale);
       await db.localSaleItems.bulkPut(lines);
 
-      const vatRaw = await getMeta(db, META_KEYS.taxVat);
-      const vatSettings = hasBusinessCapability(businessConfig, "tax_vat")
-        ? parseTaxVatSettings(vatRaw)
-        : null;
-      const vat = vatSettings
-        ? splitVatInclusive(sale.total, vatSettings.ratePercent, vatSettings.label)
-        : null;
+      const vat = vatEarly;
 
       receiptPayload = {
         invoiceNumber,
@@ -323,6 +326,12 @@ export async function completeSaleLocally(input: {
         })),
         paymentMethod: primaryTender,
         payments: payments.length > 1 || chargeOnAccount > 0 ? payments : undefined,
+        ...(typeof input.amountPaid === "number"
+          ? {
+              amountPaid: input.amountPaid,
+              changeGiven: input.changeGiven ?? 0,
+            }
+          : {}),
         completedAt,
         customerName,
         customerPhone: input.customerPhone ?? null,
@@ -365,6 +374,12 @@ export async function completeSaleLocally(input: {
         branchId,
         localHeldSaleId: input.localHeldSaleId,
         serverHeldSaleId: input.serverHeldSaleId,
+        ...(typeof input.amountPaid === "number"
+          ? {
+              amountPaid: input.amountPaid,
+              changeGiven: input.changeGiven ?? 0,
+            }
+          : {}),
       };
       await enqueueCompleteSale(db, clientOperationId, payload);
 

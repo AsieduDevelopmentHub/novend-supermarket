@@ -27,8 +27,9 @@ export const DEFAULT_TERMINAL_PRINTER_CONFIG: TerminalPrinterConfig = {
   autoPrint: true,
   copies: 1,
   openCashDrawer: false,
-  connectionType: "auto",
-  printerHost: "192.168.1.100",
+  // Prefer Windows RAW for USB tills — "auto" used to probe a dead LAN IP first and lag.
+  connectionType: "windows",
+  printerHost: "",
   printerPort: 9100,
   windowsPrinterName: "",
   // Millie's shop printers are 58mm; null used to fall through to an 80mm template default.
@@ -50,25 +51,37 @@ export function loadTerminalPrinterConfig(): TerminalPrinterConfig {
       agentUrl?: string;
       agentApiKey?: string;
     };
+    const host =
+      typeof parsed.printerHost === "string"
+        ? parsed.printerHost
+        : DEFAULT_TERMINAL_PRINTER_CONFIG.printerHost;
+    const windowsName =
+      typeof parsed.windowsPrinterName === "string" ? parsed.windowsPrinterName : "";
+    let connectionType: TerminalPrinterConfig["connectionType"] =
+      parsed.connectionType === "windows" ||
+      parsed.connectionType === "network" ||
+      parsed.connectionType === "auto"
+        ? parsed.connectionType
+        : DEFAULT_TERMINAL_PRINTER_CONFIG.connectionType;
+    // Migrate laggy installs: auto + placeholder LAN IP + Windows printer → use Windows RAW.
+    if (
+      connectionType === "auto" &&
+      windowsName &&
+      (!host.trim() || host.trim() === "192.168.1.100")
+    ) {
+      connectionType = "windows";
+    }
+
     return {
       ...DEFAULT_TERMINAL_PRINTER_CONFIG,
       preferNative: parsed.preferNative ?? DEFAULT_TERMINAL_PRINTER_CONFIG.preferNative,
       autoPrint: parsed.autoPrint ?? DEFAULT_TERMINAL_PRINTER_CONFIG.autoPrint,
       openCashDrawer: parsed.openCashDrawer === true,
       copies: Math.min(5, Math.max(1, Number(parsed.copies) || 1)),
-      connectionType:
-        parsed.connectionType === "windows" ||
-        parsed.connectionType === "network" ||
-        parsed.connectionType === "auto"
-          ? parsed.connectionType
-          : DEFAULT_TERMINAL_PRINTER_CONFIG.connectionType,
-      printerHost:
-        typeof parsed.printerHost === "string"
-          ? parsed.printerHost
-          : DEFAULT_TERMINAL_PRINTER_CONFIG.printerHost,
+      connectionType,
+      printerHost: host === "192.168.1.100" ? "" : host,
       printerPort: Number(parsed.printerPort) || 9100,
-      windowsPrinterName:
-        typeof parsed.windowsPrinterName === "string" ? parsed.windowsPrinterName : "",
+      windowsPrinterName: windowsName,
       paperWidthMm:
         parsed.paperWidthMm === 58 || parsed.paperWidthMm === 80
           ? parsed.paperWidthMm

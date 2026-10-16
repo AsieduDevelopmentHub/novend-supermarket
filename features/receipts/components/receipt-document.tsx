@@ -164,6 +164,18 @@ export function ReceiptDocument({
                 </div>
               ))
             : null}
+          {typeof payload.amountPaid === "number" ? (
+            <>
+              <div className="flex justify-between">
+                <span>Paid</span>
+                <span>{money(payload.amountPaid)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Change</span>
+                <span>{money(payload.changeGiven ?? 0)}</span>
+              </div>
+            </>
+          ) : null}
         </div>
 
         <div className="border-t border-dashed border-black/40 pt-2 text-center">

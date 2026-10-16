@@ -23,19 +23,22 @@ import { BranchFilter } from "@/components/filters/branch-filter";
 import { formatCurrency, roundMoney } from "@/lib/currency";
 import type { PaymentMethod } from "@/lib/payments";
 import { evaluateSplitTender, type SplitTenderDraft } from "@/lib/sales/split-tender";
+import { buildReceiptCashTender, parseCashTenderInput } from "@/lib/sales/cash-tender";
 import { CashTenderChange } from "./cash-tender-change";
 import { PaymentTenderSelector } from "./payment-tender-selector";
 import { Minus, Plus, ScanBarcode, ShoppingCart, Trash2, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
-import { printReceipt, loadTerminalPrinterConfig, probePrintBridge } from "@/services/printing";
+import { printReceipt, loadTerminalPrinterConfig } from "@/services/printing";
 import type { ReceiptPayload } from "@/features/receipts/types";
 import { ReceiptPreviewDialog } from "@/features/receipts/components/receipt-preview-dialog";
 import { SaleCompletedDialog } from "@/features/receipts/components/sale-completed-dialog";
 import { SalesTillClock } from "@/features/sales/components/sales-till-clock";
 import { isCapacitor } from "@novend/hardware";
 import { listActiveSellUnits, roundQuantity } from "@/convex/shared/units";
+import { applyVatToAmount, type VatBreakdown, type VatOrgSettings } from "@/convex/shared/vatInclusive";
 import { useBusinessCapabilities } from "@/hooks/use-business-capabilities";
+import { loadMilliesVatSettings } from "@/lib/offline/millies-vat-settings";
 import { useBusinessTerms } from "@/hooks/use-business-terms";
 import { salesViewDescription } from "@/convex/shared/businessTerms";
 import {
@@ -166,6 +169,8 @@ export function SalesView() {
   const multiUnitOn = hasCapability("multi_unit_pricing");
   const weightOn = hasCapability("sell_by_weight");
   const pricingOn = hasCapability("customer_pricing");
+  const taxVatOn = hasCapability("tax_vat");
+  const [vatSettings, setVatSettings] = useState<VatOrgSettings | null>(null);
   const nativeShell = useNativeShell();
   const isDesktop = useDesktopRuntime();
   const [search, setSearch] = useState("");
@@ -187,6 +192,7 @@ export function SalesView() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [paying, setPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [cashTenderPaid, setCashTenderPaid] = useState("");
   const [splitDrafts, setSplitDrafts] = useState<SplitTenderDraft[] | null>(null);
   const allowOnAccount = hasCapability("customer_credit") && Boolean(customer?.id);
   const payingRef = useRef(false);
@@ -231,6 +237,20 @@ export function SalesView() {
     refreshLocal,
   } = useSalesCatalog(search, workingBranchId ?? myBranchId ?? undefined);
   const customerHits = useSalesCustomerSearch(customerQuery);
+
+  useEffect(() => {
+    if (!taxVatOn) {
+      setVatSettings(null);
+      return;
+    }
+    let cancelled = false;
+    void loadMilliesVatSettings().then((settings) => {
+      if (!cancelled) setVatSettings(settings);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [taxVatOn, checkoutOpen]);
 
   useEffect(() => {
     if (catalog.length === 0) return;
@@ -316,7 +336,11 @@ export function SalesView() {
   }, [discountMode, discountField, subtotal]);
   const discountExceedsSubtotal =
     discountMode === "percent" ? discountField - 100 > 0.001 : cartDiscount - subtotal > 0.001;
-  const total = discountExceedsSubtotal ? 0 : Math.max(0, subtotal - cartDiscount);
+  const cartNet = discountExceedsSubtotal ? 0 : Math.max(0, subtotal - cartDiscount);
+  const vatBreakdown = vatSettings ? applyVatToAmount(cartNet, vatSettings) : null;
+  const exclusiveVat =
+    vatBreakdown?.pricingMode === "exclusive" && vatBreakdown.ratePercent > 0 ? vatBreakdown : null;
+  const total = exclusiveVat ? exclusiveVat.gross : cartNet;
   const splitEvaluation = splitDrafts
     ? evaluateSplitTender(splitDrafts, total, { allowOnAccount })
     : null;
@@ -859,13 +883,11 @@ export function SalesView() {
     }
     const config = loadTerminalPrinterConfig();
     if (config.preferNative) {
-      const status = await probePrintBridge();
-      if (status.ok) {
-        const result = await printReceipt(payload);
-        if (result.printed && result.reason === "native") {
-          toast.success("Receipt sent to printer");
-          return;
-        }
+      // printReceipt already prefers the native bridge — no pre-probe (saves a round-trip).
+      const result = await printReceipt(payload);
+      if (result.printed && result.reason === "native") {
+        toast.success("Receipt sent to printer");
+        return;
       }
     }
     setPreviewOpen(true);
@@ -922,6 +944,14 @@ export function SalesView() {
       return;
     }
 
+    const cashTender = buildReceiptCashTender(total, parseCashTenderInput(cashTenderPaid), {
+      defaultExactCash: paymentMethod === "cash" && !splitDrafts,
+    });
+    if (parseCashTenderInput(cashTenderPaid) != null && !cashTender) {
+      toast.error("Amount paid is less than the total.");
+      return;
+    }
+
     payingRef.current = true;
     setPaying(true);
     try {
@@ -936,6 +966,8 @@ export function SalesView() {
         customerName: customer?.name,
         customerPhone: customer?.phone,
         branchId: saleBranchId,
+        amountPaid: cashTender?.amountPaid,
+        changeGiven: cashTender?.changeGiven,
       });
       // Publish thank-you before clearing cart so idle snapshots cannot race the receipt away.
       publishComplete(result.receiptPayload);
@@ -944,6 +976,7 @@ export function SalesView() {
       setCustomer(null);
       setCustomerQuery("");
       setPaymentMethod("cash");
+      setCashTenderPaid("");
       setSplitDrafts(null);
       setCheckoutOpen(false);
       await refreshLocal();
@@ -1174,6 +1207,7 @@ export function SalesView() {
               subtotal={subtotal}
               cartDiscount={cartDiscount}
               total={total}
+              exclusiveVat={exclusiveVat}
               discountMode={discountMode}
               discountField={discountField}
               discountExceedsSubtotal={discountExceedsSubtotal}
@@ -1197,6 +1231,8 @@ export function SalesView() {
               onDiscountField={setDiscountField}
               paymentMethod={paymentMethod}
               onPaymentMethod={setPaymentMethod}
+              cashTenderPaid={cashTenderPaid}
+              onCashTenderPaid={setCashTenderPaid}
               splitDrafts={splitDrafts}
               onSplitDrafts={setSplitDrafts}
               allowOnAccount={allowOnAccount}
@@ -1250,6 +1286,7 @@ export function SalesView() {
               subtotal={subtotal}
               cartDiscount={cartDiscount}
               total={total}
+              exclusiveVat={exclusiveVat}
               discountMode={discountMode}
               discountField={discountField}
               discountExceedsSubtotal={discountExceedsSubtotal}
@@ -1273,6 +1310,8 @@ export function SalesView() {
               onDiscountField={setDiscountField}
               paymentMethod={paymentMethod}
               onPaymentMethod={setPaymentMethod}
+              cashTenderPaid={cashTenderPaid}
+              onCashTenderPaid={setCashTenderPaid}
               splitDrafts={splitDrafts}
               onSplitDrafts={setSplitDrafts}
               allowOnAccount={allowOnAccount}
@@ -1396,6 +1435,7 @@ type SalesCheckoutFieldsProps = {
   subtotal: number;
   cartDiscount: number;
   total: number;
+  exclusiveVat: VatBreakdown | null;
   discountMode: DiscountMode;
   discountField: number;
   discountExceedsSubtotal: boolean;
@@ -1416,6 +1456,8 @@ type SalesCheckoutFieldsProps = {
   onDiscountField: (value: number) => void;
   paymentMethod: PaymentMethod;
   onPaymentMethod: (method: PaymentMethod) => void;
+  cashTenderPaid: string;
+  onCashTenderPaid: (value: string) => void;
   splitDrafts: SplitTenderDraft[] | null;
   onSplitDrafts: (drafts: SplitTenderDraft[] | null) => void;
   allowOnAccount: boolean;
@@ -1437,6 +1479,7 @@ function SalesCheckoutFields({
   subtotal,
   cartDiscount,
   total,
+  exclusiveVat,
   discountMode,
   discountField,
   discountExceedsSubtotal,
@@ -1454,6 +1497,8 @@ function SalesCheckoutFields({
   onCommitCartQuantity,
   paymentMethod,
   onPaymentMethod,
+  cashTenderPaid,
+  onCashTenderPaid,
   splitDrafts,
   onSplitDrafts,
   allowOnAccount,
@@ -1749,11 +1794,30 @@ function SalesCheckoutFields({
           allowOnAccount={allowOnAccount}
           compact
         />
+        {exclusiveVat ? (
+          <>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Net</span>
+              <span className="tabular-nums">{formatCurrency(exclusiveVat.net)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">
+                {exclusiveVat.label} ({exclusiveVat.ratePercent}%)
+              </span>
+              <span className="tabular-nums">{formatCurrency(exclusiveVat.vat)}</span>
+            </div>
+          </>
+        ) : null}
         <div className="flex items-baseline justify-between pt-0.5 text-sm font-semibold">
           <span>Total</span>
           <span className="text-primary text-base tabular-nums">{formatCurrency(total)}</span>
         </div>
-        <CashTenderChange total={total} active={cart.length > 0} compact />
+        <CashTenderChange
+          total={total}
+          value={cashTenderPaid}
+          onValueChange={onCashTenderPaid}
+          compact
+        />
       </div>
       {actions}
     </div>

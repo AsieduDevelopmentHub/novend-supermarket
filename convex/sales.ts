@@ -471,6 +471,9 @@ export const completeSale = mutation({
      * by what this branch still has, and never below zero.
      */
     acceptStockShortage: v.optional(v.boolean()),
+    /** Cash received at the till — printed as Paid / Change on the receipt. */
+    amountPaid: v.optional(v.number()),
+    changeGiven: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { userId, profile, branchId } = await requireBranchId(ctx, args.branchId);
@@ -950,6 +953,16 @@ export const completeSale = mutation({
       lines: lines.map(({ stockQuantity: _stockQuantity, ...line }) => line),
       paymentMethod: primaryTender,
       payments,
+      ...(typeof args.amountPaid === "number"
+        ? {
+            amountPaid: roundMoney(args.amountPaid),
+            changeGiven: roundMoney(
+              typeof args.changeGiven === "number"
+                ? Math.max(0, args.changeGiven)
+                : Math.max(0, args.amountPaid - total),
+            ),
+          }
+        : {}),
       completedAt,
       customerName,
       customerPhone,

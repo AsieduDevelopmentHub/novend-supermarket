@@ -50,8 +50,9 @@ export type ReceiptPayload = {
   discount: number;
   total: number;
   /**
-   * Optional VAT-inclusive breakdown snapshotted at checkout when `tax_vat` is on.
-   * `total` remains the gross charged; `taxNet` + `taxAmount` ≈ `total`.
+   * Optional VAT breakdown snapshotted at checkout when `tax_vat` is on.
+   * `total` is always the gross charged (inclusive split, or exclusive net+VAT).
+   * `taxNet` + `taxAmount` ≈ `total`.
    */
   taxLabel?: string;
   taxRatePercent?: number;
@@ -63,6 +64,10 @@ export type ReceiptPayload = {
   paymentMethod: string;
   /** Present only for split or on-account sales; lines sum to `total`. */
   payments?: ReceiptPaymentLine[];
+  /** Cash received from the customer (snapshotted at checkout). */
+  amountPaid?: number;
+  /** Change returned (`amountPaid` − `total`). Present with `amountPaid`. */
+  changeGiven?: number;
   completedAt: number;
   customerName: string;
   customerPhone?: string | null;
@@ -97,6 +102,8 @@ export const SAMPLE_RECEIPT_PAYLOAD: ReceiptPayload = {
     },
   ],
   paymentMethod: "cash",
+  amountPaid: 250,
+  changeGiven: 10,
   completedAt: Date.now(),
   customerName: "Walk-in Customer",
   customerPhone: null,

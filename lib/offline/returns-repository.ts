@@ -9,7 +9,7 @@ import { notifyReplicaChanged } from "./replica-events";
 import { estimateReturnRefund } from "@/lib/sales/returns";
 import { roundMoney } from "@/lib/currency";
 import { hasBusinessCapability } from "@/convex/shared/businessCapabilities";
-import { splitVatInclusive } from "@/convex/shared/vatInclusive";
+import { applyVatToAmount } from "@/convex/shared/vatInclusive";
 import { parseTaxVatSettings } from "@/convex/shared/taxVatSettings";
 import { loadBusinessCapabilitiesCache } from "./business-capabilities";
 import type { LocalReturn, LocalReturnItem, PrintSnapshot } from "./types";
@@ -116,9 +116,8 @@ export async function processReturnLocally(input: {
   const vatSettings = hasBusinessCapability(businessConfig, "tax_vat")
     ? parseTaxVatSettings(vatRaw)
     : null;
-  const vat = vatSettings
-    ? splitVatInclusive(refundAmount, vatSettings.ratePercent, vatSettings.label)
-    : null;
+  const vat = vatSettings ? applyVatToAmount(refundAmount, vatSettings) : null;
+  const refundTotal = vat ? vat.gross : refundAmount;
 
   const receiptPayload: ReceiptPayload = {
     kind: "return",
@@ -128,7 +127,7 @@ export async function processReturnLocally(input: {
     saleId: input.saleId,
     subtotal: refundAmount,
     discount: 0,
-    total: refundAmount,
+    total: refundTotal,
     ...(vat
       ? {
           taxLabel: vat.label,
@@ -161,7 +160,7 @@ export async function processReturnLocally(input: {
     returnNumber,
     reason: input.reason,
     notes: input.notes,
-    refundAmount,
+    refundAmount: refundTotal,
     itemCount: receiptPayload.itemCount,
     completedAt: now,
     syncStatus: "pending",

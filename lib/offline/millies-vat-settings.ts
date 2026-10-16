@@ -1,9 +1,11 @@
 /**
- * Millie's local VAT rate (Dexie only). Prices stay VAT-inclusive; receipts show net / VAT / total.
+ * Millie's local VAT settings (Dexie only).
+ * Inclusive: shelf prices include VAT. Exclusive: VAT is added at checkout.
  */
 
 import {
   DEFAULT_VAT_LABEL,
+  DEFAULT_VAT_PRICING_MODE,
   DEFAULT_VAT_RATE_PERCENT,
   type VatOrgSettings,
 } from "@/convex/shared/vatInclusive";
@@ -13,6 +15,7 @@ import { getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
 export const DEFAULT_MILLIES_VAT: VatOrgSettings = {
   ratePercent: DEFAULT_VAT_RATE_PERCENT,
   label: DEFAULT_VAT_LABEL,
+  pricingMode: DEFAULT_VAT_PRICING_MODE,
 };
 
 export async function loadMilliesVatSettings(): Promise<VatOrgSettings> {
@@ -30,10 +33,15 @@ export async function saveMilliesVatSettings(settings: VatOrgSettings): Promise<
     throw new Error("VAT rate must be between 0 and 100.");
   }
   const label = settings.label.trim().slice(0, 32) || DEFAULT_VAT_LABEL;
+  const pricingMode = settings.pricingMode === "exclusive" ? "exclusive" : "inclusive";
   await setMeta(
     db,
     META_KEYS.taxVat,
-    JSON.stringify({ ratePercent: Math.round(rate * 100) / 100, label }),
+    JSON.stringify({
+      ratePercent: Math.round(rate * 100) / 100,
+      label,
+      pricingMode,
+    }),
   );
 }
 

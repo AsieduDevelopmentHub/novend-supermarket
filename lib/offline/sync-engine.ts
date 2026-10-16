@@ -690,6 +690,8 @@ async function drainOwnedOutbox(
             invoiceNumber,
             clientCompletedAt: payload.completedAt ?? localSale?.completedAt,
             acceptStockShortage: payload.acceptStockShortage,
+            amountPaid: payload.amountPaid,
+            changeGiven: payload.changeGiven,
           }),
             UPLOAD_ATTEMPT_MS,
             "Upload timed out",

@@ -235,7 +235,7 @@ export const BUSINESS_CAPABILITY_REGISTRY: Record<
     version: 1,
     label: "VAT / tax on receipts",
     description:
-      "Show net, VAT, and total on receipts from a configured rate (selling prices are VAT-inclusive).",
+      "Show net, VAT, and total on receipts from a configured rate. Choose inclusive or exclusive prices in VAT settings.",
     minPlanSortOrder: resolvePlan("basic").sortOrder,
   },
 };

@@ -1,6 +1,12 @@
 import net from "node:net";
 
-export function sendTcp(host: string, portNum: number, data: Buffer): Promise<void> {
+/** Send raw ESC/POS over TCP :9100 (or custom port). */
+export function sendTcp(
+  host: string,
+  portNum: number,
+  data: Buffer,
+  timeoutMs = 3_000,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const socket = net.connect({ host, port: portNum }, () => {
       socket.write(data, (err) => {
@@ -12,7 +18,7 @@ export function sendTcp(host: string, portNum: number, data: Buffer): Promise<vo
         resolve();
       });
     });
-    socket.setTimeout(8_000);
+    socket.setTimeout(timeoutMs);
     socket.on("timeout", () => {
       socket.destroy();
       reject(new Error(`Network printer unreachable at ${host}:${portNum} (timeout)`));

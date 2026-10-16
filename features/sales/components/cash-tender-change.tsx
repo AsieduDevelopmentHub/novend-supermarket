@@ -1,35 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 type CashTenderChangeProps = {
   total: number;
-  /** Clear when cart empties after pay / hold. */
-  active: boolean;
+  /** Controlled Paid field (raw string so empty / partial entry stays editable). */
+  value: string;
+  onValueChange: (value: string) => void;
   compact?: boolean;
   className?: string;
 };
 
 /**
- * Optional cashier aid: amount paid → auto change. UI-only — never persisted
- * or printed on receipts.
+ * Cashier aid: amount paid → auto change. Value is lifted so checkout can
+ * snapshot Paid / Change onto the receipt.
  */
 export function CashTenderChange({
   total,
-  active,
+  value,
+  onValueChange,
   compact = false,
   className,
 }: CashTenderChangeProps) {
-  const [amountPaid, setAmountPaid] = useState("");
-
-  useEffect(() => {
-    if (!active) setAmountPaid("");
-  }, [active]);
-
-  const paid = amountPaid.trim() === "" ? null : Number(amountPaid);
+  const paid = value.trim() === "" ? null : Number(value);
   const hasPaid = paid != null && Number.isFinite(paid);
   const change =
     hasPaid && paid >= total ? Math.round((paid - total) * 100) / 100 : null;
@@ -60,13 +55,13 @@ export function CashTenderChange({
         step="0.01"
         inputMode="decimal"
         placeholder="Optional"
-        value={amountPaid}
-        onChange={(e) => setAmountPaid(e.target.value)}
+        value={value}
+        onChange={(e) => onValueChange(e.target.value)}
         className={cn(
           "min-w-0 flex-1 tabular-nums",
           compact ? "h-7 px-2 text-xs" : "h-8 px-2 text-sm",
         )}
-        aria-label="Amount paid (optional)"
+        aria-label="Amount paid"
       />
       {change != null && change > 0 ? (
         <p

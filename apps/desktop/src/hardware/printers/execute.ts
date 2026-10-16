@@ -7,6 +7,70 @@ function cashDrawerPulse(): Buffer {
   return Buffer.from([0x1b, 0x70, 0x00, 0x19, 0xfa]);
 }
 
+function hasUsableNetworkHost(host: string | undefined): boolean {
+  const value = (host ?? "").trim();
+  if (!value) return false;
+  // Legacy default placeholder — never block an 8s TCP timeout on it.
+  if (value === "192.168.1.100") return false;
+  return true;
+}
+
+/**
+ * Route print bytes the fast way:
+ * - Prefer Windows RAW when a Windows printer is configured (USB/shared).
+ * - Prefer short TCP only when a real LAN host is set.
+ * - Never wait 8s on a dead default IP before falling back (that made receipts feel slow vs test print).
+ */
+async function sendOnce(job: PrintJobRequest, payload: Buffer): Promise<void> {
+  const windowsName = (job.windowsPrinterName || "").trim();
+  const host = (job.printerHost || "").trim();
+  const port = Number(job.printerPort) || 9100;
+  const type = job.connectionType || "auto";
+
+  if (type === "windows") {
+    if (!windowsName) throw new Error("Windows printer name is required");
+    await sendWindowsRaw(windowsName, payload);
+    return;
+  }
+
+  if (type === "network") {
+    if (!hasUsableNetworkHost(host)) {
+      throw new Error("Network printer host is required");
+    }
+    await sendTcp(host, port, payload, 3_000);
+    return;
+  }
+
+  // auto
+  if (windowsName && !hasUsableNetworkHost(host)) {
+    await sendWindowsRaw(windowsName, payload);
+    return;
+  }
+
+  if (hasUsableNetworkHost(host)) {
+    try {
+      // Short probe — fail fast to Windows RAW when the LAN path is down.
+      await sendTcp(host, port, payload, 800);
+      return;
+    } catch (networkError) {
+      if (windowsName) {
+        await sendWindowsRaw(windowsName, payload);
+        return;
+      }
+      throw networkError;
+    }
+  }
+
+  if (windowsName) {
+    await sendWindowsRaw(windowsName, payload);
+    return;
+  }
+
+  throw new Error(
+    "No printer configured. Open Settings → Printer, Discover printers, then Save.",
+  );
+}
+
 export async function executePrintJob(job: PrintJobRequest): Promise<PrintJobResult> {
   const copies = Math.min(5, Math.max(1, job.copies || 1));
   const bytes = Buffer.from(String(job.escposBase64 || ""), "base64");
@@ -18,21 +82,7 @@ export async function executePrintJob(job: PrintJobRequest): Promise<PrintJobRes
 
   try {
     for (let i = 0; i < copies; i += 1) {
-      if (job.connectionType === "windows") {
-        await sendWindowsRaw(job.windowsPrinterName, payload);
-      } else if (job.connectionType === "network") {
-        await sendTcp(job.printerHost || "127.0.0.1", Number(job.printerPort) || 9100, payload);
-      } else {
-        try {
-          await sendTcp(job.printerHost || "127.0.0.1", Number(job.printerPort) || 9100, payload);
-        } catch (networkError) {
-          if (job.windowsPrinterName) {
-            await sendWindowsRaw(job.windowsPrinterName, payload);
-          } else {
-            throw networkError;
-          }
-        }
-      }
+      await sendOnce(job, payload);
     }
     return { ok: true, message: `Printed ${copies} copy(ies)` };
   } catch (error) {

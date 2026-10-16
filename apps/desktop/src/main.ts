@@ -109,6 +109,12 @@ if (!gotLock) {
     registerDesktopIpc();
     registerCustomerDisplayIpc();
     registerCustomerDisplayHotplug();
+    // Pre-compile Windows RAW helper so the first receipt is not paying csc cost.
+    void import("./hardware/printers/windows-raw.js")
+      .then((mod) => mod.warmupWindowsRawPrinter())
+      .catch(() => {
+        /* best-effort */
+      });
     showWindow(appUrl);
     startAutoUpdater(() => mainWindow);
 

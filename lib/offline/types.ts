@@ -440,6 +440,9 @@ export type CompleteSaleOutboxPayload = {
   /** Local held sale id if checkout came from a hold. */
   localHeldSaleId?: string;
   serverHeldSaleId?: string;
+  /** Cash received — snapshotted onto the server receipt on sync. */
+  amountPaid?: number;
+  changeGiven?: number;
 };
 
 export type ProcessReturnOutboxPayload = {
