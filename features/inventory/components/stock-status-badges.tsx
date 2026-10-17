@@ -14,7 +14,7 @@ export function StockStatusBadges({
   }
 
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex flex-nowrap items-center gap-1">
       {isExpired ? <Badge variant="destructive">Expired</Badge> : null}
       {isExpiring ? <Badge variant="warning">Expiring</Badge> : null}
       {isLowStock ? <Badge variant="warning">Low Stock</Badge> : null}

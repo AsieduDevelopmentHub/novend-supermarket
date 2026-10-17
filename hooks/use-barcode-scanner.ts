@@ -33,7 +33,9 @@ export function useBarcodeScanner(
   const {
     enabled = true,
     minLength = 4,
-    interKeyTimeoutMs = 80,
+    // HID wedges can pause >80ms when the main thread is busy (route remount /
+    // Dexie catalog load). A slightly wider gap avoids truncated codes.
+    interKeyTimeoutMs = 140,
     allowInInputs = true,
     timeoutMs,
     onTimeout,

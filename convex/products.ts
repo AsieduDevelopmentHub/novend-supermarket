@@ -165,6 +165,7 @@ export const listProducts = query({
           costPrice: showCost ? product.costPrice : undefined,
           stockQuantity,
           unit: product.unit,
+          sellUnits: product.sellUnits ?? null,
           lowStockThreshold: product.lowStockThreshold,
           status: product.status,
           description: product.description,

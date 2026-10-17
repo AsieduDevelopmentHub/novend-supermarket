@@ -18,6 +18,7 @@ export const PRODUCT_IMPORT_FIELD_KEYS = [
   "tracksExpiry",
   "expiryAlertDays",
   "expiryDate",
+  "sellUnits",
 ] as const;
 
 export type ProductImportFieldKey = (typeof PRODUCT_IMPORT_FIELD_KEYS)[number];
@@ -156,6 +157,20 @@ export const PRODUCT_IMPORT_FIELDS: ProductImportField[] = [
       "bbd",
       "expiry",
       "expires on",
+    ],
+  },
+  {
+    key: "sellUnits",
+    label: "Sell Units",
+    required: false,
+    synonyms: [
+      "sell units",
+      "sell unit",
+      "multi pack",
+      "multipack",
+      "pack units",
+      "packs",
+      "cartons",
     ],
   },
 ];

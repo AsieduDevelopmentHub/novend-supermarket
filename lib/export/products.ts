@@ -1,3 +1,5 @@
+import type { ProductSellUnit } from "@/convex/shared/units";
+import { serializeSellUnits } from "@/lib/import/sell-units-codec";
 import type { ExportTable } from "./types";
 
 export type ProductExportSource = {
@@ -12,6 +14,7 @@ export type ProductExportSource = {
   stockQuantity: number;
   lowStockThreshold?: number;
   unit: string;
+  sellUnits?: ProductSellUnit[] | null;
   status: string;
   tracksExpiry?: boolean;
   expiryAlertDays?: number | null;
@@ -42,6 +45,7 @@ export function productExportTable(args: {
     { key: "stockQuantity", header: "Stock Quantity" },
     { key: "lowStockThreshold", header: "Minimum Stock" },
     { key: "unit", header: "Unit" },
+    { key: "sellUnits", header: "Sell Units" },
     { key: "status", header: "Status" },
     { key: "tracksExpiry", header: "Tracks Expiry" },
     { key: "expiryAlertDays", header: "Expiry Alert Days" },
@@ -67,6 +71,7 @@ export function productExportTable(args: {
       stockQuantity: row.stockQuantity,
       lowStockThreshold: row.lowStockThreshold ?? "",
       unit: row.unit,
+      sellUnits: serializeSellUnits(row.sellUnits),
       status: row.status,
       tracksExpiry: row.tracksExpiry ? "yes" : "no",
       expiryAlertDays: row.expiryAlertDays ?? "",

@@ -1,3 +1,4 @@
+import type { ProductSellUnit } from "@/convex/shared/units";
 import type { ColumnMapping } from "./mapping";
 import type { ProductImportFieldKey } from "./product-fields";
 import {
@@ -8,6 +9,7 @@ import {
   parseStatusCell,
   stripCell,
 } from "./normalize";
+import { parseSellUnitsCell } from "./sell-units-codec";
 
 export type ExistingProductRef = {
   id: string;
@@ -32,6 +34,8 @@ export type PreparedImportRow = {
   tracksExpiry: boolean;
   expiryAlertDays?: number;
   expiryDate?: string;
+  /** Present when the Sell Units column mapped a value (including clear → []). */
+  sellUnits?: ProductSellUnit[];
   existingId?: string;
   skipReason?: string;
   quantityIgnoredOnUpdate?: boolean;
@@ -120,6 +124,7 @@ export function prepareProductImport(args: {
     const tracksRaw = mappedValue(record, args.mapping, "tracksExpiry");
     const alertRaw = mappedValue(record, args.mapping, "expiryAlertDays");
     const expiryRaw = mappedValue(record, args.mapping, "expiryDate");
+    const sellUnitsRaw = mappedValue(record, args.mapping, "sellUnits");
 
     const empty =
       !name &&
@@ -278,6 +283,20 @@ export function prepareProductImport(args: {
       });
     }
 
+    let sellUnits: ProductSellUnit[] | undefined;
+    if (stripCell(sellUnitsRaw)) {
+      try {
+        const parsed = parseSellUnitsCell(sellUnitsRaw);
+        sellUnits = parsed ?? undefined;
+      } catch (error) {
+        rowIssues.push({
+          rowNumber,
+          field: "sellUnits",
+          message: error instanceof Error ? error.message : "Invalid Sell Units.",
+        });
+      }
+    }
+
     if (rowIssues.length > 0) {
       issues.push(...rowIssues);
       return;
@@ -313,6 +332,7 @@ export function prepareProductImport(args: {
       tracksExpiry,
       expiryAlertDays,
       expiryDate,
+      ...(sellUnits !== undefined ? { sellUnits } : {}),
       existingId: existing?.id,
       quantityIgnoredOnUpdate: action === "update" && quantity > 0,
     });

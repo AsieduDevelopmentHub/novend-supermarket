@@ -94,6 +94,13 @@ function mapRemoteProducts(
   }));
 }
 
+/** Keep last Sales catalog paint across route remounts so the grid does not flash blank. */
+let salesCatalogMemory: { key: string; products: CatalogProduct[] } | null = null;
+
+function salesCatalogCacheKey(search: string, branchKey?: string) {
+  return `${branchKey ?? ""}::${search.trim().toLowerCase()}`;
+}
+
 /**
  * Branch-scoped product catalog for Sales.
  * Warm Dexie mirror skips the live Convex subscription. Package cloud modes
@@ -105,6 +112,7 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
   const liveSession = online && isAuthenticated;
   const { lastSyncAt } = useOfflineStatus();
   const branchKey = branchId ?? undefined;
+  const cacheKey = salesCatalogCacheKey(search, branchKey);
   const [serveLocal, setServeLocal] = useState(false);
   const [gateReady, setGateReady] = useState(false);
 
@@ -127,18 +135,30 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
       ? { search: search || undefined, branchId: branchKey }
       : "skip",
   );
-  const [local, setLocal] = useState<CatalogProduct[] | null>(null);
+  const [local, setLocal] = useState<CatalogProduct[] | null>(() =>
+    salesCatalogMemory?.key === cacheKey ? salesCatalogMemory.products : null,
+  );
+
+  const publishLocal = useCallback((rows: CatalogProduct[] | null | undefined) => {
+    const next = rows ?? [];
+    salesCatalogMemory = { key: cacheKey, products: next };
+    setLocal(next);
+  }, [cacheKey]);
 
   const refreshLocal = useCallback(async () => {
     const rows = await listLocalCatalogProducts(search || undefined, branchKey ?? null);
-    setLocal(rows);
-  }, [search, branchKey]);
+    publishLocal(rows);
+  }, [search, branchKey, publishLocal]);
 
   useEffect(() => {
     let cancelled = false;
+    // Keep prior paint while refreshing a different search/branch key.
+    if (salesCatalogMemory?.key === cacheKey) {
+      setLocal(salesCatalogMemory.products);
+    }
     const load = () => {
       void listLocalCatalogProducts(search || undefined, branchKey ?? null).then((rows) => {
-        if (!cancelled) setLocal(rows ?? []);
+        if (!cancelled) publishLocal(rows);
       });
     };
     // Debounce typed search so each keystroke does not re-scan the full Dexie catalog.
@@ -150,7 +170,7 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
       window.clearTimeout(timer);
       unsub();
     };
-  }, [search, branchKey, lastSyncAt]);
+  }, [search, branchKey, lastSyncAt, cacheKey, publishLocal]);
 
   if (!online || serveLocal) {
     if (local != null) {

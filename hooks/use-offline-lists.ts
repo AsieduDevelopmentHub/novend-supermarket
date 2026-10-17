@@ -44,6 +44,7 @@ type ProductListRow = {
   stockQuantity: number;
   lowStockThreshold?: number;
   unit: string;
+  sellUnits?: MirroredProductRow["sellUnits"];
   isLowStock: boolean;
   isExpired?: boolean;
   isExpiring?: boolean;
@@ -70,6 +71,7 @@ function mapProduct(row: MirroredProductRow, canViewCost: boolean): ProductListR
     stockQuantity: row.stockQuantity,
     lowStockThreshold: row.lowStockThreshold,
     unit: row.unit,
+    sellUnits: row.sellUnits ?? null,
     isLowStock: row.isLowStock,
     isExpired: row.isExpired,
     isExpiring: row.isExpiring,

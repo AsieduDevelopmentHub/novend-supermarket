@@ -18,6 +18,7 @@ import {
   shouldApplyFetchedSnapshot,
 } from "./replica-events";
 import {
+  normalizeBarcodeInput,
   productMatchesBarcode,
   productMatchesQuery,
   resolveBarcodeMatch,
@@ -494,10 +495,10 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
   if (!effectiveBranchId) return [];
 
   const query = search?.trim() ?? "";
-  // Always load the full active catalog, then filter — never search only the browse window.
-  let products = await db.products
-    .filter((p) => p.status === "active" && p.isVariantParent !== true)
-    .toArray();
+  // Status index first — full-table `.filter` stalled scans during page mounts.
+  let products = (await db.products.where("status").equals("active").toArray()).filter(
+    (p) => p.isVariantParent !== true,
+  );
   if (query) {
     products = products.filter((p) => productMatchesQuery(p, query));
   }
@@ -574,16 +575,53 @@ export async function findLocalProductBySku(sku: string) {
  * Offline barcode lookup — Dexie only.
  * Matches sell-unit barcode, product barcode, then SKU.
  * Multiple rows support rare catalog duplicates; the sales UI shows a picker.
+ *
+ * Prefer barcode/SKU indexes; only scan active rows when sell-unit barcodes
+ * (or case mismatches) need it — full `.filter` blocked the till on page changes.
  */
 export async function findLocalProductsByBarcode(code: string, branchId?: string | null) {
   const db = await getOfflineDb();
   if (!db) return [];
-  const normalized = code.trim();
+  const normalized = normalizeBarcodeInput(code);
   if (!normalized) return [];
+  const lower = normalized.toLowerCase();
 
-  const products = await db.products
-    .filter((p) => p.status === "active" && productMatchesBarcode(p, normalized))
-    .toArray();
+  const byId = new Map<string, MirroredProduct>();
+  const absorb = async (values: string[]) => {
+    const unique = [...new Set(values.filter(Boolean))];
+    const batches = await Promise.all(
+      unique.flatMap((value) => [
+        db.products.where("barcode").equals(value).toArray(),
+        db.products.where("sku").equals(value).toArray(),
+      ]),
+    );
+    for (const rows of batches) {
+      for (const product of rows) {
+        if (product.status === "active" && product.isVariantParent !== true) {
+          byId.set(product.id, product);
+        }
+      }
+    }
+  };
+
+  await absorb([normalized, lower, normalized.toUpperCase()]);
+
+  for (const [id, product] of [...byId.entries()]) {
+    if (!productMatchesBarcode(product, normalized)) byId.delete(id);
+  }
+
+  if (byId.size === 0) {
+    const active = await db.products.where("status").equals("active").toArray();
+    for (const product of active) {
+      if (product.isVariantParent === true) continue;
+      if (productMatchesBarcode(product, normalized)) {
+        byId.set(product.id, product);
+      }
+    }
+  }
+
+  const products = [...byId.values()];
+  if (products.length === 0) return [];
 
   const effectiveBranchId = await resolveCatalogBranchId(db, branchId);
   if (!effectiveBranchId) return [];

@@ -5,6 +5,7 @@
 import { APP_BRAND } from "@/constants/app";
 import { MILLIES_LOCAL_BRANCH_ID, MILLIES_LOCAL_BRANCH_NAME } from "@/constants/runtime";
 import type { ReceiptBusiness, ReceiptTemplateConfig } from "@/features/receipts/types";
+import { setAuthMeta, MILLIES_AUTH_META } from "./millies-auth-db";
 import { getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
 import type { MirroredBranch, PrintSnapshot } from "./types";
 
@@ -68,8 +69,7 @@ export async function loadMilliesPrintSnapshot(): Promise<PrintSnapshot> {
       business: { ...DEFAULT_MILLIES_BUSINESS, ...parsed.business },
       template: {
         ...template,
-        // Legacy installs saved 80mm; Millie's tills print 58mm and 80-col lines wrap.
-        paperWidthMm: template.paperWidthMm === 80 ? 58 : template.paperWidthMm,
+        paperWidthMm: template.paperWidthMm === 58 || template.paperWidthMm === 80 ? template.paperWidthMm : 58,
         footerText: scrubLegacyVendorCopy(template.footerText) || DEFAULT_MILLIES_TEMPLATE.footerText,
         thankYouLine:
           scrubLegacyVendorCopy(template.thankYouLine) || DEFAULT_MILLIES_TEMPLATE.thankYouLine,
@@ -104,13 +104,17 @@ export async function resolveMilliesSalePrintSnapshot(
     business: {
       ...base.business,
       branchName: showName ? store.name : undefined,
-      address: showAddress ? (store.address ?? "") : "",
-      phone: showPhone ? (store.phone ?? "") : "",
-      email: showEmail ? (store.email ?? "") : "",
+      // Prefer store receipt fields; fall back to org snapshot so a wiped branch
+      // row cannot blank phone/address that were already saved.
+      address: showAddress
+        ? (store.address?.trim() || base.business.address || "")
+        : "",
+      phone: showPhone ? (store.phone?.trim() || base.business.phone || "") : "",
+      email: showEmail ? (store.email?.trim() || base.business.email || "") : "",
     },
     template: {
       ...base.template,
-      paperWidthMm: paper === 80 ? 58 : paper,
+      paperWidthMm: paper === 58 || paper === 80 ? paper : base.template.paperWidthMm,
     },
   };
 }
@@ -204,12 +208,15 @@ export async function saveMilliesBranchReceipt(input: {
     existing = (await ensureMilliesMainBranch()) ?? undefined;
   }
   if (!existing) throw new Error("Store not found on this till");
+  const address = input.address?.trim() || "";
+  const phone = input.phone?.trim() || "";
+  const email = input.email?.trim() || "";
   await db.branches.put({
     ...existing,
     name: input.name.trim() || existing.name,
-    address: input.address?.trim() || null,
-    phone: input.phone?.trim() || null,
-    email: input.email?.trim() || null,
+    address: address || null,
+    phone: phone || null,
+    email: email || null,
     receiptShowName: input.receiptShowName,
     receiptShowAddress: input.receiptShowAddress,
     receiptShowPhone: input.receiptShowPhone,
@@ -217,7 +224,12 @@ export async function saveMilliesBranchReceipt(input: {
     receiptPaperWidthMm: input.receiptPaperWidthMm,
   });
 
+  // Persist contact for login bootstrap fallback (auth DB survives till restarts).
+  await setAuthMeta(MILLIES_AUTH_META.storeAddress, address);
+  await setAuthMeta(MILLIES_AUTH_META.storePhone, phone);
+
   // Keep org print snapshot contact lines aligned with Store receipt for single-store tills.
+  // Always store the typed values here; show toggles gate what prints, not what is saved.
   const current = await loadMilliesPrintSnapshot();
   await setMeta(
     db,
@@ -225,13 +237,13 @@ export async function saveMilliesBranchReceipt(input: {
     JSON.stringify({
       business: {
         ...current.business,
-        address: input.receiptShowAddress ? input.address?.trim() || "" : "",
-        phone: input.receiptShowPhone ? input.phone?.trim() || "" : "",
-        email: input.receiptShowEmail ? input.email?.trim() || "" : "",
+        address,
+        phone,
+        email,
       },
       template: {
         ...current.template,
-        paperWidthMm: input.receiptPaperWidthMm === 80 ? 58 : input.receiptPaperWidthMm,
+        paperWidthMm: input.receiptPaperWidthMm,
       },
     } satisfies PrintSnapshot),
   );

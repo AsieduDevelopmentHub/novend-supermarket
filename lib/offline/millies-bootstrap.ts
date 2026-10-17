@@ -134,15 +134,36 @@ export async function bootstrapMilliesStore(input: {
   const db = await getOfflineDb();
   if (!db) throw new Error("Local business database unavailable");
 
-  const branch: MirroredBranch = {
-    id: input.branchId,
-    name: input.branchName,
-    code: "MAIN",
-    address: input.storeAddress?.trim() || null,
-    phone: input.storePhone?.trim() || null,
-    status: "active",
-  };
-  await db.branches.put(branch);
+  // Never replace an existing Main Store row — login used to wipe phone/address
+  // and receipt show toggles, so Store receipt edits looked like they never saved.
+  const existingBranch = await db.branches.get(input.branchId);
+  if (existingBranch) {
+    await db.branches.put({
+      ...existingBranch,
+      name: existingBranch.name?.trim() || input.branchName,
+      code: existingBranch.code || "MAIN",
+      status: "active",
+      address: existingBranch.address?.trim() || input.storeAddress?.trim() || null,
+      phone: existingBranch.phone?.trim() || input.storePhone?.trim() || null,
+      email: existingBranch.email ?? null,
+    });
+  } else {
+    const branch: MirroredBranch = {
+      id: input.branchId,
+      name: input.branchName,
+      code: "MAIN",
+      address: input.storeAddress?.trim() || null,
+      phone: input.storePhone?.trim() || null,
+      email: null,
+      status: "active",
+      receiptShowName: true,
+      receiptShowAddress: true,
+      receiptShowPhone: true,
+      receiptShowEmail: false,
+      receiptPaperWidthMm: 58,
+    };
+    await db.branches.put(branch);
+  }
 
   const mirroredUser: MirroredUser = {
     id: input.session.id,

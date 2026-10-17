@@ -21,6 +21,7 @@ function templateTable(): ExportTable {
     tracksExpiry: "no",
     expiryAlertDays: "",
     expiryDate: "",
+    sellUnits: "",
   };
   return {
     title: "Product import template",

@@ -172,6 +172,8 @@ export async function milliesLogin(
     branchId,
     branchName,
     storeName: (await getAuthMeta(MILLIES_AUTH_META.storeName)) ?? APP_BRAND,
+    storePhone: (await getAuthMeta(MILLIES_AUTH_META.storePhone)) ?? "",
+    storeAddress: (await getAuthMeta(MILLIES_AUTH_META.storeAddress)) ?? "",
     session,
   });
   // Existing tills that never started a trial (pre-auto-start builds) get one on login.

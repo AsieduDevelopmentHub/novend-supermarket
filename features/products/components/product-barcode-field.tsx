@@ -17,13 +17,24 @@ import { toast } from "sonner";
 type Props = {
   value: string;
   onChange: (value: string) => void;
+  /** Defaults to “Barcode”. Pass empty string to hide the label. */
+  label?: string;
+  id?: string;
+  /** Tighter label + spacing for nested editors (e.g. sell units). */
+  dense?: boolean;
 };
 
 /**
  * Optional barcode assignment. HID listens when configured;
  * otherwise opens the camera scanner.
  */
-export function ProductBarcodeField({ value, onChange }: Props) {
+export function ProductBarcodeField({
+  value,
+  onChange,
+  label = "Barcode",
+  id = "barcode",
+  dense = false,
+}: Props) {
   const [listening, setListening] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const hidActive = isHardwareBarcodeScannerActive();
@@ -52,11 +63,15 @@ export function ProductBarcodeField({ value, onChange }: Props) {
   }
 
   return (
-    <div className="min-w-0 space-y-2">
-      <Label htmlFor="barcode">Barcode</Label>
+    <div className={dense ? "min-w-0 space-y-1.5" : "min-w-0 space-y-2"}>
+      {label ? (
+        <Label htmlFor={id} className={dense ? "text-xs" : undefined}>
+          {label}
+        </Label>
+      ) : null}
       <div className="flex min-w-0 gap-2">
         <Input
-          id="barcode"
+          id={id}
           className="min-h-11 min-w-0"
           value={value}
           onChange={(e) => onChange(e.target.value)}

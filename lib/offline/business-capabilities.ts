@@ -64,12 +64,17 @@ function ensureTaxVatCapability(
   };
 }
 
+export const BUSINESS_CAPABILITIES_CHANGED_EVENT = "novend:business-capabilities";
+
 export async function saveBusinessCapabilitiesCache(
   config: OrganizationBusinessConfiguration,
 ): Promise<void> {
   const db = await getOfflineDb();
   if (!db) return;
   await setMeta(db, META_KEYS.businessCapabilities, JSON.stringify(config));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(BUSINESS_CAPABILITIES_CHANGED_EVENT));
+  }
 }
 
 export async function loadBusinessCapabilitiesCache(): Promise<OrganizationBusinessConfiguration> {

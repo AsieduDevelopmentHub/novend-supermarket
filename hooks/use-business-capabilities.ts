@@ -9,7 +9,10 @@ import {
   type BusinessCapabilityKey,
   type OrganizationBusinessConfiguration,
 } from "@/convex/shared/businessCapabilities";
-import { loadBusinessCapabilitiesCache } from "@/lib/offline/business-capabilities";
+import {
+  BUSINESS_CAPABILITIES_CHANGED_EVENT,
+  loadBusinessCapabilitiesCache,
+} from "@/lib/offline/business-capabilities";
 import { getBoundOrganizationId } from "@/lib/offline/db";
 import { PLATFORM_OFFLINE_ORG_ID } from "@/lib/offline/platform-cache";
 import { useOfflineStatus } from "@/providers/offline-provider";
@@ -30,6 +33,14 @@ export function useBusinessCapabilities() {
   const [cached, setCached] = useState<OrganizationBusinessConfiguration>(
     DEFAULT_BUSINESS_CONFIGURATION,
   );
+  const [cacheEpoch, setCacheEpoch] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onChanged = () => setCacheEpoch((n) => n + 1);
+    window.addEventListener(BUSINESS_CAPABILITIES_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(BUSINESS_CAPABILITIES_CHANGED_EVENT, onChanged);
+  }, []);
 
   useEffect(() => {
     if (online && remote) {
@@ -43,7 +54,7 @@ export function useBusinessCapabilities() {
     return () => {
       cancelled = true;
     };
-  }, [online, remote]);
+  }, [online, remote, cacheEpoch]);
 
   const config = remote ?? cached;
 

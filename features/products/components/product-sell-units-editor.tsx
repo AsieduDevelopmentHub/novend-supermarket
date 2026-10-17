@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { ProductSellUnit } from "@/convex/shared/units";
+import { ProductBarcodeField } from "@/features/products/components/product-barcode-field";
 import { UnitPresetField } from "@/features/products/components/unit-preset-field";
 
 export type SellUnitDraft = {
@@ -154,15 +155,12 @@ export function ProductSellUnitsEditor({
                   onChange={(e) => patch(index, { sellingPrice: e.target.value })}
                 />
               </div>
-              <div className="min-w-0 space-y-1.5">
-                <Label className="text-xs">Barcode</Label>
-                <Input
-                  className="min-h-11"
-                  value={row.barcode}
-                  placeholder="Optional"
-                  onChange={(e) => patch(index, { barcode: e.target.value })}
-                />
-              </div>
+              <ProductBarcodeField
+                id={`sell-unit-barcode-${row.key}`}
+                dense
+                value={row.barcode}
+                onChange={(barcode) => patch(index, { barcode })}
+              />
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="flex items-center gap-2 text-sm">

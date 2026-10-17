@@ -1,5 +1,10 @@
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { notifyReplicaChanged } from "@/lib/offline/replica-events";
 import { getOfflineDb } from "@/lib/offline/db";
+import {
+  loadBusinessCapabilitiesCache,
+  saveBusinessCapabilitiesCache,
+} from "@/lib/offline/business-capabilities";
 import { queueCreateCategory, queueUpsertProduct } from "@/lib/offline/replica-writes";
 import type { PreparedImportRow } from "./validate-products";
 
@@ -11,6 +16,20 @@ export type ImportApplyResult = {
 
 function categoryKey(name: string): string {
   return name.trim().toLowerCase();
+}
+
+/** Offline Millies: turn on multi-pack selling when an import brings pack units. */
+async function ensureMultiUnitPricingForImportedPacks(rows: PreparedImportRow[]) {
+  if (!FULLY_OFFLINE) return;
+  const hasPacks = rows.some((row) => (row.sellUnits?.length ?? 0) > 0);
+  if (!hasPacks) return;
+  const config = await loadBusinessCapabilitiesCache();
+  if (config.enabledCapabilities.includes("multi_unit_pricing")) return;
+  await saveBusinessCapabilitiesCache({
+    ...config,
+    enabledCapabilities: [...config.enabledCapabilities, "multi_unit_pricing"],
+    configurationVersion: (config.configurationVersion ?? 0) + 1,
+  });
 }
 
 /**
@@ -58,6 +77,7 @@ export async function applyProductImport(args: {
           tracksExpiry: row.tracksExpiry,
           expiryAlertDays: row.expiryAlertDays,
           expiryDate: row.expiryDate,
+          ...(row.sellUnits !== undefined ? { sellUnits: row.sellUnits } : {}),
           branchId: row.action === "create" ? args.branchId : undefined,
         },
         { notify: false },
@@ -71,6 +91,10 @@ export async function applyProductImport(args: {
         message: error instanceof Error ? error.message : "Could not save this row.",
       });
     }
+  }
+
+  if (result.created + result.updated > 0) {
+    await ensureMultiUnitPricingForImportedPacks(args.rows);
   }
 
   notifyReplicaChanged({ flush: args.online });

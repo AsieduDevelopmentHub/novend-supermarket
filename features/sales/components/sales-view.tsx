@@ -627,68 +627,86 @@ export function SalesView() {
     );
   }
 
+  const barcodeBusyRef = useRef(false);
+
   function handleBarcodeScan(code: string) {
+    if (barcodeBusyRef.current) return;
+    barcodeBusyRef.current = true;
     void (async () => {
-      const localMatches = await findLocalProductsByBarcode(
-        code,
-        workingBranchId ?? myBranchId ?? undefined,
-      );
-      const catalogMatches = catalog
-        .flatMap((p): BarcodeMatchProduct[] => {
+      try {
+        const catalogMatches = catalog.flatMap((p): BarcodeMatchProduct[] => {
           const match = resolveBarcodeMatch(p, code);
           if (!match) return [];
-          return [{
-            id: p.id,
-            name: p.name,
-            sku: p.sku,
-            sellingPrice: p.sellingPrice,
-            stockQuantity: p.stockQuantity,
-            tracksInventory: p.tracksInventory,
-            imageUrl: p.imageUrl,
-            costPrice: undefined as number | undefined,
-            unit: p.unit,
-            sellUnits: p.sellUnits,
-            pricingMode: p.pricingMode,
-            matchedSellUnitKey: match.sellUnitKey,
-          }];
+          return [
+            {
+              id: p.id,
+              name: p.name,
+              sku: p.sku,
+              sellingPrice: p.sellingPrice,
+              stockQuantity: p.stockQuantity,
+              tracksInventory: p.tracksInventory,
+              imageUrl: p.imageUrl,
+              costPrice: undefined as number | undefined,
+              unit: p.unit,
+              sellUnits: p.sellUnits,
+              pricingMode: p.pricingMode,
+              matchedSellUnitKey: match.sellUnitKey,
+            },
+          ];
         });
-      // Dexie barcode lookup is authoritative (full catalog + healed stock).
-      // Catalog window is a fallback for products not yet mirrored locally —
-      // iterate it first so localMatches overwrite and win on conflicts.
-      const byId = new Map<string, BarcodeMatchProduct>();
-      for (const product of [...catalogMatches, ...localMatches]) {
-        byId.set(product.id, {
-          id: product.id,
-          name: product.name,
-          sku: product.sku,
-          sellingPrice: product.sellingPrice,
-          stockQuantity: product.stockQuantity,
-          tracksInventory: product.tracksInventory,
-          imageUrl: product.imageUrl,
-          costPrice: "costPrice" in product ? product.costPrice : undefined,
-          unit: "unit" in product ? product.unit : undefined,
-          sellUnits: "sellUnits" in product ? product.sellUnits : undefined,
-          pricingMode: "pricingMode" in product ? product.pricingMode : undefined,
-          matchedSellUnitKey:
-            "matchedSellUnitKey" in product ? product.matchedSellUnitKey : undefined,
-        });
+        // Warm catalog path is instant — use it when the product is already on screen.
+        if (catalogMatches.length === 1) {
+          addScannedProduct(catalogMatches[0]!);
+          return;
+        }
+        if (catalogMatches.length > 1) {
+          setBarcodeMatches({ code, products: catalogMatches });
+          return;
+        }
+
+        // Dexie for barcodes outside the browse window / sell-unit codes.
+        const localMatches = await findLocalProductsByBarcode(
+          code,
+          workingBranchId ?? myBranchId ?? undefined,
+        );
+        const byId = new Map<string, BarcodeMatchProduct>();
+        for (const product of localMatches) {
+          byId.set(product.id, {
+            id: product.id,
+            name: product.name,
+            sku: product.sku,
+            sellingPrice: product.sellingPrice,
+            stockQuantity: product.stockQuantity,
+            tracksInventory: product.tracksInventory,
+            imageUrl: product.imageUrl,
+            costPrice: "costPrice" in product ? product.costPrice : undefined,
+            unit: "unit" in product ? product.unit : undefined,
+            sellUnits: "sellUnits" in product ? product.sellUnits : undefined,
+            pricingMode: "pricingMode" in product ? product.pricingMode : undefined,
+            matchedSellUnitKey:
+              "matchedSellUnitKey" in product ? product.matchedSellUnitKey : undefined,
+          });
+        }
+        const matches = [...byId.values()];
+        if (matches.length === 0) {
+          toast.error("Product not found");
+          return;
+        }
+        if (matches.length === 1) {
+          addScannedProduct(matches[0]!);
+          return;
+        }
+        setBarcodeMatches({ code, products: matches });
+      } finally {
+        barcodeBusyRef.current = false;
       }
-      const matches = [...byId.values()];
-      if (matches.length === 0) {
-        toast.error("Product not found");
-        return;
-      }
-      if (matches.length === 1) {
-        addScannedProduct(matches[0]!);
-        return;
-      }
-      setBarcodeMatches({ code, products: matches });
     })();
   }
 
   useBarcodeScanner(handleBarcodeScan, {
     enabled: isBarcodeScanningEnabled(),
     allowInInputs: true,
+    interKeyTimeoutMs: 140,
   });
 
   function cartLineKey(productId: string, sellUnitKey?: string) {
@@ -1099,7 +1117,7 @@ export function SalesView() {
   return (
     <div
       className={cn(
-        "space-y-4 xl:pb-0",
+        "space-y-4 lg:pb-0",
         nativeShell ? "pb-[calc(var(--novend-tabbar-offset)+3.75rem)]" : "pb-24",
       )}
     >
@@ -1111,7 +1129,7 @@ export function SalesView() {
         }
       />
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
         <div className="min-w-0 space-y-4">
           <div className="bg-background/95 supports-[backdrop-filter]:bg-background/90 border-border sticky top-0 z-20 -mx-1 flex flex-col gap-3 border-b px-1 py-2.5 backdrop-blur sm:flex-row sm:items-end sm:justify-between">
             <div className="flex min-w-0 w-full max-w-lg flex-1 gap-2">
@@ -1177,7 +1195,7 @@ export function SalesView() {
 
         <Card
           data-tour="sales-cart"
-          className="hidden self-start xl:sticky xl:top-3 xl:flex xl:max-h-[calc(100dvh-2rem)] xl:flex-col xl:overflow-hidden"
+          className="hidden self-start lg:sticky lg:top-3 lg:flex lg:max-h-[calc(100dvh-2rem)] lg:flex-col lg:overflow-hidden"
         >
           <CardHeader className="bg-card shrink-0 px-3 py-2">
             <CardTitle className="flex items-center justify-between gap-2 text-sm">
@@ -1244,7 +1262,7 @@ export function SalesView() {
         </Card>
       </div>
 
-      <div className="xl:hidden">
+      <div className="lg:hidden">
         <DraggableCartFab
           itemCount={cartItemCount}
           totalLabel={formatCurrency(total)}
@@ -1255,7 +1273,7 @@ export function SalesView() {
 
       <Drawer open={checkoutOpen} onOpenChange={setCheckoutOpen} shouldScaleBackground={false}>
         <DrawerContent
-          className="flex h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)))] max-h-[92dvh] flex-col rounded-t-[22px] xl:hidden"
+          className="flex h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)))] max-h-[92dvh] flex-col rounded-t-[22px] lg:hidden"
           overlayClassName="bg-black/60"
         >
           <DrawerHeader className="border-border shrink-0 border-b text-left">
