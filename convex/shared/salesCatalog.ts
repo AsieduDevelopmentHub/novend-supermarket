@@ -6,6 +6,9 @@
  * Typed search returns **every** in-stock match — a hard cap would hide
  * products that sort after the limit on broad queries.
  */
+
+import { tokenizeProductSearch } from "./validation";
+
 export const SALES_CATALOG_BROWSE_LIMIT = 48;
 
 /**
@@ -26,12 +29,15 @@ export function catalogSearchRank(
   },
   q: string,
 ): number {
+  const query = q.trim().toLowerCase();
   const name = product.name.toLowerCase();
   const sku = product.sku.toLowerCase();
   const barcode = (product.barcode ?? "").toLowerCase();
   const variant = (product.variantLabel ?? "").toLowerCase();
-  if (sku === q || barcode === q) return 0;
-  if (name === q || variant === q) return 1;
-  if (name.startsWith(q) || sku.startsWith(q) || variant.startsWith(q)) return 2;
+  if (sku === query || barcode === query) return 0;
+  if (name === query || variant === query) return 1;
+  if (name.startsWith(query) || sku.startsWith(query) || variant.startsWith(query)) return 2;
+  const tokens = tokenizeProductSearch(query);
+  if (tokens.length > 1 && tokens.every((token) => name.includes(token))) return 2;
   return 3;
 }

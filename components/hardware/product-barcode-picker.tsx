@@ -24,6 +24,7 @@ export type ProductPickerItem = {
   barcode?: string | null;
   costPrice?: number;
   sellingPrice?: number;
+  sellUnits?: Array<{ key: string; barcode?: string | null; active?: boolean }> | null;
 };
 
 type Props = {

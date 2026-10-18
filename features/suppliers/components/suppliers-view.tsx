@@ -27,14 +27,13 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { useSuppliersList } from "@/hooks/use-offline-lists";
 import { getOfflineDb } from "@/lib/offline/db";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
-import { purchaseBalance } from "@/convex/shared/supplierFinance";
+import { purchaseBalance, settledAmount } from "@/convex/shared/supplierFinance";
 import {
   persistBusinessWrite,
   queuedSaveMessage,
   queueUpsertSupplier,
 } from "@/lib/offline/replica-writes";
 import { formatCurrency } from "@/lib/currency";
-import { SINGLE_STORE } from "@/constants/app";
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { Pencil, Plus, Truck } from "lucide-react";
@@ -58,6 +57,7 @@ export function SuppliersView() {
   const [pending, setPending] = useState(false);
   const balances = useAuthedQuery(api.suppliers.balances, online ? {} : "skip");
   const [localOwed, setLocalOwed] = useState<Record<string, number>>({});
+  const [localTotals, setLocalTotals] = useState({ purchased: 0, paid: 0, owed: 0 });
   useEffect(() => {
     let cancelled = false;
     async function loadOwed() {
@@ -65,11 +65,21 @@ export function SuppliersView() {
       if (!db || cancelled) return;
       const purchases = await db.wholesalePurchases.toArray();
       const owed: Record<string, number> = {};
+      let purchased = 0;
+      let paid = 0;
+      let owedTotal = 0;
       for (const row of purchases) {
         if (row.status === "void") continue;
-        owed[row.supplierId] = (owed[row.supplierId] ?? 0) + purchaseBalance(row);
+        purchased += row.totalCost;
+        paid += settledAmount(row);
+        const balance = purchaseBalance(row);
+        owedTotal += balance;
+        owed[row.supplierId] = (owed[row.supplierId] ?? 0) + balance;
       }
-      if (!cancelled) setLocalOwed(owed);
+      if (!cancelled) {
+        setLocalOwed(owed);
+        setLocalTotals({ purchased, paid, owed: owedTotal });
+      }
     }
     void loadOwed();
     const unsubscribe = subscribeReplicaChanged(() => {
@@ -81,6 +91,15 @@ export function SuppliersView() {
     };
   }, []);
   const owedById = new Map((balances ?? []).map((row) => [String(row.supplierId), row.owed]));
+  const remoteTotals = (balances ?? []).reduce(
+    (acc, row) => ({
+      purchased: acc.purchased + row.purchased,
+      paid: acc.paid + row.paid,
+      owed: acc.owed + row.owed,
+    }),
+    { purchased: 0, paid: 0, owed: 0 },
+  );
+  const summary = online && balances ? remoteTotals : localTotals;
 
   if (!canManageProducts) {
     return (
@@ -151,7 +170,7 @@ export function SuppliersView() {
     <div className="space-y-6">
       <PageHeader
         title="Suppliers"
-        description="Vendors you buy from — contacts for restocking. Add stock in Inventory with reason “Supplier restock”."
+        description="Track deliveries, payments, and what you still owe each vendor."
         compactActions={[
           {
             key: "add",
@@ -176,6 +195,26 @@ export function SuppliersView() {
           </Button>
         }
       />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-muted-foreground text-sm">Purchased</p>
+            <p className="mt-1 text-2xl font-semibold">{formatCurrency(summary.purchased)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-muted-foreground text-sm">Paid</p>
+            <p className="mt-1 text-2xl font-semibold">{formatCurrency(summary.paid)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-muted-foreground text-sm">Owed</p>
+            <p className="mt-1 text-2xl font-semibold">{formatCurrency(summary.owed)}</p>
+          </CardContent>
+        </Card>
+      </div>
       <Input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
@@ -193,7 +232,7 @@ export function SuppliersView() {
               <EmptyState
                 icon={Truck}
                 title="No suppliers yet"
-                description="Add suppliers you buy from. Restock shelf stock from Inventory → Adjust."
+                description="Add a supplier, then record deliveries and payments from their page."
               />
             </div>
           ) : (
@@ -203,9 +242,7 @@ export function SuppliersView() {
                   <th className="px-4 py-3 font-medium">Supplier</th>
                   <th className="px-4 py-3 font-medium">Contact</th>
                   <th className="px-4 py-3 font-medium">Phone</th>
-                  {!SINGLE_STORE ? (
-                    <th className="px-4 py-3 font-medium">Owed</th>
-                  ) : null}
+                  <th className="px-4 py-3 font-medium">Owed</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium" />
                 </tr>
@@ -216,11 +253,9 @@ export function SuppliersView() {
                     <td className="px-4 py-3 font-medium">{row.name}</td>
                     <td className="px-4 py-3">{row.contactName ?? "—"}</td>
                     <td className="px-4 py-3">{row.phone ?? "—"}</td>
-                    {!SINGLE_STORE ? (
-                      <td className="px-4 py-3">
-                        {formatCurrency(localOwed[row.id] ?? owedById.get(row.id) ?? 0)}
-                      </td>
-                    ) : null}
+                    <td className="px-4 py-3">
+                      {formatCurrency(localOwed[row.id] ?? owedById.get(row.id) ?? 0)}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge variant={row.status === "active" ? "success" : "secondary"}>
                         {row.status}

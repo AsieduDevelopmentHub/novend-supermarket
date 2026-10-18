@@ -1,5 +1,7 @@
 /** Shared Dexie barcode matching — never call Convex for a scan lookup. */
 
+import { tokenizeProductSearch } from "@/convex/shared/validation";
+
 export function normalizeBarcodeInput(value: string): string {
   return value.normalize("NFKC").trim();
 }
@@ -83,17 +85,22 @@ export function productMatchesQuery(
   },
   search: string,
 ): boolean {
-  const q = search.trim().toLowerCase();
-  if (!q) return true;
-  if (product.name.toLowerCase().includes(q)) return true;
-  if ((product.variantLabel ?? "").toLowerCase().includes(q)) return true;
-  if (product.sku.toLowerCase().includes(q)) return true;
-  if ((product.barcode ?? "").toLowerCase().includes(q)) return true;
+  const tokens = tokenizeProductSearch(search);
+  if (tokens.length === 0) return true;
+  const fields = [
+    product.name,
+    product.variantLabel ?? "",
+    product.sku,
+    product.barcode ?? "",
+  ].map((field) => field.toLowerCase());
   for (const unit of product.sellUnits ?? []) {
     if (unit.active === false) continue;
-    if ((unit.barcode ?? "").toLowerCase().includes(q)) return true;
+    if (unit.barcode) fields.push(unit.barcode.toLowerCase());
   }
-  return false;
+  const haystack = fields.join(" ");
+  return tokens.every(
+    (token) => haystack.includes(token) || fields.some((field) => field.includes(token)),
+  );
 }
 
 export const BARCODE_ALREADY_ASSIGNED =

@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { ProductBarcodePicker } from "@/components/hardware/product-barcode-picker";
 import { RecordPurchaseDialog } from "@/features/wholesale/components/record-purchase-dialog";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -303,20 +304,26 @@ export function WholesaleView() {
               <DialogTitle>Issue warehouse stock to a branch</DialogTitle>
             </DialogHeader>
             <div className="grid gap-3 py-4">
-              <div className="space-y-2">
-                <Label>Product</Label>
-                <SearchableSelect
-                  options={(stock ?? [])
-                    .filter((row) => row.quantity > 0)
-                    .map((row) => ({
-                      value: row.productId,
-                      label: `${row.name} (${row.quantity})`,
-                    }))}
-                  value={issueProductId}
-                  onValueChange={setIssueProductId}
-                  placeholder="Select stock"
-                />
-              </div>
+              <ProductBarcodePicker
+                products={(stock ?? [])
+                  .filter((row) => row.quantity > 0)
+                  .map((row) => {
+                    const catalog = (products ?? []).find((product) => product.id === row.productId);
+                    return {
+                      id: row.productId,
+                      name: `${row.name} (${row.quantity})`,
+                      sku: row.sku || catalog?.sku || row.productId,
+                      barcode: row.barcode ?? catalog?.barcode ?? null,
+                      sellUnits: catalog?.sellUnits ?? null,
+                    };
+                  })}
+                value={issueProductId}
+                onValueChange={setIssueProductId}
+                enabled={issueOpen}
+                label="Product"
+                placeholder="Select or scan warehouse stock"
+                scanPlaceholder="Scan barcode to pick warehouse stock…"
+              />
               {isAdmin ? (
                 <div className="space-y-2">
                   <Label>Branch</Label>

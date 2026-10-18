@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { ProductBarcodePicker } from "@/components/hardware/product-barcode-picker";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import {
   persistBusinessWrite,
@@ -33,6 +34,8 @@ import {
 import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { ProductFormDialog } from "@/features/products/components/product-form-dialog";
+import { FULLY_OFFLINE } from "@/constants/runtime";
+import { SINGLE_STORE } from "@/constants/app";
 
 type SupplierOption = { id: string; name: string };
 
@@ -44,6 +47,7 @@ export type PurchaseProductOption = {
   costPrice?: number;
   sellingPrice?: number;
   tracksExpiry?: boolean;
+  sellUnits?: Array<{ key: string; barcode?: string | null; active?: boolean }> | null;
 };
 
 type DraftLine = {
@@ -97,11 +101,12 @@ export function RecordPurchaseDialog({
   const [method, setMethod] = useState<SettlementMethod>("cash");
   const [pending, setPending] = useState(false);
   const [productFormOpen, setProductFormOpen] = useState(false);
+  const [applyToShelf, setApplyToShelf] = useState(FULLY_OFFLINE || SINGLE_STORE);
 
-  const productOptions = products.map((product) => ({
-    value: product.id,
-    label: product.sku ? `${product.name} · ${product.sku}` : product.name,
-  }));
+  const scanLineIndex = (() => {
+    const empty = lines.findIndex((line) => !line.productId);
+    return empty >= 0 ? empty : lines.length - 1;
+  })();
 
   const total = lines.reduce((sum, line) => {
     const quantity = Number(line.quantity);
@@ -191,10 +196,16 @@ export function RecordPurchaseDialog({
             notes: undefined,
             amountPaid,
             paymentMethod: purchaseArgs.paymentMethod,
+            applyToShelf,
             items,
           }),
       });
-      toast.success(queuedSaveMessage(kind, "Delivery recorded"));
+      toast.success(
+        queuedSaveMessage(
+          kind,
+          applyToShelf ? "Delivery recorded and shelf stock updated" : "Delivery recorded",
+        ),
+      );
       onOpenChange(false);
     } catch (error) {
       showError(error, "Could not record delivery");
@@ -263,11 +274,14 @@ export function RecordPurchaseDialog({
                           </Button>
                         ) : null}
                       </div>
-                      <SearchableSelect
-                        options={productOptions}
+                      <ProductBarcodePicker
+                        products={products}
                         value={line.productId}
                         onValueChange={(value) => updateLine(line.key, { productId: value })}
-                        placeholder="Select product"
+                        enabled={open && index === scanLineIndex}
+                        label="Product"
+                        placeholder="Select or scan product"
+                        scanPlaceholder="Scan barcode to pick this product…"
                       />
                       <div className="grid gap-3 sm:grid-cols-3">
                         <div className="space-y-2">
@@ -334,6 +348,21 @@ export function RecordPurchaseDialog({
                   </Button>
                 </div>
               </div>
+              <label className="border-border flex items-start gap-3 rounded-md border p-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={applyToShelf}
+                  onChange={(event) => setApplyToShelf(event.target.checked)}
+                />
+                <span>
+                  <span className="font-medium">Update shelf stock automatically</span>
+                  <span className="text-muted-foreground mt-0.5 block text-xs">
+                    Adds quantities to on-hand inventory and refreshes cost / sell prices from this
+                    delivery.
+                  </span>
+                </span>
+              </label>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Supplier payment</Label>

@@ -125,6 +125,21 @@ export function sanitizeBarcode(value: string | undefined | null): string | unde
   return barcode;
 }
 
+/** Split a product search into order-independent tokens (spaces, slashes, dashes). */
+export function tokenizeProductSearch(search: string): string[] {
+  return search
+    .trim()
+    .toLowerCase()
+    .split(/[\s/|,._-]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Strong product lookup: every token must appear somewhere in name / variant /
+ * SKU / barcode. Order does not matter — "milo nesflo" and "flo 300ml" both hit
+ * "Nesflo Milo 300ml".
+ */
 export function productMatchesLookup(
   product: {
     name: string;
@@ -134,12 +149,18 @@ export function productMatchesLookup(
   },
   search: string,
 ): boolean {
-  const q = search.trim().toLowerCase();
-  if (!q) return true;
-  if (product.name.toLowerCase().includes(q)) return true;
-  if ((product.variantLabel ?? "").toLowerCase().includes(q)) return true;
-  if (product.sku.toLowerCase().includes(q)) return true;
-  return (product.barcode ?? "").toLowerCase().includes(q);
+  const tokens = tokenizeProductSearch(search);
+  if (tokens.length === 0) return true;
+  const fields = [
+    product.name,
+    product.variantLabel ?? "",
+    product.sku,
+    product.barcode ?? "",
+  ].map((field) => field.toLowerCase());
+  const haystack = fields.join(" ");
+  return tokens.every(
+    (token) => haystack.includes(token) || fields.some((field) => field.includes(token)),
+  );
 }
 
 type MutationLike = Pick<GenericMutationCtx<DataModel>, "db" | "storage">;

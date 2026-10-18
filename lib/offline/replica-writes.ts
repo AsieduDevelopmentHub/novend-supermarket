@@ -123,13 +123,17 @@ export async function queueWholesalePurchase(
   payload: Omit<RecordWholesalePurchasePayload, "localId">,
 ) {
   await assertLocalWriteAllowed();
-  await assertFeatureEnabled("inventory.wholesale");
+  if (!FULLY_OFFLINE) await assertFeatureEnabled("inventory.wholesale");
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const localId = newClientId("local");
   const supplier = await db.suppliers.get(payload.supplierId);
   const totalCost = payload.items.reduce((sum, item) => sum + item.unitCost * item.quantity, 0);
   const itemCount = payload.items.reduce((sum, item) => sum + item.quantity, 0);
+  const applyToShelf = payload.applyToShelf === true || FULLY_OFFLINE;
+  const shelfBranchId =
+    (await getMeta(db, META_KEYS.profileBranchId))?.trim() ||
+    (FULLY_OFFLINE ? MILLIES_LOCAL_BRANCH_ID : "");
   // Same rule as convex/wholesale.ts: dated products cannot be received without an expiry.
   for (const item of payload.items) {
     const dated = await db.products.get(item.productId);
@@ -141,15 +145,30 @@ export async function queueWholesalePurchase(
   for (const item of payload.items) {
     const rowProduct = await db.products.get(item.productId);
     if (rowProduct?.tracksExpiry && item.expiryDate) {
-      const lots = await db.wholesaleLots.where("productId").equals(item.productId).toArray();
-      const merged = addWholesaleLot(lots, {
-        id: newClientId("local_lot"),
-        productId: item.productId,
-        quantity: item.quantity,
-        expiryDate: item.expiryDate,
-        receivedAt: payload.purchasedAt,
-      });
-      await db.wholesaleLots.bulkPut(merged);
+      if (applyToShelf && shelfBranchId) {
+        const branchLots = await db.lots.where("productId").equals(item.productId).toArray();
+        const forBranch = branchLots.filter((lot) => lot.branchId === shelfBranchId);
+        const merged = addBranchLot(forBranch, {
+          id: newClientId("local_lot"),
+          productId: item.productId,
+          branchId: shelfBranchId,
+          branchName: null,
+          quantity: item.quantity,
+          expiryDate: item.expiryDate,
+          receivedAt: payload.purchasedAt,
+        });
+        await db.lots.bulkPut(merged);
+      } else {
+        const lots = await db.wholesaleLots.where("productId").equals(item.productId).toArray();
+        const merged = addWholesaleLot(lots, {
+          id: newClientId("local_lot"),
+          productId: item.productId,
+          quantity: item.quantity,
+          expiryDate: item.expiryDate,
+          receivedAt: payload.purchasedAt,
+        });
+        await db.wholesaleLots.bulkPut(merged);
+      }
     }
     const prices = nextCatalogPrices({
       unitCost: item.unitCost,
@@ -172,21 +191,48 @@ export async function queueWholesalePurchase(
         updatedAt: Date.now(),
       });
     }
-    const existing = (await db.wholesaleStock.toArray()).find(
-      (row) => row.productId === item.productId,
-    );
-    const nextQty = (existing?.quantity ?? 0) + item.quantity;
-    await db.wholesaleStock.put({
-      id: existing?.id ?? newClientId("local"),
-      productId: item.productId,
-      name: rowProduct?.name ?? existing?.name ?? "Product",
-      sku: rowProduct?.sku ?? existing?.sku ?? "",
-      unit: rowProduct?.unit ?? existing?.unit ?? "",
-      costPrice: prices.costPrice,
-      sellingPrice: prices.sellingPrice,
-      quantity: nextQty,
-      tracksExpiry: rowProduct?.tracksExpiry ?? existing?.tracksExpiry ?? false,
-    });
+    if (applyToShelf && shelfBranchId && rowProduct) {
+      const hadBranchRow = Boolean(
+        await db.branchStock.get(branchStockId(shelfBranchId, item.productId)),
+      );
+      await applyLocalBranchStockChange(
+        db,
+        shelfBranchId,
+        item.productId,
+        item.quantity,
+        rowProduct,
+      );
+      if (hadBranchRow) {
+        const refreshed = (await db.products.get(item.productId)) ?? rowProduct;
+        await db.products.put({
+          ...refreshed,
+          costPrice: prices.costPrice,
+          sellingPrice: prices.sellingPrice,
+          stockQuantity: refreshed.stockQuantity + item.quantity,
+          sellableQuantity: Math.max(
+            0,
+            (refreshed.sellableQuantity ?? refreshed.stockQuantity) + item.quantity,
+          ),
+          updatedAt: Date.now(),
+        });
+      }
+    } else {
+      const existing = (await db.wholesaleStock.toArray()).find(
+        (row) => row.productId === item.productId,
+      );
+      const nextQty = (existing?.quantity ?? 0) + item.quantity;
+      await db.wholesaleStock.put({
+        id: existing?.id ?? newClientId("local"),
+        productId: item.productId,
+        name: rowProduct?.name ?? existing?.name ?? "Product",
+        sku: rowProduct?.sku ?? existing?.sku ?? "",
+        unit: rowProduct?.unit ?? existing?.unit ?? "",
+        costPrice: prices.costPrice,
+        sellingPrice: prices.sellingPrice,
+        quantity: nextQty,
+        tracksExpiry: rowProduct?.tracksExpiry ?? existing?.tracksExpiry ?? false,
+      });
+    }
   }
   await db.wholesalePurchases.put({
     id: localId,
@@ -202,17 +248,21 @@ export async function queueWholesalePurchase(
     amountPaid: payload.amountPaid ?? totalCost,
     items: lineItems,
   });
-  await enqueueOutbox(db, "record_wholesale_purchase", {
-    ...payload,
-    localId,
-  } satisfies RecordWholesalePurchasePayload);
+  if (!FULLY_OFFLINE) {
+    await enqueueOutbox(db, "record_wholesale_purchase", {
+      ...payload,
+      localId,
+    } satisfies RecordWholesalePurchasePayload);
+  } else {
+    notifyReplicaChanged({ flush: false });
+  }
 }
 
 export async function queueSupplierPayment(
   payload: Omit<RecordSupplierPaymentPayload, "localId">,
 ) {
   await assertLocalWriteAllowed();
-  await assertFeatureEnabled("inventory.wholesale");
+  if (!FULLY_OFFLINE) await assertFeatureEnabled("inventory.wholesale");
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage is not available on this device.");
   const purchases = await db.wholesalePurchases
@@ -245,10 +295,14 @@ export async function queueSupplierPayment(
     method: payload.method,
     note: payload.note ?? null,
   });
-  await enqueueOutbox(db, "record_supplier_payment", {
-    ...payload,
-    localId,
-  } satisfies RecordSupplierPaymentPayload);
+  if (!FULLY_OFFLINE) {
+    await enqueueOutbox(db, "record_supplier_payment", {
+      ...payload,
+      localId,
+    } satisfies RecordSupplierPaymentPayload);
+  } else {
+    notifyReplicaChanged({ flush: false });
+  }
 }
 
 export async function queueWholesaleTransfer(payload: Omit<WholesaleTransferPayload, "localId">) {

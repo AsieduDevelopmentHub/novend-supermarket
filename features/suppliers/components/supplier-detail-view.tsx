@@ -46,7 +46,6 @@ import { formatDateTime } from "@/lib/date";
 import { SETTLEMENT_METHOD_OPTIONS, paymentMethodLabel, type SettlementMethod } from "@/lib/payments";
 import { paymentStatusLabel } from "@/convex/shared/supplierFinance";
 import { RecordPurchaseDialog } from "@/features/wholesale/components/record-purchase-dialog";
-import { SINGLE_STORE } from "@/constants/app";
 import { showError } from "@/lib/errors";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
@@ -289,11 +288,7 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
     <div className="space-y-6">
       <PageHeader
         title={source.name}
-        description={
-          SINGLE_STORE
-            ? "Supplier contact. Restock shelf stock from Inventory → Adjust → Supplier restock."
-            : "Deliveries, payments, and what is still owed"
-        }
+        description="Deliveries, payments, and what is still owed"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
@@ -302,20 +297,12 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
                 Suppliers
               </Link>
             </Button>
-            {!SINGLE_STORE ? (
-              <>
-                <Button type="button" variant="outline" onClick={() => setDeliveryOpen(true)}>
-                  Record delivery
-                </Button>
-                <Button type="button" onClick={() => setPaymentOpen(true)} disabled={owed <= 0}>
-                  Record payment
-                </Button>
-              </>
-            ) : (
-              <Button asChild>
-                <Link href="/inventory">Go to inventory</Link>
-              </Button>
-            )}
+            <Button type="button" variant="outline" onClick={() => setDeliveryOpen(true)}>
+              Record delivery
+            </Button>
+            <Button type="button" onClick={() => setPaymentOpen(true)} disabled={owed <= 0}>
+              Record payment
+            </Button>
           </div>
         }
       />
@@ -336,48 +323,29 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
             </Badge>
           </CardContent>
         </Card>
-        {!SINGLE_STORE ? (
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-muted-foreground text-sm">Purchased</p>
-                <p className="mt-1 text-2xl font-semibold">{formatCurrency(purchased)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-muted-foreground text-sm">Paid</p>
-                <p className="mt-1 text-2xl font-semibold">{formatCurrency(paid)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-muted-foreground text-sm">Owed</p>
-                <p className="mt-1 text-2xl font-semibold">{formatCurrency(owed)}</p>
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
+        <div className="grid gap-4 sm:grid-cols-3">
           <Card>
-            <CardHeader>
-              <CardTitle>How to restock</CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground space-y-2 text-sm">
-              <p>
-                Millie&apos;s keeps suppliers as a contact list. To put goods on the shelf, open{" "}
-                <Link href="/inventory" className="text-foreground font-medium underline">
-                  Inventory
-                </Link>
-                , choose the product, Adjust → Add stock → <strong>Supplier restock</strong>, and
-                optionally note this supplier in the note field.
-              </p>
+            <CardContent className="p-4">
+              <p className="text-muted-foreground text-sm">Purchased</p>
+              <p className="mt-1 text-2xl font-semibold">{formatCurrency(purchased)}</p>
             </CardContent>
           </Card>
-        )}
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-muted-foreground text-sm">Paid</p>
+              <p className="mt-1 text-2xl font-semibold">{formatCurrency(paid)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-muted-foreground text-sm">Owed</p>
+              <p className="mt-1 text-2xl font-semibold">{formatCurrency(owed)}</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {!SINGLE_STORE ? (
-        <>
+      <>
           <Card>
             <CardHeader>
               <CardTitle>Deliveries</CardTitle>
@@ -537,8 +505,7 @@ export function SupplierDetailView({ supplierId }: { supplierId: string }) {
               </form>
             </DialogContent>
           </Dialog>
-        </>
-      ) : null}
+      </>
     </div>
   );
 }

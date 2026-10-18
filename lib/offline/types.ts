@@ -701,6 +701,8 @@ export type RecordWholesalePurchasePayload = {
   /** Omit on older queued purchases. The server records those as paid in full. */
   amountPaid?: number;
   paymentMethod?: "cash" | "card" | "mobile_money";
+  /** When true (Millie's default), also increase shelf/branch stock and update catalog qty. */
+  applyToShelf?: boolean;
   clientOperationId?: string;
   items: Array<{
     productId: string;

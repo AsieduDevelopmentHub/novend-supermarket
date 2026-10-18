@@ -67,6 +67,20 @@ describe("barcode lookup", () => {
     expect(productMatchesQuery(product, "bag")).toBe(true);
   });
 
+  it("matches token-order-insensitive product search", () => {
+    const product = {
+      name: "Nesflo Milo 300ml",
+      sku: "NES-MILO-300",
+      barcode: "6001234567890",
+    };
+    expect(productMatchesQuery(product, "milo nesflo")).toBe(true);
+    expect(productMatchesQuery(product, "flo 300ml")).toBe(true);
+    expect(productMatchesQuery(product, "nesflo 300ml")).toBe(true);
+    expect(productMatchesQuery(product, "esflo")).toBe(true);
+    expect(productMatchesQuery(product, "milo/nesflo")).toBe(true);
+    expect(productMatchesQuery(product, "cocoa powder")).toBe(false);
+  });
+
   it("filters catalog rows by barcode or SKU", () => {
     const catalog = [
       { id: "1", sku: "RICE-01", barcode: "8901234567890" },

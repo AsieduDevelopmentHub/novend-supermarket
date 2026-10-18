@@ -25,7 +25,9 @@ import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
 import { BranchFilter } from "@/components/filters/branch-filter";
-import { useBranchesList, useProductsList } from "@/hooks/use-offline-lists";
+import { CollapsibleFilters } from "@/components/filters/collapsible-filters";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { useBranchesList, useCategoriesList, useProductsList } from "@/hooks/use-offline-lists";
 import { ProductImage } from "@/components/media/product-image";
 import { ExportMenu } from "@/components/export/export-menu";
 import { productExportTable } from "@/lib/export/products";
@@ -56,6 +58,7 @@ export function ProductsView() {
   const { capabilities, planName } = useLicense();
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [categoryId, setCategoryId] = useState<string>("all");
   const [storedPageSize, setStoredPageSize] = useLocalStorage(
     "novend.listPageSize",
     DEFAULT_LIST_PAGE_SIZE,
@@ -72,8 +75,11 @@ export function ProductsView() {
   const [archivePending, setArchivePending] = useState(false);
   const [branchFilter, setBranchFilter] = useState<Id<"branches"> | "all" | null>(myBranchId);
   const mirroredBranches = useBranchesList();
+  const categories = useCategoriesList();
   const branches = isAdmin ? mirroredBranches : undefined;
   const listBranchId = isAdmin && branchFilter && branchFilter !== "all" ? branchFilter : undefined;
+  const listCategoryId =
+    categoryId !== "all" ? (categoryId as Id<"categories">) : undefined;
   const {
     products,
     total,
@@ -82,6 +88,7 @@ export function ProductsView() {
     search,
     includeInactive: canManageProducts,
     branchId: listBranchId,
+    categoryId: listCategoryId,
     canViewCost,
     page,
     pageSize,
@@ -90,6 +97,7 @@ export function ProductsView() {
     search,
     includeInactive: canManageProducts,
     branchId: listBranchId,
+    categoryId: listCategoryId,
     canViewCost,
   });
   const archiveProduct = useMutation(api.products.archiveProduct);
@@ -99,7 +107,7 @@ export function ProductsView() {
 
   useEffect(() => {
     reset();
-  }, [search, branchFilter, reset]);
+  }, [search, branchFilter, categoryId, reset]);
   const exportTable = useMemo(
     () =>
       productExportTable({
@@ -191,25 +199,45 @@ export function ProductsView() {
 
       <PlanLimitNotice resource="products" />
 
-      <div
-        data-tour="products-search"
-        className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
-      >
-        <div className="min-w-0 w-full flex-1 sm:max-w-md">
-          <BarcodeSearchField
-            value={search}
-            onChange={setSearch}
-            placeholder="Search products or scan barcode…"
-            listenHid={!open}
+      <div data-tour="products-search">
+        <CollapsibleFilters
+          leading={
+            <BarcodeSearchField
+              value={search}
+              onChange={setSearch}
+              placeholder="Search products or scan barcode…"
+              listenHid={!open}
+            />
+          }
+          activeCount={
+            (categoryId !== "all" ? 1 : 0) + (isAdmin && branchFilter && branchFilter !== "all" ? 1 : 0)
+          }
+          onReset={() => {
+            setCategoryId("all");
+            if (isAdmin) setBranchFilter("all");
+          }}
+        >
+          <SearchableSelect
+            className="w-full sm:w-56"
+            options={[
+              { value: "all", label: "All categories" },
+              ...(categories ?? []).map((category) => ({
+                value: category._id,
+                label: category.name,
+              })),
+            ]}
+            value={categoryId}
+            onValueChange={setCategoryId}
+            placeholder="Category"
+            searchPlaceholder="Search categories…"
           />
-        </div>
-        <div className="flex w-full shrink-0 justify-end sm:w-auto">
           {isAdmin ? (
             <BranchFilter
               branches={branches}
               value={branchFilter}
               onChange={setBranchFilter}
               allowAll
+              className="w-full sm:w-auto"
             />
           ) : branchName ? (
             <BranchFilter
@@ -217,9 +245,10 @@ export function ProductsView() {
               value={myBranchId}
               onChange={() => undefined}
               lockedLabel={branchName}
+              className="w-full sm:w-auto"
             />
           ) : null}
-        </div>
+        </CollapsibleFilters>
       </div>
 
       <Card data-tour="products-list">

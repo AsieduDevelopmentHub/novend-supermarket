@@ -99,6 +99,7 @@ export function useProductsList(options: {
   search: string;
   includeInactive: boolean;
   branchId?: Id<"branches">;
+  categoryId?: Id<"categories">;
   canViewCost: boolean;
   preferLocal?: boolean;
   page?: number;
@@ -116,6 +117,7 @@ export function useProductsList(options: {
           search: options.search || undefined,
           includeInactive: options.includeInactive,
           branchId: options.branchId,
+          categoryId: options.categoryId,
           page: options.page,
           pageSize: options.pageSize,
         },
@@ -127,6 +129,7 @@ export function useProductsList(options: {
         search: options.search || undefined,
         includeInactive: options.includeInactive,
         branchId: options.branchId ?? null,
+        categoryId: options.categoryId,
         page: options.page,
         pageSize: options.pageSize,
       }).then((rows) => {
@@ -151,6 +154,7 @@ export function useProductsList(options: {
     options.includeInactive,
     options.canViewCost,
     options.branchId,
+    options.categoryId,
     options.page,
     options.pageSize,
     remote,
