@@ -106,11 +106,10 @@ describe("explicit logout flag", () => {
     expect(source).toContain("readPlatformOfflineSession");
   });
 
-  it("does not query billing or users.me without a Convex session", () => {
-    const license = readFileSync(resolve(process.cwd(), "hooks/use-license.ts"), "utf8");
-    expect(license).toContain('isAuthenticated && online ? {} : "skip"');
+  it("uses local Millie's session for identity (no Convex users.me)", () => {
     const permissions = readFileSync(resolve(process.cwd(), "hooks/use-permissions.ts"), "utf8");
-    expect(permissions).toContain('isAuthenticated && online ? {} : "skip"');
+    expect(permissions).toContain("readMilliesSession");
+    expect(permissions).not.toContain("api.users.me");
     const layout = readFileSync(resolve(process.cwd(), "app/(app)/app-layout-client.tsx"), "utf8");
     expect(layout).toContain("hasExplicitLogout");
     expect(layout).toContain("SigningOutSplash");

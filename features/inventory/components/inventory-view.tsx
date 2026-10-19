@@ -7,8 +7,14 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { PageHeader, Grid, type PageHeaderCompactAction } from "@/components/layout/primitives";
 import { BarcodeSearchField } from "@/components/hardware/barcode-search-field";
+import {
+  loadOfflineInventoryValuation,
+  type OfflineInventoryValuation,
+} from "@/lib/offline/inventory-value";
+import { useDebounce } from "@/hooks/use-ui";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -92,6 +98,14 @@ function InventoryViewInner() {
   const expiryOnly = filter === "expiry";
   const stockFilter = lowOnly ? "low" : expiryOnly ? "expiry" : "all";
   const [search, setSearch] = useState("");
+  const [immediateSearch, setImmediateSearch] = useState<string | null>(null);
+  const debouncedSearch = useDebounce(search, 250);
+  const listSearch = immediateSearch ?? debouncedSearch;
+  useEffect(() => {
+    if (immediateSearch != null && debouncedSearch === immediateSearch) {
+      setImmediateSearch(null);
+    }
+  }, [debouncedSearch, immediateSearch]);
   /** Admin override; default `all` = organization-wide stock totals. */
   const [branchOverride, setBranchOverride] = useState<Id<"branches"> | "all">(() =>
     branchParam && branchParam !== "all" ? (branchParam as Id<"branches">) : "all",
@@ -190,14 +204,37 @@ function InventoryViewInner() {
       : undefined
     : undefined;
 
-  /** Cost/sell/profit KPIs are admin/manager + online only — never cashiers or offline. */
-  const valuation = useAuthedQuery(
+  /** Cloud KPIs when online; Millie's / offline uses Dexie valuation below. */
+  const remoteValuation = useAuthedQuery(
     api.inventory.valuationSummary,
-    online && canViewCost ? { branchId: listBranchId } : "skip",
+    !FULLY_OFFLINE && online && canViewCost ? { branchId: listBranchId } : "skip",
   );
+  const [localValuation, setLocalValuation] = useState<OfflineInventoryValuation | null>(null);
+  useEffect(() => {
+    if (!canViewCost || (!FULLY_OFFLINE && online)) {
+      queueMicrotask(() => setLocalValuation(null));
+      return;
+    }
+    let cancelled = false;
+    const load = () => {
+      void loadOfflineInventoryValuation({
+        branchId: listBranchId ? String(listBranchId) : null,
+        showCost: canViewCost,
+      }).then((data) => {
+        if (!cancelled) setLocalValuation(data);
+      });
+    };
+    load();
+    const unsub = subscribeReplicaChanged(load);
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [canViewCost, listBranchId, online]);
+  const valuation = FULLY_OFFLINE || !online ? localValuation : remoteValuation;
 
   const { rows } = useInventoryList({
-    search,
+    search: listSearch,
     branchId: listBranchId,
   });
 
@@ -274,7 +311,7 @@ function InventoryViewInner() {
     total,
   } = useClientPagedRows(
     visibleRows,
-    `${search}|${String(listBranchId)}|${lowOnly}|${expiryOnly}`,
+    `${listSearch}|${String(listBranchId)}|${lowOnly}|${expiryOnly}`,
   );
 
   const selected = useMemo(
@@ -536,61 +573,65 @@ function InventoryViewInner() {
         }
       />
 
-      {valuation ? (
+      {canViewCost ? (
         <div className="space-y-3">
           <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
             Inventory &amp; profit
           </h2>
-          <Grid cols={valuation.inventoryValueCost != null ? 3 : 1}>
-            {valuation.inventoryValueCost != null ? (
+          {valuation ? (
+            <Grid cols={valuation.inventoryValueCost != null ? 3 : 1}>
+              {valuation.inventoryValueCost != null ? (
+                <Card>
+                  <CardContent className="flex items-start justify-between gap-3 p-4">
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground text-sm">Inventory value (cost)</p>
+                      <p className="mt-1 truncate text-2xl font-semibold tracking-tight">
+                        {formatCurrency(valuation.inventoryValueCost)}
+                      </p>
+                    </div>
+                    <div className="bg-accent text-accent-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+                      <Package className="h-5 w-5" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
               <Card>
                 <CardContent className="flex items-start justify-between gap-3 p-4">
                   <div className="min-w-0">
-                    <p className="text-muted-foreground text-sm">Inventory value (cost)</p>
+                    <p className="text-muted-foreground text-sm">Inventory value (sell)</p>
                     <p className="mt-1 truncate text-2xl font-semibold tracking-tight">
-                      {formatCurrency(valuation.inventoryValueCost)}
+                      {formatCurrency(valuation.inventoryValueSell)}
                     </p>
                   </div>
                   <div className="bg-accent text-accent-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-                    <Package className="h-5 w-5" />
+                    <Wallet className="h-5 w-5" />
                   </div>
                 </CardContent>
               </Card>
-            ) : null}
-            <Card>
-              <CardContent className="flex items-start justify-between gap-3 p-4">
-                <div className="min-w-0">
-                  <p className="text-muted-foreground text-sm">Inventory value (sell)</p>
-                  <p className="mt-1 truncate text-2xl font-semibold tracking-tight">
-                    {formatCurrency(valuation.inventoryValueSell)}
-                  </p>
-                </div>
-                <div className="bg-accent text-accent-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-                  <Wallet className="h-5 w-5" />
-                </div>
-              </CardContent>
-            </Card>
-            {valuation.possibleProfit != null ? (
-              <Card>
-                <CardContent className="flex items-start justify-between gap-3 p-4">
-                  <div className="min-w-0">
-                    <p className="text-muted-foreground text-sm">Possible profit after sales</p>
-                    <p
-                      className={cn(
-                        "mt-1 truncate text-2xl font-semibold tracking-tight",
-                        valuation.possibleProfit < 0 && "text-destructive",
-                      )}
-                    >
-                      {formatCurrency(valuation.possibleProfit)}
-                    </p>
-                  </div>
-                  <div className="bg-accent text-accent-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-                    <TrendingUp className="h-5 w-5" />
-                  </div>
-                </CardContent>
-              </Card>
-            ) : null}
-          </Grid>
+              {valuation.possibleProfit != null ? (
+                <Card>
+                  <CardContent className="flex items-start justify-between gap-3 p-4">
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground text-sm">Possible profit after sales</p>
+                      <p
+                        className={cn(
+                          "mt-1 truncate text-2xl font-semibold tracking-tight",
+                          valuation.possibleProfit < 0 && "text-destructive",
+                        )}
+                      >
+                        {formatCurrency(valuation.possibleProfit)}
+                      </p>
+                    </div>
+                    <div className="bg-accent text-accent-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+                      <TrendingUp className="h-5 w-5" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
+            </Grid>
+          ) : (
+            <LoadingState label="Loading inventory value…" />
+          )}
         </div>
       ) : null}
 
@@ -600,7 +641,14 @@ function InventoryViewInner() {
             leading={
               <BarcodeSearchField
                 value={search}
-                onChange={setSearch}
+                onChange={(value) => {
+                  setImmediateSearch(null);
+                  setSearch(value);
+                }}
+                onScan={(code) => {
+                  setSearch(code);
+                  setImmediateSearch(code);
+                }}
                 placeholder="Search inventory or scan barcode…"
                 listenHid={!adjustId && !transferOpen}
               />
@@ -648,7 +696,14 @@ function InventoryViewInner() {
             <div className="min-w-0 w-full flex-1 sm:max-w-md">
               <BarcodeSearchField
                 value={search}
-                onChange={setSearch}
+                onChange={(value) => {
+                  setImmediateSearch(null);
+                  setSearch(value);
+                }}
+                onScan={(code) => {
+                  setSearch(code);
+                  setImmediateSearch(code);
+                }}
                 placeholder="Search inventory or scan barcode…"
                 listenHid={!adjustId && !transferOpen}
               />

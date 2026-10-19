@@ -21,6 +21,10 @@ import { saveShellProfile } from "./shell-profile";
 import { ensureDefaultSupermarketCategories } from "./millies-default-categories";
 import { ensureMilliesVatSettingsSeeded } from "./millies-vat-settings";
 import type { MilliesLocalRole } from "./millies-auth-db";
+import {
+  resolveStaffPermissions,
+  type AppPermission,
+} from "./millies-permissions";
 import type { MirroredBranch, MirroredUser } from "./types";
 
 export type MilliesBootstrapSession = {
@@ -28,6 +32,7 @@ export type MilliesBootstrapSession = {
   username: string;
   displayName: string;
   role: MilliesLocalRole;
+  permissions?: AppPermission[];
   branchId: string;
   branchName: string;
   organizationId: string;
@@ -226,6 +231,7 @@ export async function bootstrapMilliesStore(input: {
     userId: input.session.id,
     name: input.session.displayName,
     role: input.session.role,
+    permissions: resolveStaffPermissions(input.session.role, input.session.permissions),
     branchId: input.branchId,
     branchName: input.branchName,
     imageUrl: null,

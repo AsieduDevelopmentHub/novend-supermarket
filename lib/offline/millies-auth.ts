@@ -25,6 +25,15 @@ import {
   type MilliesLocalUser,
 } from "./millies-auth-db";
 import { bootstrapMilliesStore } from "./millies-bootstrap";
+import {
+  assertCanAssignStaffRole,
+  assertCanManageStaff,
+  hasStaffPermission,
+  normalizePermissionList,
+  permissionsForRole,
+  resolveStaffPermissions,
+  type AppPermission,
+} from "./millies-permissions";
 
 const SESSION_KEY = "millies.localSession";
 /** Cookie so Edge middleware allows app routes without a Convex JWT. */
@@ -35,6 +44,8 @@ export type MilliesSessionUser = {
   username: string;
   displayName: string;
   role: MilliesLocalRole;
+  /** Resolved effective permissions for this session. */
+  permissions: AppPermission[];
   branchId: string;
   branchName: string;
   organizationId: string;
@@ -64,7 +75,10 @@ export function readMilliesSession(): MilliesSessionUser | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as MilliesSessionUser;
     if (!parsed?.id || !parsed?.role || !parsed?.username) return null;
-    return parsed;
+    return {
+      ...parsed,
+      permissions: resolveStaffPermissions(parsed.role, parsed.permissions),
+    };
   } catch {
     return null;
   }
@@ -97,6 +111,8 @@ export async function createLocalUser(input: {
   displayName: string;
   password: string;
   role: MilliesLocalRole;
+  /** When omitted, role defaults apply. */
+  permissions?: readonly AppPermission[] | null;
 }): Promise<MilliesSessionUser> {
   const db = await requireAuthDb();
   const username = input.username.trim().toLowerCase();
@@ -115,11 +131,17 @@ export async function createLocalUser(input: {
   const organizationId =
     (await getAuthMeta(MILLIES_AUTH_META.organizationId)) ?? MILLIES_LOCAL_ORG_ID;
 
+  const permissions = resolveStaffPermissions(
+    input.role,
+    normalizePermissionList(input.permissions) ?? permissionsForRole(input.role),
+  );
+
   const row: MilliesLocalUser = {
     id,
     username,
     displayName: input.displayName.trim() || username,
     role: input.role,
+    permissions,
     salt,
     passwordHash: hash,
     iterations,
@@ -134,6 +156,7 @@ export async function createLocalUser(input: {
     username,
     displayName: row.displayName,
     role: input.role,
+    permissions,
     branchId,
     branchName,
     organizationId,
@@ -162,6 +185,7 @@ export async function milliesLogin(
     username: user.username,
     displayName: user.displayName,
     role: user.role,
+    permissions: resolveStaffPermissions(user.role, user.permissions),
     branchId,
     branchName,
     organizationId,
@@ -192,6 +216,7 @@ export async function listLocalUsers(): Promise<
     username: string;
     displayName: string;
     role: MilliesLocalRole;
+    permissions: AppPermission[];
     active: boolean;
     createdAt: number;
   }>
@@ -206,6 +231,7 @@ export async function listLocalUsers(): Promise<
     username: row.username,
     displayName: row.displayName,
     role: row.role,
+    permissions: resolveStaffPermissions(row.role, row.permissions),
     active: row.active,
     createdAt: row.createdAt,
   }));
@@ -216,8 +242,9 @@ export async function setLocalUserActive(
   active: boolean,
   actor: MilliesSessionUser,
 ): Promise<void> {
-  if (actor.role !== "administrator" && actor.role !== "manager") {
-    throw new Error("Only administrators or managers can change users");
+  assertCanManageStaff(actor.role);
+  if (!hasStaffPermission(actor.permissions, "users.deactivate")) {
+    throw new Error("You do not have permission to activate or deactivate staff");
   }
   const db = await requireAuthDb();
   const target = await db.localUsers.get(userId);
@@ -233,9 +260,7 @@ export async function setLocalUserActive(
       throw new Error("Cannot deactivate the last active administrator");
     }
   }
-  if (actor.role === "manager" && target.role !== "cashier") {
-    throw new Error("Managers can only change cashiers");
-  }
+  assertCanAssignStaffRole(actor.role, target.role);
   await db.localUsers.update(userId, { active, updatedAt: Date.now() });
 }
 
@@ -244,16 +269,15 @@ export async function resetLocalUserPassword(
   newPassword: string,
   actor: MilliesSessionUser,
 ): Promise<void> {
-  if (actor.role !== "administrator" && actor.role !== "manager") {
-    throw new Error("Only administrators or managers can reset passwords");
+  assertCanManageStaff(actor.role);
+  if (!hasStaffPermission(actor.permissions, "users.manage")) {
+    throw new Error("You do not have permission to reset staff passwords");
   }
   if (newPassword.length < 6) throw new Error("Password must be at least 6 characters");
   const db = await requireAuthDb();
   const target = await db.localUsers.get(userId);
   if (!target) throw new Error("User not found");
-  if (actor.role === "manager" && target.role !== "cashier") {
-    throw new Error("Managers can only reset cashier passwords");
-  }
+  assertCanAssignStaffRole(actor.role, target.role);
   const { salt, hash, iterations } = await hashPassword(newPassword);
   await db.localUsers.update(userId, {
     salt,

@@ -1,7 +1,8 @@
 import { app, BrowserWindow, dialog, session } from "electron";
-import { createMainWindow, setMainBrowserWindow } from "./window";
+import { createMainWindow, loadAppShell, setMainBrowserWindow } from "./window";
 import { startAutoUpdater } from "./updater";
 import {
+  PACKAGED_LOCAL_ORIGIN,
   resolveAppUrl,
   setRuntimeAppOrigin,
   shouldStartBundledServer,
@@ -91,6 +92,23 @@ if (!gotLock) {
 
   void app.whenReady().then(async () => {
     app.setName(APP_DISPLAY_NAME);
+
+    // Show a branded splash immediately while the bundled Next server boots —
+    // packaged cold start spent most of its time with no window visible.
+    const startsBundled = shouldStartBundledServer();
+    const provisionalOrigin = startsBundled ? PACKAGED_LOCAL_ORIGIN : resolveAppUrl();
+    if (!mainWindow) {
+      mainWindow = createMainWindow(provisionalOrigin, {
+        deferAppLoad: startsBundled,
+      });
+      setMainBrowserWindow(mainWindow);
+      mainWindow.on("closed", () => {
+        setMainBrowserWindow(null);
+        closeCustomerDisplayWithMainWindow();
+        mainWindow = null;
+      });
+    }
+
     let appUrl: string;
     try {
       appUrl = await resolveSessionOrigin();
@@ -115,7 +133,23 @@ if (!gotLock) {
       .catch(() => {
         /* best-effort */
       });
-    showWindow(appUrl);
+
+    if (startsBundled && mainWindow && !mainWindow.isDestroyed()) {
+      try {
+        await loadAppShell(mainWindow, appUrl);
+      } catch (error) {
+        console.error("[millies-desktop] failed to load till UI", error);
+        dialog.showErrorBox(
+          "Millie's Supermarket could not open",
+          error instanceof Error ? error.message : String(error),
+        );
+        app.quit();
+        return;
+      }
+    } else {
+      showWindow(appUrl);
+    }
+
     startAutoUpdater(() => mainWindow);
 
     app.on("activate", () => {

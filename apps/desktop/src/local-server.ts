@@ -83,6 +83,8 @@ function assertFixedPortAvailable(port: number): Promise<void> {
 function waitForHealth(origin: string, timeoutMs = 45_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   const url = `${origin}/api/health`;
+  /** Tight poll — Next often becomes ready between 200ms ticks on cold start. */
+  const pollMs = 50;
 
   return new Promise((resolve, reject) => {
     const attempt = () => {
@@ -90,18 +92,18 @@ function waitForHealth(origin: string, timeoutMs = 45_000): Promise<void> {
         reject(new Error(`Local till server did not become healthy at ${url}`));
         return;
       }
-      const req = http.get(url, { timeout: 2_000 }, (res) => {
+      const req = http.get(url, { timeout: 1_500 }, (res) => {
         res.resume();
         if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
           resolve();
           return;
         }
-        setTimeout(attempt, 200);
+        setTimeout(attempt, pollMs);
       });
-      req.on("error", () => setTimeout(attempt, 200));
+      req.on("error", () => setTimeout(attempt, pollMs));
       req.on("timeout", () => {
         req.destroy();
-        setTimeout(attempt, 200);
+        setTimeout(attempt, pollMs);
       });
     };
     attempt();

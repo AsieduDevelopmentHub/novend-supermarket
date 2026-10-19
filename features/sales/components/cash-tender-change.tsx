@@ -35,15 +35,15 @@ export function CashTenderChange({
     <div
       className={cn(
         "flex items-center gap-2",
-        compact ? "min-h-7" : "min-h-8",
+        compact ? "min-h-7" : "min-h-9",
         className,
       )}
     >
       <label
         htmlFor="cash-tender-paid"
         className={cn(
-          "text-muted-foreground shrink-0",
-          compact ? "text-[11px]" : "text-xs",
+          "text-muted-foreground shrink-0 font-medium",
+          compact ? "text-[11px]" : "text-sm",
         )}
       >
         Paid
@@ -58,16 +58,16 @@ export function CashTenderChange({
         value={value}
         onChange={(e) => onValueChange(e.target.value)}
         className={cn(
-          "min-w-0 flex-1 tabular-nums",
-          compact ? "h-7 px-2 text-xs" : "h-8 px-2 text-sm",
+          "min-w-0 flex-1 font-semibold tabular-nums",
+          compact ? "h-7 px-2 text-xs" : "h-9 px-2.5 text-base",
         )}
         aria-label="Amount paid"
       />
       {change != null && change > 0 ? (
         <p
           className={cn(
-            "text-success shrink-0 font-semibold tabular-nums",
-            compact ? "text-xs" : "text-sm",
+            "text-success shrink-0 font-bold tabular-nums",
+            compact ? "text-xs" : "text-base",
           )}
           aria-live="polite"
         >
@@ -76,8 +76,8 @@ export function CashTenderChange({
       ) : short != null && short > 0 ? (
         <p
           className={cn(
-            "text-destructive shrink-0 tabular-nums",
-            compact ? "text-[11px]" : "text-xs",
+            "text-destructive shrink-0 font-semibold tabular-nums",
+            compact ? "text-[11px]" : "text-sm",
           )}
           aria-live="polite"
         >

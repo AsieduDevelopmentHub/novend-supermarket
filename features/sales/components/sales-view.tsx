@@ -1277,9 +1277,9 @@ export function SalesView() {
           overlayClassName="bg-black/60"
         >
           <DrawerHeader className="border-border shrink-0 border-b text-left">
-            <DrawerTitle className="flex items-center justify-between gap-2">
+            <DrawerTitle className="flex items-center justify-between gap-2 text-lg">
               <span className="flex items-center gap-2">
-                <ShoppingCart className="h-4 w-4" aria-hidden />
+                <ShoppingCart className="h-5 w-5" aria-hidden />
                 Current Sale
               </span>
               <HeldSalesPanel
@@ -1529,13 +1529,13 @@ function SalesCheckoutFields({
   const displayCart = cart.slice().reverse();
 
   const actions = (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <div className="grid grid-cols-2 gap-1.5">
         <Button
           type="button"
           variant="secondary"
-          size="sm"
-          className="h-9"
+          size="lg"
+          className="h-11 text-base font-semibold"
           disabled={!canCheckout || paying || holding}
           onClick={onHold}
         >
@@ -1544,8 +1544,8 @@ function SalesCheckoutFields({
         <Button
           type="button"
           data-tour="sales-checkout"
-          size="sm"
-          className="h-9"
+          size="lg"
+          className="h-11 text-base font-semibold"
           disabled={!canCheckout || paying || holding}
           onClick={onPay}
         >
@@ -1557,7 +1557,7 @@ function SalesCheckoutFields({
         <Button
           type="button"
           variant="link"
-          className="text-muted-foreground h-auto w-full px-0 py-0 text-[11px]"
+          className="text-muted-foreground h-auto w-full px-0 py-0 text-xs"
           onClick={onReprint}
         >
           Reprint last receipt
@@ -1568,17 +1568,17 @@ function SalesCheckoutFields({
 
   const body = (
     <>
-      <div className="space-y-1">
+      <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <Label className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
-            <UserRound className="h-3 w-3" />
+          <Label className="text-muted-foreground flex items-center gap-1.5 text-sm font-semibold">
+            <UserRound className="h-4 w-4" />
             Customer
           </Label>
           <Button
             type="button"
             size="sm"
             variant="ghost"
-            className="h-6 px-1.5 text-[11px]"
+            className="h-8 px-2 text-sm"
             disabled={!canQuickCreate}
             title={!canQuickCreate ? "Local storage unavailable" : undefined}
             onClick={onQuickCreate}
@@ -1587,11 +1587,11 @@ function SalesCheckoutFields({
           </Button>
         </div>
         {customer ? (
-          <div className="border-border flex items-center justify-between rounded-md border px-2.5 py-1.5 text-sm">
+          <div className="border-border flex items-center justify-between rounded-lg border px-3 py-2.5 text-base">
             <div className="min-w-0">
-              <p className="truncate font-medium leading-tight">{customer.name}</p>
+              <p className="truncate text-base font-semibold leading-tight">{customer.name}</p>
               {customer.phone ? (
-                <p className="text-muted-foreground truncate text-[11px] leading-tight">
+                <p className="text-muted-foreground truncate text-sm leading-tight">
                   {customer.phone}
                 </p>
               ) : null}
@@ -1600,10 +1600,10 @@ function SalesCheckoutFields({
               type="button"
               size="icon"
               variant="ghost"
-              className="h-6 w-6 shrink-0"
+              className="h-9 w-9 shrink-0"
               onClick={onClearCustomer}
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-4 w-4" />
               <span className="sr-only">Clear to Walk-in</span>
             </Button>
           </div>
@@ -1613,7 +1613,7 @@ function SalesCheckoutFields({
               value={customerQuery}
               onChange={(e) => onCustomerQuery(e.target.value)}
               placeholder="Walk-in · search to attach…"
-              className="h-8 text-sm"
+              className="h-11 text-base"
             />
             {customerHits.length > 0 ? (
               <div className="border-border bg-card absolute z-10 mt-1 w-full overflow-hidden rounded-lg border shadow-md">
@@ -1621,10 +1621,10 @@ function SalesCheckoutFields({
                   <button
                     key={hit.id}
                     type="button"
-                    className="hover:bg-muted block w-full px-3 py-1.5 text-left text-sm"
+                    className="hover:bg-muted block w-full px-3 py-2.5 text-left text-base"
                     onClick={() => onSelectCustomer(hit)}
                   >
-                    <span className="font-medium">{hit.name}</span>
+                    <span className="font-semibold">{hit.name}</span>
                     {hit.phone ? (
                       <span className="text-muted-foreground"> · {hit.phone}</span>
                     ) : null}
@@ -1637,7 +1637,7 @@ function SalesCheckoutFields({
       </div>
 
       {cart.length === 0 ? (
-        <p className="text-muted-foreground py-2 text-sm">Add products to start a sale.</p>
+        <p className="text-muted-foreground py-3 text-base">Add products to start a sale.</p>
       ) : (
         <ul className="divide-border/60 divide-y">
           {displayCart.map((item) => {
@@ -1649,22 +1649,22 @@ function SalesCheckoutFields({
               );
             }
             return (
-              <li key={lineKey} className="flex items-center justify-between gap-1.5 py-1">
+              <li key={lineKey} className="flex items-center justify-between gap-2 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm leading-tight font-medium">
+                  <p className="truncate text-base leading-snug font-semibold">
                     {item.name}
-                    <span className="text-muted-foreground ml-1.5 text-[11px] font-normal">
+                    <span className="text-muted-foreground ml-2 text-sm font-normal">
                       {formatCurrency(item.unitPrice)}
                       {item.sellUnitLabel ? ` · ${item.sellUnitLabel}` : null}
                     </span>
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-0.5">
+                <div className="flex shrink-0 items-center gap-1">
                   <Button
                     type="button"
                     size="icon"
                     variant="outline"
-                    className="h-6 w-6"
+                    className="h-9 w-9"
                     aria-label={`Decrease ${item.name}`}
                     onClick={() =>
                       onSetCart((prev) =>
@@ -1676,11 +1676,11 @@ function SalesCheckoutFields({
                       )
                     }
                   >
-                    <Minus className="h-3 w-3" />
+                    <Minus className="h-4 w-4" />
                   </Button>
                   <UnsignedQuantityInput
                     aria-label={`Quantity for ${item.name}`}
-                    className="h-6 w-10 px-0.5 text-center text-xs"
+                    className="h-9 w-14 px-1 text-center text-base font-semibold"
                     value={qtyDrafts[lineKey] ?? String(item.quantity)}
                     onValueChange={(next) => onSetCartQuantity(lineKey, next)}
                     onBlur={() => onCommitCartQuantity(lineKey)}
@@ -1694,7 +1694,7 @@ function SalesCheckoutFields({
                     type="button"
                     size="icon"
                     variant="outline"
-                    className="h-6 w-6"
+                    className="h-9 w-9"
                     aria-label={`Increase ${item.name}`}
                     onClick={() => {
                       const stock = resolveCatalogAvailable(item.productId, catalog, stockHints);
@@ -1714,17 +1714,17 @@ function SalesCheckoutFields({
                       );
                     }}
                   >
-                    <Plus className="h-3 w-3" />
+                    <Plus className="h-4 w-4" />
                   </Button>
                   <Button
                     type="button"
                     size="icon"
                     variant="ghost"
-                    className="text-destructive hover:text-destructive h-6 w-6"
+                    className="text-destructive hover:text-destructive h-9 w-9"
                     aria-label={`Remove ${item.name} from cart`}
                     onClick={() => onSetCart((prev) => prev.filter((row) => !matchesLine(row)))}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </li>
@@ -1737,13 +1737,15 @@ function SalesCheckoutFields({
 
   const checkoutFooter = (
     <div className="space-y-2">
-      <div className="space-y-1.5 text-sm">
-        <div className="text-muted-foreground flex justify-between text-xs">
+      <div className="space-y-1.5 text-base">
+        <div className="text-muted-foreground flex justify-between text-sm font-medium">
           <span>Subtotal</span>
-          <span className="text-foreground tabular-nums">{formatCurrency(subtotal)}</span>
+          <span className="text-foreground text-base font-semibold tabular-nums">
+            {formatCurrency(subtotal)}
+          </span>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-muted-foreground text-xs">Discount</span>
+          <span className="text-muted-foreground text-sm font-medium">Discount</span>
           <div className="flex items-center gap-1">
             <div
               className="bg-muted inline-flex rounded-md p-0.5"
@@ -1753,7 +1755,7 @@ function SalesCheckoutFields({
               <button
                 type="button"
                 className={cn(
-                  "rounded px-1.5 py-0.5 text-[11px] font-medium transition-colors",
+                  "rounded px-2 py-1 text-sm font-semibold transition-colors",
                   discountMode === "amount"
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
@@ -1765,7 +1767,7 @@ function SalesCheckoutFields({
               <button
                 type="button"
                 className={cn(
-                  "rounded px-1.5 py-0.5 text-[11px] font-medium transition-colors",
+                  "rounded px-2 py-1 text-sm font-semibold transition-colors",
                   discountMode === "percent"
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
@@ -1780,7 +1782,7 @@ function SalesCheckoutFields({
               min="0"
               step="0.01"
               max={discountMode === "percent" ? 100 : Math.max(0, subtotal)}
-              className="h-7 w-16 text-xs"
+              className="h-9 w-20 text-base font-semibold tabular-nums"
               value={discountField}
               onChange={(e) => {
                 const next = Number(e.target.value) || 0;
@@ -1792,12 +1794,12 @@ function SalesCheckoutFields({
           </div>
         </div>
         {discountMode === "percent" && discountField > 0 && !discountExceedsSubtotal ? (
-          <p className="text-muted-foreground text-right text-[11px]">
+          <p className="text-muted-foreground text-right text-xs">
             Equals {formatCurrency(cartDiscount)}
           </p>
         ) : null}
         {discountExceedsSubtotal ? (
-          <p id="cart-discount-error" className="text-destructive text-right text-[11px]">
+          <p id="cart-discount-error" className="text-destructive text-right text-xs">
             {discountMode === "percent"
               ? "Percentage cannot exceed 100%"
               : `Discount cannot exceed the subtotal (${formatCurrency(subtotal)})`}
@@ -1810,31 +1812,33 @@ function SalesCheckoutFields({
           splitDrafts={splitDrafts}
           onSplitDrafts={onSplitDrafts}
           allowOnAccount={allowOnAccount}
-          compact
         />
         {exclusiveVat ? (
           <>
-            <div className="flex justify-between text-xs">
+            <div className="flex justify-between text-sm font-medium">
               <span className="text-muted-foreground">Net</span>
-              <span className="tabular-nums">{formatCurrency(exclusiveVat.net)}</span>
+              <span className="text-base font-semibold tabular-nums">
+                {formatCurrency(exclusiveVat.net)}
+              </span>
             </div>
-            <div className="flex justify-between text-xs">
+            <div className="flex justify-between text-sm font-medium">
               <span className="text-muted-foreground">
                 {exclusiveVat.label} ({exclusiveVat.ratePercent}%)
               </span>
-              <span className="tabular-nums">{formatCurrency(exclusiveVat.vat)}</span>
+              <span className="text-base font-semibold tabular-nums">
+                {formatCurrency(exclusiveVat.vat)}
+              </span>
             </div>
           </>
         ) : null}
-        <div className="flex items-baseline justify-between pt-0.5 text-sm font-semibold">
+        <div className="flex items-baseline justify-between border-t pt-1.5 text-base font-bold">
           <span>Total</span>
-          <span className="text-primary text-base tabular-nums">{formatCurrency(total)}</span>
+          <span className="text-primary text-xl tabular-nums">{formatCurrency(total)}</span>
         </div>
         <CashTenderChange
           total={total}
           value={cashTenderPaid}
           onValueChange={onCashTenderPaid}
-          compact
         />
       </div>
       {actions}

@@ -130,9 +130,58 @@ export async function reloadMainWindowShell(
   return { ok: true };
 }
 
-export function createMainWindow(appUrl: string): BrowserWindow {
+const BOOT_SPLASH_HTML = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${APP_DISPLAY_NAME}</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #111827;
+      color: #f8fafc;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      display: grid;
+      place-items: center;
+    }
+    .wrap { text-align: center; padding: 24px; }
+    .brand { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+    .hint { margin-top: 10px; font-size: 14px; opacity: 0.72; }
+    .pulse {
+      width: 36px; height: 36px; margin: 28px auto 0;
+      border: 3px solid rgba(248,250,252,0.18);
+      border-top-color: #ef4444;
+      border-radius: 999px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">Millie's Supermarket</div>
+    <div class="hint">Starting till…</div>
+    <div class="pulse" aria-hidden="true"></div>
+  </div>
+</body>
+</html>`;
+
+type CreateMainWindowOptions = {
+  /**
+   * Show a branded splash immediately and skip loading the till URL.
+   * Call `loadAppShell` once the local Next server is healthy.
+   */
+  deferAppLoad?: boolean;
+};
+
+export function createMainWindow(
+  appUrl: string,
+  options: CreateMainWindowOptions = {},
+): BrowserWindow {
   mainShellEntry = OFFLINE_ENTRY_PATH;
   const trustedOrigin = createTrustedOriginPolicy(appUrl);
+  const deferAppLoad = options.deferAppLoad === true;
 
   const win = new BrowserWindow({
     width: 1440,
@@ -170,6 +219,8 @@ export function createMainWindow(appUrl: string): BrowserWindow {
   });
 
   win.webContents.on("will-navigate", (event, url) => {
+    // Allow the local data: splash used while the bundled Next server boots.
+    if (url.startsWith("data:text/html")) return;
     if (!isTrustedRendererUrl(trustedOrigin, url)) {
       event.preventDefault();
     }
@@ -182,11 +233,15 @@ export function createMainWindow(appUrl: string): BrowserWindow {
   win.webContents.on("did-finish-load", () => {
     if (win.isDestroyed()) return;
     const url = win.webContents.getURL();
-    if (isChromeErrorUrl(url)) return;
+    if (isChromeErrorUrl(url) || url.startsWith("data:")) return;
     mainShellEntry = appEntryFromUrl(appUrl, url) ?? mainShellEntry;
   });
 
-  void loadAppShell(win, appUrl);
+  if (deferAppLoad) {
+    void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(BOOT_SPLASH_HTML)}`);
+  } else {
+    void loadAppShell(win, appUrl);
+  }
   return win;
 }
 

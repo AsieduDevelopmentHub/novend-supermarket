@@ -5,7 +5,69 @@
  */
 
 import { buildInventoryValueSeries } from "@/convex/shared/inventoryValueSeries";
+import { sumInventoryValues } from "@/convex/shared/dashboardFinance";
+import { roundMoney } from "@/convex/shared/validation";
 import { getOfflineDb } from "./db";
+
+export type OfflineInventoryValuation = {
+  inventoryValueCost: number | null;
+  inventoryValueSell: number;
+  possibleProfit: number | null;
+};
+
+/** Current on-hand stock valued at today's cost/sell (inventory page KPIs). */
+export async function loadOfflineInventoryValuation(args: {
+  branchId?: string | null;
+  showCost?: boolean;
+}): Promise<OfflineInventoryValuation> {
+  const showCost = args.showCost !== false;
+  const empty: OfflineInventoryValuation = {
+    inventoryValueCost: showCost ? 0 : null,
+    inventoryValueSell: 0,
+    possibleProfit: showCost ? 0 : null,
+  };
+  const db = await getOfflineDb();
+  if (!db) return empty;
+
+  const [products, branchStock] = await Promise.all([
+    db.products.toArray(),
+    db.branchStock.toArray(),
+  ]);
+  const branchFilter = args.branchId?.trim() || null;
+  const productById = new Map(products.map((product) => [product.id, product]));
+
+  const rows =
+    branchStock.length > 0
+      ? branchStock
+          .filter((row) => !branchFilter || row.branchId === branchFilter)
+          .flatMap((row) => {
+            const product = productById.get(row.productId);
+            if (!product || product.status === "archived") return [];
+            return [
+              {
+                onHand: row.quantity,
+                costPrice: product.costPrice,
+                sellingPrice: product.sellingPrice,
+                tracksInventory: product.tracksInventory !== false,
+              },
+            ];
+          })
+      : products
+          .filter((product) => product.status !== "archived")
+          .map((product) => ({
+            onHand: product.stockQuantity,
+            costPrice: product.costPrice,
+            sellingPrice: product.sellingPrice,
+            tracksInventory: product.tracksInventory !== false,
+          }));
+
+  const inventory = sumInventoryValues(rows);
+  return {
+    inventoryValueCost: showCost ? inventory.cost : null,
+    inventoryValueSell: inventory.sell,
+    possibleProfit: showCost ? roundMoney(inventory.sell - inventory.cost) : null,
+  };
+}
 
 export type OfflineInventoryValueResult = {
   showCost: boolean;

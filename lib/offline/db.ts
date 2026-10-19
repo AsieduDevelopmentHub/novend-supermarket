@@ -566,6 +566,8 @@ export const META_KEYS = {
   profileName: "profileName",
   profileUserId: "profileUserId",
   profileRole: "profileRole",
+  /** JSON array of AppPermission strings for Millie's staff overrides. */
+  profilePermissions: "profilePermissions",
   profileBranchId: "profileBranchId",
   profileBranchName: "profileBranchName",
   profileImageUrl: "profileImageUrl",

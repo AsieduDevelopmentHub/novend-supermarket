@@ -8,8 +8,20 @@ import {
   readMilliesSession,
   resetLocalUserPassword,
   setLocalUserActive,
+  writeMilliesSession,
 } from "@/lib/offline/millies-auth";
 import type { MilliesLocalRole } from "@/lib/offline/millies-auth-db";
+import { getMilliesAuthDb } from "@/lib/offline/millies-auth-db";
+import {
+  assertCanAssignStaffRole,
+  assertCanGrantStaffPermissions,
+  assertCanManageStaff,
+  hasStaffPermission,
+  normalizePermissionList,
+  permissionsForRole,
+  resolveStaffPermissions,
+  type AppPermission,
+} from "@/lib/offline/millies-permissions";
 import { bindOfflineOrganization, getOfflineDb } from "@/lib/offline/db";
 import { notifyReplicaChanged } from "@/lib/offline/replica-events";
 import type { MirroredUser } from "@/lib/offline/types";
@@ -55,13 +67,25 @@ export async function milliesCreateStaff(input: {
   displayName: string;
   password: string;
   role: MilliesLocalRole;
+  permissions?: readonly AppPermission[] | null;
   phone?: string;
 }) {
+  const session = readMilliesSession();
+  if (!session) throw new Error("Sign in required");
+  assertCanManageStaff(session.role);
+  if (!hasStaffPermission(session.permissions, "users.manage")) {
+    throw new Error("You do not have permission to create staff");
+  }
+  const permissions =
+    normalizePermissionList(input.permissions) ?? permissionsForRole(input.role);
+  assertCanGrantStaffPermissions(session.role, session.permissions, input.role, permissions);
+
   const created = await createLocalUser({
     username: input.username,
     displayName: input.displayName,
     password: input.password,
     role: input.role,
+    permissions,
   });
   await mirrorUser({
     id: created.id,
@@ -78,27 +102,40 @@ export async function milliesUpdateStaff(input: {
   id: string;
   displayName: string;
   role: MilliesLocalRole;
+  permissions?: readonly AppPermission[] | null;
   phone?: string;
   active: boolean;
 }) {
   const session = readMilliesSession();
   if (!session) throw new Error("Sign in required");
-  if (input.id !== session.id) {
-    await setLocalUserActive(input.id, input.active, session);
-  } else if (!input.active) {
-    throw new Error("You cannot deactivate your own account");
+  assertCanManageStaff(session.role);
+  if (!hasStaffPermission(session.permissions, "users.manage")) {
+    throw new Error("You do not have permission to edit staff");
   }
+  assertCanAssignStaffRole(session.role, input.role);
+
+  const permissions =
+    normalizePermissionList(input.permissions) ?? permissionsForRole(input.role);
+  assertCanGrantStaffPermissions(session.role, session.permissions, input.role, permissions);
+
   const db = await getOfflineDb();
   if (!db) throw new Error("Local storage unavailable");
-  const authDb = await import("@/lib/offline/millies-auth-db").then((m) => m.getMilliesAuthDb());
+  const authDb = await getMilliesAuthDb();
   if (!authDb) throw new Error("Local storage unavailable");
   const row = await authDb.localUsers.get(input.id);
   if (!row) throw new Error("User not found");
+  if (input.id === session.id && !input.active) {
+    throw new Error("You cannot deactivate your own account");
+  }
+  if (input.id !== session.id && row.active !== input.active) {
+    await setLocalUserActive(input.id, input.active, session);
+  }
   const now = Date.now();
   await authDb.localUsers.put({
     ...row,
     displayName: input.displayName.trim() || row.displayName,
     role: input.role,
+    permissions,
     active: input.active,
     updatedAt: now,
   });
@@ -110,6 +147,24 @@ export async function milliesUpdateStaff(input: {
     active: input.active,
     phone: input.phone ?? null,
   });
+
+  // Keep the signed-in session in sync when editing yourself.
+  if (input.id === session.id) {
+    writeMilliesSession({
+      ...session,
+      displayName: input.displayName.trim() || row.displayName,
+      role: input.role,
+      permissions: resolveStaffPermissions(input.role, permissions),
+    });
+  }
+}
+
+export async function milliesGetStaffPermissions(userId: string): Promise<AppPermission[]> {
+  const authDb = await getMilliesAuthDb();
+  if (!authDb) return [];
+  const row = await authDb.localUsers.get(userId);
+  if (!row) return [];
+  return resolveStaffPermissions(row.role, row.permissions);
 }
 
 export async function milliesResetStaffPassword(userId: string, password: string) {

@@ -53,9 +53,14 @@ export function PaymentTenderSelector({
 
   if (splitDrafts === null) {
     return (
-      <div className={compact ? "space-y-1" : "space-y-1.5"}>
+      <div className="space-y-1">
         <div className="flex items-center justify-between">
-          <span className={cn("text-muted-foreground", compact ? "text-xs" : "text-sm")}>
+          <span
+            className={cn(
+              "text-muted-foreground font-medium",
+              compact ? "text-xs" : "text-sm",
+            )}
+          >
             Payment
           </span>
           <Button
@@ -87,8 +92,9 @@ export function PaymentTenderSelector({
                 type="button"
                 aria-pressed={selected}
                 className={cn(
-                  "rounded-full border font-medium transition-colors",
-                  compact ? "px-2.5 py-0.5 text-[11px]" : "px-3 py-1 text-xs",
+                  "rounded-full border font-semibold transition-colors",
+                  // Keep readable type, but tighter chips so checkout stays short.
+                  compact ? "px-2.5 py-0.5 text-[11px]" : "px-3 py-1 text-sm",
                   selected
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border text-muted-foreground hover:text-foreground",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -40,12 +40,19 @@ import {
 import { triggerLightHaptic } from "@/lib/haptics";
 import { useRouter } from "next/navigation";
 import { ListPagination } from "@/components/ui/list-pagination";
-import { useLocalStorage, usePagination } from "@/hooks/use-ui";
+import { useDebounce, useLocalStorage, usePagination } from "@/hooks/use-ui";
 import {
   clampListPageSize,
   DEFAULT_LIST_PAGE_SIZE,
   type ListPageSize,
 } from "@/constants/list-page";
+import { FULLY_OFFLINE } from "@/constants/runtime";
+import {
+  persistBusinessWrite,
+  queueArchiveProduct,
+  queuedSaveMessage,
+} from "@/lib/offline/replica-writes";
+import { useConnectivity } from "@/hooks/use-connectivity";
 
 export function ProductsView() {
   const {
@@ -57,7 +64,12 @@ export function ProductsView() {
   } = usePermissions();
   const { capabilities, planName } = useLicense();
   const router = useRouter();
+  const online = useConnectivity();
   const [search, setSearch] = useState("");
+  /** Immediate for barcode scans; debounced for typing so Dexie isn't hit every key. */
+  const [immediateSearch, setImmediateSearch] = useState<string | null>(null);
+  const debouncedSearch = useDebounce(search, 280);
+  const listSearch = immediateSearch ?? debouncedSearch;
   const [categoryId, setCategoryId] = useState<string>("all");
   const [storedPageSize, setStoredPageSize] = useLocalStorage(
     "novend.listPageSize",
@@ -67,6 +79,7 @@ export function ProductsView() {
   const { page, setPage, reset } = usePagination(1, pageSize);
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [exportWanted, setExportWanted] = useState(false);
   const [editingId, setEditingId] = useState<Id<"products"> | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<{
     id: Id<"products">;
@@ -85,7 +98,7 @@ export function ProductsView() {
     total,
     loading: isLoading,
   } = useProductsList({
-    search,
+    search: listSearch,
     includeInactive: canManageProducts,
     branchId: listBranchId,
     categoryId: listCategoryId,
@@ -94,37 +107,72 @@ export function ProductsView() {
     pageSize,
   });
   const { products: exportRows } = useProductsList({
-    search,
+    search: listSearch,
     includeInactive: canManageProducts,
     branchId: listBranchId,
     categoryId: listCategoryId,
     canViewCost,
+    enabled: exportWanted,
   });
-  const archiveProduct = useMutation(api.products.archiveProduct);
+  const archiveProductRemote = useMutation(api.products.archiveProduct);
   const recordExport = useMutation(api.imports.recordExport);
 
   const rows = useMemo(() => products ?? [], [products]);
 
   useEffect(() => {
     reset();
-  }, [search, branchFilter, categoryId, reset]);
+  }, [listSearch, branchFilter, categoryId, reset]);
+
+  useEffect(() => {
+    if (immediateSearch != null && debouncedSearch === immediateSearch) {
+      setImmediateSearch(null);
+    }
+  }, [debouncedSearch, immediateSearch]);
+
   const exportTable = useMemo(
     () =>
-      productExportTable({
-        rows: exportRows ?? [],
-        canViewCost,
-        branchLabel:
-          isAdmin && branchFilter && branchFilter !== "all" ? undefined : (branchName ?? undefined),
-      }),
-    [exportRows, canViewCost, isAdmin, branchFilter, branchName],
+      exportWanted
+        ? productExportTable({
+            rows: exportRows ?? [],
+            canViewCost,
+            branchLabel:
+              isAdmin && branchFilter && branchFilter !== "all"
+                ? undefined
+                : (branchName ?? undefined),
+          })
+        : null,
+    [exportWanted, exportRows, canViewCost, isAdmin, branchFilter, branchName],
   );
+
+  function onSearchChange(value: string) {
+    setImmediateSearch(null);
+    setSearch(value);
+  }
+
+  function onBarcodeScan(code: string) {
+    setSearch(code);
+    setImmediateSearch(code);
+  }
+
+  function onPageChange(next: number) {
+    startTransition(() => setPage(next));
+  }
 
   async function confirmArchive() {
     if (!archiveTarget) return;
     setArchivePending(true);
     try {
-      await archiveProduct({ id: archiveTarget.id });
-      toast.success("Product archived");
+      if (FULLY_OFFLINE) {
+        const kind = await persistBusinessWrite({
+          online,
+          remote: () => archiveProductRemote({ id: archiveTarget.id }),
+          local: () => queueArchiveProduct(String(archiveTarget.id)),
+        });
+        toast.success(queuedSaveMessage(kind, "Product archived"));
+      } else {
+        await archiveProductRemote({ id: archiveTarget.id });
+        toast.success("Product archived");
+      }
       setArchiveTarget(null);
     } catch (error) {
       showError(error, "Archive failed");
@@ -170,17 +218,22 @@ export function ProductsView() {
                 <Upload className="h-4 w-4" />
                 Import
               </Button>
-              <ExportMenu
-                table={exportTable}
-                capabilities={capabilities}
-                planName={planName}
-                disabled={rows.length === 0}
-                onExported={(format, count) => {
-                  void recordExport({ kind: "products", format, rowCount: count }).catch(
-                    () => undefined,
-                  );
-                }}
-              />
+              <span
+                onPointerDown={() => setExportWanted(true)}
+                onFocusCapture={() => setExportWanted(true)}
+              >
+                <ExportMenu
+                  table={exportTable}
+                  capabilities={capabilities}
+                  planName={planName}
+                  disabled={rows.length === 0 && !exportWanted}
+                  onExported={(format, count) => {
+                    void recordExport({ kind: "products", format, rowCount: count }).catch(
+                      () => undefined,
+                    );
+                  }}
+                />
+              </span>
               <Button
                 type="button"
                 data-tour="products-add"
@@ -204,7 +257,8 @@ export function ProductsView() {
           leading={
             <BarcodeSearchField
               value={search}
-              onChange={setSearch}
+              onChange={onSearchChange}
+              onScan={onBarcodeScan}
               placeholder="Search products or scan barcode…"
               listenHid={!open}
             />
@@ -253,7 +307,7 @@ export function ProductsView() {
 
       <Card data-tour="products-list">
         <CardContent className="overflow-x-auto p-0">
-          {isLoading ? (
+          {isLoading && rows.length === 0 ? (
             <div className="p-6">
               <LoadingState label="Loading products…" />
             </div>
@@ -399,10 +453,10 @@ export function ProductsView() {
                   page={page}
                   pageSize={pageSize}
                   total={total}
-                  onPageChange={setPage}
+                  onPageChange={onPageChange}
                   onPageSizeChange={(size: ListPageSize) => {
                     setStoredPageSize(size);
-                    setPage(1);
+                    startTransition(() => setPage(1));
                   }}
                 />
               ) : null}

@@ -104,11 +104,14 @@ export function useProductsList(options: {
   preferLocal?: boolean;
   page?: number;
   pageSize?: number;
+  /** When false, skip remote + local loads (lazy export). */
+  enabled?: boolean;
 }) {
+  const enabled = options.enabled !== false;
   const { online, serveLocal, ready, lastSyncAt } = useBusinessDataGate();
   const [local, setLocal] = useState<ProductListRow[] | null>(null);
   const [localTotal, setLocalTotal] = useState(0);
-  const skipLive = !online || !ready || serveLocal;
+  const skipLive = !enabled || !online || !ready || serveLocal;
   const remote = useAuthedQuery(
     api.products.listProducts,
     skipLive
@@ -122,9 +125,21 @@ export function useProductsList(options: {
           pageSize: options.pageSize,
         },
   );
+  const [localLoading, setLocalLoading] = useState(false);
+
   useEffect(() => {
+    if (!enabled) {
+      queueMicrotask(() => {
+        setLocal(null);
+        setLocalTotal(0);
+        setLocalLoading(false);
+      });
+      return;
+    }
     let cancelled = false;
     const load = () => {
+      // Keep prior rows visible while the next Dexie page loads (avoids "stuck" blank UI).
+      setLocalLoading(true);
       void listMirroredProducts({
         search: options.search || undefined,
         includeInactive: options.includeInactive,
@@ -137,10 +152,11 @@ export function useProductsList(options: {
         if (isPagedProducts(rows)) {
           setLocal(rows.items.map((r) => mapProduct(r, options.canViewCost)));
           setLocalTotal(rows.total);
-          return;
+        } else {
+          setLocal(rows.map((r) => mapProduct(r, options.canViewCost)));
+          setLocalTotal(rows.length);
         }
-        setLocal(rows.map((r) => mapProduct(r, options.canViewCost)));
-        setLocalTotal(rows.length);
+        setLocalLoading(false);
       });
     };
     load();
@@ -150,6 +166,7 @@ export function useProductsList(options: {
       unsub();
     };
   }, [
+    enabled,
     options.search,
     options.includeInactive,
     options.canViewCost,
@@ -170,7 +187,12 @@ export function useProductsList(options: {
     };
   }
   if (local != null) {
-    return { products: local, total: localTotal, loading: false, source: "local" as const };
+    return {
+      products: local,
+      total: localTotal,
+      loading: localLoading,
+      source: "local" as const,
+    };
   }
   return {
     products: [] as ProductListRow[],

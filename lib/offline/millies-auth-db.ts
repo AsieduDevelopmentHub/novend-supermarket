@@ -12,6 +12,11 @@ export type MilliesLocalUser = {
   username: string;
   displayName: string;
   role: MilliesLocalRole;
+  /**
+   * Optional override of role defaults. When missing/empty, permissions are
+   * derived from `role` via `resolveStaffPermissions`.
+   */
+  permissions?: string[] | null;
   salt: string;
   passwordHash: string;
   iterations: number;

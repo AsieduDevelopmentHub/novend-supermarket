@@ -8,8 +8,17 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { FULLY_OFFLINE } from "@/constants/runtime";
 import { PageHeader } from "@/components/layout/primitives";
-import { milliesResetStaffPassword, milliesUpdateStaff } from "@/lib/offline/millies-users";
+import {
+  milliesGetStaffPermissions,
+  milliesResetStaffPassword,
+  milliesUpdateStaff,
+} from "@/lib/offline/millies-users";
 import type { MilliesLocalRole } from "@/lib/offline/millies-auth-db";
+import {
+  permissionsForRole,
+  type AppPermission,
+} from "@/lib/offline/millies-permissions";
+import { StaffPermissionsFields } from "./staff-permissions-fields";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +66,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
     canDeactivateUsers,
     isAdmin,
     isManager,
+    permissions: actorPermissions,
     branchId: myBranchId,
     userId: actorUserId,
   } = usePermissions();
@@ -98,11 +108,17 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
 
   const [name, setName] = useState("");
   const [role, setRole] = useState<AppRole>("cashier");
+  const [staffPermissions, setStaffPermissions] = useState<AppPermission[]>(() =>
+    permissionsForRole("cashier"),
+  );
   const [branchId, setBranchId] = useState<Id<"branches"> | "">("");
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const grantablePermissions = isManager
+    ? permissionsForRole("cashier")
+    : actorPermissions;
 
   if (!canManageUsers) {
     return <ErrorState message="You don’t have permission to view this user." />;
@@ -164,12 +180,17 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
   const canDisable = canToggleStatus && (profile.status !== "active" || !deactivateBlocked);
 
   function openEdit() {
+    const nextRole = (isManager ? "cashier" : (profile.role as AppRole)) as MilliesLocalRole;
     setName(profile.name);
-    setRole(isManager ? "cashier" : (profile.role as AppRole));
+    setRole(nextRole);
+    setStaffPermissions(permissionsForRole(nextRole));
     setBranchId((profile.branchId ?? myBranchId ?? "") as Id<"branches"> | "");
     setPhone(profile.phone ?? "");
     setStatus((profile.status === "inactive" ? "inactive" : "active") as "active" | "inactive");
     setEditOpen(true);
+    if (FULLY_OFFLINE) {
+      void milliesGetStaffPermissions(String(profileId)).then(setStaffPermissions);
+    }
   }
 
   async function onSave(event: FormEvent) {
@@ -190,6 +211,7 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
           id: String(profileId),
           displayName: name,
           role: nextRole,
+          permissions: staffPermissions,
           phone: phone || undefined,
           active: status === "active",
         });
@@ -410,7 +432,11 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
               <Label>Role</Label>
               <Select
                 value={role}
-                onValueChange={(v) => setRole(v as AppRole)}
+                onValueChange={(v) => {
+                  const next = v as AppRole;
+                  setRole(next);
+                  setStaffPermissions(permissionsForRole(next as MilliesLocalRole));
+                }}
                 disabled={isManager}
               >
                 <SelectTrigger>
@@ -425,6 +451,15 @@ export function UserDetailView({ profileId }: { profileId: Id<"profiles"> }) {
                 </SelectContent>
               </Select>
             </div>
+            {FULLY_OFFLINE ? (
+              <StaffPermissionsFields
+                role={role as MilliesLocalRole}
+                value={staffPermissions}
+                onChange={setStaffPermissions}
+                grantable={grantablePermissions}
+                disabled={pending}
+              />
+            ) : null}
             <div className="space-y-2">
               <Label>Branch</Label>
               <SearchableSelect

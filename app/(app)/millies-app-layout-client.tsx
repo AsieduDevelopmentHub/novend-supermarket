@@ -22,7 +22,7 @@ import {
   readMilliesSession,
   type MilliesSessionUser,
 } from "@/lib/offline/millies-auth";
-import { loadShellProfile, saveShellProfile, type ShellProfile } from "@/lib/offline/shell-profile";
+import { saveShellProfile, type ShellProfile } from "@/lib/offline/shell-profile";
 import { bindOfflineOrganization } from "@/lib/offline/db";
 import { MILLIES_LOCAL_ORG_ID } from "@/constants/runtime";
 import { migrateMilliesSharedReplicaIfNeeded } from "@/lib/offline/millies-shared-replica";
@@ -90,18 +90,22 @@ function MilliesAppLayoutInner({ children }: { children: ReactNode }) {
           return;
         }
         bindOfflineOrganization(local.organizationId);
+
+        // Critical path only: migrate (usually no-op) + write grant. Paint the
+        // shell from the session hint — staff mirror / categories / Dexie profile
+        // persist run after first paint so cold boot is not sequential IDB waits.
         await migrateMilliesSharedReplicaIfNeeded();
-        // Replica rebuilds can wipe meta — restore write grant before sales/till.
         await ensureMilliesBusinessLicense({
           organizationId: local.organizationId,
           organizationName: "Millie's Supermarket",
         });
-        await syncMilliesStaffMirror();
-        await ensureDefaultSupermarketCategories();
-        await saveShellProfile({
+        if (cancelled) return;
+
+        const shell: ShellProfile = {
           userId: local.id,
           name: local.displayName,
           role: local.role,
+          permissions: local.permissions,
           branchId: local.branchId,
           branchName: local.branchName,
           imageUrl: null,
@@ -109,17 +113,22 @@ function MilliesAppLayoutInner({ children }: { children: ReactNode }) {
           phone: null,
           organizationName: "Millie's Supermarket",
           organizationId: local.organizationId,
-        });
-        const shell = await loadShellProfile();
-        if (cancelled) return;
-        if (!shell?.userId) {
-          throw new Error(
-            "Could not prepare this till's offline profile. Close other Millie's windows and try again.",
-          );
-        }
+        };
         setSession(local);
         setProfile(shell);
         setReady(true);
+
+        void (async () => {
+          try {
+            await Promise.all([
+              syncMilliesStaffMirror(),
+              ensureDefaultSupermarketCategories(),
+              saveShellProfile(shell),
+            ]);
+          } catch (error) {
+            console.warn("[millies] deferred shell warm-up failed", error);
+          }
+        })();
       } catch (error) {
         if (cancelled) return;
         console.error("[millies] offline shell boot failed", error);

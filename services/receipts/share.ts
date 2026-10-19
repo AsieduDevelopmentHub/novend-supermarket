@@ -31,12 +31,12 @@ export function buildReceiptShareText(input: ReceiptPayload | Record<string, unk
   }
   lines.push("----------------");
 
-  for (const line of payload.lines) {
-    lines.push(`${line.productName}`);
+  payload.lines.forEach((line, index) => {
+    lines.push(`${index + 1}. ${line.productName}`);
     lines.push(
       `  ${line.quantity} x ${formatCurrency(line.unitPrice)} = ${formatCurrency(line.lineTotal)}`,
     );
-  }
+  });
 
   lines.push("----------------");
   lines.push(`Subtotal: ${formatCurrency(payload.subtotal)}`);

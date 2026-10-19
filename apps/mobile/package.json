@@ -1,6 +1,6 @@
 {
   "name": "@novend/mobile",
-  "version": "1.0.4",
+  "version": "1.0.19",
   "private": true,
   "description": "Millie's Supermarket Capacitor shell (Android / iOS)",
   "scripts": {

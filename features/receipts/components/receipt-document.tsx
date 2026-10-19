@@ -93,11 +93,14 @@ export function ReceiptDocument({
         </div>
 
         <div className="border-t border-dashed border-black/40 pt-2">
-          {lines.map((line, index) => (
+          {lines.map((line, index) => {
+            const lineNo = index + 1;
+            const title = `${lineNo}. ${line.productName}`;
+            return (
             <div key={`${line.productName}-${index}`} className="mb-2">
               {template.paperWidthMm === 58 ? (
                 <>
-                  <p className="font-medium break-words">{line.productName}</p>
+                  <p className="font-medium break-words">{title}</p>
                   <div className="flex justify-between gap-2 text-black/70">
                     <span>
                       {line.quantity} x {money(line.unitPrice)}
@@ -112,7 +115,7 @@ export function ReceiptDocument({
               ) : (
                 <>
                   <div className="flex justify-between gap-2">
-                    <span className="font-medium">{line.productName}</span>
+                    <span className="font-medium">{title}</span>
                     <span>{money(line.lineTotal)}</span>
                   </div>
                   <div className="text-black/70">
@@ -123,7 +126,8 @@ export function ReceiptDocument({
                 </>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="space-y-0.5 border-t border-dashed border-black/40 pt-2">

@@ -54,7 +54,16 @@ import { useOfflineSessionHint } from "@/hooks/use-offline-session-hint";
 import { deactivateAccountBlockReason } from "@/convex/shared/accountStatus";
 import type { AppRole } from "@/config/navigation";
 import type { MilliesLocalRole } from "@/lib/offline/millies-auth-db";
-import { milliesCreateStaff, milliesUpdateStaff } from "@/lib/offline/millies-users";
+import {
+  milliesCreateStaff,
+  milliesGetStaffPermissions,
+  milliesUpdateStaff,
+} from "@/lib/offline/millies-users";
+import {
+  permissionsForRole,
+  type AppPermission,
+} from "@/lib/offline/millies-permissions";
+import { StaffPermissionsFields } from "./staff-permissions-fields";
 import { StaffMonthRoster } from "./staff-month-roster";
 
 function userInitials(name: string) {
@@ -71,6 +80,7 @@ export function UsersView() {
     canManageUsers,
     isAdmin,
     isManager,
+    permissions: actorPermissions,
     branchId: myBranchId,
     userId: actorUserId,
   } = usePermissions();
@@ -86,12 +96,19 @@ export function UsersView() {
 
   const [name, setName] = useState("");
   const [role, setRole] = useState<AppRole>("cashier");
+  const [staffPermissions, setStaffPermissions] = useState<AppPermission[]>(() =>
+    permissionsForRole("cashier"),
+  );
   const [branchId, setBranchId] = useState<Id<"branches"> | "">("");
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
+
+  const grantablePermissions = isManager
+    ? permissionsForRole("cashier")
+    : actorPermissions;
 
   const formBranchId = isManager ? (myBranchId ?? "") : branchId || branches?.[0]?.id || "";
   const editingUser = users?.find((row) => row.id === editingId);
@@ -123,12 +140,19 @@ export function UsersView() {
     phone: string | null;
     status: "active" | "inactive";
   }) {
+    const nextRole = (isManager ? "cashier" : row.role) as MilliesLocalRole;
     setEditingId(row.id);
     setName(row.name);
-    setRole(isManager ? "cashier" : row.role);
+    setRole(nextRole);
+    setStaffPermissions(permissionsForRole(nextRole));
     setBranchId((row.branchId ?? myBranchId ?? "") as Id<"branches"> | "");
     setPhone(row.phone ?? "");
     setStatus(row.status === "inactive" ? "inactive" : "active");
+    if (FULLY_OFFLINE) {
+      void milliesGetStaffPermissions(String(row.id)).then((perms) => {
+        setStaffPermissions(perms);
+      });
+    }
   }
 
   function openCreate() {
@@ -137,10 +161,16 @@ export function UsersView() {
     setEmail("");
     setPassword("");
     setRole("cashier");
+    setStaffPermissions(permissionsForRole("cashier"));
     setBranchId(
       (isManager ? (myBranchId ?? "") : (branches?.[0]?.id ?? "")) as Id<"branches"> | "",
     );
     setPhone("");
+  }
+
+  function onRoleChange(next: AppRole) {
+    setRole(next);
+    setStaffPermissions(permissionsForRole(next as MilliesLocalRole));
   }
 
   async function onSave(event: FormEvent) {
@@ -161,6 +191,7 @@ export function UsersView() {
           id: String(editingId),
           displayName: name,
           role: nextRole,
+          permissions: staffPermissions,
           phone: phone || undefined,
           active: status === "active",
         });
@@ -215,6 +246,7 @@ export function UsersView() {
           displayName: name,
           password,
           role: createdRole,
+          permissions: staffPermissions,
           phone: phone || undefined,
         });
         toast.success("Staff account created on this till. Share the username and password.");
@@ -486,7 +518,7 @@ export function UsersView() {
               <Label>Role</Label>
               <Select
                 value={role}
-                onValueChange={(v) => setRole(v as AppRole)}
+                onValueChange={(v) => onRoleChange(v as AppRole)}
                 disabled={isManager}
               >
                 <SelectTrigger>
@@ -501,6 +533,15 @@ export function UsersView() {
                 </SelectContent>
               </Select>
             </div>
+            {FULLY_OFFLINE ? (
+              <StaffPermissionsFields
+                role={role as MilliesLocalRole}
+                value={staffPermissions}
+                onChange={setStaffPermissions}
+                grantable={grantablePermissions}
+                disabled={pending}
+              />
+            ) : null}
             <div className="space-y-2">
               <Label>Branch</Label>
               <SearchableSelect
@@ -597,7 +638,7 @@ export function UsersView() {
               <Label>Role</Label>
               <Select
                 value={role}
-                onValueChange={(v) => setRole(v as AppRole)}
+                onValueChange={(v) => onRoleChange(v as AppRole)}
                 disabled={isManager}
               >
                 <SelectTrigger>
@@ -612,6 +653,15 @@ export function UsersView() {
                 </SelectContent>
               </Select>
             </div>
+            {FULLY_OFFLINE ? (
+              <StaffPermissionsFields
+                role={role as MilliesLocalRole}
+                value={staffPermissions}
+                onChange={setStaffPermissions}
+                grantable={grantablePermissions}
+                disabled={pending}
+              />
+            ) : null}
             <div className="space-y-2">
               <Label>Branch</Label>
               <SearchableSelect

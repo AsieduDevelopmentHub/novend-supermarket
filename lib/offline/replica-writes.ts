@@ -982,6 +982,31 @@ export async function queueUpsertProduct(
   return localId;
 }
 
+/** Soft-delete: archive locally and free barcodes (Millie's / offline). */
+export async function queueArchiveProduct(productId: string) {
+  await assertLocalWriteAllowed();
+  const db = await getOfflineDb();
+  if (!db) throw new Error("Local storage is not available on this device.");
+  const existing = await db.products.get(productId);
+  if (!existing) throw new Error("Product not found");
+  if (existing.status === "archived") return productId;
+  const sellUnits = (existing.sellUnits ?? []).map((unit) => ({
+    ...unit,
+    barcode: undefined,
+  }));
+  await db.products.put({
+    ...existing,
+    status: "archived",
+    barcode: null,
+    sellUnits: sellUnits.length > 0 ? sellUnits : existing.sellUnits,
+    updatedAt: Date.now(),
+  });
+  // Cloud sync uses products.archiveProduct via persistBusinessWrite remote;
+  // local mirror is enough here for Millie's / offline UI.
+  notifyReplicaChanged();
+  return productId;
+}
+
 export async function queueUpsertBranch(
   payload: Omit<UpsertBranchPayload, "localId"> & { localId?: string },
 ) {

@@ -118,11 +118,12 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
   write(sep(cols), "\n");
 
   const narrow = paperWidthMm === 58;
-  for (const item of payload.lines) {
+  payload.lines.forEach((item, index) => {
     const amount = formatCurrencyEscPos(item.lineTotal);
+    const titled = `${index + 1}. ${item.productName}`;
     if (narrow) {
       // 58mm: name on its own line(s), qty + amount right-aligned on the next.
-      for (const row of wrapLeft(item.productName, cols)) {
+      for (const row of wrapLeft(titled, cols)) {
         write(row, "\n");
       }
       const qtyLeft = [
@@ -134,7 +135,7 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
       write(line(cols, qtyLeft, amount), "\n");
       if (t.showSku && item.sku) write(item.sku, "\n");
     } else {
-      write(line(cols, item.productName, amount), "\n");
+      write(line(cols, titled, amount), "\n");
       const meta = [
         `${item.quantity} x ${formatCurrencyEscPos(item.unitPrice)}`,
         item.discount > 0 ? `(-${formatCurrencyEscPos(item.discount)})` : "",
@@ -144,7 +145,7 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
         .join(" - ");
       if (meta) write(meta, "\n");
     }
-  }
+  });
 
   write(sep(cols), "\n");
   write(line(cols, "Subtotal", formatCurrencyEscPos(payload.subtotal)), "\n");

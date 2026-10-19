@@ -1,6 +1,10 @@
 import type { AppRole } from "@/config/navigation";
 import { FULLY_OFFLINE } from "@/constants/runtime";
 import { bindOfflineOrganization, getMeta, getOfflineDb, META_KEYS, setMeta } from "./db";
+import {
+  resolveStaffPermissions,
+  type AppPermission,
+} from "./millies-permissions";
 import type { OfflineSessionHint } from "./session";
 
 /** Cached authenticated shell identity for offline boot and permissions. */
@@ -8,6 +12,8 @@ export type ShellProfile = {
   userId: string;
   name: string;
   role: AppRole;
+  /** When omitted, derived from role defaults. */
+  permissions?: AppPermission[];
   branchId: string;
   branchName: string;
   imageUrl: string | null;
@@ -28,6 +34,7 @@ export function shellProfileFromSessionHint(hint: OfflineSessionHint): ShellProf
     userId: hint.userId,
     name: hint.name,
     role: hint.role,
+    permissions: resolveStaffPermissions(hint.role),
     branchId: hint.branchId,
     branchName: hint.branchName || "Branch",
     imageUrl: null,
@@ -55,6 +62,11 @@ export async function saveShellProfile(profile: ShellProfile): Promise<void> {
     await setMeta(db, META_KEYS.profileUserId, profile.userId);
     await setMeta(db, META_KEYS.profileName, profile.name);
     await setMeta(db, META_KEYS.profileRole, profile.role);
+    await setMeta(
+      db,
+      META_KEYS.profilePermissions,
+      JSON.stringify(resolveStaffPermissions(profile.role, profile.permissions)),
+    );
     await setMeta(db, META_KEYS.profileBranchId, profile.branchId);
     await setMeta(db, META_KEYS.profileBranchName, profile.branchName);
     await setMeta(db, META_KEYS.profileImageUrl, profile.imageUrl ?? "");
@@ -73,6 +85,7 @@ export async function clearShellProfile(): Promise<void> {
     await setMeta(db, META_KEYS.profileUserId, "");
     await setMeta(db, META_KEYS.profileName, "");
     await setMeta(db, META_KEYS.profileRole, "");
+    await setMeta(db, META_KEYS.profilePermissions, "");
     await setMeta(db, META_KEYS.profileBranchId, "");
     await setMeta(db, META_KEYS.profileBranchName, "");
     await setMeta(db, META_KEYS.profileImageUrl, "");
@@ -92,6 +105,7 @@ export async function loadShellProfile(): Promise<ShellProfile | null> {
     userId,
     name,
     role,
+    permissionsJson,
     branchId,
     branchName,
     imageUrl,
@@ -103,6 +117,7 @@ export async function loadShellProfile(): Promise<ShellProfile | null> {
     getMeta(db, META_KEYS.profileUserId),
     getMeta(db, META_KEYS.profileName),
     getMeta(db, META_KEYS.profileRole),
+    getMeta(db, META_KEYS.profilePermissions),
     getMeta(db, META_KEYS.profileBranchId),
     getMeta(db, META_KEYS.profileBranchName),
     getMeta(db, META_KEYS.profileImageUrl),
@@ -120,10 +135,21 @@ export async function loadShellProfile(): Promise<ShellProfile | null> {
     bindOfflineOrganization(organizationId, userId);
   }
 
+  let storedPermissions: string[] | null = null;
+  if (permissionsJson) {
+    try {
+      const parsed = JSON.parse(permissionsJson) as unknown;
+      if (Array.isArray(parsed)) storedPermissions = parsed.map(String);
+    } catch {
+      storedPermissions = null;
+    }
+  }
+
   return {
     userId,
     name,
     role,
+    permissions: resolveStaffPermissions(role, storedPermissions),
     branchId,
     branchName: branchName || "Branch",
     imageUrl: imageUrl ? imageUrl : null,
