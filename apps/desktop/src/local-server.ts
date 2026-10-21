@@ -80,21 +80,17 @@ function assertFixedPortAvailable(port: number): Promise<void> {
   });
 }
 
-function waitForHealth(origin: string, timeoutMs = 45_000): Promise<void> {
+function waitForHttpOk(url: string, timeoutMs: number, pollMs = 50): Promise<void> {
   const deadline = Date.now() + timeoutMs;
-  const url = `${origin}/api/health`;
-  /** Tight poll — Next often becomes ready between 200ms ticks on cold start. */
-  const pollMs = 50;
-
   return new Promise((resolve, reject) => {
     const attempt = () => {
       if (Date.now() > deadline) {
-        reject(new Error(`Local till server did not become healthy at ${url}`));
+        reject(new Error(`Local till server did not become ready at ${url}`));
         return;
       }
-      const req = http.get(url, { timeout: 1_500 }, (res) => {
+      const req = http.get(url, { timeout: 2_500 }, (res) => {
         res.resume();
-        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 400) {
           resolve();
           return;
         }
@@ -108,6 +104,14 @@ function waitForHealth(origin: string, timeoutMs = 45_000): Promise<void> {
     };
     attempt();
   });
+}
+
+function waitForHealth(origin: string, timeoutMs = 45_000): Promise<void> {
+  // Health alone is not enough — Next may still be compiling /login on first hit.
+  // Wait for the login document so the window does not race a slow first compile.
+  return waitForHttpOk(`${origin}/api/health`, timeoutMs).then(() =>
+    waitForHttpOk(`${origin}/login`, Math.max(15_000, timeoutMs - 5_000)),
+  );
 }
 
 /**

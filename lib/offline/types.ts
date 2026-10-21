@@ -345,6 +345,9 @@ export type LocalHeldSale = {
     quantity: number;
     unitPrice: number;
     discount: number;
+    sellUnitKey?: string;
+    sellUnitLabel?: string;
+    factorToBase?: number;
   }>;
   subtotal: number;
   discount: number;

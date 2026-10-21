@@ -32,6 +32,9 @@ describe("service worker navigation safety", () => {
     expect(sw).toContain("if (!(await isLikelyAuthHtml(copy)))");
     expect(sw).toContain("auth-document-network-budget");
     expect(sw).toContain("NETWORK_DOCUMENT_ONLINE_BUDGET_MS");
+    // Millie's loopback till must not hit the Cap auth-document timeout.
+    expect(sw).toContain("isLoopbackTill");
+    expect(sw).toContain('if (isLoopbackTill && isAuthDocument(url)) return;');
   });
 
   it("does not intercept the marketing homepage so a signed-in 302 can change the URL", () => {

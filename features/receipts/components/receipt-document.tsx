@@ -7,6 +7,7 @@ import type { ReceiptPayload, ReceiptTemplateConfig, ReceiptBusiness } from "../
 import { SAMPLE_RECEIPT_PAYLOAD } from "../types";
 import { sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 import { receiptPaymentLines } from "../payment-lines";
+import { formatReceiptLineTitle } from "../line-title";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -56,11 +57,13 @@ export function ReceiptDocument({
         preview ? "border-border rounded-md border shadow-sm" : "",
         className,
       )}
-      style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}
+      style={{
+        fontFamily: "Consolas, 'Courier New', ui-monospace, monospace",
+      }}
     >
       <div className="space-y-2 px-3 py-4 text-[11px] leading-tight">
         <div className="text-center">
-          <p className="text-sm font-bold tracking-wide uppercase">{tradeName}</p>
+          <p className="text-base font-extrabold tracking-wide uppercase">{tradeName}</p>
           {headerLine ? <p className="mt-0.5">{headerLine}</p> : null}
           {showBranch ? <p className="mt-0.5">{branchName}</p> : null}
           {business.address ? <p>{business.address}</p> : null}
@@ -94,10 +97,9 @@ export function ReceiptDocument({
 
         <div className="border-t border-dashed border-black/40 pt-2">
           {lines.map((line, index) => {
-            const lineNo = index + 1;
-            const title = `${lineNo}. ${line.productName}`;
+            const title = formatReceiptLineTitle(line, index + 1);
             return (
-            <div key={`${line.productName}-${index}`} className="mb-2">
+            <div key={`${line.productName}-${line.sellUnitLabel ?? ""}-${index}`} className="mb-3">
               {template.paperWidthMm === 58 ? (
                 <>
                   <p className="font-medium break-words">{title}</p>
@@ -158,7 +160,7 @@ export function ReceiptDocument({
               </div>
             </>
           ) : null}
-          <div className="flex justify-between text-sm font-bold">
+          <div className="flex justify-between text-base font-extrabold">
             <span>{payload.kind === "return" ? "REFUND" : "TOTAL"}</span>
             <span>{money(payload.total)}</span>
           </div>

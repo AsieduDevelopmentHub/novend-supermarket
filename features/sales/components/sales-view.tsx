@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PageHeader } from "@/components/layout/primitives";
 import { Input } from "@/components/ui/input";
+import { TouchNumpadButton } from "@/components/ui/touch-numpad";
 import { UnsignedQuantityInput } from "@/components/ui/unsigned-quantity-input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -282,16 +283,24 @@ export function SalesView() {
     let cancelled = false;
     const branch = workingBranchId ?? myBranchId ?? null;
     void (async () => {
-      const missing = cart
-        .map((row) => row.productId)
-        .filter((id) => !catalog.some((p) => p.id === id));
+      const missing = [
+        ...new Set(
+          cart.map((row) => row.productId).filter((id) => !catalog.some((p) => p.id === id)),
+        ),
+      ];
       if (missing.length === 0) return;
+      const rows = await Promise.all(
+        missing.map(async (productId) => {
+          const row = await getLocalProductAvailability(productId, branch);
+          return row ? ([productId, row] as const) : null;
+        }),
+      );
+      if (cancelled) return;
       const updates: Record<string, CatalogStockHint> = {};
-      for (const productId of missing) {
-        const row = await getLocalProductAvailability(productId, branch);
-        if (row) updates[productId] = row;
+      for (const entry of rows) {
+        if (entry) updates[entry[0]] = entry[1];
       }
-      if (cancelled || Object.keys(updates).length === 0) return;
+      if (Object.keys(updates).length === 0) return;
       setStockHints((prev) => ({ ...prev, ...updates }));
     })();
     return () => {
@@ -1030,6 +1039,9 @@ export function SalesView() {
           unitPrice: item.unitPrice,
           quantity: item.quantity,
           discount: item.discount,
+          sellUnitKey: item.sellUnitKey,
+          sellUnitLabel: item.sellUnitLabel,
+          factorToBase: item.factorToBase,
         }));
         heldDiscount = heldSale.discount;
         heldCustomer = heldSale.customerId
@@ -1048,6 +1060,10 @@ export function SalesView() {
           unitPrice: item.unitPrice,
           quantity: item.quantity,
           discount: item.discount,
+          // Cloud held-sale schema does not snapshot pack yet — unit falls back on pay.
+          sellUnitKey: undefined,
+          sellUnitLabel: undefined,
+          factorToBase: undefined,
         }));
         heldDiscount = heldSale.discount;
         heldCustomer = heldSale.customerId
@@ -1777,20 +1793,32 @@ function SalesCheckoutFields({
                 %
               </button>
             </div>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              max={discountMode === "percent" ? 100 : Math.max(0, subtotal)}
-              className="h-9 w-20 text-base font-semibold tabular-nums"
-              value={discountField}
-              onChange={(e) => {
-                const next = Number(e.target.value) || 0;
-                onDiscountField(Math.max(0, next));
-              }}
-              aria-invalid={discountExceedsSubtotal}
-              aria-describedby={discountExceedsSubtotal ? "cart-discount-error" : undefined}
-            />
+            <div className="flex items-center gap-1">
+              <Input
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                className="h-9 w-20 text-base font-semibold tabular-nums"
+                value={discountField === 0 ? "" : String(discountField)}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/,/g, ".").replace(/[^\d.]/g, "");
+                  const next = Number(raw);
+                  onDiscountField(Number.isFinite(next) ? Math.max(0, next) : 0);
+                }}
+                aria-label="Discount"
+                aria-invalid={discountExceedsSubtotal}
+                aria-describedby={discountExceedsSubtotal ? "cart-discount-error" : undefined}
+              />
+              <TouchNumpadButton
+                value={discountField === 0 ? "" : String(discountField)}
+                onChange={(next) => {
+                  const parsed = Number(next);
+                  onDiscountField(Number.isFinite(parsed) ? Math.max(0, parsed) : 0);
+                }}
+                className="h-9 w-9"
+                label="Open discount keypad"
+              />
+            </div>
           </div>
         </div>
         {discountMode === "percent" && discountField > 0 && !discountExceedsSubtotal ? (

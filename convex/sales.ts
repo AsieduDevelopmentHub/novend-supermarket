@@ -202,7 +202,7 @@ export const catalog = query({
       products.sort((a, b) => a.name.localeCompare(b.name));
     }
     const resultLimit = salesCatalogResultLimit(query);
-    const page = resultLimit == null ? products : products.slice(0, resultLimit);
+    const page = products.slice(0, resultLimit);
     return await Promise.all(
       page.map(async (product) => {
         const onHand = stockByProduct.get(product._id) ?? 0;

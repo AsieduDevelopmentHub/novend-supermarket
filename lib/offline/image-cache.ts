@@ -64,7 +64,7 @@ export async function putProductImage(args: {
     rememberUrl(args.productId, thumbnailBlob ?? args.blob, row.updatedAt);
     rememberUrl(`${args.productId}:t`, thumbnailBlob ?? args.blob, row.updatedAt);
     rememberUrl(`${args.productId}:f`, args.blob, row.updatedAt);
-    notifyReplicaChanged();
+    notifyReplicaChanged({ silent: true, imagesOnly: true });
   } catch {
     /* Schema repair in getOfflineDb; skip cache until the replica is rebuilt. */
   }

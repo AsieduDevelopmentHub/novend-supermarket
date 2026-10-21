@@ -24,6 +24,11 @@ export type ReplicaChangedDetail = {
   flush?: boolean;
   /** List refresh only — do not invalidate an in-flight snapshot apply. */
   silent?: boolean;
+  /**
+   * Product photo blob cache only — Sales catalog warm cache must stay intact
+   * so painting tiles does not re-scan Dexie for every image put.
+   */
+  imagesOnly?: boolean;
 };
 
 export function notifyReplicaChanged(detail: ReplicaChangedDetail = {}) {

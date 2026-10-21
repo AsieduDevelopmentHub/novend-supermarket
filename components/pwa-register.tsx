@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { isStandaloneWebApp } from "@/lib/device-install";
 import {
   recoverFromChunkLoadFailure,
@@ -36,6 +37,9 @@ const SHELL_ROUTES = [
 ];
 
 function shouldRegisterServiceWorker() {
+  // Millie's uses a local Next server — a SaaS SW on /login races cold start
+  // and paints “Novend is offline” before the till page can load.
+  if (FULLY_OFFLINE) return false;
   if (process.env.NODE_ENV === "production") return true;
   // Opt-in for local offline-refresh testing (Turbopack + SW can otherwise fight).
   return process.env.NEXT_PUBLIC_OFFLINE_SW === "1";

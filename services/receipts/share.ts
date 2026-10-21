@@ -1,5 +1,6 @@
 import { RECEIPT_VENDOR_FOOTER } from "@/constants/app";
 import type { ReceiptPayload } from "@/features/receipts/types";
+import { formatReceiptLineTitle } from "@/features/receipts/line-title";
 import { receiptPaymentLines } from "@/features/receipts/payment-lines";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
@@ -32,10 +33,11 @@ export function buildReceiptShareText(input: ReceiptPayload | Record<string, unk
   lines.push("----------------");
 
   payload.lines.forEach((line, index) => {
-    lines.push(`${index + 1}. ${line.productName}`);
+    lines.push(formatReceiptLineTitle(line, index + 1));
     lines.push(
       `  ${line.quantity} x ${formatCurrency(line.unitPrice)} = ${formatCurrency(line.lineTotal)}`,
     );
+    if (index < payload.lines.length - 1) lines.push("");
   });
 
   lines.push("----------------");

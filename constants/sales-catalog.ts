@@ -5,6 +5,7 @@
  */
 export {
   SALES_CATALOG_BROWSE_LIMIT,
+  SALES_CATALOG_SEARCH_LIMIT,
   catalogSearchRank,
   salesCatalogResultLimit,
 } from "@/convex/shared/salesCatalog";

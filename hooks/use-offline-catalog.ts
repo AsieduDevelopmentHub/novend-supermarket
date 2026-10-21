@@ -10,6 +10,7 @@ import { shouldUseRemoteSalesCatalog } from "@/lib/offline/freshness";
 import { useOfflineStatus } from "@/providers/offline-provider";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useAuthedQuery } from "@/hooks/use-authed-query";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 
 export type CatalogProduct = {
   id: string;
@@ -161,8 +162,8 @@ export function useSalesCatalog(search: string, branchId?: Id<"branches"> | null
         if (!cancelled) publishLocal(rows);
       });
     };
-    // Debounce typed search so each keystroke does not re-scan the full Dexie catalog.
-    const delayMs = search.trim() ? 120 : 0;
+    // Debounce typed search; slightly longer on Millie's low-RAM tills.
+    const delayMs = search.trim() ? (FULLY_OFFLINE ? 180 : 120) : 0;
     const timer = window.setTimeout(load, delayMs);
     const unsub = subscribeReplicaChanged(load);
     return () => {

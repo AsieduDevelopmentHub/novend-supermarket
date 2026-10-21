@@ -604,6 +604,15 @@ self.addEventListener("fetch", (event) => {
   if (url.hostname.includes("convex")) return;
   if (url.pathname.startsWith("/api/") && url.pathname !== "/api/boot") return;
 
+  // Loopback till servers (Millie's packaged Electron / desktop:dev) must not
+  // hit the Cap/PWA auth-document budget — Next cold compile often exceeds
+  // 2.5s and the SW then paints “Novend is offline” on every first launch.
+  const isLoopbackTill =
+    url.hostname === "127.0.0.1" ||
+    url.hostname === "localhost" ||
+    url.hostname === "[::1]";
+  if (isLoopbackTill && isAuthDocument(url)) return;
+
   // /login and /signup: live network when online so a signed-in session can
   // 302 to /dashboard and so a deploy cannot leave stale Server Action ids in
   // a cached login document (that toast blocked first-try password sign-in).

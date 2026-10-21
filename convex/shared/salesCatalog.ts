@@ -3,20 +3,23 @@
  * Keep aligned with `constants/sales-catalog.ts` re-exports for the client.
  *
  * Browse stays small for a snappy Quick Products grid.
- * Typed search returns **every** in-stock match — a hard cap would hide
- * products that sort after the limit on broad queries.
+ * Typed search is capped so low-RAM tills (e.g. 4GB KCPOS) never materialize
+ * hundreds of tiles + image IDB reads on a broad query — refine the query to
+ * surface later matches (results are ranked first).
  */
 
 import { tokenizeProductSearch } from "./validation";
 
 export const SALES_CATALOG_BROWSE_LIMIT = 48;
+/** Ranked search window — keep close to browse so the till grid stays light. */
+export const SALES_CATALOG_SEARCH_LIMIT = 64;
 
 /**
- * `null` means no cap (return all matches after filter + rank).
- * Browse-only path returns {@link SALES_CATALOG_BROWSE_LIMIT}.
+ * Browse returns {@link SALES_CATALOG_BROWSE_LIMIT}.
+ * Typed search returns {@link SALES_CATALOG_SEARCH_LIMIT} after filter + rank.
  */
-export function salesCatalogResultLimit(search?: string | null): number | null {
-  return search?.trim() ? null : SALES_CATALOG_BROWSE_LIMIT;
+export function salesCatalogResultLimit(search?: string | null): number {
+  return search?.trim() ? SALES_CATALOG_SEARCH_LIMIT : SALES_CATALOG_BROWSE_LIMIT;
 }
 
 /** Lower rank sorts first when a cashier has typed a query. */

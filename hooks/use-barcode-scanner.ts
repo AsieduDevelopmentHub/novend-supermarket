@@ -12,14 +12,29 @@ type UseBarcodeScannerOptions = {
   /** Max gap between keystrokes before the buffer resets (ms). */
   interKeyTimeoutMs?: number;
   /**
-   * Ignore scans when focus is in text fields unless this is true.
-   * POS search fields usually want scans while focused — set allowInInputs.
+   * When true, HID wedge keys are accepted while focus is in an editable
+   * field that opts in via `data-barcode-capture` (search / barcode fields).
+   * Money and quantity inputs must NOT opt in — otherwise numpad typing is
+   * buffered as a scan and Enter is swallowed.
    */
   allowInInputs?: boolean;
   /** Stop listening after this many ms (product form one-shot capture). */
   timeoutMs?: number;
   onTimeout?: () => void;
 };
+
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  return target.isContentEditable;
+}
+
+/** True when focus is in a field that intentionally accepts HID barcode wedges. */
+function isBarcodeCaptureTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest("[data-barcode-capture]"));
+}
 
 /**
  * Captures keyboard-wedge / HID barcode scanners.
@@ -57,13 +72,6 @@ export function useBarcodeScanner(
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
 
-    function isEditableTarget(target: EventTarget | null) {
-      if (!(target instanceof HTMLElement)) return false;
-      const tag = target.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
-      return target.isContentEditable;
-    }
-
     function flush() {
       const code = bufferRef.current.trim();
       bufferRef.current = "";
@@ -74,7 +82,13 @@ export function useBarcodeScanner(
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.ctrlKey || event.altKey || event.metaKey) return;
-      if (!allowInInputs && isEditableTarget(event.target)) return;
+
+      const editable = isEditableTarget(event.target);
+      if (editable) {
+        if (!allowInInputs) return;
+        // Checkout / discount / paid fields: let the physical numpad type normally.
+        if (!isBarcodeCaptureTarget(event.target)) return;
+      }
 
       const now = Date.now();
       if (now - lastKeyAtRef.current > interKeyTimeoutMs) {
@@ -92,6 +106,7 @@ export function useBarcodeScanner(
         return;
       }
 
+      // Accept printable keys from the top row and the numeric keypad.
       if (event.key.length === 1) {
         bufferRef.current += event.key;
       }

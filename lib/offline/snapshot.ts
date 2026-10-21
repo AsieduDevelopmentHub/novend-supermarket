@@ -23,11 +23,13 @@ import {
   productMatchesQuery,
   resolveBarcodeMatch,
 } from "./barcode-lookup";
+import { resolveCatalogBranchId, sellableQuantityForBranch } from "./branch-stock";
 import {
-  branchStockMapForBranch,
-  resolveCatalogBranchId,
-  sellableQuantityForBranch,
-} from "./branch-stock";
+  getCachedActiveCatalogProducts,
+  getCachedBranchStockMap,
+  getCachedProductById,
+  getCachedProductsByBarcode,
+} from "./sales-catalog-cache";
 import { catalogSearchRank, salesCatalogResultLimit } from "@/constants/sales-catalog";
 import { FULLY_OFFLINE } from "@/constants/runtime";
 import { saveShellProfile } from "./shell-profile";
@@ -495,15 +497,13 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
   if (!effectiveBranchId) return [];
 
   const query = search?.trim() ?? "";
-  // Status index first — full-table `.filter` stalled scans during page mounts.
-  let products = (await db.products.where("status").equals("active").toArray()).filter(
-    (p) => p.isVariantParent !== true,
-  );
+  // Warm cache: first open hits Dexie once; keystrokes filter in memory.
+  let products = await getCachedActiveCatalogProducts(db);
   if (query) {
     products = products.filter((p) => productMatchesQuery(p, query));
   }
 
-  const stockByProduct = await branchStockMapForBranch(db, effectiveBranchId);
+  const stockByProduct = await getCachedBranchStockMap(db, effectiveBranchId);
   const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
   const businessConfig = await loadBusinessCapabilitiesCache();
   const resultLimit = salesCatalogResultLimit(query);
@@ -562,7 +562,7 @@ export async function listLocalCatalogProducts(search?: string, branchId?: strin
     rows.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  return resultLimit == null ? rows : rows.slice(0, resultLimit);
+  return rows.slice(0, resultLimit);
 }
 
 /** Exact SKU or dedicated barcode match for scanners. */
@@ -573,49 +573,40 @@ export async function findLocalProductBySku(sku: string) {
 
 /**
  * Offline barcode lookup — Dexie only.
- * Matches sell-unit barcode, product barcode, then SKU.
- * Multiple rows support rare catalog duplicates; the sales UI shows a picker.
- *
- * Prefer barcode/SKU indexes; only scan active rows when sell-unit barcodes
- * (or case mismatches) need it — full `.filter` blocked the till on page changes.
+ * Matches sell-unit barcode, product barcode, then SKU via the warm catalog index
+ * (avoids a full active-table scan on every pack/case barcode).
  */
 export async function findLocalProductsByBarcode(code: string, branchId?: string | null) {
   const db = await getOfflineDb();
   if (!db) return [];
   const normalized = normalizeBarcodeInput(code);
   if (!normalized) return [];
-  const lower = normalized.toLowerCase();
 
   const byId = new Map<string, MirroredProduct>();
-  const absorb = async (values: string[]) => {
-    const unique = [...new Set(values.filter(Boolean))];
+  for (const product of await getCachedProductsByBarcode(db, normalized)) {
+    if (productMatchesBarcode(product, normalized)) {
+      byId.set(product.id, product);
+    }
+  }
+
+  // Rare path: Dexie indexes when warm cache is empty or out of sync mid-write.
+  if (byId.size === 0) {
+    const lower = normalized.toLowerCase();
     const batches = await Promise.all(
-      unique.flatMap((value) => [
+      [...new Set([normalized, lower, normalized.toUpperCase()])].flatMap((value) => [
         db.products.where("barcode").equals(value).toArray(),
         db.products.where("sku").equals(value).toArray(),
       ]),
     );
     for (const rows of batches) {
       for (const product of rows) {
-        if (product.status === "active" && product.isVariantParent !== true) {
+        if (
+          product.status === "active" &&
+          product.isVariantParent !== true &&
+          productMatchesBarcode(product, normalized)
+        ) {
           byId.set(product.id, product);
         }
-      }
-    }
-  };
-
-  await absorb([normalized, lower, normalized.toUpperCase()]);
-
-  for (const [id, product] of [...byId.entries()]) {
-    if (!productMatchesBarcode(product, normalized)) byId.delete(id);
-  }
-
-  if (byId.size === 0) {
-    const active = await db.products.where("status").equals("active").toArray();
-    for (const product of active) {
-      if (product.isVariantParent === true) continue;
-      if (productMatchesBarcode(product, normalized)) {
-        byId.set(product.id, product);
       }
     }
   }
@@ -626,7 +617,7 @@ export async function findLocalProductsByBarcode(code: string, branchId?: string
   const effectiveBranchId = await resolveCatalogBranchId(db, branchId);
   if (!effectiveBranchId) return [];
 
-  const stockByProduct = await branchStockMapForBranch(db, effectiveBranchId);
+  const stockByProduct = await getCachedBranchStockMap(db, effectiveBranchId);
   const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
   const businessConfig = await loadBusinessCapabilitiesCache();
 
@@ -672,13 +663,13 @@ export async function getLocalProductAvailability(
 ): Promise<{ stockQuantity: number; tracksInventory: boolean } | null> {
   const db = await getOfflineDb();
   if (!db) return null;
-  const product = await db.products.get(productId);
+  const product = await getCachedProductById(db, productId);
   if (!product || product.status !== "active") return null;
 
   const effectiveBranchId = await resolveCatalogBranchId(db, branchId);
   if (!effectiveBranchId) return null;
 
-  const stockByProduct = await branchStockMapForBranch(db, effectiveBranchId);
+  const stockByProduct = await getCachedBranchStockMap(db, effectiveBranchId);
   const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
   const businessConfig = await loadBusinessCapabilitiesCache();
   const stock = stockByProduct.get(product.id);

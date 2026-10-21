@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   SALES_CATALOG_BROWSE_LIMIT,
+  SALES_CATALOG_SEARCH_LIMIT,
   catalogSearchRank,
   salesCatalogResultLimit,
 } from "@/constants/sales-catalog";
 
 describe("sales catalog limits", () => {
-  it("caps browse only — typed search returns every match", () => {
+  it("caps browse and typed search for low-RAM tills", () => {
     expect(salesCatalogResultLimit("")).toBe(SALES_CATALOG_BROWSE_LIMIT);
     expect(salesCatalogResultLimit("   ")).toBe(SALES_CATALOG_BROWSE_LIMIT);
-    expect(salesCatalogResultLimit("rice")).toBeNull();
+    expect(salesCatalogResultLimit("rice")).toBe(SALES_CATALOG_SEARCH_LIMIT);
   });
 
   it("ranks exact sku/barcode ahead of partial name matches", () => {

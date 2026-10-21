@@ -3,6 +3,7 @@
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TouchNumpadButton } from "@/components/ui/touch-numpad";
 import {
   Select,
   SelectContent,
@@ -18,6 +19,14 @@ import {
   type SplitTenderDraft,
 } from "@/lib/sales/split-tender";
 import { cn } from "@/lib/utils";
+
+function sanitizeMoneyDraft(raw: string): string {
+  const normalized = raw.replace(/,/g, ".");
+  const cleaned = normalized.replace(/[^\d.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  if (firstDot === -1) return cleaned;
+  return `${cleaned.slice(0, firstDot + 1)}${cleaned.slice(firstDot + 1).replace(/\./g, "")}`;
+}
 
 type PaymentTenderSelectorProps = {
   total: number;
@@ -154,17 +163,26 @@ export function PaymentTenderSelector({
                   ))}
                 </SelectContent>
               </Select>
-              <Input
-                type="number"
-                inputMode="decimal"
-                min="0"
-                step="0.01"
-                className="h-9 min-w-0 flex-1"
-                value={draft.amount}
-                placeholder="0.00"
-                aria-label={`Amount for line ${index + 1}`}
-                onChange={(event) => update(draft.id, { amount: event.target.value })}
-              />
+              <div className="flex min-w-0 flex-1 gap-1">
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  className="h-9 min-w-0 flex-1 tabular-nums"
+                  value={draft.amount}
+                  placeholder="0.00"
+                  aria-label={`Amount for line ${index + 1}`}
+                  onChange={(event) =>
+                    update(draft.id, { amount: sanitizeMoneyDraft(event.target.value) })
+                  }
+                />
+                <TouchNumpadButton
+                  value={draft.amount}
+                  onChange={(next) => update(draft.id, { amount: next })}
+                  className="h-9 w-9"
+                  label={`Keypad for line ${index + 1}`}
+                />
+              </div>
               <Button
                 type="button"
                 variant="outline"

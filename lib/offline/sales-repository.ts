@@ -52,6 +52,8 @@ export type CartLineInput = {
   quantity: number;
   discount: number;
   sellUnitKey?: string;
+  sellUnitLabel?: string;
+  factorToBase?: number;
 };
 
 function stampPrintedInvoice(payload: unknown, invoiceNumber: string): unknown {
@@ -579,6 +581,9 @@ export async function holdSaleLocally(input: {
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       discount: item.discount,
+      sellUnitKey: item.sellUnitKey,
+      sellUnitLabel: item.sellUnitLabel,
+      factorToBase: item.factorToBase,
     };
   });
   const cartDiscount = roundMoney(input.discount);

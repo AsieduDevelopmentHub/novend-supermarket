@@ -51,6 +51,23 @@ function allowMediaPermissions(appUrl: string) {
   );
 }
 
+/**
+ * Millie's does not use the SaaS PWA service worker. A leftover SW from an older
+ * build intercepts /login on cold boot, times out while Next warms, and shows
+ * “Novend is offline” until the user restarts. Clear it before first navigation.
+ */
+async function clearStaleServiceWorkers(appUrl: string) {
+  const ses = session.fromPartition(PERSIST_PARTITION);
+  try {
+    await ses.clearStorageData({
+      origin: appUrl.replace(/\/$/, ""),
+      storages: ["serviceworkers", "cachestorage"],
+    });
+  } catch (error) {
+    console.warn("[millies-desktop] could not clear stale service workers", error);
+  }
+}
+
 function showWindow(appUrl: string) {
   if (!mainWindow) {
     mainWindow = createMainWindow(appUrl);
@@ -124,6 +141,7 @@ if (!gotLock) {
     }
 
     allowMediaPermissions(appUrl);
+    await clearStaleServiceWorkers(appUrl);
     registerDesktopIpc();
     registerCustomerDisplayIpc();
     registerCustomerDisplayHotplug();

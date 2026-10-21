@@ -1,6 +1,7 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import { TouchNumpadButton } from "@/components/ui/touch-numpad";
 import { formatCurrency } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +13,15 @@ type CashTenderChangeProps = {
   compact?: boolean;
   className?: string;
 };
+
+/** Keep money typing keyboard-friendly (top row + numpad + locale comma). */
+function sanitizeMoneyDraft(raw: string): string {
+  const normalized = raw.replace(/,/g, ".");
+  const cleaned = normalized.replace(/[^\d.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  if (firstDot === -1) return cleaned;
+  return `${cleaned.slice(0, firstDot + 1)}${cleaned.slice(firstDot + 1).replace(/\./g, "")}`;
+}
 
 /**
  * Cashier aid: amount paid → auto change. Value is lifted so checkout can
@@ -50,18 +60,23 @@ export function CashTenderChange({
       </label>
       <Input
         id="cash-tender-paid"
-        type="number"
-        min={0}
-        step="0.01"
+        type="text"
         inputMode="decimal"
+        autoComplete="off"
         placeholder="Optional"
         value={value}
-        onChange={(e) => onValueChange(e.target.value)}
+        onChange={(e) => onValueChange(sanitizeMoneyDraft(e.target.value))}
         className={cn(
           "min-w-0 flex-1 font-semibold tabular-nums",
           compact ? "h-7 px-2 text-xs" : "h-9 px-2.5 text-base",
         )}
         aria-label="Amount paid"
+      />
+      <TouchNumpadButton
+        value={value}
+        onChange={onValueChange}
+        className={compact ? "h-7 w-7" : "h-9 w-9"}
+        label="Open paid keypad"
       />
       {change != null && change > 0 ? (
         <p

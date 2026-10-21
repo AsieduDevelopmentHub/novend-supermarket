@@ -7,6 +7,7 @@ import {
   type ReceiptLine,
   type ReceiptTemplateConfig,
 } from "@/features/receipts/types";
+import { formatReceiptProductName } from "@/features/receipts/line-title";
 import { formatCurrencyEscPos } from "@/lib/currency";
 import { sanitizeReceiptCopy } from "@/lib/receipt-print-mode";
 import { formatDateTime } from "@/lib/date";
@@ -82,6 +83,9 @@ export function normalizeReceiptPayload(
       unitPrice: Number(line.unitPrice ?? 0),
       discount: Number(line.discount ?? 0),
       lineTotal: Number(line.lineTotal ?? 0),
+      // Preserve pack/carton — print paths must not drop the chosen sell unit.
+      sellUnitLabel: line.sellUnitLabel ? String(line.sellUnitLabel) : undefined,
+      pricingMode: line.pricingMode === "per_weight" ? "per_weight" : line.pricingMode === "fixed" ? "fixed" : undefined,
     })),
     paymentMethod: String(source.paymentMethod ?? "cash"),
     payments: parseReceiptPayments(source.payments),
@@ -114,6 +118,7 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
 
   const lines = payload.lines
     .map((line) => {
+      const title = formatReceiptProductName(line);
       const meta = [
         `${line.quantity} x ${money(line.unitPrice)}`,
         line.discount > 0 ? `(-${money(line.discount)})` : "",
@@ -122,7 +127,7 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
         .filter(Boolean)
         .join(" - ");
       return `<div class="line">
-        <div class="row"><span>${escapeHtml(line.productName)}</span><span>${escapeHtml(money(line.lineTotal))}</span></div>
+        <div class="row"><span>${escapeHtml(title)}</span><span>${escapeHtml(money(line.lineTotal))}</span></div>
         <div class="meta">${escapeHtml(meta)}</div>
       </div>`;
     })
@@ -156,11 +161,22 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
     .ticket { width: ${widthPx}px; max-width: 100%; padding: 12px; }
     .center { text-align: center; }
     .logo { height: 56px; margin: 0 auto 6px; display: block; object-fit: contain; }
-    .title { font-size: 14px; font-weight: 700; text-transform: uppercase; }
+    .title {
+      font-size: 16px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
     .sep { border-top: 1px dashed #000; margin: 8px 0; padding-top: 8px; }
     .row { display: flex; justify-content: space-between; gap: 8px; }
-    .meta { opacity: 0.75; margin-bottom: 6px; }
-    .total { font-size: 14px; font-weight: 700; }
+    .line { margin-bottom: 10px; }
+    .line:last-child { margin-bottom: 0; }
+    .meta { opacity: 0.75; margin-bottom: 0; }
+    .total {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
     .vendor { margin-top: 6px; font-size: 10px; opacity: 0.75; }
   </style>
 </head>

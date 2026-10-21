@@ -55,6 +55,7 @@ export function BarcodeSearchField({
     <div className={className ?? "flex max-w-md gap-2"}>
       <Input
         id={id}
+        data-barcode-capture=""
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {

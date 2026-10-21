@@ -1,5 +1,6 @@
 import { RECEIPT_VENDOR_FOOTER } from "@/constants/app";
 import type { ReceiptPayload } from "@/features/receipts/types";
+import { formatReceiptLineTitle } from "@/features/receipts/line-title";
 import { receiptPaymentLines } from "@/features/receipts/payment-lines";
 import { formatCurrencyEscPos } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
@@ -91,9 +92,21 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
   // Avoid "Millie's / Millie's" when branch was seeded with the store name.
   const showBranch = Boolean(branchName) && branchName.toLowerCase() !== tradeName.toLowerCase();
 
+  /**
+   * Cheap ESC/POS tills often ignore ESC E (emphasize) alone. Pair with
+   * double-strike (ESC G) for weight — do not use GS ! size (2× wraps the
+   * store name and stretches TOTAL on 58mm paper).
+   */
+  const setEmphasized = (on: boolean) => {
+    write(ESC, 0x45, on ? 0x01 : 0x00); // emphasize
+    write(ESC, 0x47, on ? 0x01 : 0x00); // double-strike
+  };
+
   write(ESC, 0x40, ESC, 0x74, 0x00);
   write(ESC, 0x61, 0x01);
+  setEmphasized(true);
   write(tradeName, "\n");
+  setEmphasized(false);
   const headerText = sanitizeReceiptCopy(t.headerText, "");
   if (headerText) write(headerText, "\n");
   if (showBranch) write(branchName, "\n");
@@ -120,7 +133,7 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
   const narrow = paperWidthMm === 58;
   payload.lines.forEach((item, index) => {
     const amount = formatCurrencyEscPos(item.lineTotal);
-    const titled = `${index + 1}. ${item.productName}`;
+    const titled = formatReceiptLineTitle(item, index + 1);
     if (narrow) {
       // 58mm: name on its own line(s), qty + amount right-aligned on the next.
       for (const row of wrapLeft(titled, cols)) {
@@ -145,6 +158,8 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
         .join(" - ");
       if (meta) write(meta, "\n");
     }
+    // Blank line between products so line 1 / 2 do not look stuck together.
+    if (index < payload.lines.length - 1) write("\n");
   });
 
   write(sep(cols), "\n");
@@ -162,9 +177,9 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
       .join(" ");
     write(line(cols, taxLabel, formatCurrencyEscPos(payload.taxAmount)), "\n");
   }
-  write(ESC, 0x45, 0x01);
+  setEmphasized(true);
   write(line(cols, "TOTAL", formatCurrencyEscPos(payload.total)), "\n");
-  write(ESC, 0x45, 0x00);
+  setEmphasized(false);
   if (t.showPaymentMethod && splitLines) {
     for (const split of splitLines) {
       write(line(cols, split.label, formatCurrencyEscPos(split.amount)), "\n");

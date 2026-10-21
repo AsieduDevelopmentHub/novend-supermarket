@@ -72,6 +72,7 @@ export function ProductBarcodeField({
       <div className="flex min-w-0 gap-2">
         <Input
           id={id}
+          data-barcode-capture=""
           className="min-h-11 min-w-0"
           value={value}
           onChange={(e) => onChange(e.target.value)}
