@@ -185,7 +185,7 @@ export function buildEscPosReceipt(payload: ReceiptPayload, paperWidthMm: 58 | 8
       write(line(cols, split.label, formatCurrencyEscPos(split.amount)), "\n");
     }
   }
-  if (typeof payload.amountPaid === "number") {
+  if (t.showAmountPaidAndChange !== false && typeof payload.amountPaid === "number") {
     write(line(cols, "Paid", formatCurrencyEscPos(payload.amountPaid)), "\n");
     write(line(cols, "Change", formatCurrencyEscPos(payload.changeGiven ?? 0)), "\n");
   }

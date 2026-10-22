@@ -172,7 +172,7 @@ export function ReceiptDocument({
                 </div>
               ))
             : null}
-          {typeof payload.amountPaid === "number" ? (
+          {template.showAmountPaidAndChange !== false && typeof payload.amountPaid === "number" ? (
             <>
               <div className="flex justify-between">
                 <span>Paid</span>

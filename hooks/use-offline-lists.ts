@@ -594,6 +594,8 @@ export function useOrdersList(options: OrdersListOptions) {
       cashierName: o.cashierName,
       itemCount: o.itemCount,
       paymentMethod: o.paymentMethod,
+      amountPaid: o.amountPaid,
+      changeGiven: o.changeGiven,
       total: o.total,
       status: o.status === "synced" ? "completed" : o.status,
       refundedAmount: o.refundedAmount,

@@ -229,6 +229,8 @@ export const getSnapshot = query({
       refundedAmount: refundedBySale.get(sale._id) ?? 0,
       paymentMethod: sale.paymentMethod,
       payments: paymentsBySale.get(sale._id),
+      amountPaid: sale.amountPaid,
+      changeGiven: sale.changeGiven,
       status: sale.status,
       completedAt: sale.completedAt,
       branchId: (sale.branchId as string | undefined) ?? null,

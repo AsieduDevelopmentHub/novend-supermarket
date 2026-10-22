@@ -19,6 +19,8 @@ export type ReceiptTemplateConfig = {
   showCashier: boolean;
   showCustomer: boolean;
   showPaymentMethod: boolean;
+  /** Cash tender lines: amount received and change returned. */
+  showAmountPaidAndChange: boolean;
   showSku: boolean;
 };
 
@@ -125,6 +127,7 @@ export const SAMPLE_RECEIPT_PAYLOAD: ReceiptPayload = {
     showCashier: true,
     showCustomer: false,
     showPaymentMethod: true,
+    showAmountPaidAndChange: true,
     showSku: false,
   },
 };

@@ -221,6 +221,7 @@ export async function bootstrapMilliesStore(input: {
         showCashier: true,
         showCustomer: false,
         showPaymentMethod: true,
+        showAmountPaidAndChange: true,
         showSku: false,
       },
     };

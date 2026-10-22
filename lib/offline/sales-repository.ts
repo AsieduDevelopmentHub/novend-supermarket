@@ -292,6 +292,12 @@ export async function completeSaleLocally(input: {
         total,
         paymentMethod: primaryTender,
         payments,
+        ...(typeof input.amountPaid === "number"
+          ? {
+              amountPaid: input.amountPaid,
+              changeGiven: input.changeGiven ?? 0,
+            }
+          : {}),
         itemCount,
         completedAt,
         syncStatus: "pending",
@@ -516,6 +522,8 @@ export async function mirrorUploadedLocalSale(
       total: sale.total,
       paymentMethod: sale.paymentMethod,
       payments: sale.payments,
+      amountPaid: sale.amountPaid,
+      changeGiven: sale.changeGiven,
       completedAt: sale.completedAt,
       branchId: sale.branchId ?? null,
       branchName: sale.branchName ?? null,
@@ -655,6 +663,8 @@ export async function mirrorCompletedSale(
     total: number;
     paymentMethod: PaymentMethod;
     payments?: PaymentLine[];
+    amountPaid?: number;
+    changeGiven?: number;
     completedAt: number;
     branchId?: string | null;
     branchName?: string | null;
@@ -689,6 +699,12 @@ export async function mirrorCompletedSale(
     total: input.total,
     paymentMethod: input.paymentMethod,
     payments: input.payments,
+    ...(typeof input.amountPaid === "number"
+      ? {
+          amountPaid: input.amountPaid,
+          changeGiven: input.changeGiven ?? 0,
+        }
+      : {}),
     status: "completed",
     completedAt: input.completedAt,
     branchId,

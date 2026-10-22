@@ -65,6 +65,7 @@ export type ReceiptTemplate = {
   showCashier: boolean;
   showCustomer: boolean;
   showPaymentMethod: boolean;
+  showAmountPaidAndChange: boolean;
   showSku: boolean;
 };
 
@@ -86,6 +87,7 @@ export const DEFAULT_RECEIPT_TEMPLATE: ReceiptTemplate = {
   showCashier: true,
   showCustomer: true,
   showPaymentMethod: true,
+  showAmountPaidAndChange: true,
   showSku: false,
 };
 
@@ -422,6 +424,7 @@ export const updateReceiptTemplate = mutation({
     showCashier: v.boolean(),
     showCustomer: v.boolean(),
     showPaymentMethod: v.boolean(),
+    showAmountPaidAndChange: v.boolean(),
     showSku: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -439,6 +442,7 @@ export const updateReceiptTemplate = mutation({
       showCashier: args.showCashier,
       showCustomer: args.showCustomer,
       showPaymentMethod: args.showPaymentMethod,
+      showAmountPaidAndChange: args.showAmountPaidAndChange,
       showSku: args.showSku,
     };
     await upsertSetting(ctx, organizationId, RECEIPT_KEY, JSON.stringify(template));

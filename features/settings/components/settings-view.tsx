@@ -156,6 +156,7 @@ export function SettingsView() {
           showCashier: snapshot.template.showCashier,
           showCustomer: snapshot.template.showCustomer,
           showPaymentMethod: snapshot.template.showPaymentMethod,
+          showAmountPaidAndChange: snapshot.template.showAmountPaidAndChange ?? true,
           showSku: snapshot.template.showSku,
         },
       });
@@ -631,6 +632,9 @@ function ReceiptTemplateForm({
   const [showCashier, setShowCashier] = useState(initialTemplate.showCashier);
   const [showCustomer, setShowCustomer] = useState(initialTemplate.showCustomer);
   const [showPaymentMethod, setShowPaymentMethod] = useState(initialTemplate.showPaymentMethod);
+  const [showAmountPaidAndChange, setShowAmountPaidAndChange] = useState(
+    initialTemplate.showAmountPaidAndChange ?? true,
+  );
   const [showSku, setShowSku] = useState(initialTemplate.showSku);
   const [pending, setPending] = useState(false);
 
@@ -644,6 +648,7 @@ function ReceiptTemplateForm({
       showCashier,
       showCustomer,
       showPaymentMethod,
+      showAmountPaidAndChange,
       showSku,
     }),
     [
@@ -654,6 +659,7 @@ function ReceiptTemplateForm({
       showCashier,
       showCustomer,
       showPaymentMethod,
+      showAmountPaidAndChange,
       showSku,
     ],
   );
@@ -675,6 +681,7 @@ function ReceiptTemplateForm({
         showCashier,
         showCustomer,
         showPaymentMethod,
+        showAmountPaidAndChange,
         showSku,
       };
       if (FULLY_OFFLINE) {
@@ -818,6 +825,13 @@ function ReceiptTemplateForm({
                   label="Show payment method"
                   checked={showPaymentMethod}
                   onChange={setShowPaymentMethod}
+                  disabled={readOnly}
+                />
+                <ToggleRow
+                  id="showAmountPaidAndChange"
+                  label="Show amount paid & change"
+                  checked={showAmountPaidAndChange}
+                  onChange={setShowAmountPaidAndChange}
                   disabled={readOnly}
                 />
                 <ToggleRow

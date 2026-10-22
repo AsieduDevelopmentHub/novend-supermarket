@@ -68,11 +68,18 @@ type OrderListRow = {
   cashierName: string;
   branchName?: string | null;
   paymentMethod: string;
+  amountPaid?: number;
+  changeGiven?: number;
   itemCount: number;
   total: number;
   refundedAmount?: number;
   customerId?: string | null;
 };
+
+function tenderCashLines(order: Pick<OrderListRow, "amountPaid" | "changeGiven">) {
+  if (typeof order.amountPaid !== "number") return null;
+  return `Paid ${formatCurrency(order.amountPaid)} · Change ${formatCurrency(order.changeGiven ?? 0)}`;
+}
 
 function sourceLabel(source: OpenOperationSource) {
   switch (source) {
@@ -90,6 +97,7 @@ function sourceLabel(source: OpenOperationSource) {
 function OrderMobileCard({ order }: { order: OrderListRow }) {
   const [expanded, setExpanded] = useState(false);
   const returned = "refundedAmount" in order && Number(order.refundedAmount) > 0;
+  const cashLines = tenderCashLines(order);
 
   return (
     <Card className="overflow-hidden rounded-[20px]">
@@ -129,6 +137,7 @@ function OrderMobileCard({ order }: { order: OrderListRow }) {
               <Badge variant="secondary">{paymentMethodLabel(order.paymentMethod)}</Badge>
               <span>{order.itemCount} items</span>
             </p>
+            {cashLines ? <p className="text-muted-foreground text-xs">{cashLines}</p> : null}
             <Button asChild size="sm" variant="outline" className="min-h-11 w-full">
               <Link href={`/orders/${order.id}`}>
                 <Eye className="h-4 w-4" />
@@ -760,7 +769,9 @@ export function OrdersView() {
                         </tr>
                       </thead>
                       <tbody>
-                        {(pageRows ?? []).map((order) => (
+                        {(pageRows ?? []).map((order) => {
+                          const cashLines = tenderCashLines(order);
+                          return (
                           <ClickableTableRow key={order.id} href={`/orders/${order.id}`}>
                             <td className="px-4 py-3">
                               <div className="font-medium">{order.invoiceNumber}</div>
@@ -783,9 +794,14 @@ export function OrdersView() {
                             <td className="px-4 py-3">{order.cashierName}</td>
                             <td className="px-4 py-3">{order.itemCount}</td>
                             <td className="px-4 py-3">
-                              <Badge variant="secondary">
-                                {paymentMethodLabel(order.paymentMethod)}
-                              </Badge>
+                              <div className="space-y-0.5">
+                                <Badge variant="secondary">
+                                  {paymentMethodLabel(order.paymentMethod)}
+                                </Badge>
+                                {cashLines ? (
+                                  <p className="text-muted-foreground text-xs">{cashLines}</p>
+                                ) : null}
+                              </div>
                             </td>
                             <td className="px-4 py-3 font-medium">{formatCurrency(order.total)}</td>
                             <td className="px-4 py-3">
@@ -809,7 +825,8 @@ export function OrdersView() {
                               </Button>
                             </td>
                           </ClickableTableRow>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </CardContent>

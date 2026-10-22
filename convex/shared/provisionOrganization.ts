@@ -160,6 +160,7 @@ export async function provisionOrganization(
       showCashier: true,
       showCustomer: true,
       showPaymentMethod: true,
+      showAmountPaidAndChange: true,
       showSku: false,
     }),
   });

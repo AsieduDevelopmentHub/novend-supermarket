@@ -310,6 +310,9 @@ export type MirroredOrder = {
   /** Primary (largest) tender. Split sales carry every line in `payments`. */
   paymentMethod: PaymentMethod;
   payments?: PaymentLine[];
+  /** Cash received — present when tendered at checkout. */
+  amountPaid?: number;
+  changeGiven?: number;
   status: string;
   completedAt: number;
   branchId: string | null;
@@ -394,6 +397,9 @@ export type LocalSale = {
   paymentMethod: PaymentMethod;
   /** Normalized tender lines (sum = total). Absent on sales saved before split tenders. */
   payments?: PaymentLine[];
+  /** Cash received — snapshotted at checkout for Orders + receipt reprint. */
+  amountPaid?: number;
+  changeGiven?: number;
   itemCount: number;
   completedAt: number;
   syncStatus: LocalSaleSyncStatus;
@@ -959,6 +965,7 @@ export type PrintSnapshot = {
     showCashier: boolean;
     showCustomer: boolean;
     showPaymentMethod: boolean;
+    showAmountPaidAndChange: boolean;
     showSku: boolean;
   };
 };

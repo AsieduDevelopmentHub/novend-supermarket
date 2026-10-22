@@ -33,6 +33,8 @@ type OrderDetail = {
   customerName: string;
   cashierName: string;
   paymentMethod: PaymentMethod;
+  amountPaid?: number;
+  changeGiven?: number;
   subtotal: number;
   discount: number;
   total: number;
@@ -65,6 +67,23 @@ type OrderDetail = {
   receiptPayload: ReceiptPayload | null;
   syncHint?: string;
 };
+
+function resolveOrderTender(order: OrderDetail): {
+  amountPaid?: number;
+  changeGiven?: number;
+} {
+  if (typeof order.amountPaid === "number") {
+    return { amountPaid: order.amountPaid, changeGiven: order.changeGiven ?? 0 };
+  }
+  const fromReceipt = order.receiptPayload;
+  if (fromReceipt && typeof fromReceipt.amountPaid === "number") {
+    return {
+      amountPaid: fromReceipt.amountPaid,
+      changeGiven: fromReceipt.changeGiven ?? 0,
+    };
+  }
+  return {};
+}
 
 async function saleIdsForPendingReturns(saleId: string): Promise<string[]> {
   const ids = [saleId];
@@ -167,6 +186,8 @@ function mapRemoteOrder(remote: {
   customerName: string;
   cashierName: string;
   paymentMethod: PaymentMethod;
+  amountPaid?: number;
+  changeGiven?: number;
   subtotal: number;
   discount: number;
   total: number;
@@ -186,6 +207,8 @@ function mapRemoteOrder(remote: {
     customerName: remote.customerName,
     cashierName: remote.cashierName,
     paymentMethod: remote.paymentMethod,
+    amountPaid: remote.amountPaid,
+    changeGiven: remote.changeGiven,
     subtotal: remote.subtotal,
     discount: remote.discount,
     total: remote.total,
@@ -245,6 +268,8 @@ async function loadLocalOrder(localSaleId: string): Promise<OrderDetail | null> 
     customerName: sale.customerName,
     cashierName: sale.cashierName,
     paymentMethod: sale.paymentMethod,
+    amountPaid: sale.amountPaid,
+    changeGiven: sale.changeGiven,
     subtotal: sale.subtotal,
     discount: sale.discount,
     total: sale.total,
@@ -297,6 +322,8 @@ async function synthesizeReceiptFromOrder(args: {
   customerId: string | null;
   cashierName: string;
   paymentMethod: string;
+  amountPaid?: number;
+  changeGiven?: number;
   subtotal: number;
   discount: number;
   total: number;
@@ -325,6 +352,9 @@ async function synthesizeReceiptFromOrder(args: {
       lineTotal: item.lineTotal,
     })),
     paymentMethod: args.paymentMethod,
+    ...(typeof args.amountPaid === "number"
+      ? { amountPaid: args.amountPaid, changeGiven: args.changeGiven ?? 0 }
+      : {}),
     completedAt: args.completedAt,
     customerName: args.customerName,
     customerId: args.customerId,
@@ -370,6 +400,8 @@ async function loadMirroredOrder(saleId: string): Promise<OrderDetail | null> {
       customerId: sale.customerId,
       cashierName: sale.cashierName,
       paymentMethod: sale.paymentMethod,
+      amountPaid: sale.amountPaid,
+      changeGiven: sale.changeGiven,
       subtotal: sale.subtotal,
       discount: sale.discount,
       total: sale.total,
@@ -383,6 +415,8 @@ async function loadMirroredOrder(saleId: string): Promise<OrderDetail | null> {
     customerName: sale.customerName,
     cashierName: sale.cashierName,
     paymentMethod: sale.paymentMethod,
+    amountPaid: sale.amountPaid,
+    changeGiven: sale.changeGiven,
     subtotal: sale.subtotal,
     discount: sale.discount,
     total: sale.total,
@@ -525,6 +559,7 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
   const orderWhenLabel = syncedDiverged
     ? `${formatDateTime(order.completedAt)} · Synced ${formatDateTime(order.syncedAt!)}`
     : formatDateTime(order.completedAt);
+  const tender = resolveOrderTender(order);
 
   return (
     <div className="space-y-6">
@@ -597,6 +632,12 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
             ) : null}
           </div>
         </div>
+        {typeof tender.amountPaid === "number" ? (
+          <>
+            <MetaCard label="Amount paid" value={formatCurrency(tender.amountPaid)} />
+            <MetaCard label="Change given" value={formatCurrency(tender.changeGiven ?? 0)} />
+          </>
+        ) : null}
       </div>
 
       <Card>

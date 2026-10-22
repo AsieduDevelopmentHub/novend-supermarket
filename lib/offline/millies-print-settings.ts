@@ -28,6 +28,7 @@ export const DEFAULT_MILLIES_TEMPLATE: ReceiptTemplateConfig = {
   showCashier: true,
   showCustomer: false,
   showPaymentMethod: true,
+  showAmountPaidAndChange: true,
   showSku: false,
 };
 

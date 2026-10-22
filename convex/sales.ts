@@ -815,6 +815,18 @@ export const completeSale = mutation({
     const { completedAt } = resolveSaleCompletedAt(args.clientCompletedAt, syncedAt);
     const snapshot = await loadPrintSnapshot(ctx, profile.organizationId, branchId);
 
+    const tenderPaid =
+      typeof args.amountPaid === "number"
+        ? {
+            amountPaid: roundMoney(args.amountPaid),
+            changeGiven: roundMoney(
+              typeof args.changeGiven === "number"
+                ? Math.max(0, args.changeGiven)
+                : Math.max(0, args.amountPaid - total),
+            ),
+          }
+        : {};
+
     const saleId = await ctx.db.insert("sales", {
       organizationId: profile.organizationId,
       invoiceNumber,
@@ -826,6 +838,7 @@ export const completeSale = mutation({
       discount: cartDiscount,
       total,
       paymentMethod: primaryTender,
+      ...tenderPaid,
       itemCount,
       status: "completed",
       completedAt,
@@ -953,16 +966,7 @@ export const completeSale = mutation({
       lines: lines.map(({ stockQuantity: _stockQuantity, ...line }) => line),
       paymentMethod: primaryTender,
       payments,
-      ...(typeof args.amountPaid === "number"
-        ? {
-            amountPaid: roundMoney(args.amountPaid),
-            changeGiven: roundMoney(
-              typeof args.changeGiven === "number"
-                ? Math.max(0, args.changeGiven)
-                : Math.max(0, args.amountPaid - total),
-            ),
-          }
-        : {}),
+      ...tenderPaid,
       completedAt,
       customerName,
       customerPhone,
@@ -1237,6 +1241,8 @@ export const listOrders = query({
       total: sale.total,
       refundedAmount: roundMoney(refundedBySale.get(sale._id) ?? 0),
       paymentMethod: sale.paymentMethod,
+      amountPaid: sale.amountPaid,
+      changeGiven: sale.changeGiven,
       status: sale.status,
       completedAt: sale.completedAt,
       syncedAt: sale.syncedAt ?? null,
@@ -1330,6 +1336,15 @@ export const getOrder = query({
       itemCount: sale.itemCount,
       paymentMethod: sale.paymentMethod,
       payments: salePayments,
+      ...(typeof sale.amountPaid === "number"
+        ? { amountPaid: sale.amountPaid, changeGiven: sale.changeGiven ?? 0 }
+        : typeof parsed?.amountPaid === "number"
+          ? {
+              amountPaid: parsed.amountPaid as number,
+              changeGiven:
+                typeof parsed.changeGiven === "number" ? (parsed.changeGiven as number) : 0,
+            }
+          : {}),
       completedAt: sale.completedAt,
       syncedAt: sale.syncedAt ?? null,
       customerName: sale.customerName,
@@ -1367,6 +1382,8 @@ export const getOrder = query({
       total: sale.total,
       paymentMethod: sale.paymentMethod,
       payments: salePayments,
+      amountPaid: sale.amountPaid,
+      changeGiven: sale.changeGiven,
       status: sale.status,
       completedAt: sale.completedAt,
       syncedAt: sale.syncedAt ?? null,

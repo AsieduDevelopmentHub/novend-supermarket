@@ -361,6 +361,8 @@ export async function listLocalOrders(filters: LocalOrderFilters = {}) {
     cashierName: string;
     itemCount: number;
     paymentMethod: PaymentMethod;
+    amountPaid?: number;
+    changeGiven?: number;
     total: number;
     status: string;
     isLocal: boolean;
@@ -390,6 +392,8 @@ export async function listLocalOrders(filters: LocalOrderFilters = {}) {
       cashierName: o.cashierName,
       itemCount: o.itemCount,
       paymentMethod: o.paymentMethod,
+      amountPaid: o.amountPaid,
+      changeGiven: o.changeGiven,
       total: o.total,
       status: o.status,
       isLocal: false,
@@ -407,6 +411,8 @@ export async function listLocalOrders(filters: LocalOrderFilters = {}) {
       cashierName: s.cashierName,
       itemCount: s.itemCount,
       paymentMethod: s.paymentMethod,
+      amountPaid: s.amountPaid,
+      changeGiven: s.changeGiven,
       total: s.total,
       status: s.syncStatus,
       isLocal: true,

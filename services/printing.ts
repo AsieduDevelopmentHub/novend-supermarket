@@ -220,7 +220,7 @@ export function buildReceiptPrintHtml(input: ReceiptPayload | Record<string, unk
       <div class="row total"><span>TOTAL</span><span>${escapeHtml(money(payload.total))}</span></div>
       ${t.showPaymentMethod && splitLines ? splitLines.map((split) => `<div class="row"><span>${escapeHtml(split.label)}</span><span>${escapeHtml(money(split.amount))}</span></div>`).join("") : ""}
       ${
-        typeof payload.amountPaid === "number"
+        t.showAmountPaidAndChange !== false && typeof payload.amountPaid === "number"
           ? `<div class="row"><span>Paid</span><span>${escapeHtml(money(payload.amountPaid))}</span></div>
       <div class="row"><span>Change</span><span>${escapeHtml(money(payload.changeGiven ?? 0))}</span></div>`
           : ""

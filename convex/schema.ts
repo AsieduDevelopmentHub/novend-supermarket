@@ -968,6 +968,9 @@ export default defineSchema({
     discount: v.number(),
     total: v.number(),
     paymentMethod: paymentMethodValidator,
+    /** Cash received at checkout (optional — card/MoMo often omit). */
+    amountPaid: v.optional(v.number()),
+    changeGiven: v.optional(v.number()),
     itemCount: v.number(),
     status: v.literal("completed"),
     /** Till wall-clock when the sale completed (CCTV / business time). */
