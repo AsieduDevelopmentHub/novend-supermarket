@@ -89,6 +89,14 @@ export function normalizeReceiptPayload(
     })),
     paymentMethod: String(source.paymentMethod ?? "cash"),
     payments: parseReceiptPayments(source.payments),
+    ...(typeof source.amountPaid === "number"
+      ? {
+          amountPaid: Number(source.amountPaid),
+          changeGiven: Number(
+            typeof source.changeGiven === "number" ? source.changeGiven : 0,
+          ),
+        }
+      : {}),
     completedAt: Number(source.completedAt ?? Date.now()),
     customerName: String(source.customerName ?? "Walk-in Customer"),
     customerPhone: (source.customerPhone as string | null | undefined) ?? null,
