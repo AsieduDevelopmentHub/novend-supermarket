@@ -18,7 +18,7 @@
     "@aparajita/capacitor-biometric-auth": "^9.1.2",
     "@aparajita/capacitor-secure-storage": "^7.1.6",
     "@capacitor-community/bluetooth-le": "^7.3.2",
-    "@capacitor/android": "^7.4.3",
+    "@capacitor/android": "^8.5.3",
     "@capacitor/app": "^7.1.2",
     "@capacitor/camera": "^7.0.5",
     "@capacitor/core": "^7.4.3",
