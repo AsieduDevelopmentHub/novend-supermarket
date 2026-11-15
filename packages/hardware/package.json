@@ -16,7 +16,7 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@aparajita/capacitor-biometric-auth": "^9.1.2",
+    "@aparajita/capacitor-biometric-auth": "^10.0.0",
     "@aparajita/capacitor-secure-storage": "^7.1.6",
     "@capacitor-community/bluetooth-le": "^7.3.2",
     "@capacitor/app": "^7.1.2",
