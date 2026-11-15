@@ -316,13 +316,21 @@ function normalizeInventoryRow(r: {
   };
 }
 
-/** Local-first inventory list. */
+/** Local-first inventory list (Dexie page when pageSize set; warm Map index). */
 export function useInventoryList(options: {
   search: string;
   categoryId?: Id<"categories">;
   branchId?: Id<"branches">;
+  page?: number;
+  pageSize?: number;
+  /**
+   * When set, loads the full enriched catalog then filters — alert views need
+   * isLowStock / expiry flags before paging. Omit for normal paged lists.
+   */
+  stockAlert?: "low" | "expiry";
 }) {
   const { online, serveLocal, ready, lastSyncAt } = useBusinessDataGate();
+  const alertMode = Boolean(options.stockAlert);
   const remote = useAuthedQuery(
     api.inventory.list,
     online && ready && !serveLocal
@@ -334,17 +342,35 @@ export function useInventoryList(options: {
       : "skip",
   );
   const [local, setLocal] = useState<InventoryRow[] | null>(null);
+  const [localTotal, setLocalTotal] = useState(0);
+  const [localLoading, setLocalLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     const load = () => {
+      setLocalLoading(true);
       void listMirroredProducts({
         search: options.search || undefined,
         categoryId: options.categoryId,
         branchId: options.branchId ?? null,
+        page: alertMode ? undefined : options.page,
+        pageSize: alertMode ? undefined : options.pageSize,
       }).then((rows) => {
-        if (cancelled || rows == null || !Array.isArray(rows)) return;
-        setLocal(rows.map((r) => normalizeInventoryRow(r)));
+        if (cancelled || rows == null) return;
+        if (isPagedProducts(rows)) {
+          setLocal(rows.items.map((r) => normalizeInventoryRow(r)));
+          setLocalTotal(rows.total);
+        } else {
+          let mapped = rows.map((r) => normalizeInventoryRow(r));
+          if (options.stockAlert === "low") {
+            mapped = mapped.filter((r) => r.isLowStock);
+          } else if (options.stockAlert === "expiry") {
+            mapped = mapped.filter((r) => r.isExpired || r.isExpiring);
+          }
+          setLocal(mapped);
+          setLocalTotal(mapped.length);
+        }
+        setLocalLoading(false);
       });
     };
     load();
@@ -353,19 +379,41 @@ export function useInventoryList(options: {
       cancelled = true;
       unsub();
     };
-  }, [options.search, options.categoryId, options.branchId, remote, lastSyncAt]);
+  }, [
+    options.search,
+    options.categoryId,
+    options.branchId,
+    options.page,
+    options.pageSize,
+    options.stockAlert,
+    alertMode,
+    remote,
+    lastSyncAt,
+  ]);
 
   if (online && !serveLocal && remote !== undefined) {
+    let rows = remote.map((r) => normalizeInventoryRow(r));
+    if (options.stockAlert === "low") {
+      rows = rows.filter((r) => r.isLowStock);
+    } else if (options.stockAlert === "expiry") {
+      rows = rows.filter((r) => r.isExpired || r.isExpiring);
+    }
     return {
-      rows: remote.map((r) => normalizeInventoryRow(r)),
+      rows,
+      total: rows.length,
       loading: false,
       source: "remote" as const,
     };
   }
   if (local != null) {
-    return { rows: local, loading: false, source: "local" as const };
+    return {
+      rows: local,
+      total: localTotal,
+      loading: localLoading,
+      source: "local" as const,
+    };
   }
-  return { rows: undefined, loading: true, source: "local" as const };
+  return { rows: undefined, total: 0, loading: true, source: "local" as const };
 }
 
 export function useCategoriesList() {

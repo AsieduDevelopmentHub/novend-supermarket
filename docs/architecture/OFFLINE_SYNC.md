@@ -176,6 +176,13 @@ Convex (when online)
    locally (quantity by default; the cashier can toggle amount). The ranking
    preference is stored on the device.
 7. Barcode scans look up `products.barcode` (then SKU) in Dexie only.
+8. **Warm Map indexes (hash tables)** — Sales uses `sales-catalog-cache.ts`
+   (active sellable catalog + barcode `Map`). Products / Inventory use
+   `product-list-cache.ts` (non-archived catalog, barcode `Map`, lots-by-product
+   `Map`, branch-stock-by-product `Map`). Both invalidate on
+   `replicaWriteEpoch()` so the first list open after a write pays Dexie once;
+   later search/page turns hit memory. `listMirroredProducts` must not
+   nested-filter all lots per row — join via those Maps.
 
 ## Local writes
 

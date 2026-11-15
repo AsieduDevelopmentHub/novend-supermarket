@@ -10,8 +10,6 @@ import {
   sameWholesaleTransfer,
 } from "./replica-dedupe";
 import {
-  branchStockMapForBranch,
-  branchStockMapOrgWide,
   resolveMirrorBranchFilter,
   resolveMirroredProductStock,
 } from "./branch-stock";
@@ -34,6 +32,16 @@ import { ownedSaleIdsForCashier } from "@/lib/dashboard/cashier-scope";
 import { summarizeLots } from "@/convex/shared/lots";
 import { resolveExpiryAlertDays } from "@/convex/shared/expiryPolicy";
 import { loadExpiryPolicyCache } from "./expiry-policy";
+import { tokenizeProductSearch } from "@/convex/shared/validation";
+import {
+  branchStockRowsForProduct,
+  getCachedListBranchStockMap,
+  getCachedListOrgWideStockMap,
+  getCachedListProducts,
+  getCachedListProductsByBarcode,
+  getCachedProductListIndex,
+  lotsForProduct,
+} from "./product-list-cache";
 
 export type MirroredInventoryAlertBranch = {
   branchId: string;
@@ -67,111 +75,100 @@ async function mapMirroredProductRows(
     }));
   }
 
-  const branchFilter = await resolveMirrorBranchFilter(db, branchId);
+  const [branchFilter, index, pendingTransfers, expiryPolicy] = await Promise.all([
+    resolveMirrorBranchFilter(db, branchId),
+    getCachedProductListIndex(db),
+    pendingTransferDisplayAdjustments(db),
+    loadExpiryPolicyCache(),
+  ]);
   const stockByProduct = branchFilter
-    ? await branchStockMapForBranch(db, branchFilter)
-    : await branchStockMapOrgWide(db);
-  const pendingTransfers = await pendingTransferDisplayAdjustments(db);
-  const lots = await db.lots.toArray();
-  const allBranchStock = branchFilter == null ? await db.branchStock.toArray() : [];
-  const branches = branchFilter == null ? await db.branches.toArray() : [];
-  const branchNameById = new Map(branches.map((b) => [b.id, b.name]));
-  const expiryPolicy = await loadExpiryPolicyCache();
+    ? await getCachedListBranchStockMap(db, branchFilter)
+    : await getCachedListOrgWideStockMap(db);
   const orgAlertDays = expiryPolicy.defaultAlertDays;
+  const branchNameById = index.branchNameById;
 
-  return Promise.all(
-    products.map(async (product) => {
-      const resolved = await resolveMirroredProductStock(db, product, branchFilter, stockByProduct);
-      const pending =
-        branchFilter != null
-          ? pendingTransfers.get(transferStockKey(branchFilter, product.id))
-          : undefined;
-      const displayed = applyPendingTransferDisplay(
-        resolved.stockQuantity,
-        resolved.sellableQuantity,
-        pending,
-      );
-      const alertDays = resolveExpiryAlertDays(product, orgAlertDays);
-      const productLots = lots.filter(
-        (lot) =>
-          lot.productId === product.id &&
-          lot.quantity > 0 &&
-          (branchFilter == null || lot.branchId === branchFilter),
-      );
-      const lotSummary =
-        product.tracksExpiry && productLots.length > 0
-          ? summarizeLots(productLots, alertDays)
-          : null;
+  const rows: MirroredProductRow[] = [];
+  for (const product of products) {
+    const resolved = await resolveMirroredProductStock(db, product, branchFilter, stockByProduct);
+    const pending =
+      branchFilter != null
+        ? pendingTransfers.get(transferStockKey(branchFilter, product.id))
+        : undefined;
+    const displayed = applyPendingTransferDisplay(
+      resolved.stockQuantity,
+      resolved.sellableQuantity,
+      pending,
+    );
+    const alertDays = resolveExpiryAlertDays(product, orgAlertDays);
+    const productLots = lotsForProduct(index, product.id, branchFilter);
+    const lotSummary =
+      product.tracksExpiry && productLots.length > 0
+        ? summarizeLots(productLots, alertDays)
+        : null;
 
-      const alertBranches =
-        branchFilter == null
-          ? allBranchStock
-              .filter((row) => row.productId === product.id)
-              .map((row) => {
-                const branchLots = lots.filter(
-                  (lot) =>
-                    lot.productId === product.id &&
-                    lot.branchId === row.branchId &&
-                    lot.quantity > 0,
-                );
-                const summary =
-                  product.tracksExpiry && branchLots.length > 0
-                    ? summarizeLots(branchLots, alertDays)
-                    : null;
-                const sellable = product.tracksExpiry
-                  ? (summary?.sellableQuantity ?? row.sellableQuantity ?? 0)
-                  : (row.sellableQuantity ?? row.quantity);
-                const expiredQuantity = summary?.expiredQuantity ?? 0;
-                const expiringQuantity = summary?.expiringQuantity ?? 0;
-                const isLowStock = sellable <= product.lowStockThreshold;
-                const isExpired = expiredQuantity > 0;
-                const isExpiring = expiringQuantity > 0;
-                if (!isLowStock && !isExpired && !isExpiring) return null;
-                return {
-                  branchId: row.branchId,
-                  branchName: branchNameById.get(row.branchId) ?? "Branch",
-                  stockQuantity: row.quantity,
-                  sellableQuantity: sellable,
-                  expiredQuantity,
-                  expiringQuantity,
-                  nearestExpiry: summary?.nearestExpiry ?? null,
-                  isLowStock,
-                  isExpired,
-                  isExpiring,
-                };
-              })
-              .filter((row): row is NonNullable<typeof row> => row !== null)
-          : undefined;
+    const alertBranches =
+      branchFilter == null
+        ? branchStockRowsForProduct(index, product.id)
+            .map((row) => {
+              const branchLots = lotsForProduct(index, product.id, row.branchId);
+              const summary =
+                product.tracksExpiry && branchLots.length > 0
+                  ? summarizeLots(branchLots, alertDays)
+                  : null;
+              const sellable = product.tracksExpiry
+                ? (summary?.sellableQuantity ?? row.sellableQuantity ?? 0)
+                : (row.sellableQuantity ?? row.quantity);
+              const expiredQuantity = summary?.expiredQuantity ?? 0;
+              const expiringQuantity = summary?.expiringQuantity ?? 0;
+              const isLowStock = sellable <= product.lowStockThreshold;
+              const isExpired = expiredQuantity > 0;
+              const isExpiring = expiringQuantity > 0;
+              if (!isLowStock && !isExpired && !isExpiring) return null;
+              return {
+                branchId: row.branchId,
+                branchName: branchNameById.get(row.branchId) ?? "Branch",
+                stockQuantity: row.quantity,
+                sellableQuantity: sellable,
+                expiredQuantity,
+                expiringQuantity,
+                nearestExpiry: summary?.nearestExpiry ?? null,
+                isLowStock,
+                isExpired,
+                isExpiring,
+              };
+            })
+            .filter((row): row is NonNullable<typeof row> => row !== null)
+        : undefined;
 
-      const isLowStock =
-        branchFilter == null
-          ? (alertBranches?.some((row) => row.isLowStock) ??
-            displayed.sellableQuantity <= product.lowStockThreshold)
-          : displayed.sellableQuantity <= product.lowStockThreshold;
+    const isLowStock =
+      branchFilter == null
+        ? (alertBranches?.some((row) => row.isLowStock) ??
+          displayed.sellableQuantity <= product.lowStockThreshold)
+        : displayed.sellableQuantity <= product.lowStockThreshold;
 
-      return {
-        ...product,
-        stockQuantity: displayed.stockQuantity,
-        sellableQuantity: displayed.sellableQuantity,
-        expiredQuantity: lotSummary?.expiredQuantity ?? product.expiredQuantity ?? 0,
-        expiringQuantity: lotSummary?.expiringQuantity ?? product.expiringQuantity ?? 0,
-        isExpiring:
-          lotSummary != null
-            ? lotSummary.expiringQuantity > 0
-            : branchFilter == null
-              ? (alertBranches?.some((row) => row.isExpiring) ?? false)
-              : (resolved.isExpiring ?? false),
-        isExpired:
-          lotSummary != null
-            ? lotSummary.expiredQuantity > 0
-            : branchFilter == null
-              ? (alertBranches?.some((row) => row.isExpired) ?? false)
-              : (resolved.isExpired ?? false),
-        isLowStock,
-        alertBranches,
-      };
-    }),
-  );
+    rows.push({
+      ...product,
+      stockQuantity: displayed.stockQuantity,
+      sellableQuantity: displayed.sellableQuantity,
+      expiredQuantity: lotSummary?.expiredQuantity ?? product.expiredQuantity ?? 0,
+      expiringQuantity: lotSummary?.expiringQuantity ?? product.expiringQuantity ?? 0,
+      isExpiring:
+        lotSummary != null
+          ? lotSummary.expiringQuantity > 0
+          : branchFilter == null
+            ? (alertBranches?.some((row) => row.isExpiring) ?? false)
+            : (resolved.isExpiring ?? false),
+      isExpired:
+        lotSummary != null
+          ? lotSummary.expiredQuantity > 0
+          : branchFilter == null
+            ? (alertBranches?.some((row) => row.isExpired) ?? false)
+            : (resolved.isExpired ?? false),
+      isLowStock,
+      alertBranches,
+    });
+  }
+  return rows;
 }
 
 type ListMirroredProductsOptions = {
@@ -190,29 +187,34 @@ export type PagedMirroredProducts = {
   pageSize: number;
 };
 
-/** Active (or all non-archived) products from the Dexie mirror. */
+/** Active (or all non-archived) products from the Dexie mirror (warm Map index). */
 export async function listMirroredProducts(
   options?: ListMirroredProductsOptions,
 ): Promise<MirroredProductRow[] | PagedMirroredProducts | null> {
   const db = await getOfflineDb();
   if (!db) return null;
 
-  let products = await db.products.toArray();
-  if (options?.includeInactive) {
-    products = products.filter((p) => p.status !== "archived");
-  } else {
-    products = products.filter((p) => p.status === "active");
-  }
+  const includeInactive = options?.includeInactive === true;
+  let products = await getCachedListProducts(db, includeInactive);
 
   if (options?.categoryId) {
     products = products.filter((p) => p.categoryId === options.categoryId);
   }
 
-  if (options?.search?.trim()) {
-    products = products.filter((p) => productMatchesQuery(p, options.search!));
+  const search = options?.search?.trim() ?? "";
+  if (search) {
+    const tokens = tokenizeProductSearch(search);
+    const exactHits =
+      tokens.length === 1 ? await getCachedListProductsByBarcode(db, search) : [];
+    if (exactHits.length > 0) {
+      const allowed = new Set(products.map((p) => p.id));
+      products = exactHits.filter((p) => allowed.has(p.id));
+    } else {
+      products = products.filter((p) => productMatchesQuery(p, search));
+    }
   }
 
-  products.sort((a, b) => a.name.localeCompare(b.name));
+  products = [...products].sort((a, b) => a.name.localeCompare(b.name));
   const pageSize = options?.pageSize;
   const page = options?.page ?? 1;
   const total = products.length;

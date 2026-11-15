@@ -92,7 +92,7 @@ export async function resolveCatalogBranchId(
   return FULLY_OFFLINE ? MILLIES_LOCAL_BRANCH_ID : null;
 }
 
-type AggregatedBranchStock = {
+export type AggregatedBranchStock = {
   quantity: number;
   sellableQuantity: number;
   isExpiring?: boolean;

@@ -14,7 +14,7 @@ import {
   loadOfflineInventoryValuation,
   type OfflineInventoryValuation,
 } from "@/lib/offline/inventory-value";
-import { useDebounce } from "@/hooks/use-ui";
+import { useDebounce, useLocalStorage, usePagination, useClientPagedRows } from "@/hooks/use-ui";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,11 +62,17 @@ import { formatCurrency } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { ProductImage } from "@/components/media/product-image";
 import { ListPagination } from "@/components/ui/list-pagination";
-import { useClientPagedRows } from "@/hooks/use-ui";
+import {
+  clampListPageSize,
+  DEFAULT_LIST_PAGE_SIZE,
+  type ListPageSize,
+} from "@/constants/list-page";
 import { replaceClientShellUrl } from "@/lib/navigation/client-shell-url";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { findLocalProductsByBarcode } from "@/lib/offline/snapshot";
-import { listMirroredLots, listMirroredProducts } from "@/lib/offline/mirror-queries";
+import { listMirroredLots } from "@/lib/offline/mirror-queries";
+import { getOfflineDb } from "@/lib/offline/db";
+import { listCachedProductPickerRows } from "@/lib/offline/product-list-cache";
 import { subscribeReplicaChanged } from "@/lib/offline/replica-events";
 import { isBarcodeScanningEnabled } from "@/services/hardware";
 import {
@@ -101,6 +107,13 @@ function InventoryViewInner() {
   const [immediateSearch, setImmediateSearch] = useState<string | null>(null);
   const debouncedSearch = useDebounce(search, 250);
   const listSearch = immediateSearch ?? debouncedSearch;
+  const alertMode = lowOnly || expiryOnly;
+  const [storedPageSize, setStoredPageSize] = useLocalStorage<number>(
+    "novend.listPageSize",
+    DEFAULT_LIST_PAGE_SIZE,
+  );
+  const pageSize = clampListPageSize(storedPageSize);
+  const { page, setPage, reset } = usePagination(1, pageSize);
   useEffect(() => {
     if (immediateSearch != null && debouncedSearch === immediateSearch) {
       setImmediateSearch(null);
@@ -110,6 +123,9 @@ function InventoryViewInner() {
   const [branchOverride, setBranchOverride] = useState<Id<"branches"> | "all">(() =>
     branchParam && branchParam !== "all" ? (branchParam as Id<"branches">) : "all",
   );
+  useEffect(() => {
+    reset();
+  }, [listSearch, branchOverride, lowOnly, expiryOnly, reset]);
   const [landedWithStockAlert] = useState(lowOnly || expiryOnly);
   const [alertScopeApplied, setAlertScopeApplied] = useState(
     Boolean(branchParam && branchParam !== "all"),
@@ -141,16 +157,15 @@ function InventoryViewInner() {
     }
     let cancelled = false;
     const load = () => {
-      void listMirroredProducts({ branchId: fromBranchId, includeInactive: false }).then((rows) => {
-        if (cancelled || rows == null || !Array.isArray(rows)) return;
-        setTransferSourceRows(
-          rows.map((row) => ({
-            id: row.id,
-            name: row.name,
-            sku: row.sku,
-            stockQuantity: row.sellableQuantity ?? row.stockQuantity,
-          })),
-        );
+      void getOfflineDb().then((db) => {
+        if (!db || cancelled) return;
+        void listCachedProductPickerRows(db, {
+          branchId: fromBranchId,
+          includeInactive: false,
+        }).then((rows) => {
+          if (cancelled) return;
+          setTransferSourceRows(rows);
+        });
       });
     };
     load();
@@ -233,9 +248,16 @@ function InventoryViewInner() {
   }, [canViewCost, listBranchId, online]);
   const valuation = FULLY_OFFLINE || !online ? localValuation : remoteValuation;
 
-  const { rows } = useInventoryList({
+  const {
+    rows,
+    total: listTotal,
+    loading: listLoading,
+  } = useInventoryList({
     search: listSearch,
     branchId: listBranchId,
+    page: alertMode ? undefined : page,
+    pageSize: alertMode ? undefined : pageSize,
+    stockAlert: lowOnly ? "low" : expiryOnly ? "expiry" : undefined,
   });
 
   const transferProductOptions = useMemo(() => {
@@ -296,27 +318,33 @@ function InventoryViewInner() {
       });
     }
 
-    return expiryOnly
-      ? rows.filter((row) => row.isExpired || row.isExpiring)
-      : lowOnly
-        ? rows.filter((row) => row.isLowStock)
-        : rows;
+    return rows;
   }, [rows, lowOnly, expiryOnly, isAdmin, branchOverride]);
-  const {
-    paged: pageRows,
-    page,
-    setPage,
-    pageSize,
-    setPageSize,
-    total,
-  } = useClientPagedRows(
-    visibleRows,
+
+  const alertPaging = useClientPagedRows(
+    alertMode ? visibleRows : undefined,
     `${listSearch}|${String(listBranchId)}|${lowOnly}|${expiryOnly}`,
   );
 
+  const pageRows = alertMode ? alertPaging.paged : rows;
+  const total = alertMode ? alertPaging.total : listTotal;
+  const displayPage = alertMode ? alertPaging.page : page;
+  const setDisplayPage = alertMode ? alertPaging.setPage : setPage;
+  const setDisplayPageSize = (size: ListPageSize) => {
+    setStoredPageSize(size);
+    if (alertMode) {
+      alertPaging.setPageSize(size);
+    } else {
+      reset();
+    }
+  };
+
   const selected = useMemo(
-    () => visibleRows?.find((row) => row.id === adjustId) ?? null,
-    [visibleRows, adjustId],
+    () =>
+      visibleRows?.find((row) => row.id === adjustId) ??
+      pageRows?.find((row) => row.id === adjustId) ??
+      null,
+    [visibleRows, pageRows, adjustId],
   );
 
   const adjustLotsBranchId = listBranchId ?? (adjustBranchId || null);
@@ -742,11 +770,11 @@ function InventoryViewInner() {
 
       <Card data-tour="inventory-summary">
         <CardContent className="overflow-x-auto p-0">
-          {visibleRows === undefined ? (
+          {visibleRows === undefined || (listLoading && !rows) ? (
             <div className="p-6">
               <LoadingState label="Loading inventory…" />
             </div>
-          ) : visibleRows.length === 0 ? (
+          ) : (alertMode ? visibleRows.length === 0 : total === 0) ? (
             <div className="p-6">
               <EmptyState
                 icon={Boxes}
@@ -900,11 +928,11 @@ function InventoryViewInner() {
               </div>
               {total > 0 ? (
                 <ListPagination
-                  page={page}
-                  pageSize={pageSize}
+                  page={displayPage}
+                  pageSize={alertMode ? alertPaging.pageSize : pageSize}
                   total={total}
-                  onPageChange={setPage}
-                  onPageSizeChange={setPageSize}
+                  onPageChange={setDisplayPage}
+                  onPageSizeChange={setDisplayPageSize}
                 />
               ) : null}
 

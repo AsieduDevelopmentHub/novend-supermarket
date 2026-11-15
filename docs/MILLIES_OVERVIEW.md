@@ -250,6 +250,11 @@ novend-supermarket/
 Deep dive on Dexie patterns: [`docs/architecture/OFFLINE_SYNC.md`](./architecture/OFFLINE_SYNC.md)
 (Novend-shaped docs; Millie's runtime is stricter — fully offline).
 
+**Large catalogs:** Products and Inventory list through an in-memory warm index
+(`lib/offline/product-list-cache.ts` — `Map` by id / barcode / lots / stock),
+same idea as the Sales till cache. Prefer that over full Dexie rescans on every
+keystroke or page change.
+
 ---
 
 ## 8a. Backups and moving to a new till

@@ -6,6 +6,17 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ---
 
+## v1.0.28 — 2026-11-15
+
+### What's new
+
+- Products and Inventory open and search much faster on large catalogs — lists use a warm in-memory index instead of rescanning every product and lot each time.
+- Inventory pages load by page from the device database, so opening the stock list does not wait on the full catalog first.
+
+### Fixed
+
+- Offline product/inventory lists no longer nested-filter all lots per row (O(n×m)); joins use Map indexes invalidated with replica writes.
+
 ## Unreleased
 
 ### What's new
