@@ -24,7 +24,7 @@
     "stamp:win-icon": "node ../../scripts/stamp-desktop-win-icon.mjs"
   },
   "dependencies": {
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.8.11"
   },
   "devDependencies": {
     "@types/node": "^20",
