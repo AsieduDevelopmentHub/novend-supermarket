@@ -16,8 +16,8 @@ importers:
   .:
     dependencies:
       '@aparajita/capacitor-biometric-auth':
-        specifier: ^9.1.2
-        version: 9.1.2
+        specifier: ^10.0.0
+        version: 10.0.0
       '@aparajita/capacitor-secure-storage':
         specifier: ^7.1.6
         version: 7.1.6
@@ -267,8 +267,8 @@ importers:
   apps/mobile:
     dependencies:
       '@aparajita/capacitor-biometric-auth':
-        specifier: ^9.1.2
-        version: 9.1.2
+        specifier: ^10.0.0
+        version: 10.0.0
       '@aparajita/capacitor-secure-storage':
         specifier: ^7.1.6
         version: 7.1.6
@@ -319,8 +319,8 @@ importers:
   packages/hardware:
     dependencies:
       '@aparajita/capacitor-biometric-auth':
-        specifier: ^9.1.2
-        version: 9.1.2
+        specifier: ^10.0.0
+        version: 10.0.0
       '@aparajita/capacitor-secure-storage':
         specifier: ^7.1.6
         version: 7.1.6
@@ -368,8 +368,8 @@ packages:
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
 
-  '@aparajita/capacitor-biometric-auth@9.1.2':
-    resolution: {integrity: sha512-cDcTFOQW4iI1+/AwkA0hRfiP53BuCSWvoxxkyp2NC7Hf0tNSg5fZ4zmXI/PcpLKUR7cd91TxnAxWYAAGJKOBig==}
+  '@aparajita/capacitor-biometric-auth@10.0.0':
+    resolution: {integrity: sha512-azjWaRucB8x1/gSzSTp/NxelaOZyg+m765gSzjwUkSQgg30RrZPmPq6pyLeeXVSZNDY3Rxf5Hj8obgZaXirCFQ==}
     engines: {node: '>=20.0.0'}
 
   '@aparajita/capacitor-secure-storage@7.1.6':
@@ -471,10 +471,20 @@ packages:
     peerDependencies:
       '@capacitor/core': ^7.6.0
 
+  '@capacitor/android@8.5.3':
+    resolution: {integrity: sha512-ilH4gSSz3DrketMkzDVAvY9JsWJ//rCQnECLTdcFRO7xXDogwAbUvQAnIAbiqefwV/D1xfjEL4Gw1MJXEcaA9g==}
+    peerDependencies:
+      '@capacitor/core': ^8.5.0
+
   '@capacitor/app@7.1.2':
     resolution: {integrity: sha512-d4I/oF/PRu4megL7/IGKYfe5j7yzSON1FRFgq6kH+m5kH6g7V+wyjHRLauCzGNjdRx4S+nWOumINds0qcRBtKg==}
     peerDependencies:
       '@capacitor/core': '>=7.0.0'
+
+  '@capacitor/app@8.1.2':
+    resolution: {integrity: sha512-uKBlsrXH0IdvUn69e/KKYbZ32A06pcrUdG8LWuZ/6y33YMXZXLEEdNSwl+jKS/SrsTWqnePs8EqSWaiQM3mUGA==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
 
   '@capacitor/camera@7.0.5':
     resolution: {integrity: sha512-+53f1xHq8on7O+ULXbgWp00ooWvn3fUkWxTP3p5zHi1nVriCxLbYnY0zTpZQqn52M96vclFKkoABbTVQ3x755w==}
@@ -488,6 +498,9 @@ packages:
 
   '@capacitor/core@7.6.8':
     resolution: {integrity: sha512-x1xfxvNcTSnj6OoYaAB0n0a0HRvi5f2YjcVnMLxpMhbHDgGDAzzN9z8cnPCYV+SKTvqGF1hezHm82Op32XaAGg==}
+
+  '@capacitor/core@8.5.3':
+    resolution: {integrity: sha512-oBE1oGuYE4ZzYYrulC75OuHdSsD6zLUy7d5o1tFwDLG4govGoubY15cxpiI5l0+q87Lm5p0bhbehMdzJg4aFag==}
 
   '@capacitor/filesystem@7.1.8':
     resolution: {integrity: sha512-Qpw/2SE4/CzqAUvGgSM9hw/uXQ5qoOaF4wxbToXwpAaKPS+tzletS1h5ti3jjLmGcqizTs2sEXMtcsARW/Ceew==}
@@ -503,6 +516,11 @@ packages:
     resolution: {integrity: sha512-TAM1FdI1Cfl8e/wLBo7x5m61V/J1fMEpyxU2psZzHzsa436k2pwEME6CQoBRYdw6Q6gud0jZSPwOVrNn+MI7Ag==}
     peerDependencies:
       '@capacitor/core': ^7.6.0
+
+  '@capacitor/ios@8.5.3':
+    resolution: {integrity: sha512-HnnV92Jl8+3x0JUloXUMjFcUsQI8wHFVsKwkLn72DfRZXYGZW11tQbmNOWOnRTljaU18FdI1b9ipT09SzzPDNw==}
+    peerDependencies:
+      '@capacitor/core': ^8.5.0
 
   '@capacitor/local-notifications@7.0.7':
     resolution: {integrity: sha512-3qSpa8PpVMONHqBOaJ4RbA/lB5vOdEngtep0myGmP3S56gShPScDCotbw7dwmQy3NCdY4Up9nH3ySrGvUh2jZg==}
@@ -6351,12 +6369,12 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
-  '@aparajita/capacitor-biometric-auth@9.1.2':
+  '@aparajita/capacitor-biometric-auth@10.0.0':
     dependencies:
-      '@capacitor/android': 7.6.8(@capacitor/core@7.6.8)
-      '@capacitor/app': 7.1.2(@capacitor/core@7.6.8)
-      '@capacitor/core': 7.6.8
-      '@capacitor/ios': 7.6.8(@capacitor/core@7.6.8)
+      '@capacitor/android': 8.5.3(@capacitor/core@8.5.3)
+      '@capacitor/app': 8.1.2(@capacitor/core@8.5.3)
+      '@capacitor/core': 8.5.3
+      '@capacitor/ios': 8.5.3(@capacitor/core@8.5.3)
 
   '@aparajita/capacitor-secure-storage@7.1.6':
     dependencies:
@@ -6484,9 +6502,17 @@ snapshots:
     dependencies:
       '@capacitor/core': 7.6.8
 
+  '@capacitor/android@8.5.3(@capacitor/core@8.5.3)':
+    dependencies:
+      '@capacitor/core': 8.5.3
+
   '@capacitor/app@7.1.2(@capacitor/core@7.6.8)':
     dependencies:
       '@capacitor/core': 7.6.8
+
+  '@capacitor/app@8.1.2(@capacitor/core@8.5.3)':
+    dependencies:
+      '@capacitor/core': 8.5.3
 
   '@capacitor/camera@7.0.5(@capacitor/core@7.6.8)':
     dependencies:
@@ -6518,6 +6544,10 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
+  '@capacitor/core@8.5.3':
+    dependencies:
+      tslib: 2.8.1
+
   '@capacitor/filesystem@7.1.8(@capacitor/core@7.6.8)':
     dependencies:
       '@capacitor/core': 7.6.8
@@ -6530,6 +6560,10 @@ snapshots:
   '@capacitor/ios@7.6.8(@capacitor/core@7.6.8)':
     dependencies:
       '@capacitor/core': 7.6.8
+
+  '@capacitor/ios@8.5.3(@capacitor/core@8.5.3)':
+    dependencies:
+      '@capacitor/core': 8.5.3
 
   '@capacitor/local-notifications@7.0.7(@capacitor/core@7.6.8)':
     dependencies:
