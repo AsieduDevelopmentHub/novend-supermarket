@@ -6,6 +6,21 @@ Customer-facing Downloads / Releases / in-app “What’s new” publish **only*
 
 ---
 
+## v1.0.29 — 2026-11-24
+
+### What's new
+
+- Restock and stock adjustments no longer inflate quantities (branch and catalog stay in sync).
+- Tills that stay open past midnight close automatically so today's sales are not counted on yesterday.
+- Administrators can Close store day on Reports — see every open cashier's totals and close them together.
+- Resolve duplicates on Products merges stock into one product and archives the extras; create warns on matching names.
+- Products and Inventory reopen without a blank loading flash when the list was already warm.
+
+### Fixed
+
+- Pay no longer says “not enough stock” when the catalog shows stock but the branch row was stale or zero.
+- Offline SKU uniqueness matches barcode rules on create/update.
+
 ## v1.0.28 — 2026-11-15
 
 ### What's new

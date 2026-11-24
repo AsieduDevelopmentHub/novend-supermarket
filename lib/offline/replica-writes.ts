@@ -1,5 +1,10 @@
 import { FULLY_OFFLINE, MILLIES_LOCAL_BRANCH_ID } from "@/constants/runtime";
-import { branchStockId, applyLocalBranchStockChange, getSellableQuantity } from "./branch-stock";
+import {
+  branchStockId,
+  applyLocalBranchStockChange,
+  getSellableQuantity,
+  syncCatalogStockFromBranch,
+} from "./branch-stock";
 import { getMeta, getOfflineDb, META_KEYS, newClientId } from "./db";
 import { pendingOutboundTransferQuantities, transferStockKey } from "./pending-transfers";
 import { enqueueOutbox, withMirrorOnly } from "./outbox";
@@ -408,9 +413,6 @@ export async function queueAdjustStock(payload: AdjustStockPayload) {
     throw new Error("Select a branch for this adjustment");
   }
   if (product) {
-    const hadBranchRow = Boolean(
-      await db.branchStock.get(branchStockId(branchId, payload.productId)),
-    );
     if (product.tracksExpiry === true) {
       const { applyLocalDatedLotDelta } = await import("./branch-lots");
       await applyLocalDatedLotDelta(db, {
@@ -428,21 +430,8 @@ export async function queueAdjustStock(payload: AdjustStockPayload) {
       payload.quantityChange,
       product,
     );
-    // branchStock rows do not update catalog totals — bump products for org-wide KPIs.
-    if (hadBranchRow) {
-      const refreshed = (await db.products.get(payload.productId)) ?? product;
-      const next = refreshed.stockQuantity + payload.quantityChange;
-      if (next < 0) throw new Error("Inventory cannot become negative");
-      await db.products.put({
-        ...refreshed,
-        stockQuantity: next,
-        sellableQuantity: Math.max(
-          0,
-          (refreshed.sellableQuantity ?? refreshed.stockQuantity) + payload.quantityChange,
-        ),
-        updatedAt: Date.now(),
-      });
-    }
+    // Mirror branch → catalog (never add the delta twice onto products).
+    await syncCatalogStockFromBranch(db, branchId, payload.productId);
   }
   await enqueueOutbox(db, "adjust_stock", {
     ...payload,
@@ -813,9 +802,22 @@ export async function queueUpsertProduct(
   }
   if (barcode) {
     const clash = (await db.products.toArray()).find(
-      (row) => row.id !== localId && barcodesEqual(row.barcode, barcode),
+      (row) =>
+        row.id !== localId &&
+        row.status !== "archived" &&
+        barcodesEqual(row.barcode, barcode),
     );
     if (clash) throw new Error(BARCODE_ALREADY_ASSIGNED);
+  }
+  const skuKey = payload.sku.trim().toLowerCase();
+  if (skuKey) {
+    const skuClash = (await db.products.toArray()).find(
+      (row) =>
+        row.id !== localId &&
+        row.status !== "archived" &&
+        row.sku.trim().toLowerCase() === skuKey,
+    );
+    if (skuClash) throw new Error("SKU already exists");
   }
   const isCreate = !existing;
   // Enforce the plan product limit locally before queueing an offline create;
@@ -939,22 +941,43 @@ export async function queueUpsertProduct(
         updatedAt: Date.now(),
       });
     }
-  } else if (applyStockOnUpdate) {
-    const branchId = payload.branchId ?? (await getMeta(db, META_KEYS.profileBranchId));
-    if (!branchId) {
-      throw new Error("Select a branch before editing stock");
-    }
-    const rowId = branchStockId(branchId, localId);
+  } else if (applyStockOnUpdate && resolvedBranchId) {
+    const rowId = branchStockId(resolvedBranchId, localId);
     const existingRow = await db.branchStock.get(rowId);
     await db.branchStock.put({
       id: rowId,
-      branchId,
+      branchId: resolvedBranchId,
       productId: localId,
       quantity: stockQuantity,
       sellableQuantity: stockQuantity,
       isExpiring: existingRow?.isExpiring,
       updatedAt: Date.now(),
     });
+  } else if (
+    FULLY_OFFLINE &&
+    resolvedBranchId &&
+    !isCreate &&
+    stockQuantity > 0
+  ) {
+    // Keep Millie's branch row aligned when catalog already has stock but branch was never written.
+    const rowId = branchStockId(resolvedBranchId, localId);
+    const existingRow = await db.branchStock.get(rowId);
+    const branchQty = existingRow
+      ? tracksExpiry
+        ? (existingRow.sellableQuantity ?? 0)
+        : existingRow.quantity
+      : 0;
+    if (!existingRow || branchQty <= 0) {
+      await db.branchStock.put({
+        id: rowId,
+        branchId: resolvedBranchId,
+        productId: localId,
+        quantity: stockQuantity,
+        sellableQuantity: stockQuantity,
+        isExpiring: existingRow?.isExpiring,
+        updatedAt: Date.now(),
+      });
+    }
   }
   if (clearImage) {
     await deleteProductImage(localId);

@@ -19,6 +19,7 @@ import { BranchFilter } from "@/components/filters/branch-filter";
 import { PeriodFilter } from "@/components/filters/period-filter";
 import { ExportMenu } from "@/components/export/export-menu";
 import { TillSessionsCard } from "@/features/reports/components/till-sessions-card";
+import { StoreDayCloseCard } from "@/features/reports/components/store-day-close-card";
 import { SINGLE_STORE } from "@/constants/app";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLicense } from "@/hooks/use-license";
@@ -342,7 +343,10 @@ export function ReportsView() {
           />
 
           {isAdmin || isManager ? (
-            <TillSessionsCard mode="recent" limit={25} />
+            <>
+              <StoreDayCloseCard />
+              <TillSessionsCard mode="recent" limit={25} />
+            </>
           ) : null}
 
           {isAdmin || isManager ? (

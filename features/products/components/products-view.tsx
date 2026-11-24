@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { showError } from "@/lib/errors";
 import { ProductFormDialog } from "./product-form-dialog";
 import { ProductImportWizard } from "./product-import-wizard";
+import { ResolveDuplicatesDialog } from "./resolve-duplicates-dialog";
 import { StockStatusBadges } from "@/features/inventory/components/stock-status-badges";
 import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -78,6 +79,7 @@ export function ProductsView() {
   const pageSize = clampListPageSize(storedPageSize);
   const { page, setPage, reset } = usePagination(1, pageSize);
   const [open, setOpen] = useState(false);
+  const [resolveDupesOpen, setResolveDupesOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [exportWanted, setExportWanted] = useState(false);
   const [editingId, setEditingId] = useState<Id<"products"> | null>(null);
@@ -234,6 +236,16 @@ export function ProductsView() {
                   }}
                 />
               </span>
+              {FULLY_OFFLINE ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-tour="products-resolve-duplicates"
+                  onClick={() => setResolveDupesOpen(true)}
+                >
+                  Resolve duplicates
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 data-tour="products-add"
@@ -601,6 +613,7 @@ export function ProductsView() {
           />
 
           <ProductImportWizard open={importOpen} onOpenChange={setImportOpen} />
+          <ResolveDuplicatesDialog open={resolveDupesOpen} onOpenChange={setResolveDupesOpen} />
           <ProductFormDialog
             open={open}
             onOpenChange={(next) => {

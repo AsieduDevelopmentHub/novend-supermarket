@@ -69,6 +69,7 @@ import {
   resumeLocalHeldSale,
 } from "@/lib/offline/sales-repository";
 import { ensureTillOpenForSale } from "@/lib/offline/till-sessions";
+import { reconcileStaleBranchStockFromCatalog } from "@/lib/offline/branch-stock";
 import { notifyReplicaChanged } from "@/lib/offline/replica-events";
 import { TillSessionBanner } from "@/features/sales/components/till-session-banner";
 import { queueUpsertCustomer } from "@/lib/offline/replica-writes";
@@ -110,6 +111,7 @@ import { useSalesProductDisplay } from "@/hooks/use-sales-product-display";
 import { FULLY_OFFLINE } from "@/constants/runtime";
 
 type DiscountMode = "amount" | "percent";
+
 
 type CartItem = {
   productId: string;
@@ -238,6 +240,19 @@ export function SalesView() {
     refreshLocal,
   } = useSalesCatalog(search, workingBranchId ?? myBranchId ?? undefined);
   const customerHits = useSalesCustomerSearch(customerQuery);
+
+  useEffect(() => {
+    if (!FULLY_OFFLINE) return;
+    let cancelled = false;
+    void getOfflineDb().then(async (db) => {
+      if (!db || cancelled) return;
+      const fixed = await reconcileStaleBranchStockFromCatalog(db);
+      if (fixed > 0 && !cancelled) refreshLocal();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshLocal]);
 
   useEffect(() => {
     if (!taxVatOn) {

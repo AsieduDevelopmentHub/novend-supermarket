@@ -15,6 +15,7 @@ import { formatCurrency } from "@/lib/currency";
 import { formatDateTime } from "@/lib/date";
 import { showError } from "@/lib/errors";
 import {
+  autoCloseStaleTillSessions,
   closeToday,
   getOpenTillSession,
   previewCloseToday,
@@ -45,12 +46,27 @@ export function TillSessionBanner({ branchId, compact = true }: Props) {
   useEffect(() => {
     let cancelled = false;
     function load() {
+      void autoCloseStaleTillSessions()
+        .then((closed) => {
+          if (closed > 0 && !cancelled) {
+            toast.message(
+              closed === 1
+                ? "Yesterday's till was closed automatically at midnight"
+                : `${closed} tills from yesterday were closed automatically`,
+            );
+          }
+          return getOpenTillSession();
+        })
+        .then((row) => {
+          if (!cancelled) setSession(row);
+        });
+    }
+    load();
+    const unsubscribe = subscribeReplicaChanged(() => {
       void getOpenTillSession().then((row) => {
         if (!cancelled) setSession(row);
       });
-    }
-    load();
-    const unsubscribe = subscribeReplicaChanged(load);
+    });
     return () => {
       cancelled = true;
       unsubscribe();

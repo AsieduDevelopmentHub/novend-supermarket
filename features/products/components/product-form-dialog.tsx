@@ -23,6 +23,9 @@ import {
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { generateSkuFromName } from "@/lib/sku";
+import { findPossibleDuplicateProducts } from "@/lib/offline/product-merge";
+import type { MirroredProduct } from "@/lib/offline/types";
+import { FULLY_OFFLINE } from "@/constants/runtime";
 import { assertValidImageFile, compressProductImage, IMAGE_ACCEPT } from "@/lib/uploads/image";
 import { Camera, ImagePlus, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
@@ -254,6 +257,7 @@ function ProductFormBody({
   const [sku, setSku] = useState(initialProduct?.sku ?? "");
   const [skuTouched, setSkuTouched] = useState(!!initialProduct);
   const [barcode, setBarcode] = useState(initialProduct?.barcode ?? "");
+  const [possibleDupes, setPossibleDupes] = useState<MirroredProduct[]>([]);
   const [categoryId, setCategoryId] = useState(initialCategoryId);
   const [newCategory, setNewCategory] = useState("");
   const [showNewCategory, setShowNewCategory] = useState(false);
@@ -348,6 +352,33 @@ function ProductFormBody({
       setSku(value.trim() ? generateSkuFromName(value) : "");
     }
   }
+
+  useEffect(() => {
+    if (!FULLY_OFFLINE) {
+      setPossibleDupes([]);
+      return;
+    }
+    const trimmed = name.trim();
+    if (trimmed.length < 2 && !barcode.trim() && !sku.trim()) {
+      setPossibleDupes([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void findPossibleDuplicateProducts({
+        name: trimmed,
+        sku,
+        barcode,
+        excludeId: productId ?? undefined,
+      }).then((rows) => {
+        if (!cancelled) setPossibleDupes(rows);
+      });
+    }, 280);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [name, sku, barcode, productId]);
 
   const categoryOptions = useMemo(() => {
     const seen = new Set<string>();
@@ -633,6 +664,27 @@ function ProductFormBody({
                 onChange={(e) => onNameChange(e.target.value)}
                 required
               />
+              {possibleDupes.length > 0 ? (
+                <div
+                  className="border-amber-500/40 bg-amber-500/10 text-amber-950 dark:text-amber-100 rounded-lg border px-3 py-2 text-xs"
+                  role="status"
+                  data-tour="product-possible-duplicates"
+                >
+                  <p className="font-medium">Possible duplicates already in the catalog</p>
+                  <ul className="mt-1 list-inside list-disc">
+                    {possibleDupes.map((row) => (
+                      <li key={row.id}>
+                        {row.name} · SKU {row.sku}
+                        {row.barcode ? ` · ${row.barcode}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1 opacity-90">
+                    Prefer editing an existing product, or use Resolve duplicates on the Products
+                    page.
+                  </p>
+                </div>
+              ) : null}
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">

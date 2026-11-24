@@ -100,6 +100,57 @@ export async function startToday(input?: {
   return session;
 }
 
+/** Local calendar midnight for Millie's till day boundaries. */
+export function localDayStart(now = Date.now()): number {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+export function localDayEnd(now = Date.now()): number {
+  const d = new Date(now);
+  d.setHours(23, 59, 59, 999);
+  return d.getTime();
+}
+
+/**
+ * Close any open session that started before today's local midnight so
+ * overnight sales do not stay on yesterday's till window.
+ */
+export async function autoCloseStaleTillSessions(now = Date.now()): Promise<number> {
+  const db = await getOfflineDb();
+  if (!db) return 0;
+  const dayStart = localDayStart(now);
+  const openRows = await db.tillSessions.where("status").equals("open").toArray();
+  let closed = 0;
+  for (const session of openRows) {
+    if (session.openedAt >= dayStart) continue;
+    const expected = await computeExpected(db, session, dayStart);
+    await db.tillSessions.put({
+      ...session,
+      status: "closed",
+      closedAt: dayStart,
+      countedCash: expected.expectedCash,
+      countedCard: expected.expectedCard,
+      countedMobileMoney: expected.expectedMobileMoney,
+      expectedCash: expected.expectedCash,
+      expectedCard: expected.expectedCard,
+      expectedMobileMoney: expected.expectedMobileMoney,
+      expectedOnAccount: expected.expectedOnAccount,
+      saleCount: expected.saleCount,
+      grossSales: expected.grossSales,
+      returnsTotal: expected.returnsTotal,
+      varianceCash: 0,
+      varianceCard: 0,
+      varianceMobileMoney: 0,
+      notes: "auto-closed at local midnight",
+    });
+    closed += 1;
+  }
+  if (closed > 0) notifyReplicaChanged({ flush: true });
+  return closed;
+}
+
 /**
  * Ensure an open till exists before completing a sale.
  * Auto-starts with opening float 0 when none is open.
@@ -107,6 +158,7 @@ export async function startToday(input?: {
 export async function ensureTillOpenForSale(input?: {
   branchId?: string;
 }): Promise<LocalTillSession> {
+  await autoCloseStaleTillSessions();
   const db = await requireDb();
   const { cashierId, cashierName } = await sessionCashier(db);
   const existing = await db.tillSessions
@@ -244,13 +296,116 @@ export async function closeToday(input: {
   return { ...closed, ...expected };
 }
 
-/** Sessions that opened on a UTC calendar day (for reports). */
+/** Open till sessions on this device (all cashiers). */
+export async function listOpenTillSessions(): Promise<LocalTillSession[]> {
+  const db = await getOfflineDb();
+  if (!db) return [];
+  const rows = await db.tillSessions.where("status").equals("open").toArray();
+  return rows.sort((a, b) => b.openedAt - a.openedAt);
+}
+
+export type StoreDayCashierPreview = TillExpectedTotals & {
+  session: LocalTillSession;
+};
+
+export type StoreDayClosePreview = {
+  cashiers: StoreDayCashierPreview[];
+  combined: TillExpectedTotals;
+};
+
+/** Combined expected totals for every open till on this device. */
+export async function previewStoreDayClose(): Promise<StoreDayClosePreview> {
+  const db = await getOfflineDb();
+  if (!db) {
+    return {
+      cashiers: [],
+      combined: {
+        saleCount: 0,
+        grossSales: 0,
+        returnsTotal: 0,
+        expectedCash: 0,
+        expectedCard: 0,
+        expectedMobileMoney: 0,
+        expectedOnAccount: 0,
+      },
+    };
+  }
+  const open = await db.tillSessions.where("status").equals("open").toArray();
+  const now = Date.now();
+  const cashiers: StoreDayCashierPreview[] = [];
+  const combined: TillExpectedTotals = {
+    saleCount: 0,
+    grossSales: 0,
+    returnsTotal: 0,
+    expectedCash: 0,
+    expectedCard: 0,
+    expectedMobileMoney: 0,
+    expectedOnAccount: 0,
+  };
+  for (const session of open) {
+    const expected = await computeExpected(db, session, now);
+    cashiers.push({ session, ...expected });
+    combined.saleCount += expected.saleCount;
+    combined.grossSales = roundMoney(combined.grossSales + expected.grossSales);
+    combined.returnsTotal = roundMoney(combined.returnsTotal + expected.returnsTotal);
+    combined.expectedCash = roundMoney(combined.expectedCash + expected.expectedCash);
+    combined.expectedCard = roundMoney(combined.expectedCard + expected.expectedCard);
+    combined.expectedMobileMoney = roundMoney(
+      combined.expectedMobileMoney + expected.expectedMobileMoney,
+    );
+    combined.expectedOnAccount = roundMoney(
+      combined.expectedOnAccount + expected.expectedOnAccount,
+    );
+  }
+  cashiers.sort((a, b) => a.session.cashierName.localeCompare(b.session.cashierName));
+  return { cashiers, combined };
+}
+
+/** Admin/manager: close all open tills using expected counts (zero variance). */
+export async function adminCloseOpenSessions(input?: {
+  notes?: string;
+}): Promise<number> {
+  const db = await requireDb();
+  const open = await db.tillSessions.where("status").equals("open").toArray();
+  const now = Date.now();
+  const note = input?.notes?.trim().slice(0, 500) || "admin closed store day (match expected)";
+  let closed = 0;
+  for (const session of open) {
+    const expected = await computeExpected(db, session, now);
+    await db.tillSessions.put({
+      ...session,
+      status: "closed",
+      closedAt: now,
+      countedCash: expected.expectedCash,
+      countedCard: expected.expectedCard,
+      countedMobileMoney: expected.expectedMobileMoney,
+      expectedCash: expected.expectedCash,
+      expectedCard: expected.expectedCard,
+      expectedMobileMoney: expected.expectedMobileMoney,
+      expectedOnAccount: expected.expectedOnAccount,
+      saleCount: expected.saleCount,
+      grossSales: expected.grossSales,
+      returnsTotal: expected.returnsTotal,
+      varianceCash: 0,
+      varianceCard: 0,
+      varianceMobileMoney: 0,
+      notes: note,
+    });
+    closed += 1;
+  }
+  if (closed > 0) notifyReplicaChanged({ flush: true });
+  return closed;
+}
+
+/** Sessions that opened on a local calendar day (Millie's reports). */
 export async function listTillSessionsForUtcDay(date: string): Promise<TillSessionSummary[]> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return [];
   const db = await getOfflineDb();
   if (!db) return [];
-  const start = Date.parse(`${date}T00:00:00.000Z`);
-  const end = Date.parse(`${date}T23:59:59.999Z`);
+  // Prefer local day bounds so Ghana tills match dashboard "today".
+  const start = new Date(`${date}T00:00:00`).getTime();
+  const end = new Date(`${date}T23:59:59.999`).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return [];
   const rows = await db.tillSessions
     .where("openedAt")
     .between(start, end, true, true)

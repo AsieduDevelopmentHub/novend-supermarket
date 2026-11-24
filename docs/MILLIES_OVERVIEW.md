@@ -253,7 +253,15 @@ Deep dive on Dexie patterns: [`docs/architecture/OFFLINE_SYNC.md`](./architectur
 **Large catalogs:** Products and Inventory list through an in-memory warm index
 (`lib/offline/product-list-cache.ts` — `Map` by id / barcode / lots / stock),
 same idea as the Sales till cache. Prefer that over full Dexie rescans on every
-keystroke or page change.
+keystroke or page change. List hooks also keep a sticky last page so remounts do
+not flash **Loading products…**.
+
+**Till day:** Open sessions that started before local midnight auto-close so
+sales after 12:00 AM start a new day. Reports → **Close store day** lets an
+admin close every open cashier till on this device with combined totals.
+
+**Duplicates:** Products → **Resolve duplicates** merges stock into one keeper
+and archives extras. Create/edit warns on matching name/SKU/barcode.
 
 ---
 

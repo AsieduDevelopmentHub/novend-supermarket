@@ -95,6 +95,33 @@ function isPagedProducts(
   return Boolean(value && !Array.isArray(value) && "items" in value);
 }
 
+/** Keep last Products list paint across route remounts (Millie's / offline). */
+let productsListMemory: {
+  key: string;
+  products: ProductListRow[];
+  total: number;
+} | null = null;
+
+function productsListCacheKey(options: {
+  search: string;
+  includeInactive: boolean;
+  branchId?: Id<"branches">;
+  categoryId?: Id<"categories">;
+  canViewCost: boolean;
+  page?: number;
+  pageSize?: number;
+}) {
+  return [
+    options.search.trim().toLowerCase(),
+    options.includeInactive ? "1" : "0",
+    options.branchId ?? "",
+    options.categoryId ?? "",
+    options.canViewCost ? "1" : "0",
+    String(options.page ?? 1),
+    String(options.pageSize ?? 0),
+  ].join("|");
+}
+
 export function useProductsList(options: {
   search: string;
   includeInactive: boolean;
@@ -109,8 +136,13 @@ export function useProductsList(options: {
 }) {
   const enabled = options.enabled !== false;
   const { online, serveLocal, ready, lastSyncAt } = useBusinessDataGate();
-  const [local, setLocal] = useState<ProductListRow[] | null>(null);
-  const [localTotal, setLocalTotal] = useState(0);
+  const cacheKey = productsListCacheKey(options);
+  const [local, setLocal] = useState<ProductListRow[] | null>(() =>
+    productsListMemory?.key === cacheKey ? productsListMemory.products : null,
+  );
+  const [localTotal, setLocalTotal] = useState(() =>
+    productsListMemory?.key === cacheKey ? productsListMemory.total : 0,
+  );
   const skipLive = !enabled || !online || !ready || serveLocal;
   const remote = useAuthedQuery(
     api.products.listProducts,
@@ -137,6 +169,10 @@ export function useProductsList(options: {
       return;
     }
     let cancelled = false;
+    if (productsListMemory?.key === cacheKey) {
+      setLocal(productsListMemory.products);
+      setLocalTotal(productsListMemory.total);
+    }
     const load = () => {
       // Keep prior rows visible while the next Dexie page loads (avoids "stuck" blank UI).
       setLocalLoading(true);
@@ -150,11 +186,15 @@ export function useProductsList(options: {
       }).then((rows) => {
         if (cancelled || rows == null) return;
         if (isPagedProducts(rows)) {
-          setLocal(rows.items.map((r) => mapProduct(r, options.canViewCost)));
+          const mapped = rows.items.map((r) => mapProduct(r, options.canViewCost));
+          productsListMemory = { key: cacheKey, products: mapped, total: rows.total };
+          setLocal(mapped);
           setLocalTotal(rows.total);
         } else {
-          setLocal(rows.map((r) => mapProduct(r, options.canViewCost)));
-          setLocalTotal(rows.length);
+          const mapped = rows.map((r) => mapProduct(r, options.canViewCost));
+          productsListMemory = { key: cacheKey, products: mapped, total: mapped.length };
+          setLocal(mapped);
+          setLocalTotal(mapped.length);
         }
         setLocalLoading(false);
       });
@@ -167,6 +207,7 @@ export function useProductsList(options: {
     };
   }, [
     enabled,
+    cacheKey,
     options.search,
     options.includeInactive,
     options.canViewCost,
@@ -317,6 +358,31 @@ function normalizeInventoryRow(r: {
 }
 
 /** Local-first inventory list (Dexie page when pageSize set; warm Map index). */
+/** Keep last Inventory list paint across route remounts. */
+let inventoryListMemory: {
+  key: string;
+  rows: InventoryRow[];
+  total: number;
+} | null = null;
+
+function inventoryListCacheKey(options: {
+  search: string;
+  categoryId?: Id<"categories">;
+  branchId?: Id<"branches">;
+  page?: number;
+  pageSize?: number;
+  stockAlert?: "low" | "expiry";
+}) {
+  return [
+    options.search.trim().toLowerCase(),
+    options.categoryId ?? "",
+    options.branchId ?? "",
+    String(options.page ?? 1),
+    String(options.pageSize ?? 0),
+    options.stockAlert ?? "",
+  ].join("|");
+}
+
 export function useInventoryList(options: {
   search: string;
   categoryId?: Id<"categories">;
@@ -331,6 +397,7 @@ export function useInventoryList(options: {
 }) {
   const { online, serveLocal, ready, lastSyncAt } = useBusinessDataGate();
   const alertMode = Boolean(options.stockAlert);
+  const cacheKey = inventoryListCacheKey(options);
   const remote = useAuthedQuery(
     api.inventory.list,
     online && ready && !serveLocal
@@ -341,12 +408,20 @@ export function useInventoryList(options: {
         }
       : "skip",
   );
-  const [local, setLocal] = useState<InventoryRow[] | null>(null);
-  const [localTotal, setLocalTotal] = useState(0);
+  const [local, setLocal] = useState<InventoryRow[] | null>(() =>
+    inventoryListMemory?.key === cacheKey ? inventoryListMemory.rows : null,
+  );
+  const [localTotal, setLocalTotal] = useState(() =>
+    inventoryListMemory?.key === cacheKey ? inventoryListMemory.total : 0,
+  );
   const [localLoading, setLocalLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    if (inventoryListMemory?.key === cacheKey) {
+      setLocal(inventoryListMemory.rows);
+      setLocalTotal(inventoryListMemory.total);
+    }
     const load = () => {
       setLocalLoading(true);
       void listMirroredProducts({
@@ -358,7 +433,9 @@ export function useInventoryList(options: {
       }).then((rows) => {
         if (cancelled || rows == null) return;
         if (isPagedProducts(rows)) {
-          setLocal(rows.items.map((r) => normalizeInventoryRow(r)));
+          const mapped = rows.items.map((r) => normalizeInventoryRow(r));
+          inventoryListMemory = { key: cacheKey, rows: mapped, total: rows.total };
+          setLocal(mapped);
           setLocalTotal(rows.total);
         } else {
           let mapped = rows.map((r) => normalizeInventoryRow(r));
@@ -367,6 +444,7 @@ export function useInventoryList(options: {
           } else if (options.stockAlert === "expiry") {
             mapped = mapped.filter((r) => r.isExpired || r.isExpiring);
           }
+          inventoryListMemory = { key: cacheKey, rows: mapped, total: mapped.length };
           setLocal(mapped);
           setLocalTotal(mapped.length);
         }
@@ -380,6 +458,7 @@ export function useInventoryList(options: {
       unsub();
     };
   }, [
+    cacheKey,
     options.search,
     options.categoryId,
     options.branchId,

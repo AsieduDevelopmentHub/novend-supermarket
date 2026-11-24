@@ -188,6 +188,13 @@ export async function resolveMirroredProductStock(
   return stockFieldsFromAggregate(product, undefined, legacy);
 }
 
+/** Profile branch with Millie's single-store fallback (matches adjust/sale writers). */
+export async function resolveProfileBranchId(db: NovendOfflineDb): Promise<string | null> {
+  const stored = (await getMeta(db, META_KEYS.profileBranchId))?.trim();
+  if (stored) return stored;
+  return FULLY_OFFLINE ? MILLIES_LOCAL_BRANCH_ID : null;
+}
+
 export async function getSellableQuantity(
   db: NovendOfflineDb,
   branchId: string,
@@ -197,13 +204,87 @@ export async function getSellableQuantity(
   const row = await db.branchStock.get(branchStockId(branchId, productId));
   const catalog = product ?? (await db.products.get(productId));
   if (!catalog || catalog.status !== "active") return 0;
-  const profileBranchId = await getMeta(db, META_KEYS.profileBranchId);
+  const profileBranchId = await resolveProfileBranchId(db);
   return sellableQuantityForBranch({
     stock: row,
     product: catalog,
     branchId,
     profileBranchId,
   });
+}
+
+/**
+ * After a branch stock write, set catalog qty to the branch row (do not add the
+ * delta again — that inflated Millie's restocks when list/Sales healed from catalog).
+ */
+export async function syncCatalogStockFromBranch(
+  db: NovendOfflineDb,
+  branchId: string,
+  productId: string,
+): Promise<void> {
+  const [product, stock] = await Promise.all([
+    db.products.get(productId),
+    db.branchStock.get(branchStockId(branchId, productId)),
+  ]);
+  if (!product || !stock) return;
+  const tracksExpiry = product.tracksExpiry === true;
+  const quantity = Math.max(0, stock.quantity);
+  const sellable = tracksExpiry
+    ? Math.max(0, stock.sellableQuantity ?? 0)
+    : quantity;
+  if (product.stockQuantity === quantity && (product.sellableQuantity ?? quantity) === sellable) {
+    return;
+  }
+  await db.products.put({
+    ...product,
+    stockQuantity: quantity,
+    sellableQuantity: sellable,
+    updatedAt: Date.now(),
+  });
+}
+
+/**
+ * Millie's: when catalog shows stock but branch row is 0/missing, materialize
+ * branch from catalog so Pay and Inventory agree.
+ */
+export async function reconcileStaleBranchStockFromCatalog(
+  db: NovendOfflineDb,
+  branchId?: string | null,
+): Promise<number> {
+  if (!FULLY_OFFLINE) return 0;
+  const resolved =
+    branchId?.trim() ||
+    (await resolveProfileBranchId(db)) ||
+    MILLIES_LOCAL_BRANCH_ID;
+  const products = await db.products.toArray();
+  let fixed = 0;
+  for (const product of products) {
+    if (product.status === "archived") continue;
+    const catalogQty = catalogSellableQuantity(product);
+    if (catalogQty <= 0 && product.stockQuantity <= 0) continue;
+    const id = branchStockId(resolved, product.id);
+    const existing = await db.branchStock.get(id);
+    const branchQty = existing
+      ? product.tracksExpiry === true
+        ? (existing.sellableQuantity ?? 0)
+        : existing.quantity
+      : 0;
+    if (branchQty > 0) continue;
+    const quantity = Math.max(0, product.stockQuantity);
+    const sellable = product.tracksExpiry === true ? catalogQty : quantity;
+    if (quantity <= 0 && sellable <= 0) continue;
+    await db.branchStock.put({
+      id,
+      branchId: resolved,
+      productId: product.id,
+      quantity,
+      sellableQuantity: sellable,
+      isExpiring: product.isExpiring,
+      updatedAt: Date.now(),
+    });
+    fixed += 1;
+  }
+  return fixed;
 }
 
 export async function applyLocalBranchStockChange(
@@ -219,27 +300,16 @@ export async function applyLocalBranchStockChange(
   const id = branchStockId(branchId, productId);
   const existing = await db.branchStock.get(id);
   const tracksExpiry = catalog.tracksExpiry === true;
-  const profileBranchId =
-    (await getMeta(db, META_KEYS.profileBranchId))?.trim() ||
-    (FULLY_OFFLINE ? MILLIES_LOCAL_BRANCH_ID : null);
+  const profileBranchId = await resolveProfileBranchId(db);
   const catalogQty = catalogSellableQuantity(catalog);
 
   if (existing) {
-    let baseQuantity = existing.quantity;
-    // Non-dated: always treat physical on-hand as the sellable base so a stale
-    // sellableQuantity of 0 cannot block a sale that the catalog already shows.
-    let baseSellable = tracksExpiry
+    // Do not heal catalog into the base before applying a delta — that rebased
+    // stale zeros onto catalog then added again, inflating restocks.
+    const baseQuantity = existing.quantity;
+    const baseSellable = tracksExpiry
       ? (existing.sellableQuantity ?? 0)
       : existing.quantity;
-
-    if (profileBranchId === branchId && catalogQty > 0) {
-      if (baseQuantity <= 0) {
-        baseQuantity = Math.max(0, catalog.stockQuantity);
-        baseSellable = catalogQty;
-      } else if (!tracksExpiry && baseSellable <= 0) {
-        baseSellable = baseQuantity;
-      }
-    }
 
     const nextQuantity = baseQuantity + quantityChange;
     const nextSellable = baseSellable + quantityChange;
